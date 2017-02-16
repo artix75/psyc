@@ -1,0 +1,6 @@
+*.bck
+*.o
+bin/*
+!bin/README
+tmp/*
+.DS_Store
