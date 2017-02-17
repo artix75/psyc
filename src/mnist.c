@@ -126,12 +126,12 @@ int loadMNISTData(int type,
     FILE * images = fopen(images_file, "r");
     FILE * labels = fopen(labels_file, "r");
     if (images == NULL) {
-        fprintf(stderr, "Cannot open %s!\n", tmpImagesFileName);
+        fprintf(stderr, "Cannot open %s\n", images_file);
         data = NULL;
         return 0;
     }
     if (labels == NULL) {
-        fprintf(stderr, "Cannot open %s!\n", tmpLabelsFileName);
+        fprintf(stderr, "Cannot open %s\n", labels_file);
         data = NULL;
         return 0;
     }

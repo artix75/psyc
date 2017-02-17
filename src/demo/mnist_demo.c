@@ -22,7 +22,7 @@ int main(int argc, char** argv) {
         return 1;
     }
     if (argc >= 5) {
-        testlen = loadMNISTData(TRAINING_DATA, argv[3], argv[4],
+        testlen = loadMNISTData(TEST_DATA, argv[3], argv[4],
                                 &test_data);
     }
     NeuralNetwork * network = createNetwork();

@@ -1,10 +1,14 @@
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
 #include <assert.h>
 #include <time.h>
 #include "neural.h"
+
+#define calculateConvolutionalSide(s,rs,st,pad) ((s - rs + 2 * pad) / st + 1)
+#define calculatePoolingSide(s, rs) ((s - rs) / rs + 1)
 
 static unsigned char randomSeeded = 0;
 
@@ -44,6 +48,113 @@ void fullFeedforward(NeuralNetwork * net, Layer * layer) {
         }
         neuron->z_value = sum + neuron->bias;
         neuron->activation = layer->activate(neuron->z_value);
+    }
+}
+
+void convolve(NeuralNetwork * net, Layer * layer) {
+    int size = layer->size;
+    assert(layer->neurons != NULL);
+    assert(layer->index > 0);
+    Layer * previous = net->layers[layer->index - 1];
+    assert(previous != NULL);
+    int i, j, x, y, row, col, previous_size = previous->size;
+    LayerParameters * parameters = layer->parameters;
+    LayerParameters * previous_parameters = previous->parameters;
+    assert(parameters != NULL);
+    assert(previous_parameters != NULL);
+    double * params = parameters->parameters;
+    double * previous_params = previous_parameters->parameters;
+    int feature_count = (int) (params[FEATURE_COUNT]);
+    int stride = (int) (params[STRIDE]);
+    double region_size = params[REGION_SIZE];
+    double region_area = region_size * region_size;
+    double input_w = previous_params[OUTPUT_WIDTH];
+    double input_h = previous_params[OUTPUT_HEIGHT];
+    double output_w = params[OUTPUT_WIDTH];
+    double output_h = params[OUTPUT_HEIGHT];
+    int feature_size = layer->size / feature_count;
+    ConvolutionalSharedParams * shared;
+    shared = (ConvolutionalSharedParams*) layer->extra;
+    assert(shared != NULL);
+    for (i = 0; i < feature_count; i++) {
+        double bias = shared->biases[i];
+        double * weights = shared->weights[i];
+        row = 0;
+        col = 0;
+        for (j = 0; j < feature_size; j++) {
+            int idx = (i * feature_size) + j;
+            Neuron * neuron = layer->neurons[idx];
+            col = idx % (int) output_w;
+            if (col == 0 && j > 0) row++;
+            int r_row = row * stride;
+            int r_col = col * stride;
+            int max_x = region_size + r_col;
+            int max_y = region_size + r_row;
+            double sum = 0;
+            int widx = 0;
+            //printf("Neuron %d,%d: r: %d, b: %d\n", col, row, max_x, max_y);
+            for (y = r_row; y < max_y; y++) {
+                for (x = r_col; x < max_x; x++) {
+                    int nidx = (y * input_w) + x;
+                    //printf("  -> %d,%d [%d]\n", x, y, nidx);
+                    Neuron * prev_neuron = previous->neurons[nidx];
+                    double a = prev_neuron->activation;
+                    sum += (a * weights[widx++]);
+                }
+            }
+            neuron->z_value = sum + bias;
+            neuron->activation = layer->activate(neuron->z_value);
+        }
+    }
+}
+
+void pool(NeuralNetwork * net, Layer * layer) {
+    int size = layer->size;
+    assert(layer->neurons != NULL);
+    assert(layer->index > 0);
+    //assert(layer->type == Pooling);
+    Layer * previous = net->layers[layer->index - 1];
+    assert(previous != NULL);
+    int i, j, x, y, row, col, previous_size = previous->size;
+    LayerParameters * parameters = layer->parameters;
+    LayerParameters * previous_parameters = previous->parameters;
+    assert(parameters != NULL);
+    assert(previous_parameters != NULL);
+    double * params = parameters->parameters;
+    double * previous_params = previous_parameters->parameters;
+    int feature_count = (int) (params[FEATURE_COUNT]);
+    double region_size = params[REGION_SIZE];
+    double region_area = region_size * region_size;
+    double input_w = previous_params[OUTPUT_WIDTH];
+    double input_h = previous_params[OUTPUT_HEIGHT];
+    double output_w = params[OUTPUT_WIDTH];
+    double output_h = params[OUTPUT_HEIGHT];
+    int feature_size = layer->size / feature_count;
+    int prev_size = previous->size / feature_count;
+    for (i = 0; i < feature_count; i++) {
+        row = 0;
+        col = 0;
+        for (j = 0; j < feature_size; j++) {
+            int idx = (i * feature_size) + j;
+            Neuron * neuron = layer->neurons[idx];
+            col = idx % (int) output_w;
+            if (col == 0 && j > 0) row++;
+            int r_row = row * region_size;
+            int r_col = col * region_size;
+            int max_x = region_size + r_col;
+            int max_y = region_size + r_row;
+            double max = 0;
+            for (y = r_row; y < max_y; y++) {
+                for (x = r_col; x < max_x; x++) {
+                    int nidx = ((y * input_w) + x) + (prev_size * i);
+                    Neuron * prev_neuron = previous->neurons[nidx];
+                    double a = prev_neuron->activation;
+                    if (a > max) max = a;
+                }
+            }
+            neuron->z_value = max;
+            neuron->activation = max;
+        }
     }
 }
 
@@ -89,7 +200,7 @@ static void shuffle ( double * array, int size, int element_size )
     }
 }
 
-int arrayMax(double * array, int len) {
+int arrayMaxIndex(double * array, int len) {
     int i;
     double max = 0;
     int max_idx = 0;
@@ -101,6 +212,39 @@ int arrayMax(double * array, int len) {
         }
     }
     return max_idx;
+}
+
+double arrayMax(double * array, int len) {
+    int i;
+    double max = 0;
+    for (i = 0; i < len; i++) {
+        double v = array[i];
+        if (v > max) {
+            max = v;
+        }
+    }
+    return max;
+}
+
+char * getLayerTypeLabel(Layer * layer) {
+    switch (layer->type) {
+        case FullyConnected:
+            return "fully_connected";
+            break;
+        case Convolutional:
+            return "convolutional";
+            break;
+        case Pooling:
+            return "pooling";
+            break;
+        case Recurrent:
+            return "recurrent";
+            break;
+        case LSTM:
+            return "lstm";
+            break;
+    }
+    return "UNKOWN";
 }
 
 /* NN functions */
@@ -213,6 +357,189 @@ void deleteNeuron(Neuron * neuron) {
     free(neuron);
 }
 
+void abortLayer(NeuralNetwork * network, Layer * layer) {
+    if (layer->index == (network->size - 1)) {
+        network->size--;
+        deleteLayer(layer);
+    }
+}
+
+int initConvolutionalLayer(NeuralNetwork * network, Layer * layer,
+                           LayerParameters * parameters) {
+    int index = layer->index;
+    Layer * previous = network->layers[index - 1];
+    if (previous->type != FullyConnected) {
+        fprintf(stderr,
+                "FullyConnected -> Convolutional trans. not supported ATM :(");
+        abortLayer(network, layer);
+        return 0;
+    }
+    if (parameters == NULL) {
+        fputs("Layer parameters is NULL!\n", stderr);
+        abortLayer(network, layer);
+        return 0;
+    }
+    if (parameters->count < CONV_PARAMETER_COUNT) {
+        fprintf(stderr, "Convolutional Layer parameters count must be %d\n",
+                CONV_PARAMETER_COUNT);
+        abortLayer(network, layer);
+        return 0;
+    }
+    double * params = parameters->parameters;
+    int feature_count = (int) (params[FEATURE_COUNT]);
+    if (feature_count <= 0) {
+        fprintf(stderr, "FEATURE_COUNT must be > 0 (given: %d)", feature_count);
+        abortLayer(network, layer);
+        return 0;
+    }
+    double region_size = params[REGION_SIZE];
+    if (region_size <= 0) {
+        fprintf(stderr, "REGION_SIZE must be > 0 (given: %lf)", region_size);
+        abortLayer(network, layer);
+        return 0;
+    }
+    int previous_size = previous->size;
+    LayerParameters * previous_params = previous->parameters;
+    double input_w, input_h, output_w, output_h;
+    if (previous_params == NULL) {
+        double w = sqrt(previous_size);
+        input_w = w; input_h = w;
+        previous_params = createConvolutionalParameters(1, 0, 0, 0);
+        previous_params->parameters[OUTPUT_WIDTH] = input_w;
+        previous_params->parameters[OUTPUT_HEIGHT] = input_h;
+        previous->parameters = previous_params;
+    } else {
+        double input_w, input_h, prev_area;
+        input_w = previous_params->parameters[OUTPUT_WIDTH];
+        input_h = previous_params->parameters[OUTPUT_HEIGHT];
+        prev_area = input_w * input_h;
+        if ((int) prev_area != previous_size) {
+            fprintf(stderr, "Previous size %d != %lfx%lf\n",
+                    previous_size, input_w, input_h);
+            abortLayer(network, layer);
+            return 0;
+        }
+    }
+    params[INPUT_WIDTH] = input_w;
+    params[INPUT_HEIGHT] = input_h;
+    int stride = (int) params[STRIDE];
+    int padding = (int) params[PADDING];
+    if (stride == 0) stride = 1;
+    output_w =  calculateConvolutionalSide(input_w, region_size,
+                                           (double) stride, (double) padding);
+    output_h =  calculateConvolutionalSide(input_h, region_size,
+                                           (double) stride, (double) padding);
+    params[OUTPUT_WIDTH] = output_w;
+    params[OUTPUT_HEIGHT] = output_h;
+    int area = (int)(output_w * output_h);
+    int size = area * feature_count;
+    layer->size = size;
+    layer->neurons = malloc(sizeof(Neuron*) * size);
+    ConvolutionalSharedParams * shared;
+    shared = malloc(sizeof(ConvolutionalSharedParams));
+    shared->feature_count = feature_count;
+    shared->weights_size = (int)(region_size * region_size);
+    shared->biases = malloc(feature_count * sizeof(double));
+    shared->weights = malloc(feature_count * sizeof(double*));
+    layer->extra = shared;
+    int i, j, w;
+    for (i = 0; i < feature_count; i++) {
+        shared->biases[i] = gaussian_random(0, 1);
+        shared->weights[i] = malloc(shared->weights_size * sizeof(double));
+        for (w = 0; w < shared->weights_size; w++) {
+            shared->weights[i][w] = gaussian_random(0, 1);
+        }
+        for (j = 0; j < area; j++) {
+            int idx = (i * area) + j;
+            Neuron * neuron = malloc(sizeof(Neuron));
+            neuron->index = idx;
+            neuron->weights_size = shared->weights_size;
+            neuron->bias = shared->biases[i];
+            neuron->weights = shared->weights[i];
+            layer->neurons[idx] = neuron;
+        }
+    }
+    layer->activate = sigmoid;
+    layer->prime = sigmoid_prime;
+    layer->feedforward = convolve;
+    return 1;
+}
+
+int initPoolingLayer(NeuralNetwork * network, Layer * layer,
+                     LayerParameters * parameters) {
+    int index = layer->index;
+    Layer * previous = network->layers[index - 1];
+    if (previous->type != Convolutional) {
+        fprintf(stderr,
+                "Pooling's previous layer must be a Convolutional layer!");
+        abortLayer(network, layer);
+        return 0;
+    }
+    if (parameters == NULL) {
+        fputs("Layer parameters is NULL!\n", stderr);
+        abortLayer(network, layer);
+        return 0;
+    }
+    if (parameters->count < CONV_PARAMETER_COUNT) {
+        fprintf(stderr, "Convolutional Layer parameters count must be %d\n",
+                CONV_PARAMETER_COUNT);
+        abortLayer(network, layer);
+        return 0;
+    }
+    double * params = parameters->parameters;
+    LayerParameters * previous_parameters = previous->parameters;
+    if (previous_parameters == NULL) {
+        fputs("Previous layer parameters is NULL!\n", stderr);
+        abortLayer(network, layer);
+        return 0;
+    }
+    if (previous_parameters->count < CONV_PARAMETER_COUNT) {
+        fprintf(stderr, "Convolutional Layer parameters count must be %d\n",
+                CONV_PARAMETER_COUNT);
+        abortLayer(network, layer);
+        return 0;
+    }
+    double * previous_params = previous_parameters->parameters;
+    int feature_count = (int) (previous_params[FEATURE_COUNT]);
+    double region_size = params[REGION_SIZE];
+    if (region_size <= 0) {
+        fprintf(stderr, "REGION_SIZE must be > 0 (given: %lf)", region_size);
+        abortLayer(network, layer);
+        return 0;
+    }
+    int previous_size = previous->size;
+    double input_w, input_h, output_w, output_h;
+    input_w = previous_params[OUTPUT_WIDTH];
+    input_h = previous_params[OUTPUT_HEIGHT];
+    params[INPUT_WIDTH] = input_w;
+    params[INPUT_HEIGHT] = input_h;
+    
+    output_w = calculatePoolingSide(input_w, region_size);
+    output_h = calculatePoolingSide(input_h, region_size);
+    params[OUTPUT_WIDTH] = output_w;
+    params[OUTPUT_HEIGHT] = output_h;
+    int area = (int)(output_w * output_h);
+    int size = area * feature_count;
+    layer->size = size;
+    layer->neurons = malloc(sizeof(Neuron*) * size);
+    int i, j, w;
+    for (i = 0; i < feature_count; i++) {
+        for (j = 0; j < area; j++) {
+            int idx = (i * area) + j;
+            Neuron * neuron = malloc(sizeof(Neuron));
+            neuron->index = idx;
+            neuron->weights_size = 0;
+            neuron->bias = NULL_VALUE;
+            neuron->weights = NULL;
+            layer->neurons[idx] = neuron;
+        }
+    }
+    layer->activate = NULL;
+    layer->prime = NULL;
+    layer->feedforward = pool;
+    return 1;
+}
+
 Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
                  LayerParameters* params) {
     if (network->size == 0 && type != FullyConnected) {
@@ -223,6 +550,8 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
     layer->index = network->size++;
     layer->type = type;
     layer->size = size;
+    layer->parameters = params;
+    layer->extra = NULL;
     Layer * previous = NULL;
     int previous_size = 0;
     printf("Adding layer %d\n", layer->index);
@@ -237,38 +566,49 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
         previous_size = previous->size;
         network->output_size = size;
     }
-    layer->neurons = malloc(sizeof(Neuron*) * size);
-    int i, j;
-    for (i = 0; i < size; i++) {
-        Neuron * neuron = malloc(sizeof(Neuron));
-        neuron->index = 0;
-        if (layer->index > 0) {
-            neuron->weights_size = previous_size;
-            neuron->bias = gaussian_random(0, 1);
-            neuron->weights = malloc(sizeof(double) * previous_size);
-            for (j = 0; j < previous_size; j++) {
-                neuron->weights[j] = gaussian_random(0, 1);
-            }
-        } else {
-            neuron->bias = 0;
-            neuron->weights_size = 0;
-            neuron->weights = NULL;
-        }
-        neuron->activation = 0;
-        neuron->z_value = 0;
-        //printf("Adding neuron %d\n", i);
-        layer->neurons[i] = neuron;
-    }
     if (type == FullyConnected) {
+        layer->neurons = malloc(sizeof(Neuron*) * size);
+        int i, j;
+        for (i = 0; i < size; i++) {
+            Neuron * neuron = malloc(sizeof(Neuron));
+            neuron->index = i;
+            if (layer->index > 0) {
+                neuron->weights_size = previous_size;
+                neuron->bias = gaussian_random(0, 1);
+                neuron->weights = malloc(sizeof(double) * previous_size);
+                neuron->extra = NULL;
+                for (j = 0; j < previous_size; j++) {
+                    neuron->weights[j] = gaussian_random(0, 1);
+                }
+            } else {
+                neuron->bias = 0;
+                neuron->weights_size = 0;
+                neuron->weights = NULL;
+                neuron->extra = NULL;
+            }
+            neuron->activation = 0;
+            neuron->z_value = 0;
+            //printf("Adding neuron %d\n", i);
+            layer->neurons[i] = neuron;
+        }
         layer->activate = sigmoid;
         layer->prime = sigmoid_prime;
         layer->feedforward = fullFeedforward;
     } else if (type == Convolutional) {
-        layer->activate = sigmoid;
-        // TODO
+        initConvolutionalLayer(network, layer, params);
+    } else if (type == Pooling) {
+        initPoolingLayer(network, layer, params);
     }
     network->layers[layer->index] = layer;
     return layer;
+}
+
+Layer * addConvolutionalLayer(NeuralNetwork * network, LayerParameters* params){
+    return addLayer(network, Convolutional, 0, params);
+}
+
+Layer * addPoolingLayer(NeuralNetwork * network, LayerParameters* params) {
+    return addLayer(network, Pooling, 0, params);
 }
 
 void deleteLayer(Layer* layer) {
@@ -276,9 +616,83 @@ void deleteLayer(Layer* layer) {
     int i;
     for (i = 0; i < size; i++) {
         Neuron* neuron = layer->neurons[i];
-        deleteNeuron(neuron);
+        if (layer->type != Convolutional)
+            deleteNeuron(neuron);
+        else
+            free(neuron);
+    }
+    LayerParameters * params = layer->parameters;
+    if (params != NULL) deleteLayerParamenters(params);
+    void * extra = layer->extra;
+    if (extra != NULL) {
+        if (layer->type == Convolutional) {
+            ConvolutionalSharedParams * shared;
+            shared = (ConvolutionalSharedParams*) extra;
+            int fc = shared->feature_count;
+            //int ws = shared->weights_size;
+            if (shared->biases != NULL) free(shared->biases);
+            if (shared->weights != NULL) {
+                int i;
+                for (i = 0; i < fc; i++) free(shared->weights[i]);
+                free(shared->weights);
+            }
+        } else free(extra);
     }
     free(layer);
+}
+
+LayerParameters * createLayerParamenters(int count, ...) {
+    LayerParameters * params = malloc(sizeof(LayerParameters));
+    params->count = count;
+    if (count == 0) params->parameters = NULL;
+    else {
+        params->parameters = malloc(sizeof(double) * count);
+        va_list args;
+        va_start(args, count);
+        int i;
+        for (i = 0; i < count; i++)
+            params->parameters[i] = va_arg(args, double);
+        va_end(args);
+    }
+    return params;
+}
+
+LayerParameters * createConvolutionalParameters(double feature_count,
+                                                double region_size,
+                                                int stride,
+                                                int padding) {
+    return createLayerParamenters(CONV_PARAMETER_COUNT, feature_count,
+                                  region_size, (double) stride,
+                                  0.0f, 0.0f, 0.0f, 0.0f, (double) padding);
+}
+
+void setLayerParameter(LayerParameters * params, int param, double value) {
+    if (params->parameters == NULL) {
+        int len = param + 1;
+        params->parameters = malloc(sizeof(double) * len);
+        memset(params->parameters, 0.0f, sizeof(double) * len);
+        params->count = len;
+    } else if (param >= params->count) {
+        int len = params->count;
+        int new_len = param + 1;
+        double * old_params = params->parameters;
+        size_t size = sizeof(double) * new_len;
+        params->parameters = malloc(sizeof(double) * size);
+        memset(params->parameters, 0.0f, sizeof(double) * size);
+        memcpy(params->parameters, old_params, len * sizeof(double));
+        free(old_params);
+    }
+    params->parameters[param] = value;
+}
+
+void addLayerParameter(LayerParameters * params, double val) {
+    setLayerParameter(params, params->count + 1, val);
+}
+
+void deleteLayerParamenters(LayerParameters * params) {
+    if (params == NULL) return;
+    if (params->parameters != NULL) free(params->parameters);
+    free(params);
 }
 
 void feedforward(NeuralNetwork * network, double * values) {
@@ -546,8 +960,8 @@ float test(NeuralNetwork * network, double * test_data, int data_size) {
             Neuron * neuron = output_layer->neurons[j];
             outputs[j] = neuron->activation;
         }
-        int omax = arrayMax(outputs, output_size);
-        int emax = arrayMax(expected, output_size);
+        int omax = arrayMaxIndex(outputs, output_size);
+        int emax = arrayMaxIndex(expected, output_size);
         if (omax == emax) correct_results++;
         test_data += output_size;
     }
