@@ -9,6 +9,8 @@
 
 #define calculateConvolutionalSide(s,rs,st,pad) ((s - rs + 2 * pad) / st + 1)
 #define calculatePoolingSide(s, rs) ((s - rs) / rs + 1)
+#define getColumn(index, width) (index % width)
+#define getRow(index, width) ((int) ((int) index / (int) width))
 
 static unsigned char randomSeeded = 0;
 
@@ -535,7 +537,7 @@ int initPoolingLayer(NeuralNetwork * network, Layer * layer,
         }
     }
     layer->activate = NULL;
-    layer->prime = NULL;
+    layer->prime = sigmoid_prime;
     layer->feedforward = pool;
     return 1;
 }
@@ -721,15 +723,32 @@ void feedforward(NeuralNetwork * network, double * values) {
 }
 
 Delta * emptyLayer(Layer * layer) {
-    Delta * delta = malloc(sizeof(Delta) * layer->size);
-    int i;
-    for (i = 0; i < layer->size; i++) {
-        Neuron * neuron = layer->neurons[i];
-        int ws = neuron->weights_size;
+    Delta * delta;
+    LayerType ltype = layer->type;
+    if (ltype == Pooling) return NULL;
+    int size = layer->size;
+    LayerParameters * parameters = NULL;
+    if (ltype == Convolutional) {
+        parameters = layer->parameters;
+        assert(parameters != NULL);
+        size = (int) (parameters->parameters[FEATURE_COUNT]);
+    }
+    delta = malloc(sizeof(Delta) * size);
+    int i, ws = 0;
+    for (i = 0; i < size; i++) {
+        if (ltype == Convolutional) {
+            if (!ws) {
+                int region_size = (int) (parameters->parameters[REGION_SIZE]);
+                ws = region_size * region_size;
+            }
+        } else {
+            Neuron * neuron = layer->neurons[i];
+            ws = neuron->weights_size;
+        }
+        delta[i].bias = 0;
         int memsize = sizeof(double) * ws;
         delta[i].weights = malloc(memsize);
         memset(delta[i].weights, 0, memsize);
-        delta[i].bias = 0;
     }
     return delta;
 }
@@ -757,10 +776,102 @@ void deleteDeltas(Delta ** deltas, NeuralNetwork * network) {
     int i;
     for (i = 1; i < network->size; i++) {
         Delta * delta = deltas[i - 1];
+        if (delta == NULL) continue;
         Layer * layer = network->layers[i];
-        deleteDelta(delta, layer->size);
+        int lsize;
+        if (layer->type == Convolutional) {
+            LayerParameters * params = layer->parameters;
+            lsize = (int) (params->parameters[FEATURE_COUNT]);
+        } else lsize = layer->size;
+        deleteDelta(delta, lsize);
     }
     free(deltas);
+}
+
+double * backpropPoolingToConv(NeuralNetwork * network, Layer * pooling_layer,
+                               Layer * convolutional_layer, double * delta_v) {
+    int conv_size = convolutional_layer->size;
+    double * new_delta_v = malloc(sizeof(double) * conv_size);
+    memset(new_delta_v, 0, sizeof(double) * conv_size);
+    LayerParameters * pool_params = pooling_layer->parameters;
+    LayerParameters * conv_params = convolutional_layer->parameters;
+    int feature_count = (int) (conv_params->parameters[FEATURE_COUNT]);
+    int pool_size = (int) (pool_params->parameters[REGION_SIZE]);
+    int feature_size = pooling_layer->size / feature_count;
+    double input_w = pool_params->parameters[INPUT_WIDTH];
+    double output_w = pool_params->parameters[OUTPUT_WIDTH];
+    int prev_size = convolutional_layer->size / feature_count;
+    int i, j, row, col, x, y;
+    for (i = 0; i < feature_count; i++) {
+        row = 0;
+        col = 0;
+        for (j = 0; j < feature_size; j++) {
+            int idx = j + (i * feature_size);
+            double d = delta_v[idx];
+            Neuron * neuron = pooling_layer->neurons[idx];
+            col = idx % (int) output_w;
+            if (col == 0 && j > 0) row++;
+            int r_row = row * pool_size;
+            int r_col = col * pool_size;
+            int max_x = pool_size + r_col;
+            int max_y = pool_size + r_row;
+            double max = 0;
+            for (y = r_row; y < max_y; y++) {
+                for (x = r_col; x < max_x; x++) {
+                    int nidx = ((y * input_w) + x) + (prev_size * i);
+                    Neuron * prev_neuron = convolutional_layer->neurons[nidx];
+                    double a = prev_neuron->activation;
+                    new_delta_v[nidx] = (a < neuron->activation ? 0 : d);
+                }
+            }
+            
+        }
+    }
+    return new_delta_v;
+}
+
+double * backpropConvToFull(NeuralNetwork * network, Layer* convolutional_layer,
+                            Layer * full_layer, double * delta_v,
+                            Delta * ldelta) {
+    int size = convolutional_layer->size;
+    LayerParameters * params = convolutional_layer->parameters;
+    int feature_count = (int) (params->parameters[FEATURE_COUNT]);
+    int region_size = (int) (params->parameters[REGION_SIZE]);
+    int stride = (int) (params->parameters[STRIDE]);
+    double input_w = params->parameters[INPUT_WIDTH];
+    double output_w = params->parameters[OUTPUT_WIDTH];
+    int feature_size = size / feature_count;
+    int wsize = region_size * region_size;
+    int i, j, row, col, x, y;
+    for (i = 0; i < feature_count; i++) {
+        Delta * feature_delta = &(ldelta[i]);
+        row = 0;
+        col = 0;
+        for (j = 0; j < feature_size; j++) {
+            int idx = j + (i * feature_size);
+            double d = delta_v[idx];
+            feature_delta->bias += d;
+            
+            col = idx % (int) output_w;
+            if (col == 0 && j > 0) row++;
+            int r_row = row * stride;
+            int r_col = col * stride;
+            int max_x = region_size + r_col;
+            int max_y = region_size + r_row;
+            int widx = 0;
+            for (y = r_row; y < max_y; y++) {
+                for (x = r_col; x < max_x; x++) {
+                    int nidx = (y * input_w) + x;
+                    //printf("  -> %d,%d [%d]\n", x, y, nidx);
+                    Neuron * prev_neuron = full_layer->neurons[nidx];
+                    double a = prev_neuron->activation;
+                    feature_delta->weights[widx++] += (a * d);
+                }
+            }
+            
+        }
+    }
+    return NULL;
 }
 
 Delta ** backprop(NeuralNetwork * network, double * x, double * y) {
@@ -800,30 +911,64 @@ Delta ** backprop(NeuralNetwork * network, double * x, double * y) {
         nextLayer = network->layers[i + 1];
         layer_delta = deltas[i - 1];
         int lsize = layer->size;
-        delta_v = malloc(sizeof(double) * lsize);
-        memset(delta_v, 0, sizeof(double) * lsize);
-        for (j = 0; j < lsize; j++) {
-            Neuron * neuron = layer->neurons[j];
-            double sum = 0;
-            for (k = 0; k < nextLayer->size; k++) {
-                Neuron * nextNeuron = nextLayer->neurons[k];
-                double weight = nextNeuron->weights[j];
-                double d = last_delta_v[k];
-                sum += (d * weight);
+        LayerType ltype = layer->type;
+        LayerType prev_ltype = previousLayer->type;
+        if (FullyConnected == ltype) {
+            delta_v = malloc(sizeof(double) * lsize);
+            memset(delta_v, 0, sizeof(double) * lsize);
+            for (j = 0; j < lsize; j++) {
+                Neuron * neuron = layer->neurons[j];
+                double sum = 0;
+                for (k = 0; k < nextLayer->size; k++) {
+                    Neuron * nextNeuron = nextLayer->neurons[k];
+                    double weight = nextNeuron->weights[j];
+                    double d = last_delta_v[k];
+                    sum += (d * weight);
+                }
+                double dv = sum * layer->prime(neuron->z_value);
+                delta_v[j] = dv;
+                Delta * n_delta = &(layer_delta[j]);
+                n_delta->bias = dv;
+                for (w = 0; w < neuron->weights_size; w++) {
+                    double prev_a = previousLayer->neurons[w]->activation;
+                    n_delta->weights[w] = dv * prev_a;
+                }
             }
-            double dv = sum * layer->prime(neuron->z_value);
-            delta_v[j] = dv;
-            Delta * n_delta = &(layer_delta[j]);
-            n_delta->bias = dv;
-            for (w = 0; w < neuron->weights_size; w++) {
-                double prev_a = previousLayer->neurons[w]->activation;
-                n_delta->weights[w] = dv * prev_a;
+        } else if (Pooling == ltype && Convolutional == prev_ltype) {
+            delta_v = malloc(sizeof(double) * lsize);
+            memset(delta_v, 0, sizeof(double) * lsize);
+            for (j = 0; j < lsize; j++) {
+                Neuron * neuron = layer->neurons[j];
+                double sum = 0;
+                for (k = 0; k < nextLayer->size; k++) {
+                    Neuron * nextNeuron = nextLayer->neurons[k];
+                    double weight = nextNeuron->weights[j];
+                    double d = last_delta_v[k];
+                    sum += (d * weight);
+                }
+                double dv = sum * layer->prime(neuron->z_value);
+                delta_v[j] = dv;
             }
+            free(last_delta_v);
+            last_delta_v = backpropPoolingToConv(network, layer,
+                                            previousLayer, delta_v);
+            free(delta_v);
+            continue;
+        } else if (Convolutional == ltype && FullyConnected == prev_ltype) {
+            delta_v = backpropConvToFull(network, layer, previousLayer,
+                                         delta_v, layer_delta);
+        } else {
+            fprintf(stderr, "Backprop from %s to %s not suported!\n",
+                    getLayerTypeLabel(layer),
+                    getLayerTypeLabel(previousLayer));
+            free(last_delta_v);
+            free(delta_v);
+            exit(1);
         }
         free(last_delta_v);
         last_delta_v = delta_v;
     }
-    free(delta_v);
+    if (delta_v != NULL) free(delta_v);
     return deltas;
 }
 
@@ -845,13 +990,24 @@ void updateWeights(NeuralNetwork * network, double * training_data,
             Layer * layer = network->layers[j + 1];
             Delta * layer_delta_bp = bp_deltas[j];
             Delta * layer_delta = deltas[j];
+            if (layer_delta == NULL) continue;
             int lsize = layer->size;
+            int wsize = 0;
+            if (layer->type == Convolutional) {
+                LayerParameters * params = layer->parameters;
+                lsize = (int) (params->parameters[FEATURE_COUNT]);
+                int rsize = (int) (params->parameters[REGION_SIZE]);
+                wsize = rsize * rsize;
+            }
             for (k = 0; k < lsize; k++) {
-                Neuron * neuron = layer->neurons[k];
+                if (!wsize) {
+                    Neuron * neuron = layer->neurons[k];
+                    wsize = neuron->weights_size;
+                }
                 Delta * n_delta_bp = &(layer_delta_bp[k]);
                 Delta * n_delta = &(layer_delta[k]);
                 n_delta->bias += n_delta_bp->bias;
-                for (w = 0; w < neuron->weights_size; w++) {
+                for (w = 0; w < wsize; w++) {
                     n_delta->weights[w] += n_delta_bp->weights[w];
                 }
             }
@@ -860,20 +1016,33 @@ void updateWeights(NeuralNetwork * network, double * training_data,
     }
     for (i = 0; i < dsize; i++) {
         Delta * l_delta = deltas[i];
+        if (l_delta == NULL) continue;
         Layer * layer = network->layers[i + 1];
-        int l_size = layer->size;
+        LayerType ltype = layer->type;
+        int l_size;
+        ConvolutionalSharedParams * shared = NULL;
+        if (ltype == Convolutional) {
+            LayerParameters * params = layer->parameters;
+            l_size = (int) (params->parameters[FEATURE_COUNT]);
+            shared = (ConvolutionalSharedParams*) layer->extra;
+        } else l_size = layer->size;
         for (j = 0; j < l_size; j++) {
             Delta * d = &(l_delta[j]);
-            Neuron * neuron = layer->neurons[j];
-            neuron->bias = neuron->bias - r * d->bias;
-            //printf("Layer %d n. %d: bias delta %lf\n", layer->index, j, d->bias);
-            for (k = 0; k < neuron->weights_size; k++) {
-                double w = neuron->weights[k];
-                neuron->weights[k] = w - r * d->weights[k];
-                //printf("  -> weight[%d]: delta %lf\n", k, d->weights[k]);
-                //printf("%.3lf ", d->weights[k]);
+            if (shared == NULL) {
+                Neuron * neuron = layer->neurons[j];
+                neuron->bias = neuron->bias - r * d->bias;
+                for (k = 0; k < neuron->weights_size; k++) {
+                    double w = neuron->weights[k];
+                    neuron->weights[k] = w - r * d->weights[k];
+                }
+            } else {
+                shared->biases[j] += d->bias;
+                double * weights = shared->weights[j];
+                for (k = 0; k < shared->weights_size; k++) {
+                    double w = weights[k];
+                    weights[k] = w - r * d->weights[k];
+                }
             }
-            //printf("\n");
         }
     }
     deleteDeltas(deltas, network);

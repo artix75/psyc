@@ -1,10 +1,14 @@
 SHELL=/bin/bash
 CC=gcc
 
-mnist_demo:
-	cd src/demo/ && make
+demo:
+	cd src/demo/ && make all
 clean:
-	rm -R src/*.o && rm bin/*
-all: mnist_demo
+	if [ -e bin/README ]; then cp bin/README tmp/; fi
+	rm -f src/*.o
+	rm -f src/demo/*.o
+	rm -f bin/*
+	if [ -e tmp/README ]; then cp tmp/README bin/; fi
+all: demo
 	
         
