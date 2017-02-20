@@ -276,7 +276,7 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
         fprintf(stderr, "Invalid file %s!\n", filename);
         return 0;
     }
-    if (empty && network->size != netsize) {
+    if (!empty && network->size != netsize) {
         fprintf(stderr, "Network size differs!\n");
         return 0;
     }
