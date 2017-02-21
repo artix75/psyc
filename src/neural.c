@@ -274,10 +274,12 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
     int matched = fscanf(f, "%d:", &netsize);
     if (!matched) {
         fprintf(stderr, "Invalid file %s!\n", filename);
+        fclose(f);
         return 0;
     }
     if (!empty && network->size != netsize) {
         fprintf(stderr, "Network size differs!\n");
+        fclose(f);
         return 0;
     }
     char sep[] = ",";
@@ -285,42 +287,124 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
     Layer * layer = NULL;
     for (i = 0; i < netsize; i++) {
         int lsize = 0;
+        LayerType ltype = FullyConnected;
+        int args[20];
+        int argc = 0, aidx = 0;
         char * last = (i == (netsize - 1) ? eol : sep);
-        char fmt[5];
+        char fmt[50];
         sprintf(fmt, "%%d%s", last);
         matched = fscanf(f, fmt, &lsize);
         if (!matched) {
-            fputs("Invalid header!\n", stderr);
-            return 0;
+            int type = 0, arg = 0;
+            argc = 0;
+            matched = fscanf(f, "[%d,%d", &type, &argc);
+            if (!matched) {
+                fputs("Invalid header!\n", stderr);
+                fclose(f);
+                return 0;
+            }
+            if (argc == 0) {
+                fputs("Layer must have at least 1 argument (size)\n", stderr);
+                fclose(f);
+                return 0;
+            }
+            ltype = (LayerType) type;
+            for (aidx = 0; aidx < argc; aidx++) {
+                matched = fscanf(f, ",%d", &arg);
+                if (!matched) {
+                    fputs("Invalid header!\n", stderr);
+                    fclose(f);
+                    return 0;
+                }
+                if (aidx == 0) lsize = arg;
+                else args[aidx - 1] = arg;
+            }
         }
         if (!empty) {
             layer = network->layers[i];
             if (layer->size != lsize) {
                 fprintf(stderr, "Layer %d size %d differs from %d!\n", i,
                         layer->size, lsize);
+                fclose(f);
                 return 0;
             }
+            if (ltype != layer->type) {
+                fprintf(stderr, "Layer %d type %d differs from %d!\n", i,
+                        (int) (layer->type), (int) ltype);
+                fclose(f);
+                return 0;
+            }
+            if (ltype == Convolutional || ltype == Pooling) {
+                LayerParameters * params = layer->parameters;
+                assert(params != NULL);
+                for (aidx = 0; aidx < argc; aidx++) {
+                    if (aidx >= params->count) break;
+                    int arg = args[aidx];
+                    double val = params->parameters[aidx];
+                    if (arg != (int) val) {
+                        fprintf(stderr, "Layer %d arg[%d] %d diff. from %d!\n",
+                                i, aidx,(int) val, arg);
+                        fclose(f);
+                        return 0;
+                    }
+                }
+            }
         } else {
-            layer = addLayer(network, FullyConnected, lsize, NULL);
+            layer = NULL;
+            if (ltype == FullyConnected) {
+                layer = addLayer(network, ltype, lsize, NULL);
+            } else if (ltype == Convolutional || ltype == Pooling) {
+                LayerParameters * params = createLayerParamenters(argc);
+                for (aidx = 0; aidx < argc; aidx++) {
+                    int arg = args[aidx];
+                    params->parameters[aidx] = (double) arg;
+                }
+                layer = addLayer(network, ltype, lsize, params);
+            }
             if (layer == NULL) {
                 fprintf(stderr, "Could not create layer %d\n", i);
+                fclose(f);
                 return 0;
             }
         }
     }
     for (i = 1; i < network->size; i++) {
         layer = network->layers[i];
-        int lsize = layer->size;
+        int lsize = 0;
+        ConvolutionalSharedParams * shared = NULL;
+        if (layer->type == FullyConnected) {
+            lsize = layer->size;
+        } else if (layer->type == Convolutional) {
+            shared = (ConvolutionalSharedParams*) layer->extra;
+            if (shared == NULL) {
+                fprintf(stderr, "Layer %d, missing shared params!\n", i);
+                fclose(f);
+                return 0;
+            }
+            lsize = shared->feature_count;
+        } else if (layer->type == Pooling) {
+            continue;
+        }
         for (j = 0; j < lsize; j++) {
             double bias = 0;
-            Neuron * neuron = layer->neurons[j];
-            int wsize = neuron->weights_size;
+            int wsize = 0;
+            double * weights = NULL;
             matched = fscanf(f, "%lf|", &bias);
             if (!matched) {
                 fprintf(stderr, "Layer %d, neuron %d: invalid bias!\n", i, j);
+                fclose(f);
                 return 0;
             }
-            neuron->bias = bias;
+            if (shared == NULL) {
+                Neuron * neuron = layer->neurons[j];
+                wsize = neuron->weights_size;
+                neuron->bias = bias;
+                weights = neuron->weights;
+            } else {
+                shared->biases[j] = bias;
+                wsize = shared->weights_size;
+                weights = shared->weights[j];
+            }
             for (k = 0; k < wsize; k++) {
                 double w = 0;
                 char * last = (k == (wsize - 1) ? eol : sep);
@@ -330,10 +414,11 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
                 if (!matched) {
                     fprintf(stderr,"\nLayer %d neuron %d: invalid weight[%d]\n",
                             i, j, k);
+                    fclose(f);
                     return 0;
                 }
-                neuron->weights[k] = w;
-                printf("\rLoading layer %d, neuron %d                ", i, j);
+                weights[k] = w;
+                printf("\rLoading layer %d, neuron %d   ", i, j);
                 fflush(stdout);
             }
         }
@@ -341,6 +426,73 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
     printf("\n");
     fclose(f);
     return 1;
+}
+
+int saveNetwork(NeuralNetwork * network, const char* filename) {
+    if (network->size == 0) {
+        fprintf(stderr, "Empty network!\n");
+        return 0;
+    }
+    FILE * f = fopen(filename, "w");
+    printf("Saving network to %s\n", filename);
+    if (f == NULL) {
+        fprintf(stderr, "Cannot open %s for writing!\n", filename);
+        return 0;
+    }
+    int netsize, i, j, k;
+    fprintf(f, "%d:", network->size);
+    for (i = 0; i < network->size; i++) {
+        Layer * layer = network->layers[i];
+        LayerType ltype = layer->type;
+        if (i > 0) fprintf(f, ",");
+        if (FullyConnected == ltype) fprintf(f, "%d", layer->size);
+        else if (Convolutional == ltype || Pooling == ltype){
+            LayerParameters * params = layer->parameters;
+            int argc = params->count;
+            fprintf(f, "[%d,%d,%d", (int) ltype, 1 + argc, layer->size);
+            for (j = 0; j < argc; j++) {
+                fprintf(f, ",%d", (int) (params->parameters[j]));
+            }
+            fprintf(f, "]");
+        }
+    }
+    fprintf(f, "\n");
+    for (i = 1; i < network->size; i++) {
+        Layer * layer = network->layers[i];
+        LayerType ltype = layer->type;
+        int lsize = layer->size;
+        if (FullyConnected == ltype) {
+            for (j = 0; j < lsize; j++) {
+                Neuron * neuron = layer->neurons[j];
+                fprintf(f, "%.15e|", neuron->bias);
+                for (k = 0; k < neuron->weights_size; k++) {
+                    if (k > 0) fprintf(f, ",");
+                    double w = neuron->weights[k];
+                    fprintf(f, "%.15e", w);
+                }
+                fprintf(f, "\n");
+            }
+        } else if (Convolutional == ltype) {
+            LayerParameters * params = layer->parameters;
+            ConvolutionalSharedParams * shared;
+            shared = (ConvolutionalSharedParams*) layer->extra;
+            assert(shared != NULL);
+            int feature_count = shared->feature_count;
+            assert(feature_count > 0);
+            for (j = 0; j < feature_count; j++) {
+                double bias = shared->biases[j];
+                double * weights = shared->weights[j];
+                fprintf(f, "%.15e|", bias);
+                for (k = 0; k < shared->weights_size; k++) {
+                    if (k > 0) fprintf(f, ",");
+                    double w = weights[k];
+                    fprintf(f, "%.15e", w);
+                }
+                fprintf(f, "\n");
+            }
+        } else if (Pooling == ltype) continue;
+    }
+    fclose(f);
 }
 
 void deleteNetwork(NeuralNetwork * network) {

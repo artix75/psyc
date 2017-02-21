@@ -4,6 +4,9 @@ require 'rubygems'
 require 'json'
 
 DOUBLE_FORMAT = '%.15e'
+LAYER_TYPES = %w(layer convolutional pooling recurrent lstm)
+CONVOLUTIONAL_PARAMS = [:features_count, :region_size, :stride, :input_width, 
+                        :input_height, :output_width, :output_height, :padding]
 
 json_file = ARGV[0]
 if !json_file
@@ -26,15 +29,81 @@ if !layers
     puts "Missing :layers!"
     exit 1
 end
+lidx = -1
+input_size = nil
+ltypes = []
+layout = layout.map{|l|
+    lidx += 1
+    if l.is_a? Array
+        ltype = l[0]
+        if !ltype.is_a? String
+            puts "Layer[#{lidx}]: type must be a String, but is #{ltype}"
+            exit 1
+        end
+        typename = ltype.dup
+        ltype = LAYER_TYPES.index ltype
+        ltypes[lidx] = typename
+        if !ltype
+            puts "Layer[#{lidx}]: unsupported layer type #{typename}"
+            exit 1
+        end
+        if typename == 'layer'
+            lsize, iptsize = l[1, 2]
+            input_size ||= iptsize
+            lsize
+        elsif %w(convolutional pooling).include?(typename)
+            params = l[1]
+            if !params
+                puts "Layer[#{lidx}]: missing convolutional params"
+                exit 1
+            end
+            argc = CONVOLUTIONAL_PARAMS.length
+            args = Array.new argc, 0
+            max_arg = 0
+            params[:features_count] ||= layers[lidx][:features_count]
+            if !params[:features_count]
+                puts "Layer[#{lidx}]: missing features count"
+                exit 1
+            end
+            params[:stride] ||= 1
+            params.each{|par, val|
+                pidx = CONVOLUTIONAL_PARAMS.index par 
+                next if !pidx
+                max_arg = pidx if pidx > max_arg
+                args[pidx] = val.to_i
+            }
+            args = args[0..max_arg]
+            argc = args.length + 1
+            lsize = layers[lidx][:size].to_i
+            args = [ltype, argc, lsize] + args
+            args.inspect
+        end
+    else
+        l
+    end
+}
 out = "#{layout.length}:" + layout.join(",") + "\n"
 layers[1..-1].each_with_index{|l, i|
     #size = l[:size]
-    neurons = l[:neurons]
+    ltype = ltypes[i + 1]
+    next if ltype == 'pooling'
+    if ltype == 'convolutional'
+        features = l[:features]
+        if !features
+            puts "Layer[#{i + 1}]: missing features"
+            exit 1
+        end
+        neurons = features
+    else
+        neurons = l[:neurons]
+    end
+    puts "Layer[#{i + 1}]: Importing #{neurons.size} neurons"
     lstr = neurons.map{|n|
         bias = DOUBLE_FORMAT % n[:bias]
         weights = n[:weights].map{|w| DOUBLE_FORMAT % w}
         "#{bias}|#{weights.join(',')}"
     }.join("\n")
+    lstr << "\n"
     out << lstr
 }
 out_file = ARGV[1] || "./network.#{Time.now.to_i}.data"

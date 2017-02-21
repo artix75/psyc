@@ -3,4 +3,5 @@
 bin/*
 !bin/README
 tmp/*
+src/test/main_tests
 .DS_Store
