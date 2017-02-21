@@ -10,6 +10,7 @@
 #define TEST_LABEL_FILE "../../resources/t10k-labels-idx1-ubyte.gz"
 #define TEST_IMAGE_SIZE 28
 #define TEST_INPUT_SIZE TEST_IMAGE_SIZE * TEST_IMAGE_SIZE
+#define BP_DELTAS_CHECKS 8
 
 #define getNetwork(tc) (NeuralNetwork*)(tc->data[0])
 #define getTestData(tc) (double*)(tc->data[1])
@@ -18,8 +19,10 @@ TestCase * fullNetworkTests;
 
 void fullNetworkSetup (void* test_case);
 void fullNetworkTeardown (void* test_case);
+int testFullLoad(void* test_case, void* test);
 int testFullFeedforward(void* test_case, void* test);
 int testFullAccuracy(void* tc, void* t);
+int testFullBackprop(void* test_case, void* test);
 int testlen = 0;
 
 double fullNetworkFeedForwardResults[] = {
@@ -35,20 +38,32 @@ double fullNetworkFeedForwardResults[] = {
     0.000000
 };
 
+double backpropDeltas[8][7] = {
+    {1.0, 6.0, 0.00000302, 0.0, 202.0, 0.00000000, 0.00000099},
+    {1.0, 10.0, 0.00001238, 0.0, 202.0, 0.00000000, 0.00000408},
+    {1.0, 28.0, 0.00000000, 0.0, 202.0, 0.00000000, 0.00000000},
+    {1.0, 29.0, 0.00000000, 0.0, 202.0, 0.00000000, 0.00000000},
+    {2.0, 0.0, 0.00000000, 0.0, 29.0, 0.00000000, 0.00000000},
+    {2.0, 1.0, 0.00000000, 0.0, 29.0, 0.00000000, 0.00000000},
+    {2.0, 8.0, 0.00000000, 0.0, 29.0, 0.00000000, 0.00000000},
+    {2.0, 9.0, 0.00000000, 0.0, 29.0, 0.00000000, 0.00000000}
+};
+
 int main(int argc, char** argv) {
     
     fullNetworkTests = createTest("Fully Connected Network");
     fullNetworkTests->setup = fullNetworkSetup;
     fullNetworkTests->teardown = fullNetworkTeardown;
+    addTest(fullNetworkTests, "Load", NULL, testFullLoad);
     addTest(fullNetworkTests, "Feedforward", NULL, testFullFeedforward);
     addTest(fullNetworkTests, "Accuracy", NULL, testFullAccuracy);
+    addTest(fullNetworkTests, "Backprop", NULL, testFullBackprop);
     performTests(fullNetworkTests);
 }
 
 void fullNetworkSetup (void* tc) {
     TestCase * test_case = (TestCase*) tc;
     NeuralNetwork * network = createNetwork();
-    int ok = loadNetwork(network, PRETRAINED_FULL_NETWORK);
     test_case->data = malloc(2 * sizeof(void*));
     test_case->data[0] = network;
     double * test_data = NULL;
@@ -64,6 +79,13 @@ void fullNetworkTeardown (void* tc) {
     double * test_data = getTestData(test_case);
     if (test_data != NULL) free(test_data);
     free(test_case->data);
+}
+
+int testFullLoad(void* tc, void* t) {
+    TestCase * test_case = (TestCase*) tc;
+    Test * test = (Test*) t;
+    NeuralNetwork * network = getNetwork(test_case);
+    return loadNetwork(network, PRETRAINED_FULL_NETWORK);
 }
 
 int testFullFeedforward(void* tc, void* t) {
@@ -105,5 +127,54 @@ int testFullAccuracy(void* tc, void* t) {
         sprintf(testobj->error_message, "Accuracy %lf != from expected (%lf)",
                 accuracy, 95.0);
     }
+    return ok;
+}
+
+int testFullBackprop(void* tc, void* t) {
+    TestCase * test_case = (TestCase*) tc;
+    Test * testobj = (Test*) t;
+    NeuralNetwork * network = getNetwork(test_case);
+    double * test_data = getTestData(test_case);
+    int input_size = network->layers[0]->size;
+    double * x = test_data;
+    double * y = test_data + input_size;
+    Delta ** deltas = backprop(network, x, y);
+    int ok = 1, i;
+    for (i = 0; i < BP_DELTAS_CHECKS; i++) {
+        int lidx = (int) (backpropDeltas[i][0]);
+        int nidx = (int) (backpropDeltas[i][1]);
+        double bias = backpropDeltas[i][2];
+        int widx1 = (int) (backpropDeltas[i][3]);
+        int widx2 = (int) (backpropDeltas[i][4]);
+        double w1 = backpropDeltas[i][5];
+        double w2 = backpropDeltas[i][6];
+        Delta * dl = deltas[lidx - 1];
+        Delta * d = &(dl[nidx]);
+        double val = round(d->bias * 100000000.0) / 100000000.0;
+        ok = (val == bias);
+        if (!ok) {
+            sprintf(testobj->error_message,
+                    "Delta[%d][%d] bias %lf != from expected (%lf)",
+                    lidx - 1, nidx, val, bias);
+            break;
+        }
+        val = round(d->weights[widx1] * 100000000.0) / 100000000.0;
+        ok = (val == w1);
+        if (!ok) {
+            sprintf(testobj->error_message,
+                    "Delta[%d][%d] weight[%d] %lf != from expected (%lf)",
+                    lidx - 1, nidx, widx1, val, w1);
+            break;
+        }
+        val = round(d->weights[widx2] * 100000000.0) / 100000000.0;
+        ok = (val == w2);
+        if (!ok) {
+            sprintf(testobj->error_message,
+                    "Delta[%d][%d] weight[%d] %lf != from expected (%lf)",
+                    lidx - 1, nidx, widx1, val, w2);
+            break;
+        }
+    }
+    deleteDeltas(deltas, network);
     return ok;
 }

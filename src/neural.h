@@ -18,6 +18,11 @@
 typedef double (*ActivationFunction)(double);
 typedef void (*FeedforwardFunction)(void * network, void * layer);
 
+typedef struct {
+    double bias;
+    double * weights;
+} Delta;
+
 typedef enum {
     FullyConnected,
     Convolutional,
@@ -88,6 +93,8 @@ void feedforward(NeuralNetwork * network, double * values);
 void deleteNetwork(NeuralNetwork * network);
 void deleteLayer(Layer * layer);
 void deleteNeuron(Neuron * neuron);
+void deleteDeltas(Delta ** deltas, NeuralNetwork * network);
+Delta ** backprop(NeuralNetwork * network, double * x, double * y);
 void train(NeuralNetwork * network,
            double * training_data,
            int data_size,

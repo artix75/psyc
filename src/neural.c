@@ -14,11 +14,6 @@
 
 static unsigned char randomSeeded = 0;
 
-typedef struct {
-    double bias;
-    double * weights;
-} Delta;
-
 /* Activation functions */
 
 double sigmoid(double val) {
