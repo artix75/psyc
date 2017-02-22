@@ -12,6 +12,7 @@
 #define TEST_IMAGE_SIZE 28
 #define TEST_INPUT_SIZE TEST_IMAGE_SIZE * TEST_IMAGE_SIZE
 #define BP_DELTAS_CHECKS 8
+#define BP_CONV_DELTAS_CHECKS 4
 #define CONV_L1F0_BIAS 0.02630446809718423
 
 #define getNetwork(tc) (NeuralNetwork*)(tc->data[0])
@@ -60,6 +61,8 @@ double convNetworkFeedForwardResults[] = {
     0.003376
 };
 
+
+// Layer, Neuron, Bias, Weight1 idx, Weight2 idx, Weight1, Weight2
 double backpropDeltas[8][7] = {
     {1.0, 6.0, 0.00000302, 0.0, 202.0, 0.00000000, 0.00000099},
     {1.0, 10.0, 0.00001238, 0.0, 202.0, 0.00000000, 0.00000408},
@@ -69,6 +72,14 @@ double backpropDeltas[8][7] = {
     {2.0, 1.0, 0.00000000, 0.0, 29.0, 0.00000000, 0.00000000},
     {2.0, 8.0, 0.00000000, 0.0, 29.0, 0.00000000, 0.00000000},
     {2.0, 9.0, 0.00000000, 0.0, 29.0, 0.00000000, 0.00000000}
+};
+
+// Layer, Neuron, Bias, Weight1 idx, Weight2 idx, Weight1, Weight2
+double backpropConvDeltas[8][8] = {
+    {1.0, 0.0, 0.75526753, 0.0, 1.0, 0.02270236, 0.01408378},
+    {1.0, 1.0, -0.05372394, 0.0, 1.0, 0.01154569, 0.00698268},
+    {3.0, 6.0, 0.00000055, 0.0, 25.0, 0.00000028, 0.00000035},
+    {4.0, 0.0, 0.03533965, 0.0, 2.0, 0.00000000, 0.03533965}
 };
 
 int main(int argc, char** argv) {
@@ -88,6 +99,7 @@ int main(int argc, char** argv) {
     convNetworkTests->teardown = genericTeardown;
     addTest(convNetworkTests, "Load", NULL, testConvLoad);
     addTest(convNetworkTests, "Feedforward", NULL, testConvFeedforward);
+    addTest(convNetworkTests, "Backprop", NULL, testConvBackprop);
     performTests(convNetworkTests);
     deleteTest(convNetworkTests);
     return 0;
@@ -158,6 +170,7 @@ int testFullAccuracy(void* tc, void* t) {
     accuracy = round(0.95 * 100.0);
     int ok = (accuracy == 95.0);
     if (!ok) {
+        testobj->error_message = malloc(255 * sizeof(char));
         sprintf(testobj->error_message, "Accuracy %lf != from expected (%lf)",
                 accuracy, 95.0);
     }
@@ -167,6 +180,7 @@ int testFullAccuracy(void* tc, void* t) {
 int testFullBackprop(void* tc, void* t) {
     TestCase * test_case = (TestCase*) tc;
     Test * testobj = (Test*) t;
+    testobj->error_message = malloc(255 * sizeof(char));
     NeuralNetwork * network = getNetwork(test_case);
     double * test_data = getTestData(test_case);
     int input_size = network->layers[0]->size;
@@ -205,7 +219,7 @@ int testFullBackprop(void* tc, void* t) {
         if (!ok) {
             sprintf(testobj->error_message,
                     "Delta[%d][%d] weight[%d] %lf != from expected (%lf)",
-                    lidx - 1, nidx, widx1, val, w2);
+                    lidx - 1, nidx, widx2, val, w2);
             break;
         }
     }
@@ -266,4 +280,55 @@ int testConvFeedforward(void* tc, void* t) {
         }
     }
     return res;
+}
+
+int testConvBackprop(void* tc, void* t) {
+    TestCase * test_case = (TestCase*) tc;
+    Test * testobj = (Test*) t;
+    testobj->error_message = malloc(255 * sizeof(char));
+    NeuralNetwork * network = getNetwork(test_case);
+    double * test_data = getTestData(test_case);
+    int input_size = network->layers[0]->size;
+    double * x = test_data;
+    double * y = test_data + input_size;
+    Delta ** deltas = backprop(network, x, y);
+    int ok = 1, i;
+    for (i = 0; i < BP_CONV_DELTAS_CHECKS; i++) {
+        int lidx = (int) (backpropConvDeltas[i][0]);
+        int nidx = (int) (backpropConvDeltas[i][1]);
+        double bias = backpropConvDeltas[i][2];
+        int widx1 = (int) (backpropConvDeltas[i][3]);
+        int widx2 = (int) (backpropConvDeltas[i][4]);
+        double w1 = backpropConvDeltas[i][5];
+        double w2 = backpropConvDeltas[i][6];
+        Delta * dl = deltas[lidx - 1];
+        if (dl == NULL) continue;
+        Delta * d = &(dl[nidx]);
+        double val = round(d->bias * 100000000.0) / 100000000.0;
+        ok = (val == bias);
+        if (!ok) {
+            sprintf(testobj->error_message,
+                    "Delta[%d][%d] bias %.8lf != from expected (%.8lf)",
+                    lidx - 1, nidx, val, bias);
+            break;
+        }
+        val = round(d->weights[widx1] * 100000000.0) / 100000000.0;
+        ok = (val == w1);
+        if (!ok) {
+            sprintf(testobj->error_message,
+                    "Delta[%d][%d] weight[%d] %.8lf != from expected (%.8lf)",
+                    lidx - 1, nidx, widx1, val, w1);
+            break;
+        }
+        val = round(d->weights[widx2] * 100000000.0) / 100000000.0;
+        ok = (val == w2);
+        if (!ok) {
+            sprintf(testobj->error_message,
+                    "Delta[%d][%d] weight[%d] %.8lf != from expected (%.8lf)",
+                    lidx - 1, nidx, widx1, val, w2);
+            break;
+        }
+    }
+    deleteDeltas(deltas, network);
+    return ok;
 }

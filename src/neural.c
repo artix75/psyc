@@ -1022,7 +1022,6 @@ double * backpropConvToFull(NeuralNetwork * network, Layer* convolutional_layer,
                     feature_delta->weights[widx++] += (a * d);
                 }
             }
-            
         }
     }
     return NULL;
@@ -1110,7 +1109,7 @@ Delta ** backprop(NeuralNetwork * network, double * x, double * y) {
             continue;
         } else if (Convolutional == ltype && FullyConnected == prev_ltype) {
             delta_v = backpropConvToFull(network, layer, previousLayer,
-                                         delta_v, layer_delta);
+                                         last_delta_v, layer_delta);
         } else {
             fprintf(stderr, "Backprop from %s to %s not suported!\n",
                     getLayerTypeLabel(layer),
