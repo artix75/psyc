@@ -32,6 +32,7 @@ end
 lidx = -1
 input_size = nil
 ltypes = []
+last_size = nil
 layout = layout.map{|l|
     lidx += 1
     if l.is_a? Array
@@ -50,6 +51,7 @@ layout = layout.map{|l|
         if typename == 'layer'
             lsize, iptsize = l[1, 2]
             input_size ||= iptsize
+            last_size = lsize.to_i
             lsize
         elsif %w(convolutional pooling).include?(typename)
             params = l[1]
@@ -66,6 +68,13 @@ layout = layout.map{|l|
                 exit 1
             end
             params[:stride] ||= 1
+            params[:padding] ||= 0
+            if !params[:input_width]
+                params[:input_width] = Math.sqrt(last_size)
+                params[:input_height] = Math.sqrt(last_size)
+            end
+            params[:output_width] ||= 0
+            params[:output_height] ||= 0
             params.each{|par, val|
                 pidx = CONVOLUTIONAL_PARAMS.index par 
                 next if !pidx
@@ -75,10 +84,12 @@ layout = layout.map{|l|
             args = args[0..max_arg]
             argc = args.length + 1
             lsize = layers[lidx][:size].to_i
+            last_size = lsize
             args = [ltype, argc, lsize] + args
             args.inspect
         end
     else
+        last_size = l.to_i
         l
     end
 }

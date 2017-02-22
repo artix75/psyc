@@ -48,6 +48,7 @@ Test * addTest(TestCase * test_case, char * name, char * errmsg,
 
 
 int performTests(TestCase * test_case) {
+    printf("\n");
     printf(BOLD "Performing tests on %s\n", test_case->name);
     printf(RESET);
     if (test_case->setup != NULL) {

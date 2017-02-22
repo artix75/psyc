@@ -6,23 +6,32 @@
 #include "../mnist.h"
 
 #define PRETRAINED_FULL_NETWORK "../../resources/pretrained.mnist.data"
+#define CONVOLUTIONAL_NETWORK "cnn.data"
 #define TEST_IMAGE_FILE "../../resources/t10k-images-idx3-ubyte.gz"
 #define TEST_LABEL_FILE "../../resources/t10k-labels-idx1-ubyte.gz"
 #define TEST_IMAGE_SIZE 28
 #define TEST_INPUT_SIZE TEST_IMAGE_SIZE * TEST_IMAGE_SIZE
 #define BP_DELTAS_CHECKS 8
+#define CONV_L1F0_BIAS 0.02630446809718423
 
 #define getNetwork(tc) (NeuralNetwork*)(tc->data[0])
 #define getTestData(tc) (double*)(tc->data[1])
 
 TestCase * fullNetworkTests;
+TestCase * convNetworkTests;
 
-void fullNetworkSetup (void* test_case);
-void fullNetworkTeardown (void* test_case);
+void genericSetup (void* test_case);
+void genericTeardown (void* test_case);
 int testFullLoad(void* test_case, void* test);
 int testFullFeedforward(void* test_case, void* test);
 int testFullAccuracy(void* tc, void* t);
 int testFullBackprop(void* test_case, void* test);
+
+int testConvLoad(void* test_case, void* test);
+int testConvFeedforward(void* test_case, void* test);
+//int testConvAccuracy(void* tc, void* t);
+int testConvBackprop(void* test_case, void* test);
+
 int testlen = 0;
 
 double fullNetworkFeedForwardResults[] = {
@@ -36,6 +45,19 @@ double fullNetworkFeedForwardResults[] = {
     0.999762,
     0.000000,
     0.000000
+};
+
+double convNetworkFeedForwardResults[] = {
+    0.961797,
+    0.000264,
+    0.004449,
+    0.054507,
+    0.456677,
+    0.989324,
+    0.005734,
+    0.251899,
+    0.945555,
+    0.003376
 };
 
 double backpropDeltas[8][7] = {
@@ -52,16 +74,27 @@ double backpropDeltas[8][7] = {
 int main(int argc, char** argv) {
     
     fullNetworkTests = createTest("Fully Connected Network");
-    fullNetworkTests->setup = fullNetworkSetup;
-    fullNetworkTests->teardown = fullNetworkTeardown;
+    fullNetworkTests->setup = genericSetup;
+    fullNetworkTests->teardown = genericTeardown;
     addTest(fullNetworkTests, "Load", NULL, testFullLoad);
     addTest(fullNetworkTests, "Feedforward", NULL, testFullFeedforward);
     addTest(fullNetworkTests, "Accuracy", NULL, testFullAccuracy);
     addTest(fullNetworkTests, "Backprop", NULL, testFullBackprop);
     performTests(fullNetworkTests);
+    deleteTest(fullNetworkTests);
+    
+    convNetworkTests = createTest("Convolutional Network");
+    convNetworkTests->setup = genericSetup;
+    convNetworkTests->teardown = genericTeardown;
+    addTest(convNetworkTests, "Load", NULL, testConvLoad);
+    addTest(convNetworkTests, "Feedforward", NULL, testConvFeedforward);
+    performTests(convNetworkTests);
+    deleteTest(convNetworkTests);
+    return 0;
+    
 }
 
-void fullNetworkSetup (void* tc) {
+void genericSetup (void* tc) {
     TestCase * test_case = (TestCase*) tc;
     NeuralNetwork * network = createNetwork();
     test_case->data = malloc(2 * sizeof(void*));
@@ -72,13 +105,14 @@ void fullNetworkSetup (void* tc) {
     test_case->data[1] = test_data;
 }
 
-void fullNetworkTeardown (void* tc) {
+void genericTeardown (void* tc) {
     TestCase * test_case = (TestCase*) tc;
     NeuralNetwork * network = getNetwork(test_case);
     if (network != NULL) deleteNetwork(network);
     double * test_data = getTestData(test_case);
     if (test_data != NULL) free(test_data);
     free(test_case->data);
+    test_case->data = NULL;
 }
 
 int testFullLoad(void* tc, void* t) {
@@ -177,4 +211,59 @@ int testFullBackprop(void* tc, void* t) {
     }
     deleteDeltas(deltas, network);
     return ok;
+}
+
+int testConvLoad(void* tc, void* t) {
+    TestCase * test_case = (TestCase*) tc;
+    Test * test = (Test*) t;
+    NeuralNetwork * network = getNetwork(test_case);
+    int loaded = loadNetwork(network, CONVOLUTIONAL_NETWORK);
+    if (!loaded) {
+        test->error_message = malloc(255 * sizeof(char));
+        sprintf(test->error_message, "Failed to load %s\n",
+                CONVOLUTIONAL_NETWORK);
+        return 0;
+    }
+    Layer * layer = network->layers[1];
+    ConvolutionalSharedParams * shared;
+    shared = (ConvolutionalSharedParams *) layer->extra;
+    double bias = shared->biases[0];
+    bias = round(bias * 1000000.0) / 1000000.0;
+    double expected = CONV_L1F0_BIAS;
+    expected = round(expected * 1000000.0) / 1000000.0;
+    int ok = (expected == bias);
+    if (!ok) {
+        test->error_message = malloc(255 * sizeof(char));
+        sprintf(test->error_message,
+                "Layer[1]->bias[0] %lf != from bias loaded from data %lf\n",
+                bias, expected);
+    }
+    return ok;
+}
+
+int testConvFeedforward(void* tc, void* t) {
+    TestCase * test_case = (TestCase*) tc;
+    Test * test = (Test*) t;
+    NeuralNetwork * network = getNetwork(test_case);
+    double * test_data = getTestData(test_case);
+    feedforward(network, test_data);
+    
+    Layer * output = network->layers[network->size - 1];
+    int i, res = 1;
+    for (i = 0; i < output->size; i++) {
+        Neuron * n = output->neurons[i];
+        double a = n->activation;
+        double expected = convNetworkFeedForwardResults[i];
+        //printf("Layer[%d]->neuron[%d]: %.15e == exp: %.15e\n", network->size - 1, i, a, expected);
+        a = round(a * 1000000.0) / 1000000.0;
+        expected = round(expected * 1000000.0) / 1000000.0;
+        if (a != expected) {
+            res = 0;
+            test->error_message = malloc(255 * sizeof(char));
+            sprintf(test->error_message, "Output[%d]-> %lf != %lf", i, a,
+                    expected);
+            break;
+        }
+    }
+    return res;
 }

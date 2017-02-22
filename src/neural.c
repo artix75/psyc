@@ -287,14 +287,17 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
         int argc = 0, aidx = 0;
         char * last = (i == (netsize - 1) ? eol : sep);
         char fmt[50];
+        char buff[255];
         sprintf(fmt, "%%d%s", last);
+        //fputs(fmt, stderr);
         matched = fscanf(f, fmt, &lsize);
         if (!matched) {
             int type = 0, arg = 0;
             argc = 0;
             matched = fscanf(f, "[%d,%d", &type, &argc);
             if (!matched) {
-                fputs("Invalid header!\n", stderr);
+                fprintf(stderr, "Invalid header: layer[%d], col. %ld!\n",
+                        i, ftell(f));
                 fclose(f);
                 return 0;
             }
@@ -307,13 +310,16 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
             for (aidx = 0; aidx < argc; aidx++) {
                 matched = fscanf(f, ",%d", &arg);
                 if (!matched) {
-                    fputs("Invalid header!\n", stderr);
+                    fprintf(stderr, "Invalid header: l%d, arg. %d, col. %ld!\n",
+                            i, aidx, ftell(f));
                     fclose(f);
                     return 0;
                 }
                 if (aidx == 0) lsize = arg;
                 else args[aidx - 1] = arg;
             }
+            sprintf(fmt, "]%s", last);
+            fscanf(f, fmt, buff);
         }
         if (!empty) {
             layer = network->layers[i];
@@ -488,6 +494,7 @@ int saveNetwork(NeuralNetwork * network, const char* filename) {
         } else if (Pooling == ltype) continue;
     }
     fclose(f);
+    return 1;
 }
 
 void deleteNetwork(NeuralNetwork * network) {
