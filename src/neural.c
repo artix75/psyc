@@ -176,6 +176,16 @@ static double gaussian_random(double mean, double stddev) {
     return (r > 0.5 ? y : x);
 }
 
+double norm(double* matrix, int size) {
+    double r = 0.0;
+    int i;
+    for (i = 0; i < size; i++) {
+        double v = matrix[i];
+        r += (v * v);
+    }
+    return sqrt(r);
+}
+
 static void shuffle ( double * array, int size, int element_size )
 {
 
@@ -242,6 +252,20 @@ char * getLayerTypeLabel(Layer * layer) {
             break;
     }
     return "UNKOWN";
+}
+
+
+/* Loss functions */
+
+static double loss(double * outputs, double * desired, int size) {
+    int i;
+    double diffs[size];
+    for (i = 0; i < size; i++) {
+        double d = outputs[i] - desired[i];
+        diffs[i] = d;
+    }
+    double n = norm(diffs, size);
+    return 0.5 * (n * n);
 }
 
 /* NN functions */
@@ -1103,13 +1127,14 @@ Delta ** backprop(NeuralNetwork * network, double * x, double * y) {
                 delta_v[j] = dv;
             }
             free(last_delta_v);
-            last_delta_v = backpropPoolingToConv(network, layer,
-                                            previousLayer, delta_v);
-            free(delta_v);
-            continue;
+            last_delta_v = delta_v;
+            delta_v = backpropPoolingToConv(network, layer,
+                                            previousLayer, last_delta_v);
+            //free(delta_v);
+            //continue;
         } else if (Convolutional == ltype && FullyConnected == prev_ltype) {
             delta_v = backpropConvToFull(network, layer, previousLayer,
-                                         last_delta_v, layer_delta);
+                               last_delta_v, layer_delta);
         } else {
             fprintf(stderr, "Backprop from %s to %s not suported!\n",
                     getLayerTypeLabel(layer),
@@ -1125,8 +1150,8 @@ Delta ** backprop(NeuralNetwork * network, double * x, double * y) {
     return deltas;
 }
 
-void updateWeights(NeuralNetwork * network, double * training_data,
-                   int batch_size, double rate) {
+double updateWeights(NeuralNetwork * network, double * training_data,
+                     int batch_size, double rate) {
     double r = rate / (double) batch_size;
     int i, j, k, w, netsize = network->size, dsize = netsize - 1;
     int training_data_size = network->input_size;
@@ -1134,9 +1159,11 @@ void updateWeights(NeuralNetwork * network, double * training_data,
     int element_size = training_data_size + label_data_size;
     Delta ** deltas = emptyDeltas(network);
     //double * data_p = training_data;
+    double * x;
+    double * y;
     for (i = 0; i < batch_size; i++) {
-        double * x = training_data;
-        double * y = training_data + training_data_size;
+        x = training_data;
+        y = training_data + training_data_size;
         training_data += element_size;
         Delta ** bp_deltas = backprop(network, x, y);
         for (j = 0; j < dsize; j++) {
@@ -1189,7 +1216,8 @@ void updateWeights(NeuralNetwork * network, double * training_data,
                     neuron->weights[k] = w - r * d->weights[k];
                 }
             } else {
-                shared->biases[j] += d->bias;
+                double b = shared->biases[j];
+                shared->biases[j] = b - r * d->bias;
                 double * weights = shared->weights[j];
                 for (k = 0; k < shared->weights_size; k++) {
                     double w = weights[k];
@@ -1199,24 +1227,32 @@ void updateWeights(NeuralNetwork * network, double * training_data,
         }
     }
     deleteDeltas(deltas, network);
+    Layer * out = network->layers[netsize - 1];
+    double outputs[label_data_size];
+    for (i = 0; i < label_data_size; i++) {
+        outputs[i] = out->neurons[i]->activation;
+    }
+    return loss(outputs, y, label_data_size);
 }
 
-void gradientDescent(NeuralNetwork * network,
-                     double * training_data,
-                     int element_size,
-                     int elements_count,
-                     double learning_rate,
-                     int batch_size) {
+double gradientDescent(NeuralNetwork * network,
+                       double * training_data,
+                       int element_size,
+                       int elements_count,
+                       double learning_rate,
+                       int batch_size) {
     int batches_count = elements_count / batch_size;
     shuffle(training_data, elements_count, element_size);
     int offset = (element_size * batch_size), i;
+    double err = 0.0;
     for (i = 0; i < batches_count; i++) {
         printf("\rEpoch %d: batch %d/%d", network->current_epoch + 1,
                i + 1, batches_count);
         fflush(stdout);
-        updateWeights(network, training_data, batch_size, learning_rate);
+        err += updateWeights(network, training_data, batch_size, learning_rate);
         training_data += offset;
     }
+    return err / (double) batches_count;
 }
 
 void train(NeuralNetwork * network,
@@ -1224,7 +1260,9 @@ void train(NeuralNetwork * network,
            int data_size,
            int epochs,
            double learning_rate,
-           int batch_size) {
+           int batch_size,
+           double * test_data,
+           int test_size) {
     int i;
     int element_size = network->input_size + network->output_size;
     int elements_count = data_size / element_size;
@@ -1241,12 +1279,13 @@ void train(NeuralNetwork * network,
     time_t e_t = epoch_t;
     for (i = 0; i < epochs; i++) {
         network->current_epoch = i;
-        gradientDescent(network, training_data, element_size,
-                        elements_count, learning_rate, batch_size);
+        double err = gradientDescent(network, training_data, element_size,
+                                     elements_count, learning_rate, batch_size);
         time(&epoch_t);
         time_t elapsed_t = epoch_t - e_t;
         e_t = epoch_t;
-        printf(" (%ld sec.)\n", elapsed_t);
+        printf(", loss = %.2lf (%ld sec.)\n", err, elapsed_t);
+        if (test_data != NULL) test(network, test_data, test_size);
     }
     time(&end_t);
     printf("Completed in %ld sec.\n", end_t - start_t);

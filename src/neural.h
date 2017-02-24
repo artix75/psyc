@@ -76,6 +76,7 @@ typedef struct {
 
 NeuralNetwork * createNetwork();
 int loadNetwork(NeuralNetwork * network, const char* filename);
+int saveNetwork(NeuralNetwork * network, const char* filename);
 Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
                  LayerParameters* params);
 Layer * addConvolutionalLayer(NeuralNetwork * network, LayerParameters* params);
@@ -100,7 +101,9 @@ void train(NeuralNetwork * network,
            int data_size,
            int epochs,
            double learning_rate,
-           int batch_size);
+           int batch_size,
+           double * test_data,
+           int test_size);
 float test(NeuralNetwork * network, double * test_data, int data_size);
 //int arrayMaxIndex(double * array, int len);
 char * getLayerTypeLabel(Layer * layer);

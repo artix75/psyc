@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "../neural.h"
 #include "../mnist.h"
 
@@ -12,17 +13,24 @@
 int main(int argc, char** argv) {
     if (argc < 3) {
         printf("Usage %s IMAGE_FILE LABELS_FILE [TEST_FILES...]\n", argv[0]);
+        printf("      %s --load TRAINED_DT_FILE [TEST_FILES...]\n", argv[0]);
         return 1;
     }
     
     double * training_data = NULL;
     double * test_data = NULL;
+    const char * pretrained_file = NULL;
     int testlen = 0;
-    int datalen = loadMNISTData(TRAINING_DATA, argv[1], argv[2],
+    int datalen = 0;
+    if (strcmp("--load", argv[1]) != 0) {
+        datalen = loadMNISTData(TRAINING_DATA, argv[1], argv[2],
                                 &training_data);
-    if (datalen == 0 || training_data == NULL) {
-        printf("Could not load training data!\n");
-        return 1;
+        if (datalen == 0 || training_data == NULL) {
+            printf("Could not load training data!\n");
+            return 1;
+        }
+    } else {
+        pretrained_file = argv[2];
     }
     if (argc >= 5) {
         testlen = loadMNISTData(TEST_DATA, argv[3], argv[4],
@@ -31,15 +39,26 @@ int main(int argc, char** argv) {
 
     NeuralNetwork * network = createNetwork();
     
-    LayerParameters * cparams;
-    LayerParameters * pparams;
-    cparams = createConvolutionalParameters(FEATURES_COUNT, REGIONS_SIZE, 1, 0);
-    pparams = createConvolutionalParameters(FEATURES_COUNT, POOL_SIZE, 0, 0);
-    addLayer(network, FullyConnected, INPUT_SIZE, NULL);
-    addConvolutionalLayer(network, cparams);
-    addPoolingLayer(network, pparams);
-    addLayer(network, FullyConnected, 30, NULL);
-    addLayer(network, FullyConnected, 10, NULL);
+    if (pretrained_file == NULL) {
+        LayerParameters * cparams;
+        LayerParameters * pparams;
+        cparams = createConvolutionalParameters(FEATURES_COUNT, REGIONS_SIZE,
+                                                1, 0);
+        pparams = createConvolutionalParameters(FEATURES_COUNT, POOL_SIZE,
+                                                0, 0);
+        addLayer(network, FullyConnected, INPUT_SIZE, NULL);
+        addConvolutionalLayer(network, cparams);
+        addPoolingLayer(network, pparams);
+        addLayer(network, FullyConnected, 30, NULL);
+        addLayer(network, FullyConnected, 10, NULL);
+    } else {
+        int loaded = loadNetwork(network, pretrained_file);
+        if (!loaded) {
+            printf("Could not load pretrained data %s\n", pretrained_file);
+            deleteNetwork(network);
+            return 1;
+        }
+    }
     
     int i;
     for (i = 0; i < network->size; i++) {
@@ -67,7 +86,8 @@ int main(int argc, char** argv) {
     test(network, test_data, testlen);
     deleteNetwork(network);*/
     
-    train(network, training_data, datalen, EPOCHS, 3, 10);
+    if (datalen > 0)
+        train(network, training_data, datalen, EPOCHS, 1.5, 10, NULL, 0);
     //int loaded = loadNetwork(network, "pretrained.mnist.data");
     //if (!loaded) exit(1);
     
@@ -75,7 +95,8 @@ int main(int argc, char** argv) {
         printf("Test Data len: %d\n", testlen);
         test(network, test_data, testlen);
     }
-    
+    if (pretrained_file == NULL)
+        saveNetwork(network, "/tmp/pretrained.cnn.data");
     deleteNetwork(network);
     free(training_data);
     if (test_data != NULL) free(test_data);
