@@ -9,6 +9,8 @@
 #define FEATURES_COUNT 20
 #define REGIONS_SIZE 5
 #define POOL_SIZE 2
+#define TRAIN_DATASET_LEN 50000
+#define EVAL_DATASET_LEN 10000
 
 int main(int argc, char** argv) {
     if (argc < 3) {
@@ -19,9 +21,15 @@ int main(int argc, char** argv) {
     
     double * training_data = NULL;
     double * test_data = NULL;
+    double * validation_data = NULL;
     const char * pretrained_file = NULL;
     int testlen = 0;
     int datalen = 0;
+    int valdlen = 0;
+    
+    int train_dataset_len = TRAIN_DATASET_LEN;
+    int eval_dataset_len = EVAL_DATASET_LEN;
+    
     if (strcmp("--load", argv[1]) != 0) {
         datalen = loadMNISTData(TRAINING_DATA, argv[1], argv[2],
                                 &training_data);
@@ -51,6 +59,33 @@ int main(int argc, char** argv) {
         addPoolingLayer(network, pparams);
         addLayer(network, FullyConnected, 30, NULL);
         addLayer(network, FullyConnected, 10, NULL);
+        //addLayer(network, SoftMax, 10, NULL);
+        
+        int element_size = network->input_size + network->output_size;
+        int element_count = datalen / element_size;
+        if (element_count < train_dataset_len) {
+            printf("Loaded dataset elements %d < %d\n", element_count,
+                   TRAIN_DATASET_LEN);
+            deleteNetwork(network);
+            return 1;
+        } else {
+            int remaining = element_count - train_dataset_len;
+            if (remaining < eval_dataset_len && eval_dataset_len > 0) {
+                printf("WARNING: eval. dataset cannot be > %d!\n", remaining);
+                eval_dataset_len = remaining;
+            }
+            if (remaining == 0) {
+                printf("WARNING: no dataset remained for evaluation!\n");
+                eval_dataset_len = remaining;
+            }
+            datalen = train_dataset_len * element_size;
+            if (eval_dataset_len == 0) validation_data = NULL;
+            else {
+                validation_data = training_data + datalen;
+                valdlen = eval_dataset_len * element_size;
+            }
+        }
+        
     } else {
         int loaded = loadNetwork(network, pretrained_file);
         if (!loaded) {
@@ -87,7 +122,8 @@ int main(int argc, char** argv) {
     deleteNetwork(network);*/
     
     if (datalen > 0)
-        train(network, training_data, datalen, EPOCHS, 1.5, 10, NULL, 0);
+        train(network, training_data, datalen, EPOCHS, 1.5, 10, validation_data,
+              valdlen);
     //int loaded = loadNetwork(network, "pretrained.mnist.data");
     //if (!loaded) exit(1);
     

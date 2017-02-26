@@ -25,6 +25,10 @@ double sigmoid_prime(double val) {
     return s * (1 -s);
 }
 
+double relu(double val) {
+    return (val >= 0 ? val : 0);
+}
+
 /* Feedforward functions */
 
 void fullFeedforward(NeuralNetwork * net, Layer * layer) {
@@ -45,6 +49,47 @@ void fullFeedforward(NeuralNetwork * net, Layer * layer) {
         }
         neuron->z_value = sum + neuron->bias;
         neuron->activation = layer->activate(neuron->z_value);
+    }
+}
+
+void softmaxFeedforward(NeuralNetwork * net, Layer * layer) {
+    int size = layer->size;
+    assert(layer->neurons != NULL);
+    assert(layer->index > 0);
+    Layer * previous = net->layers[layer->index - 1];
+    assert(previous != NULL);
+    int i, j, previous_size = previous->size;
+    double max = 0.0, esum = 0.0;
+    for (i = 0; i < size; i++) {
+        Neuron * neuron = layer->neurons[i];
+        double sum = 0;
+        for (j = 0; j < previous_size; j++) {
+            Neuron * prev_neuron = previous->neurons[j];
+            assert(prev_neuron != NULL);
+            double a = prev_neuron->activation;
+            sum += (a * neuron->weights[j]);
+        }
+        neuron->z_value = sum + neuron->bias;
+        if (i == 0)
+            max = neuron->z_value;
+        else if (neuron->z_value > max)
+            max = neuron->z_value;
+        //printf("[%d] -> %lf\n", i, neuron->z_value);
+    }
+    //printf("Max: %lf\n", max);
+    for (i = 0; i < size; i++) {
+        Neuron * neuron = layer->neurons[i];
+        double z = neuron->z_value;
+        double e = exp(z - max);
+        esum += e;
+        neuron->activation = e;
+        //printf("[%d] -> %lf\n", i, neuron->activation);
+    }
+    //printf("Sum: %lf\n", esum);
+    for (i = 0; i < size; i++) {
+        Neuron * neuron = layer->neurons[i];
+        neuron->activation /= esum;
+        //printf("[%d] -> %lf\n", i, neuron->activation);
     }
 }
 
@@ -249,6 +294,9 @@ char * getLayerTypeLabel(Layer * layer) {
             break;
         case LSTM:
             return "lstm";
+            break;
+        case SoftMax:
+            return "softmax";
             break;
     }
     return "UNKOWN";
@@ -746,7 +794,7 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
         previous_size = previous->size;
         network->output_size = size;
     }
-    if (type == FullyConnected) {
+    if (type == FullyConnected || type == SoftMax) {
         layer->neurons = malloc(sizeof(Neuron*) * size);
         int i, j;
         for (i = 0; i < size; i++) {
@@ -771,9 +819,15 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
             //printf("Adding neuron %d\n", i);
             layer->neurons[i] = neuron;
         }
-        layer->activate = sigmoid;
-        layer->prime = sigmoid_prime;
-        layer->feedforward = fullFeedforward;
+        if (type != SoftMax) {
+            layer->activate = sigmoid;
+            layer->prime = sigmoid_prime;
+            layer->feedforward = fullFeedforward;
+        } else {
+            layer->activate = NULL;
+            layer->prime = NULL;
+            layer->feedforward = softmaxFeedforward;
+        }
     } else if (type == Convolutional) {
         initConvolutionalLayer(network, layer, params);
     } else if (type == Pooling) {
@@ -1072,8 +1126,15 @@ Delta ** backprop(NeuralNetwork * network, double * x, double * y) {
         Neuron * neuron = outputLayer->neurons[o];
         double o_val = neuron->activation;
         double y_val = y[o];
-        double d = o_val - y_val;
-        d *= outputLayer->prime(neuron->z_value);
+        double d = 0.0;
+        if (outputLayer->type != SoftMax) {
+            d = o_val - y_val;
+            d *= outputLayer->prime(neuron->z_value);
+        } else {
+            y_val = (y_val < 1 ? 0 : 1);
+            d = -(y_val - o_val);
+            //printf("SoftMax D[%d](y=%lf) -> %lf\n", o, y_val, d);
+        }
         delta_v[o] = d;
         Delta * n_delta = &(layer_delta[o]);
         n_delta->bias = d;
@@ -1246,6 +1307,7 @@ double gradientDescent(NeuralNetwork * network,
     int offset = (element_size * batch_size), i;
     double err = 0.0;
     for (i = 0; i < batches_count; i++) {
+        network->current_batch = i;
         printf("\rEpoch %d: batch %d/%d", network->current_epoch + 1,
                i + 1, batches_count);
         fflush(stdout);
@@ -1253,6 +1315,50 @@ double gradientDescent(NeuralNetwork * network,
         training_data += offset;
     }
     return err / (double) batches_count;
+}
+
+float validate(NeuralNetwork * network, double * test_data, int data_size,
+               int log) {
+    int i, j;
+    float accuracy = 0.0f;
+    int correct_results = 0;
+    int input_size = network->input_size;
+    int output_size = network->output_size;
+    int element_size = input_size + output_size;
+    int elements_count = data_size / element_size;
+    double outputs[output_size];
+    Layer * output_layer = network->layers[network->size - 1];
+    if (log) printf("Test data elements: %d\n", elements_count);
+    time_t start_t, end_t;
+    char timestr[80];
+    struct tm * tminfo;
+    time(&start_t);
+    tminfo = localtime(&start_t);
+    strftime(timestr, 80, "%H:%M:%S", tminfo);
+    if (log) printf("Testing started at %s\n", timestr);
+    for (i = 0; i < elements_count; i++) {
+        if (log) printf("\rTesting %d/%d             ", i + 1, elements_count);
+        fflush(stdout);
+        double * inputs = test_data;
+        test_data += input_size;
+        double * expected = test_data;
+        feedforward(network, inputs);
+        for (j = 0; j < output_size; j++) {
+            Neuron * neuron = output_layer->neurons[j];
+            outputs[j] = neuron->activation;
+        }
+        int omax = arrayMaxIndex(outputs, output_size);
+        int emax = arrayMaxIndex(expected, output_size);
+        if (omax == emax) correct_results++;
+        test_data += output_size;
+    }
+    if (log) printf("\n");
+    time(&end_t);
+    if (log) printf("Completed in %ld sec.\n", end_t - start_t);
+    accuracy = (float) correct_results / (float) elements_count;
+    if (log) printf("Accuracy (%d/%d): %.2f\n", correct_results, elements_count,
+                    accuracy);
+    return accuracy;
 }
 
 void train(NeuralNetwork * network,
@@ -1281,11 +1387,24 @@ void train(NeuralNetwork * network,
         network->current_epoch = i;
         double err = gradientDescent(network, training_data, element_size,
                                      elements_count, learning_rate, batch_size);
+        char accuracy_msg[255] = "";
+        if (test_data != NULL) {
+            int batches_count = elements_count / batch_size;
+            printf("\rEpoch %d: batch %d/%d, validating...",
+                   network->current_epoch + 1,
+                   network->current_batch + 1,
+                   batches_count);
+            float acc = validate(network, test_data, test_size, 0);
+            printf("\rEpoch %d: batch %d/%d",
+                   network->current_epoch + 1,
+                   network->current_batch + 1,
+                   batches_count);
+            sprintf(accuracy_msg, ", acc = %.2f,", acc);
+        }
         time(&epoch_t);
         time_t elapsed_t = epoch_t - e_t;
         e_t = epoch_t;
-        printf(", loss = %.2lf (%ld sec.)\n", err, elapsed_t);
-        if (test_data != NULL) test(network, test_data, test_size);
+        printf(", loss = %.2lf%s (%ld sec.)\n", err, accuracy_msg, elapsed_t);
     }
     time(&end_t);
     printf("Completed in %ld sec.\n", end_t - start_t);
@@ -1293,46 +1412,7 @@ void train(NeuralNetwork * network,
 }
 
 float test(NeuralNetwork * network, double * test_data, int data_size) {
-    int i, j;
-    float accuracy = 0.0f;
-    int correct_results = 0;
-    int input_size = network->input_size;
-    int output_size = network->output_size;
-    int element_size = input_size + output_size;
-    int elements_count = data_size / element_size;
-    double outputs[output_size];
-    Layer * output_layer = network->layers[network->size - 1];
-    printf("Test data elements: %d\n", elements_count);
-    time_t start_t, end_t;
-    char timestr[80];
-    struct tm * tminfo;
-    time(&start_t);
-    tminfo = localtime(&start_t);
-    strftime(timestr, 80, "%H:%M:%S", tminfo);
-    printf("Testing started at %s\n", timestr);
-    for (i = 0; i < elements_count; i++) {
-        printf("\rTesting %d/%d                ", i + 1, elements_count);
-        fflush(stdout);
-        double * inputs = test_data;
-        test_data += input_size;
-        double * expected = test_data;
-        feedforward(network, inputs);
-        for (j = 0; j < output_size; j++) {
-            Neuron * neuron = output_layer->neurons[j];
-            outputs[j] = neuron->activation;
-        }
-        int omax = arrayMaxIndex(outputs, output_size);
-        int emax = arrayMaxIndex(expected, output_size);
-        if (omax == emax) correct_results++;
-        test_data += output_size;
-    }
-    printf("\n");
-    time(&end_t);
-    printf("Completed in %ld sec.\n", end_t - start_t);
-    accuracy = (float) correct_results / (float) elements_count;
-    printf("Accuracy (%d/%d): %.2f\n", correct_results, elements_count,
-           accuracy);
-    return accuracy;
+    return validate(network, test_data, data_size, 1);
 }
 
 /* Test */

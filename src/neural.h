@@ -28,7 +28,8 @@ typedef enum {
     Convolutional,
     Pooling,
     Recurrent,
-    LSTM
+    LSTM,
+    SoftMax
 } LayerType;
 
 typedef struct {
@@ -72,6 +73,7 @@ typedef struct {
     int input_size;
     int output_size;
     int current_epoch;
+    int current_batch;
 } NeuralNetwork;
 
 NeuralNetwork * createNetwork();
