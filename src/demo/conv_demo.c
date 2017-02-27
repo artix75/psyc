@@ -51,9 +51,9 @@ int main(int argc, char** argv) {
         LayerParameters * cparams;
         LayerParameters * pparams;
         cparams = createConvolutionalParameters(FEATURES_COUNT, REGIONS_SIZE,
-                                                1, 0);
+                                                1, 0, 0);
         pparams = createConvolutionalParameters(FEATURES_COUNT, POOL_SIZE,
-                                                0, 0);
+                                                0, 0, 0);
         addLayer(network, FullyConnected, INPUT_SIZE, NULL);
         addConvolutionalLayer(network, cparams);
         addPoolingLayer(network, pparams);
@@ -107,6 +107,8 @@ int main(int argc, char** argv) {
             if (layer->type == Pooling || layer->type == Convolutional) {
                 printf(", features = %d", (int) (par[FEATURE_COUNT]));
                 printf(", region_size = %d", (int) (par[REGION_SIZE]));
+                if (layer->type == Convolutional)
+                    printf(", use_relu = %d", (int) (par[USE_RELU]));
             }
         }
         printf("\n");

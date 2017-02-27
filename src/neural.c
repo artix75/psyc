@@ -394,6 +394,7 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
                 if (aidx == 0) lsize = arg;
                 else args[aidx - 1] = arg;
             }
+            argc--;
             sprintf(fmt, "]%s", last);
             fscanf(f, fmt, buff);
         }
@@ -431,8 +432,10 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
             if (ltype == FullyConnected) {
                 layer = addLayer(network, ltype, lsize, NULL);
             } else if (ltype == Convolutional || ltype == Pooling) {
-                LayerParameters * params = createLayerParamenters(argc);
+                int param_c = CONV_PARAMETER_COUNT;
+                LayerParameters * params = createLayerParamenters(param_c);
                 for (aidx = 0; aidx < argc; aidx++) {
+                    if (aidx >= param_c) break;
                     int arg = args[aidx];
                     params->parameters[aidx] = (double) arg;
                 }
@@ -633,10 +636,11 @@ int initConvolutionalLayer(NeuralNetwork * network, Layer * layer,
     int previous_size = previous->size;
     LayerParameters * previous_params = previous->parameters;
     double input_w, input_h, output_w, output_h;
+    int use_relu = (int) (params[USE_RELU]);
     if (previous_params == NULL) {
         double w = sqrt(previous_size);
         input_w = w; input_h = w;
-        previous_params = createConvolutionalParameters(1, 0, 0, 0);
+        previous_params = createConvolutionalParameters(1, 0, 0, 0, 0);
         previous_params->parameters[OUTPUT_WIDTH] = input_w;
         previous_params->parameters[OUTPUT_HEIGHT] = input_h;
         previous->parameters = previous_params;
@@ -691,8 +695,13 @@ int initConvolutionalLayer(NeuralNetwork * network, Layer * layer,
             layer->neurons[idx] = neuron;
         }
     }
-    layer->activate = sigmoid;
-    layer->delta = sigmoid_prime;
+    if (!use_relu) {
+        layer->activate = sigmoid;
+        layer->delta = sigmoid_prime;
+    } else {
+        layer->activate = relu;
+        layer->delta = relu_prime;
+    }
     layer->feedforward = convolve;
     return 1;
 }
@@ -898,10 +907,12 @@ LayerParameters * createLayerParamenters(int count, ...) {
 LayerParameters * createConvolutionalParameters(double feature_count,
                                                 double region_size,
                                                 int stride,
-                                                int padding) {
+                                                int padding,
+                                                int use_relu) {
     return createLayerParamenters(CONV_PARAMETER_COUNT, feature_count,
                                   region_size, (double) stride,
-                                  0.0f, 0.0f, 0.0f, 0.0f, (double) padding);
+                                  0.0f, 0.0f, 0.0f, 0.0f,
+                                  (double) padding, (double) use_relu);
 }
 
 void setLayerParameter(LayerParameters * params, int param, double value) {
@@ -1360,7 +1371,7 @@ float validate(NeuralNetwork * network, double * test_data, int data_size,
     strftime(timestr, 80, "%H:%M:%S", tminfo);
     if (log) printf("Testing started at %s\n", timestr);
     for (i = 0; i < elements_count; i++) {
-        if (log) printf("\rTesting %d/%d             ", i + 1, elements_count);
+        if (log) printf("\rTesting %d/%d", i + 1, elements_count);
         fflush(stdout);
         double * inputs = test_data;
         test_data += input_size;

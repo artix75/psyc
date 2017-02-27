@@ -1,6 +1,10 @@
 SHELL=/bin/bash
 CC=gcc
 
+default: all
+
+.PHONY: clean
+
 demo:
 	cd src/demo/ && make all
 test:

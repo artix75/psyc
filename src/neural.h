@@ -6,12 +6,13 @@
 #define OUTPUT_WIDTH    5
 #define OUTPUT_HEIGHT   6
 #define PADDING         7
+#define USE_RELU        8
 
 #define STATUS_UNTRAINED    0
 #define STATUS_TRAINED      1
 #define STATUS_TRAINING     2
 
-#define CONV_PARAMETER_COUNT 8
+#define CONV_PARAMETER_COUNT 9
 #define NULL_VALUE -9999999.99
 
 
@@ -91,7 +92,8 @@ void addLayerParameter(LayerParameters * params, double val);
 LayerParameters * createConvolutionalParameters(double feature_count,
                                                 double region_size,
                                                 int stride,
-                                                int padding);
+                                                int padding,
+                                                int use_relu);
 void deleteLayerParamenters(LayerParameters * params);
 void feedforward(NeuralNetwork * network, double * values);
 
