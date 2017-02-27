@@ -1,5 +1,6 @@
 SHELL=/bin/bash
 CC=gcc
+CFLAGS=-mavx
 
 mnist_demo: ../neural.o ../mnist.o mnist_demo.o
 	gcc -o ../../bin/mnist_demo -lz ../neural.o ../mnist.o mnist_demo.o

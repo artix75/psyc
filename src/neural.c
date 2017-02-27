@@ -29,6 +29,10 @@ double relu(double val) {
     return (val >= 0 ? val : 0);
 }
 
+double relu_prime(double val) {
+    return (double)(val > 0);
+}
+
 /* Feedforward functions */
 
 void fullFeedforward(NeuralNetwork * net, Layer * layer) {
@@ -688,7 +692,7 @@ int initConvolutionalLayer(NeuralNetwork * network, Layer * layer,
         }
     }
     layer->activate = sigmoid;
-    layer->prime = sigmoid_prime;
+    layer->delta = sigmoid_prime;
     layer->feedforward = convolve;
     return 1;
 }
@@ -763,7 +767,7 @@ int initPoolingLayer(NeuralNetwork * network, Layer * layer,
         }
     }
     layer->activate = NULL;
-    layer->prime = sigmoid_prime;
+    layer->delta = sigmoid_prime;
     layer->feedforward = pool;
     return 1;
 }
@@ -821,11 +825,11 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
         }
         if (type != SoftMax) {
             layer->activate = sigmoid;
-            layer->prime = sigmoid_prime;
+            layer->delta = sigmoid_prime;
             layer->feedforward = fullFeedforward;
         } else {
             layer->activate = NULL;
-            layer->prime = NULL;
+            layer->delta = NULL;
             layer->feedforward = softmaxFeedforward;
         }
     } else if (type == Convolutional) {
@@ -1122,6 +1126,7 @@ Delta ** backprop(NeuralNetwork * network, double * x, double * y) {
     last_delta_v = delta_v;
     int i, o, w, j, k;
     feedforward(network, x);
+    double softmax_sum = 0.0;
     for (o = 0; o < osize; o++) {
         Neuron * neuron = outputLayer->neurons[o];
         double o_val = neuron->activation;
@@ -1129,18 +1134,36 @@ Delta ** backprop(NeuralNetwork * network, double * x, double * y) {
         double d = 0.0;
         if (outputLayer->type != SoftMax) {
             d = o_val - y_val;
-            d *= outputLayer->prime(neuron->z_value);
+            d *= outputLayer->delta(neuron->z_value);
         } else {
             y_val = (y_val < 1 ? 0 : 1);
             d = -(y_val - o_val);
+            d *= o_val;
+            softmax_sum += d;
             //printf("SoftMax D[%d](y=%lf) -> %lf\n", o, y_val, d);
         }
         delta_v[o] = d;
-        Delta * n_delta = &(layer_delta[o]);
-        n_delta->bias = d;
-        for (w = 0; w < neuron->weights_size; w++) {
-            double prev_a = previousLayer->neurons[w]->activation;
-            n_delta->weights[w] = d * prev_a;
+        if (outputLayer->type != SoftMax) {
+            Delta * n_delta = &(layer_delta[o]);
+            n_delta->bias = d;
+            for (w = 0; w < neuron->weights_size; w++) {
+                double prev_a = previousLayer->neurons[w]->activation;
+                n_delta->weights[w] = d * prev_a;
+            }
+        }
+    }
+    if (outputLayer->type == SoftMax) {
+        for (o = 0; o < osize; o++) {
+            Neuron * neuron = outputLayer->neurons[o];
+            double o_val = neuron->activation;
+            delta_v[o] -= (o_val * softmax_sum);
+            double d = delta_v[o];
+            Delta * n_delta = &(layer_delta[o]);
+            n_delta->bias = d;
+            for (w = 0; w < neuron->weights_size; w++) {
+                double prev_a = previousLayer->neurons[w]->activation;
+                n_delta->weights[w] = d * prev_a;
+            }
         }
     }
     for (i = previousLayer->index; i > 0; i--) {
@@ -1163,7 +1186,7 @@ Delta ** backprop(NeuralNetwork * network, double * x, double * y) {
                     double d = last_delta_v[k];
                     sum += (d * weight);
                 }
-                double dv = sum * layer->prime(neuron->z_value);
+                double dv = sum * layer->delta(neuron->z_value);
                 delta_v[j] = dv;
                 Delta * n_delta = &(layer_delta[j]);
                 n_delta->bias = dv;
@@ -1184,7 +1207,7 @@ Delta ** backprop(NeuralNetwork * network, double * x, double * y) {
                     double d = last_delta_v[k];
                     sum += (d * weight);
                 }
-                double dv = sum * layer->prime(neuron->z_value);
+                double dv = sum * layer->delta(neuron->z_value);
                 delta_v[j] = dv;
             }
             free(last_delta_v);

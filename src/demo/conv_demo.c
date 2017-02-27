@@ -58,8 +58,8 @@ int main(int argc, char** argv) {
         addConvolutionalLayer(network, cparams);
         addPoolingLayer(network, pparams);
         addLayer(network, FullyConnected, 30, NULL);
-        addLayer(network, FullyConnected, 10, NULL);
-        //addLayer(network, SoftMax, 10, NULL);
+        //addLayer(network, FullyConnected, 10, NULL);
+        addLayer(network, SoftMax, 10, NULL);
         
         int element_size = network->input_size + network->output_size;
         int element_count = datalen / element_size;

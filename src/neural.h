@@ -17,6 +17,7 @@
 
 typedef double (*ActivationFunction)(double);
 typedef void (*FeedforwardFunction)(void * network, void * layer);
+typedef void (*CostFunction)(void * network, double * expected);
 
 typedef struct {
     double bias;
@@ -60,7 +61,7 @@ typedef struct {
     int size;
     LayerParameters * parameters;
     ActivationFunction activate;
-    ActivationFunction prime;
+    ActivationFunction delta;
     FeedforwardFunction feedforward;
     Neuron ** neurons;
     void * extra;
@@ -69,6 +70,7 @@ typedef struct {
 typedef struct {
     int size;
     Layer ** layers;
+    CostFunction cost;
     unsigned char status;
     int input_size;
     int output_size;
