@@ -1,3 +1,20 @@
+/*
+ Copyright (c) 2016 Fabio Nicotra.
+ All rights reserved.
+ 
+ Redistribution and use in source and binary forms are permitted
+ provided that the above copyright notice and this paragraph are
+ duplicated in all such forms and that any documentation,
+ advertising materials, and other materials related to such
+ distribution and use acknowledge that the software was developed
+ by the copyright holder. The name of the
+ copyright holder may not be used to endorse or promote products derived
+ from this software without specific prior written permission.
+ THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+ IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -76,8 +93,8 @@ double backpropDeltas[8][7] = {
 
 // Layer, Neuron, Bias, Weight1 idx, Weight2 idx, Weight1, Weight2
 double backpropConvDeltas[8][8] = {
-    {1.0, 0.0, 0.75526753, 0.0, 1.0, 0.02270236, 0.01408378},
-    {1.0, 1.0, -0.05372394, 0.0, 1.0, 0.01154569, 0.00698268},
+    {1.0, 0.0, 0.74930726, 0.0, 1.0, 0.01887213, 0.00558867},
+    {1.0, 1.0, -0.12929553, 0.0, 1.0, -0.00580211, -0.00211678},
     {3.0, 6.0, 0.00000055, 0.0, 25.0, 0.00000028, 0.00000035},
     {4.0, 0.0, 0.03533965, 0.0, 2.0, 0.00000000, 0.03533965}
 };
@@ -325,7 +342,7 @@ int testConvBackprop(void* tc, void* t) {
         if (!ok) {
             sprintf(testobj->error_message,
                     "Delta[%d][%d] weight[%d] %.8lf != from expected (%.8lf)",
-                    lidx - 1, nidx, widx1, val, w2);
+                    lidx - 1, nidx, widx2, val, w2);
             break;
         }
     }
