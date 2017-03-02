@@ -11,6 +11,7 @@
 #define POOL_SIZE 2
 #define TRAIN_DATASET_LEN 50000
 #define EVAL_DATASET_LEN 10000
+#define RELU_ENABLED 0
 
 int main(int argc, char** argv) {
     if (argc < 3) {
@@ -51,9 +52,9 @@ int main(int argc, char** argv) {
         LayerParameters * cparams;
         LayerParameters * pparams;
         cparams = createConvolutionalParameters(FEATURES_COUNT, REGIONS_SIZE,
-                                                1, 0, 0);
+                                                1, 0, RELU_ENABLED);
         pparams = createConvolutionalParameters(FEATURES_COUNT, POOL_SIZE,
-                                                0, 0, 0);
+                                                0, 0, RELU_ENABLED);
         addLayer(network, FullyConnected, INPUT_SIZE, NULL);
         addConvolutionalLayer(network, cparams);
         addPoolingLayer(network, pparams);
@@ -95,7 +96,7 @@ int main(int argc, char** argv) {
         }
     }
     
-    int i;
+    /*int i;
     for (i = 0; i < network->size; i++) {
         Layer * layer = network->layers[i];
         char * type = getLayerTypeLabel(layer);
@@ -112,7 +113,7 @@ int main(int argc, char** argv) {
             }
         }
         printf("\n");
-    }
+    }*/
     
     /*double * test_data = NULL;
     int testlen = loadMNISTData(TEST_DATA,

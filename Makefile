@@ -7,6 +7,8 @@ default: all
 
 demo:
 	cd src/demo/ && make all
+neural_cli:
+	cd src && make all
 test:
 	cd src/test && make all
 clean:
@@ -16,6 +18,6 @@ clean:
 	rm -f src/test/*.o
 	rm -f bin/*
 	if [ -e tmp/README ]; then cp tmp/README bin/; fi
-all: demo
+all: neural_cli demo
 	
         

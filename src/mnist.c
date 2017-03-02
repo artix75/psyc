@@ -201,7 +201,7 @@ int loadMNISTData(int type,
     *data = malloc(data_len * sizeof(double));
     double * data_p = *data;
     for (i = 0; i < image_count; i++) {
-        printf("\rLoading image %d/%d                 ", i + 1, image_count);
+        printf("\rLoading image %d/%d", i + 1, image_count);
         for (j = 0; j < img_area; j++) {
             int pixel = fgetc(tmpimages);
             double d = (double) pixel / (double) 255;

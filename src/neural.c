@@ -7,6 +7,12 @@
 #include <time.h>
 #include "neural.h"
 
+#ifdef USE_AVX
+#include <xmmintrin.h>
+#include <pmmintrin.h>
+#include <immintrin.h>
+#endif
+
 #define calculateConvolutionalSide(s,rs,st,pad) ((s - rs + 2 * pad) / st + 1)
 #define calculatePoolingSide(s, rs) ((s - rs) / rs + 1)
 #define getColumn(index, width) (index % width)
@@ -22,15 +28,15 @@ double sigmoid(double val) {
 
 double sigmoid_prime(double val) {
     double s = sigmoid(val);
-    return s * (1 -s);
+    return s * (1 - s);
 }
 
 double relu(double val) {
-    return (val >= 0 ? val : 0);
+    return (val >= 0.0 ? val : 0.0);
 }
 
 double relu_prime(double val) {
-    return (double)(val > 0);
+    return (double)(val > 0.0);
 }
 
 /* Feedforward functions */
@@ -189,16 +195,20 @@ void pool(NeuralNetwork * net, Layer * layer) {
             int r_col = col * region_size;
             int max_x = region_size + r_col;
             int max_y = region_size + r_row;
-            double max = 0;
+            double max = 0.0, max_z = 0.0;
             for (y = r_row; y < max_y; y++) {
                 for (x = r_col; x < max_x; x++) {
                     int nidx = ((y * input_w) + x) + (prev_size * i);
                     Neuron * prev_neuron = previous->neurons[nidx];
                     double a = prev_neuron->activation;
-                    if (a > max) max = a;
+                    double z = prev_neuron->z_value;
+                    if (a > max) {
+                        max = a;
+                        max_z = z;
+                    }
                 }
             }
-            neuron->z_value = max;
+            neuron->z_value = max_z;
             neuron->activation = max;
         }
     }
@@ -306,6 +316,25 @@ char * getLayerTypeLabel(Layer * layer) {
     return "UNKOWN";
 }
 
+void printLayerInfo(Layer * layer) {
+    LayerType ltype = layer->type;
+    char * type_name = getLayerTypeLabel(layer);
+    LayerParameters * lparams = layer->parameters;
+    printf("Layer[%d]: %s, size = %d", layer->index, type_name, layer->size);
+    if ((ltype == Convolutional || ltype == Pooling) && lparams != NULL) {
+        double * params = lparams->parameters;
+        int fcount = (int) (params[FEATURE_COUNT]);
+        int rsize = (int) (params[REGION_SIZE]);
+        int input_w = (int) (params[INPUT_WIDTH]);
+        int input_h = (int) (params[INPUT_HEIGHT]);
+        int stride = (int) (params[STRIDE]);
+        int use_relu = (int) (params[USE_RELU]);
+        char * actv = (use_relu ? "relu" : "sigmoid");
+        printf(", input size = %dx%d, features = %d", input_w, input_h, fcount);
+        printf(", region = %dx%d, stride = %d, activation = %s\n",
+               rsize, rsize, stride, actv);
+    } else printf("\n");
+}
 
 /* Loss functions */
 
@@ -742,6 +771,7 @@ int initPoolingLayer(NeuralNetwork * network, Layer * layer,
     }
     double * previous_params = previous_parameters->parameters;
     int feature_count = (int) (previous_params[FEATURE_COUNT]);
+    params[FEATURE_COUNT] = (double) feature_count;
     double region_size = params[REGION_SIZE];
     if (region_size <= 0) {
         fprintf(stderr, "REGION_SIZE must be > 0 (given: %lf)", region_size);
@@ -776,7 +806,7 @@ int initPoolingLayer(NeuralNetwork * network, Layer * layer,
         }
     }
     layer->activate = NULL;
-    layer->delta = sigmoid_prime;
+    layer->delta = previous->delta;
     layer->feedforward = pool;
     return 1;
 }
@@ -795,7 +825,7 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
     layer->extra = NULL;
     Layer * previous = NULL;
     int previous_size = 0;
-    printf("Adding layer %d\n", layer->index);
+    //printf("Adding layer %d\n", layer->index);
     if (network->layers == NULL) {
         network->layers = malloc(sizeof(Layer*));
         network->input_size = size;
@@ -847,6 +877,7 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
         initPoolingLayer(network, layer, params);
     }
     network->layers[layer->index] = layer;
+    printLayerInfo(layer);
     return layer;
 }
 
