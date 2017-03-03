@@ -54,6 +54,12 @@ typedef enum {
     SoftMax
 } LayerType;
 
+typedef enum {
+    None,
+    IsRecurrent = 1 << 0,
+    OneHot = 1 << 1
+} Flags;
+
 typedef struct {
     int count;
     double * parameters;
@@ -65,6 +71,13 @@ typedef struct {
     double * biases;
     double ** weights;
 } ConvolutionalSharedParams;
+
+typedef struct {
+    int states_count;
+    double * states;
+    int weights_size;
+    double * weights;
+} RecurrentCell;
 
 typedef struct {
     int index;
@@ -85,6 +98,7 @@ typedef struct {
     ActivationFunction delta;
     FeedforwardFunction feedforward;
     Neuron ** neurons;
+    Flags flags;
     void * extra;
 } Layer;
 
@@ -92,6 +106,7 @@ typedef struct {
     int size;
     Layer ** layers;
     CostFunction cost;
+    Flags flags;
     unsigned char status;
     int input_size;
     int output_size;
@@ -135,5 +150,7 @@ float test(NeuralNetwork * network, double * test_data, int data_size);
 char * getLayerTypeLabel(Layer * layer);
 
 void testShuffle(double * array, int size, int element_size);
+
 #endif
+
 

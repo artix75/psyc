@@ -56,6 +56,10 @@ double relu_prime(double val) {
     return (double)(val > 0.0);
 }
 
+double tanh_prime(double val) {
+    return (1 - (val * val));
+}
+
 /* Feedforward functions */
 
 void fullFeedforward(NeuralNetwork * net, Layer * layer) {
@@ -231,6 +235,10 @@ void pool(NeuralNetwork * net, Layer * layer) {
     }
 }
 
+void recurrentFeedforward(NeuralNetwork * net, Layer * layer) {
+
+}
+
 /* Utils */
 
 static double normalized_random() {
@@ -376,6 +384,8 @@ NeuralNetwork * createNetwork() {
     network->output_size = 0;
     network->status = STATUS_UNTRAINED;
     network->current_epoch = 0;
+    network->current_batch = 0;
+    network->flags = None;
     return network;
 }
 
@@ -830,6 +840,28 @@ int initPoolingLayer(NeuralNetwork * network, Layer * layer,
     return 1;
 }
 
+int initRecurrentLayer(NeuralNetwork * network, Layer * layer) {
+    int lsize = layer->size, i, j;
+    for (i = 0; i < lsize; i++) {
+        Neuron * neuron = layer->neurons[i];
+        RecurrentCell * cell = malloc(sizeof(RecurrentCell));
+        cell->states_count = 0;
+        cell->states = NULL;
+        cell->weights_size = lsize;
+        cell->weights = malloc(lsize * sizeof(double));
+        for (j = 0; j < lsize; j++) {
+            cell->weights[j] = gaussian_random(0, 1);
+        }
+        neuron->extra = cell;
+    }
+    layer->flags |= IsRecurrent;
+    layer->activate = tanh;
+    layer->delta = tanh_prime;
+    layer->feedforward = recurrentFeedforward;
+    network->flags |= IsRecurrent;
+    return 1;
+}
+
 Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
                  LayerParameters* params) {
     if (network->size == 0 && type != FullyConnected) {
@@ -842,6 +874,7 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
     layer->size = size;
     layer->parameters = params;
     layer->extra = NULL;
+    layer->flags = None;
     Layer * previous = NULL;
     int previous_size = 0;
     //printf("Adding layer %d\n", layer->index);
@@ -862,11 +895,11 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
         for (i = 0; i < size; i++) {
             Neuron * neuron = malloc(sizeof(Neuron));
             neuron->index = i;
+            neuron->extra = NULL;
             if (layer->index > 0) {
                 neuron->weights_size = previous_size;
                 neuron->bias = gaussian_random(0, 1);
                 neuron->weights = malloc(sizeof(double) * previous_size);
-                neuron->extra = NULL;
                 for (j = 0; j < previous_size; j++) {
                     neuron->weights[j] = gaussian_random(0, 1);
                 }
@@ -874,7 +907,6 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
                 neuron->bias = 0;
                 neuron->weights_size = 0;
                 neuron->weights = NULL;
-                neuron->extra = NULL;
             }
             neuron->activation = 0;
             neuron->z_value = 0;
@@ -894,6 +926,8 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
         initConvolutionalLayer(network, layer, params);
     } else if (type == Pooling) {
         initPoolingLayer(network, layer, params);
+    } else if (type == Recurrent) {
+        initRecurrentLayer(network, layer);
     }
     network->layers[layer->index] = layer;
     printLayerInfo(layer);
