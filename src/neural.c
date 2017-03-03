@@ -475,7 +475,7 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
             }
         } else {
             layer = NULL;
-            if (ltype == FullyConnected) {
+            if (ltype == FullyConnected || ltype == SoftMax) {
                 layer = addLayer(network, ltype, lsize, NULL);
             } else if (ltype == Convolutional || ltype == Pooling) {
                 int param_c = CONV_PARAMETER_COUNT;
@@ -498,7 +498,7 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
         layer = network->layers[i];
         int lsize = 0;
         ConvolutionalSharedParams * shared = NULL;
-        if (layer->type == FullyConnected) {
+        if (layer->type == FullyConnected || layer->type == SoftMax) {
             lsize = layer->size;
         } else if (layer->type == Convolutional) {
             shared = (ConvolutionalSharedParams*) layer->extra;
@@ -580,6 +580,8 @@ int saveNetwork(NeuralNetwork * network, const char* filename) {
                 fprintf(f, ",%d", (int) (params->parameters[j]));
             }
             fprintf(f, "]");
+        } else {
+            fprintf(f, "[%d,1,%d]", (int) ltype, layer->size);
         }
     }
     fprintf(f, "\n");
@@ -587,7 +589,7 @@ int saveNetwork(NeuralNetwork * network, const char* filename) {
         Layer * layer = network->layers[i];
         LayerType ltype = layer->type;
         int lsize = layer->size;
-        if (FullyConnected == ltype) {
+        if (FullyConnected == ltype || SoftMax == ltype) {
             for (j = 0; j < lsize; j++) {
                 Neuron * neuron = layer->neurons[j];
                 fprintf(f, "%.15e|", neuron->bias);

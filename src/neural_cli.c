@@ -172,6 +172,7 @@ int main(int argc, char ** argv) {
                                                        POOL_REGION_SIZE, 0, 0);
                 double * lparams = params->parameters;
                 for (j = i + 1; j < argc; j++) {
+                    char * carg = argv[j];
                     if (strcmp("--region-size", carg) == 0 && ++j < argc) {
                         int rsize = 0;
                         char * rsstr = argv[j];

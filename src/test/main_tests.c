@@ -24,6 +24,7 @@
 
 #define PRETRAINED_FULL_NETWORK "../../resources/pretrained.mnist.data"
 #define CONVOLUTIONAL_NETWORK "cnn.data"
+#define CONVOLUTIONAL_TRAINED_NETWORK "../../resources/pretrained.cnn.data"
 #define TEST_IMAGE_FILE "../../resources/t10k-images-idx3-ubyte.gz"
 #define TEST_LABEL_FILE "../../resources/t10k-labels-idx1-ubyte.gz"
 #define TEST_IMAGE_SIZE 28
@@ -47,7 +48,7 @@ int testFullBackprop(void* test_case, void* test);
 
 int testConvLoad(void* test_case, void* test);
 int testConvFeedforward(void* test_case, void* test);
-//int testConvAccuracy(void* tc, void* t);
+int testConvAccuracy(void* tc, void* t);
 int testConvBackprop(void* test_case, void* test);
 
 int testlen = 0;
@@ -117,6 +118,7 @@ int main(int argc, char** argv) {
     addTest(convNetworkTests, "Load", NULL, testConvLoad);
     addTest(convNetworkTests, "Feedforward", NULL, testConvFeedforward);
     addTest(convNetworkTests, "Backprop", NULL, testConvBackprop);
+    addTest(convNetworkTests, "Accuracy", NULL, testConvAccuracy);
     performTests(convNetworkTests);
     deleteTest(convNetworkTests);
     return 0;
@@ -184,7 +186,7 @@ int testFullAccuracy(void* tc, void* t) {
     NeuralNetwork * network = getNetwork(test_case);
     double * test_data = getTestData(test_case);
     double accuracy = test(network, test_data, testlen);
-    accuracy = round(0.95 * 100.0);
+    accuracy = round(accuracy * 100.0);
     int ok = (accuracy == 95.0);
     if (!ok) {
         testobj->error_message = malloc(255 * sizeof(char));
@@ -347,5 +349,31 @@ int testConvBackprop(void* tc, void* t) {
         }
     }
     deleteDeltas(deltas, network);
+    return ok;
+}
+
+int testConvAccuracy(void* tc, void* t) {
+    TestCase * test_case = (TestCase*) tc;
+    Test * testobj = (Test*) t;
+    double * test_data = getTestData(test_case);
+    NeuralNetwork * network = createNetwork();
+    int loaded = loadNetwork(network, CONVOLUTIONAL_TRAINED_NETWORK);
+    if (!loaded) {
+        testobj->error_message = malloc(255 * sizeof(char));
+        sprintf(testobj->error_message, "Failed to load %s",
+                CONVOLUTIONAL_TRAINED_NETWORK);
+        deleteNetwork(network);
+        return 0;
+    }
+    feedforward(network, test_data);
+    double accuracy = test(network, test_data, testlen);
+    accuracy = round(accuracy * 100.0);
+    int ok = (accuracy == 98.0);
+    if (!ok) {
+        testobj->error_message = malloc(255 * sizeof(char));
+        sprintf(testobj->error_message, "Accuracy %lf != from expected (%lf)",
+                accuracy, 98.0);
+    }
+    deleteNetwork(network);
     return ok;
 }
