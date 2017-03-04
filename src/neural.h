@@ -35,9 +35,13 @@
 #define CONV_PARAMETER_COUNT 9
 #define NULL_VALUE -9999999.99
 
+#define FLAG_NONE 0
+#define FLAG_RECURRENT  (1 << 0)
+#define FLAG_ONEHOT     (1 << 1)
+
 
 typedef double (*ActivationFunction)(double);
-typedef void (*FeedforwardFunction)(void * network, void * layer);
+typedef void (*FeedforwardFunction)(void * network, void * layer, ...);
 typedef void (*CostFunction)(void * network, double * expected);
 
 typedef struct {
@@ -53,12 +57,6 @@ typedef enum {
     LSTM,
     SoftMax
 } LayerType;
-
-typedef enum {
-    None,
-    IsRecurrent = 1 << 0,
-    OneHot = 1 << 1
-} Flags;
 
 typedef struct {
     int count;
@@ -98,7 +96,7 @@ typedef struct {
     ActivationFunction delta;
     FeedforwardFunction feedforward;
     Neuron ** neurons;
-    Flags flags;
+    int flags;
     void * extra;
 } Layer;
 
@@ -106,7 +104,7 @@ typedef struct {
     int size;
     Layer ** layers;
     CostFunction cost;
-    Flags flags;
+    int flags;
     unsigned char status;
     int input_size;
     int output_size;
@@ -134,7 +132,7 @@ void feedforward(NeuralNetwork * network, double * values);
 
 void deleteNetwork(NeuralNetwork * network);
 void deleteLayer(Layer * layer);
-void deleteNeuron(Neuron * neuron);
+void deleteNeuron(Neuron * neuron, Layer * layer);
 void deleteDeltas(Delta ** deltas, NeuralNetwork * network);
 Delta ** backprop(NeuralNetwork * network, double * x, double * y);
 void train(NeuralNetwork * network,
