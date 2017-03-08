@@ -4,7 +4,7 @@ CFLAGS=-std=c99
 LDFLAGS=-lz -lm
 
 profile: ../neural.o ../mnist.o profile.o
-	$(CC) -o profile $(LDFLAGS) ../neural.o ../mnist.o profile.o
+	$(CC) -o profile ../neural.o ../mnist.o profile.o $(LDFLAGS)
 	valgrind --leak-check=yes ./profile
 all: profile
         
