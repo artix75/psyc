@@ -30,6 +30,8 @@
 #include <immintrin.h>
 #endif
 
+#define M_PI 3.141592653589793
+
 #define calculateConvolutionalSide(s,rs,st,pad) ((s - rs + 2 * pad) / st + 1)
 #define calculatePoolingSide(s, rs) ((s - rs) / rs + 1)
 #define getColumn(index, width) (index % width)
