@@ -8,7 +8,7 @@ endif
 NEURAL_CLI_OBJS=neural.o mnist.o neural_cli.o
 
 neural_cli: $(NEURAL_CLI_OBJS)
-	$(CC) -o ../bin/neural_cli $(LDFLAGS) $(NEURAL_CLI_OBJS)
+	$(CC) -o ../bin/neural_cli $(NEURAL_CLI_OBJS) $(LDFLAGS)
 all: neural_cli
 	
         
