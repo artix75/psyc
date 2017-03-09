@@ -30,7 +30,9 @@
 #include <immintrin.h>
 #endif
 
+#ifndef M_PI
 #define M_PI 3.141592653589793
+#endif
 
 #define calculateConvolutionalSide(s,rs,st,pad) ((s - rs + 2 * pad) / st + 1)
 #define calculatePoolingSide(s, rs) ((s - rs) / rs + 1)
@@ -41,7 +43,7 @@ static unsigned char randomSeeded = 0;
 
 /* Function Prototypes */
 
-RecurrentCell * createRecurrentCell(int lsize);
+RecurrentCell * createRecurrentCell(Neuron * neuron, int lsize);
 void addRecurrentState(Neuron * neuron, double state, int times, int t);
 
 /* Activation functions */
@@ -383,7 +385,7 @@ static void shuffle ( double * array, int size, int element_size )
 void addRecurrentState(Neuron * neuron, double state, int times, int t) {
     RecurrentCell * cell = (RecurrentCell*) neuron->extra;
     if (cell == NULL) {
-        cell = createRecurrentCell(0);
+        cell = createRecurrentCell(neuron, 0);
         neuron->extra = cell;
     }
     if (t == 0) {
@@ -891,6 +893,7 @@ int initConvolutionalLayer(NeuralNetwork * network, Layer * layer,
             int idx = (i * area) + j;
             Neuron * neuron = malloc(sizeof(Neuron));
             neuron->index = idx;
+            neuron->extra = NULL;
             neuron->weights_size = shared->weights_size;
             neuron->bias = shared->biases[i];
             neuron->weights = shared->weights[i];
@@ -972,6 +975,7 @@ int initPoolingLayer(NeuralNetwork * network, Layer * layer,
             int idx = (i * area) + j;
             Neuron * neuron = malloc(sizeof(Neuron));
             neuron->index = idx;
+            neuron->extra = NULL;
             neuron->weights_size = 0;
             neuron->bias = NULL_VALUE;
             neuron->weights = NULL;
@@ -984,24 +988,34 @@ int initPoolingLayer(NeuralNetwork * network, Layer * layer,
     return 1;
 }
 
-RecurrentCell * createRecurrentCell(int lsize) {
+RecurrentCell * createRecurrentCell(Neuron * neuron, int lsize) {
     RecurrentCell * cell = malloc(sizeof(RecurrentCell));
     cell->states_count = 0;
     cell->states = NULL;
     cell->weights_size = lsize;
-    cell->weights = malloc(lsize * sizeof(double));
-    int i;
-    for (i = 0; i < lsize; i++) {
-        cell->weights[i] = gaussian_random(0, 1);
-    }
+    if (!lsize) cell->weights = NULL;
+    else cell->weights = neuron->weights + neuron->weights_size;
     return cell;
 }
 
-int initRecurrentLayer(NeuralNetwork * network, Layer * layer) {
-    int lsize = layer->size, i, j;
-    for (i = 0; i < lsize; i++) {
-        Neuron * neuron = layer->neurons[i];
-        neuron->extra = createRecurrentCell(lsize);
+int initRecurrentLayer(NeuralNetwork * network, Layer * layer, int size) {
+    int index = layer->index, i, j;
+    Layer * previous = network->layers[index - 1];
+    int ws = previous->size + size;
+    layer->neurons = malloc(sizeof(Neuron*) * size);
+    for (i = 0; i < size; i++) {
+        Neuron * neuron = malloc(sizeof(Neuron));
+        neuron->index = i;
+        neuron->weights_size = ws;
+        neuron->bias = gaussian_random(0, 1);
+        neuron->weights = malloc(sizeof(double) * ws);
+        for (j = 0; j < ws; j++) {
+            neuron->weights[j] = gaussian_random(0, 1);
+        }
+        neuron->activation = 0;
+        neuron->z_value = 0;
+        layer->neurons[i] = neuron;
+        neuron->extra = createRecurrentCell(neuron, size);
     }
     layer->flags |= FLAG_RECURRENT;
     layer->activate = tanh;
@@ -1076,7 +1090,7 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
     } else if (type == Pooling) {
         initPoolingLayer(network, layer, params);
     } else if (type == Recurrent) {
-        initRecurrentLayer(network, layer);
+        initRecurrentLayer(network, layer, size);
     }
     network->layers[layer->index] = layer;
     printLayerInfo(layer);
@@ -1188,7 +1202,7 @@ void feedforwardThroughTime(NeuralNetwork * network, double * values,
             neuron->activation = values[i];
             RecurrentCell * cell = (RecurrentCell*) neuron->extra;
             if (cell == NULL) {
-                cell = createRecurrentCell(0);
+                cell = createRecurrentCell(neuron, 0);
                 neuron->extra = cell;
             }
             if (t == 0) {
@@ -1263,13 +1277,13 @@ Delta * emptyLayer(Layer * layer) {
     delta = malloc(sizeof(Delta) * size);
     int i, ws = 0;
     for (i = 0; i < size; i++) {
+        Neuron * neuron = layer->neurons[i];
         if (ltype == Convolutional) {
             if (!ws) {
                 int region_size = (int) (parameters->parameters[REGION_SIZE]);
                 ws = region_size * region_size;
             }
         } else {
-            Neuron * neuron = layer->neurons[i];
             ws = neuron->weights_size;
         }
         delta[i].bias = 0;
@@ -1525,22 +1539,178 @@ Delta ** backprop(NeuralNetwork * network, double * x, double * y) {
     return deltas;
 }
 
+Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
+                             double * y, int times) {
+    // TODO: RECURRENT OUTPUT LAYER MUST BE SOFTMAX!!!
+
+    Delta ** deltas = emptyDeltas(network);
+    int netsize = network->size;
+    Layer * inputLayer = network->layers[0];
+    Layer * outputLayer = network->layers[netsize - 1];
+    int isize = inputLayer->size;
+    int osize = outputLayer->size;
+    int bptt_truncate = BPTT_TRUNCATE;
+
+    int i, o, w, j, k, t, tt;
+    feedforwardThroughTime(network, x, times);
+    
+    int last_t = times - 1;
+    for (t = last_t; t >= 0; t--) {
+        
+        int lowest_t = t - bptt_truncate;
+        if (lowest_t < 0) lowest_t = 0;
+        int time_offset = t * osize;
+        double * time_y = y + time_offset;
+        
+        Delta * layer_delta = deltas[netsize - 2]; // Deltas have no input layer
+        Layer * previousLayer = network->layers[outputLayer->index - 1];
+        Layer * nextLayer = NULL;
+        double * delta_v;
+        double * last_delta_v;
+        delta_v = malloc(sizeof(double) * osize);
+        memset(delta_v, 0, sizeof(double) * osize);
+
+        double softmax_sum = 0.0;
+        for (o = 0; o < osize; o++) {
+            Neuron * neuron = outputLayer->neurons[o];
+            RecurrentCell * cell = (RecurrentCell*) neuron->extra;
+            double o_val = cell->states[t];
+            double y_val = time_y[o];
+            double d = 0.0;
+            
+            
+            // Recurrent Output Layer must be SoftMax
+            y_val = (y_val < 1 ? 0 : 1);
+            d = -(y_val - o_val);
+            d *= o_val;
+            softmax_sum += d;
+            
+            delta_v[o] = d;
+            
+        }
+
+        // SoftMax
+        for (o = 0; o < osize; o++) {
+            Neuron * neuron = outputLayer->neurons[o];
+            RecurrentCell * cell = (RecurrentCell*) neuron->extra;
+            double o_val = cell->states[t];
+            delta_v[o] -= (o_val * softmax_sum);
+            double d = delta_v[o];
+            Delta * n_delta = &(layer_delta[o]);
+            n_delta->bias = d;
+            for (w = 0; w < neuron->weights_size; w++) {
+                Neuron * prev_neuron = previousLayer->neurons[w];
+                RecurrentCell * prev_cell = (RecurrentCell*)prev_neuron->extra;
+                double prev_a = prev_cell->states[t];
+                n_delta->weights[w] += (d * prev_a);
+            }
+        }
+        
+        for (i = previousLayer->index; i > 0; i--) {
+            Layer * layer = network->layers[i];
+            previousLayer = network->layers[i - 1];
+            nextLayer = network->layers[i + 1];
+            layer_delta = deltas[i - 1];
+            int lsize = layer->size;
+            LayerType ltype = layer->type;
+            LayerType prev_ltype = previousLayer->type;
+            
+            delta_v = malloc(sizeof(double) * lsize);
+            memset(delta_v, 0, sizeof(double) * lsize);
+            for (j = 0; j < lsize; j++) {
+                Neuron * neuron = layer->neurons[j];
+                double sum = 0;
+                for (k = 0; k < nextLayer->size; k++) {
+                    Neuron * nextNeuron = nextLayer->neurons[k];
+                    double weight = nextNeuron->weights[j];
+                    double d = last_delta_v[k];
+                    sum += (d * weight);
+                }
+                double dv = sum * layer->delta(neuron->z_value);
+                delta_v[j] = dv;
+                
+                Delta * n_delta = &(layer_delta[j]);
+                n_delta->bias += dv;
+                for (tt = t; tt >= lowest_t; tt--) {
+                    if (previousLayer->flags & FLAG_ONEHOT) {
+                        LayerParameters * params = previousLayer->parameters;
+                        assert(params != NULL);
+                        int vector_size = (int) params->parameters[0];
+                        assert(vector_size > 0);
+                        Neuron * prev_n = previousLayer->neurons[0];
+                        RecurrentCell * prev_c;
+                        prev_c = (RecurrentCell*) prev_n->extra;
+                        double prev_a = prev_c->states[t];
+                        assert(prev_a < vector_size);
+                        w = (int) prev_a;
+                        n_delta->weights[w] += dv;
+                    } else {
+                        for (w = 0; w < neuron->weights_size; w++) {
+                            Neuron * prev_n = previousLayer->neurons[w];
+                            RecurrentCell * prev_c;
+                            prev_c = (RecurrentCell*)prev_n->extra;
+                            double prev_a = prev_c->states[t];
+                            n_delta->weights[w] += (dv * prev_a);
+                        }
+                    }
+                    if (Recurrent == ltype) {
+                        RecurrentCell * cell = (RecurrentCell*)neuron->extra;
+                        int w_offs = neuron->weights_size - cell->weights_size;
+                        for (w = 0; w < cell->weights_size; w++) {
+                            Neuron * rn = layer->neurons[w];
+                            RecurrentCell * rc = (RecurrentCell*) rn->extra;
+                            double a = rc->states[tt - 1];
+                            n_delta->weights[w_offs + w] += (dv * a);
+                        }
+                    }
+                }
+            }
+            free(last_delta_v);
+            last_delta_v = delta_v;
+        }
+        if (delta_v != NULL) free(delta_v);
+    }
+    return deltas;
+}
+
 double updateWeights(NeuralNetwork * network, double * training_data,
-                     int batch_size, double rate) {
+                     int batch_size, double rate, ...) {
     double r = rate / (double) batch_size;
-    int i, j, k, w, netsize = network->size, dsize = netsize - 1;
+    int i, j, k, w, netsize = network->size, dsize = netsize - 1, times;
     int training_data_size = network->input_size;
     int label_data_size = network->output_size;
     int element_size = training_data_size + label_data_size;
     Delta ** deltas = emptyDeltas(network);
-    //double * data_p = training_data;
+    Delta ** bp_deltas = NULL;
+    double ** series = NULL;
+    if (network->flags & FLAG_RECURRENT) {
+        va_list args;
+        va_start(args, rate);
+        series = va_arg(args, double**);
+        va_end(args);
+        assert(series == NULL);
+    }
     double * x;
     double * y;
     for (i = 0; i < batch_size; i++) {
-        x = training_data;
-        y = training_data + training_data_size;
-        training_data += element_size;
-        Delta ** bp_deltas = backprop(network, x, y);
+        if (series == NULL) {
+            x = training_data;
+            y = training_data + training_data_size;
+            training_data += element_size;
+            bp_deltas = backprop(network, x, y);
+        } else {
+            x = series[i];
+            times = (int) *(x++);
+            if (times == 0) {
+                fprintf(stderr, "Series len must b > 0. (batch = %d)\n", i);
+                free(series);
+                deleteDeltas(deltas, network);
+                deleteNetwork(network);
+                exit(1);
+            }
+            y = x + (times * training_data_size);
+            bp_deltas = backpropThroughTime(network, x, y, times);
+        }
         for (j = 0; j < dsize; j++) {
             Layer * layer = network->layers[j + 1];
             Delta * layer_delta_bp = bp_deltas[j];
@@ -1607,6 +1777,7 @@ double updateWeights(NeuralNetwork * network, double * training_data,
     for (i = 0; i < label_data_size; i++) {
         outputs[i] = out->neurons[i]->activation;
     }
+    //TODO: recurrent loss and configurable loss function
     return loss(outputs, y, label_data_size);
 }
 
@@ -1617,7 +1788,16 @@ double gradientDescent(NeuralNetwork * network,
                        double learning_rate,
                        int batch_size) {
     int batches_count = elements_count / batch_size;
-    shuffle(training_data, elements_count, element_size);
+    double ** series = NULL;
+    if (network->flags & FLAG_RECURRENT) {
+        if (series == NULL) {
+            series = getRecurrentSeries(training_data,
+                                        elements_count,
+                                        network->input_size,
+                                        network->output_size);
+        }
+        shuffleSeries(series, elements_count);
+    } else shuffle(training_data, elements_count, element_size);
     int offset = (element_size * batch_size), i;
     double err = 0.0;
     for (i = 0; i < batches_count; i++) {
@@ -1625,8 +1805,9 @@ double gradientDescent(NeuralNetwork * network,
         printf("\rEpoch %d: batch %d/%d", network->current_epoch + 1,
                i + 1, batches_count);
         fflush(stdout);
-        err += updateWeights(network, training_data, batch_size, learning_rate);
-        training_data += offset;
+        err += updateWeights(network, training_data, batch_size,
+                             learning_rate, series);
+        if (series == NULL) training_data += offset;
     }
     return err / (double) batches_count;
 }
@@ -1683,9 +1864,15 @@ void train(NeuralNetwork * network,
            int batch_size,
            double * test_data,
            int test_size) {
-    int i;
+    int i, elements_count;
     int element_size = network->input_size + network->output_size;
-    int elements_count = data_size / element_size;
+    if (network->flags & FLAG_RECURRENT) {
+        // First training data number for Recurrent networks must indicate
+        // the data elements count
+        elements_count = (int) *(training_data++);
+        data_size--;
+    } else
+        elements_count = data_size / element_size;
     printf("Training data elements: %d\n", elements_count);
     network->status = STATUS_TRAINING;
     time_t start_t, end_t, epoch_t;

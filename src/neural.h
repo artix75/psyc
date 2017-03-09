@@ -39,6 +39,8 @@
 #define FLAG_RECURRENT  (1 << 0)
 #define FLAG_ONEHOT     (1 << 1)
 
+#define BPTT_TRUNCATE   4
+
 
 typedef double (*ActivationFunction)(double);
 typedef void (*FeedforwardFunction)(void * network, void * layer, ...);

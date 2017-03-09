@@ -20,4 +20,14 @@ done
 #for makefile in $(find "$project_path" -name Makefile); do
 #    sources="$sources $makefile"
 #done
-`open $sources`
+cmd=""
+os=`uname`
+if [ "$os" = "Linux" ]; then
+    cmd="xdg-open"
+elif [ "$os" = "Darwin" ]; then
+    cmd='open' 
+fi
+if [ -z "$cmd" ]; then
+    cmd=vim
+fi
+`$cmd $sources`
