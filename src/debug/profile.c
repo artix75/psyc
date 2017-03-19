@@ -66,7 +66,7 @@ int main(int argc, char** argv) {
     eval_data = train_data + datalen;
     int eval_datalen = element_size * EVAL_DATASET_LEN;
     
-    train(network, train_data, datalen, EPOCHS, 1.5, 1, eval_data,
+    train(network, train_data, datalen, EPOCHS, 1.5, 1, 0, eval_data,
           eval_datalen);
     
     test(network, test_data, datalen);

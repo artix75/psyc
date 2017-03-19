@@ -61,7 +61,8 @@ int main(int argc, char** argv) {
     
     printf("Data len: %d\n", datalen);
     
-    if (!loaded) train(network, training_data, datalen, EPOCHS, 3, 10, NULL, 0);
+    if (!loaded) train(network, training_data, datalen, EPOCHS, 3, 10, 0,
+                       NULL, 0);
     //int loaded = loadNetwork(network, "pretrained.mnist.data");
     //if (!loaded) exit(1);
     

@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <string.h>
 #include "test.h"
 #include "../neural.h"
 #include "../mnist.h"
@@ -33,14 +34,25 @@
 #define BP_CONV_DELTAS_CHECKS 4
 #define CONV_L1F0_BIAS 0.02630446809718423
 
-#define getNetwork(tc) (NeuralNetwork*)(tc->data[0])
-#define getTestData(tc) (double*)(tc->data[1])
+#define RNN_INPUT_SIZE  4
+#define RNN_HIDDEN_SIZE 2
+#define RNN_TIMES       4
+#define RNN_LEARING_RATE 0.005
+
+#define getNetwork(tc) ((NeuralNetwork*)(tc->data[0]))
+#define getTestData(tc) ((double*)(tc->data[1]))
+#define getRoundedDouble(d) (round(d * 1000000.0) / 1000000.0)
+#define getRoundedDoubleDec(d, dec) (round(d * dec) / dec)
 
 TestCase * fullNetworkTests;
 TestCase * convNetworkTests;
+TestCase * recurrentNetworkTests;
 
 void genericSetup (void* test_case);
 void genericTeardown (void* test_case);
+void RNNSetup (void* test_case);
+void RNNTeardown (void* test_case);
+
 int testFullLoad(void* test_case, void* test);
 int testFullFeedforward(void* test_case, void* test);
 int testFullAccuracy(void* tc, void* t);
@@ -50,6 +62,18 @@ int testConvLoad(void* test_case, void* test);
 int testConvFeedforward(void* test_case, void* test);
 int testConvAccuracy(void* tc, void* t);
 int testConvBackprop(void* test_case, void* test);
+
+int testRNNFeedforward(void* test_case, void* test);
+int testRNNBackprop(void* test_case, void* test);
+int testRNNStep(void* tc, void* t);
+
+/* neural.c static function prototypes */
+
+Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
+                             double * y, int times);
+
+double updateWeights(NeuralNetwork * network, double * training_data,
+                     int batch_size, double rate, ...);
 
 int testlen = 0;
 
@@ -100,6 +124,63 @@ double backpropConvDeltas[8][8] = {
     {4.0, 0.0, 0.03533965, 0.0, 2.0, 0.00000000, 0.03533965}
 };
 
+double rnn_inner_weights[2][4] = {
+    {0.23728831, -0.13215413,  0.22972574, -0.30660592},
+    {0.20497796,  0.10017828, -0.42993062, 0.13334368}
+};
+
+double rnn_outer_weights[4][2] = {
+    { 0.66009386,  0.53237322},
+    { 0.38653,    -0.17668558},
+    { 0.39194875, -0.43592448},
+    {-0.3616406,   0.22109871}
+};
+
+double rnn_recurrent_weights[2][2] = {
+    {-0.46118039, -0.06823764},
+    {-0.05642161, -0.69206895}
+};
+
+double rnn_expected_output[4][4] = {
+    {0.30070284, 0.24446228, 0.23227381, 0.22256106},
+    {0.21998344, 0.24441611, 0.24745303, 0.28814742},
+    {0.23400344, 0.27607197, 0.30379749, 0.1861271},
+    {0.24796499, 0.21649963, 0.19729585, 0.33823952}
+};
+
+double rnn_inner_deltas[2][6] = {
+    { 0.7147815, -0.21859849, 0.11033169, -0.38062627, -0.20556136, 0.087832},
+    {-0.25557706, 0.18080836, 0.40002974, -0.39482105, -0.1891429, 0.158413}
+};
+
+double rnn_outer_deltas[4][2] = {
+    { 0.4023519, -0.29857975},
+    {-0.33460693, 0.37440608},
+    { 0.26141107, 0.0456771},
+    {-0.32915604, -0.12150343}
+};
+
+double rnn_trained_inner_weights[2][4] = {
+    { 0.2337144,  -0.13106114,  0.22917408, -0.30470279},
+    { 0.20625585,  0.09927424, -0.43193077,  0.13531779}
+};
+
+double rnn_trained_outer_weights[4][2] = {
+    {0.6580821, 0.53386612},
+    {0.38820303, -0.17855761},
+    {0.39064169, -0.43615287},
+    {-0.35999482, 0.22170623}
+};
+
+double rnn_trained_recurrent_weights[2][2] = {
+    {-0.46015258, -0.0686768},
+    {-0.0554759, -0.69286102}
+};
+
+double rnn_inputs[5] = {4, 0, 1, 2, 3};
+double rnn_labels[4] = {3, 2, 1, 0};
+
+
 int main(int argc, char** argv) {
     
     fullNetworkTests = createTest("Fully Connected Network");
@@ -121,6 +202,16 @@ int main(int argc, char** argv) {
     addTest(convNetworkTests, "Accuracy", NULL, testConvAccuracy);
     performTests(convNetworkTests);
     deleteTest(convNetworkTests);
+    
+    recurrentNetworkTests = createTest("Recurrent Network");
+    recurrentNetworkTests->setup = RNNSetup;
+    recurrentNetworkTests->teardown = RNNTeardown;
+    addTest(recurrentNetworkTests, "Feedforward", NULL, testRNNFeedforward);
+    addTest(recurrentNetworkTests, "Backprop", NULL, testRNNBackprop);
+    addTest(recurrentNetworkTests, "Step", NULL, testRNNStep);
+    performTests(recurrentNetworkTests);
+    deleteTest(recurrentNetworkTests);
+    
     return 0;
     
 }
@@ -137,6 +228,60 @@ void genericSetup (void* tc) {
 }
 
 void genericTeardown (void* tc) {
+    TestCase * test_case = (TestCase*) tc;
+    NeuralNetwork * network = getNetwork(test_case);
+    if (network != NULL) deleteNetwork(network);
+    double * test_data = getTestData(test_case);
+    if (test_data != NULL) free(test_data);
+    free(test_case->data);
+    test_case->data = NULL;
+}
+
+void RNNSetup (void* tc) {
+    TestCase * test_case = (TestCase*) tc;
+    NeuralNetwork * network = createNetwork();
+    network->flags |= FLAG_ONEHOT;
+    addLayer(network, FullyConnected, RNN_INPUT_SIZE, NULL);
+    addLayer(network, Recurrent, RNN_HIDDEN_SIZE, NULL);
+    addLayer(network, SoftMax, RNN_INPUT_SIZE, NULL);
+    network->layers[network->size - 1]->flags |= FLAG_ONEHOT;
+    
+    int i, j, w;
+    for (i = 1; i < network->size; i++) {
+        Layer * layer = network->layers[i];
+        for (j = 0; j < layer->size; j++) {
+            Neuron * n = layer->neurons[j];
+            n->bias = 0;
+            for (w = 0; w < n->weights_size; w++) {
+                double * weights;
+                int w_idx = w;
+                if (i == 1) {
+                    if (w < RNN_INPUT_SIZE) weights = rnn_inner_weights[j];
+                    else {
+                        weights = rnn_recurrent_weights[j];
+                        w_idx -= RNN_INPUT_SIZE;
+                    }
+                } else weights = rnn_outer_weights[j];
+                n->weights[w] = weights[w_idx];
+                //printf("Layer[%d]->neurons[%d]->weights[%d] = %lf%s\n", i, j,
+                //       w, n->weights[w], tag);
+            }
+        }
+    }
+
+    test_case->data = malloc(2 * sizeof(void*));
+    test_case->data[0] = network;
+    int train_data_len = 1 + (RNN_TIMES * 2);
+    int labels_offset = 1 + RNN_TIMES;
+    double * training_data = malloc(train_data_len * sizeof(double));
+    double * p = training_data;
+    memcpy(p, rnn_inputs, labels_offset * sizeof(double));
+    p += labels_offset;
+    memcpy(p, rnn_labels, RNN_TIMES * sizeof(double));
+    test_case->data[1] = training_data;
+}
+
+void RNNTeardown (void* tc) {
     TestCase * test_case = (TestCase*) tc;
     NeuralNetwork * network = getNetwork(test_case);
     if (network != NULL) deleteNetwork(network);
@@ -167,8 +312,8 @@ int testFullFeedforward(void* tc, void* t) {
         double a = n->activation;
         double expected = fullNetworkFeedForwardResults[i];
         //printf("Layer[%d]->neuron[%d]: %.15e == exp: %.15e\n", network->size - 1, i, a, expected);
-        a = round(a * 1000000.0) / 1000000.0;
-        expected = round(expected * 1000000.0) / 1000000.0;
+        a = getRoundedDouble(a);
+        expected = getRoundedDouble(expected);
         if (a != expected) {
             res = 0;
             test->error_message = malloc(255 * sizeof(char));
@@ -217,7 +362,7 @@ int testFullBackprop(void* tc, void* t) {
         double w2 = backpropDeltas[i][6];
         Delta * dl = deltas[lidx - 1];
         Delta * d = &(dl[nidx]);
-        double val = round(d->bias * 100000000.0) / 100000000.0;
+        double val = getRoundedDoubleDec(d->bias, 100000000.0);
         ok = (val == bias);
         if (!ok) {
             sprintf(testobj->error_message,
@@ -225,7 +370,7 @@ int testFullBackprop(void* tc, void* t) {
                     lidx - 1, nidx, val, bias);
             break;
         }
-        val = round(d->weights[widx1] * 100000000.0) / 100000000.0;
+        val = getRoundedDoubleDec(d->weights[widx1], 100000000.0);
         ok = (val == w1);
         if (!ok) {
             sprintf(testobj->error_message,
@@ -233,7 +378,7 @@ int testFullBackprop(void* tc, void* t) {
                     lidx - 1, nidx, widx1, val, w1);
             break;
         }
-        val = round(d->weights[widx2] * 100000000.0) / 100000000.0;
+        val = getRoundedDoubleDec(d->weights[widx2], 100000000.0);
         ok = (val == w2);
         if (!ok) {
             sprintf(testobj->error_message,
@@ -261,9 +406,9 @@ int testConvLoad(void* tc, void* t) {
     ConvolutionalSharedParams * shared;
     shared = (ConvolutionalSharedParams *) layer->extra;
     double bias = shared->biases[0];
-    bias = round(bias * 1000000.0) / 1000000.0;
+    bias = getRoundedDouble(bias);
     double expected = CONV_L1F0_BIAS;
-    expected = round(expected * 1000000.0) / 1000000.0;
+    expected = getRoundedDouble(expected);
     int ok = (expected == bias);
     if (!ok) {
         test->error_message = malloc(255 * sizeof(char));
@@ -288,8 +433,8 @@ int testConvFeedforward(void* tc, void* t) {
         double a = n->activation;
         double expected = convNetworkFeedForwardResults[i];
         //printf("Layer[%d]->neuron[%d]: %.15e == exp: %.15e\n", network->size - 1, i, a, expected);
-        a = round(a * 1000000.0) / 1000000.0;
-        expected = round(expected * 1000000.0) / 1000000.0;
+        a = getRoundedDouble(a);
+        expected = getRoundedDouble(expected);
         if (a != expected) {
             res = 0;
             test->error_message = malloc(255 * sizeof(char));
@@ -323,7 +468,7 @@ int testConvBackprop(void* tc, void* t) {
         Delta * dl = deltas[lidx - 1];
         if (dl == NULL) continue;
         Delta * d = &(dl[nidx]);
-        double val = round(d->bias * 100000000.0) / 100000000.0;
+        double val = getRoundedDoubleDec(d->bias, 100000000.0);
         ok = (val == bias);
         if (!ok) {
             sprintf(testobj->error_message,
@@ -331,7 +476,7 @@ int testConvBackprop(void* tc, void* t) {
                     lidx - 1, nidx, val, bias);
             break;
         }
-        val = round(d->weights[widx1] * 100000000.0) / 100000000.0;
+        val = getRoundedDoubleDec(d->weights[widx1], 100000000.0);
         ok = (val == w1);
         if (!ok) {
             sprintf(testobj->error_message,
@@ -339,7 +484,7 @@ int testConvBackprop(void* tc, void* t) {
                     lidx - 1, nidx, widx1, val, w1);
             break;
         }
-        val = round(d->weights[widx2] * 100000000.0) / 100000000.0;
+        val = getRoundedDoubleDec(d->weights[widx2], 100000000.0);
         ok = (val == w2);
         if (!ok) {
             sprintf(testobj->error_message,
@@ -375,5 +520,116 @@ int testConvAccuracy(void* tc, void* t) {
                 accuracy, 98.0);
     }
     deleteNetwork(network);
+    return ok;
+}
+
+int testRNNFeedforward(void* tc, void* t) {
+    TestCase * test_case = (TestCase*) tc;
+    Test * test = (Test*) t;
+    NeuralNetwork * network = getNetwork(test_case);
+    feedforward(network, rnn_inputs);
+    
+    Layer * output = network->layers[network->size - 1];
+    int ok = 1, i, j;
+    for (i = 0; i < output->size; i++) {
+        Neuron * n = output->neurons[i];
+        RecurrentCell* cell = (RecurrentCell*) n->extra;
+        for (j = 0; j < cell->states_count; j++) {
+            double s = getRoundedDouble(cell->states[j]);
+            double expected = getRoundedDouble(rnn_expected_output[j][i]);
+            ok = (s == expected);
+            if (!ok) {
+                test->error_message = malloc(255 * sizeof(char));
+                sprintf(test->error_message, "Output[%d][%d]: %lf != %lf\n",
+                        i, j, s, expected);
+                break;
+            }
+        }
+        if (!ok) break;
+    }
+    return ok;
+}
+
+int testRNNBackprop(void* tc, void* t) {
+    TestCase * test_case = (TestCase*) tc;
+    Test * test = (Test*) t;
+    NeuralNetwork * network = getNetwork(test_case);
+    int ok = 1, i, j, w;
+    
+    Delta ** deltas = backpropThroughTime(network, rnn_inputs + 1,
+                                          rnn_labels, RNN_TIMES);
+    int dsize = network->size - 1;
+    for (i = 0; i < dsize; i++) {
+        Delta * delta = deltas[i];
+        Layer * l = network->layers[i + 1];
+        for (j = 0; j < l->size; j++) {
+            Delta * n_delta = &(delta[j]);
+            int ws = l->neurons[j]->weights_size;
+            double * expected = (i == 0 ? rnn_inner_deltas[j] :
+                                 rnn_outer_deltas[j]);
+            for (w = 0; w < ws; w++) {
+                double dw = getRoundedDouble(n_delta->weights[w]);
+                double exp_dw = getRoundedDouble(expected[w]);
+                ok = (dw == exp_dw);
+                if (!ok) {
+                    char * msg = malloc(255 * sizeof(char));
+                    test->error_message = msg;
+                    sprintf(msg, "Delta[%d][%d]->weight[%d]: %lf != %lf\n",
+                            i, j, w, dw, exp_dw);
+                    break;
+                }
+            }
+        }
+        if (!ok) break;
+    }
+    
+    deleteDeltas(deltas, network);
+    
+    return ok;
+}
+
+int testRNNStep(void* tc, void* t) {
+    TestCase * test_case = (TestCase*) tc;
+    Test * test = (Test*) t;
+    NeuralNetwork * network = getNetwork(test_case);
+    int train_data_len = 1 + (RNN_TIMES * 2);
+    double * training_data = getTestData(test_case);
+    double ** series = &training_data;
+    
+    int ok = 1, i, j, w;
+    
+    double loss = updateWeights(network, training_data, 1,
+                                RNN_LEARING_RATE, series);
+    
+    for (i = 1; i < network->size; i++) {
+        Layer * layer = network->layers[i];
+        for (j = 0; j < layer->size; j++) {
+            Neuron * n = layer->neurons[j];
+            for (w = 0; w < n->weights_size; w++) {
+                double * weights;
+                int w_idx = w;
+                if (i == 1) {
+                    if (w < RNN_INPUT_SIZE)
+                        weights = rnn_trained_inner_weights[j];
+                    else {
+                        weights = rnn_trained_recurrent_weights[j];
+                        w_idx -= RNN_INPUT_SIZE;
+                    }
+                } else weights = rnn_trained_outer_weights[j];
+                double w_val = getRoundedDouble(n->weights[w]);
+                double expected_w = getRoundedDouble(weights[w_idx]);
+                ok = (w_val == expected_w);
+                if (!ok) {
+                    char * msg = malloc(255 * sizeof(char));
+                    test->error_message = msg;
+                    sprintf(msg, "Layer[%d][%d]->weights[%d]: %lf != %lf\n",
+                            i, j, w, w_val, expected_w);
+                    break;
+                }
+            }
+        }
+        if (!ok) break;
+    }
+    //free(series);
     return ok;
 }

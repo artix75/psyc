@@ -142,8 +142,8 @@ int main(int argc, char** argv) {
     deleteNetwork(network);*/
     
     if (datalen > 0)
-        train(network, training_data, datalen, EPOCHS, 1.5, 10, validation_data,
-              valdlen);
+        train(network, training_data, datalen, EPOCHS, 1.5, 10, 0,
+              validation_data, valdlen);
     //int loaded = loadNetwork(network, "pretrained.mnist.data");
     //if (!loaded) exit(1);
     

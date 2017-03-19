@@ -39,12 +39,16 @@
 #define FLAG_RECURRENT  (1 << 0)
 #define FLAG_ONEHOT     (1 << 1)
 
+#define TRAINING_NO_SHUFFLE     (1 << 0)
+#define TRAINING_ADJUST_RATE    (1 << 1)
+
 #define BPTT_TRUNCATE   4
 
 
 typedef double (*ActivationFunction)(double);
 typedef void (*FeedforwardFunction)(void * network, void * layer, ...);
 typedef void (*CostFunction)(void * network, double * expected);
+typedef double (*LossFunction)(double* x, double* y, int size, int onehot_size);
 
 typedef struct {
     double bias;
@@ -106,6 +110,7 @@ typedef struct {
     int size;
     Layer ** layers;
     CostFunction cost;
+    LossFunction loss;
     int flags;
     unsigned char status;
     int input_size;
@@ -143,11 +148,17 @@ void train(NeuralNetwork * network,
            int epochs,
            double learning_rate,
            int batch_size,
+           int flags,
            double * test_data,
            int test_size);
 float test(NeuralNetwork * network, double * test_data, int data_size);
 //int arrayMaxIndex(double * array, int len);
 char * getLayerTypeLabel(Layer * layer);
+
+// Loss functions
+
+double quadraticLoss(double * x, double * y, int size, int onehot_size);
+double crossEntropyLoss(double * x, double * y, int size, int onehot_size);
 
 void testShuffle(double * array, int size, int element_size);
 

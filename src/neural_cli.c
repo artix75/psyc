@@ -80,6 +80,7 @@ int main(int argc, char ** argv) {
     NeuralNetwork * network = createNetwork();
     int i, j;
     outputFile[0] = 0;
+    int training_flags = 0;
     for (i = 1; i < argc; i++) {
         //printf("ARG[%d]: %s\n", i, argv[i]);
         char * arg = argv[i];
@@ -290,6 +291,16 @@ int main(int argc, char ** argv) {
             continue;
         }
         
+        if (strcmp("--training-no-shuffle", arg) == 0) {
+            training_flags |= TRAINING_NO_SHUFFLE;
+            continue;
+        }
+        
+        if (strcmp("--training-adjust-rate", arg) == 0) {
+            training_flags |= TRAINING_ADJUST_RATE;
+            continue;
+        }
+        
     }
     if (training_data != NULL) {
         int element_size = network->input_size + network->output_size;
@@ -319,7 +330,7 @@ int main(int argc, char ** argv) {
             }
         }
         train(network, training_data, datalen, epochs, learning_rate,
-              batch_size, validation_data, valdlen);
+              batch_size, training_flags, validation_data, valdlen);
         free(training_data);
     }
     if (test_data != NULL) {

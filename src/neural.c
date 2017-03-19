@@ -136,22 +136,17 @@ void softmaxFeedforward(void * _net, void * _layer, ...) {
             max = neuron->z_value;
         else if (neuron->z_value > max)
             max = neuron->z_value;
-        //printf("[%d] -> %lf\n", i, neuron->z_value);
     }
-    //printf("Max: %lf\n", max);
     for (i = 0; i < size; i++) {
         Neuron * neuron = layer->neurons[i];
         double z = neuron->z_value;
         double e = exp(z - max);
         esum += e;
         neuron->activation = e;
-        //printf("[%d] -> %lf\n", i, neuron->activation);
     }
-    //printf("Sum: %lf\n", esum);
     for (i = 0; i < size; i++) {
         Neuron * neuron = layer->neurons[i];
         neuron->activation /= esum;
-        //printf("[%d] -> %lf\n", i, neuron->activation);
         if (is_recurrent)
             addRecurrentState(neuron, neuron->activation, times, t);
     }
@@ -293,8 +288,9 @@ void recurrentFeedforward(void * _net, void * _layer, ...) {
         assert(cell != NULL);
         double sum = 0, bias = 0;
         if (previous->flags & FLAG_ONEHOT) {
-            LayerParameters * params = (LayerParameters*) layer->extra;
-            assert(params != NULL && params->count > 0);
+            LayerParameters * params = previous->parameters;
+            assert(params != NULL);
+            assert(params->count > 0);
             int vector_size = (int) (params->parameters[0]);
             assert(vector_size > 0);
             Neuron * prev_neuron = previous->neurons[0];
@@ -322,7 +318,7 @@ void recurrentFeedforward(void * _net, void * _layer, ...) {
         } else {
             if (cell->states != NULL) free(cell->states);
             cell->states_count = times;
-            cell->states = malloc(times * sizeof(double));
+            cell->states = calloc(times, sizeof(double));
         }
         neuron->z_value = sum + bias;
         neuron->activation = layer->activate(neuron->z_value);
@@ -382,6 +378,19 @@ static void shuffle ( double * array, int size, int element_size )
     }
 }
 
+static void shuffleSeries ( double ** series, int size)
+{
+    srand ( time(NULL) );
+    for (int i = size - 1; i > 0; i--) {
+        int j = rand() % (i+1);
+        //printf("Shuffle cycle %d: random is %d\n", i, j);
+        double * tmp_a = series[i];
+        double * tmp_b = series[j];
+        series[i] = tmp_b;
+        series[j] = tmp_a;
+    }
+}
+
 void addRecurrentState(Neuron * neuron, double state, int times, int t) {
     RecurrentCell * cell = (RecurrentCell*) neuron->extra;
     if (cell == NULL) {
@@ -400,33 +409,22 @@ static double ** getRecurrentSeries(double * array, int series_count,
                                     int x_size, int y_size) {
     double ** series = malloc(series_count * sizeof(double**));
     if (series == NULL) {
+        fprintf(stderr, "Could not allocate memory for recurrent series!\n");
         return NULL;
     }
     int i;
     double * p = array;
     for (i = 0; i < series_count; i++) {
-        int series_size = (int) (p[0]);
+        int series_size = (int) *p;
         if (!series_size) {
             fprintf(stderr, "Invalid series size 0 at %d", (int) (p - array));
+            free(series);
             return NULL;
         }
-        series[i] = p;
+        series[i] = p++;
         p += ((series_size * x_size) + (series_size * y_size));
     }
     return series;
-}
-
-static void shuffleSeries ( double ** series, int size)
-{
-    srand ( time(NULL) );
-    for (int i = size - 1; i > 0; i--) {
-        int j = rand() % (i+1);
-        //printf("Shuffle cycle %d: random is %d\n", i, j);
-        double * tmp_a = series[i];
-        double * tmp_b = series[j];
-        series[i] = tmp_b;
-        series[j] = tmp_a;
-    }
 }
 
 int arrayMaxIndex(double * array, int len) {
@@ -455,6 +453,28 @@ double arrayMax(double * array, int len) {
     return max;
 }
 
+void fetchRecurrentOutputState(Layer * out, double * outputs,
+                               int i, int onehot)
+{
+    int t = (onehot ? i : i % out->size), j;
+    int max_idx = 0;
+    double max = 0.0;
+    for (j = 0; j < out->size; j++) {
+        Neuron * neuron = out->neurons[j];
+        RecurrentCell * cell = (RecurrentCell*) neuron->extra;
+        double s = cell->states[t];
+        if (onehot) {
+            if (s > max) {
+                max = s;
+                max_idx = j;
+            }
+        } else {
+            outputs[i] = s;
+        }
+    }
+    if (onehot) outputs[i] = max_idx;
+}
+
 char * getLayerTypeLabel(Layer * layer) {
     switch (layer->type) {
         case FullyConnected:
@@ -479,11 +499,25 @@ char * getLayerTypeLabel(Layer * layer) {
     return "UNKOWN";
 }
 
+char * getLossFunctionName(LossFunction function) {
+    if (function == quadraticLoss) return "quadratic";
+    else if (function == crossEntropyLoss) return "cross_entropy";
+    return "UNKOWN";
+}
+
 void printLayerInfo(Layer * layer) {
     LayerType ltype = layer->type;
     char * type_name = getLayerTypeLabel(layer);
     LayerParameters * lparams = layer->parameters;
+    char onehot_info[50];
+    onehot_info[0] = 0;
+    if (layer->index == 0 && layer->flags & FLAG_ONEHOT) {
+        LayerParameters * params = layer->parameters;
+        int onehot_sz = (int) (params->parameters[0]);
+        sprintf(onehot_info, " (vector size: %d)", onehot_sz);
+    }
     printf("Layer[%d]: %s, size = %d", layer->index, type_name, layer->size);
+    if (onehot_info[0]) printf(" %s", onehot_info);
     if ((ltype == Convolutional || ltype == Pooling) && lparams != NULL) {
         double * params = lparams->parameters;
         int fcount = (int) (params[FEATURE_COUNT]);
@@ -501,15 +535,45 @@ void printLayerInfo(Layer * layer) {
 
 /* Loss functions */
 
-static double loss(double * outputs, double * desired, int size) {
-    int i;
+double quadraticLoss(double * outputs, double * desired, int size,
+                     int onehot_size)
+{
+    double * d;
     double diffs[size];
-    for (i = 0; i < size; i++) {
-        double d = outputs[i] - desired[i];
-        diffs[i] = d;
-    }
+    if (!onehot_size) {
+        int i;
+        
+        for (i = 0; i < size; i++) {
+            double d = outputs[i] - desired[i];
+            diffs[i] = d;
+        }
+        d = diffs;
+    } else d = outputs;
     double n = norm(diffs, size);
-    return 0.5 * (n * n);
+    double loss = 0.5 * (n * n);
+    if (onehot_size) loss /= (double) onehot_size;
+    return loss;
+}
+
+double crossEntropyLoss(double * outputs, double * desired, int size,
+                        int onehot_size)
+{
+    double loss = 0.0;
+    int i;
+    for (i = 0; i < size; i++) {
+        double o = outputs[i];
+        if (o == 0.0) continue;
+        if (onehot_size) loss += (log(o));
+        else {
+            if (o == 1) continue; // log(1 - 1) would be NaN
+            double y = desired[i];
+            loss += (y * log(o) + (1 - y) * log(1 - o));
+        }
+    }
+    loss *= -1;
+    if (onehot_size)
+        loss = (loss / (double) size);// / log((double) onehot_size);
+    return loss;
 }
 
 /* NN functions */
@@ -524,6 +588,7 @@ NeuralNetwork * createNetwork() {
     network->current_epoch = 0;
     network->current_batch = 0;
     network->flags = FLAG_NONE;
+    network->loss = quadraticLoss;
     return network;
 }
 
@@ -789,7 +854,7 @@ void deleteNeuron(Neuron * neuron, Layer * layer) {
         if (layer->flags & FLAG_RECURRENT) {
             RecurrentCell * cell = (RecurrentCell*) neuron->extra;
             if (cell->states != NULL) free(cell->states);
-            if (cell->weights != NULL) free(cell->weights);
+            //if (cell->weights != NULL) free(cell->weights);
             free(cell);
         } else free(neuron->extra);
     }
@@ -994,14 +1059,13 @@ RecurrentCell * createRecurrentCell(Neuron * neuron, int lsize) {
     cell->states = NULL;
     cell->weights_size = lsize;
     if (!lsize) cell->weights = NULL;
-    else cell->weights = neuron->weights + neuron->weights_size;
+    else cell->weights = neuron->weights + (neuron->weights_size - lsize);
     return cell;
 }
 
-int initRecurrentLayer(NeuralNetwork * network, Layer * layer, int size) {
+int initRecurrentLayer(NeuralNetwork * network, Layer * layer, int size,int ws){
     int index = layer->index, i, j;
-    Layer * previous = network->layers[index - 1];
-    int ws = previous->size + size;
+    ws += size;
     layer->neurons = malloc(sizeof(Neuron*) * size);
     for (i = 0; i < size; i++) {
         Neuron * neuron = malloc(sizeof(Neuron));
@@ -1043,6 +1107,13 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
     //printf("Adding layer %d\n", layer->index);
     if (network->layers == NULL) {
         network->layers = malloc(sizeof(Layer*));
+        if (network->flags & FLAG_ONEHOT) {
+            layer->flags |= FLAG_ONEHOT;
+            LayerParameters * params = createLayerParamenters(1, (double) size);
+            layer->parameters = params;
+            size = 1;
+            layer->size = 1;
+        }
         network->input_size = size;
     } else {
         network->layers = realloc(network->layers,
@@ -1050,6 +1121,11 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
         previous = network->layers[layer->index - 1];
         assert(previous != NULL);
         previous_size = previous->size;
+        if (layer->index == 1 && previous->flags & FLAG_ONEHOT) {
+            LayerParameters * params = previous->parameters;
+            assert(params != NULL);
+            previous_size = (int) (params->parameters[0]);
+        }
         network->output_size = size;
     }
     if (type == FullyConnected || type == SoftMax) {
@@ -1084,13 +1160,15 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
             layer->activate = NULL;
             layer->delta = NULL;
             layer->feedforward = softmaxFeedforward;
+            //network->loss = crossEntropyLoss;
         }
     } else if (type == Convolutional) {
         initConvolutionalLayer(network, layer, params);
     } else if (type == Pooling) {
         initPoolingLayer(network, layer, params);
     } else if (type == Recurrent) {
-        initRecurrentLayer(network, layer, size);
+        initRecurrentLayer(network, layer, size, previous_size);
+        network->loss = crossEntropyLoss;
     }
     network->layers[layer->index] = layer;
     printLayerInfo(layer);
@@ -1200,17 +1278,7 @@ void feedforwardThroughTime(NeuralNetwork * network, double * values,
         for (i = 0; i < input_size; i++) {
             Neuron * neuron = first->neurons[i];
             neuron->activation = values[i];
-            RecurrentCell * cell = (RecurrentCell*) neuron->extra;
-            if (cell == NULL) {
-                cell = createRecurrentCell(neuron, 0);
-                neuron->extra = cell;
-            }
-            if (t == 0) {
-                cell->states_count = times;
-                if (cell->states != NULL) free(cell->states);
-                cell->states = malloc(times * sizeof(double));
-            }
-            cell->states[t] = values[i];
+            addRecurrentState(neuron, values[i], times, t);
         }
         for (i = 1; i < network->size; i++) {
             Layer * layer = network->layers[i];
@@ -1224,7 +1292,7 @@ void feedforwardThroughTime(NeuralNetwork * network, double * values,
                 deleteNetwork(network);
                 exit(1);
             }
-            layer->feedforward(network, layer);
+            layer->feedforward(network, layer, times, t);
         }
         values += input_size;
     }
@@ -1547,6 +1615,7 @@ Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
     int netsize = network->size;
     Layer * inputLayer = network->layers[0];
     Layer * outputLayer = network->layers[netsize - 1];
+    int onehot = (outputLayer->flags & FLAG_ONEHOT);
     int isize = inputLayer->size;
     int osize = outputLayer->size;
     int bptt_truncate = BPTT_TRUNCATE;
@@ -1556,10 +1625,10 @@ Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
     
     int last_t = times - 1;
     for (t = last_t; t >= 0; t--) {
-        
         int lowest_t = t - bptt_truncate;
         if (lowest_t < 0) lowest_t = 0;
-        int time_offset = t * osize;
+        int ysize = (onehot ? 1 : osize);
+        int time_offset = t * ysize;
         double * time_y = y + time_offset;
         
         Delta * layer_delta = deltas[netsize - 2]; // Deltas have no input layer
@@ -1569,32 +1638,33 @@ Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
         double * last_delta_v;
         delta_v = malloc(sizeof(double) * osize);
         memset(delta_v, 0, sizeof(double) * osize);
+        last_delta_v = delta_v;
 
         double softmax_sum = 0.0;
         for (o = 0; o < osize; o++) {
             Neuron * neuron = outputLayer->neurons[o];
             RecurrentCell * cell = (RecurrentCell*) neuron->extra;
             double o_val = cell->states[t];
-            double y_val = time_y[o];
+            double y_val;
+            if (onehot)
+                y_val = ((int) *(time_y) == o);
+            else
+                y_val = time_y[o];
             double d = 0.0;
             
-            
-            // Recurrent Output Layer must be SoftMax
+            // Recurrent Output Layer must be SoftMax ??
             y_val = (y_val < 1 ? 0 : 1);
             d = -(y_val - o_val);
-            d *= o_val;
+            //d *= o_val; //NO SOFTMAX??
             softmax_sum += d;
-            
             delta_v[o] = d;
-            
         }
-
         // SoftMax
         for (o = 0; o < osize; o++) {
             Neuron * neuron = outputLayer->neurons[o];
             RecurrentCell * cell = (RecurrentCell*) neuron->extra;
             double o_val = cell->states[t];
-            delta_v[o] -= (o_val * softmax_sum);
+            //delta_v[o] -= (o_val * softmax_sum);  //NO SOFTMAX??
             double d = delta_v[o];
             Delta * n_delta = &(layer_delta[o]);
             n_delta->bias = d;
@@ -1619,6 +1689,7 @@ Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
             memset(delta_v, 0, sizeof(double) * lsize);
             for (j = 0; j < lsize; j++) {
                 Neuron * neuron = layer->neurons[j];
+                RecurrentCell * cell = (RecurrentCell*) neuron->extra;
                 double sum = 0;
                 for (k = 0; k < nextLayer->size; k++) {
                     Neuron * nextNeuron = nextLayer->neurons[k];
@@ -1626,12 +1697,22 @@ Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
                     double d = last_delta_v[k];
                     sum += (d * weight);
                 }
-                double dv = sum * layer->delta(neuron->z_value);
+                double dv = sum * layer->delta(cell->states[t]);
                 delta_v[j] = dv;
-                
-                Delta * n_delta = &(layer_delta[j]);
-                n_delta->bias += dv;
-                for (tt = t; tt >= lowest_t; tt--) {
+            }
+            free(last_delta_v);
+            last_delta_v = delta_v;
+            delta_v = malloc(sizeof(double) * lsize);
+            memset(delta_v, 0, sizeof(double) * lsize);
+            
+            for (tt = t; tt >= lowest_t; tt--) {
+                for (j = 0; j < lsize; j++) {
+                    Neuron * neuron = layer->neurons[j];
+                    RecurrentCell * cell = (RecurrentCell*) neuron->extra;
+                    Delta * n_delta = &(layer_delta[j]);
+                    double dv = last_delta_v[j];
+                    n_delta->bias += dv;
+                    
                     if (previousLayer->flags & FLAG_ONEHOT) {
                         LayerParameters * params = previousLayer->parameters;
                         assert(params != NULL);
@@ -1640,12 +1721,14 @@ Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
                         Neuron * prev_n = previousLayer->neurons[0];
                         RecurrentCell * prev_c;
                         prev_c = (RecurrentCell*) prev_n->extra;
-                        double prev_a = prev_c->states[t];
+                        double prev_a = prev_c->states[tt];
                         assert(prev_a < vector_size);
                         w = (int) prev_a;
                         n_delta->weights[w] += dv;
                     } else {
-                        for (w = 0; w < neuron->weights_size; w++) {
+                        int ws = neuron->weights_size; //TODO: check for weight limit (exclude state weights)
+                        if (Recurrent == ltype) ws -= cell->weights_size;
+                        for (w = 0; w < ws; w++) {
                             Neuron * prev_n = previousLayer->neurons[w];
                             RecurrentCell * prev_c;
                             prev_c = (RecurrentCell*)prev_n->extra;
@@ -1653,18 +1736,35 @@ Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
                             n_delta->weights[w] += (dv * prev_a);
                         }
                     }
-                    if (Recurrent == ltype) {
-                        RecurrentCell * cell = (RecurrentCell*)neuron->extra;
+                    
+                    if (Recurrent == ltype && tt > 0) {
                         int w_offs = neuron->weights_size - cell->weights_size;
+                        double rsum = 0.0;
                         for (w = 0; w < cell->weights_size; w++) {
                             Neuron * rn = layer->neurons[w];
                             RecurrentCell * rc = (RecurrentCell*) rn->extra;
                             double a = rc->states[tt - 1];
                             n_delta->weights[w_offs + w] += (dv * a);
+                            //sum += (delta_v[w] * );
                         }
+                        for (w = 0; w < cell->weights_size; w++) {
+                            Neuron * rn = layer->neurons[w];
+                            RecurrentCell * rc = (RecurrentCell*) rn->extra;
+                            double rw = rc->weights[neuron->index];
+                            rsum += (last_delta_v[rn->index] * rw);
+                        }
+                        double prev_a = cell->states[tt - 1];
+                        delta_v[neuron->index] = rsum * layer->delta(prev_a);
                     }
+
                 }
+                
+                free(last_delta_v);
+                last_delta_v = delta_v;
+                delta_v = malloc(sizeof(double) * lsize);
+                memset(delta_v, 0, sizeof(double) * lsize);
             }
+            
             free(last_delta_v);
             last_delta_v = delta_v;
         }
@@ -1679,21 +1779,22 @@ double updateWeights(NeuralNetwork * network, double * training_data,
     int i, j, k, w, netsize = network->size, dsize = netsize - 1, times;
     int training_data_size = network->input_size;
     int label_data_size = network->output_size;
-    int element_size = training_data_size + label_data_size;
     Delta ** deltas = emptyDeltas(network);
     Delta ** bp_deltas = NULL;
     double ** series = NULL;
-    if (network->flags & FLAG_RECURRENT) {
+    int is_recurrent = network->flags & FLAG_RECURRENT;
+    if (is_recurrent) {
         va_list args;
         va_start(args, rate);
         series = va_arg(args, double**);
         va_end(args);
-        assert(series == NULL);
+        assert(series != NULL);
     }
     double * x;
     double * y;
     for (i = 0; i < batch_size; i++) {
         if (series == NULL) {
+            int element_size = training_data_size + label_data_size;
             x = training_data;
             y = training_data + training_data_size;
             training_data += element_size;
@@ -1773,12 +1874,25 @@ double updateWeights(NeuralNetwork * network, double * training_data,
     }
     deleteDeltas(deltas, network);
     Layer * out = network->layers[netsize - 1];
+    int onehot = out->flags & FLAG_ONEHOT;
+    if (onehot) label_data_size = 1;
+    if (is_recurrent) label_data_size *= times;
     double outputs[label_data_size];
     for (i = 0; i < label_data_size; i++) {
-        outputs[i] = out->neurons[i]->activation;
+        if (!is_recurrent)
+            outputs[i] = out->neurons[i]->activation;
+        else {
+            if (onehot) {
+                int idx = (int) *(y + i);
+                Neuron * n = out->neurons[idx];
+                RecurrentCell * cell = (RecurrentCell*) n->extra;
+                outputs[i] = cell->states[i];
+            } else fetchRecurrentOutputState(out, outputs, i, 0);
+        }
     }
-    //TODO: recurrent loss and configurable loss function
-    return loss(outputs, y, label_data_size);
+    //TODO: configurable loss function
+    int onehot_s = (onehot ? out->size : 0);
+    return network->loss(outputs, y, label_data_size, onehot_s);
 }
 
 double gradientDescent(NeuralNetwork * network,
@@ -1786,28 +1900,37 @@ double gradientDescent(NeuralNetwork * network,
                        int element_size,
                        int elements_count,
                        double learning_rate,
-                       int batch_size) {
+                       int batch_size,
+                       int flags,
+                       int epochs) {
     int batches_count = elements_count / batch_size;
     double ** series = NULL;
     if (network->flags & FLAG_RECURRENT) {
         if (series == NULL) {
+            Layer * out = network->layers[network->size - 1];
+            int o_size = (out->flags & FLAG_ONEHOT ? 1 : network->output_size);
             series = getRecurrentSeries(training_data,
                                         elements_count,
                                         network->input_size,
-                                        network->output_size);
+                                        o_size);
         }
-        shuffleSeries(series, elements_count);
-    } else shuffle(training_data, elements_count, element_size);
+        if (!(flags & TRAINING_NO_SHUFFLE))
+            shuffleSeries(series, elements_count);
+    } else {
+        if (!(flags & TRAINING_NO_SHUFFLE))
+            shuffle(training_data, elements_count, element_size);
+    }
     int offset = (element_size * batch_size), i;
     double err = 0.0;
     for (i = 0; i < batches_count; i++) {
         network->current_batch = i;
-        printf("\rEpoch %d: batch %d/%d", network->current_epoch + 1,
+        printf("\rEpoch %d/%d: batch %d/%d", network->current_epoch + 1, epochs,
                i + 1, batches_count);
         fflush(stdout);
         err += updateWeights(network, training_data, batch_size,
                              learning_rate, series);
         if (series == NULL) training_data += offset;
+        else series += batch_size;
     }
     return err / (double) batches_count;
 }
@@ -1817,12 +1940,27 @@ float validate(NeuralNetwork * network, double * test_data, int data_size,
     int i, j;
     float accuracy = 0.0f;
     int correct_results = 0;
+    float correct_amount = 0.0f;
+    Layer * output_layer = network->layers[network->size - 1];
     int input_size = network->input_size;
     int output_size = network->output_size;
+    int y_size = output_size;
+    int onehot = output_layer->flags & FLAG_ONEHOT;
     int element_size = input_size + output_size;
-    int elements_count = data_size / element_size;
-    double outputs[output_size];
-    Layer * output_layer = network->layers[network->size - 1];
+    int elements_count;
+    double ** series = NULL;
+    if (network->flags & FLAG_RECURRENT) {
+        // First training data number for Recurrent networks must indicate
+        // the data elements count
+        elements_count = (int) *(test_data++);
+        data_size--;
+        if (onehot) y_size = 1;
+        series = getRecurrentSeries(test_data,
+                                    elements_count,
+                                    input_size,
+                                    y_size);
+    } else elements_count = data_size / element_size;
+    //double outputs[output_size];
     if (log) printf("Test data elements: %d\n", elements_count);
     time_t start_t, end_t;
     char timestr[80];
@@ -1834,23 +1972,67 @@ float validate(NeuralNetwork * network, double * test_data, int data_size,
     for (i = 0; i < elements_count; i++) {
         if (log) printf("\rTesting %d/%d", i + 1, elements_count);
         fflush(stdout);
-        double * inputs = test_data;
-        test_data += input_size;
-        double * expected = test_data;
-        feedforward(network, inputs);
-        for (j = 0; j < output_size; j++) {
-            Neuron * neuron = output_layer->neurons[j];
-            outputs[j] = neuron->activation;
+        double * inputs = NULL;
+        double * expected = NULL;
+        int times = 0;
+        if (series == NULL) {
+            // Not Recurrent
+            inputs = test_data;
+            test_data += input_size;
+            expected = test_data;
+            
+            feedforward(network, inputs);
+            
+            double max = 0.0;
+            int omax = 0;
+            int emax = 0;
+            for (j = 0; j < output_size; j++) {
+                Neuron * neuron = output_layer->neurons[j];
+                if (neuron->activation > max) {
+                    max = neuron->activation;
+                    omax = j;
+                }
+            }
+            if (!onehot)
+                emax = arrayMaxIndex(expected, output_size);
+            else
+                emax = *(expected + (times - 1));
+            if (omax == emax) correct_results++;
+            test_data += output_size;
+        } else {
+            // Recurrent
+            inputs = series[i];
+            times = (int) (*inputs);
+            assert(times != 0);
+            expected = inputs + 1 + (times * input_size);
+            
+            feedforward(network, inputs);
+            
+            int label_data_size = y_size * times;
+            int correct_states = 0;
+            double outputs[label_data_size];
+            for (j = 0; j < label_data_size; j++) {
+                fetchRecurrentOutputState(output_layer, outputs, j, onehot);
+                if (onehot && (outputs[j] == expected[j])) correct_states++;
+                else if (!onehot && j > 0 && (j % y_size) == 0) {
+                    int t = (j / y_size) - 1;
+                    int omax = arrayMaxIndex(outputs + (t * y_size), y_size);
+                    int emax = arrayMaxIndex(expected + (t * y_size), y_size);
+                    if (emax == omax) correct_states++;
+                }
+            }
+            correct_amount += (float) correct_states / (float) times;
         }
-        int omax = arrayMaxIndex(outputs, output_size);
-        int emax = arrayMaxIndex(expected, output_size);
-        if (omax == emax) correct_results++;
-        test_data += output_size;
     }
     if (log) printf("\n");
     time(&end_t);
     if (log) printf("Completed in %ld sec.\n", end_t - start_t);
-    accuracy = (float) correct_results / (float) elements_count;
+    if (series == NULL) {
+        accuracy = (float) correct_results / (float) elements_count;
+    } else {
+        accuracy = correct_amount / (float) elements_count;
+        free(series);
+    }
     if (log) printf("Accuracy (%d/%d): %.2f\n", correct_results, elements_count,
                     accuracy);
     return accuracy;
@@ -1862,6 +2044,7 @@ void train(NeuralNetwork * network,
            int epochs,
            double learning_rate,
            int batch_size,
+           int flags,
            double * test_data,
            int test_size) {
     int i, elements_count;
@@ -1871,8 +2054,7 @@ void train(NeuralNetwork * network,
         // the data elements count
         elements_count = (int) *(training_data++);
         data_size--;
-    } else
-        elements_count = data_size / element_size;
+    } else elements_count = data_size / element_size;
     printf("Training data elements: %d\n", elements_count);
     network->status = STATUS_TRAINING;
     time_t start_t, end_t, epoch_t;
@@ -1884,20 +2066,24 @@ void train(NeuralNetwork * network,
     printf("Training started at %s\n", timestr);
     epoch_t = start_t;
     time_t e_t = epoch_t;
+    double prev_err = 0.0;
     for (i = 0; i < epochs; i++) {
         network->current_epoch = i;
         double err = gradientDescent(network, training_data, element_size,
-                                     elements_count, learning_rate, batch_size);
+                                     elements_count, learning_rate,
+                                     batch_size, flags, epochs);
         char accuracy_msg[255] = "";
         if (test_data != NULL) {
             int batches_count = elements_count / batch_size;
-            printf("\rEpoch %d: batch %d/%d, validating...",
+            printf("\rEpoch %d/%d: batch %d/%d, validating...",
                    network->current_epoch + 1,
+                   epochs,
                    network->current_batch + 1,
                    batches_count);
             float acc = validate(network, test_data, test_size, 0);
-            printf("\rEpoch %d: batch %d/%d",
+            printf("\rEpoch %d/%d: batch %d/%d",
                    network->current_epoch + 1,
+                   epochs,
                    network->current_batch + 1,
                    batches_count);
             sprintf(accuracy_msg, ", acc = %.2f,", acc);
@@ -1905,6 +2091,9 @@ void train(NeuralNetwork * network,
         time(&epoch_t);
         time_t elapsed_t = epoch_t - e_t;
         e_t = epoch_t;
+        if (i > 0 && err > prev_err && (flags & TRAINING_ADJUST_RATE))
+            learning_rate *= 0.5;
+        prev_err = err;
         printf(", loss = %.2lf%s (%ld sec.)\n", err, accuracy_msg, elapsed_t);
     }
     time(&end_t);
