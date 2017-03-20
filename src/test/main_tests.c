@@ -55,6 +55,7 @@ void RNNSetup (void* test_case);
 void RNNTeardown (void* test_case);
 
 int testGenericClone(void* test_case, void* test);
+int testGenericSave(void* test_case, void* test);
 
 int testFullLoad(void* test_case, void* test);
 int testFullFeedforward(void* test_case, void* test);
@@ -185,6 +186,20 @@ double rnn_inputs[5] = {4, 0, 1, 2, 3};
 double rnn_labels[4] = {3, 2, 1, 0};
 
 
+int compareNetworks(NeuralNetwork * net1, NeuralNetwork * net2, Test* test);
+
+static void getTmpFileName(const char * prfx, const char * sfx, char * buffer) {
+    FILE * urand = fopen("/dev/urandom", "r");
+    char buff[4];
+    fgets(buff, 4, urand);
+    sprintf(buffer, "/tmp/%s-%02x%02x%02x%02x%s",
+            prfx, (unsigned char) buff[0],
+            (unsigned char) buff[1],
+            (unsigned char) buff[2],
+            (unsigned char) buff[3], sfx);
+    fclose(urand);
+}
+
 int main(int argc, char** argv) {
     
     fullNetworkTests = createTest("Fully Connected Network");
@@ -195,6 +210,7 @@ int main(int argc, char** argv) {
     addTest(fullNetworkTests, "Accuracy", NULL, testFullAccuracy);
     addTest(fullNetworkTests, "Backprop", NULL, testFullBackprop);
     addTest(fullNetworkTests, "Clone", NULL, testGenericClone);
+    addTest(fullNetworkTests, "Save", NULL, testGenericSave);
     performTests(fullNetworkTests);
     deleteTest(fullNetworkTests);
     
@@ -206,6 +222,7 @@ int main(int argc, char** argv) {
     addTest(convNetworkTests, "Backprop", NULL, testConvBackprop);
     addTest(convNetworkTests, "Accuracy", NULL, testConvAccuracy);
     addTest(convNetworkTests, "Clone", NULL, testGenericClone);
+    addTest(convNetworkTests, "Save", NULL, testGenericSave);
     performTests(convNetworkTests);
     deleteTest(convNetworkTests);
     
@@ -217,6 +234,7 @@ int main(int argc, char** argv) {
     addTest(recurrentNetworkTests, "Backprop", NULL, testRNNBackprop);
     addTest(recurrentNetworkTests, "Step", NULL, testRNNStep);
     addTest(recurrentNetworkTests, "Clone", NULL, testGenericClone);
+    addTest(recurrentNetworkTests, "Save", NULL, testGenericSave);
     performTests(recurrentNetworkTests);
     deleteTest(recurrentNetworkTests);
     
@@ -691,6 +709,33 @@ int testGenericClone(void* tc, void* t) {
     Test * test = (Test*) t;
     NeuralNetwork * network = getNetwork(test_case);
     NeuralNetwork * clone = cloneNetwork(network, 0);
+    
+    int ok = compareNetworks(network, clone, test);
+    
+    deleteNetwork(clone);
+    return ok;
+}
+
+int testGenericSave(void* tc, void* t) {
+    TestCase * test_case = (TestCase*) tc;
+    Test * test = (Test*) t;
+    NeuralNetwork * network = getNetwork(test_case);
+    char tmpfile[255];
+    getTmpFileName("tests-save-nn", ".data", tmpfile);
+    saveNetwork(network, tmpfile);
+    NeuralNetwork * clone = createNetwork();
+    loadNetwork(clone, tmpfile);
+    
+    int ok = compareNetworks(network, clone, test);
+    
+    remove(tmpfile);
+    deleteNetwork(clone);
+    return ok;
+}
+
+int compareNetworks(NeuralNetwork * network, NeuralNetwork * clone,
+                    Test* test)
+{
     int ok = 1, i, k, w;
     
     ok = network->size == clone->size;
@@ -726,10 +771,45 @@ int testGenericClone(void* tc, void* t) {
             break;
         }
         if (i == 0) continue;
+        if (otype == Pooling) continue;
+        int conv_features_checked = 0;
         for (k = 0; k < o_size; k++) {
             Neuron * orig_n = orig_l->neurons[k];
             Neuron * clone_n = clone_l->neurons[k];
-            ok = (orig_n->bias == clone_n->bias);
+            if (otype == Convolutional) {
+                ConvolutionalSharedParams* oshared;
+                ConvolutionalSharedParams* cshared;
+                oshared = (ConvolutionalSharedParams*) orig_l->extra;
+                cshared = (ConvolutionalSharedParams*) clone_l->extra;
+                if (!conv_features_checked) {
+                    conv_features_checked = 1;
+                    ok = (oshared->feature_count == cshared->feature_count);
+                    if (!ok) {
+                        char * msg = malloc(255 * sizeof(char));
+                        test->error_message = msg;
+                        sprintf(msg, "Layer[%d]: Feature count %d != %d\n",
+                                i, oshared->feature_count,
+                                cshared->feature_count);
+                        break;
+                    }
+                }
+                int fsize = orig_l->size / oshared->feature_count;
+                int fidx = k / fsize;
+                double obias = getRoundedDouble(oshared->biases[fidx]);
+                double cbias = getRoundedDouble(cshared->biases[fidx]);
+                ok = (obias == cbias);
+                if (!ok) {
+                    char * msg = malloc(255 * sizeof(char));
+                    test->error_message = msg;
+                    sprintf(msg, "Layer[%d][%d]: bias %.15e != %.15e\n",
+                            i, fidx, obias, cbias);
+                    break;
+                }
+            } else if (otype != Recurrent) {
+                double obias = getRoundedDouble(orig_n->bias);
+                double cbias = getRoundedDouble(clone_n->bias);
+                ok = (obias == cbias);
+            }
             if (!ok) {
                 char * msg = malloc(255 * sizeof(char));
                 test->error_message = msg;
@@ -746,8 +826,8 @@ int testGenericClone(void* tc, void* t) {
                 break;
             }
             for (w = 0; w < orig_n->weights_size; w++) {
-                double ow = orig_n->weights[w];
-                double cw = clone_n->weights[w];
+                double ow = getRoundedDouble(orig_n->weights[w]);
+                double cw = getRoundedDouble(clone_n->weights[w]);
                 ok = ow == cw;
                 if (!ok) {
                     char * msg = malloc(255 * sizeof(char));
@@ -761,7 +841,5 @@ int testGenericClone(void* tc, void* t) {
         }
         if (!ok) break;
     }
-    
-    deleteNetwork(clone);
     return ok;
 }

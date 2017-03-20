@@ -834,8 +834,7 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
                     lsize = args[0];
                     network->flags |= FLAG_ONEHOT;
                 } else if (argc > 0) {
-                    params = malloc(sizeof(LayerParameters));
-                    params->count = argc;
+                    params = createLayerParamenters(argc);
                     for (aidx = 0; aidx < argc; aidx++) {
                         int arg = args[aidx];
                         params->parameters[aidx] = (double) arg;
