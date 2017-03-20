@@ -18,6 +18,10 @@
 #ifndef __NEURAL_H
 #define __NEURAL_H
 
+#define NN_VERSION      "0.0.1"
+
+#define LAYER_TYPES  6
+
 #define FEATURE_COUNT   0
 #define REGION_SIZE     1
 #define STRIDE          2
@@ -120,6 +124,7 @@ typedef struct {
 } NeuralNetwork;
 
 NeuralNetwork * createNetwork();
+NeuralNetwork * cloneNetwork(NeuralNetwork * network, int layout_only);
 int loadNetwork(NeuralNetwork * network, const char* filename);
 int saveNetwork(NeuralNetwork * network, const char* filename);
 Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
@@ -153,6 +158,7 @@ void train(NeuralNetwork * network,
            int test_size);
 float test(NeuralNetwork * network, double * test_data, int data_size);
 //int arrayMaxIndex(double * array, int len);
+char * getLabelForType(LayerType type);
 char * getLayerTypeLabel(Layer * layer);
 
 // Loss functions

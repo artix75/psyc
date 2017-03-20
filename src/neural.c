@@ -41,6 +41,15 @@
 
 static unsigned char randomSeeded = 0;
 
+static LossFunction loss_functions[] = {
+    NULL,
+    quadraticLoss,
+    crossEntropyLoss
+};
+
+static size_t loss_functions_count = sizeof(loss_functions) /
+                                     sizeof(LossFunction);
+
 /* Function Prototypes */
 
 RecurrentCell * createRecurrentCell(Neuron * neuron, int lsize);
@@ -406,7 +415,8 @@ void addRecurrentState(Neuron * neuron, double state, int times, int t) {
 }
 
 static double ** getRecurrentSeries(double * array, int series_count,
-                                    int x_size, int y_size) {
+                                    int x_size, int y_size)
+{
     double ** series = malloc(series_count * sizeof(double**));
     if (series == NULL) {
         fprintf(stderr, "Could not allocate memory for recurrent series!\n");
@@ -475,8 +485,8 @@ void fetchRecurrentOutputState(Layer * out, double * outputs,
     if (onehot) outputs[i] = max_idx;
 }
 
-char * getLayerTypeLabel(Layer * layer) {
-    switch (layer->type) {
+char * getLabelForType(LayerType type) {
+    switch (type) {
         case FullyConnected:
             return "fully_connected";
             break;
@@ -499,7 +509,12 @@ char * getLayerTypeLabel(Layer * layer) {
     return "UNKOWN";
 }
 
+char * getLayerTypeLabel(Layer * layer) {
+    return getLabelForType(layer->type);
+}
+
 char * getLossFunctionName(LossFunction function) {
+    if (function == NULL) return "null";
     if (function == quadraticLoss) return "quadratic";
     else if (function == crossEntropyLoss) return "cross_entropy";
     return "UNKOWN";
@@ -592,6 +607,77 @@ NeuralNetwork * createNetwork() {
     return network;
 }
 
+NeuralNetwork * cloneNetwork(NeuralNetwork * network, int layout_only) {
+    NeuralNetwork * clone = createNetwork();
+    if (!layout_only) {
+        clone->status = network->status;
+        clone->current_epoch = network->current_epoch;
+        clone->current_batch = network->current_batch;
+    }
+    clone->flags = network->flags;
+    clone->loss = network->loss;
+    
+    int i, j, k, w;
+    for (i = 0; i < network->size; i++) {
+        Layer * layer = network->layers[i];
+        LayerType type = layer->type;
+        LayerParameters * oparams = layer->parameters;
+        LayerParameters * cparams = NULL;
+        if (oparams) {
+            cparams = malloc(sizeof(LayerParameters));
+            cparams->count = oparams->count;
+            cparams->parameters = malloc(cparams->count * sizeof(double));
+            for (j = 0; j < cparams->count; j++)
+                cparams->parameters[j] = oparams->parameters[j];
+        }
+        Layer * cloned_layer = addLayer(clone, type, layer->size, cparams);
+        cloned_layer->flags = layer->flags;
+        if (!layout_only) {
+            void * extra = layer->extra;
+            if (Convolutional == type && extra) {
+                ConvolutionalSharedParams * oshared;
+                ConvolutionalSharedParams * cshared;
+                oshared = (ConvolutionalSharedParams*) layer->extra;
+                cshared = (ConvolutionalSharedParams*) cloned_layer->extra;
+                cshared->feature_count = oshared->feature_count;
+                cshared->weights_size = oshared->weights_size;
+                for (k = 0; k < cshared->feature_count; k++) {
+                    cshared->biases[k] = oshared->biases[k];
+                    for (w = 0; w < cshared->weights_size; w++)
+                        cshared->weights[k][w] = oshared->weights[k][w];
+                }
+            }
+            for (j = 0; j < layer->size; j++) {
+                Neuron * orig_n = layer->neurons[j];
+                Neuron * clone_n = cloned_layer->neurons[j];
+                clone_n->activation = orig_n->activation;
+                clone_n->z_value = orig_n->z_value;
+                //if (Pooling == type) continue;
+                clone_n->bias = orig_n->bias;
+
+                if (Convolutional != type && Pooling != type) {
+                    double * oweights = orig_n->weights;
+                    double * cweights = clone_n->weights;
+                    for (w = 0; w < orig_n->weights_size; w++)
+                        cweights[w] = oweights[w];
+                }
+                if (layer->flags & FLAG_RECURRENT) {
+                    RecurrentCell * ocell = (RecurrentCell*) orig_n->extra;
+                    RecurrentCell * ccell = (RecurrentCell*) clone_n->extra;
+                    int sc = ocell->states_count;
+                    ccell->states_count = sc;
+                    if (sc > 0) {
+                        ccell->states = malloc(sc * sizeof(double));
+                        for (k = 0; k < sc; k++)
+                            ccell->states[k] = ocell->states[k];
+                    }
+                }
+            }
+        }
+    }
+    return clone;
+}
+
 int loadNetwork(NeuralNetwork * network, const char* filename) {
     FILE * f = fopen(filename, "r");
     printf("Loading network from %s\n", filename);
@@ -601,7 +687,36 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
     }
     int netsize, i, j, k;
     int empty = (network->size == 0);
-    int matched = fscanf(f, "%d:", &netsize);
+    char vers[20];
+    vers[0] = 0;
+    int v0 = 0, v1 = 0, v2 = 0;
+    int epochs = 0, batch_count = 0;
+    int matched = fscanf(f, "--%d.%d.%d", &v0, &v1, &v2);
+    if (matched) {
+        sprintf(vers, "%d.%d.%d", v0, v1, v2);
+        printf("File version is %s (current: %s).\n", vers, NN_VERSION);
+        int idx = 0, val = 0;
+        LossFunction loss = NULL;
+        while ((matched = fscanf(f, ",%d", &val))) {
+            switch (idx++) {
+                case 0:
+                    network->flags |= val; break;
+                case 1:
+                    if (val < loss_functions_count) {
+                        loss = loss_functions[val];
+                        network->loss = loss;
+                        printf("Loss Function: %s\n",getLossFunctionName(loss));
+                    }
+                    break;
+                case 2: epochs = val; break;
+                case 3: batch_count = val; break;
+                default:
+                    break;
+            }
+        }
+        fscanf(f, "\n");
+    }
+    matched = fscanf(f, "%d:", &netsize);
     if (!matched) {
         fprintf(stderr, "Invalid file %s!\n", filename);
         fclose(f);
@@ -778,7 +893,18 @@ int saveNetwork(NeuralNetwork * network, const char* filename) {
         fprintf(stderr, "Cannot open %s for writing!\n", filename);
         return 0;
     }
-    int netsize, i, j, k;
+    int netsize, i, j, k, loss_function = 0;
+    // Header
+    fprintf(f, "--v%s", NN_VERSION);
+    for (i = 0; i < loss_functions_count; i++) {
+        if (network->loss == loss_functions[i]) {
+            loss_function = i;
+            break;
+        }
+    }
+    fprintf(f, ",%d,%d,%d,%d\n", network->flags, loss_function,
+            network->current_epoch, network->current_batch);
+    
     fprintf(f, "%d:", network->size);
     for (i = 0; i < network->size; i++) {
         Layer * layer = network->layers[i];
@@ -914,10 +1040,9 @@ int initConvolutionalLayer(NeuralNetwork * network, Layer * layer,
         previous_params->parameters[OUTPUT_HEIGHT] = input_h;
         previous->parameters = previous_params;
     } else {
-        double input_w, input_h, prev_area;
         input_w = previous_params->parameters[OUTPUT_WIDTH];
         input_h = previous_params->parameters[OUTPUT_HEIGHT];
-        prev_area = input_w * input_h;
+        double prev_area = input_w * input_h;
         if ((int) prev_area != previous_size) {
             fprintf(stderr, "Previous size %d != %lfx%lf\n",
                     previous_size, input_w, input_h);
@@ -1107,7 +1232,7 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
     //printf("Adding layer %d\n", layer->index);
     if (network->layers == NULL) {
         network->layers = malloc(sizeof(Layer*));
-        if (network->flags & FLAG_ONEHOT) {
+        if ((network->flags & FLAG_ONEHOT) && params == NULL) {
             layer->flags |= FLAG_ONEHOT;
             LayerParameters * params = createLayerParamenters(1, (double) size);
             layer->parameters = params;

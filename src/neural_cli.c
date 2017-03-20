@@ -21,6 +21,8 @@
 #include "neural.h"
 #include "mnist.h"
 
+#define PROGRAM_NAME        "CNeural CLI"
+
 #define CONV_FEATURE_COUNT  20
 #define CONV_REGION_SIZE    5
 #define POOL_REGION_SIZE    2
@@ -76,6 +78,8 @@ float learning_rate = LEARNING_RATE;
 int batch_size = BATCH_SIZE;
 char outputFile[255];
 
+void print_help(const char* program_path);
+
 int main(int argc, char ** argv) {
     NeuralNetwork * network = createNetwork();
     int i, j;
@@ -105,23 +109,19 @@ int main(int argc, char ** argv) {
             continue;
         }
         
+        if (strcmp("--onehot", arg) == 0) {
+            if (network->size == 0) network->flags |= FLAG_ONEHOT;
+            else network->layers[network->size - 1]->flags |= FLAG_ONEHOT;
+            continue;
+        }
+        
         if (strcmp("--layer", arg) == 0 && ++i < argc) {
             char * type = argv[i];
             LayerType ltype = getLayerType(type, network);
             if ((i + 1) >= argc) {
                 break;
             }
-            if (FullyConnected == ltype || SoftMax == ltype) {
-                int size = 0;
-                char * sizestr = argv[++i];
-                int matched = sscanf(sizestr, "%d", &size);
-                if (!matched) {
-                    fprintf(stderr, "Invalid size %s\n", sizestr);
-                    deleteNetwork(network);
-                    exit(1);
-                }
-                addLayer(network, ltype, size, NULL);
-            } else if (Convolutional == ltype) {
+            if (Convolutional == ltype) {
                 LayerParameters * params = NULL;
                 params = createConvolutionalParameters(CONV_FEATURE_COUNT,
                                                        CONV_REGION_SIZE,
@@ -188,6 +188,16 @@ int main(int argc, char ** argv) {
                     }
                 }
                 addPoolingLayer(network, params);
+            } else {
+                int size = 0;
+                char * sizestr = argv[++i];
+                int matched = sscanf(sizestr, "%d", &size);
+                if (!matched) {
+                    fprintf(stderr, "Invalid size %s\n", sizestr);
+                    deleteNetwork(network);
+                    exit(1);
+                }
+                addLayer(network, ltype, size, NULL);
             }
             continue;
         }
@@ -301,6 +311,16 @@ int main(int argc, char ** argv) {
             continue;
         }
         
+        if (strcmp("-v", arg) == 0 || strcmp("--version", arg) == 0) {
+            printf("%s v%s\n", PROGRAM_NAME, NN_VERSION);
+            exit(0);
+        }
+        
+        if (strcmp("-h", arg) == 0 || strcmp("--help", arg) == 0) {
+            print_help(argv[0]);
+            exit(0);
+        }
+        
     }
     if (training_data != NULL) {
         int element_size = network->input_size + network->output_size;
@@ -348,4 +368,49 @@ int main(int argc, char ** argv) {
     }
     deleteNetwork(network);
     return 0;
+}
+
+void print_help(const char* program_path) {
+    printf("Usage: %s [OPTIONS]\n\n", program_path);
+    printf("OPTIONS:\n");
+    printf("        --load PRETRAINED           Load a pretrained network\n");
+    printf("        --save FILE                 Save network\n");
+    printf("        --layer TYPE SIZE|OPTIONS   Add layer\n");
+    printf("        --onehot                    "
+           "Sets one-hot-vector flag for input\n");
+    printf("                                    "
+           "(if before 1st layer) or desired output\n");
+    printf("                                    (if after output layer)\n");
+    printf("        --train TRAIN DATASET       Train network\n");
+    printf("        --test TEST DATASET         Perform tests\n");
+    printf("        --training-datalen LEN      Training data length\n");
+    printf("        --validation-datalen LEN    Validation data length\n");
+    printf("        --epochs EPOCHS             Training epochs (def. %d)\n",
+           EPOCHS);
+    printf("        --batch-size SIZE           Train. batch size (def. %d)\n",
+           BATCH_SIZE);
+    printf("        --learning-rate SIZE        Train. learn rate (def. %f)\n",
+           LEARNING_RATE);
+    printf("        --training-no-shuffle       Prevent dataset shuffle\n");
+    printf("        --training-adjust-rate      Auto-adjust learn rate\n");
+    printf("    -v, --version                   Print version\n");
+    printf("    -h, --help                      Print this help\n");
+    printf("\n");
+    printf("LAYER TYPES:\n");
+    int i;
+    for (i = 0; i < LAYER_TYPES; i++) {
+        LayerType type = (LayerType) i;
+        printf("    %s\n", getLabelForType(type));
+    }
+    printf("\n");
+    printf("LAYER OPTIONS:\n");
+    printf("        --feature-count COUNT     Convolutional features"
+           " (def. %d)\n", CONV_FEATURE_COUNT);
+    printf("        --region-size SIZE        Convolutional region size"
+           " (def. %d)\n", CONV_REGION_SIZE);
+    printf("        --stride STRIDE           Convolutional region stride"
+           " (def. 1)\n");
+    printf("        --use-relu                Use ReLU activation (for "
+           "Convolutional Layers)\n");
+    printf("\n");
 }

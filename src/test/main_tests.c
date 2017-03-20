@@ -53,6 +53,8 @@ void genericTeardown (void* test_case);
 void RNNSetup (void* test_case);
 void RNNTeardown (void* test_case);
 
+int testGenericClone(void* test_case, void* test);
+
 int testFullLoad(void* test_case, void* test);
 int testFullFeedforward(void* test_case, void* test);
 int testFullAccuracy(void* tc, void* t);
@@ -190,6 +192,7 @@ int main(int argc, char** argv) {
     addTest(fullNetworkTests, "Feedforward", NULL, testFullFeedforward);
     addTest(fullNetworkTests, "Accuracy", NULL, testFullAccuracy);
     addTest(fullNetworkTests, "Backprop", NULL, testFullBackprop);
+    addTest(fullNetworkTests, "Clone", NULL, testGenericClone);
     performTests(fullNetworkTests);
     deleteTest(fullNetworkTests);
     
@@ -200,6 +203,7 @@ int main(int argc, char** argv) {
     addTest(convNetworkTests, "Feedforward", NULL, testConvFeedforward);
     addTest(convNetworkTests, "Backprop", NULL, testConvBackprop);
     addTest(convNetworkTests, "Accuracy", NULL, testConvAccuracy);
+    addTest(convNetworkTests, "Clone", NULL, testGenericClone);
     performTests(convNetworkTests);
     deleteTest(convNetworkTests);
     
@@ -209,6 +213,7 @@ int main(int argc, char** argv) {
     addTest(recurrentNetworkTests, "Feedforward", NULL, testRNNFeedforward);
     addTest(recurrentNetworkTests, "Backprop", NULL, testRNNBackprop);
     addTest(recurrentNetworkTests, "Step", NULL, testRNNStep);
+    addTest(recurrentNetworkTests, "Clone", NULL, testGenericClone);
     performTests(recurrentNetworkTests);
     deleteTest(recurrentNetworkTests);
     
@@ -631,5 +636,85 @@ int testRNNStep(void* tc, void* t) {
         if (!ok) break;
     }
     //free(series);
+    return ok;
+}
+
+int testGenericClone(void* tc, void* t) {
+    TestCase * test_case = (TestCase*) tc;
+    Test * test = (Test*) t;
+    NeuralNetwork * network = getNetwork(test_case);
+    NeuralNetwork * clone = cloneNetwork(network, 0);
+    int ok = 1, i, k, w;
+    
+    ok = network->size == clone->size;
+    if (!ok) {
+        char * msg = malloc(255 * sizeof(char));
+        test->error_message = msg;
+        sprintf(msg, "Source size %d != Clone size %d\n",
+                network->size, clone->size);
+        return 0;
+    }
+    
+    for (i = 0; i < network->size; i++) {
+        Layer * orig_l = network->layers[i];
+        Layer * clone_l = clone->layers[i];
+        LayerType otype = orig_l->type;
+        LayerType ctype = clone_l->type;
+        ok = (otype == ctype);
+        if (!ok) {
+            char * msg = malloc(255 * sizeof(char));
+            test->error_message = msg;
+            sprintf(msg, "Layer[%d]: Source type %s != Clone type %s\n",
+                    i, getLayerTypeLabel(orig_l), getLayerTypeLabel(clone_l));
+            break;
+        }
+        int o_size = orig_l->size;
+        int c_size = clone_l->size;
+        ok = (o_size == c_size);
+        if (!ok) {
+            char * msg = malloc(255 * sizeof(char));
+            test->error_message = msg;
+            sprintf(msg, "Layer[%d]: Source size %d != Clone size %d\n",
+                    i, o_size, c_size);
+            break;
+        }
+        if (i == 0) continue;
+        for (k = 0; k < o_size; k++) {
+            Neuron * orig_n = orig_l->neurons[k];
+            Neuron * clone_n = clone_l->neurons[k];
+            ok = (orig_n->bias == clone_n->bias);
+            if (!ok) {
+                char * msg = malloc(255 * sizeof(char));
+                test->error_message = msg;
+                sprintf(msg, "Layer[%d][%d]: bias %.15e != %.15e\n",
+                        i, k, orig_n->bias, clone_n->bias);
+                break;
+            }
+            ok = orig_n->weights_size == clone_n->weights_size;
+            if (!ok) {
+                char * msg = malloc(255 * sizeof(char));
+                test->error_message = msg;
+                sprintf(msg, "Layer[%d][%d]: weight sz. %d != %d\n",
+                        i, k, orig_n->weights_size, clone_n->weights_size);
+                break;
+            }
+            for (w = 0; w < orig_n->weights_size; w++) {
+                double ow = orig_n->weights[w];
+                double cw = clone_n->weights[w];
+                ok = ow == cw;
+                if (!ok) {
+                    char * msg = malloc(255 * sizeof(char));
+                    test->error_message = msg;
+                    sprintf(msg, "Layer[%d][%d]: w[%d] %.15e != %.15e\n",
+                            i, k, w, ow, cw);
+                    break;
+                }
+            }
+            if (!ok) break;
+        }
+        if (!ok) break;
+    }
+    
+    deleteNetwork(clone);
     return ok;
 }
