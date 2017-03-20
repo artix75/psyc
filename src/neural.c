@@ -485,6 +485,20 @@ void fetchRecurrentOutputState(Layer * out, double * outputs,
     if (onehot) outputs[i] = max_idx;
 }
 
+static int compareVersion(const char* vers1, const char* vers2) {
+    int major1 = 0, minor1 = 0, patch1 = 0;
+    int major2 = 0, minor2 = 0, patch2 = 0;
+    sscanf(vers1, "%d.%d.%d", &major1, &minor1, &patch1);
+    sscanf(vers2, "%d.%d.%d", &major2, &minor2, &patch2);
+    if (major1 < major2) return -1;
+    if (major1 > major2) return 1;
+    if (minor1 < minor2) return -1;
+    if (minor1 > minor2) return 1;
+    if (patch1 < patch2) return -1;
+    if (patch1 > patch2) return 1;
+    return 0;
+}
+
 char * getLabelForType(LayerType type) {
     switch (type) {
         case FullyConnected:
@@ -687,8 +701,7 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
     }
     int netsize, i, j, k;
     int empty = (network->size == 0);
-    char vers[20];
-    vers[0] = 0;
+    char vers[20] = "0.0.0";
     int v0 = 0, v1 = 0, v2 = 0;
     int epochs = 0, batch_count = 0;
     int matched = fscanf(f, "--%d.%d.%d", &v0, &v1, &v2);
@@ -732,6 +745,7 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
     Layer * layer = NULL;
     for (i = 0; i < netsize; i++) {
         int lsize = 0;
+        int lflags = 0;
         LayerType ltype = FullyConnected;
         int args[20];
         int argc = 0, aidx = 0;
@@ -743,6 +757,7 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
         matched = fscanf(f, fmt, &lsize);
         if (!matched) {
             int type = 0, arg = 0;
+            int min_argc = (compareVersion(vers, "0.0.0") == 1 ? 2 : 1);
             argc = 0;
             matched = fscanf(f, "[%d,%d", &type, &argc);
             if (!matched) {
@@ -766,7 +781,8 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
                     return 0;
                 }
                 if (aidx == 0) lsize = arg;
-                else args[aidx - 1] = arg;
+                else if (min_argc > 1 && aidx == 1) lflags = arg;
+                else args[aidx - min_argc] = arg;
             }
             argc--;
             sprintf(fmt, "]%s", last);
@@ -820,6 +836,7 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
                 fclose(f);
                 return 0;
             }
+            layer->flags |= lflags;
         }
     }
     for (i = 1; i < network->size; i++) {
@@ -910,17 +927,19 @@ int saveNetwork(NeuralNetwork * network, const char* filename) {
         Layer * layer = network->layers[i];
         LayerType ltype = layer->type;
         if (i > 0) fprintf(f, ",");
-        if (FullyConnected == ltype) fprintf(f, "%d", layer->size);
+        int flags = layer->flags;
+        if (FullyConnected == ltype && !flags) fprintf(f, "%d", layer->size);
         else if (Convolutional == ltype || Pooling == ltype){
             LayerParameters * params = layer->parameters;
             int argc = params->count;
-            fprintf(f, "[%d,%d,%d", (int) ltype, 1 + argc, layer->size);
+            fprintf(f, "[%d,%d,%d,%d", (int) ltype, 2 + argc, layer->size,
+                    layer->flags);
             for (j = 0; j < argc; j++) {
                 fprintf(f, ",%d", (int) (params->parameters[j]));
             }
             fprintf(f, "]");
         } else {
-            fprintf(f, "[%d,1,%d]", (int) ltype, layer->size);
+            fprintf(f, "[%d,2,%d,%d]", (int) ltype, layer->size, flags);
         }
     }
     fprintf(f, "\n");
