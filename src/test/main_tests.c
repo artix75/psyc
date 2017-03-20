@@ -26,6 +26,7 @@
 #define PRETRAINED_FULL_NETWORK "../../resources/pretrained.mnist.data"
 #define CONVOLUTIONAL_NETWORK "cnn.data"
 #define CONVOLUTIONAL_TRAINED_NETWORK "../../resources/pretrained.cnn.data"
+#define RECURRENT_NETWORK "rnn.data"
 #define TEST_IMAGE_FILE "../../resources/t10k-images-idx3-ubyte.gz"
 #define TEST_LABEL_FILE "../../resources/t10k-labels-idx1-ubyte.gz"
 #define TEST_IMAGE_SIZE 28
@@ -65,6 +66,7 @@ int testConvFeedforward(void* test_case, void* test);
 int testConvAccuracy(void* tc, void* t);
 int testConvBackprop(void* test_case, void* test);
 
+int testRNNLoad(void* test_case, void* test);
 int testRNNFeedforward(void* test_case, void* test);
 int testRNNBackprop(void* test_case, void* test);
 int testRNNStep(void* tc, void* t);
@@ -210,6 +212,7 @@ int main(int argc, char** argv) {
     recurrentNetworkTests = createTest("Recurrent Network");
     recurrentNetworkTests->setup = RNNSetup;
     recurrentNetworkTests->teardown = RNNTeardown;
+    addTest(recurrentNetworkTests, "Load", NULL, testRNNLoad);
     addTest(recurrentNetworkTests, "Feedforward", NULL, testRNNFeedforward);
     addTest(recurrentNetworkTests, "Backprop", NULL, testRNNBackprop);
     addTest(recurrentNetworkTests, "Step", NULL, testRNNStep);
@@ -525,6 +528,50 @@ int testConvAccuracy(void* tc, void* t) {
                 accuracy, 98.0);
     }
     deleteNetwork(network);
+    return ok;
+}
+
+int testRNNLoad(void* tc, void* t) {
+    TestCase * test_case = (TestCase*) tc;
+    Test * test = (Test*) t;
+    NeuralNetwork * network = getNetwork(test_case);
+    int loaded = loadNetwork(network, RECURRENT_NETWORK);
+    if (!loaded) {
+        test->error_message = malloc(255 * sizeof(char));
+        sprintf(test->error_message, "Failed to load %s\n",
+                RECURRENT_NETWORK);
+        return 0;
+    }
+    
+    int ok = 1, i, j, w;
+    for (i = 1; i < network->size; i++) {
+        Layer * layer = network->layers[i];
+        for (j = 0; j < layer->size; j++) {
+            Neuron * n = layer->neurons[j];
+            for (w = 0; w < n->weights_size; w++) {
+                double * weights;
+                int w_idx = w;
+                if (i == 1) {
+                    if (w < RNN_INPUT_SIZE) weights = rnn_inner_weights[j];
+                    else {
+                        weights = rnn_recurrent_weights[j];
+                        w_idx -= RNN_INPUT_SIZE;
+                    }
+                } else weights = rnn_outer_weights[j];
+                ok = (n->weights[w] == weights[w_idx]);
+                if (!ok) {
+                    test->error_message = malloc(255 * sizeof(char));
+                    sprintf(test->error_message,
+                            "L[%d]N[%d]->weights[%d] %.15e != %.15e\n",
+                            i, j, w, n->weights[w], weights[w_idx]);
+                    break;
+                }
+            }
+            if (!ok) break;
+        }
+        if (!ok) break;
+    }
+    
     return ok;
 }
 

@@ -704,7 +704,7 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
     char vers[20] = "0.0.0";
     int v0 = 0, v1 = 0, v2 = 0;
     int epochs = 0, batch_count = 0;
-    int matched = fscanf(f, "--%d.%d.%d", &v0, &v1, &v2);
+    int matched = fscanf(f, "--v%d.%d.%d", &v0, &v1, &v2);
     if (matched) {
         sprintf(vers, "%d.%d.%d", v0, v1, v2);
         printf("File version is %s (current: %s).\n", vers, NN_VERSION);
@@ -742,6 +742,7 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
     }
     char sep[] = ",";
     char eol[] = "\n";
+    int min_argc = (compareVersion(vers, "0.0.0") == 1 ? 2 : 1);
     Layer * layer = NULL;
     for (i = 0; i < netsize; i++) {
         int lsize = 0;
@@ -757,7 +758,6 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
         matched = fscanf(f, fmt, &lsize);
         if (!matched) {
             int type = 0, arg = 0;
-            int min_argc = (compareVersion(vers, "0.0.0") == 1 ? 2 : 1);
             argc = 0;
             matched = fscanf(f, "[%d,%d", &type, &argc);
             if (!matched) {
@@ -784,7 +784,7 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
                 else if (min_argc > 1 && aidx == 1) lflags = arg;
                 else args[aidx - min_argc] = arg;
             }
-            argc--;
+            argc -= min_argc;
             sprintf(fmt, "]%s", last);
             fscanf(f, fmt, buff);
         }
@@ -819,15 +819,27 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
             }
         } else {
             layer = NULL;
-            if (ltype == FullyConnected || ltype == SoftMax) {
-                layer = addLayer(network, ltype, lsize, NULL);
-            } else if (ltype == Convolutional || ltype == Pooling) {
+            LayerParameters * params = NULL;
+            if (ltype == Convolutional || ltype == Pooling) {
                 int param_c = CONV_PARAMETER_COUNT;
-                LayerParameters * params = createLayerParamenters(param_c);
+                params = createLayerParamenters(param_c);
                 for (aidx = 0; aidx < argc; aidx++) {
                     if (aidx >= param_c) break;
                     int arg = args[aidx];
                     params->parameters[aidx] = (double) arg;
+                }
+                layer = addLayer(network, ltype, lsize, params);
+            } else {
+                if (network->size == 0 && (lflags & FLAG_ONEHOT) && argc > 0) {
+                    lsize = args[0];
+                    network->flags |= FLAG_ONEHOT;
+                } else if (argc > 0) {
+                    params = malloc(sizeof(LayerParameters));
+                    params->count = argc;
+                    for (aidx = 0; aidx < argc; aidx++) {
+                        int arg = args[aidx];
+                        params->parameters[aidx] = (double) arg;
+                    }
                 }
                 layer = addLayer(network, ltype, lsize, params);
             }
@@ -843,9 +855,7 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
         layer = network->layers[i];
         int lsize = 0;
         ConvolutionalSharedParams * shared = NULL;
-        if (layer->type == FullyConnected || layer->type == SoftMax) {
-            lsize = layer->size;
-        } else if (layer->type == Convolutional) {
+        if (layer->type == Convolutional) {
             shared = (ConvolutionalSharedParams*) layer->extra;
             if (shared == NULL) {
                 fprintf(stderr, "Layer %d, missing shared params!\n", i);
@@ -855,7 +865,7 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
             lsize = shared->feature_count;
         } else if (layer->type == Pooling) {
             continue;
-        }
+        } else lsize = layer->size;
         for (j = 0; j < lsize; j++) {
             double bias = 0;
             int wsize = 0;
@@ -928,9 +938,10 @@ int saveNetwork(NeuralNetwork * network, const char* filename) {
         LayerType ltype = layer->type;
         if (i > 0) fprintf(f, ",");
         int flags = layer->flags;
-        if (FullyConnected == ltype && !flags) fprintf(f, "%d", layer->size);
-        else if (Convolutional == ltype || Pooling == ltype){
-            LayerParameters * params = layer->parameters;
+        LayerParameters * params = layer->parameters;
+        if (FullyConnected == ltype && !flags && !params)
+            fprintf(f, "%d", layer->size);
+        else if (params) {
             int argc = params->count;
             fprintf(f, "[%d,%d,%d,%d", (int) ltype, 2 + argc, layer->size,
                     layer->flags);
@@ -947,18 +958,7 @@ int saveNetwork(NeuralNetwork * network, const char* filename) {
         Layer * layer = network->layers[i];
         LayerType ltype = layer->type;
         int lsize = layer->size;
-        if (FullyConnected == ltype || SoftMax == ltype) {
-            for (j = 0; j < lsize; j++) {
-                Neuron * neuron = layer->neurons[j];
-                fprintf(f, "%.15e|", neuron->bias);
-                for (k = 0; k < neuron->weights_size; k++) {
-                    if (k > 0) fprintf(f, ",");
-                    double w = neuron->weights[k];
-                    fprintf(f, "%.15e", w);
-                }
-                fprintf(f, "\n");
-            }
-        } else if (Convolutional == ltype) {
+        if (Convolutional == ltype) {
             LayerParameters * params = layer->parameters;
             ConvolutionalSharedParams * shared;
             shared = (ConvolutionalSharedParams*) layer->extra;
@@ -976,7 +976,20 @@ int saveNetwork(NeuralNetwork * network, const char* filename) {
                 }
                 fprintf(f, "\n");
             }
-        } else if (Pooling == ltype) continue;
+        }
+        else if (Pooling == ltype) continue;
+        else {
+            for (j = 0; j < lsize; j++) {
+                Neuron * neuron = layer->neurons[j];
+                fprintf(f, "%.15e|", neuron->bias);
+                for (k = 0; k < neuron->weights_size; k++) {
+                    if (k > 0) fprintf(f, ",");
+                    double w = neuron->weights[k];
+                    fprintf(f, "%.15e", w);
+                }
+                fprintf(f, "\n");
+            }
+        }
     }
     fclose(f);
     return 1;
