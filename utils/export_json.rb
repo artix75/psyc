@@ -4,9 +4,12 @@ require 'rubygems'
 require 'json'
 
 DOUBLE_FORMAT = '%.15e'
-LAYER_TYPES = %w(layer convolutional pooling recurrent lstm)
+LAYER_TYPES = %w(layer convolutional pooling recurrent lstm softmax)
 CONVOLUTIONAL_PARAMS = [:features_count, :region_size, :stride, :input_width, 
                         :input_height, :output_width, :output_height, :padding]
+GENERIC_PARAMS = [:vector_size]
+HEADER_INFO = [:flags, :loss_function, :epochs, :batch_count]
+LOSS_FUNCTIONS = [:quadratic, :cross_entropy]
 
 data_file = ARGV[0]
 if !data_file
@@ -17,6 +20,24 @@ data_file = File.expand_path data_file
 data = File.read data_file
 lines = data.split /\n+/
 header = lines.shift
+if (m = header.match(/\-\-v(\d+\.\d+\.\d+),([\d\.,]+)/))
+    version, _info = m[1], m[2]
+    _info = _info.split(',')
+    info = {}
+    _info.each_with_index{|n, i|
+        key = HEADER_INFO[i] 
+        if key
+            n = n.strip.to_i
+            if key == :loss_function
+                func = LOSS_FUNCTIONS[n]
+                info[key] = func if func
+            else
+                info[key] = n
+            end
+        end
+    }
+    header = lines.shift
+end
 netsize, layout_def = header.split ':', 2
 if !netsize || !layout_def
     puts "Invalid header"
@@ -66,6 +87,10 @@ netsize.times.each{|i|
         lsize = lparams.shift
         layer[:size] = lsize
         argc -= 1
+        if version
+            lflags = lparams.shift
+            argc -= 1
+        end
         if typename == 'convolutional' || typename == 'pooling'
             args = {}
             argc.times.each{|aidx|
@@ -82,6 +107,24 @@ netsize.times.each{|i|
             lheader << args
         else
             lheader << lsize 
+            if version
+                args = {}
+                args[:flags] = lflags if lflags
+                argc.times.each{|aidx|
+                    arg = lparams[aidx] 
+                    if !arg
+                        puts "Layer[#{i}]: argument #{aidx} not found!"
+                        puts ldef
+                        exit 1
+                    end
+                    argname = GENERIC_PARAMS[aidx]
+                    if argname
+                        args[argname] = arg
+                        layer[argname] = arg
+                    end
+                }
+                lheader << args
+            end
         end
     elsif ldef[/^\d+$/]
         layout << ldef.to_i
@@ -144,6 +187,8 @@ layers[1..-1].each_with_index{|l, i|
     }
 }
 out = {layout: layout, layers: layers}
+out[:version] = version if version
+out[:network] = info if info 
 out_file = ARGV[1] || "./network.#{Time.now.to_i}.json"
 File.open(out_file, 'w'){|f|
     f.write out.to_json

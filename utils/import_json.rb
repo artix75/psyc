@@ -4,7 +4,7 @@ require 'rubygems'
 require 'json'
 
 DOUBLE_FORMAT = '%.15e'
-LAYER_TYPES = %w(layer convolutional pooling recurrent lstm)
+LAYER_TYPES = %w(layer convolutional pooling recurrent lstm softmax)
 CONVOLUTIONAL_PARAMS = [:features_count, :region_size, :stride, :input_width, 
                         :input_height, :output_width, :output_height, :padding]
 
@@ -19,6 +19,8 @@ if !net.is_a? Hash
     puts "Invalid file!"
     exit 1
 end
+version = net[:version]
+info = net[:network]
 layout = net[:layout]
 if !layout
     puts "Missing layout!"
@@ -108,7 +110,7 @@ layers[1..-1].each_with_index{|l, i|
     else
         neurons = l[:neurons]
     end
-    puts "Layer[#{i + 1}]: Importing #{neurons.size} neurons"
+    puts "Layer[#{i + 1}]: Exporting #{neurons.size} neurons"
     lstr = neurons.map{|n|
         bias = DOUBLE_FORMAT % n[:bias]
         weights = n[:weights].map{|w| DOUBLE_FORMAT % w}
