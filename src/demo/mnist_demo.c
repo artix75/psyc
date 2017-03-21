@@ -36,15 +36,30 @@ int main(int argc, char** argv) {
     int datalen = 0;
     int loaded = 0;
     NeuralNetwork * network = createNetwork();
+    if (network == NULL) {
+        fprintf(stderr, "Could not create network!\n");
+        return 1;
+    }
     addLayer(network, FullyConnected, INPUT_SIZE, NULL);
     addLayer(network, FullyConnected, 30, NULL);
     addLayer(network, FullyConnected, 10, NULL);
+    
+    if (network->size < 1) {
+        fprintf(stderr, "Could not add all layers!\n");
+        deleteNetwork(network);
+        return 1;
+    }
     
     if (strcmp("--load", argv[1]) == 0) {
         loaded = loadNetwork(network, argv[2]);
         if (!loaded) {
             printf("Could not load pretrained network!\n");
-            exit(1);
+            return 1;
+        }
+        if (network->size < 1) {
+            fprintf(stderr, "Could not add all layers!\n");
+            deleteNetwork(network);
+            return 1;
         }
     } else {
         datalen = loadMNISTData(TRAINING_DATA, argv[1], argv[2],
@@ -63,6 +78,12 @@ int main(int argc, char** argv) {
     
     if (!loaded) train(network, training_data, datalen, EPOCHS, 3, 10, 0,
                        NULL, 0);
+    if (network->status == STATUS_ERROR) {
+        deleteNetwork(network);
+        if (training_data != NULL) free(training_data);
+        if (test_data != NULL) free(test_data);
+        return 1;
+    }
     //int loaded = loadNetwork(network, "pretrained.mnist.data");
     //if (!loaded) exit(1);
     
@@ -72,7 +93,7 @@ int main(int argc, char** argv) {
     }
     
     deleteNetwork(network);
-    free(training_data);
+    if (training_data != NULL) free(training_data);
     if (test_data != NULL) free(test_data);
     return 0;
 }

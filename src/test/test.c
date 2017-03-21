@@ -71,8 +71,12 @@ int performTests(TestCase * test_case) {
     if (test_case->setup != NULL) {
         printf(" -> setup\n");
         printf(DIM);
-        test_case->setup(test_case);
+        int ok = test_case->setup(test_case);
         printf(RESET);
+        if (!ok) {
+            printf(RED "Setup failed!\n" RESET);
+            return 1;
+        }
     }
     int i, errors = 0, count = test_case->count;
     time_t start_t, end_t;
@@ -100,7 +104,11 @@ int performTests(TestCase * test_case) {
     }
     if (test_case->teardown != NULL) {
         printf(" -> teardown\n");
-        test_case->teardown(test_case);
+        int ok = test_case->teardown(test_case);
+        if (!ok) {
+            printf(RED "Teardown failed!\n" RESET);
+            return 1;
+        }
     }
     time(&end_t);
     printf("Tests performed in %d sec.\n", (int) (end_t - start_t));

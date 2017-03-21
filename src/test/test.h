@@ -21,8 +21,8 @@
 #define NOT_PERFORMED -1
 
 typedef int (* TestFunction) (void* test_case, void* test);
-typedef void (* SetupFunction) (void* test_case);
-typedef void (* TeardownFunction) (void* test_case);
+typedef int (* SetupFunction) (void* test_case);
+typedef int (* TeardownFunction) (void* test_case);
 
 typedef struct {
     char * name;

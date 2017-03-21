@@ -60,6 +60,10 @@ int main(int argc, char** argv) {
     }
     
     NeuralNetwork * network = createNetwork();
+    if (network == NULL) {
+        fprintf(stderr, "Could not create network!\n");
+        return 1;
+    }
     network->flags |= FLAG_ONEHOT;
     
     if (pretrained_file == NULL) {
@@ -67,10 +71,20 @@ int main(int argc, char** argv) {
         addLayer(network, Recurrent, 60, NULL);
         addLayer(network, SoftMax, VOCABULARY_SIZE, NULL);
         network->layers[network->size - 1]->flags |= FLAG_ONEHOT;
+        if (network->size < 1) {
+            fprintf(stderr, "Could not add all layers!\n");
+            deleteNetwork(network);
+            return 1;
+        }
     } else {
         int loaded = loadNetwork(network, pretrained_file);
         if (!loaded) {
             printf("Could not load pretrained data %s\n", pretrained_file);
+            deleteNetwork(network);
+            return 1;
+        }
+        if (network->size < 1) {
+            fprintf(stderr, "Could not add all layers!\n");
             deleteNetwork(network);
             return 1;
         }

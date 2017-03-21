@@ -64,6 +64,12 @@ int main(int argc, char** argv) {
     }
 
     NeuralNetwork * network = createNetwork();
+    if (network == NULL) {
+        fprintf(stderr, "Could not create network!\n");
+        if (training_data != NULL) free(training_data);
+        if (test_data != NULL) free(test_data);
+        return 1;
+    }
     
     if (pretrained_file == NULL) {
         LayerParameters * cparams;
@@ -72,6 +78,15 @@ int main(int argc, char** argv) {
                                                 1, 0, RELU_ENABLED);
         pparams = createConvolutionalParameters(FEATURES_COUNT, POOL_SIZE,
                                                 0, 0, RELU_ENABLED);
+        
+        if (cparams == NULL || pparams == NULL) {
+            fprintf(stderr, "Could not create layer params!\n");
+            deleteNetwork(network);
+            if (training_data != NULL) free(training_data);
+            if (test_data != NULL) free(test_data);
+            return 1;
+        }
+        
         addLayer(network, FullyConnected, INPUT_SIZE, NULL);
         addConvolutionalLayer(network, cparams);
         addPoolingLayer(network, pparams);
@@ -79,11 +94,21 @@ int main(int argc, char** argv) {
         //addLayer(network, FullyConnected, 10, NULL);
         addLayer(network, SoftMax, 10, NULL);
         
+        if (network->size < 1) {
+            fprintf(stderr, "Could not add all layers!\n");
+            deleteNetwork(network);
+            if (training_data != NULL) free(training_data);
+            if (test_data != NULL) free(test_data);
+            return 1;
+        }
+        
         int element_size = network->input_size + network->output_size;
         int element_count = datalen / element_size;
         if (element_count < train_dataset_len) {
             printf("Loaded dataset elements %d < %d\n", element_count,
                    TRAIN_DATASET_LEN);
+            if (training_data != NULL) free(training_data);
+            if (test_data != NULL) free(test_data);
             deleteNetwork(network);
             return 1;
         } else {
@@ -111,41 +136,25 @@ int main(int argc, char** argv) {
             deleteNetwork(network);
             return 1;
         }
-    }
-    
-    /*int i;
-    for (i = 0; i < network->size; i++) {
-        Layer * layer = network->layers[i];
-        char * type = getLayerTypeLabel(layer);
-        printf("Layer[%d] (%s): size = %d", i, type, layer->size);
-        LayerParameters * params = layer->parameters;
-        if (params != NULL && params->count >= CONV_PARAMETER_COUNT) {
-            double * par = params->parameters;
-            printf(", dim = %lfx%lf", par[OUTPUT_WIDTH], par[OUTPUT_HEIGHT]);
-            if (layer->type == Pooling || layer->type == Convolutional) {
-                printf(", features = %d", (int) (par[FEATURE_COUNT]));
-                printf(", region_size = %d", (int) (par[REGION_SIZE]));
-                if (layer->type == Convolutional)
-                    printf(", use_relu = %d", (int) (par[USE_RELU]));
-            }
+        if (network->size < 1) {
+            fprintf(stderr, "Could not add all layers!\n");
+            deleteNetwork(network);
+            return 1;
         }
-        printf("\n");
-    }*/
-    
-    /*double * test_data = NULL;
-    int testlen = loadMNISTData(TEST_DATA,
-                                "resources/t10k-images-idx3-ubyte.gz",
-                                "resources/t10k-labels-idx1-ubyte.gz",
-                                &test_data);
-    //feedforward(network, test_data);
-    test(network, test_data, testlen);
-    deleteNetwork(network);*/
+    }
     
     if (datalen > 0)
         train(network, training_data, datalen, EPOCHS, 1.5, 10, 0,
               validation_data, valdlen);
     //int loaded = loadNetwork(network, "pretrained.mnist.data");
     //if (!loaded) exit(1);
+    
+    if (network->status == STATUS_ERROR) {
+        deleteNetwork(network);
+        if (training_data != NULL) free(training_data);
+        if (test_data != NULL) free(test_data);
+        return 1;
+    }
     
     if (testlen > 0 && test_data != NULL) {
         printf("Test Data len: %d\n", testlen);
@@ -154,7 +163,7 @@ int main(int argc, char** argv) {
     if (pretrained_file == NULL)
         saveNetwork(network, "/tmp/pretrained.cnn.data");
     deleteNetwork(network);
-    free(training_data);
+    if (training_data != NULL) free(training_data);
     if (test_data != NULL) free(test_data);
     return 0;
 }

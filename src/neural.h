@@ -35,6 +35,7 @@
 #define STATUS_UNTRAINED    0
 #define STATUS_TRAINED      1
 #define STATUS_TRAINING     2
+#define STATUS_ERROR        3
 
 #define CONV_PARAMETER_COUNT 9
 #define NULL_VALUE -9999999.99
@@ -50,7 +51,7 @@
 
 
 typedef double (*ActivationFunction)(double);
-typedef void (*FeedforwardFunction)(void * network, void * layer, ...);
+typedef int (*FeedforwardFunction)(void * network, void * layer, ...);
 typedef void (*CostFunction)(void * network, double * expected);
 typedef double (*LossFunction)(double* x, double* y, int size, int onehot_size);
 
@@ -140,7 +141,7 @@ LayerParameters * createConvolutionalParameters(double feature_count,
                                                 int padding,
                                                 int use_relu);
 void deleteLayerParamenters(LayerParameters * params);
-void feedforward(NeuralNetwork * network, double * values);
+int feedforward(NeuralNetwork * network, double * values);
 
 void deleteNetwork(NeuralNetwork * network);
 void deleteLayer(Layer * layer);

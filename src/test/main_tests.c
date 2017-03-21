@@ -49,10 +49,10 @@ TestCase * fullNetworkTests;
 TestCase * convNetworkTests;
 TestCase * recurrentNetworkTests;
 
-void genericSetup (void* test_case);
-void genericTeardown (void* test_case);
-void RNNSetup (void* test_case);
-void RNNTeardown (void* test_case);
+int genericSetup (void* test_case);
+int genericTeardown (void* test_case);
+int RNNSetup (void* test_case);
+int RNNTeardown (void* test_case);
 
 int testGenericClone(void* test_case, void* test);
 int testGenericSave(void* test_case, void* test);
@@ -242,18 +242,30 @@ int main(int argc, char** argv) {
     
 }
 
-void genericSetup (void* tc) {
+int genericSetup (void* tc) {
     TestCase * test_case = (TestCase*) tc;
     NeuralNetwork * network = createNetwork();
+    if (network == NULL) {
+        fprintf(stderr, "\nCould not create network!\n");
+        return 0;
+    }
     test_case->data = malloc(2 * sizeof(void*));
+    if (test_case->data == NULL) {
+        fprintf(stderr, "\nCould not allocate memory!\n");
+        return 0;
+    }
     test_case->data[0] = network;
     double * test_data = NULL;
     testlen = loadMNISTData(TEST_DATA, TEST_IMAGE_FILE, TEST_LABEL_FILE,
                             &test_data);
     test_case->data[1] = test_data;
+    if (test_data == NULL) {
+        return 0;
+    }
+    return 1;
 }
 
-void genericTeardown (void* tc) {
+int genericTeardown (void* tc) {
     TestCase * test_case = (TestCase*) tc;
     NeuralNetwork * network = getNetwork(test_case);
     if (network != NULL) deleteNetwork(network);
@@ -261,15 +273,24 @@ void genericTeardown (void* tc) {
     if (test_data != NULL) free(test_data);
     free(test_case->data);
     test_case->data = NULL;
+    return 1;
 }
 
-void RNNSetup (void* tc) {
+int RNNSetup (void* tc) {
     TestCase * test_case = (TestCase*) tc;
     NeuralNetwork * network = createNetwork();
+    if (network == NULL) {
+        fprintf(stderr, "\nCould not create network!\n");
+        return 0;
+    }
     network->flags |= FLAG_ONEHOT;
     addLayer(network, FullyConnected, RNN_INPUT_SIZE, NULL);
     addLayer(network, Recurrent, RNN_HIDDEN_SIZE, NULL);
     addLayer(network, SoftMax, RNN_INPUT_SIZE, NULL);
+    if (network->size < 1) {
+        fprintf(stderr, "\nCould not add all layers!\n");
+        return 0;
+    }
     network->layers[network->size - 1]->flags |= FLAG_ONEHOT;
     
     int i, j, w;
@@ -289,25 +310,32 @@ void RNNSetup (void* tc) {
                     }
                 } else weights = rnn_outer_weights[j];
                 n->weights[w] = weights[w_idx];
-                //printf("Layer[%d]->neurons[%d]->weights[%d] = %lf%s\n", i, j,
-                //       w, n->weights[w], tag);
             }
         }
     }
 
     test_case->data = malloc(2 * sizeof(void*));
+    if (test_case->data == NULL) {
+        fprintf(stderr, "\nCould not allocate memory!\n");
+        return 0;
+    }
     test_case->data[0] = network;
     int train_data_len = 1 + (RNN_TIMES * 2);
     int labels_offset = 1 + RNN_TIMES;
     double * training_data = malloc(train_data_len * sizeof(double));
     double * p = training_data;
+    if (training_data == NULL) {
+        fprintf(stderr, "\nCould not allocate memory!\n");
+        return 0;
+    }
     memcpy(p, rnn_inputs, labels_offset * sizeof(double));
     p += labels_offset;
     memcpy(p, rnn_labels, RNN_TIMES * sizeof(double));
     test_case->data[1] = training_data;
+    return 1;
 }
 
-void RNNTeardown (void* tc) {
+int RNNTeardown (void* tc) {
     TestCase * test_case = (TestCase*) tc;
     NeuralNetwork * network = getNetwork(test_case);
     if (network != NULL) deleteNetwork(network);
@@ -315,6 +343,7 @@ void RNNTeardown (void* tc) {
     if (test_data != NULL) free(test_data);
     free(test_case->data);
     test_case->data = NULL;
+    return 1;
 }
 
 int testFullLoad(void* tc, void* t) {
@@ -709,6 +738,12 @@ int testGenericClone(void* tc, void* t) {
     Test * test = (Test*) t;
     NeuralNetwork * network = getNetwork(test_case);
     NeuralNetwork * clone = cloneNetwork(network, 0);
+    if (clone == NULL) {
+        char * msg = malloc(255 * sizeof(char));
+        test->error_message = msg;
+        sprintf(msg, "Could not create network clone!\n");
+        return 0;
+    }
     
     int ok = compareNetworks(network, clone, test);
     
@@ -722,11 +757,29 @@ int testGenericSave(void* tc, void* t) {
     NeuralNetwork * network = getNetwork(test_case);
     char tmpfile[255];
     getTmpFileName("tests-save-nn", ".data", tmpfile);
-    saveNetwork(network, tmpfile);
+    int ok = saveNetwork(network, tmpfile);
+    if (!ok) {
+        char * msg = malloc(255 * sizeof(char));
+        test->error_message = msg;
+        sprintf(msg, "Could not save network!\n");
+        return 0;
+    }
     NeuralNetwork * clone = createNetwork();
-    loadNetwork(clone, tmpfile);
+    if (clone == NULL) {
+        char * msg = malloc(255 * sizeof(char));
+        test->error_message = msg;
+        sprintf(msg, "Could not create network clone!\n");
+        return 0;
+    }
+    ok = loadNetwork(clone, tmpfile);
+    if (!ok) {
+        char * msg = malloc(255 * sizeof(char));
+        test->error_message = msg;
+        sprintf(msg, "Could not load network!\n");
+        return 0;
+    }
     
-    int ok = compareNetworks(network, clone, test);
+    ok = compareNetworks(network, clone, test);
     
     remove(tmpfile);
     deleteNetwork(clone);
