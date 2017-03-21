@@ -28,6 +28,13 @@
 #define TRAIN_DATASET_LEN 2
 #define EVAL_DATASET_LEN 1
 
+#define RNN_INPUT_SIZE  4
+#define RNN_HIDDEN_SIZE 2
+#define RNN_TIMES       4
+#define RNN_LEARNING_RATE 0.005
+
+double rnn_train_data[10] = {1, 4, 0, 1, 2, 3, 3, 2, 1, 0};
+
 int main(int argc, char** argv) {
     
     double * test_data = NULL;
@@ -74,5 +81,17 @@ int main(int argc, char** argv) {
     deleteNetwork(network);
     free(train_data);
     free(test_data);
+    
+    network = createNetwork();
+    network->flags |= FLAG_ONEHOT;
+    addLayer(network, FullyConnected, RNN_INPUT_SIZE, NULL);
+    addLayer(network, Recurrent, RNN_HIDDEN_SIZE, NULL);
+    addLayer(network, SoftMax, RNN_INPUT_SIZE, NULL);
+    network->layers[network->size - 1]->flags |= FLAG_ONEHOT;
+    
+    train(network, rnn_train_data, 10, EPOCHS, RNN_LEARNING_RATE, 1, 0, NULL, 0);
+    
+    deleteNetwork(network);
+    
     return 0;
 }
