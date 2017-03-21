@@ -1471,6 +1471,7 @@ void deleteLayer(Layer* layer) {
         else
             free(neuron);
     }
+    free(layer->neurons);
     LayerParameters * params = layer->parameters;
     if (params != NULL) deleteLayerParamenters(params);
     void * extra = layer->extra;
@@ -1486,6 +1487,7 @@ void deleteLayer(Layer* layer) {
                 for (i = 0; i < fc; i++) free(shared->weights[i]);
                 free(shared->weights);
             }
+            free(extra);
         } else free(extra);
     }
     free(layer);

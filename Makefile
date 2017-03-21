@@ -11,7 +11,10 @@ neural_cli:
 	cd src && make all
 test:
 	cd src/test && make all
+profile:
+	cd src/debug && make all
 clean:
+	if ! [ -e tmp/ ]; then mkdir tmp/; fi
 	if [ -e bin/README ]; then cp bin/README tmp/; fi
 	rm -f src/*.o
 	rm -f src/demo/*.o
