@@ -1037,9 +1037,10 @@ int saveNetwork(NeuralNetwork * network, const char* filename) {
 
 void deleteNetwork(NeuralNetwork * network) {
     int size = network->size;
-    int i;
+    int i, is_recurrent = (network->flags & FLAG_RECURRENT);
     for (i = 0; i < size; i++) {
         Layer * layer = network->layers[i];
+        if (is_recurrent) layer->flags |= FLAG_RECURRENT;
         deleteLayer(layer);
     }
     free(network->layers);
@@ -2284,6 +2285,7 @@ double gradientDescent(NeuralNetwork * network,
         if (series == NULL) training_data += offset;
         else series += batch_size;
     }
+    if (series != NULL) free(series - (batch_size * batches_count));
     return err / (double) batches_count;
 }
 
