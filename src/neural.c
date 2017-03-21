@@ -22,13 +22,14 @@
 #include <string.h>
 #include <assert.h>
 #include <time.h>
-#include "neural.h"
 
 #ifdef USE_AVX
 #include <xmmintrin.h>
 #include <pmmintrin.h>
 #include <immintrin.h>
 #endif
+
+#include "neural.h"
 
 #ifndef M_PI
 #define M_PI 3.141592653589793
@@ -54,6 +55,8 @@ static size_t loss_functions_count = sizeof(loss_functions) /
 
 RecurrentCell * createRecurrentCell(Neuron * neuron, int lsize);
 void addRecurrentState(Neuron * neuron, double state, int times, int t);
+void deleteDelta(Delta * delta, int size);
+void deleteDeltas(Delta ** deltas, NeuralNetwork * network);
 
 /* Activation functions */
 
@@ -108,8 +111,14 @@ void fullFeedforward(void * _net, void * _layer, ...) {
         }
         neuron->z_value = sum + neuron->bias;
         neuron->activation = layer->activate(neuron->z_value);
-        if (is_recurrent)
+        if (is_recurrent) {
             addRecurrentState(neuron, neuron->activation, times, t);
+            if (neuron->extra == NULL) {
+                fprintf(stderr, "Failed to allocate Recurrent Cell!\n");
+                deleteNetwork(network);
+                exit(1);
+            }
+        }
     }
 }
 
@@ -156,8 +165,14 @@ void softmaxFeedforward(void * _net, void * _layer, ...) {
     for (i = 0; i < size; i++) {
         Neuron * neuron = layer->neurons[i];
         neuron->activation /= esum;
-        if (is_recurrent)
+        if (is_recurrent) {
             addRecurrentState(neuron, neuron->activation, times, t);
+            if (neuron->extra == NULL) {
+                fprintf(stderr, "Failed to allocate Recurrent Cell!\n");
+                deleteNetwork(_net);
+                exit(1);
+            }
+        }
     }
 }
 
@@ -405,11 +420,13 @@ void addRecurrentState(Neuron * neuron, double state, int times, int t) {
     if (cell == NULL) {
         cell = createRecurrentCell(neuron, 0);
         neuron->extra = cell;
+        if (cell == NULL) return;
     }
     if (t == 0) {
         cell->states_count = times;
         if (cell->states != NULL) free(cell->states);
         cell->states = malloc(times * sizeof(double));
+        if (cell->states == NULL) return;
     }
     cell->states[t] = state;
 }
@@ -609,6 +626,10 @@ double crossEntropyLoss(double * outputs, double * desired, int size,
 
 NeuralNetwork * createNetwork() {
     NeuralNetwork *network = (malloc(sizeof(NeuralNetwork)));
+    if (network == NULL) {
+        fprintf(stderr, "Could not allocate memory for Network!\n");
+        return NULL;
+    }
     network->size = 0;
     network->layers = NULL;
     network->input_size = 0;
@@ -623,6 +644,7 @@ NeuralNetwork * createNetwork() {
 
 NeuralNetwork * cloneNetwork(NeuralNetwork * network, int layout_only) {
     NeuralNetwork * clone = createNetwork();
+    if (clone == NULL) return NULL;
     if (!layout_only) {
         clone->status = network->status;
         clone->current_epoch = network->current_epoch;
@@ -639,12 +661,26 @@ NeuralNetwork * cloneNetwork(NeuralNetwork * network, int layout_only) {
         LayerParameters * cparams = NULL;
         if (oparams) {
             cparams = malloc(sizeof(LayerParameters));
+            if (cparams == NULL) {
+                fprintf(stderr, "Could not allocate layer params!\n");
+                deleteNetwork(clone);
+                return NULL;
+            }
             cparams->count = oparams->count;
             cparams->parameters = malloc(cparams->count * sizeof(double));
+            if (cparams->parameters == NULL) {
+                fprintf(stderr, "Could not allocate layer params!\n");
+                deleteNetwork(clone);
+                return NULL;
+            }
             for (j = 0; j < cparams->count; j++)
                 cparams->parameters[j] = oparams->parameters[j];
         }
         Layer * cloned_layer = addLayer(clone, type, layer->size, cparams);
+        if (cloned_layer == NULL) {
+            deleteNetwork(clone);
+            return NULL;
+        }
         cloned_layer->flags = layer->flags;
         if (!layout_only) {
             void * extra = layer->extra;
@@ -682,6 +718,11 @@ NeuralNetwork * cloneNetwork(NeuralNetwork * network, int layout_only) {
                     ccell->states_count = sc;
                     if (sc > 0) {
                         ccell->states = malloc(sc * sizeof(double));
+                        if (ccell->states == NULL) {
+                            fprintf(stderr, "Could not allocate memory!\n");
+                            deleteNetwork(clone);
+                            return NULL;
+                        }
                         for (k = 0; k < sc; k++)
                             ccell->states[k] = ocell->states[k];
                     }
@@ -1096,23 +1137,48 @@ int initConvolutionalLayer(NeuralNetwork * network, Layer * layer,
     int size = area * feature_count;
     layer->size = size;
     layer->neurons = malloc(sizeof(Neuron*) * size);
+    if (layer->neurons == NULL) {
+        fprintf(stderr, "Layer[%d]: Could not allocate neurons!\n", index);
+        abortLayer(network, layer);
+        return 0;
+    }
     ConvolutionalSharedParams * shared;
     shared = malloc(sizeof(ConvolutionalSharedParams));
+    if (shared == NULL) {
+        fprintf(stderr, "Layer[%d]: Couldn't allocate shared params!\n", index);
+        abortLayer(network, layer);
+        return 0;
+    }
     shared->feature_count = feature_count;
     shared->weights_size = (int)(region_size * region_size);
     shared->biases = malloc(feature_count * sizeof(double));
     shared->weights = malloc(feature_count * sizeof(double*));
+    if (shared->biases == NULL || shared->weights == NULL) {
+        fprintf(stderr, "Layer[%d]: Could not allocate memory!\n", index);
+        abortLayer(network, layer);
+        return 0;
+    }
     layer->extra = shared;
     int i, j, w;
     for (i = 0; i < feature_count; i++) {
         shared->biases[i] = gaussian_random(0, 1);
         shared->weights[i] = malloc(shared->weights_size * sizeof(double));
+        if (shared->weights[i] == NULL) {
+            fprintf(stderr, "Layer[%d]: Could not allocate weights!\n", index);
+            abortLayer(network, layer);
+            return 0;
+        }
         for (w = 0; w < shared->weights_size; w++) {
             shared->weights[i][w] = gaussian_random(0, 1);
         }
         for (j = 0; j < area; j++) {
             int idx = (i * area) + j;
             Neuron * neuron = malloc(sizeof(Neuron));
+            if (neuron == NULL) {
+                fprintf(stderr, "Layer[%d]: Couldn't allocate neuron!\n",index);
+                abortLayer(network, layer);
+                return 0;
+            }
             neuron->index = idx;
             neuron->extra = NULL;
             neuron->weights_size = shared->weights_size;
@@ -1138,7 +1204,7 @@ int initPoolingLayer(NeuralNetwork * network, Layer * layer,
     Layer * previous = network->layers[index - 1];
     if (previous->type != Convolutional) {
         fprintf(stderr,
-                "Pooling's previous layer must be a Convolutional layer!");
+                "Pooling's previous layer must be a Convolutional layer!\n");
         abortLayer(network, layer);
         return 0;
     }
@@ -1190,11 +1256,21 @@ int initPoolingLayer(NeuralNetwork * network, Layer * layer,
     int size = area * feature_count;
     layer->size = size;
     layer->neurons = malloc(sizeof(Neuron*) * size);
+    if (layer->neurons == NULL) {
+        fprintf(stderr, "Layer[%d]: Could not allocate neurons!\n", index);
+        abortLayer(network, layer);
+        return 0;
+    }
     int i, j, w;
     for (i = 0; i < feature_count; i++) {
         for (j = 0; j < area; j++) {
             int idx = (i * area) + j;
             Neuron * neuron = malloc(sizeof(Neuron));
+            if (neuron == NULL) {
+                fprintf(stderr, "Layer[%d]: Couldn't allocate neuron!\n",index);
+                abortLayer(network, layer);
+                return 0;
+            }
             neuron->index = idx;
             neuron->extra = NULL;
             neuron->weights_size = 0;
@@ -1211,6 +1287,7 @@ int initPoolingLayer(NeuralNetwork * network, Layer * layer,
 
 RecurrentCell * createRecurrentCell(Neuron * neuron, int lsize) {
     RecurrentCell * cell = malloc(sizeof(RecurrentCell));
+    if (cell == NULL) return NULL;
     cell->states_count = 0;
     cell->states = NULL;
     cell->weights_size = lsize;
@@ -1223,12 +1300,27 @@ int initRecurrentLayer(NeuralNetwork * network, Layer * layer, int size,int ws){
     int index = layer->index, i, j;
     ws += size;
     layer->neurons = malloc(sizeof(Neuron*) * size);
+    if (layer->neurons == NULL) {
+        fprintf(stderr, "Could not allocate layer neurons!\n");
+        abortLayer(network, layer);
+        return 0;
+    }
     for (i = 0; i < size; i++) {
         Neuron * neuron = malloc(sizeof(Neuron));
+        if (neuron == NULL) {
+            fprintf(stderr, "Could not allocate neuron!\n");
+            abortLayer(network, layer);
+            return 0;
+        }
         neuron->index = i;
         neuron->weights_size = ws;
         neuron->bias = gaussian_random(0, 1);
         neuron->weights = malloc(sizeof(double) * ws);
+        if (neuron->weights ==  NULL) {
+            abortLayer(network, layer);
+            fprintf(stderr, "Could not allocate neuron weights!\n");
+            return 0;
+        }
         for (j = 0; j < ws; j++) {
             neuron->weights[j] = gaussian_random(0, 1);
         }
@@ -1236,6 +1328,10 @@ int initRecurrentLayer(NeuralNetwork * network, Layer * layer, int size,int ws){
         neuron->z_value = 0;
         layer->neurons[i] = neuron;
         neuron->extra = createRecurrentCell(neuron, size);
+        if (neuron->extra == NULL) {
+            abortLayer(network, layer);
+            return 0;
+        }
     }
     layer->flags |= FLAG_RECURRENT;
     layer->activate = tanh;
@@ -1252,6 +1348,10 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
         return NULL;
     }
     Layer * layer = malloc(sizeof(Layer));
+    if (layer == NULL) {
+        fprintf(stderr, "Could not allocate layer %d!\n", network->size);
+        return NULL;
+    }
     layer->index = network->size++;
     layer->type = type;
     layer->size = size;
@@ -1260,9 +1360,14 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
     layer->flags = FLAG_NONE;
     Layer * previous = NULL;
     int previous_size = 0;
+    int initialized = 0;
     //printf("Adding layer %d\n", layer->index);
     if (network->layers == NULL) {
         network->layers = malloc(sizeof(Layer*));
+        if (network->layers == NULL) {
+            fprintf(stderr, "Could not allocate network layers!\n");
+            return NULL;
+        }
         if ((network->flags & FLAG_ONEHOT) && params == NULL) {
             layer->flags |= FLAG_ONEHOT;
             LayerParameters * params = createLayerParamenters(1, (double) size);
@@ -1274,6 +1379,10 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
     } else {
         network->layers = realloc(network->layers,
                                   sizeof(Layer*) * network->size);
+        if (network->layers == NULL) {
+            fprintf(stderr, "Could not reallocate network layers!\n");
+            return NULL;
+        }
         previous = network->layers[layer->index - 1];
         assert(previous != NULL);
         previous_size = previous->size;
@@ -1286,9 +1395,17 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
     }
     if (type == FullyConnected || type == SoftMax) {
         layer->neurons = malloc(sizeof(Neuron*) * size);
+        if (network->layers == NULL) {
+            fprintf(stderr, "Could not allocate layer neurons!\n");
+            return NULL;
+        }
         int i, j;
         for (i = 0; i < size; i++) {
             Neuron * neuron = malloc(sizeof(Neuron));
+            if (network->layers == NULL) {
+                fprintf(stderr, "Could not allocate neuron!\n");
+                return NULL;
+            }
             neuron->index = i;
             neuron->extra = NULL;
             if (layer->index > 0) {
@@ -1318,13 +1435,18 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
             layer->feedforward = softmaxFeedforward;
             //network->loss = crossEntropyLoss;
         }
+        initialized = 1;
     } else if (type == Convolutional) {
-        initConvolutionalLayer(network, layer, params);
+        initialized = initConvolutionalLayer(network, layer, params);
     } else if (type == Pooling) {
-        initPoolingLayer(network, layer, params);
+        initialized = initPoolingLayer(network, layer, params);
     } else if (type == Recurrent) {
-        initRecurrentLayer(network, layer, size, previous_size);
-        network->loss = crossEntropyLoss;
+        initialized = initRecurrentLayer(network, layer, size, previous_size);
+        if (initialized) network->loss = crossEntropyLoss;
+    }
+    if (!initialized) {
+        fprintf(stderr, "Could not initialize layer %d!\n", network->size);
+        return NULL;
     }
     network->layers[layer->index] = layer;
     printLayerInfo(layer);
@@ -1371,10 +1493,19 @@ void deleteLayer(Layer* layer) {
 
 LayerParameters * createLayerParamenters(int count, ...) {
     LayerParameters * params = malloc(sizeof(LayerParameters));
+    if (params == NULL) {
+        fprintf(stderr, "Could not allocate Layer Parameters!\n");
+        return NULL;
+    }
     params->count = count;
     if (count == 0) params->parameters = NULL;
     else {
         params->parameters = malloc(sizeof(double) * count);
+        if (params->parameters == NULL) {
+            fprintf(stderr, "Could not allocate Layer Parameters!\n");
+            free(params);
+            return NULL;
+        }
         va_list args;
         va_start(args, count);
         int i;
@@ -1400,6 +1531,7 @@ void setLayerParameter(LayerParameters * params, int param, double value) {
     if (params->parameters == NULL) {
         int len = param + 1;
         params->parameters = malloc(sizeof(double) * len);
+        //TODO: handle memory failure
         memset(params->parameters, 0.0f, sizeof(double) * len);
         params->count = len;
     } else if (param >= params->count) {
@@ -1408,6 +1540,7 @@ void setLayerParameter(LayerParameters * params, int param, double value) {
         double * old_params = params->parameters;
         size_t size = sizeof(double) * new_len;
         params->parameters = malloc(sizeof(double) * size);
+        //TODO: handle memory failure
         memset(params->parameters, 0.0f, sizeof(double) * size);
         memcpy(params->parameters, old_params, len * sizeof(double));
         free(old_params);
@@ -1435,16 +1568,21 @@ void feedforwardThroughTime(NeuralNetwork * network, double * values,
             Neuron * neuron = first->neurons[i];
             neuron->activation = values[i];
             addRecurrentState(neuron, values[i], times, t);
+            if (neuron->extra == NULL) {
+                fprintf(stderr, "Failed to allocate Recurrent Cell!\n");
+                deleteNetwork(network);
+                exit(1);
+            }
         }
         for (i = 1; i < network->size; i++) {
             Layer * layer = network->layers[i];
             if (layer == NULL) {
-                printf("Layer %d is NULL\n", i);
+                fprintf(stderr, "Layer %d is NULL\n", i);
                 deleteNetwork(network);
                 exit(1);
             }
             if (layer->feedforward == NULL) {
-                printf("Layer %d feedforward function is NULL\n", i);
+                fprintf(stderr, "Layer %d feedforward function is NULL\n", i);
                 deleteNetwork(network);
                 exit(1);
             }
@@ -1499,6 +1637,10 @@ Delta * emptyLayer(Layer * layer) {
         size = (int) (parameters->parameters[FEATURE_COUNT]);
     }
     delta = malloc(sizeof(Delta) * size);
+    if (delta == NULL) {
+        fprintf(stderr, "Could not allocate memory!\n");
+        return NULL;
+    }
     int i, ws = 0;
     for (i = 0; i < size; i++) {
         Neuron * neuron = layer->neurons[i];
@@ -1513,6 +1655,11 @@ Delta * emptyLayer(Layer * layer) {
         delta[i].bias = 0;
         int memsize = sizeof(double) * ws;
         delta[i].weights = malloc(memsize);
+        if (delta[i].weights == NULL) {
+            fprintf(stderr, "Could not allocate memory!\n");
+            deleteDelta(delta, size);
+            return NULL;
+        }
         memset(delta[i].weights, 0, memsize);
     }
     return delta;
@@ -1520,10 +1667,20 @@ Delta * emptyLayer(Layer * layer) {
 
 Delta ** emptyDeltas(NeuralNetwork * network) {
     Delta ** deltas = malloc(sizeof(Delta*) * network->size - 1);
+    if (deltas == NULL) {
+        fprintf(stderr, "Could not allocate memory!\n");
+        return NULL;
+    }
     int i;
     for (i = 1; i < network->size; i++) {
         Layer * layer = network->layers[i];
-        deltas[i - 1] = emptyLayer(layer);
+        int idx = i - 1;
+        deltas[idx] = emptyLayer(layer);
+        if (deltas[idx] == NULL && layer->type != Pooling) {
+            fprintf(stderr, "Could not allocate memory!\n");
+            deleteDeltas(deltas, network);
+            return NULL;
+        }
     }
     return deltas;
 }
@@ -1557,6 +1714,10 @@ double * backpropPoolingToConv(NeuralNetwork * network, Layer * pooling_layer,
                                Layer * convolutional_layer, double * delta_v) {
     int conv_size = convolutional_layer->size;
     double * new_delta_v = malloc(sizeof(double) * conv_size);
+    if (new_delta_v == NULL) {
+        fprintf(stderr, "Could not allocate memory!\n");
+        return NULL;
+    }
     memset(new_delta_v, 0, sizeof(double) * conv_size);
     LayerParameters * pool_params = pooling_layer->parameters;
     LayerParameters * conv_params = convolutional_layer->parameters;
@@ -1651,6 +1812,10 @@ Delta ** backprop(NeuralNetwork * network, double * x, double * y) {
     double * delta_v;
     double * last_delta_v;
     delta_v = malloc(sizeof(double) * osize);
+    if (delta_v == NULL) {
+        fprintf(stderr, "Could not allocate memory!\n");
+        return NULL;
+    }
     memset(delta_v, 0, sizeof(double) * osize);
     last_delta_v = delta_v;
     int i, o, w, j, k;
@@ -1705,6 +1870,11 @@ Delta ** backprop(NeuralNetwork * network, double * x, double * y) {
         LayerType prev_ltype = previousLayer->type;
         if (FullyConnected == ltype) {
             delta_v = malloc(sizeof(double) * lsize);
+            if (delta_v == NULL) {
+                fprintf(stderr, "Could not allocate memory!\n");
+                if (last_delta_v != NULL) free(last_delta_v);
+                return NULL;
+            }
             memset(delta_v, 0, sizeof(double) * lsize);
             for (j = 0; j < lsize; j++) {
                 Neuron * neuron = layer->neurons[j];
@@ -1726,6 +1896,11 @@ Delta ** backprop(NeuralNetwork * network, double * x, double * y) {
             }
         } else if (Pooling == ltype && Convolutional == prev_ltype) {
             delta_v = malloc(sizeof(double) * lsize);
+            if (delta_v == NULL) {
+                fprintf(stderr, "Could not allocate memory!\n");
+                if (last_delta_v != NULL) free(last_delta_v);
+                return NULL;
+            }
             memset(delta_v, 0, sizeof(double) * lsize);
             for (j = 0; j < lsize; j++) {
                 Neuron * neuron = layer->neurons[j];
@@ -1793,6 +1968,10 @@ Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
         double * delta_v;
         double * last_delta_v;
         delta_v = malloc(sizeof(double) * osize);
+        if (delta_v == NULL) {
+            fprintf(stderr, "Could not allocate memory!\n");
+            return NULL;
+        }
         memset(delta_v, 0, sizeof(double) * osize);
         last_delta_v = delta_v;
 
@@ -1842,6 +2021,11 @@ Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
             LayerType prev_ltype = previousLayer->type;
             
             delta_v = malloc(sizeof(double) * lsize);
+            if (delta_v == NULL) {
+                fprintf(stderr, "Could not allocate memory!\n");
+                if (last_delta_v != NULL) free(last_delta_v);
+                return NULL;
+            }
             memset(delta_v, 0, sizeof(double) * lsize);
             for (j = 0; j < lsize; j++) {
                 Neuron * neuron = layer->neurons[j];
@@ -1859,6 +2043,11 @@ Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
             free(last_delta_v);
             last_delta_v = delta_v;
             delta_v = malloc(sizeof(double) * lsize);
+            if (delta_v == NULL) {
+                fprintf(stderr, "Could not allocate memory!\n");
+                if (last_delta_v != NULL) free(last_delta_v);
+                return NULL;
+            }
             memset(delta_v, 0, sizeof(double) * lsize);
             
             for (tt = t; tt >= lowest_t; tt--) {
@@ -1918,6 +2107,11 @@ Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
                 free(last_delta_v);
                 last_delta_v = delta_v;
                 delta_v = malloc(sizeof(double) * lsize);
+                if (delta_v == NULL) {
+                    fprintf(stderr, "Could not allocate memory!\n");
+                    if (last_delta_v != NULL) free(last_delta_v);
+                    return NULL;
+                }
                 memset(delta_v, 0, sizeof(double) * lsize);
             }
             
