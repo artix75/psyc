@@ -52,6 +52,23 @@ static LossFunction loss_functions[] = {
 static size_t loss_functions_count = sizeof(loss_functions) /
                                      sizeof(LossFunction);
 
+/* Private Functions */
+
+static void logerr(const char* tag, char* fmt, ...) {
+    va_list args;
+    
+    fflush (stdout);
+    fprintf(stderr, "ERROR");
+    if (tag != NULL) fprintf(stderr, " [%s]: ", tag);
+    else fprintf(stderr, ": ");
+    
+    va_start(args, fmt);
+    vfprintf(stderr, fmt, args);
+    va_end(args);
+    
+    fprintf(stderr, "\n");
+}
+
 /* Function Prototypes */
 
 RecurrentCell * createRecurrentCell(Neuron * neuron, int lsize);
@@ -59,7 +76,7 @@ void addRecurrentState(Neuron * neuron, double state, int times, int t);
 void deleteDelta(Delta * delta, int size);
 void deleteDeltas(Delta ** deltas, NeuralNetwork * network);
 
-/* Activation functions */
+/* Activation Functions */
 
 double sigmoid(double val) {
     return 1.0 / (1.0 + exp(-val));
@@ -82,7 +99,7 @@ double tanh_prime(double val) {
     return (1 - (val * val));
 }
 
-/* Feedforward functions */
+/* Feedforward Functions */
 
 int fullFeedforward(void * _net, void * _layer, ...) {
     NeuralNetwork * network = (NeuralNetwork*) _net;
@@ -679,22 +696,7 @@ void printLayerInfo(Layer * layer) {
     } else printf("\n");
 }
 
-static void logerr(const char* tag, char* fmt, ...) {
-    va_list args;
-    
-    fflush (stdout);
-    fprintf(stderr, "ERROR");
-    if (tag != NULL) fprintf(stderr, " [%s]: ", tag);
-    else fprintf(stderr, ": ");
-    
-    va_start(args, fmt);
-    vfprintf(stderr, fmt, args);
-    va_end(args);
-    
-    fprintf(stderr, "\n");
-}
-
-/* Loss functions */
+/* Loss Functions */
 
 double quadraticLoss(double * outputs, double * desired, int size,
                      int onehot_size)
@@ -737,7 +739,7 @@ double crossEntropyLoss(double * outputs, double * desired, int size,
     return loss;
 }
 
-/* NN functions */
+/* NN Functions */
 
 NeuralNetwork * createNetwork() {
     NeuralNetwork *network = (malloc(sizeof(NeuralNetwork)));
