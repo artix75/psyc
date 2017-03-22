@@ -39,6 +39,8 @@
 #define calculatePoolingSide(s, rs) ((s - rs) / rs + 1)
 #define getColumn(index, width) (index % width)
 #define getRow(index, width) ((int) ((int) index / (int) width))
+#define getConvSharedParams(layer) ((ConvolutionalSharedParams*) layer->extra)
+#define getRecurrentCell(neuron) ((RecurrentCell*) neuron->extra)
 #define printMemoryErrorMsg() logerr(NULL, "Could not allocate memory!")
 
 static unsigned char randomSeeded = 0;
@@ -261,8 +263,7 @@ int convolve(void * _net, void * _layer, ...) {
     double output_w = params[OUTPUT_WIDTH];
     double output_h = params[OUTPUT_HEIGHT];
     int feature_size = layer->size / feature_count;
-    ConvolutionalSharedParams * shared;
-    shared = (ConvolutionalSharedParams*) layer->extra;
+    ConvolutionalSharedParams * shared = getConvSharedParams(layer);
     if (shared == NULL) {
         logerr(NULL, "Layer[%d]: shared params are NULL!", layer->index);
         return 0;
@@ -426,7 +427,7 @@ int recurrentFeedforward(void * _net, void * _layer, ...) {
     int i, j, w, previous_size = previous->size;
     for (i = 0; i < size; i++) {
         Neuron * neuron = layer->neurons[i];
-        RecurrentCell * cell = (RecurrentCell*) neuron->extra;
+        RecurrentCell * cell = getRecurrentCell(neuron);
         if (cell == NULL) {
             logerr(NULL, "Layer[%d]: neuron[%d] cell is NULL!",
                    layer->index, i);
@@ -446,7 +447,7 @@ int recurrentFeedforward(void * _net, void * _layer, ...) {
             int last_t = t - 1;
             for (w = 0; w < cell->weights_size; w++) {
                 Neuron * n = layer->neurons[w];
-                RecurrentCell * rc = (RecurrentCell*) n->extra;
+                RecurrentCell * rc = getRecurrentCell(n);
                 if (rc == NULL) return 0;
                 double weight = cell->weights[w];
                 double last_state = rc->states[last_t];
@@ -530,7 +531,7 @@ static void shuffleSeries ( double ** series, int size)
 }
 
 void addRecurrentState(Neuron * neuron, double state, int times, int t) {
-    RecurrentCell * cell = (RecurrentCell*) neuron->extra;
+    RecurrentCell * cell = getRecurrentCell(neuron);
     if (cell == NULL) {
         cell = createRecurrentCell(neuron, 0);
         neuron->extra = cell;
@@ -605,7 +606,7 @@ void fetchRecurrentOutputState(Layer * out, double * outputs,
     double max = 0.0;
     for (j = 0; j < out->size; j++) {
         Neuron * neuron = out->neurons[j];
-        RecurrentCell * cell = (RecurrentCell*) neuron->extra;
+        RecurrentCell * cell = getRecurrentCell(neuron);
         double s = cell->states[t];
         if (onehot) {
             if (s > max) {
@@ -805,8 +806,8 @@ NeuralNetwork * cloneNetwork(NeuralNetwork * network, int layout_only) {
             if (Convolutional == type && extra) {
                 ConvolutionalSharedParams * oshared;
                 ConvolutionalSharedParams * cshared;
-                oshared = (ConvolutionalSharedParams*) layer->extra;
-                cshared = (ConvolutionalSharedParams*) cloned_layer->extra;
+                oshared = getConvSharedParams(layer);
+                cshared = getConvSharedParams(cloned_layer);
                 cshared->feature_count = oshared->feature_count;
                 cshared->weights_size = oshared->weights_size;
                 for (k = 0; k < cshared->feature_count; k++) {
@@ -830,8 +831,8 @@ NeuralNetwork * cloneNetwork(NeuralNetwork * network, int layout_only) {
                         cweights[w] = oweights[w];
                 }
                 if (layer->flags & FLAG_RECURRENT) {
-                    RecurrentCell * ocell = (RecurrentCell*) orig_n->extra;
-                    RecurrentCell * ccell = (RecurrentCell*) clone_n->extra;
+                    RecurrentCell * ocell = getRecurrentCell(orig_n);
+                    RecurrentCell * ccell = getRecurrentCell(clone_n);
                     int sc = ocell->states_count;
                     ccell->states_count = sc;
                     if (sc > 0) {
@@ -1019,7 +1020,7 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
         int lsize = 0;
         ConvolutionalSharedParams * shared = NULL;
         if (layer->type == Convolutional) {
-            shared = (ConvolutionalSharedParams*) layer->extra;
+            shared = getConvSharedParams(layer);
             if (shared == NULL) {
                 logerr(func, "Layer %d, missing shared params!", i);
                 fclose(f);
@@ -1124,8 +1125,7 @@ int saveNetwork(NeuralNetwork * network, const char* filename) {
         int lsize = layer->size;
         if (Convolutional == ltype) {
             LayerParameters * params = layer->parameters;
-            ConvolutionalSharedParams * shared;
-            shared = (ConvolutionalSharedParams*) layer->extra;
+            ConvolutionalSharedParams * shared = getConvSharedParams(layer);
             if (shared == NULL) {
                 logerr(func, "Layer[%d]: shared params are NULL!", i);
                 fclose(f);
@@ -1183,7 +1183,7 @@ void deleteNeuron(Neuron * neuron, Layer * layer) {
     if (neuron->weights != NULL) free(neuron->weights);
     if (neuron->extra != NULL) {
         if (layer->flags & FLAG_RECURRENT) {
-            RecurrentCell * cell = (RecurrentCell*) neuron->extra;
+            RecurrentCell * cell = getRecurrentCell(neuron);
             if (cell->states != NULL) free(cell->states);
             //if (cell->weights != NULL) free(cell->weights);
             free(cell);
@@ -2155,7 +2155,7 @@ Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
         double softmax_sum = 0.0;
         for (o = 0; o < osize; o++) {
             Neuron * neuron = outputLayer->neurons[o];
-            RecurrentCell * cell = (RecurrentCell*) neuron->extra;
+            RecurrentCell * cell = getRecurrentCell(neuron);
             double o_val = cell->states[t];
             double y_val;
             if (onehot)
@@ -2174,7 +2174,7 @@ Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
         // SoftMax
         for (o = 0; o < osize; o++) {
             Neuron * neuron = outputLayer->neurons[o];
-            RecurrentCell * cell = (RecurrentCell*) neuron->extra;
+            RecurrentCell * cell = getRecurrentCell(neuron);
             double o_val = cell->states[t];
             //delta_v[o] -= (o_val * softmax_sum);  //NO SOFTMAX??
             double d = delta_v[o];
@@ -2182,7 +2182,7 @@ Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
             n_delta->bias = d;
             for (w = 0; w < neuron->weights_size; w++) {
                 Neuron * prev_neuron = previousLayer->neurons[w];
-                RecurrentCell * prev_cell = (RecurrentCell*)prev_neuron->extra;
+                RecurrentCell * prev_cell = getRecurrentCell(prev_neuron);
                 double prev_a = prev_cell->states[t];
                 n_delta->weights[w] += (d * prev_a);
             }
@@ -2206,7 +2206,7 @@ Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
             memset(delta_v, 0, sizeof(double) * lsize);
             for (j = 0; j < lsize; j++) {
                 Neuron * neuron = layer->neurons[j];
-                RecurrentCell * cell = (RecurrentCell*) neuron->extra;
+                RecurrentCell * cell = getRecurrentCell(neuron);
                 double sum = 0;
                 for (k = 0; k < nextLayer->size; k++) {
                     Neuron * nextNeuron = nextLayer->neurons[k];
@@ -2230,7 +2230,7 @@ Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
             for (tt = t; tt >= lowest_t; tt--) {
                 for (j = 0; j < lsize; j++) {
                     Neuron * neuron = layer->neurons[j];
-                    RecurrentCell * cell = (RecurrentCell*) neuron->extra;
+                    RecurrentCell * cell = getRecurrentCell(neuron);
                     Delta * n_delta = &(layer_delta[j]);
                     double dv = last_delta_v[j];
                     n_delta->bias += dv;
@@ -2246,8 +2246,7 @@ Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
                         int vector_size = (int) params->parameters[0];
                         assert(vector_size > 0);
                         Neuron * prev_n = previousLayer->neurons[0];
-                        RecurrentCell * prev_c;
-                        prev_c = (RecurrentCell*) prev_n->extra;
+                        RecurrentCell * prev_c = getRecurrentCell(prev_n);
                         double prev_a = prev_c->states[tt];
                         assert(prev_a < vector_size);
                         w = (int) prev_a;
@@ -2257,8 +2256,7 @@ Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
                         if (Recurrent == ltype) ws -= cell->weights_size;
                         for (w = 0; w < ws; w++) {
                             Neuron * prev_n = previousLayer->neurons[w];
-                            RecurrentCell * prev_c;
-                            prev_c = (RecurrentCell*)prev_n->extra;
+                            RecurrentCell * prev_c = getRecurrentCell(prev_n);
                             double prev_a = prev_c->states[t];
                             n_delta->weights[w] += (dv * prev_a);
                         }
@@ -2269,14 +2267,14 @@ Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
                         double rsum = 0.0;
                         for (w = 0; w < cell->weights_size; w++) {
                             Neuron * rn = layer->neurons[w];
-                            RecurrentCell * rc = (RecurrentCell*) rn->extra;
+                            RecurrentCell * rc = getRecurrentCell(rn);
                             double a = rc->states[tt - 1];
                             n_delta->weights[w_offs + w] += (dv * a);
                             //sum += (delta_v[w] * );
                         }
                         for (w = 0; w < cell->weights_size; w++) {
                             Neuron * rn = layer->neurons[w];
-                            RecurrentCell * rc = (RecurrentCell*) rn->extra;
+                            RecurrentCell * rc = getRecurrentCell(rn);
                             double rw = rc->weights[neuron->index];
                             rsum += (last_delta_v[rn->index] * rw);
                         }
@@ -2395,7 +2393,7 @@ double updateWeights(NeuralNetwork * network, double * training_data,
         if (ltype == Convolutional) {
             LayerParameters * params = layer->parameters;
             l_size = (int) (params->parameters[FEATURE_COUNT]);
-            shared = (ConvolutionalSharedParams*) layer->extra;
+            shared = getConvSharedParams(layer);
         } else l_size = layer->size;
         for (j = 0; j < l_size; j++) {
             Delta * d = &(l_delta[j]);
@@ -2430,7 +2428,7 @@ double updateWeights(NeuralNetwork * network, double * training_data,
             if (onehot) {
                 int idx = (int) *(y + i);
                 Neuron * n = out->neurons[idx];
-                RecurrentCell * cell = (RecurrentCell*) n->extra;
+                RecurrentCell * cell = getRecurrentCell(n);
                 outputs[i] = cell->states[i];
             } else fetchRecurrentOutputState(out, outputs, i, 0);
         }
