@@ -100,7 +100,7 @@ int performTests(TestCase * test_case) {
                 printf(YELLOW "\n      %s\n", test->error_message);
             errors++;
         } else printf(GREEN "\tOK");
-        printf(RESET "\n");
+        printf("\n" RESET);
     }
     if (test_case->teardown != NULL) {
         printf(" -> teardown\n");
