@@ -89,7 +89,8 @@ int main(int argc, char** argv) {
     addLayer(network, SoftMax, RNN_INPUT_SIZE, NULL);
     network->layers[network->size - 1]->flags |= FLAG_ONEHOT;
     
-    train(network, rnn_train_data, 10, EPOCHS, RNN_LEARNING_RATE, 1, 0, NULL, 0);
+    train(network, rnn_train_data, 10, EPOCHS, RNN_LEARNING_RATE, 1, 0,
+          NULL, 0);
     
     deleteNetwork(network);
     

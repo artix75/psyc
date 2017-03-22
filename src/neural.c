@@ -76,8 +76,8 @@ static void logerr(const char* tag, char* fmt, ...) {
 
 RecurrentCell * createRecurrentCell(Neuron * neuron, int lsize);
 void addRecurrentState(Neuron * neuron, double state, int times, int t);
-void deleteDelta(Delta * delta, int size);
-void deleteDeltas(Delta ** deltas, NeuralNetwork * network);
+void deleteLayerGradients(Gradient * lgradients, int size);
+void deleteGradients(Gradient ** gradients, NeuralNetwork * network);
 
 /* Activation Functions */
 
@@ -1782,9 +1782,9 @@ int feedforward(NeuralNetwork * network, double * values) {
     return 1;
 }
 
-Delta * emptyLayer(Layer * layer) {
-    Delta * delta;
-    char * func = "emptyLayer";
+Gradient * createLayerGradients(Layer * layer) {
+    Gradient * gradients;
+    char * func = "createLayerGradients";
     LayerType ltype = layer->type;
     if (ltype == Pooling) return NULL;
     int size = layer->size;
@@ -1797,8 +1797,8 @@ Delta * emptyLayer(Layer * layer) {
         }
         size = (int) (parameters->parameters[FEATURE_COUNT]);
     }
-    delta = malloc(sizeof(Delta) * size);
-    if (delta == NULL) {
+    gradients = malloc(sizeof(Gradient) * size);
+    if (gradients == NULL) {
         logerr(func, "Could not allocate memory!");
         return NULL;
     }
@@ -1813,22 +1813,22 @@ Delta * emptyLayer(Layer * layer) {
         } else {
             ws = neuron->weights_size;
         }
-        delta[i].bias = 0;
+        gradients[i].bias = 0;
         int memsize = sizeof(double) * ws;
-        delta[i].weights = malloc(memsize);
-        if (delta[i].weights == NULL) {
+        gradients[i].weights = malloc(memsize);
+        if (gradients[i].weights == NULL) {
             logerr(func, "Could not allocate memory!");
-            deleteDelta(delta, size);
+            deleteLayerGradients(gradients, size);
             return NULL;
         }
-        memset(delta[i].weights, 0, memsize);
+        memset(gradients[i].weights, 0, memsize);
     }
-    return delta;
+    return gradients;
 }
 
-Delta ** emptyDeltas(NeuralNetwork * network) {
-    Delta ** deltas = malloc(sizeof(Delta*) * network->size - 1);
-    if (deltas == NULL) {
+Gradient ** createGradients(NeuralNetwork * network) {
+    Gradient ** gradients = malloc(sizeof(Gradient*) * network->size - 1);
+    if (gradients == NULL) {
         printMemoryErrorMsg();
         return NULL;
     }
@@ -1836,50 +1836,50 @@ Delta ** emptyDeltas(NeuralNetwork * network) {
     for (i = 1; i < network->size; i++) {
         Layer * layer = network->layers[i];
         int idx = i - 1;
-        deltas[idx] = emptyLayer(layer);
-        if (deltas[idx] == NULL && layer->type != Pooling) {
+        gradients[idx] = createLayerGradients(layer);
+        if (gradients[idx] == NULL && layer->type != Pooling) {
             printMemoryErrorMsg();
-            deleteDeltas(deltas, network);
+            deleteGradients(gradients, network);
             return NULL;
         }
     }
-    return deltas;
+    return gradients;
 }
 
-void deleteDelta(Delta * delta, int size) {
+void deleteLayerGradients(Gradient * gradient, int size) {
     int i;
     for (i = 0; i < size; i++) {
-        Delta d = delta[i];
-        free(d.weights);
+        Gradient g = gradient[i];
+        free(g.weights);
     }
-    free(delta);
+    free(gradient);
 }
 
-void deleteDeltas(Delta ** deltas, NeuralNetwork * network) {
+void deleteGradients(Gradient ** gradients, NeuralNetwork * network) {
     int i;
     for (i = 1; i < network->size; i++) {
-        Delta * delta = deltas[i - 1];
-        if (delta == NULL) continue;
+        Gradient * lgradients = gradients[i - 1];
+        if (lgradients == NULL) continue;
         Layer * layer = network->layers[i];
         int lsize;
         if (layer->type == Convolutional) {
             LayerParameters * params = layer->parameters;
             lsize = (int) (params->parameters[FEATURE_COUNT]);
         } else lsize = layer->size;
-        deleteDelta(delta, lsize);
+        deleteLayerGradients(lgradients, lsize);
     }
-    free(deltas);
+    free(gradients);
 }
 
 double * backpropPoolingToConv(NeuralNetwork * network, Layer * pooling_layer,
-                               Layer * convolutional_layer, double * delta_v) {
+                               Layer * convolutional_layer, double * delta) {
     int conv_size = convolutional_layer->size;
-    double * new_delta_v = malloc(sizeof(double) * conv_size);
-    if (new_delta_v == NULL) {
+    double * new_delta = malloc(sizeof(double) * conv_size);
+    if (new_delta == NULL) {
         printMemoryErrorMsg();
         return NULL;
     }
-    memset(new_delta_v, 0, sizeof(double) * conv_size);
+    memset(new_delta, 0, sizeof(double) * conv_size);
     LayerParameters * pool_params = pooling_layer->parameters;
     LayerParameters * conv_params = convolutional_layer->parameters;
     int feature_count = (int) (conv_params->parameters[FEATURE_COUNT]);
@@ -1894,7 +1894,7 @@ double * backpropPoolingToConv(NeuralNetwork * network, Layer * pooling_layer,
         col = 0;
         for (j = 0; j < feature_size; j++) {
             int idx = j + (i * feature_size);
-            double d = delta_v[idx];
+            double d = delta[idx];
             Neuron * neuron = pooling_layer->neurons[idx];
             col = idx % (int) output_w;
             if (col == 0 && j > 0) row++;
@@ -1908,18 +1908,18 @@ double * backpropPoolingToConv(NeuralNetwork * network, Layer * pooling_layer,
                     int nidx = ((y * input_w) + x) + (prev_size * i);
                     Neuron * prev_neuron = convolutional_layer->neurons[nidx];
                     double a = prev_neuron->activation;
-                    new_delta_v[nidx] = (a < neuron->activation ? 0 : d);
+                    new_delta[nidx] = (a < neuron->activation ? 0 : d);
                 }
             }
             
         }
     }
-    return new_delta_v;
+    return new_delta;
 }
 
 double * backpropConvToFull(NeuralNetwork * network, Layer* convolutional_layer,
-                            Layer * full_layer, double * delta_v,
-                            Delta * ldelta) {
+                            Layer * full_layer, double * delta,
+                            Gradient * lgradients) {
     int size = convolutional_layer->size;
     LayerParameters * params = convolutional_layer->parameters;
     int feature_count = (int) (params->parameters[FEATURE_COUNT]);
@@ -1931,13 +1931,13 @@ double * backpropConvToFull(NeuralNetwork * network, Layer* convolutional_layer,
     int wsize = region_size * region_size;
     int i, j, row, col, x, y;
     for (i = 0; i < feature_count; i++) {
-        Delta * feature_delta = &(ldelta[i]);
+        Gradient * feature_gradient = &(lgradients[i]);
         row = 0;
         col = 0;
         for (j = 0; j < feature_size; j++) {
             int idx = j + (i * feature_size);
-            double d = delta_v[idx];
-            feature_delta->bias += d;
+            double d = delta[idx];
+            feature_gradient->bias += d;
             
             col = idx % (int) output_w;
             if (col == 0 && j > 0) row++;
@@ -1952,7 +1952,7 @@ double * backpropConvToFull(NeuralNetwork * network, Layer* convolutional_layer,
                     //printf("  -> %d,%d [%d]\n", x, y, nidx);
                     Neuron * prev_neuron = full_layer->neurons[nidx];
                     double a = prev_neuron->activation;
-                    feature_delta->weights[widx++] += (a * d);
+                    feature_gradient->weights[widx++] += (a * d);
                 }
             }
         }
@@ -1960,32 +1960,32 @@ double * backpropConvToFull(NeuralNetwork * network, Layer* convolutional_layer,
     return NULL;
 }
 
-Delta ** backprop(NeuralNetwork * network, double * x, double * y) {
-    Delta ** deltas = emptyDeltas(network);
-    if (deltas == NULL) return NULL;
+Gradient ** backprop(NeuralNetwork * network, double * x, double * y) {
+    Gradient ** gradients = createGradients(network);
+    if (gradients == NULL) return NULL;
     int netsize = network->size;
     Layer * inputLayer = network->layers[0];
     Layer * outputLayer = network->layers[netsize - 1];
     int isize = inputLayer->size;
     int osize = outputLayer->size;
-    Delta * layer_delta = deltas[netsize - 2]; // Deltas have no input layer
+    Gradient * lgradients = gradients[netsize - 2];//No gradient for input layer
     Layer * previousLayer = network->layers[outputLayer->index - 1];
     Layer * nextLayer = NULL;
-    double * delta_v;
-    double * last_delta_v;
-    delta_v = malloc(sizeof(double) * osize);
-    if (delta_v == NULL) {
+    double * delta;
+    double * last_delta;
+    delta = malloc(sizeof(double) * osize);
+    if (delta == NULL) {
         printMemoryErrorMsg();
-        deleteDeltas(deltas, network);
+        deleteGradients(gradients, network);
         return NULL;
     }
-    memset(delta_v, 0, sizeof(double) * osize);
-    last_delta_v = delta_v;
+    memset(delta, 0, sizeof(double) * osize);
+    last_delta = delta;
     int i, o, w, j, k;
     int ok = feedforward(network, x);
     if (!ok) {
-        deleteDeltas(deltas, network);
-        free(delta_v);
+        deleteGradients(gradients, network);
+        free(delta);
         return NULL;
     }
     double softmax_sum = 0.0;
@@ -2005,9 +2005,9 @@ Delta ** backprop(NeuralNetwork * network, double * x, double * y) {
             softmax_sum += d;
             //printf("SoftMax D[%d](y=%lf) -> %lf\n", o, y_val, d);
         }
-        delta_v[o] = d;
+        delta[o] = d;
         if (outputLayer->type != SoftMax) {
-            Delta * n_delta = &(layer_delta[o]);
+            Gradient * n_delta = &(lgradients[o]);
             n_delta->bias = d;
             for (w = 0; w < neuron->weights_size; w++) {
                 double prev_a = previousLayer->neurons[w]->activation;
@@ -2019,13 +2019,13 @@ Delta ** backprop(NeuralNetwork * network, double * x, double * y) {
         for (o = 0; o < osize; o++) {
             Neuron * neuron = outputLayer->neurons[o];
             double o_val = neuron->activation;
-            delta_v[o] -= (o_val * softmax_sum);
-            double d = delta_v[o];
-            Delta * n_delta = &(layer_delta[o]);
-            n_delta->bias = d;
+            delta[o] -= (o_val * softmax_sum);
+            double d = delta[o];
+            Gradient * gradient = &(lgradients[o]);
+            gradient->bias = d;
             for (w = 0; w < neuron->weights_size; w++) {
                 double prev_a = previousLayer->neurons[w]->activation;
-                n_delta->weights[w] = d * prev_a;
+                gradient->weights[w] = d * prev_a;
             }
         }
     }
@@ -2033,95 +2033,96 @@ Delta ** backprop(NeuralNetwork * network, double * x, double * y) {
         Layer * layer = network->layers[i];
         previousLayer = network->layers[i - 1];
         nextLayer = network->layers[i + 1];
-        layer_delta = deltas[i - 1];
+        lgradients = gradients[i - 1];
         int lsize = layer->size;
         LayerType ltype = layer->type;
         LayerType prev_ltype = previousLayer->type;
         if (FullyConnected == ltype) {
-            delta_v = malloc(sizeof(double) * lsize);
-            if (delta_v == NULL) {
+            delta = malloc(sizeof(double) * lsize);
+            if (delta == NULL) {
                 printMemoryErrorMsg();
-                if (last_delta_v != NULL) free(last_delta_v);
+                if (last_delta != NULL) free(last_delta);
                 return NULL;
             }
-            memset(delta_v, 0, sizeof(double) * lsize);
+            memset(delta, 0, sizeof(double) * lsize);
             for (j = 0; j < lsize; j++) {
                 Neuron * neuron = layer->neurons[j];
                 double sum = 0;
                 for (k = 0; k < nextLayer->size; k++) {
                     Neuron * nextNeuron = nextLayer->neurons[k];
                     double weight = nextNeuron->weights[j];
-                    double d = last_delta_v[k];
+                    double d = last_delta[k];
                     sum += (d * weight);
                 }
                 double dv = sum;
                 if (shouldApplyDerivative(network))
                     dv *= layer->derivative(neuron->z_value);
-                delta_v[j] = dv;
-                Delta * n_delta = &(layer_delta[j]);
-                n_delta->bias = dv;
+                delta[j] = dv;
+                Gradient * gradient = &(lgradients[j]);
+                gradient->bias = dv;
                 for (w = 0; w < neuron->weights_size; w++) {
                     double prev_a = previousLayer->neurons[w]->activation;
-                    n_delta->weights[w] = dv * prev_a;
+                    gradient->weights[w] = dv * prev_a;
                 }
             }
         } else if (Pooling == ltype && Convolutional == prev_ltype) {
-            delta_v = malloc(sizeof(double) * lsize);
-            if (delta_v == NULL) {
+            delta = malloc(sizeof(double) * lsize);
+            if (delta == NULL) {
                 printMemoryErrorMsg();
-                if (last_delta_v != NULL) free(last_delta_v);
+                if (last_delta != NULL) free(last_delta);
                 return NULL;
             }
-            memset(delta_v, 0, sizeof(double) * lsize);
+            memset(delta, 0, sizeof(double) * lsize);
             for (j = 0; j < lsize; j++) {
                 Neuron * neuron = layer->neurons[j];
                 double sum = 0;
                 for (k = 0; k < nextLayer->size; k++) {
                     Neuron * nextNeuron = nextLayer->neurons[k];
                     double weight = nextNeuron->weights[j];
-                    double d = last_delta_v[k];
+                    double d = last_delta[k];
                     sum += (d * weight);
                 }
                 double dv = sum;
                 if (shouldApplyDerivative(network))
                     dv *= layer->derivative(neuron->z_value);
-                delta_v[j] = dv;
+                delta[j] = dv;
             }
-            free(last_delta_v);
-            last_delta_v = delta_v;
-            delta_v = backpropPoolingToConv(network, layer,
-                                            previousLayer, last_delta_v);
-            //free(delta_v);
+            free(last_delta);
+            last_delta = delta;
+            delta = backpropPoolingToConv(network, layer,
+                                            previousLayer, last_delta);
+            //free(delta);
             //continue;
         } else if (Convolutional == ltype && FullyConnected == prev_ltype) {
-            delta_v = backpropConvToFull(network, layer, previousLayer,
-                               last_delta_v, layer_delta);
+            delta = backpropConvToFull(network, layer, previousLayer,
+                               last_delta, lgradients);
         } else {
             fprintf(stderr, "Backprop from %s to %s not suported!\n",
                     getLayerTypeLabel(layer),
                     getLayerTypeLabel(previousLayer));
-            deleteDeltas(deltas, network);
-            free(last_delta_v);
-            if (delta_v != last_delta_v) free(delta_v);
+            deleteGradients(gradients, network);
+            free(last_delta);
+            if (delta != last_delta) free(delta);
             return NULL;
         }
-        free(last_delta_v);
-        last_delta_v = delta_v;
-        if (delta_v == NULL && Convolutional != ltype) {
-            deleteDeltas(deltas, network);
+        free(last_delta);
+        last_delta = delta;
+        if (delta == NULL && Convolutional != ltype) {
+            deleteGradients(gradients, network);
             return NULL;
         }
     }
-    if (delta_v != NULL) free(delta_v);
-    return deltas;
+    if (delta != NULL) free(delta);
+    return gradients;
 }
 
-Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
-                             double * y, int times) {
+Gradient ** backpropThroughTime(NeuralNetwork * network, double * x,
+                                double * y, int times)
+{
     // TODO: RECURRENT OUTPUT LAYER MUST BE SOFTMAX!!!
 
-    Delta ** deltas = emptyDeltas(network);
-    if (deltas == NULL) return NULL;
+    Gradient ** gradients = createGradients(network);
+    if (gradients == NULL) return NULL;
     int netsize = network->size;
     Layer * inputLayer = network->layers[0];
     Layer * outputLayer = network->layers[netsize - 1];
@@ -2133,7 +2134,7 @@ Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
     int i, o, w, j, k, t, tt;
     int ok = feedforwardThroughTime(network, x, times);
     if (!ok) {
-        deleteDeltas(deltas, network);
+        deleteGradients(gradients, network);
         return NULL;
     }
     
@@ -2145,18 +2146,18 @@ Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
         int time_offset = t * ysize;
         double * time_y = y + time_offset;
         
-        Delta * layer_delta = deltas[netsize - 2]; // Deltas have no input layer
+        Gradient * lgradients = gradients[netsize - 2];//No grad. in input layer
         Layer * previousLayer = network->layers[outputLayer->index - 1];
         Layer * nextLayer = NULL;
-        double * delta_v;
-        double * last_delta_v;
-        delta_v = malloc(sizeof(double) * osize);
-        if (delta_v == NULL) {
+        double * delta;
+        double * last_delta;
+        delta = malloc(sizeof(double) * osize);
+        if (delta == NULL) {
             printMemoryErrorMsg();
             return NULL;
         }
-        memset(delta_v, 0, sizeof(double) * osize);
-        last_delta_v = delta_v;
+        memset(delta, 0, sizeof(double) * osize);
+        last_delta = delta;
 
         double softmax_sum = 0.0;
         int apply_derivative = shouldApplyDerivative(network);
@@ -2176,22 +2177,22 @@ Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
             d = -(y_val - o_val);
             if (apply_derivative) d *= o_val;
             softmax_sum += d;
-            delta_v[o] = d;
+            delta[o] = d;
         }
         // SoftMax
         for (o = 0; o < osize; o++) {
             Neuron * neuron = outputLayer->neurons[o];
             RecurrentCell * cell = getRecurrentCell(neuron);
             double o_val = cell->states[t];
-            if (apply_derivative) delta_v[o] -= (o_val * softmax_sum);
-            double d = delta_v[o];
-            Delta * n_delta = &(layer_delta[o]);
-            n_delta->bias = d;
+            if (apply_derivative) delta[o] -= (o_val * softmax_sum);
+            double d = delta[o];
+            Gradient * gradient = &(lgradients[o]);
+            gradient->bias = d;
             for (w = 0; w < neuron->weights_size; w++) {
                 Neuron * prev_neuron = previousLayer->neurons[w];
                 RecurrentCell * prev_cell = getRecurrentCell(prev_neuron);
                 double prev_a = prev_cell->states[t];
-                n_delta->weights[w] += (d * prev_a);
+                gradient->weights[w] += (d * prev_a);
             }
         }
         
@@ -2199,18 +2200,18 @@ Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
             Layer * layer = network->layers[i];
             previousLayer = network->layers[i - 1];
             nextLayer = network->layers[i + 1];
-            layer_delta = deltas[i - 1];
+            lgradients = gradients[i - 1];
             int lsize = layer->size;
             LayerType ltype = layer->type;
             LayerType prev_ltype = previousLayer->type;
             
-            delta_v = malloc(sizeof(double) * lsize);
-            if (delta_v == NULL) {
+            delta = malloc(sizeof(double) * lsize);
+            if (delta == NULL) {
                 printMemoryErrorMsg();
-                if (last_delta_v != NULL) free(last_delta_v);
+                if (last_delta != NULL) free(last_delta);
                 return NULL;
             }
-            memset(delta_v, 0, sizeof(double) * lsize);
+            memset(delta, 0, sizeof(double) * lsize);
             for (j = 0; j < lsize; j++) {
                 Neuron * neuron = layer->neurons[j];
                 RecurrentCell * cell = getRecurrentCell(neuron);
@@ -2218,36 +2219,36 @@ Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
                 for (k = 0; k < nextLayer->size; k++) {
                     Neuron * nextNeuron = nextLayer->neurons[k];
                     double weight = nextNeuron->weights[j];
-                    double d = last_delta_v[k];
+                    double d = last_delta[k];
                     sum += (d * weight);
                 }
                 double dv = sum * layer->derivative(cell->states[t]);
-                delta_v[j] = dv;
+                delta[j] = dv;
             }
-            free(last_delta_v);
-            last_delta_v = delta_v;
-            delta_v = malloc(sizeof(double) * lsize);
-            if (delta_v == NULL) {
+            free(last_delta);
+            last_delta = delta;
+            delta = malloc(sizeof(double) * lsize);
+            if (delta == NULL) {
                 printMemoryErrorMsg();
-                if (last_delta_v != NULL) free(last_delta_v);
+                if (last_delta != NULL) free(last_delta);
                 return NULL;
             }
-            memset(delta_v, 0, sizeof(double) * lsize);
+            memset(delta, 0, sizeof(double) * lsize);
             
             for (tt = t; tt >= lowest_t; tt--) {
                 for (j = 0; j < lsize; j++) {
                     Neuron * neuron = layer->neurons[j];
                     RecurrentCell * cell = getRecurrentCell(neuron);
-                    Delta * n_delta = &(layer_delta[j]);
-                    double dv = last_delta_v[j];
-                    n_delta->bias += dv;
+                    Gradient * gradient = &(lgradients[j]);
+                    double dv = last_delta[j];
+                    gradient->bias += dv;
                     
                     if (previousLayer->flags & FLAG_ONEHOT) {
                         LayerParameters * params = previousLayer->parameters;
                         if (params == NULL) {
                             fprintf(stderr, "Layer %d params are NULL!\n",
                                     previousLayer->index);
-                            if (last_delta_v != NULL) free(last_delta_v);
+                            if (last_delta != NULL) free(last_delta);
                             return NULL;
                         }
                         int vector_size = (int) params->parameters[0];
@@ -2257,15 +2258,15 @@ Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
                         double prev_a = prev_c->states[tt];
                         assert(prev_a < vector_size);
                         w = (int) prev_a;
-                        n_delta->weights[w] += dv;
+                        gradient->weights[w] += dv;
                     } else {
-                        int ws = neuron->weights_size; //TODO: check for weight limit (exclude state weights)
+                        int ws = neuron->weights_size;
                         if (Recurrent == ltype) ws -= cell->weights_size;
                         for (w = 0; w < ws; w++) {
                             Neuron * prev_n = previousLayer->neurons[w];
                             RecurrentCell * prev_c = getRecurrentCell(prev_n);
                             double prev_a = prev_c->states[t];
-                            n_delta->weights[w] += (dv * prev_a);
+                            gradient->weights[w] += (dv * prev_a);
                         }
                     }
                     
@@ -2276,39 +2277,39 @@ Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
                             Neuron * rn = layer->neurons[w];
                             RecurrentCell * rc = getRecurrentCell(rn);
                             double a = rc->states[tt - 1];
-                            n_delta->weights[w_offs + w] += (dv * a);
-                            //sum += (delta_v[w] * );
+                            gradient->weights[w_offs + w] += (dv * a);
+                            //sum += (delta[w] * );
                         }
                         for (w = 0; w < cell->weights_size; w++) {
                             Neuron * rn = layer->neurons[w];
                             RecurrentCell * rc = getRecurrentCell(rn);
                             double rw = rc->weights[neuron->index];
-                            rsum += (last_delta_v[rn->index] * rw);
+                            rsum += (last_delta[rn->index] * rw);
                         }
                         double prev_a = cell->states[tt - 1];
-                        delta_v[neuron->index] =
+                        delta[neuron->index] =
                             rsum * layer->derivative(prev_a);
                     }
 
                 }
                 
-                free(last_delta_v);
-                last_delta_v = delta_v;
-                delta_v = malloc(sizeof(double) * lsize);
-                if (delta_v == NULL) {
+                free(last_delta);
+                last_delta = delta;
+                delta = malloc(sizeof(double) * lsize);
+                if (delta == NULL) {
                     printMemoryErrorMsg();
-                    if (last_delta_v != NULL) free(last_delta_v);
+                    if (last_delta != NULL) free(last_delta);
                     return NULL;
                 }
-                memset(delta_v, 0, sizeof(double) * lsize);
+                memset(delta, 0, sizeof(double) * lsize);
             }
             
-            free(last_delta_v);
-            last_delta_v = delta_v;
+            free(last_delta);
+            last_delta = delta;
         }
-        if (delta_v != NULL) free(delta_v);
+        if (delta != NULL) free(delta);
     }
-    return deltas;
+    return gradients;
 }
 
 double updateWeights(NeuralNetwork * network, double * training_data,
@@ -2317,13 +2318,13 @@ double updateWeights(NeuralNetwork * network, double * training_data,
     int i, j, k, w, netsize = network->size, dsize = netsize - 1, times;
     int training_data_size = network->input_size;
     int label_data_size = network->output_size;
-    Delta ** deltas = emptyDeltas(network);
-    if (deltas == NULL) {
+    Gradient ** gradients = createGradients(network);
+    if (gradients == NULL) {
         network->status = STATUS_ERROR;
         return -999.0;
     }
     char * func = "updateWeights";
-    Delta ** bp_deltas = NULL;
+    Gradient ** bp_gradients = NULL;
     double ** series = NULL;
     int is_recurrent = network->flags & FLAG_RECURRENT;
     if (is_recurrent) {
@@ -2334,7 +2335,7 @@ double updateWeights(NeuralNetwork * network, double * training_data,
         if (series == NULL) {
             logerr(func, "Series is NULL");
             network->status = STATUS_ERROR;
-            deleteDeltas(deltas, network);
+            deleteGradients(gradients, network);
             return -999.0;
         }
     }
@@ -2346,28 +2347,28 @@ double updateWeights(NeuralNetwork * network, double * training_data,
             x = training_data;
             y = training_data + training_data_size;
             training_data += element_size;
-            bp_deltas = backprop(network, x, y);
+            bp_gradients = backprop(network, x, y);
         } else {
             x = series[i];
             times = (int) *(x++);
             if (times == 0) {
                 logerr(func, "Series len must b > 0. (batch = %d)", i);
-                deleteDeltas(deltas, network);
+                deleteGradients(gradients, network);
                 return -999.0;
             }
             y = x + (times * training_data_size);
-            bp_deltas = backpropThroughTime(network, x, y, times);
+            bp_gradients = backpropThroughTime(network, x, y, times);
         }
-        if (bp_deltas == NULL) {
+        if (bp_gradients == NULL) {
             network->status = STATUS_ERROR;
-            deleteDeltas(deltas, network);
+            deleteGradients(gradients, network);
             return -999.0;
         }
         for (j = 0; j < dsize; j++) {
             Layer * layer = network->layers[j + 1];
-            Delta * layer_delta_bp = bp_deltas[j];
-            Delta * layer_delta = deltas[j];
-            if (layer_delta == NULL) continue;
+            Gradient * lgradients_bp = bp_gradients[j];
+            Gradient * lgradients = gradients[j];
+            if (lgradients == NULL) continue;
             int lsize = layer->size;
             int wsize = 0;
             if (layer->type == Convolutional) {
@@ -2381,19 +2382,19 @@ double updateWeights(NeuralNetwork * network, double * training_data,
                     Neuron * neuron = layer->neurons[k];
                     wsize = neuron->weights_size;
                 }
-                Delta * n_delta_bp = &(layer_delta_bp[k]);
-                Delta * n_delta = &(layer_delta[k]);
-                n_delta->bias += n_delta_bp->bias;
+                Gradient * gradient_bp = &(lgradients_bp[k]);
+                Gradient * gradient = &(lgradients[k]);
+                gradient->bias += gradient_bp->bias;
                 for (w = 0; w < wsize; w++) {
-                    n_delta->weights[w] += n_delta_bp->weights[w];
+                    gradient->weights[w] += gradient_bp->weights[w];
                 }
             }
         }
-        deleteDeltas(bp_deltas, network);
+        deleteGradients(bp_gradients, network);
     }
     for (i = 0; i < dsize; i++) {
-        Delta * l_delta = deltas[i];
-        if (l_delta == NULL) continue;
+        Gradient * lgradients = gradients[i];
+        if (lgradients == NULL) continue;
         Layer * layer = network->layers[i + 1];
         LayerType ltype = layer->type;
         int l_size;
@@ -2404,26 +2405,26 @@ double updateWeights(NeuralNetwork * network, double * training_data,
             shared = getConvSharedParams(layer);
         } else l_size = layer->size;
         for (j = 0; j < l_size; j++) {
-            Delta * d = &(l_delta[j]);
+            Gradient * g = &(lgradients[j]);
             if (shared == NULL) {
                 Neuron * neuron = layer->neurons[j];
-                neuron->bias = neuron->bias - r * d->bias;
+                neuron->bias = neuron->bias - r * g->bias;
                 for (k = 0; k < neuron->weights_size; k++) {
                     double w = neuron->weights[k];
-                    neuron->weights[k] = w - r * d->weights[k];
+                    neuron->weights[k] = w - r * g->weights[k];
                 }
             } else {
                 double b = shared->biases[j];
-                shared->biases[j] = b - r * d->bias;
+                shared->biases[j] = b - r * g->bias;
                 double * weights = shared->weights[j];
                 for (k = 0; k < shared->weights_size; k++) {
                     double w = weights[k];
-                    weights[k] = w - r * d->weights[k];
+                    weights[k] = w - r * g->weights[k];
                 }
             }
         }
     }
-    deleteDeltas(deltas, network);
+    deleteGradients(gradients, network);
     Layer * out = network->layers[netsize - 1];
     int onehot = out->flags & FLAG_ONEHOT;
     if (onehot) label_data_size = 1;
@@ -2741,19 +2742,19 @@ int verifyNetwork(NeuralNetwork * network) {
             layer->derivative != sigmoid_derivative) {
             logerr("verifyNetwork",
                    "Layer[%d] activate function is sigmoid, "
-                   "but delta function is not sigmoid_derivative", i);
+                   "but derivative function is not sigmoid_derivative", i);
             return 0;
         }
         if (layer->activate == relu && layer->derivative != relu_derivative) {
             logerr("verifyNetwork",
                    "Layer[%d] activate function is relu, "
-                   "but delta function is not relu_derivative", i);
+                   "but derivative function is not relu_derivative", i);
             return 0;
         }
         if (layer->activate == tanh && layer->derivative != tanh_derivative) {
             logerr("verifyNetwork",
                    "Layer[%d] activate function is tanh, "
-                   "but delta function is not tanh_derivative", i);
+                   "but derivative function is not tanh_derivative", i);
             return 0;
         }
         previous = layer;

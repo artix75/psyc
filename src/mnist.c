@@ -26,7 +26,10 @@
 #define CHUNK 16384
 #define IMAGES_MAGIC_NUM 2051
 #define LABELS_MAGIC_NUM 2049
-#define le2be(x) ((x >> 24 & 0x000000FF) | (x >> 8 & 0x0000FF00) | (x << 8 & 0x00FF0000) | (x << 24))
+#define le2be(x) ((x >> 24 & 0x000000FF) | \
+    (x >> 8 & 0x0000FF00) | \
+    (x << 8 & 0x00FF0000) | \
+    (x << 24))
 
 int decompressGZip(FILE *source, FILE * dest) {
     int ret;
@@ -185,7 +188,7 @@ int loadMNISTData(int type,
     fread(&magic_num, 1, 4, tmplabels);
     magic_num = le2be(magic_num);
     if (magic_num != LABELS_MAGIC_NUM) {
-        fprintf(stderr, "Invalid magic number for labels file: %d\n", magic_num);
+        fprintf(stderr, "Invalid magic number for labels file: %d\n",magic_num);
         data = NULL;
         return 0;
     }

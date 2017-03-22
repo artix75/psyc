@@ -31,8 +31,8 @@
 #define TEST_LABEL_FILE "../../resources/t10k-labels-idx1-ubyte.gz"
 #define TEST_IMAGE_SIZE 28
 #define TEST_INPUT_SIZE TEST_IMAGE_SIZE * TEST_IMAGE_SIZE
-#define BP_DELTAS_CHECKS 8
-#define BP_CONV_DELTAS_CHECKS 4
+#define BP_GRADIENTS_CHECKS 8
+#define BP_CONV_GRADIENTS_CHECKS 4
 #define CONV_L1F0_BIAS 0.02630446809718423
 
 #define RNN_INPUT_SIZE  4
@@ -74,8 +74,8 @@ int testRNNStep(void* tc, void* t);
 
 /* neural.c static function prototypes */
 
-Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
-                             double * y, int times);
+Gradient ** backpropThroughTime(NeuralNetwork * network, double * x,
+                                double * y, int times);
 
 double updateWeights(NeuralNetwork * network, double * training_data,
                      int batch_size, double rate, ...);
@@ -110,7 +110,7 @@ double convNetworkFeedForwardResults[] = {
 
 
 // Layer, Neuron, Bias, Weight1 idx, Weight2 idx, Weight1, Weight2
-double backpropDeltas[8][7] = {
+double backpropGradients[8][7] = {
     {1.0, 6.0, 0.00000302, 0.0, 202.0, 0.00000000, 0.00000099},
     {1.0, 10.0, 0.00001238, 0.0, 202.0, 0.00000000, 0.00000408},
     {1.0, 28.0, 0.00000000, 0.0, 202.0, 0.00000000, 0.00000000},
@@ -122,7 +122,7 @@ double backpropDeltas[8][7] = {
 };
 
 // Layer, Neuron, Bias, Weight1 idx, Weight2 idx, Weight1, Weight2
-double backpropConvDeltas[8][8] = {
+double backpropConvGradients[8][8] = {
     {1.0, 0.0, 0.74930726, 0.0, 1.0, 0.01887213, 0.00558867},
     {1.0, 1.0, -0.12929553, 0.0, 1.0, -0.00580211, -0.00211678},
     {3.0, 6.0, 0.00000055, 0.0, 25.0, 0.00000028, 0.00000035},
@@ -153,12 +153,12 @@ double rnn_expected_output[4][4] = {
     {0.24796499, 0.21649963, 0.19729585, 0.33823952}
 };
 
-double rnn_inner_deltas[2][6] = {
+double rnn_inner_gradients[2][6] = {
     { 0.7147815, -0.21859849, 0.11033169, -0.38062627, -0.20556136, 0.087832},
     {-0.25557706, 0.18080836, 0.40002974, -0.39482105, -0.1891429, 0.158413}
 };
 
-double rnn_outer_deltas[4][2] = {
+double rnn_outer_gradients[4][2] = {
     { 0.4023519, -0.29857975},
     {-0.33460693, 0.37440608},
     { 0.26141107, 0.0456771},
@@ -366,7 +366,6 @@ int testFullFeedforward(void* tc, void* t) {
         Neuron * n = output->neurons[i];
         double a = n->activation;
         double expected = fullNetworkFeedForwardResults[i];
-        //printf("Layer[%d]->neuron[%d]: %.15e == exp: %.15e\n", network->size - 1, i, a, expected);
         a = getRoundedDouble(a);
         expected = getRoundedDouble(expected);
         if (a != expected) {
@@ -405,23 +404,23 @@ int testFullBackprop(void* tc, void* t) {
     int input_size = network->layers[0]->size;
     double * x = test_data;
     double * y = test_data + input_size;
-    Delta ** deltas = backprop(network, x, y);
+    Gradient ** gradients = backprop(network, x, y);
     int ok = 1, i;
-    for (i = 0; i < BP_DELTAS_CHECKS; i++) {
-        int lidx = (int) (backpropDeltas[i][0]);
-        int nidx = (int) (backpropDeltas[i][1]);
-        double bias = backpropDeltas[i][2];
-        int widx1 = (int) (backpropDeltas[i][3]);
-        int widx2 = (int) (backpropDeltas[i][4]);
-        double w1 = backpropDeltas[i][5];
-        double w2 = backpropDeltas[i][6];
-        Delta * dl = deltas[lidx - 1];
-        Delta * d = &(dl[nidx]);
+    for (i = 0; i < BP_GRADIENTS_CHECKS; i++) {
+        int lidx = (int) (backpropGradients[i][0]);
+        int nidx = (int) (backpropGradients[i][1]);
+        double bias = backpropGradients[i][2];
+        int widx1 = (int) (backpropGradients[i][3]);
+        int widx2 = (int) (backpropGradients[i][4]);
+        double w1 = backpropGradients[i][5];
+        double w2 = backpropGradients[i][6];
+        Gradient * dl = gradients[lidx - 1];
+        Gradient * d = &(dl[nidx]);
         double val = getRoundedDoubleDec(d->bias, 100000000.0);
         ok = (val == bias);
         if (!ok) {
             sprintf(testobj->error_message,
-                    "Delta[%d][%d] bias %lf != from expected (%lf)",
+                    "Gradient[%d][%d] bias %lf != from expected (%lf)",
                     lidx - 1, nidx, val, bias);
             break;
         }
@@ -429,7 +428,7 @@ int testFullBackprop(void* tc, void* t) {
         ok = (val == w1);
         if (!ok) {
             sprintf(testobj->error_message,
-                    "Delta[%d][%d] weight[%d] %lf != from expected (%lf)",
+                    "Gradient[%d][%d] weight[%d] %lf != from expected (%lf)",
                     lidx - 1, nidx, widx1, val, w1);
             break;
         }
@@ -437,12 +436,12 @@ int testFullBackprop(void* tc, void* t) {
         ok = (val == w2);
         if (!ok) {
             sprintf(testobj->error_message,
-                    "Delta[%d][%d] weight[%d] %lf != from expected (%lf)",
+                    "Gradient[%d][%d] weight[%d] %lf != from expected (%lf)",
                     lidx - 1, nidx, widx2, val, w2);
             break;
         }
     }
-    deleteDeltas(deltas, network);
+    deleteGradients(gradients, network);
     return ok;
 }
 
@@ -487,7 +486,6 @@ int testConvFeedforward(void* tc, void* t) {
         Neuron * n = output->neurons[i];
         double a = n->activation;
         double expected = convNetworkFeedForwardResults[i];
-        //printf("Layer[%d]->neuron[%d]: %.15e == exp: %.15e\n", network->size - 1, i, a, expected);
         a = getRoundedDouble(a);
         expected = getRoundedDouble(expected);
         if (a != expected) {
@@ -510,24 +508,24 @@ int testConvBackprop(void* tc, void* t) {
     int input_size = network->layers[0]->size;
     double * x = test_data;
     double * y = test_data + input_size;
-    Delta ** deltas = backprop(network, x, y);
+    Gradient ** gradients = backprop(network, x, y);
     int ok = 1, i;
-    for (i = 0; i < BP_CONV_DELTAS_CHECKS; i++) {
-        int lidx = (int) (backpropConvDeltas[i][0]);
-        int nidx = (int) (backpropConvDeltas[i][1]);
-        double bias = backpropConvDeltas[i][2];
-        int widx1 = (int) (backpropConvDeltas[i][3]);
-        int widx2 = (int) (backpropConvDeltas[i][4]);
-        double w1 = backpropConvDeltas[i][5];
-        double w2 = backpropConvDeltas[i][6];
-        Delta * dl = deltas[lidx - 1];
+    for (i = 0; i < BP_CONV_GRADIENTS_CHECKS; i++) {
+        int lidx = (int) (backpropConvGradients[i][0]);
+        int nidx = (int) (backpropConvGradients[i][1]);
+        double bias = backpropConvGradients[i][2];
+        int widx1 = (int) (backpropConvGradients[i][3]);
+        int widx2 = (int) (backpropConvGradients[i][4]);
+        double w1 = backpropConvGradients[i][5];
+        double w2 = backpropConvGradients[i][6];
+        Gradient * dl = gradients[lidx - 1];
         if (dl == NULL) continue;
-        Delta * d = &(dl[nidx]);
+        Gradient * d = &(dl[nidx]);
         double val = getRoundedDoubleDec(d->bias, 100000000.0);
         ok = (val == bias);
         if (!ok) {
             sprintf(testobj->error_message,
-                    "Delta[%d][%d] bias %.8lf != from expected (%.8lf)",
+                    "Gradient[%d][%d] bias %.8lf != from expected (%.8lf)",
                     lidx - 1, nidx, val, bias);
             break;
         }
@@ -535,7 +533,7 @@ int testConvBackprop(void* tc, void* t) {
         ok = (val == w1);
         if (!ok) {
             sprintf(testobj->error_message,
-                    "Delta[%d][%d] weight[%d] %.8lf != from expected (%.8lf)",
+                    "Gradient[%d][%d] weight[%d] %.8lf != from expect. (%.8lf)",
                     lidx - 1, nidx, widx1, val, w1);
             break;
         }
@@ -543,12 +541,12 @@ int testConvBackprop(void* tc, void* t) {
         ok = (val == w2);
         if (!ok) {
             sprintf(testobj->error_message,
-                    "Delta[%d][%d] weight[%d] %.8lf != from expected (%.8lf)",
+                    "Gradient[%d][%d] weight[%d] %.8lf != from expect. (%.8lf)",
                     lidx - 1, nidx, widx2, val, w2);
             break;
         }
     }
-    deleteDeltas(deltas, network);
+    deleteGradients(gradients, network);
     return ok;
 }
 
@@ -655,25 +653,25 @@ int testRNNBackprop(void* tc, void* t) {
     NeuralNetwork * network = getNetwork(test_case);
     int ok = 1, i, j, w;
     
-    Delta ** deltas = backpropThroughTime(network, rnn_inputs + 1,
-                                          rnn_labels, RNN_TIMES);
+    Gradient ** gradients = backpropThroughTime(network, rnn_inputs + 1,
+                                                rnn_labels, RNN_TIMES);
     int dsize = network->size - 1;
     for (i = 0; i < dsize; i++) {
-        Delta * delta = deltas[i];
+        Gradient * lgradients = gradients[i];
         Layer * l = network->layers[i + 1];
         for (j = 0; j < l->size; j++) {
-            Delta * n_delta = &(delta[j]);
+            Gradient * gradient = &(lgradients[j]);
             int ws = l->neurons[j]->weights_size;
-            double * expected = (i == 0 ? rnn_inner_deltas[j] :
-                                 rnn_outer_deltas[j]);
+            double * expected = (i == 0 ? rnn_inner_gradients[j] :
+                                 rnn_outer_gradients[j]);
             for (w = 0; w < ws; w++) {
-                double dw = getRoundedDouble(n_delta->weights[w]);
+                double dw = getRoundedDouble(gradient->weights[w]);
                 double exp_dw = getRoundedDouble(expected[w]);
                 ok = (dw == exp_dw);
                 if (!ok) {
                     char * msg = malloc(255 * sizeof(char));
                     test->error_message = msg;
-                    sprintf(msg, "Delta[%d][%d]->weight[%d]: %lf != %lf\n",
+                    sprintf(msg, "Gradient[%d][%d]->weight[%d]: %lf != %lf\n",
                             i, j, w, dw, exp_dw);
                     break;
                 }
@@ -682,7 +680,7 @@ int testRNNBackprop(void* tc, void* t) {
         if (!ok) break;
     }
     
-    deleteDeltas(deltas, network);
+    deleteGradients(gradients, network);
     
     return ok;
 }

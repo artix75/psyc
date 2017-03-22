@@ -57,7 +57,7 @@ typedef double (*LossFunction)(double* x, double* y, int size, int onehot_size);
 typedef struct {
     double bias;
     double * weights;
-} Delta;
+} Gradient;
 
 typedef enum {
     FullyConnected,
@@ -144,8 +144,8 @@ int feedforward(NeuralNetwork * network, double * values);
 void deleteNetwork(NeuralNetwork * network);
 void deleteLayer(Layer * layer);
 void deleteNeuron(Neuron * neuron, Layer * layer);
-void deleteDeltas(Delta ** deltas, NeuralNetwork * network);
-Delta ** backprop(NeuralNetwork * network, double * x, double * y);
+void deleteGradients(Gradient ** gradients, NeuralNetwork * network);
+Gradient ** backprop(NeuralNetwork * network, double * x, double * y);
 void train(NeuralNetwork * network,
            double * training_data,
            int data_size,
