@@ -41,6 +41,7 @@
 #define getRow(index, width) ((int) ((int) index / (int) width))
 #define getConvSharedParams(layer) ((ConvolutionalSharedParams*) layer->extra)
 #define getRecurrentCell(neuron) ((RecurrentCell*) neuron->extra)
+#define shouldApplyDerivative(network) (network->loss != crossEntropyLoss)
 #define printMemoryErrorMsg() logerr(NULL, "Could not allocate memory!")
 
 static unsigned char randomSeeded = 0;
@@ -84,7 +85,7 @@ double sigmoid(double val) {
     return 1.0 / (1.0 + exp(-val));
 }
 
-double sigmoid_prime(double val) {
+double sigmoid_derivative(double val) {
     double s = sigmoid(val);
     return s * (1 - s);
 }
@@ -93,11 +94,11 @@ double relu(double val) {
     return (val >= 0.0 ? val : 0.0);
 }
 
-double relu_prime(double val) {
+double relu_derivative(double val) {
     return (double)(val > 0.0);
 }
 
-double tanh_prime(double val) {
+double tanh_derivative(double val) {
     return (1 - (val * val));
 }
 
@@ -1323,10 +1324,10 @@ int initConvolutionalLayer(NeuralNetwork * network, Layer * layer,
     }
     if (!use_relu) {
         layer->activate = sigmoid;
-        layer->delta = sigmoid_prime;
+        layer->derivative = sigmoid_derivative;
     } else {
         layer->activate = relu;
-        layer->delta = relu_prime;
+        layer->derivative = relu_derivative;
     }
     layer->feedforward = convolve;
     return 1;
@@ -1415,7 +1416,7 @@ int initPoolingLayer(NeuralNetwork * network, Layer * layer,
         }
     }
     layer->activate = NULL;
-    layer->delta = previous->delta;
+    layer->derivative = previous->derivative;
     layer->feedforward = pool;
     return 1;
 }
@@ -1471,7 +1472,7 @@ int initRecurrentLayer(NeuralNetwork * network, Layer * layer, int size,int ws){
     }
     layer->flags |= FLAG_RECURRENT;
     layer->activate = tanh;
-    layer->delta = tanh_prime;
+    layer->derivative = tanh_derivative;
     layer->feedforward = recurrentFeedforward;
     network->flags |= FLAG_RECURRENT;
     return 1;
@@ -1577,11 +1578,11 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
         }
         if (type != SoftMax) {
             layer->activate = sigmoid;
-            layer->delta = sigmoid_prime;
+            layer->derivative = sigmoid_derivative;
             layer->feedforward = fullFeedforward;
         } else {
             layer->activate = NULL;
-            layer->delta = NULL;
+            layer->derivative = NULL;
             layer->feedforward = softmaxFeedforward;
             //network->loss = crossEntropyLoss;
         }
@@ -1995,7 +1996,8 @@ Delta ** backprop(NeuralNetwork * network, double * x, double * y) {
         double d = 0.0;
         if (outputLayer->type != SoftMax) {
             d = o_val - y_val;
-            d *= outputLayer->delta(neuron->z_value);
+            if (shouldApplyDerivative(network))
+                d *= outputLayer->derivative(neuron->z_value);
         } else {
             y_val = (y_val < 1 ? 0 : 1);
             d = -(y_val - o_val);
@@ -2052,7 +2054,9 @@ Delta ** backprop(NeuralNetwork * network, double * x, double * y) {
                     double d = last_delta_v[k];
                     sum += (d * weight);
                 }
-                double dv = sum * layer->delta(neuron->z_value);
+                double dv = sum;
+                if (shouldApplyDerivative(network))
+                    dv *= layer->derivative(neuron->z_value);
                 delta_v[j] = dv;
                 Delta * n_delta = &(layer_delta[j]);
                 n_delta->bias = dv;
@@ -2078,7 +2082,9 @@ Delta ** backprop(NeuralNetwork * network, double * x, double * y) {
                     double d = last_delta_v[k];
                     sum += (d * weight);
                 }
-                double dv = sum * layer->delta(neuron->z_value);
+                double dv = sum;
+                if (shouldApplyDerivative(network))
+                    dv *= layer->derivative(neuron->z_value);
                 delta_v[j] = dv;
             }
             free(last_delta_v);
@@ -2153,6 +2159,7 @@ Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
         last_delta_v = delta_v;
 
         double softmax_sum = 0.0;
+        int apply_derivative = shouldApplyDerivative(network);
         for (o = 0; o < osize; o++) {
             Neuron * neuron = outputLayer->neurons[o];
             RecurrentCell * cell = getRecurrentCell(neuron);
@@ -2167,7 +2174,7 @@ Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
             // Recurrent Output Layer must be SoftMax ??
             y_val = (y_val < 1 ? 0 : 1);
             d = -(y_val - o_val);
-            //d *= o_val; //NO SOFTMAX??
+            if (apply_derivative) d *= o_val;
             softmax_sum += d;
             delta_v[o] = d;
         }
@@ -2176,7 +2183,7 @@ Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
             Neuron * neuron = outputLayer->neurons[o];
             RecurrentCell * cell = getRecurrentCell(neuron);
             double o_val = cell->states[t];
-            //delta_v[o] -= (o_val * softmax_sum);  //NO SOFTMAX??
+            if (apply_derivative) delta_v[o] -= (o_val * softmax_sum);
             double d = delta_v[o];
             Delta * n_delta = &(layer_delta[o]);
             n_delta->bias = d;
@@ -2214,7 +2221,7 @@ Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
                     double d = last_delta_v[k];
                     sum += (d * weight);
                 }
-                double dv = sum * layer->delta(cell->states[t]);
+                double dv = sum * layer->derivative(cell->states[t]);
                 delta_v[j] = dv;
             }
             free(last_delta_v);
@@ -2279,7 +2286,8 @@ Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
                             rsum += (last_delta_v[rn->index] * rw);
                         }
                         double prev_a = cell->states[tt - 1];
-                        delta_v[neuron->index] = rsum * layer->delta(prev_a);
+                        delta_v[neuron->index] =
+                            rsum * layer->derivative(prev_a);
                     }
 
                 }
@@ -2729,22 +2737,23 @@ int verifyNetwork(NeuralNetwork * network) {
                    "but previous type is not Convolutional", i);
             return 0;
         }
-        if (layer->activate == sigmoid && layer->delta != sigmoid_prime) {
+        if (layer->activate == sigmoid &&
+            layer->derivative != sigmoid_derivative) {
             logerr("verifyNetwork",
                    "Layer[%d] activate function is sigmoid, "
-                   "but delta function is not sigmoid_prime", i);
+                   "but delta function is not sigmoid_derivative", i);
             return 0;
         }
-        if (layer->activate == relu && layer->delta != relu_prime) {
+        if (layer->activate == relu && layer->derivative != relu_derivative) {
             logerr("verifyNetwork",
                    "Layer[%d] activate function is relu, "
-                   "but delta function is not relu_prime", i);
+                   "but delta function is not relu_derivative", i);
             return 0;
         }
-        if (layer->activate == tanh && layer->delta != tanh_prime) {
+        if (layer->activate == tanh && layer->derivative != tanh_derivative) {
             logerr("verifyNetwork",
                    "Layer[%d] activate function is tanh, "
-                   "but delta function is not tanh_prime", i);
+                   "but delta function is not tanh_derivative", i);
             return 0;
         }
         previous = layer;
