@@ -39,6 +39,7 @@
 #define calculatePoolingSide(s, rs) ((s - rs) / rs + 1)
 #define getColumn(index, width) (index % width)
 #define getRow(index, width) ((int) ((int) index / (int) width))
+#define printMemoryErrorMsg() logerr(NULL, "Could not allocate memory!")
 
 static unsigned char randomSeeded = 0;
 
@@ -87,17 +88,18 @@ int fullFeedforward(void * _net, void * _layer, ...) {
     NeuralNetwork * network = (NeuralNetwork*) _net;
     Layer * layer = (Layer*) _layer;
     int size = layer->size;
+    char * func = "fullFeedforward";
     if (layer->neurons == NULL) {
-        fprintf(stderr, "Layer %d has no neurons!\n", layer->index);
+        logerr(NULL, "Layer[%d] has no neurons!", layer->index);
         return 0;
     }
     if (layer->index == 0) {
-        fprintf(stderr, "Cannot feedforward on layer 0!\n");
+        logerr(NULL, "Cannot feedforward on layer 0!");
         return 0;
     }
     Layer * previous = network->layers[layer->index - 1];
     if (previous == NULL) {
-        fprintf(stderr, "Layer %d: previous layer is NULL!\n", layer->index);
+        logerr(NULL, "Layer[%d]: previous layer is NULL!", layer->index);
         return 0;
     }
     int i, j, previous_size = previous->size;
@@ -115,9 +117,8 @@ int fullFeedforward(void * _net, void * _layer, ...) {
         for (j = 0; j < previous_size; j++) {
             Neuron * prev_neuron = previous->neurons[j];
             if (prev_neuron == NULL) {
-                fprintf(stderr,
-                        "Layer %d: previous layer's neuron[%d] is NULL!\n",
-                        layer->index, j);
+                logerr(NULL, "Layer[%d]: previous layer's neuron[%d] is NULL!",
+                       layer->index, j);
                 return 0;
             }
             double a = prev_neuron->activation;
@@ -128,7 +129,7 @@ int fullFeedforward(void * _net, void * _layer, ...) {
         if (is_recurrent) {
             addRecurrentState(neuron, neuron->activation, times, t);
             if (neuron->extra == NULL) {
-                fprintf(stderr, "Failed to allocate Recurrent Cell!\n");
+                logerr(func, "Failed to allocate Recurrent Cell!");
                 return 0;
             }
         }
@@ -140,17 +141,18 @@ int softmaxFeedforward(void * _net, void * _layer, ...) {
     NeuralNetwork * net = (NeuralNetwork*) _net;
     Layer * layer = (Layer*) _layer;
     int size = layer->size;
+    char * func = "softmaxFeedforward";
     if (layer->neurons == NULL) {
-        fprintf(stderr, "Layer %d has no neurons!\n", layer->index);
+        logerr(NULL, "Layer[%d] has no neurons!", layer->index);
         return 0;
     }
     if (layer->index == 0) {
-        fprintf(stderr, "Cannot feedforward on layer 0!\n");
+        logerr(NULL, "Cannot feedforward on layer 0!");
         return 0;
     }
     Layer * previous = net->layers[layer->index - 1];
     if (previous == NULL) {
-        fprintf(stderr, "Layer %d: previous layer is NULL!\n", layer->index);
+        logerr(NULL, "Layer[%d]: previous layer is NULL!", layer->index);
         return 0;
     }
     int i, j, previous_size = previous->size;
@@ -169,9 +171,8 @@ int softmaxFeedforward(void * _net, void * _layer, ...) {
         for (j = 0; j < previous_size; j++) {
             Neuron * prev_neuron = previous->neurons[j];
             if (prev_neuron == NULL) {
-                fprintf(stderr,
-                        "Layer %d: previous layer's neuron[%d] is NULL!\n",
-                        layer->index, j);
+                logerr(NULL, "Layer[%d]: previous layer's neuron[%d] is NULL!",
+                       layer->index, j);
                 return 0;
             }
             double a = prev_neuron->activation;
@@ -196,7 +197,7 @@ int softmaxFeedforward(void * _net, void * _layer, ...) {
         if (is_recurrent) {
             addRecurrentState(neuron, neuron->activation, times, t);
             if (neuron->extra == NULL) {
-                fprintf(stderr, "Failed to allocate Recurrent Cell!\n");
+                logerr(func, "Failed to allocate Recurrent Cell!");
                 return 0;
             }
         }
@@ -209,27 +210,27 @@ int convolve(void * _net, void * _layer, ...) {
     Layer * layer = (Layer*) _layer;
     int size = layer->size;
     if (layer->neurons == NULL) {
-        fprintf(stderr, "Layer %d has no neurons!\n", layer->index);
+        logerr(NULL, "Layer[%d] has no neurons!", layer->index);
         return 0;
     }
     if (layer->index == 0) {
-        fprintf(stderr, "Cannot feedforward on layer 0!\n");
+        logerr(NULL, "Cannot feedforward on layer 0!");
         return 0;
     }
     Layer * previous = net->layers[layer->index - 1];
     if (previous == NULL) {
-        fprintf(stderr, "Layer %d: previous layer is NULL!\n", layer->index);
+        logerr(NULL, "Layer[%d]: previous layer is NULL!", layer->index);
         return 0;
     }
     int i, j, x, y, row, col, previous_size = previous->size;
     LayerParameters * parameters = layer->parameters;
     if (parameters == NULL) {
-        fprintf(stderr, "Layer %d: params are NULL!\n", layer->index);
+        logerr(NULL, "Layer[%d]: parameters are NULL!", layer->index);
         return 0;
     }
     LayerParameters * previous_parameters = previous->parameters;
     if (previous_parameters == NULL) {
-        fprintf(stderr, "Layer %d: params are invalid!\n", layer->index);
+        logerr(NULL, "Layer[%d]: parameters are invalid!", layer->index);
         return 0;
     }
     double * params = parameters->parameters;
@@ -246,7 +247,7 @@ int convolve(void * _net, void * _layer, ...) {
     ConvolutionalSharedParams * shared;
     shared = (ConvolutionalSharedParams*) layer->extra;
     if (shared == NULL) {
-        fprintf(stderr, "Layer %d: shared params are NULL!\n", layer->index);
+        logerr(NULL, "Layer[%d]: shared params are NULL!", layer->index);
         return 0;
     }
     for (i = 0; i < feature_count; i++) {
@@ -287,27 +288,27 @@ int pool(void * _net, void * _layer, ...) {
     Layer * layer = (Layer*) _layer;
     int size = layer->size;
     if (layer->neurons == NULL) {
-        fprintf(stderr, "Layer %d has no neurons!\n", layer->index);
+        logerr(NULL, "Layer[%d] has no neurons!", layer->index);
         return 0;
     }
     if (layer->index == 0) {
-        fprintf(stderr, "Cannot feedforward on layer 0!\n");
+        logerr(NULL, "Cannot feedforward on layer 0!");
         return 0;
     }
     Layer * previous = net->layers[layer->index - 1];
     if (previous == NULL) {
-        fprintf(stderr, "Layer %d: previous layer is NULL!\n", layer->index);
+        logerr(NULL, "Layer[%d]: previous layer is NULL!", layer->index);
         return 0;
     }
     int i, j, x, y, row, col, previous_size = previous->size;
     LayerParameters * parameters = layer->parameters;
     if (parameters == NULL) {
-        fprintf(stderr, "Layer %d: params are NULL!\n", layer->index);
+        logerr(NULL, "Layer[%d]: parameters are NULL!", layer->index);
         return 0;
     }
     LayerParameters * previous_parameters = previous->parameters;
     if (previous_parameters == NULL) {
-        fprintf(stderr, "Layer %d: params are invalid!\n", layer->index);
+        logerr(NULL, "Layer[%d]: parameters are invalid!", layer->index);
         return 0;
     }
     double * params = parameters->parameters;
@@ -356,28 +357,29 @@ int pool(void * _net, void * _layer, ...) {
 int recurrentFeedforward(void * _net, void * _layer, ...) {
     NeuralNetwork * net = (NeuralNetwork*) _net;
     Layer * layer = (Layer*) _layer;
+    char * func = "recurrentFeedforward";
     va_list args;
     va_start(args, _layer);
     int times = va_arg(args, int);
     int t = va_arg(args, int);
     va_end(args);
     if (times < 1) {
-        fprintf(stderr, "Layer %d: feedforward times must be >= 1 (found %d)",
+        logerr(func, "Layer[%d]: times must be >= 1 (found %d)",
                 layer->index, times);
         return 0;
     }
     int size = layer->size;
     if (layer->neurons == NULL) {
-        fprintf(stderr, "Layer %d has no neurons!\n", layer->index);
+        logerr(NULL, "Layer[%d] has no neurons!", layer->index);
         return 0;
     }
     if (layer->index == 0) {
-        fprintf(stderr, "Cannot feedforward on layer 0!\n");
+        logerr(NULL, "Cannot feedforward on layer 0!");
         return 0;
     }
     Layer * previous = net->layers[layer->index - 1];
     if (previous == NULL) {
-        fprintf(stderr, "Layer %d: previous layer is NULL!\n", layer->index);
+        logerr(NULL, "Layer[%d]: previous layer is NULL!", layer->index);
         return 0;
     }
     int onehot = previous->flags & FLAG_ONEHOT;
@@ -386,21 +388,21 @@ int recurrentFeedforward(void * _net, void * _layer, ...) {
     if (onehot) {
         params = previous->parameters;
         if (params == NULL) {
-            fprintf(stderr, "Layer %d: prev. onehot layer params are NULL!\n",
-                    layer->index);
+            logerr(NULL, "Layer[%d]: prev. onehot layer params are NULL!",
+                   layer->index);
             return 0;
         }
         if (params->count < 1) {
-            fprintf(stderr, "Layer %d: prev. onehot layer params < 1!\n",
-                    layer->index);
+            logerr(NULL, "Layer[%d]: prev. onehot layer params < 1!",
+                   layer->index);
             return 0;
         }
         vector_size = (int) (params->parameters[0]);
         Neuron * prev_neuron = previous->neurons[0];
         vector_idx = (int) (prev_neuron->activation);
         if (vector_size == 0 && vector_idx >= vector_size) {
-            fprintf(stderr, "Layer %d: invalid vector index %d (max. %d)!\n",
-                    previous->index, vector_idx, vector_size - 1);
+            logerr(NULL, "Layer[%d]: invalid vector index %d (max. %d)!",
+                   previous->index, vector_idx, vector_size - 1);
             return 0;
         }
     }
@@ -409,8 +411,8 @@ int recurrentFeedforward(void * _net, void * _layer, ...) {
         Neuron * neuron = layer->neurons[i];
         RecurrentCell * cell = (RecurrentCell*) neuron->extra;
         if (cell == NULL) {
-            fprintf(stderr, "Layer %d: neuron[%d] cell is NULL!\n",
-                    layer->index, i);
+            logerr(NULL, "Layer[%d]: neuron[%d] cell is NULL!",
+                   layer->index, i);
             return 0;
         }
         double sum = 0, bias = 0;
@@ -534,7 +536,7 @@ static double ** getRecurrentSeries(double * array, int series_count,
 {
     double ** series = malloc(series_count * sizeof(double**));
     if (series == NULL) {
-        fprintf(stderr, "Could not allocate memory for recurrent series!\n");
+        logerr(NULL, "Could not allocate memory for recurrent series!");
         return NULL;
     }
     int i;
@@ -542,7 +544,7 @@ static double ** getRecurrentSeries(double * array, int series_count,
     for (i = 0; i < series_count; i++) {
         int series_size = (int) *p;
         if (!series_size) {
-            fprintf(stderr, "Invalid series size 0 at %d", (int) (p - array));
+            logerr(NULL, "Invalid series size 0 at %d", (int) (p - array));
             free(series);
             return NULL;
         }
@@ -677,6 +679,21 @@ void printLayerInfo(Layer * layer) {
     } else printf("\n");
 }
 
+static void logerr(const char* tag, char* fmt, ...) {
+    va_list args;
+    
+    fflush (stdout);
+    fprintf(stderr, "ERROR");
+    if (tag != NULL) fprintf(stderr, " [%s]: ", tag);
+    else fprintf(stderr, ": ");
+    
+    va_start(args, fmt);
+    vfprintf(stderr, fmt, args);
+    va_end(args);
+    
+    fprintf(stderr, "\n");
+}
+
 /* Loss functions */
 
 double quadraticLoss(double * outputs, double * desired, int size,
@@ -725,7 +742,7 @@ double crossEntropyLoss(double * outputs, double * desired, int size,
 NeuralNetwork * createNetwork() {
     NeuralNetwork *network = (malloc(sizeof(NeuralNetwork)));
     if (network == NULL) {
-        fprintf(stderr, "Could not allocate memory for Network!\n");
+        logerr("createNetwork", "Could not allocate memory for Network!");
         return NULL;
     }
     network->size = 0;
@@ -743,6 +760,7 @@ NeuralNetwork * createNetwork() {
 NeuralNetwork * cloneNetwork(NeuralNetwork * network, int layout_only) {
     NeuralNetwork * clone = createNetwork();
     if (clone == NULL) return NULL;
+    char * func = "cloneNetwork";
     if (!layout_only) {
         clone->status = network->status;
         clone->current_epoch = network->current_epoch;
@@ -760,14 +778,14 @@ NeuralNetwork * cloneNetwork(NeuralNetwork * network, int layout_only) {
         if (oparams) {
             cparams = malloc(sizeof(LayerParameters));
             if (cparams == NULL) {
-                fprintf(stderr, "Could not allocate layer params!\n");
+                logerr(func, "Layer[%d]: Could not allocate layer params!", i);
                 deleteNetwork(clone);
                 return NULL;
             }
             cparams->count = oparams->count;
             cparams->parameters = malloc(cparams->count * sizeof(double));
             if (cparams->parameters == NULL) {
-                fprintf(stderr, "Could not allocate layer params!\n");
+                logerr(func, "Layer[%d]: Could not allocate layer params!", i);
                 deleteNetwork(clone);
                 return NULL;
             }
@@ -817,7 +835,7 @@ NeuralNetwork * cloneNetwork(NeuralNetwork * network, int layout_only) {
                     if (sc > 0) {
                         ccell->states = malloc(sc * sizeof(double));
                         if (ccell->states == NULL) {
-                            fprintf(stderr, "Could not allocate memory!\n");
+                            printMemoryErrorMsg();
                             deleteNetwork(clone);
                             return NULL;
                         }
@@ -838,6 +856,7 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
         fprintf(stderr, "Cannot open %s!\n", filename);
         return 0;
     }
+    char * func = "loadNetwork";
     int netsize, i, j, k;
     int empty = (network->size == 0);
     char vers[20] = "0.0.0";
@@ -870,12 +889,12 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
     }
     matched = fscanf(f, "%d:", &netsize);
     if (!matched) {
-        fprintf(stderr, "Invalid file %s!\n", filename);
+        logerr(func, "Invalid file %s!", filename);
         fclose(f);
         return 0;
     }
     if (!empty && network->size != netsize) {
-        fprintf(stderr, "Network size differs!\n");
+        logerr(func, "Network size differs!");
         fclose(f);
         return 0;
     }
@@ -900,13 +919,13 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
             argc = 0;
             matched = fscanf(f, "[%d,%d", &type, &argc);
             if (!matched) {
-                fprintf(stderr, "Invalid header: layer[%d], col. %ld!\n",
-                        i, ftell(f));
+                logerr(func, "Invalid header: layer[%d], col. %ld!",
+                       i, ftell(f));
                 fclose(f);
                 return 0;
             }
             if (argc == 0) {
-                fputs("Layer must have at least 1 argument (size)\n", stderr);
+                logerr(func, "Layer must have at least 1 argument (size)");
                 fclose(f);
                 return 0;
             }
@@ -914,8 +933,8 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
             for (aidx = 0; aidx < argc; aidx++) {
                 matched = fscanf(f, ",%d", &arg);
                 if (!matched) {
-                    fprintf(stderr, "Invalid header: l%d, arg. %d, col. %ld!\n",
-                            i, aidx, ftell(f));
+                    logerr(func, "Invalid header: l%d, arg. %d, col. %ld!",
+                           i, aidx, ftell(f));
                     fclose(f);
                     return 0;
                 }
@@ -930,21 +949,21 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
         if (!empty) {
             layer = network->layers[i];
             if (layer->size != lsize) {
-                fprintf(stderr, "Layer %d size %d differs from %d!\n", i,
-                        layer->size, lsize);
+                logerr(func, "Layer %d size %d differs from %d!", i,
+                       layer->size, lsize);
                 fclose(f);
                 return 0;
             }
             if (ltype != layer->type) {
-                fprintf(stderr, "Layer %d type %d differs from %d!\n", i,
-                        (int) (layer->type), (int) ltype);
+                logerr(func, "Layer %d type %d differs from %d!", i,
+                       (int) (layer->type), (int) ltype);
                 fclose(f);
                 return 0;
             }
             if (ltype == Convolutional || ltype == Pooling) {
                 LayerParameters * params = layer->parameters;
                 if (params == NULL) {
-                    fprintf(stderr, "Layer %d params are NULL!\n", i);
+                    logerr(func, "Layer %d params are NULL!", i);
                     fclose(f);
                     return 0;
                 }
@@ -953,8 +972,8 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
                     int arg = args[aidx];
                     double val = params->parameters[aidx];
                     if (arg != (int) val) {
-                        fprintf(stderr, "Layer %d arg[%d] %d diff. from %d!\n",
-                                i, aidx,(int) val, arg);
+                        logerr(func, "Layer %d arg[%d] %d diff. from %d!",
+                               i, aidx,(int) val, arg);
                         fclose(f);
                         return 0;
                     }
@@ -986,7 +1005,7 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
                 layer = addLayer(network, ltype, lsize, params);
             }
             if (layer == NULL) {
-                fprintf(stderr, "Could not create layer %d\n", i);
+                logerr(func, "Could not create layer %d", i);
                 fclose(f);
                 return 0;
             }
@@ -1000,7 +1019,7 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
         if (layer->type == Convolutional) {
             shared = (ConvolutionalSharedParams*) layer->extra;
             if (shared == NULL) {
-                fprintf(stderr, "Layer %d, missing shared params!\n", i);
+                logerr(func, "Layer %d, missing shared params!", i);
                 fclose(f);
                 return 0;
             }
@@ -1014,7 +1033,7 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
             double * weights = NULL;
             matched = fscanf(f, "%lf|", &bias);
             if (!matched) {
-                fprintf(stderr, "Layer %d, neuron %d: invalid bias!\n", i, j);
+                logerr(func, "Layer %d, neuron %d: invalid bias!", i, j);
                 fclose(f);
                 return 0;
             }
@@ -1035,8 +1054,8 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
                 sprintf(fmt, "%%lf%s", last);
                 matched = fscanf(f, fmt, &w);
                 if (!matched) {
-                    fprintf(stderr,"\nLayer %d neuron %d: invalid weight[%d]\n",
-                            i, j, k);
+                    logerr(func,"Layer %d neuron %d: invalid weight[%d]",
+                           i, j, k);
                     fclose(f);
                     return 0;
                 }
@@ -1052,8 +1071,9 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
 }
 
 int saveNetwork(NeuralNetwork * network, const char* filename) {
+    char * func = "saveNetwork";
     if (network->size == 0) {
-        fprintf(stderr, "Empty network!\n");
+        logerr(func, "Empty network!");
         return 0;
     }
     FILE * f = fopen(filename, "w");
@@ -1105,13 +1125,13 @@ int saveNetwork(NeuralNetwork * network, const char* filename) {
             ConvolutionalSharedParams * shared;
             shared = (ConvolutionalSharedParams*) layer->extra;
             if (shared == NULL) {
-                fprintf(stderr, "Layer %d: shared params are NULL!\n", i);
+                logerr(func, "Layer[%d]: shared params are NULL!", i);
                 fclose(f);
                 return 0;
             }
             int feature_count = shared->feature_count;
             if (feature_count < 1) {
-                fprintf(stderr, "Layer %d: feature count must be >= 1!\n", i);
+                logerr(func, "Layer[%d]: feature count must be >= 1!", i);
                 fclose(f);
                 return 0;
             }
@@ -1180,6 +1200,7 @@ void abortLayer(NeuralNetwork * network, Layer * layer) {
 int initConvolutionalLayer(NeuralNetwork * network, Layer * layer,
                            LayerParameters * parameters) {
     int index = layer->index;
+    char * func = "initConvolutionalLayer";
     Layer * previous = network->layers[index - 1];
     if (previous->type != FullyConnected) {
         fprintf(stderr,
@@ -1188,26 +1209,26 @@ int initConvolutionalLayer(NeuralNetwork * network, Layer * layer,
         return 0;
     }
     if (parameters == NULL) {
-        fputs("Layer parameters is NULL!\n", stderr);
+        logerr(func, "Layer parameters is NULL!");
         abortLayer(network, layer);
         return 0;
     }
     if (parameters->count < CONV_PARAMETER_COUNT) {
-        fprintf(stderr, "Convolutional Layer parameters count must be %d\n",
-                CONV_PARAMETER_COUNT);
+        logerr(func, "Convolutional Layer parameters count must be %d",
+               CONV_PARAMETER_COUNT);
         abortLayer(network, layer);
         return 0;
     }
     double * params = parameters->parameters;
     int feature_count = (int) (params[FEATURE_COUNT]);
     if (feature_count <= 0) {
-        fprintf(stderr, "FEATURE_COUNT must be > 0 (given: %d)", feature_count);
+        logerr(func, "FEATURE_COUNT must be > 0 (given: %d)", feature_count);
         abortLayer(network, layer);
         return 0;
     }
     double region_size = params[REGION_SIZE];
     if (region_size <= 0) {
-        fprintf(stderr, "REGION_SIZE must be > 0 (given: %lf)", region_size);
+        logerr(func, "REGION_SIZE must be > 0 (given: %lf)", region_size);
         abortLayer(network, layer);
         return 0;
     }
@@ -1227,8 +1248,8 @@ int initConvolutionalLayer(NeuralNetwork * network, Layer * layer,
         input_h = previous_params->parameters[OUTPUT_HEIGHT];
         double prev_area = input_w * input_h;
         if ((int) prev_area != previous_size) {
-            fprintf(stderr, "Previous size %d != %lfx%lf\n",
-                    previous_size, input_w, input_h);
+            logerr(func, "Previous size %d != %lfx%lf",
+                   previous_size, input_w, input_h);
             abortLayer(network, layer);
             return 0;
         }
@@ -1249,14 +1270,14 @@ int initConvolutionalLayer(NeuralNetwork * network, Layer * layer,
     layer->size = size;
     layer->neurons = malloc(sizeof(Neuron*) * size);
     if (layer->neurons == NULL) {
-        fprintf(stderr, "Layer[%d]: Could not allocate neurons!\n", index);
+        logerr(func, "Layer[%d]: Could not allocate neurons!", index);
         abortLayer(network, layer);
         return 0;
     }
     ConvolutionalSharedParams * shared;
     shared = malloc(sizeof(ConvolutionalSharedParams));
     if (shared == NULL) {
-        fprintf(stderr, "Layer[%d]: Couldn't allocate shared params!\n", index);
+        logerr(func, "Layer[%d]: Couldn't allocate shared params!", index);
         abortLayer(network, layer);
         return 0;
     }
@@ -1265,7 +1286,7 @@ int initConvolutionalLayer(NeuralNetwork * network, Layer * layer,
     shared->biases = malloc(feature_count * sizeof(double));
     shared->weights = malloc(feature_count * sizeof(double*));
     if (shared->biases == NULL || shared->weights == NULL) {
-        fprintf(stderr, "Layer[%d]: Could not allocate memory!\n", index);
+        logerr(func, "Layer[%d]: Could not allocate memory!", index);
         abortLayer(network, layer);
         return 0;
     }
@@ -1275,7 +1296,7 @@ int initConvolutionalLayer(NeuralNetwork * network, Layer * layer,
         shared->biases[i] = gaussian_random(0, 1);
         shared->weights[i] = malloc(shared->weights_size * sizeof(double));
         if (shared->weights[i] == NULL) {
-            fprintf(stderr, "Layer[%d]: Could not allocate weights!\n", index);
+            logerr(func, "Layer[%d]: Could not allocate weights!", index);
             abortLayer(network, layer);
             return 0;
         }
@@ -1286,7 +1307,7 @@ int initConvolutionalLayer(NeuralNetwork * network, Layer * layer,
             int idx = (i * area) + j;
             Neuron * neuron = malloc(sizeof(Neuron));
             if (neuron == NULL) {
-                fprintf(stderr, "Layer[%d]: Couldn't allocate neuron!\n",index);
+                logerr(func, "Layer[%d]: Couldn't allocate neuron!",index);
                 abortLayer(network, layer);
                 return 0;
             }
@@ -1312,6 +1333,7 @@ int initConvolutionalLayer(NeuralNetwork * network, Layer * layer,
 int initPoolingLayer(NeuralNetwork * network, Layer * layer,
                      LayerParameters * parameters) {
     int index = layer->index;
+    char * func = "initPoolingLayer";
     Layer * previous = network->layers[index - 1];
     if (previous->type != Convolutional) {
         fprintf(stderr,
@@ -1320,26 +1342,26 @@ int initPoolingLayer(NeuralNetwork * network, Layer * layer,
         return 0;
     }
     if (parameters == NULL) {
-        fputs("Layer parameters is NULL!\n", stderr);
+        logerr(func, "Layer parameters is NULL!");
         abortLayer(network, layer);
         return 0;
     }
     if (parameters->count < CONV_PARAMETER_COUNT) {
-        fprintf(stderr, "Convolutional Layer parameters count must be %d\n",
-                CONV_PARAMETER_COUNT);
+        logerr(func, "Convolutional Layer parameters count must be %d",
+               CONV_PARAMETER_COUNT);
         abortLayer(network, layer);
         return 0;
     }
     double * params = parameters->parameters;
     LayerParameters * previous_parameters = previous->parameters;
     if (previous_parameters == NULL) {
-        fputs("Previous layer parameters is NULL!\n", stderr);
+        logerr(func, "Previous layer parameters is NULL!");
         abortLayer(network, layer);
         return 0;
     }
     if (previous_parameters->count < CONV_PARAMETER_COUNT) {
-        fprintf(stderr, "Convolutional Layer parameters count must be %d\n",
-                CONV_PARAMETER_COUNT);
+        logerr(func, "Convolutional Layer parameters count must be %d",
+               CONV_PARAMETER_COUNT);
         abortLayer(network, layer);
         return 0;
     }
@@ -1348,7 +1370,7 @@ int initPoolingLayer(NeuralNetwork * network, Layer * layer,
     params[FEATURE_COUNT] = (double) feature_count;
     double region_size = params[REGION_SIZE];
     if (region_size <= 0) {
-        fprintf(stderr, "REGION_SIZE must be > 0 (given: %lf)", region_size);
+        logerr(func, "REGION_SIZE must be > 0 (given: %lf)", region_size);
         abortLayer(network, layer);
         return 0;
     }
@@ -1368,7 +1390,7 @@ int initPoolingLayer(NeuralNetwork * network, Layer * layer,
     layer->size = size;
     layer->neurons = malloc(sizeof(Neuron*) * size);
     if (layer->neurons == NULL) {
-        fprintf(stderr, "Layer[%d]: Could not allocate neurons!\n", index);
+        logerr(func, "Layer[%d]: Could not allocate neurons!", index);
         abortLayer(network, layer);
         return 0;
     }
@@ -1378,7 +1400,7 @@ int initPoolingLayer(NeuralNetwork * network, Layer * layer,
             int idx = (i * area) + j;
             Neuron * neuron = malloc(sizeof(Neuron));
             if (neuron == NULL) {
-                fprintf(stderr, "Layer[%d]: Couldn't allocate neuron!\n",index);
+                logerr(func, "Layer[%d]: Couldn't allocate neuron!", index);
                 abortLayer(network, layer);
                 return 0;
             }
@@ -1410,16 +1432,17 @@ RecurrentCell * createRecurrentCell(Neuron * neuron, int lsize) {
 int initRecurrentLayer(NeuralNetwork * network, Layer * layer, int size,int ws){
     int index = layer->index, i, j;
     ws += size;
+    char * func = "initRecurrentLayer";
     layer->neurons = malloc(sizeof(Neuron*) * size);
     if (layer->neurons == NULL) {
-        fprintf(stderr, "Could not allocate layer neurons!\n");
+        logerr(func, "Could not allocate layer neurons!");
         abortLayer(network, layer);
         return 0;
     }
     for (i = 0; i < size; i++) {
         Neuron * neuron = malloc(sizeof(Neuron));
         if (neuron == NULL) {
-            fprintf(stderr, "Could not allocate neuron!\n");
+            logerr(func, "Could not allocate neuron!");
             abortLayer(network, layer);
             return 0;
         }
@@ -1429,7 +1452,7 @@ int initRecurrentLayer(NeuralNetwork * network, Layer * layer, int size,int ws){
         neuron->weights = malloc(sizeof(double) * ws);
         if (neuron->weights ==  NULL) {
             abortLayer(network, layer);
-            fprintf(stderr, "Could not allocate neuron weights!\n");
+            logerr(func, "Could not allocate neuron weights!");
             return 0;
         }
         for (j = 0; j < ws; j++) {
@@ -1454,13 +1477,14 @@ int initRecurrentLayer(NeuralNetwork * network, Layer * layer, int size,int ws){
 
 Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
                  LayerParameters* params) {
+    char * func = "addLayer";
     if (network->size == 0 && type != FullyConnected) {
-        fprintf(stderr, "First layer type must be FullyConnected\n");
+        logerr(func, "First layer type must be FullyConnected");
         return NULL;
     }
     Layer * layer = malloc(sizeof(Layer));
     if (layer == NULL) {
-        fprintf(stderr, "Could not allocate layer %d!\n", network->size);
+        logerr(func, "Could not allocate layer %d!", network->size);
         return NULL;
     }
     layer->index = network->size++;
@@ -1477,7 +1501,7 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
         network->layers = malloc(sizeof(Layer*));
         if (network->layers == NULL) {
             abortLayer(network, layer);
-            fprintf(stderr, "Could not allocate network layers!\n");
+            logerr(func, "Could not allocate network layers!");
             return NULL;
         }
         if ((network->flags & FLAG_ONEHOT) && params == NULL) {
@@ -1493,13 +1517,13 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
                                   sizeof(Layer*) * network->size);
         if (network->layers == NULL) {
             abortLayer(network, layer);
-            fprintf(stderr, "Could not reallocate network layers!\n");
+            logerr(func, "Could not reallocate network layers!");
             return NULL;
         }
         previous = network->layers[layer->index - 1];
         if (previous == NULL) {
             abortLayer(network, layer);
-            fprintf(stderr, "Previous layer is NULL!\n");
+            logerr(func, "Previous layer is NULL!");
             return NULL;
         }
         previous_size = previous->size;
@@ -1507,7 +1531,7 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
             LayerParameters * params = previous->parameters;
             if (params == NULL) {
                 abortLayer(network, layer);
-                fprintf(stderr, "Missing layer params on onehot layer[0]!\n");
+                logerr(func, "Missing layer params on onehot layer[0]!");
                 return NULL;
             }
             previous_size = (int) (params->parameters[0]);
@@ -1517,8 +1541,9 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
     if (type == FullyConnected || type == SoftMax) {
         layer->neurons = malloc(sizeof(Neuron*) * size);
         if (layer->neurons == NULL) {
+            logerr(func, "Layer[%d]: could not allocate neurons!",
+                   layer->index);
             abortLayer(network, layer);
-            fprintf(stderr, "Could not allocate layer neurons!\n");
             return NULL;
         }
         int i, j;
@@ -1526,7 +1551,7 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
             Neuron * neuron = malloc(sizeof(Neuron));
             if (neuron == NULL) {
                 abortLayer(network, layer);
-                fprintf(stderr, "Could not allocate neuron!\n");
+                logerr(func, "Could not allocate neuron!");
                 return NULL;
             }
             neuron->index = i;
@@ -1569,7 +1594,7 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
     }
     if (!initialized) {
         abortLayer(network, layer);
-        fprintf(stderr, "Could not initialize layer %d!\n", network->size + 1);
+        logerr(func, "Could not initialize layer %d!", network->size + 1);
         return NULL;
     }
     network->layers[layer->index] = layer;
@@ -1620,7 +1645,7 @@ void deleteLayer(Layer* layer) {
 LayerParameters * createLayerParamenters(int count, ...) {
     LayerParameters * params = malloc(sizeof(LayerParameters));
     if (params == NULL) {
-        fprintf(stderr, "Could not allocate Layer Parameters!\n");
+        logerr(NULL, "Could not allocate Layer Parameters!");
         return NULL;
     }
     params->count = count;
@@ -1628,7 +1653,7 @@ LayerParameters * createLayerParamenters(int count, ...) {
     else {
         params->parameters = malloc(sizeof(double) * count);
         if (params->parameters == NULL) {
-            fprintf(stderr, "Could not allocate Layer Parameters!\n");
+            logerr(NULL, "Could not allocate Layer Parameters!");
             free(params);
             return NULL;
         }
@@ -1688,6 +1713,7 @@ int feedforwardThroughTime(NeuralNetwork * network, double * values, int times)
 {
     Layer * first = network->layers[0];
     int input_size = first->size;
+    char * func = "feedforwardThroughTime";
     int i, t;
     for (t = 0; t < times; t++) {
         for (i = 0; i < input_size; i++) {
@@ -1695,18 +1721,18 @@ int feedforwardThroughTime(NeuralNetwork * network, double * values, int times)
             neuron->activation = values[i];
             addRecurrentState(neuron, values[i], times, t);
             if (neuron->extra == NULL) {
-                fprintf(stderr, "Failed to allocate Recurrent Cell!\n");
+                logerr(func, "Failed to allocate Recurrent Cell!");
                 return 0;
             }
         }
         for (i = 1; i < network->size; i++) {
             Layer * layer = network->layers[i];
             if (layer == NULL) {
-                fprintf(stderr, "Layer %d is NULL\n", i);
+                logerr(func, "Layer %d is NULL", i);
                 return 0;
             }
             if (layer->feedforward == NULL) {
-                fprintf(stderr, "Layer %d feedforward function is NULL\n", i);
+                logerr(func, "Layer %d feedforward function is NULL", i);
                 return 0;
             }
             int ok = layer->feedforward(network, layer, times, t);
@@ -1718,14 +1744,15 @@ int feedforwardThroughTime(NeuralNetwork * network, double * values, int times)
 }
 
 int feedforward(NeuralNetwork * network, double * values) {
+    char * func = "feedforward";
     if (network->size == 0) {
-        fprintf(stderr, "Empty network!\n");
+        logerr(func, "Empty network!");
         return 0;
     }
     if (network->flags & FLAG_RECURRENT) {
         int times = (int) values[0];
         if (times <= 0) {
-            fprintf(stderr, "Recurrent times must be > 0 (found %d)\n", times);
+            logerr(func, "Recurrent times must be > 0 (found %d)", times);
             return 0;
         }
         return feedforwardThroughTime(network, values + 1, times);
@@ -1739,11 +1766,11 @@ int feedforward(NeuralNetwork * network, double * values) {
     for (i = 1; i < network->size; i++) {
         Layer * layer = network->layers[i];
         if (layer == NULL) {
-            fprintf(stderr, "Layer %d is NULL!\n", i);
+            logerr(func, "Layer %d is NULL!", i);
             return 0;
         }
         if (layer->feedforward == NULL) {
-            fprintf(stderr, "Layer %d feedforward function is NULL\n", i);
+            logerr(func, "Layer %d feedforward function is NULL", i);
             return 0;
         }
         int success = layer->feedforward(network, layer);
@@ -1754,6 +1781,7 @@ int feedforward(NeuralNetwork * network, double * values) {
 
 Delta * emptyLayer(Layer * layer) {
     Delta * delta;
+    char * func = "emptyLayer";
     LayerType ltype = layer->type;
     if (ltype == Pooling) return NULL;
     int size = layer->size;
@@ -1761,14 +1789,14 @@ Delta * emptyLayer(Layer * layer) {
     if (ltype == Convolutional) {
         parameters = layer->parameters;
         if (parameters == NULL) {
-            fprintf(stderr, "Layer %d parameters are NULL!\n", layer->index);
+            logerr(func, "Layer %d parameters are NULL!", layer->index);
             return NULL;
         }
         size = (int) (parameters->parameters[FEATURE_COUNT]);
     }
     delta = malloc(sizeof(Delta) * size);
     if (delta == NULL) {
-        fprintf(stderr, "Could not allocate memory!\n");
+        logerr(func, "Could not allocate memory!");
         return NULL;
     }
     int i, ws = 0;
@@ -1786,7 +1814,7 @@ Delta * emptyLayer(Layer * layer) {
         int memsize = sizeof(double) * ws;
         delta[i].weights = malloc(memsize);
         if (delta[i].weights == NULL) {
-            fprintf(stderr, "Could not allocate memory!\n");
+            logerr(func, "Could not allocate memory!");
             deleteDelta(delta, size);
             return NULL;
         }
@@ -1798,7 +1826,7 @@ Delta * emptyLayer(Layer * layer) {
 Delta ** emptyDeltas(NeuralNetwork * network) {
     Delta ** deltas = malloc(sizeof(Delta*) * network->size - 1);
     if (deltas == NULL) {
-        fprintf(stderr, "Could not allocate memory!\n");
+        printMemoryErrorMsg();
         return NULL;
     }
     int i;
@@ -1807,7 +1835,7 @@ Delta ** emptyDeltas(NeuralNetwork * network) {
         int idx = i - 1;
         deltas[idx] = emptyLayer(layer);
         if (deltas[idx] == NULL && layer->type != Pooling) {
-            fprintf(stderr, "Could not allocate memory!\n");
+            printMemoryErrorMsg();
             deleteDeltas(deltas, network);
             return NULL;
         }
@@ -1845,7 +1873,7 @@ double * backpropPoolingToConv(NeuralNetwork * network, Layer * pooling_layer,
     int conv_size = convolutional_layer->size;
     double * new_delta_v = malloc(sizeof(double) * conv_size);
     if (new_delta_v == NULL) {
-        fprintf(stderr, "Could not allocate memory!\n");
+        printMemoryErrorMsg();
         return NULL;
     }
     memset(new_delta_v, 0, sizeof(double) * conv_size);
@@ -1944,7 +1972,7 @@ Delta ** backprop(NeuralNetwork * network, double * x, double * y) {
     double * last_delta_v;
     delta_v = malloc(sizeof(double) * osize);
     if (delta_v == NULL) {
-        fprintf(stderr, "Could not allocate memory!\n");
+        printMemoryErrorMsg();
         deleteDeltas(deltas, network);
         return NULL;
     }
@@ -2008,7 +2036,7 @@ Delta ** backprop(NeuralNetwork * network, double * x, double * y) {
         if (FullyConnected == ltype) {
             delta_v = malloc(sizeof(double) * lsize);
             if (delta_v == NULL) {
-                fprintf(stderr, "Could not allocate memory!\n");
+                printMemoryErrorMsg();
                 if (last_delta_v != NULL) free(last_delta_v);
                 return NULL;
             }
@@ -2034,7 +2062,7 @@ Delta ** backprop(NeuralNetwork * network, double * x, double * y) {
         } else if (Pooling == ltype && Convolutional == prev_ltype) {
             delta_v = malloc(sizeof(double) * lsize);
             if (delta_v == NULL) {
-                fprintf(stderr, "Could not allocate memory!\n");
+                printMemoryErrorMsg();
                 if (last_delta_v != NULL) free(last_delta_v);
                 return NULL;
             }
@@ -2116,7 +2144,7 @@ Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
         double * last_delta_v;
         delta_v = malloc(sizeof(double) * osize);
         if (delta_v == NULL) {
-            fprintf(stderr, "Could not allocate memory!\n");
+            printMemoryErrorMsg();
             return NULL;
         }
         memset(delta_v, 0, sizeof(double) * osize);
@@ -2169,7 +2197,7 @@ Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
             
             delta_v = malloc(sizeof(double) * lsize);
             if (delta_v == NULL) {
-                fprintf(stderr, "Could not allocate memory!\n");
+                printMemoryErrorMsg();
                 if (last_delta_v != NULL) free(last_delta_v);
                 return NULL;
             }
@@ -2191,7 +2219,7 @@ Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
             last_delta_v = delta_v;
             delta_v = malloc(sizeof(double) * lsize);
             if (delta_v == NULL) {
-                fprintf(stderr, "Could not allocate memory!\n");
+                printMemoryErrorMsg();
                 if (last_delta_v != NULL) free(last_delta_v);
                 return NULL;
             }
@@ -2260,7 +2288,7 @@ Delta ** backpropThroughTime(NeuralNetwork * network, double * x,
                 last_delta_v = delta_v;
                 delta_v = malloc(sizeof(double) * lsize);
                 if (delta_v == NULL) {
-                    fprintf(stderr, "Could not allocate memory!\n");
+                    printMemoryErrorMsg();
                     if (last_delta_v != NULL) free(last_delta_v);
                     return NULL;
                 }
@@ -2286,6 +2314,7 @@ double updateWeights(NeuralNetwork * network, double * training_data,
         network->status = STATUS_ERROR;
         return -999.0;
     }
+    char * func = "updateWeights";
     Delta ** bp_deltas = NULL;
     double ** series = NULL;
     int is_recurrent = network->flags & FLAG_RECURRENT;
@@ -2295,7 +2324,7 @@ double updateWeights(NeuralNetwork * network, double * training_data,
         series = va_arg(args, double**);
         va_end(args);
         if (series == NULL) {
-            fprintf(stderr, "Series is NULL\n");
+            logerr(func, "Series is NULL");
             network->status = STATUS_ERROR;
             deleteDeltas(deltas, network);
             return -999.0;
@@ -2314,7 +2343,7 @@ double updateWeights(NeuralNetwork * network, double * training_data,
             x = series[i];
             times = (int) *(x++);
             if (times == 0) {
-                fprintf(stderr, "Series len must b > 0. (batch = %d)\n", i);
+                logerr(func, "Series len must b > 0. (batch = %d)", i);
                 deleteDeltas(deltas, network);
                 return -999.0;
             }
@@ -2593,6 +2622,11 @@ void train(NeuralNetwork * network,
            int test_size) {
     int i, elements_count;
     int element_size = network->input_size + network->output_size;
+    int valid = verifyNetwork(network);
+    if (!valid) {
+        network->status = STATUS_ERROR;
+        return;
+    }
     if (network->flags & FLAG_RECURRENT) {
         // First training data number for Recurrent networks must indicate
         // the data elements count
@@ -2651,6 +2685,71 @@ void train(NeuralNetwork * network,
 
 float test(NeuralNetwork * network, double * test_data, int data_size) {
     return validate(network, test_data, data_size, 1);
+}
+
+int verifyNetwork(NeuralNetwork * network) {
+    if (network == NULL) {
+        logerr("verifyNetwork", "Network is NULL");
+        return 0;
+    }
+    int size = network->size, i;
+    Layer * previous = NULL;
+    for (i = 0; i < size; i++) {
+        Layer * layer = network->layers[i];
+        if (layer == NULL) {
+            logerr("verifyNetwork", "Layer[%d] is NULL", i);
+            return 0;
+        }
+        int lsize = layer->size;
+        int ltype = layer->type;
+        if (i == 0) {
+            if (ltype != FullyConnected) {
+                logerr("verifyNetwork", "Layer[%d] type must be '%s'",
+                       i, getLabelForType(FullyConnected));
+                return 0;
+            }
+            if (layer->flags & FLAG_ONEHOT) {
+                LayerParameters * params = layer->parameters;
+                if (params == NULL) {
+                    logerr("verifyNetwork",
+                           "Layer[%d] uses a onehot vector index as input, "
+                           "but it has no parameters", i);
+                    return 0;
+                }
+                if (params->count < 1) {
+                    logerr("verifyNetwork",
+                           "Layer[%d] uses a onehot vector index as input, "
+                           "but parameters count is < 1", i);
+                    return 0;
+                }
+            }
+        }
+        if (ltype == Pooling && previous->type != Convolutional) {
+            logerr("verifyNetwork", "Layer[%d] type is Pooling, "
+                   "but previous type is not Convolutional", i);
+            return 0;
+        }
+        if (layer->activate == sigmoid && layer->delta != sigmoid_prime) {
+            logerr("verifyNetwork",
+                   "Layer[%d] activate function is sigmoid, "
+                   "but delta function is not sigmoid_prime", i);
+            return 0;
+        }
+        if (layer->activate == relu && layer->delta != relu_prime) {
+            logerr("verifyNetwork",
+                   "Layer[%d] activate function is relu, "
+                   "but delta function is not relu_prime", i);
+            return 0;
+        }
+        if (layer->activate == tanh && layer->delta != tanh_prime) {
+            logerr("verifyNetwork",
+                   "Layer[%d] activate function is tanh, "
+                   "but delta function is not tanh_prime", i);
+            return 0;
+        }
+        previous = layer;
+    }
+    return 1;
 }
 
 /* Test */

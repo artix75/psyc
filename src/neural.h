@@ -158,6 +158,7 @@ void train(NeuralNetwork * network,
            double * test_data,
            int test_size);
 float test(NeuralNetwork * network, double * test_data, int data_size);
+int verifyNetwork(NeuralNetwork * network);
 //int arrayMaxIndex(double * array, int len);
 char * getLabelForType(LayerType type);
 char * getLayerTypeLabel(Layer * layer);
