@@ -1988,6 +1988,7 @@ Gradient ** backprop(NeuralNetwork * network, double * x, double * y) {
         free(delta);
         return NULL;
     }
+    int apply_derivative = shouldApplyDerivative(network);
     double softmax_sum = 0.0;
     for (o = 0; o < osize; o++) {
         Neuron * neuron = outputLayer->neurons[o];
@@ -1996,22 +1997,20 @@ Gradient ** backprop(NeuralNetwork * network, double * x, double * y) {
         double d = 0.0;
         if (outputLayer->type != SoftMax) {
             d = o_val - y_val;
-            if (shouldApplyDerivative(network))
-                d *= outputLayer->derivative(neuron->z_value);
+            if (apply_derivative) d *= outputLayer->derivative(neuron->z_value);
         } else {
             y_val = (y_val < 1 ? 0 : 1);
             d = -(y_val - o_val);
-            d *= o_val;
+            if (apply_derivative) d *= o_val;
             softmax_sum += d;
-            //printf("SoftMax D[%d](y=%lf) -> %lf\n", o, y_val, d);
         }
         delta[o] = d;
         if (outputLayer->type != SoftMax) {
-            Gradient * n_delta = &(lgradients[o]);
-            n_delta->bias = d;
+            Gradient * gradient = &(lgradients[o]);
+            gradient->bias = d;
             for (w = 0; w < neuron->weights_size; w++) {
                 double prev_a = previousLayer->neurons[w]->activation;
-                n_delta->weights[w] = d * prev_a;
+                gradient->weights[w] = d * prev_a;
             }
         }
     }
@@ -2019,7 +2018,7 @@ Gradient ** backprop(NeuralNetwork * network, double * x, double * y) {
         for (o = 0; o < osize; o++) {
             Neuron * neuron = outputLayer->neurons[o];
             double o_val = neuron->activation;
-            delta[o] -= (o_val * softmax_sum);
+            if (apply_derivative) delta[o] -= (o_val * softmax_sum);
             double d = delta[o];
             Gradient * gradient = &(lgradients[o]);
             gradient->bias = d;
@@ -2090,9 +2089,7 @@ Gradient ** backprop(NeuralNetwork * network, double * x, double * y) {
             free(last_delta);
             last_delta = delta;
             delta = backpropPoolingToConv(network, layer,
-                                            previousLayer, last_delta);
-            //free(delta);
-            //continue;
+                                          previousLayer, last_delta);
         } else if (Convolutional == ltype && FullyConnected == prev_ltype) {
             delta = backpropConvToFull(network, layer, previousLayer,
                                last_delta, lgradients);
