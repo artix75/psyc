@@ -22,6 +22,9 @@
 #include "test.h"
 #include "../neural.h"
 #include "../mnist.h"
+#ifdef USE_AVX
+#include "../avx.h"
+#endif
 
 #define PRETRAINED_FULL_NETWORK "../../resources/pretrained.mnist.data"
 #define CONVOLUTIONAL_NETWORK "cnn.data"
@@ -49,6 +52,10 @@ TestCase * fullNetworkTests;
 TestCase * convNetworkTests;
 TestCase * recurrentNetworkTests;
 
+#ifdef USE_AVX
+TestCase * AVXTests;
+#endif
+
 int genericSetup (void* test_case);
 int genericTeardown (void* test_case);
 int RNNSetup (void* test_case);
@@ -56,6 +63,10 @@ int RNNTeardown (void* test_case);
 
 int testGenericClone(void* test_case, void* test);
 int testGenericSave(void* test_case, void* test);
+
+#ifdef USE_AVX
+int testAVXDot(void* test_case, void* test);
+#endif
 
 int testFullLoad(void* test_case, void* test);
 int testFullFeedforward(void* test_case, void* test);
@@ -201,6 +212,13 @@ static void getTmpFileName(const char * prfx, const char * sfx, char * buffer) {
 }
 
 int main(int argc, char** argv) {
+    
+#ifdef USE_AVX
+    AVXTests = createTest("AVX");
+    addTest(AVXTests, "Dot Product", NULL, testAVXDot);
+    performTests(AVXTests);
+    deleteTest(AVXTests);
+#endif
     
     fullNetworkTests = createTest("Fully Connected Network");
     fullNetworkTests->setup = genericSetup;
@@ -894,3 +912,80 @@ int compareNetworks(NeuralNetwork * network, NeuralNetwork * clone,
     }
     return ok;
 }
+
+#ifdef USE_AVX
+
+double test_dot(double * x, double * y, int size) {
+    int i;
+    double dot = 0.0;
+    for (i = 0; i < size; i++) {
+        dot += (x[i] * y[i]);
+    }
+    return dot;
+}
+
+int testAVXDot(void* tc, void* t) {
+    TestCase * test_case = (TestCase*) tc;
+    Test * test = (Test*) t;
+    
+    double x2[2] = {1.0, 2.0};
+    double y2[2] = {0.5, 0.5};
+    
+    double x4[4] = {1.0, 1.0, 2.0, 2.0};
+    double y4[4] = {0.5, 0.5, 1.0, 0.5};
+    
+    double x8[8] = {1.0, 1.0, 2.0, 2.0, 3.0, 2.0, 1.0, 1.0};
+    double y8[8] = {0.5, 0.5, 1.0, 0.5, 0.0, 1.0, 2.0, 1.0};
+    
+    double x16[16] = {1.0, 1.0, 2.0, 2.0, 3.0, 2.0, 1.0, 1.0,
+                      0.5, 1.0, 0.0, 1.0, 3.0, 2.0, 1.0, 1.0};
+    double y16[16] = {0.5, 0.5, 1.0, 0.5, 0.0, 1.0, 2.0, 1.0,
+                      1.0, 2.0, 1.0, 0.0, 0.5, 1.0, 0.5, 0.5};
+    
+    double avx_res = avx_dot_product16(x16, y16);
+    double cmp_res = test_dot(x16, y16, 16);
+    int ok = avx_res == cmp_res;
+    
+    if (!ok) {
+        char * msg = malloc(255 * sizeof(char));
+        test->error_message = msg;
+        sprintf(msg, "AVX[16]: Expected %lf != %lf\n", cmp_res, avx_res);
+        return 0;
+    }
+    
+    avx_res = avx_dot_product8(x8, y8);
+    cmp_res = test_dot(x8, y8, 8);
+    ok = avx_res == cmp_res;
+    
+    if (!ok) {
+        char * msg = malloc(255 * sizeof(char));
+        test->error_message = msg;
+        sprintf(msg, "AVX[8]: Expected %lf != %lf\n", cmp_res, avx_res);
+        return 0;
+    }
+    
+    avx_res = avx_dot_product4(x4, y4);
+    cmp_res = test_dot(x4, y4, 4);
+    ok = avx_res == cmp_res;
+    
+    if (!ok) {
+        char * msg = malloc(255 * sizeof(char));
+        test->error_message = msg;
+        sprintf(msg, "AVX[4]: Expected %lf != %lf\n", cmp_res, avx_res);
+        return 0;
+    }
+    
+    avx_res = avx_dot_product2(x2, y2);
+    cmp_res = test_dot(x2, y2, 2);
+    ok = avx_res == cmp_res;
+    
+    if (!ok) {
+        char * msg = malloc(255 * sizeof(char));
+        test->error_message = msg;
+        sprintf(msg, "AVX[2]: Expected %lf != %lf\n", cmp_res, avx_res);
+        return 0;
+    }
+    
+    return ok;
+}
+#endif

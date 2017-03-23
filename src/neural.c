@@ -24,9 +24,7 @@
 #include <time.h>
 
 #ifdef USE_AVX
-#include <xmmintrin.h>
-#include <pmmintrin.h>
-#include <immintrin.h>
+#include "avx.h"
 #endif
 
 #include "neural.h"
@@ -136,7 +134,20 @@ int fullFeedforward(void * _net, void * _layer, ...) {
     for (i = 0; i < size; i++) {
         Neuron * neuron = layer->neurons[i];
         double sum = 0;
-        for (j = 0; j < previous_size; j++) {
+        j = 0;
+#ifdef USE_AVX
+        int avx_step_len = AVXGetDotStepLen(previous_size);
+        avx_dot_product dot_product = AVXGetDotProductFunc(previous_size);
+        int avx_steps = previous_size / avx_step_len, avx_step;
+        for (avx_step = 0; avx_step < avx_steps; avx_step++) {
+            double * x_vector = previous->avx_activation_cache + j;
+            if (is_recurrent) x_vector += (t * previous_size);
+            double * y_vector = neuron->weights + j;
+            sum += dot_product(x_vector, y_vector);
+            j += avx_step_len;
+        }
+#endif
+        for (; j < previous_size; j++) {
             Neuron * prev_neuron = previous->neurons[j];
             if (prev_neuron == NULL) {
                 logerr(NULL, "Layer[%d]: previous layer's neuron[%d] is NULL!",
@@ -194,7 +205,20 @@ int softmaxFeedforward(void * _net, void * _layer, ...) {
     for (i = 0; i < size; i++) {
         Neuron * neuron = layer->neurons[i];
         double sum = 0;
-        for (j = 0; j < previous_size; j++) {
+        j = 0;
+#ifdef USE_AVX
+        int avx_step_len = AVXGetDotStepLen(previous_size);
+        avx_dot_product dot_product = AVXGetDotProductFunc(previous_size);
+        int avx_steps = previous_size / avx_step_len, avx_step;
+        for (avx_step = 0; avx_step < avx_steps; avx_step++) {
+            double * x_vector = previous->avx_activation_cache + j;
+            if (is_recurrent) x_vector += (t * previous_size);
+            double * y_vector = neuron->weights + j;
+            sum += dot_product(x_vector, y_vector);
+            j += avx_step_len;
+        }
+#endif
+        for (; j < previous_size; j++) {
             Neuron * prev_neuron = previous->neurons[j];
             if (prev_neuron == NULL) {
                 logerr(NULL, "Layer[%d]: previous layer's neuron[%d] is NULL!",
@@ -453,7 +477,20 @@ int recurrentFeedforward(void * _net, void * _layer, ...) {
         double sum = 0, bias = 0;
         if (onehot) sum = neuron->weights[vector_idx];
         else {
-            for (j = 0; j < previous_size; j++) {
+            j = 0;
+#ifdef USE_AVX
+            int avx_step_len = AVXGetDotStepLen(previous_size);
+            avx_dot_product dot_product = AVXGetDotProductFunc(previous_size);
+            int avx_steps = previous_size / avx_step_len, avx_step;
+            for (avx_step = 0; avx_step < avx_steps; avx_step++) {
+                double * x_vector = previous->avx_activation_cache + j;
+                x_vector += (t * previous_size);
+                double * y_vector = neuron->weights + j;
+                sum += dot_product(x_vector, y_vector);
+                j += avx_step_len;
+            }
+#endif
+            for (; j < previous_size; j++) {
                 Neuron * prev_neuron = previous->neurons[j];
                 if (prev_neuron == NULL) return 0;
                 double a = prev_neuron->activation;
@@ -462,7 +499,20 @@ int recurrentFeedforward(void * _net, void * _layer, ...) {
         }
         if (t > 0) {
             int last_t = t - 1;
-            for (w = 0; w < cell->weights_size; w++) {
+            w = 0;
+#ifdef USE_AVX
+            int avx_step_len = AVXGetDotStepLen(size);
+            avx_dot_product dot_product = AVXGetDotProductFunc(size);
+            int avx_steps = cell->weights_size / avx_step_len, avx_step;
+            for (avx_step = 0; avx_step < avx_steps; avx_step++) {
+                double * x_vector = layer->avx_activation_cache + w;
+                x_vector += (last_t * size);
+                double * y_vector = cell->weights + w;
+                bias += dot_product(x_vector, y_vector);
+                w += avx_step_len;
+            }
+#endif
+            for (; w < cell->weights_size; w++) {
                 Neuron * n = layer->neurons[w];
                 RecurrentCell * rc = getRecurrentCell(n);
                 if (rc == NULL) return 0;
@@ -1848,6 +1898,9 @@ int feedforward(NeuralNetwork * network, double * values) {
     int i;
     for (i = 0; i < input_size; i++) {
         first->neurons[i]->activation = values[i];
+#ifdef USE_AVX
+        first->avx_activation_cache[i] = values[i];
+#endif
     }
     for (i = 1; i < network->size; i++) {
         Layer * layer = network->layers[i];
