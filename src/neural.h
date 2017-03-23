@@ -95,6 +95,7 @@ typedef struct {
     double activation;
     double z_value;
     void * extra;
+    void * layer;
 } Neuron;
 
 typedef struct {
@@ -108,6 +109,10 @@ typedef struct {
     Neuron ** neurons;
     int flags;
     void * extra;
+#ifdef USE_AVX
+    double * avx_activation_cache;
+#endif
+    void * network;
 } Layer;
 
 typedef struct {

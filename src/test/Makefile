@@ -2,6 +2,9 @@ SHELL=/bin/bash
 CC=gcc
 CFLAGS=-std=c99
 LDFLAGS=-lz -lm
+ifeq ($(AVX),on)
+	CFLAGS=-DUSE_AVX -mavx2 -mfma -std=c99
+endif
 
 REQUIRED_OBJS=../neural.o ../mnist.o test.o
 

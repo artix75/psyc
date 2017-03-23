@@ -41,6 +41,8 @@
 #define getRow(index, width) ((int) ((int) index / (int) width))
 #define getConvSharedParams(layer) ((ConvolutionalSharedParams*) layer->extra)
 #define getRecurrentCell(neuron) ((RecurrentCell*) neuron->extra)
+#define getNeuronLayer(neuron) ((Layer*) neuron->layer)
+#define getLayerNetwork(layer) ((NeuralNetwork*) layer->network)
 #define shouldApplyDerivative(network) (network->loss != crossEntropyLoss)
 #define printMemoryErrorMsg() logerr(NULL, "Could not allocate memory!")
 
@@ -146,6 +148,10 @@ int fullFeedforward(void * _net, void * _layer, ...) {
         }
         neuron->z_value = sum + neuron->bias;
         neuron->activation = layer->activate(neuron->z_value);
+#ifdef USE_AVX
+        if (!is_recurrent)
+            layer->avx_activation_cache[i] = neuron->activation;
+#endif
         if (is_recurrent) {
             addRecurrentState(neuron, neuron->activation, times, t);
             if (neuron->extra == NULL) {
@@ -214,6 +220,10 @@ int softmaxFeedforward(void * _net, void * _layer, ...) {
     for (i = 0; i < size; i++) {
         Neuron * neuron = layer->neurons[i];
         neuron->activation /= esum;
+#ifdef USE_AVX
+        if (!is_recurrent)
+            layer->avx_activation_cache[i] = neuron->activation;
+#endif
         if (is_recurrent) {
             addRecurrentState(neuron, neuron->activation, times, t);
             if (neuron->extra == NULL) {
@@ -297,6 +307,9 @@ int convolve(void * _net, void * _layer, ...) {
             }
             neuron->z_value = sum + bias;
             neuron->activation = layer->activate(neuron->z_value);
+#ifdef USE_AVX
+            layer->avx_activation_cache[idx] = neuron->activation;
+#endif
         }
     }
     return 1;
@@ -368,6 +381,9 @@ int pool(void * _net, void * _layer, ...) {
             }
             neuron->z_value = max_z;
             neuron->activation = max;
+#ifdef USE_AVX
+            layer->avx_activation_cache[idx] = neuron->activation;
+#endif
         }
     }
     return 1;
@@ -458,10 +474,25 @@ int recurrentFeedforward(void * _net, void * _layer, ...) {
             if (cell->states != NULL) free(cell->states);
             cell->states_count = times;
             cell->states = calloc(times, sizeof(double));
+#ifdef USE_AVX
+            if (neuron->index == 0) {
+                if (layer->avx_activation_cache != NULL)
+                    free(layer->avx_activation_cache);
+                layer->avx_activation_cache = calloc(times * size,
+                                                     sizeof(double));
+                if (layer->avx_activation_cache == NULL) {
+                    printMemoryErrorMsg();
+                    return 0;
+                }
+            }
+#endif
         }
         neuron->z_value = sum + bias;
         neuron->activation = layer->activate(neuron->z_value);
         cell->states[t] = neuron->activation;
+#ifdef USE_AVX
+        layer->avx_activation_cache[(t * size) + i] = neuron->activation;
+#endif
     }
     return 1;
 }
@@ -548,6 +579,21 @@ void addRecurrentState(Neuron * neuron, double state, int times, int t) {
         }
     }
     cell->states[t] = state;
+#ifdef USE_AVX
+    Layer * layer = getNeuronLayer(neuron);
+    assert(layer != NULL);
+    int lsize = layer->size;
+    if (t == 0 && neuron->index == 0) {
+        if (layer->avx_activation_cache != NULL)
+            free(layer->avx_activation_cache);
+        layer->avx_activation_cache = calloc(lsize * times, sizeof(double));
+    }
+    if (layer->avx_activation_cache == NULL) {
+        printMemoryErrorMsg();
+        return; //TODO: handle
+    }
+    layer->avx_activation_cache[(t * lsize) + neuron->index] = state;
+#endif
 }
 
 static double ** getRecurrentSeries(double * array, int series_count,
@@ -1277,6 +1323,14 @@ int initConvolutionalLayer(NeuralNetwork * network, Layer * layer,
         abortLayer(network, layer);
         return 0;
     }
+#ifdef USE_AVX
+    layer->avx_activation_cache = calloc(size, sizeof(double));
+    if (layer->avx_activation_cache == NULL) {
+        printMemoryErrorMsg();
+        abortLayer(network, layer);
+        return 0;
+    }
+#endif
     ConvolutionalSharedParams * shared;
     shared = malloc(sizeof(ConvolutionalSharedParams));
     if (shared == NULL) {
@@ -1319,6 +1373,7 @@ int initConvolutionalLayer(NeuralNetwork * network, Layer * layer,
             neuron->weights_size = shared->weights_size;
             neuron->bias = shared->biases[i];
             neuron->weights = shared->weights[i];
+            neuron->layer = layer;
             layer->neurons[idx] = neuron;
         }
     }
@@ -1397,6 +1452,14 @@ int initPoolingLayer(NeuralNetwork * network, Layer * layer,
         abortLayer(network, layer);
         return 0;
     }
+#ifdef USE_AVX
+    layer->avx_activation_cache = calloc(size, sizeof(double));
+    if (layer->avx_activation_cache == NULL) {
+        printMemoryErrorMsg();
+        abortLayer(network, layer);
+        return 0;
+    }
+#endif
     int i, j, w;
     for (i = 0; i < feature_count; i++) {
         for (j = 0; j < area; j++) {
@@ -1412,6 +1475,7 @@ int initPoolingLayer(NeuralNetwork * network, Layer * layer,
             neuron->weights_size = 0;
             neuron->bias = NULL_VALUE;
             neuron->weights = NULL;
+            neuron->layer = layer;
             layer->neurons[idx] = neuron;
         }
     }
@@ -1437,6 +1501,9 @@ int initRecurrentLayer(NeuralNetwork * network, Layer * layer, int size,int ws){
     ws += size;
     char * func = "initRecurrentLayer";
     layer->neurons = malloc(sizeof(Neuron*) * size);
+/*#ifdef USE_AVX
+    layer->avx_activation_cache = calloc(size, sizeof(double));
+#endif*/
     if (layer->neurons == NULL) {
         logerr(func, "Could not allocate layer neurons!");
         abortLayer(network, layer);
@@ -1469,6 +1536,7 @@ int initRecurrentLayer(NeuralNetwork * network, Layer * layer, int size,int ws){
             abortLayer(network, layer);
             return 0;
         }
+        neuron->layer = layer;
     }
     layer->flags |= FLAG_RECURRENT;
     layer->activate = tanh;
@@ -1490,12 +1558,16 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
         logerr(func, "Could not allocate layer %d!", network->size);
         return NULL;
     }
+    layer->network = network;
     layer->index = network->size++;
     layer->type = type;
     layer->size = size;
     layer->parameters = params;
     layer->extra = NULL;
     layer->flags = FLAG_NONE;
+#ifdef USE_AVX
+    layer->avx_activation_cache = NULL;
+#endif
     Layer * previous = NULL;
     int previous_size = 0;
     int initialized = 0;
@@ -1549,6 +1621,14 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
             abortLayer(network, layer);
             return NULL;
         }
+#ifdef USE_AVX
+        layer->avx_activation_cache = calloc(size, sizeof(double));
+        if (layer->avx_activation_cache == NULL) {
+            printMemoryErrorMsg();
+            abortLayer(network, layer);
+            return NULL;
+        }
+#endif
         int i, j;
         for (i = 0; i < size; i++) {
             Neuron * neuron = malloc(sizeof(Neuron));
@@ -1573,7 +1653,7 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
             }
             neuron->activation = 0;
             neuron->z_value = 0;
-            //printf("Adding neuron %d\n", i);
+            neuron->layer = layer;
             layer->neurons[i] = neuron;
         }
         if (type != SoftMax) {
@@ -1642,6 +1722,9 @@ void deleteLayer(Layer* layer) {
             free(extra);
         } else free(extra);
     }
+#ifdef USE_AVX
+    if (layer->avx_activation_cache != NULL) free(layer->avx_activation_cache);
+#endif
     free(layer);
 }
 
