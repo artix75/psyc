@@ -2144,7 +2144,19 @@ Gradient ** backprop(NeuralNetwork * network, double * x, double * y) {
         if (outputLayer->type != SoftMax) {
             Gradient * gradient = &(lgradients[o]);
             gradient->bias = d;
-            for (w = 0; w < neuron->weights_size; w++) {
+            int wsize = neuron->weights_size;
+            w = 0;
+#ifdef USE_AVX
+            int avx_step_len = AVXGetStepLen(wsize);
+            int avx_steps = wsize / avx_step_len, avx_step;
+            avx_multiply_value multiply_val = AVXGetMultiplyValFunc(wsize);
+            for (avx_step = 0; avx_step < avx_steps; avx_step++) {
+                double * x_vector = previousLayer->avx_activation_cache + w;
+                multiply_val(x_vector, d, gradient->weights + w, 0);
+                w += avx_step_len;
+            }
+#endif
+            for (; w < neuron->weights_size; w++) {
                 double prev_a = previousLayer->neurons[w]->activation;
                 gradient->weights[w] = d * prev_a;
             }
@@ -2158,7 +2170,19 @@ Gradient ** backprop(NeuralNetwork * network, double * x, double * y) {
             double d = delta[o];
             Gradient * gradient = &(lgradients[o]);
             gradient->bias = d;
-            for (w = 0; w < neuron->weights_size; w++) {
+            int wsize = neuron->weights_size;
+            w = 0;
+#ifdef USE_AVX
+            int avx_step_len = AVXGetStepLen(wsize);
+            int avx_steps = wsize / avx_step_len, avx_step;
+            avx_multiply_value multiply_val = AVXGetMultiplyValFunc(wsize);
+            for (avx_step = 0; avx_step < avx_steps; avx_step++) {
+                double * x_vector = previousLayer->avx_activation_cache + w;
+                multiply_val(x_vector, d, gradient->weights + w, 0);
+                w += avx_step_len;
+            }
+#endif
+            for (; w < neuron->weights_size; w++) {
                 double prev_a = previousLayer->neurons[w]->activation;
                 gradient->weights[w] = d * prev_a;
             }
@@ -2195,7 +2219,19 @@ Gradient ** backprop(NeuralNetwork * network, double * x, double * y) {
                 delta[j] = dv;
                 Gradient * gradient = &(lgradients[j]);
                 gradient->bias = dv;
-                for (w = 0; w < neuron->weights_size; w++) {
+                w = 0;
+                int wsize = neuron->weights_size;
+#ifdef USE_AVX
+                int avx_step_len = AVXGetStepLen(wsize);
+                int avx_steps = wsize / avx_step_len, avx_step;
+                avx_multiply_value multiply_val = AVXGetMultiplyValFunc(wsize);
+                for (avx_step = 0; avx_step < avx_steps; avx_step++) {
+                    double * x_vector = previousLayer->avx_activation_cache + w;
+                    multiply_val(x_vector, dv, gradient->weights + w, 0);
+                    w += avx_step_len;
+                }
+#endif
+                for (; w < neuron->weights_size; w++) {
                     double prev_a = previousLayer->neurons[w]->activation;
                     gradient->weights[w] = dv * prev_a;
                 }
@@ -2321,7 +2357,22 @@ Gradient ** backpropThroughTime(NeuralNetwork * network, double * x,
             double d = delta[o];
             Gradient * gradient = &(lgradients[o]);
             gradient->bias = d;
-            for (w = 0; w < neuron->weights_size; w++) {
+            w = 0;
+#ifdef USE_AVX
+            int avx_step_len = AVXGetStepLen(neuron->weights_size);
+            int avx_steps = neuron->weights_size / avx_step_len,
+                avx_step;
+            avx_multiply_value multiply;
+            multiply = AVXGetMultiplyValFunc(neuron->weights_size);
+            for (avx_step = 0; avx_step < avx_steps; avx_step++) {
+                double * xv = previousLayer->avx_activation_cache + w;
+                xv += (t * previousLayer->size);
+                double * weights = gradient->weights + w;
+                multiply(xv, d, weights, AVX_STORE_MODE_ADD);
+                w += avx_step_len;
+            }
+#endif
+            for (; w < neuron->weights_size; w++) {
                 Neuron * prev_neuron = previousLayer->neurons[w];
                 RecurrentCell * prev_cell = getRecurrentCell(prev_neuron);
                 double prev_a = prev_cell->states[t];
@@ -2406,7 +2457,22 @@ Gradient ** backpropThroughTime(NeuralNetwork * network, double * x,
                     if (Recurrent == ltype && tt > 0) {
                         int w_offs = neuron->weights_size - cell->weights_size;
                         double rsum = 0.0;
-                        for (w = 0; w < cell->weights_size; w++) {
+                        w = 0;
+#ifdef USE_AVX                        
+                        int avx_step_len = AVXGetStepLen(cell->weights_size);
+                        int avx_steps = cell->weights_size / avx_step_len,
+                            avx_step;
+                        avx_multiply_value multiply;
+                        multiply = AVXGetMultiplyValFunc(cell->weights_size);
+                        for (avx_step = 0; avx_step < avx_steps; avx_step++) {
+                            double * xv = layer->avx_activation_cache + w;
+                            xv += ((tt - 1) * cell->weights_size);
+                            double * weights = gradient->weights + w_offs + w;
+                            multiply(xv, dv, weights, AVX_STORE_MODE_ADD);
+                            w += avx_step_len;
+                        }
+#endif
+                        for (; w < cell->weights_size; w++) {
                             Neuron * rn = layer->neurons[w];
                             RecurrentCell * rc = getRecurrentCell(rn);
                             double a = rc->states[tt - 1];

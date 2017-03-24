@@ -66,6 +66,7 @@ int testGenericSave(void* test_case, void* test);
 
 #ifdef USE_AVX
 int testAVXDot(void* test_case, void* test);
+int testAVXMultiplyVal(void* tc, void* t);
 #endif
 
 int testFullLoad(void* test_case, void* test);
@@ -216,6 +217,7 @@ int main(int argc, char** argv) {
 #ifdef USE_AVX
     AVXTests = createTest("AVX");
     addTest(AVXTests, "Dot Product", NULL, testAVXDot);
+    addTest(AVXTests, "Multiply Value", NULL, testAVXMultiplyVal);
     performTests(AVXTests);
     deleteTest(AVXTests);
 #endif
@@ -988,4 +990,69 @@ int testAVXDot(void* tc, void* t) {
     
     return ok;
 }
+
+int testAVXMultiplyVal(void* tc, void* t) {
+    TestCase * test_case = (TestCase*) tc;
+    Test * test = (Test*) t;
+    int ok = 1, i;
+    double x[4] = {0.0, 1.0, 2.0, 3.0};
+    double val = 2.0;
+    double y[4] = {0.0, 2.0, 4.0, 6.0};
+    double dest[4] = {0.0, 0.0, 0.0, 0.0};
+    
+    double x2[2] = {2.0, 3.0};
+    double y2[2] = {4.0, 6.0};
+    double dest2[2] = {0.0, 0.0};
+    
+    avx_multiply_value4(x, val, dest, 0);
+    for (i = 0; i < 4; i++) {
+        ok = dest[i] == y[i];
+        if (!ok) {
+            char * msg = malloc(255 * sizeof(char));
+            test->error_message = msg;
+            sprintf(msg, "Store Mode Norm[4]: Expected %lf != %lf\n",
+                    y[i], dest[i]);
+            return 0;
+        }
+    }
+    
+    avx_multiply_value4(x, val, dest, AVX_STORE_MODE_ADD);
+    for (i = 0; i < 4; i++) {
+        ok = (dest[i] == (y[i] + y[i]));
+        if (!ok) {
+            char * msg = malloc(255 * sizeof(char));
+            test->error_message = msg;
+            sprintf(msg, "Store Mode Norm[4]: Expected %lf != %lf\n",
+                    y[i], dest[i]);
+            return 0;
+        }
+    }
+    
+    avx_multiply_value2(x2, val, dest2, 0);
+    for (i = 0; i < 2; i++) {
+        ok = dest2[i] == y2[i];
+        if (!ok) {
+            char * msg = malloc(255 * sizeof(char));
+            test->error_message = msg;
+            sprintf(msg, "Store Mode Norm[2]: Expected %lf != %lf\n",
+                    y2[i], dest2[i]);
+            return 0;
+        }
+    }
+    
+    avx_multiply_value2(x2, val, dest2, AVX_STORE_MODE_ADD);
+    for (i = 0; i < 2; i++) {
+        ok = (dest2[i] == (y2[i] + y2[i]));
+        if (!ok) {
+            char * msg = malloc(255 * sizeof(char));
+            test->error_message = msg;
+            sprintf(msg, "Store Mode Norm[2]: Expected %lf != %lf\n",
+                    y2[i], dest2[i]);
+            return 0;
+        }
+    }
+    
+    return ok;
+}
+
 #endif
