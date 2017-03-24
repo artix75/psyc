@@ -35,8 +35,8 @@ int AVX_VECTOR2_SIZE = _AVX_VECTOR_SIZE * 2;
 // Computes Dot Product between 2 arrays of 2 doubles at time
 
 double avx_dot_product2(double * x, double * y) {
-    __m128d xv = _mm_load_pd(x);
-    __m128d yv = _mm_load_pd(y);
+    __m128d xv = _mm_loadu_pd(x);
+    __m128d yv = _mm_loadu_pd(y);
     __m128d xy = _mm_mul_pd(xv, yv);
     __m128d dotproduct = _mm_hadd_pd(xy, xy);
     double * d = (double*) &dotproduct;
@@ -46,8 +46,8 @@ double avx_dot_product2(double * x, double * y) {
 // Computes Dot Product between 2 arrays of 8 doubles at time
 
 double avx_dot_product4(double * x, double * y) {
-    __m256d xv = _mm256_load_pd(x);
-    __m256d yv = _mm256_load_pd(y);
+    __m256d xv = _mm256_loadu_pd(x);
+    __m256d yv = _mm256_loadu_pd(y);
     __m256d xy = _mm256_mul_pd(xv, yv);
     __m256d temp = _mm256_hadd_pd(xy, xy);
     __m128d lo128 = _mm256_extractf128_pd( temp, 0 );
@@ -60,10 +60,10 @@ double avx_dot_product4(double * x, double * y) {
 // Computes Dot Product between 2 arrays of 8 doubles at time
 
 double avx_dot_product8(double * x, double * y) {
-    __m256d xv = _mm256_load_pd(x);
-    __m256d yv = _mm256_load_pd(y);
-    __m256d wv = _mm256_load_pd(x + AVX_IDX1);
-    __m256d zv = _mm256_load_pd(y + AVX_IDX1);
+    __m256d xv = _mm256_loadu_pd(x);
+    __m256d yv = _mm256_loadu_pd(y);
+    __m256d wv = _mm256_loadu_pd(x + AVX_IDX1);
+    __m256d zv = _mm256_loadu_pd(y + AVX_IDX1);
     __m256d xy = _mm256_mul_pd(xv, yv);
     __m256d zw = _mm256_mul_pd(zv, wv);
     __m256d temp = _mm256_hadd_pd( xy, zw );
@@ -77,14 +77,14 @@ double avx_dot_product8(double * x, double * y) {
 // Computes Dot Product between 2 arrays of 16 doubles at time
 
 double avx_dot_product16(double * x, double * y) {
-    __m256d xv0 = _mm256_load_pd(x);
-    __m256d yv0 = _mm256_load_pd(y);
-    __m256d xv1 = _mm256_load_pd(x + AVX_IDX1);
-    __m256d yv1 = _mm256_load_pd(y + AVX_IDX1);
-    __m256d xv2 = _mm256_load_pd(x + AVX_IDX2);
-    __m256d yv2 = _mm256_load_pd(y + AVX_IDX2);
-    __m256d xv3 = _mm256_load_pd(x + AVX_IDX3);
-    __m256d yv3 = _mm256_load_pd(y + AVX_IDX3);
+    __m256d xv0 = _mm256_loadu_pd(x);
+    __m256d yv0 = _mm256_loadu_pd(y);
+    __m256d xv1 = _mm256_loadu_pd(x + AVX_IDX1);
+    __m256d yv1 = _mm256_loadu_pd(y + AVX_IDX1);
+    __m256d xv2 = _mm256_loadu_pd(x + AVX_IDX2);
+    __m256d yv2 = _mm256_loadu_pd(y + AVX_IDX2);
+    __m256d xv3 = _mm256_loadu_pd(x + AVX_IDX3);
+    __m256d yv3 = _mm256_loadu_pd(y + AVX_IDX3);
     
     __m256d xy0 = _mm256_mul_pd(xv0, yv0);
     __m256d xy1 = _mm256_mul_pd(xv1, yv1);
@@ -114,65 +114,65 @@ double avx_dot_product16(double * x, double * y) {
 // Muliply 1 array of 2 doubles at time with a single value
 
 void avx_multiply_value2(double * x, double value, double * dest, int mode) {
-    __m128d xv = _mm_load_pd(x);
+    __m128d xv = _mm_loadu_pd(x);
     //TODO: support different double sizes
     __m128d yv = _mm_set_pd(value, value);
     __m128d xy = _mm_mul_pd(xv, yv);
     if (mode != AVX_STORE_MODE_NORM) {
-        __m128d temp = _mm_load_pd(dest);
+        __m128d temp = _mm_loadu_pd(dest);
         if (mode == AVX_STORE_MODE_ADD)
             xy = _mm_add_pd(temp, xy);
         else if (mode == AVX_STORE_MODE_SUB)
             xy = _mm_sub_pd(temp, xy);
     }
-    _mm_store_pd(dest, xy);
+    _mm_storeu_pd(dest, xy);
 }
 
 // Muliply 2 arrays of 2 doubles at time
 
 void avx_multiply2(double * x, double * y, double * dest, int mode) {
-    __m128d xv = _mm_load_pd(x);
-    __m128d yv = _mm_load_pd(y);
+    __m128d xv = _mm_loadu_pd(x);
+    __m128d yv = _mm_loadu_pd(y);
     __m128d xy = _mm_mul_pd(xv, yv);
     if (mode != AVX_STORE_MODE_NORM) {
-        __m128d temp = _mm_load_pd(dest);
+        __m128d temp = _mm_loadu_pd(dest);
         if (mode == AVX_STORE_MODE_ADD)
             xy = _mm_add_pd(temp, xy);
         else if (mode == AVX_STORE_MODE_SUB)
             xy = _mm_sub_pd(temp, xy);
     }
-    _mm_store_pd(dest, xy);
+    _mm_storeu_pd(dest, xy);
 }
 
 // Muliply 1 array of 4 doubles at time with a single value
 
 void avx_multiply_value4(double * x, double value, double * dest, int mode) {
-    __m256d xv = _mm256_load_pd(x);
+    __m256d xv = _mm256_loadu_pd(x);
     //TODO: support different double sizes
     __m256d yv = _mm256_set_pd(value, value, value, value);
     __m256d xy = _mm256_mul_pd(xv, yv);
     if (mode != AVX_STORE_MODE_NORM) {
-        __m256d temp = _mm256_load_pd(dest);
+        __m256d temp = _mm256_loadu_pd(dest);
         if (mode == AVX_STORE_MODE_ADD)
             xy = _mm256_add_pd(temp, xy);
         else if (mode == AVX_STORE_MODE_SUB)
             xy = _mm256_sub_pd(temp, xy);
     }
-    _mm256_store_pd(dest, xy);
+    _mm256_storeu_pd(dest, xy);
 }
 
 // Muliply 2 arrays of 4 doubles at time
 
 void avx_multiply4(double * x, double * y, double * dest, int mode) {
-    __m256d xv = _mm256_load_pd(x);
-    __m256d yv = _mm256_load_pd(y);
+    __m256d xv = _mm256_loadu_pd(x);
+    __m256d yv = _mm256_loadu_pd(y);
     __m256d xy = _mm256_mul_pd(xv, yv);
     if (mode != AVX_STORE_MODE_NORM) {
-        __m256d temp = _mm256_load_pd(dest);
+        __m256d temp = _mm256_loadu_pd(dest);
         if (mode == AVX_STORE_MODE_ADD)
             xy = _mm256_add_pd(temp, xy);
         else if (mode == AVX_STORE_MODE_SUB)
             xy = _mm256_sub_pd(temp, xy);
     }
-    _mm256_store_pd(dest, xy);
+    _mm256_storeu_pd(dest, xy);
 }
