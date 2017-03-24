@@ -321,7 +321,22 @@ int convolve(void * _net, void * _layer, ...) {
             int widx = 0;
             //printf("Neuron %d,%d: r: %d, b: %d\n", col, row, max_x, max_y);
             for (y = r_row; y < max_y; y++) {
-                for (x = r_col; x < max_x; x++) {
+                x = r_col;
+#ifdef USE_AVX
+                int avx_step_len = AVXGetDotStepLen(region_size);
+                avx_dot_product dot_product = AVXGetDotProductFunc(region_size);
+                int avx_steps = region_size / avx_step_len, avx_step;
+                for (avx_step = 0; avx_step < avx_steps; avx_step++) {
+                    int nidx = (y * input_w) + x;
+                    double * x_vector = previous->avx_activation_cache + nidx;
+                    //if (is_recurrent) x_vector += (t * previous_size);
+                    double * y_vector = weights + widx;
+                    sum += dot_product(x_vector, y_vector);
+                    x += avx_step_len;
+                    widx += avx_step_len;
+                }
+#endif
+                for (; x < max_x; x++) {
                     int nidx = (y * input_w) + x;
                     //printf("  -> %d,%d [%d]\n", x, y, nidx);
                     Neuron * prev_neuron = previous->neurons[nidx];
