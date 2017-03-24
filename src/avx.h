@@ -20,19 +20,24 @@
 
 #define AVXGetStepLen(s) (s >= AVX_VECTOR_SIZE ? AVX_VECTOR_SIZE : \
     AVX_VECTOR_SIZE / 2)
-#define AVXGetDotStepLen(s) (s >= 16 ? 16 : (s >= 8 ? 8 : (s >= 4 ? 4 : 2)))
-#define AVXGetDotProductFunc(s) (s >= 16 ? avx_dot_product16 : \
-    (s >= 8 ? avx_dot_product8 : \
-    (s >= 4 ? avx_dot_product4 : avx_dot_product2)))
-#define AVXGetMultiplyValFunc(s) (s >= 4 ? avx_multiply_value4 : \
+#define AVXGetDotStepLen(s) (s >= AVX_VECTOR4_SIZE ? AVX_VECTOR4_SIZE : \
+    (s >= AVX_VECTOR2_SIZE ? AVX_VECTOR2_SIZE : \
+    (s >= AVX_VECTOR_SIZE ? AVX_VECTOR_SIZE : AVX_VECTOR_SIZE/2)))
+#define AVXGetDotProductFunc(s) (s >= AVX_VECTOR4_SIZE ? avx_dot_product16 : \
+    (s >= AVX_VECTOR2_SIZE ? avx_dot_product8 : \
+    (s >= AVX_VECTOR_SIZE ? avx_dot_product4 : avx_dot_product2)))
+#define AVXGetMultiplyValFunc(s) (s >= AVX_VECTOR_SIZE ? avx_multiply_value4 : \
     avx_multiply_value2)
-#define AVXGetMultiplyFunc(s) (s >= 4 ? avx_multiply4 : avx_multiply2)
+#define AVXGetMultiplyFunc(s) (s >= AVX_VECTOR_SIZE ? avx_multiply4 : \
+    avx_multiply2)
 
 #define AVX_STORE_MODE_NORM 0
 #define AVX_STORE_MODE_ADD  1
 #define AVX_STORE_MODE_SUB  2
 
 extern int AVX_VECTOR_SIZE;
+extern int AVX_VECTOR4_SIZE;
+extern int AVX_VECTOR2_SIZE;
 
 typedef double (* avx_dot_product)(double * x, double * y);
 typedef void (* avx_multiply_value)(double * x, double v, double * d, int mode);

@@ -29,6 +29,9 @@ int AVX_IDX1 = _AVX_VECTOR_SIZE;
 int AVX_IDX2 = _AVX_VECTOR_SIZE * 2;
 int AVX_IDX3 = _AVX_VECTOR_SIZE * 3;
 
+int AVX_VECTOR4_SIZE = _AVX_VECTOR_SIZE * 4;
+int AVX_VECTOR2_SIZE = _AVX_VECTOR_SIZE * 2;
+
 // Computes Dot Product between 2 arrays of 2 doubles at time
 
 double avx_dot_product2(double * x, double * y) {
