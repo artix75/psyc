@@ -138,7 +138,7 @@ int main(int argc, char ** argv) {
                             continue;
                         }
                         i = j - 1;
-                        lparams[FEATURE_COUNT] = (double) fcount;
+                        lparams[PARAM_FEATURE_COUNT] = (double) fcount;
                     } else if (strcmp("--region-size", carg) == 0 && ++j<argc) {
                         int rsize = 0;
                         char * rsstr = argv[j];
@@ -148,7 +148,7 @@ int main(int argc, char ** argv) {
                             continue;
                         }
                         i = j - 1;
-                        lparams[REGION_SIZE] = (double) rsize;
+                        lparams[PARAM_REGION_SIZE] = (double) rsize;
                     } else if (strcmp("--stride", carg) == 0 && ++j < argc) {
                         int stride = 0;
                         char * ststr = argv[j];
@@ -158,10 +158,10 @@ int main(int argc, char ** argv) {
                             continue;
                         }
                         i = j - 1;
-                        lparams[STRIDE] = (double) stride;
+                        lparams[PARAM_STRIDE] = (double) stride;
                     } else if (strcmp("--use-relu", carg) == 0) {
                         i = j - 1;
-                        lparams[USE_RELU] = 1.0;
+                        lparams[PARAM_USE_RELU] = 1.0;
                     } else {
                         break;
                     }
@@ -182,7 +182,7 @@ int main(int argc, char ** argv) {
                             fprintf(stderr, "Invalid region size %s\n", rsstr);
                             continue;
                         }
-                        lparams[REGION_SIZE] = (double) rsize;
+                        lparams[PARAM_REGION_SIZE] = (double) rsize;
                     } else {
                         break;
                     }

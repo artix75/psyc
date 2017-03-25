@@ -289,14 +289,14 @@ int convolve(void * _net, void * _layer, ...) {
     }
     double * params = parameters->parameters;
     double * previous_params = previous_parameters->parameters;
-    int feature_count = (int) (params[FEATURE_COUNT]);
-    int stride = (int) (params[STRIDE]);
-    double region_size = params[REGION_SIZE];
+    int feature_count = (int) (params[PARAM_FEATURE_COUNT]);
+    int stride = (int) (params[PARAM_STRIDE]);
+    double region_size = params[PARAM_REGION_SIZE];
     double region_area = region_size * region_size;
-    double input_w = previous_params[OUTPUT_WIDTH];
-    double input_h = previous_params[OUTPUT_HEIGHT];
-    double output_w = params[OUTPUT_WIDTH];
-    double output_h = params[OUTPUT_HEIGHT];
+    double input_w = previous_params[PARAM_OUTPUT_WIDTH];
+    double input_h = previous_params[PARAM_OUTPUT_HEIGHT];
+    double output_w = params[PARAM_OUTPUT_WIDTH];
+    double output_h = params[PARAM_OUTPUT_HEIGHT];
     int feature_size = layer->size / feature_count;
     ConvolutionalSharedParams * shared = getConvSharedParams(layer);
     if (shared == NULL) {
@@ -384,13 +384,13 @@ int pool(void * _net, void * _layer, ...) {
     }
     double * params = parameters->parameters;
     double * previous_params = previous_parameters->parameters;
-    int feature_count = (int) (params[FEATURE_COUNT]);
-    double region_size = params[REGION_SIZE];
+    int feature_count = (int) (params[PARAM_FEATURE_COUNT]);
+    double region_size = params[PARAM_REGION_SIZE];
     double region_area = region_size * region_size;
-    double input_w = previous_params[OUTPUT_WIDTH];
-    double input_h = previous_params[OUTPUT_HEIGHT];
-    double output_w = params[OUTPUT_WIDTH];
-    double output_h = params[OUTPUT_HEIGHT];
+    double input_w = previous_params[PARAM_OUTPUT_WIDTH];
+    double input_h = previous_params[PARAM_OUTPUT_HEIGHT];
+    double output_w = params[PARAM_OUTPUT_WIDTH];
+    double output_h = params[PARAM_OUTPUT_HEIGHT];
     int feature_size = layer->size / feature_count;
     int prev_size = previous->size / feature_count;
     for (i = 0; i < feature_count; i++) {
@@ -801,12 +801,12 @@ void printLayerInfo(Layer * layer) {
     if (onehot_info[0]) printf(" %s", onehot_info);
     if ((ltype == Convolutional || ltype == Pooling) && lparams != NULL) {
         double * params = lparams->parameters;
-        int fcount = (int) (params[FEATURE_COUNT]);
-        int rsize = (int) (params[REGION_SIZE]);
-        int input_w = (int) (params[INPUT_WIDTH]);
-        int input_h = (int) (params[INPUT_HEIGHT]);
-        int stride = (int) (params[STRIDE]);
-        int use_relu = (int) (params[USE_RELU]);
+        int fcount = (int) (params[PARAM_FEATURE_COUNT]);
+        int rsize = (int) (params[PARAM_REGION_SIZE]);
+        int input_w = (int) (params[PARAM_INPUT_WIDTH]);
+        int input_h = (int) (params[PARAM_INPUT_HEIGHT]);
+        int stride = (int) (params[PARAM_STRIDE]);
+        int use_relu = (int) (params[PARAM_USE_RELU]);
         char * actv = (use_relu ? "relu" : "sigmoid");
         printf(", input size = %dx%d, features = %d", input_w, input_h, fcount);
         printf(", region = %dx%d, stride = %d, activation = %s\n",
@@ -1339,13 +1339,13 @@ int initConvolutionalLayer(NeuralNetwork * network, Layer * layer,
         return 0;
     }
     double * params = parameters->parameters;
-    int feature_count = (int) (params[FEATURE_COUNT]);
+    int feature_count = (int) (params[PARAM_FEATURE_COUNT]);
     if (feature_count <= 0) {
         logerr(func, "FEATURE_COUNT must be > 0 (given: %d)", feature_count);
         abortLayer(network, layer);
         return 0;
     }
-    double region_size = params[REGION_SIZE];
+    double region_size = params[PARAM_REGION_SIZE];
     if (region_size <= 0) {
         logerr(func, "REGION_SIZE must be > 0 (given: %lf)", region_size);
         abortLayer(network, layer);
@@ -1354,17 +1354,17 @@ int initConvolutionalLayer(NeuralNetwork * network, Layer * layer,
     int previous_size = previous->size;
     LayerParameters * previous_params = previous->parameters;
     double input_w, input_h, output_w, output_h;
-    int use_relu = (int) (params[USE_RELU]);
+    int use_relu = (int) (params[PARAM_USE_RELU]);
     if (previous_params == NULL) {
         double w = sqrt(previous_size);
         input_w = w; input_h = w;
         previous_params = createConvolutionalParameters(1, 0, 0, 0, 0);
-        previous_params->parameters[OUTPUT_WIDTH] = input_w;
-        previous_params->parameters[OUTPUT_HEIGHT] = input_h;
+        previous_params->parameters[PARAM_OUTPUT_WIDTH] = input_w;
+        previous_params->parameters[PARAM_OUTPUT_HEIGHT] = input_h;
         previous->parameters = previous_params;
     } else {
-        input_w = previous_params->parameters[OUTPUT_WIDTH];
-        input_h = previous_params->parameters[OUTPUT_HEIGHT];
+        input_w = previous_params->parameters[PARAM_OUTPUT_WIDTH];
+        input_h = previous_params->parameters[PARAM_OUTPUT_HEIGHT];
         double prev_area = input_w * input_h;
         if ((int) prev_area != previous_size) {
             logerr(func, "Previous size %d != %lfx%lf",
@@ -1373,17 +1373,17 @@ int initConvolutionalLayer(NeuralNetwork * network, Layer * layer,
             return 0;
         }
     }
-    params[INPUT_WIDTH] = input_w;
-    params[INPUT_HEIGHT] = input_h;
-    int stride = (int) params[STRIDE];
-    int padding = (int) params[PADDING];
+    params[PARAM_INPUT_WIDTH] = input_w;
+    params[PARAM_INPUT_HEIGHT] = input_h;
+    int stride = (int) params[PARAM_STRIDE];
+    int padding = (int) params[PARAM_PADDING];
     if (stride == 0) stride = 1;
     output_w =  calculateConvolutionalSide(input_w, region_size,
                                            (double) stride, (double) padding);
     output_h =  calculateConvolutionalSide(input_h, region_size,
                                            (double) stride, (double) padding);
-    params[OUTPUT_WIDTH] = output_w;
-    params[OUTPUT_HEIGHT] = output_h;
+    params[PARAM_OUTPUT_WIDTH] = output_w;
+    params[PARAM_OUTPUT_HEIGHT] = output_h;
     int area = (int)(output_w * output_h);
     int size = area * feature_count;
     layer->size = size;
@@ -1494,9 +1494,9 @@ int initPoolingLayer(NeuralNetwork * network, Layer * layer,
         return 0;
     }
     double * previous_params = previous_parameters->parameters;
-    int feature_count = (int) (previous_params[FEATURE_COUNT]);
-    params[FEATURE_COUNT] = (double) feature_count;
-    double region_size = params[REGION_SIZE];
+    int feature_count = (int) (previous_params[PARAM_FEATURE_COUNT]);
+    params[PARAM_FEATURE_COUNT] = (double) feature_count;
+    double region_size = params[PARAM_REGION_SIZE];
     if (region_size <= 0) {
         logerr(func, "REGION_SIZE must be > 0 (given: %lf)", region_size);
         abortLayer(network, layer);
@@ -1504,15 +1504,15 @@ int initPoolingLayer(NeuralNetwork * network, Layer * layer,
     }
     int previous_size = previous->size;
     double input_w, input_h, output_w, output_h;
-    input_w = previous_params[OUTPUT_WIDTH];
-    input_h = previous_params[OUTPUT_HEIGHT];
-    params[INPUT_WIDTH] = input_w;
-    params[INPUT_HEIGHT] = input_h;
+    input_w = previous_params[PARAM_OUTPUT_WIDTH];
+    input_h = previous_params[PARAM_OUTPUT_HEIGHT];
+    params[PARAM_INPUT_WIDTH] = input_w;
+    params[PARAM_INPUT_HEIGHT] = input_h;
     
     output_w = calculatePoolingSide(input_w, region_size);
     output_h = calculatePoolingSide(input_h, region_size);
-    params[OUTPUT_WIDTH] = output_w;
-    params[OUTPUT_HEIGHT] = output_h;
+    params[PARAM_OUTPUT_WIDTH] = output_w;
+    params[PARAM_OUTPUT_HEIGHT] = output_h;
     int area = (int)(output_w * output_h);
     int size = area * feature_count;
     layer->size = size;
@@ -1958,7 +1958,7 @@ Gradient * createLayerGradients(Layer * layer) {
             logerr(func, "Layer %d parameters are NULL!", layer->index);
             return NULL;
         }
-        size = (int) (parameters->parameters[FEATURE_COUNT]);
+        size = (int) (parameters->parameters[PARAM_FEATURE_COUNT]);
     }
     gradients = malloc(sizeof(Gradient) * size);
     if (gradients == NULL) {
@@ -1970,7 +1970,8 @@ Gradient * createLayerGradients(Layer * layer) {
         Neuron * neuron = layer->neurons[i];
         if (ltype == Convolutional) {
             if (!ws) {
-                int region_size = (int) (parameters->parameters[REGION_SIZE]);
+                int region_size =
+                    (int) (parameters->parameters[PARAM_REGION_SIZE]);
                 ws = region_size * region_size;
             }
         } else {
@@ -2027,7 +2028,7 @@ void deleteGradients(Gradient ** gradients, NeuralNetwork * network) {
         int lsize;
         if (layer->type == Convolutional) {
             LayerParameters * params = layer->parameters;
-            lsize = (int) (params->parameters[FEATURE_COUNT]);
+            lsize = (int) (params->parameters[PARAM_FEATURE_COUNT]);
         } else lsize = layer->size;
         deleteLayerGradients(lgradients, lsize);
     }
@@ -2045,11 +2046,11 @@ double * backpropPoolingToConv(NeuralNetwork * network, Layer * pooling_layer,
     memset(new_delta, 0, sizeof(double) * conv_size);
     LayerParameters * pool_params = pooling_layer->parameters;
     LayerParameters * conv_params = convolutional_layer->parameters;
-    int feature_count = (int) (conv_params->parameters[FEATURE_COUNT]);
-    int pool_size = (int) (pool_params->parameters[REGION_SIZE]);
+    int feature_count = (int) (conv_params->parameters[PARAM_FEATURE_COUNT]);
+    int pool_size = (int) (pool_params->parameters[PARAM_REGION_SIZE]);
     int feature_size = pooling_layer->size / feature_count;
-    double input_w = pool_params->parameters[INPUT_WIDTH];
-    double output_w = pool_params->parameters[OUTPUT_WIDTH];
+    double input_w = pool_params->parameters[PARAM_INPUT_WIDTH];
+    double output_w = pool_params->parameters[PARAM_OUTPUT_WIDTH];
     int prev_size = convolutional_layer->size / feature_count;
     int i, j, row, col, x, y;
     for (i = 0; i < feature_count; i++) {
@@ -2085,11 +2086,11 @@ double * backpropConvToFull(NeuralNetwork * network, Layer* convolutional_layer,
                             Gradient * lgradients) {
     int size = convolutional_layer->size;
     LayerParameters * params = convolutional_layer->parameters;
-    int feature_count = (int) (params->parameters[FEATURE_COUNT]);
-    int region_size = (int) (params->parameters[REGION_SIZE]);
-    int stride = (int) (params->parameters[STRIDE]);
-    double input_w = params->parameters[INPUT_WIDTH];
-    double output_w = params->parameters[OUTPUT_WIDTH];
+    int feature_count = (int) (params->parameters[PARAM_FEATURE_COUNT]);
+    int region_size = (int) (params->parameters[PARAM_REGION_SIZE]);
+    int stride = (int) (params->parameters[PARAM_STRIDE]);
+    double input_w = params->parameters[PARAM_INPUT_WIDTH];
+    double output_w = params->parameters[PARAM_OUTPUT_WIDTH];
     int feature_size = size / feature_count;
     int wsize = region_size * region_size;
     int i, j, row, col, x, y;
@@ -2605,8 +2606,8 @@ double updateWeights(NeuralNetwork * network, double * training_data,
             int wsize = 0;
             if (layer->type == Convolutional) {
                 LayerParameters * params = layer->parameters;
-                lsize = (int) (params->parameters[FEATURE_COUNT]);
-                int rsize = (int) (params->parameters[REGION_SIZE]);
+                lsize = (int) (params->parameters[PARAM_FEATURE_COUNT]);
+                int rsize = (int) (params->parameters[PARAM_REGION_SIZE]);
                 wsize = rsize * rsize;
             }
             for (k = 0; k < lsize; k++) {
@@ -2633,7 +2634,7 @@ double updateWeights(NeuralNetwork * network, double * training_data,
         ConvolutionalSharedParams * shared = NULL;
         if (ltype == Convolutional) {
             LayerParameters * params = layer->parameters;
-            l_size = (int) (params->parameters[FEATURE_COUNT]);
+            l_size = (int) (params->parameters[PARAM_FEATURE_COUNT]);
             shared = getConvSharedParams(layer);
         } else l_size = layer->size;
         for (j = 0; j < l_size; j++) {

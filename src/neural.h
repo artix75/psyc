@@ -22,15 +22,15 @@
 
 #define LAYER_TYPES  6
 
-#define FEATURE_COUNT   0
-#define REGION_SIZE     1
-#define STRIDE          2
-#define INPUT_WIDTH     3
-#define INPUT_HEIGHT    4
-#define OUTPUT_WIDTH    5
-#define OUTPUT_HEIGHT   6
-#define PADDING         7
-#define USE_RELU        8
+#define PARAM_FEATURE_COUNT     0
+#define PARAM_REGION_SIZE       1
+#define PARAM_STRIDE            2
+#define PARAM_INPUT_WIDTH       3
+#define PARAM_INPUT_HEIGHT      4
+#define PARAM_OUTPUT_WIDTH      5
+#define PARAM_OUTPUT_HEIGHT     6
+#define PARAM_PADDING           7
+#define PARAM_USE_RELU          8
 
 #define STATUS_UNTRAINED    0
 #define STATUS_TRAINED      1
