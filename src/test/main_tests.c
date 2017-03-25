@@ -20,7 +20,7 @@
 #include <math.h>
 #include <string.h>
 #include "test.h"
-#include "../neural.h"
+#include "../psyc.h"
 #include "../mnist.h"
 #ifdef USE_AVX
 #include "../avx.h"
@@ -84,7 +84,7 @@ int testRNNFeedforward(void* test_case, void* test);
 int testRNNBackprop(void* test_case, void* test);
 int testRNNStep(void* tc, void* t);
 
-/* neural.c static function prototypes */
+/* psyc.c static function prototypes */
 
 PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y);
 PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,

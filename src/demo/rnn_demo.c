@@ -27,7 +27,7 @@
 #include <fenv.h>
 #include <xmmintrin.h>
 
-#include "../neural.h"
+#include "../psyc.h"
 #include "w2v_training_data.h"
 
 #define BATCHES 1

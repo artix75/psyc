@@ -17,7 +17,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "../neural.h"
+#include "../psyc.h"
 #include "../mnist.h"
 
 #define INPUT_SIZE (28 * 28)

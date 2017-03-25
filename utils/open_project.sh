@@ -17,9 +17,14 @@ for src in $(find "$project_path" -name *.h); do
         sources="$sources $src"
     fi
 done
-#for makefile in $(find "$project_path" -name Makefile); do
-#    sources="$sources $makefile"
-#done
+if [ "$1" = "--with-makefiles" ]; then
+    for makefile in $(find "$project_path" -name Makefile); do
+        sources="$sources $makefile"
+    done
+    for makefile in $(find "$project_path" -name *.mk); do
+        sources="$sources $makefile"
+    done
+fi
 cmd=""
 os=`uname`
 if [ "$os" = "Linux" ]; then

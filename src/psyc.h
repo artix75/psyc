@@ -15,10 +15,10 @@
  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#ifndef __NEURAL_H
-#define __NEURAL_H
+#ifndef __PSYC_H
+#define __PSYC_H
 
-#define NN_VERSION      "0.0.2"
+#define PSYC_VERSION      "0.1.0"
 
 #define LAYER_TYPES  6
 

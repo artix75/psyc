@@ -18,10 +18,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "neural.h"
+#include "psyc.h"
 #include "mnist.h"
 
-#define PROGRAM_NAME        "CNeural CLI"
+#define PROGRAM_NAME        "PsyC CLI"
 
 #define CONV_FEATURE_COUNT  20
 #define CONV_REGION_SIZE    5
@@ -313,7 +313,7 @@ int main(int argc, char ** argv) {
         }
         
         if (strcmp("-v", arg) == 0 || strcmp("--version", arg) == 0) {
-            printf("%s v%s\n", PROGRAM_NAME, NN_VERSION);
+            printf("%s v%s\n", PROGRAM_NAME, PSYC_VERSION);
             exit(0);
         }
         

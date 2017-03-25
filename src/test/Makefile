@@ -1,12 +1,12 @@
 SHELL=/bin/bash
 CC=gcc
-CFLAGS=-std=gnu99
+CFLAGS=-std=gnu99 -g -ggdb
 LDFLAGS=-lz -lm
-REQUIRED_OBJS=../neural.o ../mnist.o test.o
+REQUIRED_OBJS=../psyc.o ../mnist.o test.o
 
 include ../avx.mk
 ifeq ($(AVX),on)
-	CFLAGS=-DUSE_AVX -mavx2 -mfma -std=gnu99
+	CFLAGS+=-DUSE_AVX -mavx2 -mfma
         REQUIRED_OBJS+=../avx.o
 endif
 

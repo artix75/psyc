@@ -2,7 +2,7 @@ SHELL=/bin/bash
 CC=gcc
 CFLAGS=-std=c99 -g -ggdb
 LDFLAGS=-lz -lm
-REQUIRED_OBJS=../neural.o ../mnist.o
+REQUIRED_OBJS=../psyc.o ../mnist.o
 
 include ../avx.mk
 

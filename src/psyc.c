@@ -27,7 +27,7 @@
 #include "avx.h"
 #endif
 
-#include "neural.h"
+#include "psyc.h"
 
 #ifndef M_PI
 #define M_PI 3.141592653589793
@@ -984,7 +984,7 @@ int PSLoadNetwork(PSNeuralNetwork * network, const char* filename) {
     int matched = fscanf(f, "--v%d.%d.%d", &v0, &v1, &v2);
     if (matched) {
         sprintf(vers, "%d.%d.%d", v0, v1, v2);
-        printf("File version is %s (current: %s).\n", vers, NN_VERSION);
+        printf("File version is %s (current: %s).\n", vers, PSYC_VERSION);
         int idx = 0, val = 0;
         PSLossFunction loss = NULL;
         while ((matched = fscanf(f, ",%d", &val))) {
@@ -1203,7 +1203,7 @@ int PSSaveNetwork(PSNeuralNetwork * network, const char* filename) {
     }
     int netsize, i, j, k, loss_function = 0;
     // Header
-    fprintf(f, "--v%s", NN_VERSION);
+    fprintf(f, "--v%s", PSYC_VERSION);
     for (i = 0; i < loss_functions_count; i++) {
         if (network->loss == loss_functions[i]) {
             loss_function = i;

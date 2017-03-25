@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include "neural.h"
+#include "psyc.h"
 
 #define INPUTS_SIZE (28 * 28)
 
