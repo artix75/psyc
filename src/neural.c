@@ -627,20 +627,21 @@ static void shuffleSeries ( double ** series, int size)
     }
 }
 
-void addRecurrentState(Neuron * neuron, double state, int times, int t) {
+double * addRecurrentState(Neuron * neuron, double state, int times, int t) {
     RecurrentCell * cell = getRecurrentCell(neuron);
     if (cell == NULL) {
         cell = createRecurrentCell(neuron, 0);
         neuron->extra = cell;
-        if (cell == NULL) return;
+        if (cell == NULL) return NULL;
     }
     if (t == 0) {
         cell->states_count = times;
         if (cell->states != NULL) free(cell->states);
         cell->states = malloc(times * sizeof(double));
         if (cell->states == NULL) {
+            neuron->extra = NULL;
             free(cell);
-            return;
+            return NULL;
         }
     }
     cell->states[t] = state;
@@ -655,10 +656,14 @@ void addRecurrentState(Neuron * neuron, double state, int times, int t) {
     }
     if (layer->avx_activation_cache == NULL) {
         printMemoryErrorMsg();
-        return; //TODO: handle
+        neuron->extra = NULL;
+        if (cell->states != NULL) free(cell->states);
+        free(cell);
+        return NULL;
     }
     layer->avx_activation_cache[(t * lsize) + neuron->index] = state;
 #endif
+    return cell->states;
 }
 
 static double ** getRecurrentSeries(double * array, int series_count,
@@ -1829,11 +1834,14 @@ LayerParameters * createConvolutionalParameters(double feature_count,
                                   (double) padding, (double) use_relu);
 }
 
-void setLayerParameter(LayerParameters * params, int param, double value) {
+int setLayerParameter(LayerParameters * params, int param, double value) {
     if (params->parameters == NULL) {
         int len = param + 1;
         params->parameters = malloc(sizeof(double) * len);
-        //TODO: handle memory failure
+        if (params->parameters == NULL) {
+            printMemoryErrorMsg();
+            return 0;
+        }
         memset(params->parameters, 0.0f, sizeof(double) * len);
         params->count = len;
     } else if (param >= params->count) {
@@ -1842,7 +1850,10 @@ void setLayerParameter(LayerParameters * params, int param, double value) {
         double * old_params = params->parameters;
         size_t size = sizeof(double) * new_len;
         params->parameters = malloc(sizeof(double) * size);
-        //TODO: handle memory failure
+        if (params->parameters == NULL) {
+            printMemoryErrorMsg();
+            return 0;
+        }
         memset(params->parameters, 0.0f, sizeof(double) * size);
         memcpy(params->parameters, old_params, len * sizeof(double));
         free(old_params);
@@ -1850,8 +1861,8 @@ void setLayerParameter(LayerParameters * params, int param, double value) {
     params->parameters[param] = value;
 }
 
-void addLayerParameter(LayerParameters * params, double val) {
-    setLayerParameter(params, params->count + 1, val);
+int addLayerParameter(LayerParameters * params, double val) {
+    return setLayerParameter(params, params->count + 1, val);
 }
 
 void deleteLayerParamenters(LayerParameters * params) {
@@ -2303,13 +2314,18 @@ Gradient ** backprop(NeuralNetwork * network, double * x, double * y) {
 Gradient ** backpropThroughTime(NeuralNetwork * network, double * x,
                                 double * y, int times)
 {
-    // TODO: RECURRENT OUTPUT LAYER MUST BE SOFTMAX!!!
-
     Gradient ** gradients = createGradients(network);
     if (gradients == NULL) return NULL;
     int netsize = network->size;
     Layer * inputLayer = network->layers[0];
     Layer * outputLayer = network->layers[netsize - 1];
+    if (outputLayer->type != SoftMax) {
+        logerr("backpropThroughTime",
+               "Recurrent networks require a Softmax output layer, "
+               "current one is of type %s.", getLayerTypeLabel(output));
+        deleteGradients(gradients, network);
+        return NULL;
+    }
     int onehot = (outputLayer->flags & FLAG_ONEHOT);
     int isize = inputLayer->size;
     int osize = outputLayer->size;
@@ -2355,8 +2371,6 @@ Gradient ** backpropThroughTime(NeuralNetwork * network, double * x,
             else
                 y_val = time_y[o];
             double d = 0.0;
-            
-            // Recurrent Output Layer must be SoftMax ??
             y_val = (y_val < 1 ? 0 : 1);
             d = -(y_val - o_val);
             if (apply_derivative) d *= o_val;
@@ -2656,7 +2670,6 @@ double updateWeights(NeuralNetwork * network, double * training_data,
             } else fetchRecurrentOutputState(out, outputs, i, 0);
         }
     }
-    //TODO: configurable loss function
     int onehot_s = (onehot ? out->size : 0);
     return network->loss(outputs, y, label_data_size, onehot_s);
 }
@@ -2972,6 +2985,15 @@ int verifyNetwork(NeuralNetwork * network) {
             return 0;
         }
         previous = layer;
+    }
+    if (network->flags & FLAG_RECURRENT) {
+        Layer * output = network->layers[size - 1];
+        if (output->type != SoftMax) {
+            logerr("verifyNetwork",
+                   "Recurrent networks require a Softmax output layer, "
+                   "current one is of type %s.", getLabelForType(output->type));
+            return 0;
+        }
     }
     return 1;
 }

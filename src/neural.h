@@ -136,8 +136,8 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
 Layer * addConvolutionalLayer(NeuralNetwork * network, LayerParameters* params);
 Layer * addPoolingLayer(NeuralNetwork * network, LayerParameters* params);
 LayerParameters * createLayerParamenters(int count, ...);
-void setLayerParameter(LayerParameters * params, int param, double value);
-void addLayerParameter(LayerParameters * params, double val);
+int setLayerParameter(LayerParameters * params, int param, double value);
+int addLayerParameter(LayerParameters * params, double val);
 LayerParameters * createConvolutionalParameters(double feature_count,
                                                 double region_size,
                                                 int stride,
