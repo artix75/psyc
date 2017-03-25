@@ -6,13 +6,13 @@ default: all
 .PHONY: clean
 
 demo:
-	cd src/demo/ && make all
+	cd src/demo/ && $(MAKE)
 neural_cli:
-	cd src && make all
+	cd src && $(MAKE)
 test:
-	cd src/test && make all
+	cd src/test && $(MAKE)
 profile:
-	cd src/debug && make all
+	cd src/debug && $(MAKE)
 clean:
 	if ! [ -e tmp/ ]; then mkdir tmp/; fi
 	if [ -e bin/README ]; then cp bin/README tmp/; fi
@@ -20,7 +20,12 @@ clean:
 	rm -f src/demo/*.o
 	rm -f src/test/*.o
 	rm -f bin/*
+	rm -f lib/*
 	if [ -e tmp/README ]; then cp tmp/README bin/; fi
+	if [ -e tmp/README ]; then cp tmp/README lib/; fi
+
+install:
+	cd src && $(MAKE) install
 all: neural_cli demo
 	
         
