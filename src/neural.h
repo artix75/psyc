@@ -18,7 +18,7 @@
 #ifndef __NEURAL_H
 #define __NEURAL_H
 
-#define NN_VERSION      "0.0.1"
+#define NN_VERSION      "0.0.2"
 
 #define LAYER_TYPES  6
 
