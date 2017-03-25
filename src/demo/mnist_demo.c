@@ -35,30 +35,30 @@ int main(int argc, char** argv) {
     int testlen = 0;
     int datalen = 0;
     int loaded = 0;
-    NeuralNetwork * network = createNetwork();
+    PSNeuralNetwork * network = PSCreateNetwork("MNIST Demo");
     if (network == NULL) {
         fprintf(stderr, "Could not create network!\n");
         return 1;
     }
-    addLayer(network, FullyConnected, INPUT_SIZE, NULL);
-    addLayer(network, FullyConnected, 30, NULL);
-    addLayer(network, FullyConnected, 10, NULL);
+    PSAddLayer(network, FullyConnected, INPUT_SIZE, NULL);
+    PSAddLayer(network, FullyConnected, 30, NULL);
+    PSAddLayer(network, FullyConnected, 10, NULL);
     
     if (network->size < 1) {
         fprintf(stderr, "Could not add all layers!\n");
-        deleteNetwork(network);
+        PSDeleteNetwork(network);
         return 1;
     }
     
     if (strcmp("--load", argv[1]) == 0) {
-        loaded = loadNetwork(network, argv[2]);
+        loaded = PSLoadNetwork(network, argv[2]);
         if (!loaded) {
             printf("Could not load pretrained network!\n");
             return 1;
         }
         if (network->size < 1) {
             fprintf(stderr, "Could not add all layers!\n");
-            deleteNetwork(network);
+            PSDeleteNetwork(network);
             return 1;
         }
     } else {
@@ -76,23 +76,21 @@ int main(int argc, char** argv) {
     
     printf("Data len: %d\n", datalen);
     
-    if (!loaded) train(network, training_data, datalen, EPOCHS, 3, 10, 0,
-                       NULL, 0);
+    if (!loaded) PSTrain(network, training_data, datalen, EPOCHS, 3, 10, 0,
+                         NULL, 0);
     if (network->status == STATUS_ERROR) {
-        deleteNetwork(network);
+        PSDeleteNetwork(network);
         if (training_data != NULL) free(training_data);
         if (test_data != NULL) free(test_data);
         return 1;
     }
-    //int loaded = loadNetwork(network, "pretrained.mnist.data");
-    //if (!loaded) exit(1);
     
     if (testlen > 0 && test_data != NULL) {
         printf("Test Data len: %d\n", testlen);
-        test(network, test_data, testlen);
+        PSTest(network, test_data, testlen);
     }
     
-    deleteNetwork(network);
+    PSDeleteNetwork(network);
     if (training_data != NULL) free(training_data);
     if (test_data != NULL) free(test_data);
     return 0;

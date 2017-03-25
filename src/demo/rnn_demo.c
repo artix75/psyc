@@ -59,7 +59,7 @@ int main(int argc, char** argv) {
         pretrained_file = argv[2];
     }
     
-    NeuralNetwork * network = createNetwork();
+    PSNeuralNetwork * network = PSCreateNetwork("RNN Demo");
     if (network == NULL) {
         fprintf(stderr, "Could not create network!\n");
         return 1;
@@ -67,42 +67,40 @@ int main(int argc, char** argv) {
     network->flags |= FLAG_ONEHOT;
     
     if (pretrained_file == NULL) {
-        addLayer(network, FullyConnected, VOCABULARY_SIZE, NULL);
-        addLayer(network, Recurrent, 60, NULL);
-        addLayer(network, SoftMax, VOCABULARY_SIZE, NULL);
+        PSAddLayer(network, FullyConnected, VOCABULARY_SIZE, NULL);
+        PSAddLayer(network, Recurrent, 60, NULL);
+        PSAddLayer(network, SoftMax, VOCABULARY_SIZE, NULL);
         network->layers[network->size - 1]->flags |= FLAG_ONEHOT;
         if (network->size < 1) {
             fprintf(stderr, "Could not add all layers!\n");
-            deleteNetwork(network);
+            PSDeleteNetwork(network);
             return 1;
         }
     } else {
-        int loaded = loadNetwork(network, pretrained_file);
+        int loaded = PSLoadNetwork(network, pretrained_file);
         if (!loaded) {
             printf("Could not load pretrained data %s\n", pretrained_file);
-            deleteNetwork(network);
+            PSDeleteNetwork(network);
             return 1;
         }
         if (network->size < 1) {
             fprintf(stderr, "Could not add all layers!\n");
-            deleteNetwork(network);
+            PSDeleteNetwork(network);
             return 1;
         }
     }
     
-    train(network, training_data, TRAIN_DATA_LEN, EPOCHS, LEARNING_RATE,BATCHES,
-          TRAINING_NO_SHUFFLE | TRAINING_ADJUST_RATE,
-          validation_data, EVAL_DATA_LEN);
-    //int loaded = loadNetwork(network, "pretrained.mnist.data");
-    //if (!loaded) exit(1);
+    PSTrain(network, training_data, TRAIN_DATA_LEN, EPOCHS, LEARNING_RATE,
+            BATCHES, TRAINING_NO_SHUFFLE | TRAINING_ADJUST_RATE,
+            validation_data, EVAL_DATA_LEN);
     
     if (TEST_DATA_LEN > 0) {
         printf("Test Data len: %d\n", TEST_DATA_LEN);
-        test(network, test_data, TEST_DATA_LEN);
+        PSTest(network, test_data, TEST_DATA_LEN);
     }
     if (pretrained_file == NULL)
-        saveNetwork(network, "/tmp/pretrained.cnn.data");
-    deleteNetwork(network);
+        PSSaveNetwork(network, "/tmp/pretrained.cnn.data");
+    PSDeleteNetwork(network);
     //free(training_data);
     //if (TEST_DATA_LEN) free(test_data);
     return 0;

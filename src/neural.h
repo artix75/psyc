@@ -50,14 +50,15 @@
 #define BPTT_TRUNCATE   4
 
 
-typedef double (*ActivationFunction)(double);
-typedef int (*FeedforwardFunction)(void * network, void * layer, ...);
-typedef double (*LossFunction)(double* x, double* y, int size, int onehot_size);
+typedef double  (*PSActivationFunction) (double);
+typedef int     (*PSFeedforwardFunction) (void * network, void * layer, ...);
+typedef double  (*PSLossFunction) (double* x, double* y, int size,
+                                   int onehot_size);
 
 typedef struct {
     double bias;
     double * weights;
-} Gradient;
+} PSGradient;
 
 typedef enum {
     FullyConnected,
@@ -66,26 +67,26 @@ typedef enum {
     Recurrent,
     LSTM,
     SoftMax
-} LayerType;
+} PSLayerType;
 
 typedef struct {
     int count;
     double * parameters;
-} LayerParameters;
+} PSLayerParameters;
 
 typedef struct {
     int feature_count;
     int weights_size;
     double * biases;
     double ** weights;
-} ConvolutionalSharedParams;
+} PSSharedParams;
 
 typedef struct {
     int states_count;
     double * states;
     int weights_size;
     double * weights;
-} RecurrentCell;
+} PSRecurrentCell;
 
 typedef struct {
     int index;
@@ -96,82 +97,83 @@ typedef struct {
     double z_value;
     void * extra;
     void * layer;
-} Neuron;
+} PSNeuron;
 
 typedef struct {
-    LayerType type;
+    PSLayerType type;
     int index;
     int size;
-    LayerParameters * parameters;
-    ActivationFunction activate;
-    ActivationFunction derivative;
-    FeedforwardFunction feedforward;
-    Neuron ** neurons;
+    PSLayerParameters * parameters;
+    PSActivationFunction activate;
+    PSActivationFunction derivative;
+    PSFeedforwardFunction feedforward;
+    PSNeuron ** neurons;
     int flags;
     void * extra;
 #ifdef USE_AVX
     double * avx_activation_cache;
 #endif
     void * network;
-} Layer;
+} PSLayer;
 
 typedef struct {
+    const char * name;
     int size;
-    Layer ** layers;
-    LossFunction loss;
+    PSLayer ** layers;
+    PSLossFunction loss;
     int flags;
     unsigned char status;
     int input_size;
     int output_size;
     int current_epoch;
     int current_batch;
-} NeuralNetwork;
+} PSNeuralNetwork;
 
-NeuralNetwork * createNetwork();
-NeuralNetwork * cloneNetwork(NeuralNetwork * network, int layout_only);
-int loadNetwork(NeuralNetwork * network, const char* filename);
-int saveNetwork(NeuralNetwork * network, const char* filename);
-Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
-                 LayerParameters* params);
-Layer * addConvolutionalLayer(NeuralNetwork * network, LayerParameters* params);
-Layer * addPoolingLayer(NeuralNetwork * network, LayerParameters* params);
-LayerParameters * createLayerParamenters(int count, ...);
-int setLayerParameter(LayerParameters * params, int param, double value);
-int addLayerParameter(LayerParameters * params, double val);
-LayerParameters * createConvolutionalParameters(double feature_count,
-                                                double region_size,
-                                                int stride,
-                                                int padding,
-                                                int use_relu);
-void deleteLayerParamenters(LayerParameters * params);
-int feedforward(NeuralNetwork * network, double * values);
+PSNeuralNetwork * PSCreateNetwork(const char* name);
+PSNeuralNetwork * PSCloneNetwork(PSNeuralNetwork * network, int layout_only);
+int PSLoadNetwork(PSNeuralNetwork * network, const char* filename);
+int PSSaveNetwork(PSNeuralNetwork * network, const char* filename);
+PSLayer * PSAddLayer(PSNeuralNetwork * network, PSLayerType type, int size,
+                     PSLayerParameters* params);
+PSLayer * PSAddConvolutionalLayer(PSNeuralNetwork * network,
+                                  PSLayerParameters* params);
+PSLayer * PSAddPoolingLayer(PSNeuralNetwork * network,
+                            PSLayerParameters* params);
+PSLayerParameters * PSCreateLayerParamenters(int count, ...);
+int PSSetLayerParameter(PSLayerParameters * params, int param, double value);
+int PSAddLayerParameter(PSLayerParameters * params, double val);
+PSLayerParameters * PSCreateConvolutionalParameters(double feature_count,
+                                                    double region_size,
+                                                    int stride,
+                                                    int padding,
+                                                    int use_relu);
+void PSDeleteLayerParamenters(PSLayerParameters * params);
+int PSFeedforward(PSNeuralNetwork * network, double * values);
 
-void deleteNetwork(NeuralNetwork * network);
-void deleteLayer(Layer * layer);
-void deleteNeuron(Neuron * neuron, Layer * layer);
-void deleteGradients(Gradient ** gradients, NeuralNetwork * network);
-Gradient ** backprop(NeuralNetwork * network, double * x, double * y);
-void train(NeuralNetwork * network,
-           double * training_data,
-           int data_size,
-           int epochs,
-           double learning_rate,
-           int batch_size,
-           int flags,
-           double * test_data,
-           int test_size);
-float test(NeuralNetwork * network, double * test_data, int data_size);
-int verifyNetwork(NeuralNetwork * network);
+void PSDeleteNetwork(PSNeuralNetwork * network);
+void PSDeleteLayer(PSLayer * layer);
+void PSDeleteNeuron(PSNeuron * neuron, PSLayer * layer);
+void PSDeleteGradients(PSGradient ** gradients, PSNeuralNetwork * network);
+
+void PSTrain(PSNeuralNetwork * network,
+             double * training_data,
+             int data_size,
+             int epochs,
+             double learning_rate,
+             int batch_size,
+             int flags,
+             double * test_data,
+             int test_size);
+float PSTest(PSNeuralNetwork * network, double * test_data, int data_size);
+int PSVerifyNetwork(PSNeuralNetwork * network);
 //int arrayMaxIndex(double * array, int len);
-char * getLabelForType(LayerType type);
-char * getLayerTypeLabel(Layer * layer);
+char * getLabelForType(PSLayerType type);
+char * getLayerTypeLabel(PSLayer * layer);
 
 // Loss functions
 
 double quadraticLoss(double * x, double * y, int size, int onehot_size);
 double crossEntropyLoss(double * x, double * y, int size, int onehot_size);
-
-void testShuffle(double * array, int size, int element_size);
 
 #endif
 

@@ -43,7 +43,7 @@
 #define RNN_TIMES       4
 #define RNN_LEARING_RATE 0.005
 
-#define getNetwork(tc) ((NeuralNetwork*)(tc->data[0]))
+#define getNetwork(tc) ((PSNeuralNetwork*)(tc->data[0]))
 #define getTestData(tc) ((double*)(tc->data[1]))
 #define getRoundedDouble(d) (round(d * 1000000.0) / 1000000.0)
 #define getRoundedDoubleDec(d, dec) (round(d * dec) / dec)
@@ -86,10 +86,11 @@ int testRNNStep(void* tc, void* t);
 
 /* neural.c static function prototypes */
 
-Gradient ** backpropThroughTime(NeuralNetwork * network, double * x,
-                                double * y, int times);
+PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y);
+PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
+                                  double * y, int times);
 
-double updateWeights(NeuralNetwork * network, double * training_data,
+double updateWeights(PSNeuralNetwork * network, double * training_data,
                      int batch_size, double rate, ...);
 
 int testlen = 0;
@@ -198,7 +199,7 @@ double rnn_inputs[5] = {4, 0, 1, 2, 3};
 double rnn_labels[4] = {3, 2, 1, 0};
 
 
-int compareNetworks(NeuralNetwork * net1, NeuralNetwork * net2, Test* test);
+int compareNetworks(PSNeuralNetwork * net1, PSNeuralNetwork * net2, Test* test);
 
 static void getTmpFileName(const char * prfx, const char * sfx, char * buffer) {
     FILE * urand = fopen("/dev/urandom", "r");
@@ -264,7 +265,7 @@ int main(int argc, char** argv) {
 
 int genericSetup (void* tc) {
     TestCase * test_case = (TestCase*) tc;
-    NeuralNetwork * network = createNetwork();
+    PSNeuralNetwork * network = PSCreateNetwork("Test Network");
     if (network == NULL) {
         fprintf(stderr, "\nCould not create network!\n");
         return 0;
@@ -287,8 +288,8 @@ int genericSetup (void* tc) {
 
 int genericTeardown (void* tc) {
     TestCase * test_case = (TestCase*) tc;
-    NeuralNetwork * network = getNetwork(test_case);
-    if (network != NULL) deleteNetwork(network);
+    PSNeuralNetwork * network = getNetwork(test_case);
+    if (network != NULL) PSDeleteNetwork(network);
     double * test_data = getTestData(test_case);
     if (test_data != NULL) free(test_data);
     free(test_case->data);
@@ -298,15 +299,15 @@ int genericTeardown (void* tc) {
 
 int RNNSetup (void* tc) {
     TestCase * test_case = (TestCase*) tc;
-    NeuralNetwork * network = createNetwork();
+    PSNeuralNetwork * network = PSCreateNetwork("RNN Test Network");
     if (network == NULL) {
         fprintf(stderr, "\nCould not create network!\n");
         return 0;
     }
     network->flags |= FLAG_ONEHOT;
-    addLayer(network, FullyConnected, RNN_INPUT_SIZE, NULL);
-    addLayer(network, Recurrent, RNN_HIDDEN_SIZE, NULL);
-    addLayer(network, SoftMax, RNN_INPUT_SIZE, NULL);
+    PSAddLayer(network, FullyConnected, RNN_INPUT_SIZE, NULL);
+    PSAddLayer(network, Recurrent, RNN_HIDDEN_SIZE, NULL);
+    PSAddLayer(network, SoftMax, RNN_INPUT_SIZE, NULL);
     if (network->size < 1) {
         fprintf(stderr, "\nCould not add all layers!\n");
         return 0;
@@ -315,9 +316,9 @@ int RNNSetup (void* tc) {
     
     int i, j, w;
     for (i = 1; i < network->size; i++) {
-        Layer * layer = network->layers[i];
+        PSLayer * layer = network->layers[i];
         for (j = 0; j < layer->size; j++) {
-            Neuron * n = layer->neurons[j];
+            PSNeuron * n = layer->neurons[j];
             n->bias = 0;
             for (w = 0; w < n->weights_size; w++) {
                 double * weights;
@@ -357,8 +358,8 @@ int RNNSetup (void* tc) {
 
 int RNNTeardown (void* tc) {
     TestCase * test_case = (TestCase*) tc;
-    NeuralNetwork * network = getNetwork(test_case);
-    if (network != NULL) deleteNetwork(network);
+    PSNeuralNetwork * network = getNetwork(test_case);
+    if (network != NULL) PSDeleteNetwork(network);
     double * test_data = getTestData(test_case);
     if (test_data != NULL) free(test_data);
     free(test_case->data);
@@ -369,21 +370,21 @@ int RNNTeardown (void* tc) {
 int testFullLoad(void* tc, void* t) {
     TestCase * test_case = (TestCase*) tc;
     Test * test = (Test*) t;
-    NeuralNetwork * network = getNetwork(test_case);
-    return loadNetwork(network, PRETRAINED_FULL_NETWORK);
+    PSNeuralNetwork * network = getNetwork(test_case);
+    return PSLoadNetwork(network, PRETRAINED_FULL_NETWORK);
 }
 
 int testFullFeedforward(void* tc, void* t) {
     TestCase * test_case = (TestCase*) tc;
     Test * test = (Test*) t;
-    NeuralNetwork * network = getNetwork(test_case);
+    PSNeuralNetwork * network = getNetwork(test_case);
     double * test_data = getTestData(test_case);
-    feedforward(network, test_data);
+    PSFeedforward(network, test_data);
 
-    Layer * output = network->layers[network->size - 1];
+    PSLayer * output = network->layers[network->size - 1];
     int i, res = 1;
     for (i = 0; i < output->size; i++) {
-        Neuron * n = output->neurons[i];
+        PSNeuron * n = output->neurons[i];
         double a = n->activation;
         double expected = fullNetworkFeedForwardResults[i];
         a = getRoundedDouble(a);
@@ -402,9 +403,9 @@ int testFullFeedforward(void* tc, void* t) {
 int testFullAccuracy(void* tc, void* t) {
     TestCase * test_case = (TestCase*) tc;
     Test * testobj = (Test*) t;
-    NeuralNetwork * network = getNetwork(test_case);
+    PSNeuralNetwork * network = getNetwork(test_case);
     double * test_data = getTestData(test_case);
-    double accuracy = test(network, test_data, testlen);
+    double accuracy = PSTest(network, test_data, testlen);
     accuracy = round(accuracy * 100.0);
     int ok = (accuracy == 95.0);
     if (!ok) {
@@ -419,12 +420,12 @@ int testFullBackprop(void* tc, void* t) {
     TestCase * test_case = (TestCase*) tc;
     Test * testobj = (Test*) t;
     testobj->error_message = malloc(255 * sizeof(char));
-    NeuralNetwork * network = getNetwork(test_case);
+    PSNeuralNetwork * network = getNetwork(test_case);
     double * test_data = getTestData(test_case);
     int input_size = network->layers[0]->size;
     double * x = test_data;
     double * y = test_data + input_size;
-    Gradient ** gradients = backprop(network, x, y);
+    PSGradient ** gradients = backprop(network, x, y);
     int ok = 1, i;
     for (i = 0; i < BP_GRADIENTS_CHECKS; i++) {
         int lidx = (int) (backpropGradients[i][0]);
@@ -434,8 +435,8 @@ int testFullBackprop(void* tc, void* t) {
         int widx2 = (int) (backpropGradients[i][4]);
         double w1 = backpropGradients[i][5];
         double w2 = backpropGradients[i][6];
-        Gradient * dl = gradients[lidx - 1];
-        Gradient * d = &(dl[nidx]);
+        PSGradient * dl = gradients[lidx - 1];
+        PSGradient * d = &(dl[nidx]);
         double val = getRoundedDoubleDec(d->bias, 100000000.0);
         ok = (val == bias);
         if (!ok) {
@@ -461,24 +462,24 @@ int testFullBackprop(void* tc, void* t) {
             break;
         }
     }
-    deleteGradients(gradients, network);
+    PSDeleteGradients(gradients, network);
     return ok;
 }
 
 int testConvLoad(void* tc, void* t) {
     TestCase * test_case = (TestCase*) tc;
     Test * test = (Test*) t;
-    NeuralNetwork * network = getNetwork(test_case);
-    int loaded = loadNetwork(network, CONVOLUTIONAL_NETWORK);
+    PSNeuralNetwork * network = getNetwork(test_case);
+    int loaded = PSLoadNetwork(network, CONVOLUTIONAL_NETWORK);
     if (!loaded) {
         test->error_message = malloc(255 * sizeof(char));
         sprintf(test->error_message, "Failed to load %s\n",
                 CONVOLUTIONAL_NETWORK);
         return 0;
     }
-    Layer * layer = network->layers[1];
-    ConvolutionalSharedParams * shared;
-    shared = (ConvolutionalSharedParams *) layer->extra;
+    PSLayer * layer = network->layers[1];
+    PSSharedParams * shared;
+    shared = (PSSharedParams *) layer->extra;
     double bias = shared->biases[0];
     bias = getRoundedDouble(bias);
     double expected = CONV_L1F0_BIAS;
@@ -496,14 +497,14 @@ int testConvLoad(void* tc, void* t) {
 int testConvFeedforward(void* tc, void* t) {
     TestCase * test_case = (TestCase*) tc;
     Test * test = (Test*) t;
-    NeuralNetwork * network = getNetwork(test_case);
+    PSNeuralNetwork * network = getNetwork(test_case);
     double * test_data = getTestData(test_case);
-    feedforward(network, test_data);
+    PSFeedforward(network, test_data);
     
-    Layer * output = network->layers[network->size - 1];
+    PSLayer * output = network->layers[network->size - 1];
     int i, res = 1;
     for (i = 0; i < output->size; i++) {
-        Neuron * n = output->neurons[i];
+        PSNeuron * n = output->neurons[i];
         double a = n->activation;
         double expected = convNetworkFeedForwardResults[i];
         a = getRoundedDouble(a);
@@ -523,12 +524,12 @@ int testConvBackprop(void* tc, void* t) {
     TestCase * test_case = (TestCase*) tc;
     Test * testobj = (Test*) t;
     testobj->error_message = malloc(255 * sizeof(char));
-    NeuralNetwork * network = getNetwork(test_case);
+    PSNeuralNetwork * network = getNetwork(test_case);
     double * test_data = getTestData(test_case);
     int input_size = network->layers[0]->size;
     double * x = test_data;
     double * y = test_data + input_size;
-    Gradient ** gradients = backprop(network, x, y);
+    PSGradient ** gradients = backprop(network, x, y);
     int ok = 1, i;
     for (i = 0; i < BP_CONV_GRADIENTS_CHECKS; i++) {
         int lidx = (int) (backpropConvGradients[i][0]);
@@ -538,9 +539,9 @@ int testConvBackprop(void* tc, void* t) {
         int widx2 = (int) (backpropConvGradients[i][4]);
         double w1 = backpropConvGradients[i][5];
         double w2 = backpropConvGradients[i][6];
-        Gradient * dl = gradients[lidx - 1];
+        PSGradient * dl = gradients[lidx - 1];
         if (dl == NULL) continue;
-        Gradient * d = &(dl[nidx]);
+        PSGradient * d = &(dl[nidx]);
         double val = getRoundedDoubleDec(d->bias, 100000000.0);
         ok = (val == bias);
         if (!ok) {
@@ -566,7 +567,7 @@ int testConvBackprop(void* tc, void* t) {
             break;
         }
     }
-    deleteGradients(gradients, network);
+    PSDeleteGradients(gradients, network);
     return ok;
 }
 
@@ -574,17 +575,17 @@ int testConvAccuracy(void* tc, void* t) {
     TestCase * test_case = (TestCase*) tc;
     Test * testobj = (Test*) t;
     double * test_data = getTestData(test_case);
-    NeuralNetwork * network = createNetwork();
-    int loaded = loadNetwork(network, CONVOLUTIONAL_TRAINED_NETWORK);
+    PSNeuralNetwork * network = PSCreateNetwork("CNN Test Network");
+    int loaded = PSLoadNetwork(network, CONVOLUTIONAL_TRAINED_NETWORK);
     if (!loaded) {
         testobj->error_message = malloc(255 * sizeof(char));
         sprintf(testobj->error_message, "Failed to load %s",
                 CONVOLUTIONAL_TRAINED_NETWORK);
-        deleteNetwork(network);
+        PSDeleteNetwork(network);
         return 0;
     }
-    feedforward(network, test_data);
-    double accuracy = test(network, test_data, testlen);
+    PSFeedforward(network, test_data);
+    double accuracy = PSTest(network, test_data, testlen);
     accuracy = round(accuracy * 100.0);
     int ok = (accuracy == 98.0);
     if (!ok) {
@@ -592,15 +593,15 @@ int testConvAccuracy(void* tc, void* t) {
         sprintf(testobj->error_message, "Accuracy %lf != from expected (%lf)",
                 accuracy, 98.0);
     }
-    deleteNetwork(network);
+    PSDeleteNetwork(network);
     return ok;
 }
 
 int testRNNLoad(void* tc, void* t) {
     TestCase * test_case = (TestCase*) tc;
     Test * test = (Test*) t;
-    NeuralNetwork * network = getNetwork(test_case);
-    int loaded = loadNetwork(network, RECURRENT_NETWORK);
+    PSNeuralNetwork * network = getNetwork(test_case);
+    int loaded = PSLoadNetwork(network, RECURRENT_NETWORK);
     if (!loaded) {
         test->error_message = malloc(255 * sizeof(char));
         sprintf(test->error_message, "Failed to load %s\n",
@@ -610,9 +611,9 @@ int testRNNLoad(void* tc, void* t) {
     
     int ok = 1, i, j, w;
     for (i = 1; i < network->size; i++) {
-        Layer * layer = network->layers[i];
+        PSLayer * layer = network->layers[i];
         for (j = 0; j < layer->size; j++) {
-            Neuron * n = layer->neurons[j];
+            PSNeuron * n = layer->neurons[j];
             for (w = 0; w < n->weights_size; w++) {
                 double * weights;
                 int w_idx = w;
@@ -643,14 +644,14 @@ int testRNNLoad(void* tc, void* t) {
 int testRNNFeedforward(void* tc, void* t) {
     TestCase * test_case = (TestCase*) tc;
     Test * test = (Test*) t;
-    NeuralNetwork * network = getNetwork(test_case);
-    feedforward(network, rnn_inputs);
+    PSNeuralNetwork * network = getNetwork(test_case);
+    PSFeedforward(network, rnn_inputs);
     
-    Layer * output = network->layers[network->size - 1];
+    PSLayer * output = network->layers[network->size - 1];
     int ok = 1, i, j;
     for (i = 0; i < output->size; i++) {
-        Neuron * n = output->neurons[i];
-        RecurrentCell* cell = (RecurrentCell*) n->extra;
+        PSNeuron * n = output->neurons[i];
+        PSRecurrentCell* cell = (PSRecurrentCell*) n->extra;
         for (j = 0; j < cell->states_count; j++) {
             double s = getRoundedDouble(cell->states[j]);
             double expected = getRoundedDouble(rnn_expected_output[j][i]);
@@ -670,17 +671,17 @@ int testRNNFeedforward(void* tc, void* t) {
 int testRNNBackprop(void* tc, void* t) {
     TestCase * test_case = (TestCase*) tc;
     Test * test = (Test*) t;
-    NeuralNetwork * network = getNetwork(test_case);
+    PSNeuralNetwork * network = getNetwork(test_case);
     int ok = 1, i, j, w;
     
-    Gradient ** gradients = backpropThroughTime(network, rnn_inputs + 1,
-                                                rnn_labels, RNN_TIMES);
+    PSGradient ** gradients = backpropThroughTime(network, rnn_inputs + 1,
+                                                  rnn_labels, RNN_TIMES);
     int dsize = network->size - 1;
     for (i = 0; i < dsize; i++) {
-        Gradient * lgradients = gradients[i];
-        Layer * l = network->layers[i + 1];
+        PSGradient * lgradients = gradients[i];
+        PSLayer * l = network->layers[i + 1];
         for (j = 0; j < l->size; j++) {
-            Gradient * gradient = &(lgradients[j]);
+            PSGradient * gradient = &(lgradients[j]);
             int ws = l->neurons[j]->weights_size;
             double * expected = (i == 0 ? rnn_inner_gradients[j] :
                                  rnn_outer_gradients[j]);
@@ -700,7 +701,7 @@ int testRNNBackprop(void* tc, void* t) {
         if (!ok) break;
     }
     
-    deleteGradients(gradients, network);
+    PSDeleteGradients(gradients, network);
     
     return ok;
 }
@@ -708,7 +709,7 @@ int testRNNBackprop(void* tc, void* t) {
 int testRNNStep(void* tc, void* t) {
     TestCase * test_case = (TestCase*) tc;
     Test * test = (Test*) t;
-    NeuralNetwork * network = getNetwork(test_case);
+    PSNeuralNetwork * network = getNetwork(test_case);
     int train_data_len = 1 + (RNN_TIMES * 2);
     double * training_data = getTestData(test_case);
     double ** series = &training_data;
@@ -719,9 +720,9 @@ int testRNNStep(void* tc, void* t) {
                                 RNN_LEARING_RATE, series);
     
     for (i = 1; i < network->size; i++) {
-        Layer * layer = network->layers[i];
+        PSLayer * layer = network->layers[i];
         for (j = 0; j < layer->size; j++) {
-            Neuron * n = layer->neurons[j];
+            PSNeuron * n = layer->neurons[j];
             for (w = 0; w < n->weights_size; w++) {
                 double * weights;
                 int w_idx = w;
@@ -754,8 +755,8 @@ int testRNNStep(void* tc, void* t) {
 int testGenericClone(void* tc, void* t) {
     TestCase * test_case = (TestCase*) tc;
     Test * test = (Test*) t;
-    NeuralNetwork * network = getNetwork(test_case);
-    NeuralNetwork * clone = cloneNetwork(network, 0);
+    PSNeuralNetwork * network = getNetwork(test_case);
+    PSNeuralNetwork * clone = PSCloneNetwork(network, 0);
     if (clone == NULL) {
         char * msg = malloc(255 * sizeof(char));
         test->error_message = msg;
@@ -765,31 +766,31 @@ int testGenericClone(void* tc, void* t) {
     
     int ok = compareNetworks(network, clone, test);
     
-    deleteNetwork(clone);
+    PSDeleteNetwork(clone);
     return ok;
 }
 
 int testGenericSave(void* tc, void* t) {
     TestCase * test_case = (TestCase*) tc;
     Test * test = (Test*) t;
-    NeuralNetwork * network = getNetwork(test_case);
+    PSNeuralNetwork * network = getNetwork(test_case);
     char tmpfile[255];
     getTmpFileName("tests-save-nn", ".data", tmpfile);
-    int ok = saveNetwork(network, tmpfile);
+    int ok = PSSaveNetwork(network, tmpfile);
     if (!ok) {
         char * msg = malloc(255 * sizeof(char));
         test->error_message = msg;
         sprintf(msg, "Could not save network!\n");
         return 0;
     }
-    NeuralNetwork * clone = createNetwork();
+    PSNeuralNetwork * clone = PSCreateNetwork("Clone Test Network");
     if (clone == NULL) {
         char * msg = malloc(255 * sizeof(char));
         test->error_message = msg;
         sprintf(msg, "Could not create network clone!\n");
         return 0;
     }
-    ok = loadNetwork(clone, tmpfile);
+    ok = PSLoadNetwork(clone, tmpfile);
     if (!ok) {
         char * msg = malloc(255 * sizeof(char));
         test->error_message = msg;
@@ -800,11 +801,11 @@ int testGenericSave(void* tc, void* t) {
     ok = compareNetworks(network, clone, test);
     
     remove(tmpfile);
-    deleteNetwork(clone);
+    PSDeleteNetwork(clone);
     return ok;
 }
 
-int compareNetworks(NeuralNetwork * network, NeuralNetwork * clone,
+int compareNetworks(PSNeuralNetwork * network, PSNeuralNetwork * clone,
                     Test* test)
 {
     int ok = 1, i, k, w;
@@ -819,10 +820,10 @@ int compareNetworks(NeuralNetwork * network, NeuralNetwork * clone,
     }
     
     for (i = 0; i < network->size; i++) {
-        Layer * orig_l = network->layers[i];
-        Layer * clone_l = clone->layers[i];
-        LayerType otype = orig_l->type;
-        LayerType ctype = clone_l->type;
+        PSLayer * orig_l = network->layers[i];
+        PSLayer * clone_l = clone->layers[i];
+        PSLayerType otype = orig_l->type;
+        PSLayerType ctype = clone_l->type;
         ok = (otype == ctype);
         if (!ok) {
             char * msg = malloc(255 * sizeof(char));
@@ -845,13 +846,13 @@ int compareNetworks(NeuralNetwork * network, NeuralNetwork * clone,
         if (otype == Pooling) continue;
         int conv_features_checked = 0;
         for (k = 0; k < o_size; k++) {
-            Neuron * orig_n = orig_l->neurons[k];
-            Neuron * clone_n = clone_l->neurons[k];
+            PSNeuron * orig_n = orig_l->neurons[k];
+            PSNeuron * clone_n = clone_l->neurons[k];
             if (otype == Convolutional) {
-                ConvolutionalSharedParams* oshared;
-                ConvolutionalSharedParams* cshared;
-                oshared = (ConvolutionalSharedParams*) orig_l->extra;
-                cshared = (ConvolutionalSharedParams*) clone_l->extra;
+                PSSharedParams* oshared;
+                PSSharedParams* cshared;
+                oshared = (PSSharedParams*) orig_l->extra;
+                cshared = (PSSharedParams*) clone_l->extra;
                 if (!conv_features_checked) {
                     conv_features_checked = 1;
                     ok = (oshared->feature_count == cshared->feature_count);

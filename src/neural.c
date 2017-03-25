@@ -37,23 +37,23 @@
 #define calculatePoolingSide(s, rs) ((s - rs) / rs + 1)
 #define getColumn(index, width) (index % width)
 #define getRow(index, width) ((int) ((int) index / (int) width))
-#define getConvSharedParams(layer) ((ConvolutionalSharedParams*) layer->extra)
-#define getRecurrentCell(neuron) ((RecurrentCell*) neuron->extra)
-#define getNeuronLayer(neuron) ((Layer*) neuron->layer)
-#define getLayerNetwork(layer) ((NeuralNetwork*) layer->network)
+#define getConvSharedParams(layer) ((PSSharedParams*) layer->extra)
+#define getRecurrentCell(neuron) ((PSRecurrentCell*) neuron->extra)
+#define getNeuronLayer(neuron) ((PSLayer*) neuron->layer)
+#define getLayerNetwork(layer) ((PSNeuralNetwork*) layer->network)
 #define shouldApplyDerivative(network) (network->loss != crossEntropyLoss)
 #define printMemoryErrorMsg() logerr(NULL, "Could not allocate memory!")
 
 static unsigned char randomSeeded = 0;
 
-static LossFunction loss_functions[] = {
+static PSLossFunction loss_functions[] = {
     NULL,
     quadraticLoss,
     crossEntropyLoss
 };
 
 static size_t loss_functions_count = sizeof(loss_functions) /
-                                     sizeof(LossFunction);
+                                     sizeof(PSLossFunction);
 
 /* Private Functions */
 
@@ -74,10 +74,10 @@ static void logerr(const char* tag, char* fmt, ...) {
 
 /* Function Prototypes */
 
-RecurrentCell * createRecurrentCell(Neuron * neuron, int lsize);
-double * addRecurrentState(Neuron * neuron, double state, int times, int t);
-void deleteLayerGradients(Gradient * lgradients, int size);
-void deleteGradients(Gradient ** gradients, NeuralNetwork * network);
+PSRecurrentCell * createRecurrentCell(PSNeuron * neuron, int lsize);
+double * addRecurrentState(PSNeuron * neuron, double state, int times, int t);
+void deleteLayerGradients(PSGradient * lgradients, int size);
+void PSDeleteGradients(PSGradient ** gradients, PSNeuralNetwork * network);
 
 /* Activation Functions */
 
@@ -105,8 +105,8 @@ double tanh_derivative(double val) {
 /* Feedforward Functions */
 
 int fullFeedforward(void * _net, void * _layer, ...) {
-    NeuralNetwork * network = (NeuralNetwork*) _net;
-    Layer * layer = (Layer*) _layer;
+    PSNeuralNetwork * network = (PSNeuralNetwork*) _net;
+    PSLayer * layer = (PSLayer*) _layer;
     int size = layer->size;
     char * func = "fullFeedforward";
     if (layer->neurons == NULL) {
@@ -117,7 +117,7 @@ int fullFeedforward(void * _net, void * _layer, ...) {
         logerr(NULL, "Cannot feedforward on layer 0!");
         return 0;
     }
-    Layer * previous = network->layers[layer->index - 1];
+    PSLayer * previous = network->layers[layer->index - 1];
     if (previous == NULL) {
         logerr(NULL, "Layer[%d]: previous layer is NULL!", layer->index);
         return 0;
@@ -132,7 +132,7 @@ int fullFeedforward(void * _net, void * _layer, ...) {
         va_end(args);
     }
     for (i = 0; i < size; i++) {
-        Neuron * neuron = layer->neurons[i];
+        PSNeuron * neuron = layer->neurons[i];
         double sum = 0;
         j = 0;
 #ifdef USE_AVX
@@ -148,7 +148,7 @@ int fullFeedforward(void * _net, void * _layer, ...) {
         }
 #endif
         for (; j < previous_size; j++) {
-            Neuron * prev_neuron = previous->neurons[j];
+            PSNeuron * prev_neuron = previous->neurons[j];
             if (prev_neuron == NULL) {
                 logerr(NULL, "Layer[%d]: previous layer's neuron[%d] is NULL!",
                        layer->index, j);
@@ -175,8 +175,8 @@ int fullFeedforward(void * _net, void * _layer, ...) {
 }
 
 int softmaxFeedforward(void * _net, void * _layer, ...) {
-    NeuralNetwork * net = (NeuralNetwork*) _net;
-    Layer * layer = (Layer*) _layer;
+    PSNeuralNetwork * net = (PSNeuralNetwork*) _net;
+    PSLayer * layer = (PSLayer*) _layer;
     int size = layer->size;
     char * func = "softmaxFeedforward";
     if (layer->neurons == NULL) {
@@ -187,7 +187,7 @@ int softmaxFeedforward(void * _net, void * _layer, ...) {
         logerr(NULL, "Cannot feedforward on layer 0!");
         return 0;
     }
-    Layer * previous = net->layers[layer->index - 1];
+    PSLayer * previous = net->layers[layer->index - 1];
     if (previous == NULL) {
         logerr(NULL, "Layer[%d]: previous layer is NULL!", layer->index);
         return 0;
@@ -203,7 +203,7 @@ int softmaxFeedforward(void * _net, void * _layer, ...) {
     }
     double max = 0.0, esum = 0.0;
     for (i = 0; i < size; i++) {
-        Neuron * neuron = layer->neurons[i];
+        PSNeuron * neuron = layer->neurons[i];
         double sum = 0;
         j = 0;
 #ifdef USE_AVX
@@ -219,7 +219,7 @@ int softmaxFeedforward(void * _net, void * _layer, ...) {
         }
 #endif
         for (; j < previous_size; j++) {
-            Neuron * prev_neuron = previous->neurons[j];
+            PSNeuron * prev_neuron = previous->neurons[j];
             if (prev_neuron == NULL) {
                 logerr(NULL, "Layer[%d]: previous layer's neuron[%d] is NULL!",
                        layer->index, j);
@@ -235,14 +235,14 @@ int softmaxFeedforward(void * _net, void * _layer, ...) {
             max = neuron->z_value;
     }
     for (i = 0; i < size; i++) {
-        Neuron * neuron = layer->neurons[i];
+        PSNeuron * neuron = layer->neurons[i];
         double z = neuron->z_value;
         double e = exp(z - max);
         esum += e;
         neuron->activation = e;
     }
     for (i = 0; i < size; i++) {
-        Neuron * neuron = layer->neurons[i];
+        PSNeuron * neuron = layer->neurons[i];
         neuron->activation /= esum;
 #ifdef USE_AVX
         if (!is_recurrent)
@@ -260,8 +260,8 @@ int softmaxFeedforward(void * _net, void * _layer, ...) {
 }
 
 int convolve(void * _net, void * _layer, ...) {
-    NeuralNetwork * net = (NeuralNetwork*) _net;
-    Layer * layer = (Layer*) _layer;
+    PSNeuralNetwork * net = (PSNeuralNetwork*) _net;
+    PSLayer * layer = (PSLayer*) _layer;
     int size = layer->size;
     if (layer->neurons == NULL) {
         logerr(NULL, "Layer[%d] has no neurons!", layer->index);
@@ -271,18 +271,18 @@ int convolve(void * _net, void * _layer, ...) {
         logerr(NULL, "Cannot feedforward on layer 0!");
         return 0;
     }
-    Layer * previous = net->layers[layer->index - 1];
+    PSLayer * previous = net->layers[layer->index - 1];
     if (previous == NULL) {
         logerr(NULL, "Layer[%d]: previous layer is NULL!", layer->index);
         return 0;
     }
     int i, j, x, y, row, col, previous_size = previous->size;
-    LayerParameters * parameters = layer->parameters;
+    PSLayerParameters * parameters = layer->parameters;
     if (parameters == NULL) {
         logerr(NULL, "Layer[%d]: parameters are NULL!", layer->index);
         return 0;
     }
-    LayerParameters * previous_parameters = previous->parameters;
+    PSLayerParameters * previous_parameters = previous->parameters;
     if (previous_parameters == NULL) {
         logerr(NULL, "Layer[%d]: parameters are invalid!", layer->index);
         return 0;
@@ -298,7 +298,7 @@ int convolve(void * _net, void * _layer, ...) {
     double output_w = params[PARAM_OUTPUT_WIDTH];
     double output_h = params[PARAM_OUTPUT_HEIGHT];
     int feature_size = layer->size / feature_count;
-    ConvolutionalSharedParams * shared = getConvSharedParams(layer);
+    PSSharedParams * shared = getConvSharedParams(layer);
     if (shared == NULL) {
         logerr(NULL, "Layer[%d]: shared params are NULL!", layer->index);
         return 0;
@@ -310,7 +310,7 @@ int convolve(void * _net, void * _layer, ...) {
         col = 0;
         for (j = 0; j < feature_size; j++) {
             int idx = (i * feature_size) + j;
-            Neuron * neuron = layer->neurons[idx];
+            PSNeuron * neuron = layer->neurons[idx];
             col = idx % (int) output_w;
             if (col == 0 && j > 0) row++;
             int r_row = row * stride;
@@ -339,7 +339,7 @@ int convolve(void * _net, void * _layer, ...) {
                 for (; x < max_x; x++) {
                     int nidx = (y * input_w) + x;
                     //printf("  -> %d,%d [%d]\n", x, y, nidx);
-                    Neuron * prev_neuron = previous->neurons[nidx];
+                    PSNeuron * prev_neuron = previous->neurons[nidx];
                     double a = prev_neuron->activation;
                     sum += (a * weights[widx++]);
                 }
@@ -355,8 +355,8 @@ int convolve(void * _net, void * _layer, ...) {
 }
 
 int pool(void * _net, void * _layer, ...) {
-    NeuralNetwork * net = (NeuralNetwork*) _net;
-    Layer * layer = (Layer*) _layer;
+    PSNeuralNetwork * net = (PSNeuralNetwork*) _net;
+    PSLayer * layer = (PSLayer*) _layer;
     int size = layer->size;
     if (layer->neurons == NULL) {
         logerr(NULL, "Layer[%d] has no neurons!", layer->index);
@@ -366,18 +366,18 @@ int pool(void * _net, void * _layer, ...) {
         logerr(NULL, "Cannot feedforward on layer 0!");
         return 0;
     }
-    Layer * previous = net->layers[layer->index - 1];
+    PSLayer * previous = net->layers[layer->index - 1];
     if (previous == NULL) {
         logerr(NULL, "Layer[%d]: previous layer is NULL!", layer->index);
         return 0;
     }
     int i, j, x, y, row, col, previous_size = previous->size;
-    LayerParameters * parameters = layer->parameters;
+    PSLayerParameters * parameters = layer->parameters;
     if (parameters == NULL) {
         logerr(NULL, "Layer[%d]: parameters are NULL!", layer->index);
         return 0;
     }
-    LayerParameters * previous_parameters = previous->parameters;
+    PSLayerParameters * previous_parameters = previous->parameters;
     if (previous_parameters == NULL) {
         logerr(NULL, "Layer[%d]: parameters are invalid!", layer->index);
         return 0;
@@ -398,7 +398,7 @@ int pool(void * _net, void * _layer, ...) {
         col = 0;
         for (j = 0; j < feature_size; j++) {
             int idx = (i * feature_size) + j;
-            Neuron * neuron = layer->neurons[idx];
+            PSNeuron * neuron = layer->neurons[idx];
             col = idx % (int) output_w;
             if (col == 0 && j > 0) row++;
             int r_row = row * region_size;
@@ -409,7 +409,7 @@ int pool(void * _net, void * _layer, ...) {
             for (y = r_row; y < max_y; y++) {
                 for (x = r_col; x < max_x; x++) {
                     int nidx = ((y * input_w) + x) + (prev_size * i);
-                    Neuron * prev_neuron = previous->neurons[nidx];
+                    PSNeuron * prev_neuron = previous->neurons[nidx];
                     double a = prev_neuron->activation;
                     double z = prev_neuron->z_value;
                     if (a > max) {
@@ -429,8 +429,8 @@ int pool(void * _net, void * _layer, ...) {
 }
 
 int recurrentFeedforward(void * _net, void * _layer, ...) {
-    NeuralNetwork * net = (NeuralNetwork*) _net;
-    Layer * layer = (Layer*) _layer;
+    PSNeuralNetwork * net = (PSNeuralNetwork*) _net;
+    PSLayer * layer = (PSLayer*) _layer;
     char * func = "recurrentFeedforward";
     va_list args;
     va_start(args, _layer);
@@ -451,13 +451,13 @@ int recurrentFeedforward(void * _net, void * _layer, ...) {
         logerr(NULL, "Cannot feedforward on layer 0!");
         return 0;
     }
-    Layer * previous = net->layers[layer->index - 1];
+    PSLayer * previous = net->layers[layer->index - 1];
     if (previous == NULL) {
         logerr(NULL, "Layer[%d]: previous layer is NULL!", layer->index);
         return 0;
     }
     int onehot = previous->flags & FLAG_ONEHOT;
-    LayerParameters * params = NULL;
+    PSLayerParameters * params = NULL;
     int vector_size = 0, vector_idx = 0;
     if (onehot) {
         params = previous->parameters;
@@ -472,7 +472,7 @@ int recurrentFeedforward(void * _net, void * _layer, ...) {
             return 0;
         }
         vector_size = (int) (params->parameters[0]);
-        Neuron * prev_neuron = previous->neurons[0];
+        PSNeuron * prev_neuron = previous->neurons[0];
         vector_idx = (int) (prev_neuron->activation);
         if (vector_size == 0 && vector_idx >= vector_size) {
             logerr(NULL, "Layer[%d]: invalid vector index %d (max. %d)!",
@@ -482,8 +482,8 @@ int recurrentFeedforward(void * _net, void * _layer, ...) {
     }
     int i, j, w, previous_size = previous->size;
     for (i = 0; i < size; i++) {
-        Neuron * neuron = layer->neurons[i];
-        RecurrentCell * cell = getRecurrentCell(neuron);
+        PSNeuron * neuron = layer->neurons[i];
+        PSRecurrentCell * cell = getRecurrentCell(neuron);
         if (cell == NULL) {
             logerr(NULL, "Layer[%d]: neuron[%d] cell is NULL!",
                    layer->index, i);
@@ -506,7 +506,7 @@ int recurrentFeedforward(void * _net, void * _layer, ...) {
             }
 #endif
             for (; j < previous_size; j++) {
-                Neuron * prev_neuron = previous->neurons[j];
+                PSNeuron * prev_neuron = previous->neurons[j];
                 if (prev_neuron == NULL) return 0;
                 double a = prev_neuron->activation;
                 sum += (a * neuron->weights[j]);
@@ -528,8 +528,8 @@ int recurrentFeedforward(void * _net, void * _layer, ...) {
             }
 #endif
             for (; w < cell->weights_size; w++) {
-                Neuron * n = layer->neurons[w];
-                RecurrentCell * rc = getRecurrentCell(n);
+                PSNeuron * n = layer->neurons[w];
+                PSRecurrentCell * rc = getRecurrentCell(n);
                 if (rc == NULL) return 0;
                 double weight = cell->weights[w];
                 double last_state = rc->states[last_t];
@@ -627,8 +627,8 @@ static void shuffleSeries ( double ** series, int size)
     }
 }
 
-double * addRecurrentState(Neuron * neuron, double state, int times, int t) {
-    RecurrentCell * cell = getRecurrentCell(neuron);
+double * addRecurrentState(PSNeuron * neuron, double state, int times, int t) {
+    PSRecurrentCell * cell = getRecurrentCell(neuron);
     if (cell == NULL) {
         cell = createRecurrentCell(neuron, 0);
         neuron->extra = cell;
@@ -646,7 +646,7 @@ double * addRecurrentState(Neuron * neuron, double state, int times, int t) {
     }
     cell->states[t] = state;
 #ifdef USE_AVX
-    Layer * layer = getNeuronLayer(neuron);
+    PSLayer * layer = getNeuronLayer(neuron);
     assert(layer != NULL);
     int lsize = layer->size;
     if (t == 0 && neuron->index == 0) {
@@ -715,15 +715,15 @@ double arrayMax(double * array, int len) {
     return max;
 }
 
-void fetchRecurrentOutputState(Layer * out, double * outputs,
+void fetchRecurrentOutputState(PSLayer * out, double * outputs,
                                int i, int onehot)
 {
     int t = (onehot ? i : i % out->size), j;
     int max_idx = 0;
     double max = 0.0;
     for (j = 0; j < out->size; j++) {
-        Neuron * neuron = out->neurons[j];
-        RecurrentCell * cell = getRecurrentCell(neuron);
+        PSNeuron * neuron = out->neurons[j];
+        PSRecurrentCell * cell = getRecurrentCell(neuron);
         double s = cell->states[t];
         if (onehot) {
             if (s > max) {
@@ -751,7 +751,7 @@ static int compareVersion(const char* vers1, const char* vers2) {
     return 0;
 }
 
-char * getLabelForType(LayerType type) {
+char * getLabelForType(PSLayerType type) {
     switch (type) {
         case FullyConnected:
             return "fully_connected";
@@ -775,25 +775,25 @@ char * getLabelForType(LayerType type) {
     return "UNKOWN";
 }
 
-char * getLayerTypeLabel(Layer * layer) {
+char * getLayerTypeLabel(PSLayer * layer) {
     return getLabelForType(layer->type);
 }
 
-char * getLossFunctionName(LossFunction function) {
+char * getLossFunctionName(PSLossFunction function) {
     if (function == NULL) return "null";
     if (function == quadraticLoss) return "quadratic";
     else if (function == crossEntropyLoss) return "cross_entropy";
     return "UNKOWN";
 }
 
-void printLayerInfo(Layer * layer) {
-    LayerType ltype = layer->type;
+void printLayerInfo(PSLayer * layer) {
+    PSLayerType ltype = layer->type;
     char * type_name = getLayerTypeLabel(layer);
-    LayerParameters * lparams = layer->parameters;
+    PSLayerParameters * lparams = layer->parameters;
     char onehot_info[50];
     onehot_info[0] = 0;
     if (layer->index == 0 && layer->flags & FLAG_ONEHOT) {
-        LayerParameters * params = layer->parameters;
+        PSLayerParameters * params = layer->parameters;
         int onehot_sz = (int) (params->parameters[0]);
         sprintf(onehot_info, " (vector size: %d)", onehot_sz);
     }
@@ -859,12 +859,13 @@ double crossEntropyLoss(double * outputs, double * desired, int size,
 
 /* NN Functions */
 
-NeuralNetwork * createNetwork() {
-    NeuralNetwork *network = (malloc(sizeof(NeuralNetwork)));
+PSNeuralNetwork * PSCreateNetwork(const char* name) {
+    PSNeuralNetwork *network = (malloc(sizeof(PSNeuralNetwork)));
     if (network == NULL) {
-        logerr("createNetwork", "Could not allocate memory for Network!");
+        logerr("PSCreateNetwork", "Could not allocate memory for Network!");
         return NULL;
     }
+    network->name = name;
     network->size = 0;
     network->layers = NULL;
     network->input_size = 0;
@@ -877,10 +878,10 @@ NeuralNetwork * createNetwork() {
     return network;
 }
 
-NeuralNetwork * cloneNetwork(NeuralNetwork * network, int layout_only) {
-    NeuralNetwork * clone = createNetwork();
+PSNeuralNetwork * PSCloneNetwork(PSNeuralNetwork * network, int layout_only) {
+    PSNeuralNetwork * clone = PSCreateNetwork(NULL);
     if (clone == NULL) return NULL;
-    char * func = "cloneNetwork";
+    char * func = "PSCloneNetwork";
     if (!layout_only) {
         clone->status = network->status;
         clone->current_epoch = network->current_epoch;
@@ -891,40 +892,38 @@ NeuralNetwork * cloneNetwork(NeuralNetwork * network, int layout_only) {
     
     int i, j, k, w;
     for (i = 0; i < network->size; i++) {
-        Layer * layer = network->layers[i];
-        LayerType type = layer->type;
-        LayerParameters * oparams = layer->parameters;
-        LayerParameters * cparams = NULL;
+        PSLayer * layer = network->layers[i];
+        PSLayerType type = layer->type;
+        PSLayerParameters * oparams = layer->parameters;
+        PSLayerParameters * cparams = NULL;
         if (oparams) {
-            cparams = malloc(sizeof(LayerParameters));
+            cparams = malloc(sizeof(PSLayerParameters));
             if (cparams == NULL) {
                 logerr(func, "Layer[%d]: Could not allocate layer params!", i);
-                deleteNetwork(clone);
+                PSDeleteNetwork(clone);
                 return NULL;
             }
             cparams->count = oparams->count;
             cparams->parameters = malloc(cparams->count * sizeof(double));
             if (cparams->parameters == NULL) {
                 logerr(func, "Layer[%d]: Could not allocate layer params!", i);
-                deleteNetwork(clone);
+                PSDeleteNetwork(clone);
                 return NULL;
             }
             for (j = 0; j < cparams->count; j++)
                 cparams->parameters[j] = oparams->parameters[j];
         }
-        Layer * cloned_layer = addLayer(clone, type, layer->size, cparams);
+        PSLayer * cloned_layer = PSAddLayer(clone, type, layer->size, cparams);
         if (cloned_layer == NULL) {
-            deleteNetwork(clone);
+            PSDeleteNetwork(clone);
             return NULL;
         }
         cloned_layer->flags = layer->flags;
         if (!layout_only) {
             void * extra = layer->extra;
             if (Convolutional == type && extra) {
-                ConvolutionalSharedParams * oshared;
-                ConvolutionalSharedParams * cshared;
-                oshared = getConvSharedParams(layer);
-                cshared = getConvSharedParams(cloned_layer);
+                PSSharedParams * oshared = getConvSharedParams(layer);
+                PSSharedParams * cshared = getConvSharedParams(cloned_layer);
                 cshared->feature_count = oshared->feature_count;
                 cshared->weights_size = oshared->weights_size;
                 for (k = 0; k < cshared->feature_count; k++) {
@@ -934,8 +933,8 @@ NeuralNetwork * cloneNetwork(NeuralNetwork * network, int layout_only) {
                 }
             }
             for (j = 0; j < layer->size; j++) {
-                Neuron * orig_n = layer->neurons[j];
-                Neuron * clone_n = cloned_layer->neurons[j];
+                PSNeuron * orig_n = layer->neurons[j];
+                PSNeuron * clone_n = cloned_layer->neurons[j];
                 clone_n->activation = orig_n->activation;
                 clone_n->z_value = orig_n->z_value;
                 //if (Pooling == type) continue;
@@ -948,15 +947,15 @@ NeuralNetwork * cloneNetwork(NeuralNetwork * network, int layout_only) {
                         cweights[w] = oweights[w];
                 }
                 if (layer->flags & FLAG_RECURRENT) {
-                    RecurrentCell * ocell = getRecurrentCell(orig_n);
-                    RecurrentCell * ccell = getRecurrentCell(clone_n);
+                    PSRecurrentCell * ocell = getRecurrentCell(orig_n);
+                    PSRecurrentCell * ccell = getRecurrentCell(clone_n);
                     int sc = ocell->states_count;
                     ccell->states_count = sc;
                     if (sc > 0) {
                         ccell->states = malloc(sc * sizeof(double));
                         if (ccell->states == NULL) {
                             printMemoryErrorMsg();
-                            deleteNetwork(clone);
+                            PSDeleteNetwork(clone);
                             return NULL;
                         }
                         for (k = 0; k < sc; k++)
@@ -969,14 +968,14 @@ NeuralNetwork * cloneNetwork(NeuralNetwork * network, int layout_only) {
     return clone;
 }
 
-int loadNetwork(NeuralNetwork * network, const char* filename) {
+int PSLoadNetwork(PSNeuralNetwork * network, const char* filename) {
     FILE * f = fopen(filename, "r");
     printf("Loading network from %s\n", filename);
     if (f == NULL) {
         fprintf(stderr, "Cannot open %s!\n", filename);
         return 0;
     }
-    char * func = "loadNetwork";
+    char * func = "PSLoadNetwork";
     int netsize, i, j, k;
     int empty = (network->size == 0);
     char vers[20] = "0.0.0";
@@ -987,7 +986,7 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
         sprintf(vers, "%d.%d.%d", v0, v1, v2);
         printf("File version is %s (current: %s).\n", vers, NN_VERSION);
         int idx = 0, val = 0;
-        LossFunction loss = NULL;
+        PSLossFunction loss = NULL;
         while ((matched = fscanf(f, ",%d", &val))) {
             switch (idx++) {
                 case 0:
@@ -1021,11 +1020,11 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
     char sep[] = ",";
     char eol[] = "\n";
     int min_argc = (compareVersion(vers, "0.0.0") == 1 ? 2 : 1);
-    Layer * layer = NULL;
+    PSLayer * layer = NULL;
     for (i = 0; i < netsize; i++) {
         int lsize = 0;
         int lflags = 0;
-        LayerType ltype = FullyConnected;
+        PSLayerType ltype = FullyConnected;
         int args[20];
         int argc = 0, aidx = 0;
         char * last = (i == (netsize - 1) ? eol : sep);
@@ -1049,7 +1048,7 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
                 fclose(f);
                 return 0;
             }
-            ltype = (LayerType) type;
+            ltype = (PSLayerType) type;
             for (aidx = 0; aidx < argc; aidx++) {
                 matched = fscanf(f, ",%d", &arg);
                 if (!matched) {
@@ -1081,7 +1080,7 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
                 return 0;
             }
             if (ltype == Convolutional || ltype == Pooling) {
-                LayerParameters * params = layer->parameters;
+                PSLayerParameters * params = layer->parameters;
                 if (params == NULL) {
                     logerr(func, "Layer %d params are NULL!", i);
                     fclose(f);
@@ -1101,28 +1100,28 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
             }
         } else {
             layer = NULL;
-            LayerParameters * params = NULL;
+            PSLayerParameters * params = NULL;
             if (ltype == Convolutional || ltype == Pooling) {
                 int param_c = CONV_PARAMETER_COUNT;
-                params = createLayerParamenters(param_c);
+                params = PSCreateLayerParamenters(param_c);
                 for (aidx = 0; aidx < argc; aidx++) {
                     if (aidx >= param_c) break;
                     int arg = args[aidx];
                     params->parameters[aidx] = (double) arg;
                 }
-                layer = addLayer(network, ltype, lsize, params);
+                layer = PSAddLayer(network, ltype, lsize, params);
             } else {
                 if (network->size == 0 && (lflags & FLAG_ONEHOT) && argc > 0) {
                     lsize = args[0];
                     network->flags |= FLAG_ONEHOT;
                 } else if (argc > 0) {
-                    params = createLayerParamenters(argc);
+                    params = PSCreateLayerParamenters(argc);
                     for (aidx = 0; aidx < argc; aidx++) {
                         int arg = args[aidx];
                         params->parameters[aidx] = (double) arg;
                     }
                 }
-                layer = addLayer(network, ltype, lsize, params);
+                layer = PSAddLayer(network, ltype, lsize, params);
             }
             if (layer == NULL) {
                 logerr(func, "Could not create layer %d", i);
@@ -1135,7 +1134,7 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
     for (i = 1; i < network->size; i++) {
         layer = network->layers[i];
         int lsize = 0;
-        ConvolutionalSharedParams * shared = NULL;
+        PSSharedParams * shared = NULL;
         if (layer->type == Convolutional) {
             shared = getConvSharedParams(layer);
             if (shared == NULL) {
@@ -1158,7 +1157,7 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
                 return 0;
             }
             if (shared == NULL) {
-                Neuron * neuron = layer->neurons[j];
+                PSNeuron * neuron = layer->neurons[j];
                 wsize = neuron->weights_size;
                 neuron->bias = bias;
                 weights = neuron->weights;
@@ -1190,7 +1189,7 @@ int loadNetwork(NeuralNetwork * network, const char* filename) {
     return 1;
 }
 
-int saveNetwork(NeuralNetwork * network, const char* filename) {
+int PSSaveNetwork(PSNeuralNetwork * network, const char* filename) {
     char * func = "saveNetwork";
     if (network->size == 0) {
         logerr(func, "Empty network!");
@@ -1216,11 +1215,11 @@ int saveNetwork(NeuralNetwork * network, const char* filename) {
     
     fprintf(f, "%d:", network->size);
     for (i = 0; i < network->size; i++) {
-        Layer * layer = network->layers[i];
-        LayerType ltype = layer->type;
+        PSLayer * layer = network->layers[i];
+        PSLayerType ltype = layer->type;
         if (i > 0) fprintf(f, ",");
         int flags = layer->flags;
-        LayerParameters * params = layer->parameters;
+        PSLayerParameters * params = layer->parameters;
         if (FullyConnected == ltype && !flags && !params)
             fprintf(f, "%d", layer->size);
         else if (params) {
@@ -1237,12 +1236,12 @@ int saveNetwork(NeuralNetwork * network, const char* filename) {
     }
     fprintf(f, "\n");
     for (i = 1; i < network->size; i++) {
-        Layer * layer = network->layers[i];
-        LayerType ltype = layer->type;
+        PSLayer * layer = network->layers[i];
+        PSLayerType ltype = layer->type;
         int lsize = layer->size;
         if (Convolutional == ltype) {
-            LayerParameters * params = layer->parameters;
-            ConvolutionalSharedParams * shared = getConvSharedParams(layer);
+            PSLayerParameters * params = layer->parameters;
+            PSSharedParams * shared = getConvSharedParams(layer);
             if (shared == NULL) {
                 logerr(func, "Layer[%d]: shared params are NULL!", i);
                 fclose(f);
@@ -1269,7 +1268,7 @@ int saveNetwork(NeuralNetwork * network, const char* filename) {
         else if (Pooling == ltype) continue;
         else {
             for (j = 0; j < lsize; j++) {
-                Neuron * neuron = layer->neurons[j];
+                PSNeuron * neuron = layer->neurons[j];
                 fprintf(f, "%.15e|", neuron->bias);
                 for (k = 0; k < neuron->weights_size; k++) {
                     if (k > 0) fprintf(f, ",");
@@ -1284,23 +1283,23 @@ int saveNetwork(NeuralNetwork * network, const char* filename) {
     return 1;
 }
 
-void deleteNetwork(NeuralNetwork * network) {
+void PSDeleteNetwork(PSNeuralNetwork * network) {
     int size = network->size;
     int i, is_recurrent = (network->flags & FLAG_RECURRENT);
     for (i = 0; i < size; i++) {
-        Layer * layer = network->layers[i];
+        PSLayer * layer = network->layers[i];
         if (is_recurrent) layer->flags |= FLAG_RECURRENT;
-        deleteLayer(layer);
+        PSDeleteLayer(layer);
     }
     free(network->layers);
     free(network);
 }
 
-void deleteNeuron(Neuron * neuron, Layer * layer) {
+void PSDeleteNeuron(PSNeuron * neuron, PSLayer * layer) {
     if (neuron->weights != NULL) free(neuron->weights);
     if (neuron->extra != NULL) {
         if (layer->flags & FLAG_RECURRENT) {
-            RecurrentCell * cell = getRecurrentCell(neuron);
+            PSRecurrentCell * cell = getRecurrentCell(neuron);
             if (cell->states != NULL) free(cell->states);
             //if (cell->weights != NULL) free(cell->weights);
             free(cell);
@@ -1309,18 +1308,18 @@ void deleteNeuron(Neuron * neuron, Layer * layer) {
     free(neuron);
 }
 
-void abortLayer(NeuralNetwork * network, Layer * layer) {
+void abortLayer(PSNeuralNetwork * network, PSLayer * layer) {
     if (layer->index == (network->size - 1)) {
         network->size--;
-        deleteLayer(layer);
+        PSDeleteLayer(layer);
     }
 }
 
-int initConvolutionalLayer(NeuralNetwork * network, Layer * layer,
-                           LayerParameters * parameters) {
+int initConvolutionalLayer(PSNeuralNetwork * network, PSLayer * layer,
+                           PSLayerParameters * parameters) {
     int index = layer->index;
     char * func = "initConvolutionalLayer";
-    Layer * previous = network->layers[index - 1];
+    PSLayer * previous = network->layers[index - 1];
     if (previous->type != FullyConnected) {
         fprintf(stderr,
                 "FullyConnected -> Convolutional trans. not supported ATM :(");
@@ -1352,13 +1351,13 @@ int initConvolutionalLayer(NeuralNetwork * network, Layer * layer,
         return 0;
     }
     int previous_size = previous->size;
-    LayerParameters * previous_params = previous->parameters;
+    PSLayerParameters * previous_params = previous->parameters;
     double input_w, input_h, output_w, output_h;
     int use_relu = (int) (params[PARAM_USE_RELU]);
     if (previous_params == NULL) {
         double w = sqrt(previous_size);
         input_w = w; input_h = w;
-        previous_params = createConvolutionalParameters(1, 0, 0, 0, 0);
+        previous_params = PSCreateConvolutionalParameters(1, 0, 0, 0, 0);
         previous_params->parameters[PARAM_OUTPUT_WIDTH] = input_w;
         previous_params->parameters[PARAM_OUTPUT_HEIGHT] = input_h;
         previous->parameters = previous_params;
@@ -1387,7 +1386,7 @@ int initConvolutionalLayer(NeuralNetwork * network, Layer * layer,
     int area = (int)(output_w * output_h);
     int size = area * feature_count;
     layer->size = size;
-    layer->neurons = malloc(sizeof(Neuron*) * size);
+    layer->neurons = malloc(sizeof(PSNeuron*) * size);
     if (layer->neurons == NULL) {
         logerr(func, "Layer[%d]: Could not allocate neurons!", index);
         abortLayer(network, layer);
@@ -1401,8 +1400,7 @@ int initConvolutionalLayer(NeuralNetwork * network, Layer * layer,
         return 0;
     }
 #endif
-    ConvolutionalSharedParams * shared;
-    shared = malloc(sizeof(ConvolutionalSharedParams));
+    PSSharedParams * shared = malloc(sizeof(PSSharedParams));
     if (shared == NULL) {
         logerr(func, "Layer[%d]: Couldn't allocate shared params!", index);
         abortLayer(network, layer);
@@ -1432,7 +1430,7 @@ int initConvolutionalLayer(NeuralNetwork * network, Layer * layer,
         }
         for (j = 0; j < area; j++) {
             int idx = (i * area) + j;
-            Neuron * neuron = malloc(sizeof(Neuron));
+            PSNeuron * neuron = malloc(sizeof(PSNeuron));
             if (neuron == NULL) {
                 logerr(func, "Layer[%d]: Couldn't allocate neuron!",index);
                 abortLayer(network, layer);
@@ -1458,11 +1456,11 @@ int initConvolutionalLayer(NeuralNetwork * network, Layer * layer,
     return 1;
 }
 
-int initPoolingLayer(NeuralNetwork * network, Layer * layer,
-                     LayerParameters * parameters) {
+int initPoolingLayer(PSNeuralNetwork * network, PSLayer * layer,
+                     PSLayerParameters * parameters) {
     int index = layer->index;
     char * func = "initPoolingLayer";
-    Layer * previous = network->layers[index - 1];
+    PSLayer * previous = network->layers[index - 1];
     if (previous->type != Convolutional) {
         fprintf(stderr,
                 "Pooling's previous layer must be a Convolutional layer!\n");
@@ -1481,7 +1479,7 @@ int initPoolingLayer(NeuralNetwork * network, Layer * layer,
         return 0;
     }
     double * params = parameters->parameters;
-    LayerParameters * previous_parameters = previous->parameters;
+    PSLayerParameters * previous_parameters = previous->parameters;
     if (previous_parameters == NULL) {
         logerr(func, "Previous layer parameters is NULL!");
         abortLayer(network, layer);
@@ -1516,7 +1514,7 @@ int initPoolingLayer(NeuralNetwork * network, Layer * layer,
     int area = (int)(output_w * output_h);
     int size = area * feature_count;
     layer->size = size;
-    layer->neurons = malloc(sizeof(Neuron*) * size);
+    layer->neurons = malloc(sizeof(PSNeuron*) * size);
     if (layer->neurons == NULL) {
         logerr(func, "Layer[%d]: Could not allocate neurons!", index);
         abortLayer(network, layer);
@@ -1534,7 +1532,7 @@ int initPoolingLayer(NeuralNetwork * network, Layer * layer,
     for (i = 0; i < feature_count; i++) {
         for (j = 0; j < area; j++) {
             int idx = (i * area) + j;
-            Neuron * neuron = malloc(sizeof(Neuron));
+            PSNeuron * neuron = malloc(sizeof(PSNeuron));
             if (neuron == NULL) {
                 logerr(func, "Layer[%d]: Couldn't allocate neuron!", index);
                 abortLayer(network, layer);
@@ -1555,8 +1553,8 @@ int initPoolingLayer(NeuralNetwork * network, Layer * layer,
     return 1;
 }
 
-RecurrentCell * createRecurrentCell(Neuron * neuron, int lsize) {
-    RecurrentCell * cell = malloc(sizeof(RecurrentCell));
+PSRecurrentCell * createRecurrentCell(PSNeuron * neuron, int lsize) {
+    PSRecurrentCell * cell = malloc(sizeof(PSRecurrentCell));
     if (cell == NULL) return NULL;
     cell->states_count = 0;
     cell->states = NULL;
@@ -1566,11 +1564,13 @@ RecurrentCell * createRecurrentCell(Neuron * neuron, int lsize) {
     return cell;
 }
 
-int initRecurrentLayer(NeuralNetwork * network, Layer * layer, int size,int ws){
+int initRecurrentLayer(PSNeuralNetwork * network, PSLayer * layer,
+                       int size,int ws)
+{
     int index = layer->index, i, j;
     ws += size;
     char * func = "initRecurrentLayer";
-    layer->neurons = malloc(sizeof(Neuron*) * size);
+    layer->neurons = malloc(sizeof(PSNeuron*) * size);
 /*#ifdef USE_AVX
     layer->avx_activation_cache = calloc(size, sizeof(double));
 #endif*/
@@ -1580,7 +1580,7 @@ int initRecurrentLayer(NeuralNetwork * network, Layer * layer, int size,int ws){
         return 0;
     }
     for (i = 0; i < size; i++) {
-        Neuron * neuron = malloc(sizeof(Neuron));
+        PSNeuron * neuron = malloc(sizeof(PSNeuron));
         if (neuron == NULL) {
             logerr(func, "Could not allocate neuron!");
             abortLayer(network, layer);
@@ -1616,14 +1616,14 @@ int initRecurrentLayer(NeuralNetwork * network, Layer * layer, int size,int ws){
     return 1;
 }
 
-Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
-                 LayerParameters* params) {
-    char * func = "addLayer";
+PSLayer * PSAddLayer(PSNeuralNetwork * network, PSLayerType type, int size,
+                     PSLayerParameters* params) {
+    char * func = "PSAddLayer";
     if (network->size == 0 && type != FullyConnected) {
         logerr(func, "First layer type must be FullyConnected");
         return NULL;
     }
-    Layer * layer = malloc(sizeof(Layer));
+    PSLayer * layer = malloc(sizeof(PSLayer));
     if (layer == NULL) {
         logerr(func, "Could not allocate layer %d!", network->size);
         return NULL;
@@ -1638,12 +1638,12 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
 #ifdef USE_AVX
     layer->avx_activation_cache = NULL;
 #endif
-    Layer * previous = NULL;
+    PSLayer * previous = NULL;
     int previous_size = 0;
     int initialized = 0;
     //printf("Adding layer %d\n", layer->index);
     if (network->layers == NULL) {
-        network->layers = malloc(sizeof(Layer*));
+        network->layers = malloc(sizeof(PSLayer*));
         if (network->layers == NULL) {
             abortLayer(network, layer);
             logerr(func, "Could not allocate network layers!");
@@ -1651,7 +1651,8 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
         }
         if ((network->flags & FLAG_ONEHOT) && params == NULL) {
             layer->flags |= FLAG_ONEHOT;
-            LayerParameters * params = createLayerParamenters(1, (double) size);
+            PSLayerParameters * params;
+            params = PSCreateLayerParamenters(1, (double) size);
             layer->parameters = params;
             size = 1;
             layer->size = 1;
@@ -1659,7 +1660,7 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
         network->input_size = size;
     } else {
         network->layers = realloc(network->layers,
-                                  sizeof(Layer*) * network->size);
+                                  sizeof(PSLayer*) * network->size);
         if (network->layers == NULL) {
             abortLayer(network, layer);
             logerr(func, "Could not reallocate network layers!");
@@ -1673,7 +1674,7 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
         }
         previous_size = previous->size;
         if (layer->index == 1 && previous->flags & FLAG_ONEHOT) {
-            LayerParameters * params = previous->parameters;
+            PSLayerParameters * params = previous->parameters;
             if (params == NULL) {
                 abortLayer(network, layer);
                 logerr(func, "Missing layer params on onehot layer[0]!");
@@ -1684,7 +1685,7 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
         network->output_size = size;
     }
     if (type == FullyConnected || type == SoftMax) {
-        layer->neurons = malloc(sizeof(Neuron*) * size);
+        layer->neurons = malloc(sizeof(PSNeuron*) * size);
         if (layer->neurons == NULL) {
             logerr(func, "Layer[%d]: could not allocate neurons!",
                    layer->index);
@@ -1701,7 +1702,7 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
 #endif
         int i, j;
         for (i = 0; i < size; i++) {
-            Neuron * neuron = malloc(sizeof(Neuron));
+            PSNeuron * neuron = malloc(sizeof(PSNeuron));
             if (neuron == NULL) {
                 abortLayer(network, layer);
                 logerr(func, "Could not allocate neuron!");
@@ -1755,32 +1756,35 @@ Layer * addLayer(NeuralNetwork * network, LayerType type, int size,
     return layer;
 }
 
-Layer * addConvolutionalLayer(NeuralNetwork * network, LayerParameters* params){
-    return addLayer(network, Convolutional, 0, params);
+PSLayer * PSAddConvolutionalLayer(PSNeuralNetwork * network,
+                                  PSLayerParameters* params)
+{
+    return PSAddLayer(network, Convolutional, 0, params);
 }
 
-Layer * addPoolingLayer(NeuralNetwork * network, LayerParameters* params) {
-    return addLayer(network, Pooling, 0, params);
+PSLayer * PSAddPoolingLayer(PSNeuralNetwork * network,
+                            PSLayerParameters* params)
+{
+    return PSAddLayer(network, Pooling, 0, params);
 }
 
-void deleteLayer(Layer* layer) {
+void PSDeleteLayer(PSLayer* layer) {
     int size = layer->size;
     int i;
     for (i = 0; i < size; i++) {
-        Neuron* neuron = layer->neurons[i];
+        PSNeuron* neuron = layer->neurons[i];
         if (layer->type != Convolutional)
-            deleteNeuron(neuron, layer);
+            PSDeleteNeuron(neuron, layer);
         else
             free(neuron);
     }
     free(layer->neurons);
-    LayerParameters * params = layer->parameters;
-    if (params != NULL) deleteLayerParamenters(params);
+    PSLayerParameters * params = layer->parameters;
+    if (params != NULL) PSDeleteLayerParamenters(params);
     void * extra = layer->extra;
     if (extra != NULL) {
         if (layer->type == Convolutional) {
-            ConvolutionalSharedParams * shared;
-            shared = (ConvolutionalSharedParams*) extra;
+            PSSharedParams * shared = (PSSharedParams*) extra;
             int fc = shared->feature_count;
             //int ws = shared->weights_size;
             if (shared->biases != NULL) free(shared->biases);
@@ -1798,8 +1802,8 @@ void deleteLayer(Layer* layer) {
     free(layer);
 }
 
-LayerParameters * createLayerParamenters(int count, ...) {
-    LayerParameters * params = malloc(sizeof(LayerParameters));
+PSLayerParameters * PSCreateLayerParamenters(int count, ...) {
+    PSLayerParameters * params = malloc(sizeof(PSLayerParameters));
     if (params == NULL) {
         logerr(NULL, "Could not allocate Layer Parameters!");
         return NULL;
@@ -1823,18 +1827,19 @@ LayerParameters * createLayerParamenters(int count, ...) {
     return params;
 }
 
-LayerParameters * createConvolutionalParameters(double feature_count,
-                                                double region_size,
-                                                int stride,
-                                                int padding,
-                                                int use_relu) {
-    return createLayerParamenters(CONV_PARAMETER_COUNT, feature_count,
-                                  region_size, (double) stride,
-                                  0.0f, 0.0f, 0.0f, 0.0f,
-                                  (double) padding, (double) use_relu);
+PSLayerParameters * PSCreateConvolutionalParameters(double feature_count,
+                                                    double region_size,
+                                                    int stride,
+                                                    int padding,
+                                                    int use_relu)
+{
+    return PSCreateLayerParamenters(CONV_PARAMETER_COUNT, feature_count,
+                                    region_size, (double) stride,
+                                    0.0f, 0.0f, 0.0f, 0.0f,
+                                    (double) padding, (double) use_relu);
 }
 
-int setLayerParameter(LayerParameters * params, int param, double value) {
+int PSSetLayerParameter(PSLayerParameters * params, int param, double value) {
     if (params->parameters == NULL) {
         int len = param + 1;
         params->parameters = malloc(sizeof(double) * len);
@@ -1862,25 +1867,26 @@ int setLayerParameter(LayerParameters * params, int param, double value) {
     return 1;
 }
 
-int addLayerParameter(LayerParameters * params, double val) {
-    return setLayerParameter(params, params->count + 1, val);
+int PSAddLayerParameter(PSLayerParameters * params, double val) {
+    return PSSetLayerParameter(params, params->count + 1, val);
 }
 
-void deleteLayerParamenters(LayerParameters * params) {
+void PSDeleteLayerParamenters(PSLayerParameters * params) {
     if (params == NULL) return;
     if (params->parameters != NULL) free(params->parameters);
     free(params);
 }
 
-int feedforwardThroughTime(NeuralNetwork * network, double * values, int times)
+int feedforwardThroughTime(PSNeuralNetwork * network, double * values,
+                           int times)
 {
-    Layer * first = network->layers[0];
+    PSLayer * first = network->layers[0];
     int input_size = first->size;
     char * func = "feedforwardThroughTime";
     int i, t;
     for (t = 0; t < times; t++) {
         for (i = 0; i < input_size; i++) {
-            Neuron * neuron = first->neurons[i];
+            PSNeuron * neuron = first->neurons[i];
             neuron->activation = values[i];
             addRecurrentState(neuron, values[i], times, t);
             if (neuron->extra == NULL) {
@@ -1889,7 +1895,7 @@ int feedforwardThroughTime(NeuralNetwork * network, double * values, int times)
             }
         }
         for (i = 1; i < network->size; i++) {
-            Layer * layer = network->layers[i];
+            PSLayer * layer = network->layers[i];
             if (layer == NULL) {
                 logerr(func, "Layer %d is NULL", i);
                 return 0;
@@ -1906,8 +1912,8 @@ int feedforwardThroughTime(NeuralNetwork * network, double * values, int times)
     return 1;
 }
 
-int feedforward(NeuralNetwork * network, double * values) {
-    char * func = "feedforward";
+int PSFeedforward(PSNeuralNetwork * network, double * values) {
+    char * func = "PSFeedforward";
     if (network->size == 0) {
         logerr(func, "Empty network!");
         return 0;
@@ -1920,7 +1926,7 @@ int feedforward(NeuralNetwork * network, double * values) {
         }
         return feedforwardThroughTime(network, values + 1, times);
     }
-    Layer * first = network->layers[0];
+    PSLayer * first = network->layers[0];
     int input_size = first->size;
     int i;
     for (i = 0; i < input_size; i++) {
@@ -1930,7 +1936,7 @@ int feedforward(NeuralNetwork * network, double * values) {
 #endif
     }
     for (i = 1; i < network->size; i++) {
-        Layer * layer = network->layers[i];
+        PSLayer * layer = network->layers[i];
         if (layer == NULL) {
             logerr(func, "Layer %d is NULL!", i);
             return 0;
@@ -1945,13 +1951,13 @@ int feedforward(NeuralNetwork * network, double * values) {
     return 1;
 }
 
-Gradient * createLayerGradients(Layer * layer) {
-    Gradient * gradients;
+PSGradient * createLayerGradients(PSLayer * layer) {
+    PSGradient * gradients;
     char * func = "createLayerGradients";
-    LayerType ltype = layer->type;
+    PSLayerType ltype = layer->type;
     if (ltype == Pooling) return NULL;
     int size = layer->size;
-    LayerParameters * parameters = NULL;
+    PSLayerParameters * parameters = NULL;
     if (ltype == Convolutional) {
         parameters = layer->parameters;
         if (parameters == NULL) {
@@ -1960,14 +1966,14 @@ Gradient * createLayerGradients(Layer * layer) {
         }
         size = (int) (parameters->parameters[PARAM_FEATURE_COUNT]);
     }
-    gradients = malloc(sizeof(Gradient) * size);
+    gradients = malloc(sizeof(PSGradient) * size);
     if (gradients == NULL) {
         logerr(func, "Could not allocate memory!");
         return NULL;
     }
     int i, ws = 0;
     for (i = 0; i < size; i++) {
-        Neuron * neuron = layer->neurons[i];
+        PSNeuron * neuron = layer->neurons[i];
         if (ltype == Convolutional) {
             if (!ws) {
                 int region_size =
@@ -1990,44 +1996,44 @@ Gradient * createLayerGradients(Layer * layer) {
     return gradients;
 }
 
-Gradient ** createGradients(NeuralNetwork * network) {
-    Gradient ** gradients = malloc(sizeof(Gradient*) * network->size - 1);
+PSGradient ** createGradients(PSNeuralNetwork * network) {
+    PSGradient ** gradients = malloc(sizeof(PSGradient*) * network->size - 1);
     if (gradients == NULL) {
         printMemoryErrorMsg();
         return NULL;
     }
     int i;
     for (i = 1; i < network->size; i++) {
-        Layer * layer = network->layers[i];
+        PSLayer * layer = network->layers[i];
         int idx = i - 1;
         gradients[idx] = createLayerGradients(layer);
         if (gradients[idx] == NULL && layer->type != Pooling) {
             printMemoryErrorMsg();
-            deleteGradients(gradients, network);
+            PSDeleteGradients(gradients, network);
             return NULL;
         }
     }
     return gradients;
 }
 
-void deleteLayerGradients(Gradient * gradient, int size) {
+void deleteLayerGradients(PSGradient * gradient, int size) {
     int i;
     for (i = 0; i < size; i++) {
-        Gradient g = gradient[i];
+        PSGradient g = gradient[i];
         free(g.weights);
     }
     free(gradient);
 }
 
-void deleteGradients(Gradient ** gradients, NeuralNetwork * network) {
+void PSDeleteGradients(PSGradient ** gradients, PSNeuralNetwork * network) {
     int i;
     for (i = 1; i < network->size; i++) {
-        Gradient * lgradients = gradients[i - 1];
+        PSGradient * lgradients = gradients[i - 1];
         if (lgradients == NULL) continue;
-        Layer * layer = network->layers[i];
+        PSLayer * layer = network->layers[i];
         int lsize;
         if (layer->type == Convolutional) {
-            LayerParameters * params = layer->parameters;
+            PSLayerParameters * params = layer->parameters;
             lsize = (int) (params->parameters[PARAM_FEATURE_COUNT]);
         } else lsize = layer->size;
         deleteLayerGradients(lgradients, lsize);
@@ -2035,8 +2041,11 @@ void deleteGradients(Gradient ** gradients, NeuralNetwork * network) {
     free(gradients);
 }
 
-double * backpropPoolingToConv(NeuralNetwork * network, Layer * pooling_layer,
-                               Layer * convolutional_layer, double * delta) {
+double * backpropPoolingToConv(PSNeuralNetwork * network,
+                               PSLayer * pooling_layer,
+                               PSLayer * convolutional_layer,
+                               double * delta)
+{
     int conv_size = convolutional_layer->size;
     double * new_delta = malloc(sizeof(double) * conv_size);
     if (new_delta == NULL) {
@@ -2044,8 +2053,8 @@ double * backpropPoolingToConv(NeuralNetwork * network, Layer * pooling_layer,
         return NULL;
     }
     memset(new_delta, 0, sizeof(double) * conv_size);
-    LayerParameters * pool_params = pooling_layer->parameters;
-    LayerParameters * conv_params = convolutional_layer->parameters;
+    PSLayerParameters * pool_params = pooling_layer->parameters;
+    PSLayerParameters * conv_params = convolutional_layer->parameters;
     int feature_count = (int) (conv_params->parameters[PARAM_FEATURE_COUNT]);
     int pool_size = (int) (pool_params->parameters[PARAM_REGION_SIZE]);
     int feature_size = pooling_layer->size / feature_count;
@@ -2059,7 +2068,7 @@ double * backpropPoolingToConv(NeuralNetwork * network, Layer * pooling_layer,
         for (j = 0; j < feature_size; j++) {
             int idx = j + (i * feature_size);
             double d = delta[idx];
-            Neuron * neuron = pooling_layer->neurons[idx];
+            PSNeuron * neuron = pooling_layer->neurons[idx];
             col = idx % (int) output_w;
             if (col == 0 && j > 0) row++;
             int r_row = row * pool_size;
@@ -2070,7 +2079,7 @@ double * backpropPoolingToConv(NeuralNetwork * network, Layer * pooling_layer,
             for (y = r_row; y < max_y; y++) {
                 for (x = r_col; x < max_x; x++) {
                     int nidx = ((y * input_w) + x) + (prev_size * i);
-                    Neuron * prev_neuron = convolutional_layer->neurons[nidx];
+                    PSNeuron * prev_neuron = convolutional_layer->neurons[nidx];
                     double a = prev_neuron->activation;
                     new_delta[nidx] = (a < neuron->activation ? 0 : d);
                 }
@@ -2081,11 +2090,12 @@ double * backpropPoolingToConv(NeuralNetwork * network, Layer * pooling_layer,
     return new_delta;
 }
 
-double * backpropConvToFull(NeuralNetwork * network, Layer* convolutional_layer,
-                            Layer * full_layer, double * delta,
-                            Gradient * lgradients) {
+double * backpropConvToFull(PSNeuralNetwork * network,
+                            PSLayer* convolutional_layer,
+                            PSLayer * full_layer, double * delta,
+                            PSGradient * lgradients) {
     int size = convolutional_layer->size;
-    LayerParameters * params = convolutional_layer->parameters;
+    PSLayerParameters * params = convolutional_layer->parameters;
     int feature_count = (int) (params->parameters[PARAM_FEATURE_COUNT]);
     int region_size = (int) (params->parameters[PARAM_REGION_SIZE]);
     int stride = (int) (params->parameters[PARAM_STRIDE]);
@@ -2095,7 +2105,7 @@ double * backpropConvToFull(NeuralNetwork * network, Layer* convolutional_layer,
     int wsize = region_size * region_size;
     int i, j, row, col, x, y;
     for (i = 0; i < feature_count; i++) {
-        Gradient * feature_gradient = &(lgradients[i]);
+        PSGradient * feature_gradient = &(lgradients[i]);
         row = 0;
         col = 0;
         for (j = 0; j < feature_size; j++) {
@@ -2114,7 +2124,7 @@ double * backpropConvToFull(NeuralNetwork * network, Layer* convolutional_layer,
                 for (x = r_col; x < max_x; x++) {
                     int nidx = (y * input_w) + x;
                     //printf("  -> %d,%d [%d]\n", x, y, nidx);
-                    Neuron * prev_neuron = full_layer->neurons[nidx];
+                    PSNeuron * prev_neuron = full_layer->neurons[nidx];
                     double a = prev_neuron->activation;
                     feature_gradient->weights[widx++] += (a * d);
                 }
@@ -2124,38 +2134,38 @@ double * backpropConvToFull(NeuralNetwork * network, Layer* convolutional_layer,
     return NULL;
 }
 
-Gradient ** backprop(NeuralNetwork * network, double * x, double * y) {
-    Gradient ** gradients = createGradients(network);
+PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y) {
+    PSGradient ** gradients = createGradients(network);
     if (gradients == NULL) return NULL;
     int netsize = network->size;
-    Layer * inputLayer = network->layers[0];
-    Layer * outputLayer = network->layers[netsize - 1];
+    PSLayer * inputLayer = network->layers[0];
+    PSLayer * outputLayer = network->layers[netsize - 1];
     int isize = inputLayer->size;
     int osize = outputLayer->size;
-    Gradient * lgradients = gradients[netsize - 2];//No gradient for input layer
-    Layer * previousLayer = network->layers[outputLayer->index - 1];
-    Layer * nextLayer = NULL;
+    PSGradient * lgradients = gradients[netsize - 2]; //No gradient for inputs
+    PSLayer * previousLayer = network->layers[outputLayer->index - 1];
+    PSLayer * nextLayer = NULL;
     double * delta;
     double * last_delta;
     delta = malloc(sizeof(double) * osize);
     if (delta == NULL) {
         printMemoryErrorMsg();
-        deleteGradients(gradients, network);
+        PSDeleteGradients(gradients, network);
         return NULL;
     }
     memset(delta, 0, sizeof(double) * osize);
     last_delta = delta;
     int i, o, w, j, k;
-    int ok = feedforward(network, x);
+    int ok = PSFeedforward(network, x);
     if (!ok) {
-        deleteGradients(gradients, network);
+        PSDeleteGradients(gradients, network);
         free(delta);
         return NULL;
     }
     int apply_derivative = shouldApplyDerivative(network);
     double softmax_sum = 0.0;
     for (o = 0; o < osize; o++) {
-        Neuron * neuron = outputLayer->neurons[o];
+        PSNeuron * neuron = outputLayer->neurons[o];
         double o_val = neuron->activation;
         double y_val = y[o];
         double d = 0.0;
@@ -2170,7 +2180,7 @@ Gradient ** backprop(NeuralNetwork * network, double * x, double * y) {
         }
         delta[o] = d;
         if (outputLayer->type != SoftMax) {
-            Gradient * gradient = &(lgradients[o]);
+            PSGradient * gradient = &(lgradients[o]);
             gradient->bias = d;
             int wsize = neuron->weights_size;
             w = 0;
@@ -2192,11 +2202,11 @@ Gradient ** backprop(NeuralNetwork * network, double * x, double * y) {
     }
     if (outputLayer->type == SoftMax) {
         for (o = 0; o < osize; o++) {
-            Neuron * neuron = outputLayer->neurons[o];
+            PSNeuron * neuron = outputLayer->neurons[o];
             double o_val = neuron->activation;
             if (apply_derivative) delta[o] -= (o_val * softmax_sum);
             double d = delta[o];
-            Gradient * gradient = &(lgradients[o]);
+            PSGradient * gradient = &(lgradients[o]);
             gradient->bias = d;
             int wsize = neuron->weights_size;
             w = 0;
@@ -2217,13 +2227,13 @@ Gradient ** backprop(NeuralNetwork * network, double * x, double * y) {
         }
     }
     for (i = previousLayer->index; i > 0; i--) {
-        Layer * layer = network->layers[i];
+        PSLayer * layer = network->layers[i];
         previousLayer = network->layers[i - 1];
         nextLayer = network->layers[i + 1];
         lgradients = gradients[i - 1];
         int lsize = layer->size;
-        LayerType ltype = layer->type;
-        LayerType prev_ltype = previousLayer->type;
+        PSLayerType ltype = layer->type;
+        PSLayerType prev_ltype = previousLayer->type;
         if (FullyConnected == ltype) {
             delta = malloc(sizeof(double) * lsize);
             if (delta == NULL) {
@@ -2233,10 +2243,10 @@ Gradient ** backprop(NeuralNetwork * network, double * x, double * y) {
             }
             memset(delta, 0, sizeof(double) * lsize);
             for (j = 0; j < lsize; j++) {
-                Neuron * neuron = layer->neurons[j];
+                PSNeuron * neuron = layer->neurons[j];
                 double sum = 0;
                 for (k = 0; k < nextLayer->size; k++) {
-                    Neuron * nextNeuron = nextLayer->neurons[k];
+                    PSNeuron * nextNeuron = nextLayer->neurons[k];
                     double weight = nextNeuron->weights[j];
                     double d = last_delta[k];
                     sum += (d * weight);
@@ -2245,7 +2255,7 @@ Gradient ** backprop(NeuralNetwork * network, double * x, double * y) {
                 if (shouldApplyDerivative(network))
                     dv *= layer->derivative(neuron->z_value);
                 delta[j] = dv;
-                Gradient * gradient = &(lgradients[j]);
+                PSGradient * gradient = &(lgradients[j]);
                 gradient->bias = dv;
                 w = 0;
                 int wsize = neuron->weights_size;
@@ -2273,10 +2283,10 @@ Gradient ** backprop(NeuralNetwork * network, double * x, double * y) {
             }
             memset(delta, 0, sizeof(double) * lsize);
             for (j = 0; j < lsize; j++) {
-                Neuron * neuron = layer->neurons[j];
+                PSNeuron * neuron = layer->neurons[j];
                 double sum = 0;
                 for (k = 0; k < nextLayer->size; k++) {
-                    Neuron * nextNeuron = nextLayer->neurons[k];
+                    PSNeuron * nextNeuron = nextLayer->neurons[k];
                     double weight = nextNeuron->weights[j];
                     double d = last_delta[k];
                     sum += (d * weight);
@@ -2297,7 +2307,7 @@ Gradient ** backprop(NeuralNetwork * network, double * x, double * y) {
             fprintf(stderr, "Backprop from %s to %s not suported!\n",
                     getLayerTypeLabel(layer),
                     getLayerTypeLabel(previousLayer));
-            deleteGradients(gradients, network);
+            PSDeleteGradients(gradients, network);
             free(last_delta);
             if (delta != last_delta) free(delta);
             return NULL;
@@ -2305,7 +2315,7 @@ Gradient ** backprop(NeuralNetwork * network, double * x, double * y) {
         free(last_delta);
         last_delta = delta;
         if (delta == NULL && Convolutional != ltype) {
-            deleteGradients(gradients, network);
+            PSDeleteGradients(gradients, network);
             return NULL;
         }
     }
@@ -2313,19 +2323,19 @@ Gradient ** backprop(NeuralNetwork * network, double * x, double * y) {
     return gradients;
 }
 
-Gradient ** backpropThroughTime(NeuralNetwork * network, double * x,
-                                double * y, int times)
+PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
+                                  double * y, int times)
 {
-    Gradient ** gradients = createGradients(network);
+    PSGradient ** gradients = createGradients(network);
     if (gradients == NULL) return NULL;
     int netsize = network->size;
-    Layer * inputLayer = network->layers[0];
-    Layer * outputLayer = network->layers[netsize - 1];
+    PSLayer * inputLayer = network->layers[0];
+    PSLayer * outputLayer = network->layers[netsize - 1];
     if (outputLayer->type != SoftMax) {
         logerr("backpropThroughTime",
                "Recurrent networks require a Softmax output layer, "
                "current one is of type %s.", getLayerTypeLabel(outputLayer));
-        deleteGradients(gradients, network);
+        PSDeleteGradients(gradients, network);
         return NULL;
     }
     int onehot = (outputLayer->flags & FLAG_ONEHOT);
@@ -2336,7 +2346,7 @@ Gradient ** backpropThroughTime(NeuralNetwork * network, double * x,
     int i, o, w, j, k, t, tt;
     int ok = feedforwardThroughTime(network, x, times);
     if (!ok) {
-        deleteGradients(gradients, network);
+        PSDeleteGradients(gradients, network);
         return NULL;
     }
     
@@ -2348,9 +2358,9 @@ Gradient ** backpropThroughTime(NeuralNetwork * network, double * x,
         int time_offset = t * ysize;
         double * time_y = y + time_offset;
         
-        Gradient * lgradients = gradients[netsize - 2];//No grad. in input layer
-        Layer * previousLayer = network->layers[outputLayer->index - 1];
-        Layer * nextLayer = NULL;
+        PSGradient * lgradients = gradients[netsize - 2]; //No grad. for inputs
+        PSLayer * previousLayer = network->layers[outputLayer->index - 1];
+        PSLayer * nextLayer = NULL;
         double * delta;
         double * last_delta;
         delta = malloc(sizeof(double) * osize);
@@ -2365,8 +2375,8 @@ Gradient ** backpropThroughTime(NeuralNetwork * network, double * x,
         int apply_derivative = shouldApplyDerivative(network);
         // Calculate output deltas, output layer must be Softmax
         for (o = 0; o < osize; o++) {
-            Neuron * neuron = outputLayer->neurons[o];
-            RecurrentCell * cell = getRecurrentCell(neuron);
+            PSNeuron * neuron = outputLayer->neurons[o];
+            PSRecurrentCell * cell = getRecurrentCell(neuron);
             double o_val = cell->states[t];
             double y_val;
             if (onehot)
@@ -2382,12 +2392,12 @@ Gradient ** backpropThroughTime(NeuralNetwork * network, double * x,
         }
         // Update gradients for output layer
         for (o = 0; o < osize; o++) {
-            Neuron * neuron = outputLayer->neurons[o];
-            RecurrentCell * cell = getRecurrentCell(neuron);
+            PSNeuron * neuron = outputLayer->neurons[o];
+            PSRecurrentCell * cell = getRecurrentCell(neuron);
             double o_val = cell->states[t];
             if (apply_derivative) delta[o] -= (o_val * softmax_sum);
             double d = delta[o];
-            Gradient * gradient = &(lgradients[o]);
+            PSGradient * gradient = &(lgradients[o]);
             gradient->bias = d;
             w = 0;
 #ifdef USE_AVX
@@ -2405,8 +2415,8 @@ Gradient ** backpropThroughTime(NeuralNetwork * network, double * x,
             }
 #endif
             for (; w < neuron->weights_size; w++) {
-                Neuron * prev_neuron = previousLayer->neurons[w];
-                RecurrentCell * prev_cell = getRecurrentCell(prev_neuron);
+                PSNeuron * prev_neuron = previousLayer->neurons[w];
+                PSRecurrentCell * prev_cell = getRecurrentCell(prev_neuron);
                 double prev_a = prev_cell->states[t];
                 gradient->weights[w] += (d * prev_a);
             }
@@ -2414,13 +2424,13 @@ Gradient ** backpropThroughTime(NeuralNetwork * network, double * x,
         
         // Cycle through other layers
         for (i = previousLayer->index; i > 0; i--) {
-            Layer * layer = network->layers[i];
+            PSLayer * layer = network->layers[i];
             previousLayer = network->layers[i - 1];
             nextLayer = network->layers[i + 1];
             lgradients = gradients[i - 1];
             int lsize = layer->size;
-            LayerType ltype = layer->type;
-            LayerType prev_ltype = previousLayer->type;
+            PSLayerType ltype = layer->type;
+            PSLayerType prev_ltype = previousLayer->type;
             
             delta = malloc(sizeof(double) * lsize);
             if (delta == NULL) {
@@ -2431,11 +2441,11 @@ Gradient ** backpropThroughTime(NeuralNetwork * network, double * x,
             memset(delta, 0, sizeof(double) * lsize);
             // Calculate layer deltas
             for (j = 0; j < lsize; j++) {
-                Neuron * neuron = layer->neurons[j];
-                RecurrentCell * cell = getRecurrentCell(neuron);
+                PSNeuron * neuron = layer->neurons[j];
+                PSRecurrentCell * cell = getRecurrentCell(neuron);
                 double sum = 0;
                 for (k = 0; k < nextLayer->size; k++) {
-                    Neuron * nextNeuron = nextLayer->neurons[k];
+                    PSNeuron * nextNeuron = nextLayer->neurons[k];
                     double weight = nextNeuron->weights[j];
                     double d = last_delta[k];
                     sum += (d * weight);
@@ -2455,14 +2465,14 @@ Gradient ** backpropThroughTime(NeuralNetwork * network, double * x,
             
             for (tt = t; tt >= lowest_t; tt--) {
                 for (j = 0; j < lsize; j++) {
-                    Neuron * neuron = layer->neurons[j];
-                    RecurrentCell * cell = getRecurrentCell(neuron);
-                    Gradient * gradient = &(lgradients[j]);
+                    PSNeuron * neuron = layer->neurons[j];
+                    PSRecurrentCell * cell = getRecurrentCell(neuron);
+                    PSGradient * gradient = &(lgradients[j]);
                     double dv = last_delta[j];
                     gradient->bias += dv;
                     
                     if (previousLayer->flags & FLAG_ONEHOT) {
-                        LayerParameters * params = previousLayer->parameters;
+                        PSLayerParameters * params = previousLayer->parameters;
                         if (params == NULL) {
                             fprintf(stderr, "Layer %d params are NULL!\n",
                                     previousLayer->index);
@@ -2471,8 +2481,8 @@ Gradient ** backpropThroughTime(NeuralNetwork * network, double * x,
                         }
                         int vector_size = (int) params->parameters[0];
                         assert(vector_size > 0);
-                        Neuron * prev_n = previousLayer->neurons[0];
-                        RecurrentCell * prev_c = getRecurrentCell(prev_n);
+                        PSNeuron * prev_n = previousLayer->neurons[0];
+                        PSRecurrentCell * prev_c = getRecurrentCell(prev_n);
                         double prev_a = prev_c->states[tt];
                         assert(prev_a < vector_size);
                         w = (int) prev_a;
@@ -2481,8 +2491,8 @@ Gradient ** backpropThroughTime(NeuralNetwork * network, double * x,
                         int ws = neuron->weights_size;
                         if (Recurrent == ltype) ws -= cell->weights_size;
                         for (w = 0; w < ws; w++) {
-                            Neuron * prev_n = previousLayer->neurons[w];
-                            RecurrentCell * prev_c = getRecurrentCell(prev_n);
+                            PSNeuron * prev_n = previousLayer->neurons[w];
+                            PSRecurrentCell * prev_c = getRecurrentCell(prev_n);
                             double prev_a = prev_c->states[t];
                             gradient->weights[w] += (dv * prev_a);
                         }
@@ -2507,15 +2517,15 @@ Gradient ** backpropThroughTime(NeuralNetwork * network, double * x,
                         }
 #endif
                         for (; w < cell->weights_size; w++) {
-                            Neuron * rn = layer->neurons[w];
-                            RecurrentCell * rc = getRecurrentCell(rn);
+                            PSNeuron * rn = layer->neurons[w];
+                            PSRecurrentCell * rc = getRecurrentCell(rn);
                             double a = rc->states[tt - 1];
                             gradient->weights[w_offs + w] += (dv * a);
                             //sum += (delta[w] * );
                         }
                         for (w = 0; w < cell->weights_size; w++) {
-                            Neuron * rn = layer->neurons[w];
-                            RecurrentCell * rc = getRecurrentCell(rn);
+                            PSNeuron * rn = layer->neurons[w];
+                            PSRecurrentCell * rc = getRecurrentCell(rn);
                             double rw = rc->weights[neuron->index];
                             rsum += (last_delta[rn->index] * rw);
                         }
@@ -2545,19 +2555,19 @@ Gradient ** backpropThroughTime(NeuralNetwork * network, double * x,
     return gradients;
 }
 
-double updateWeights(NeuralNetwork * network, double * training_data,
+double updateWeights(PSNeuralNetwork * network, double * training_data,
                      int batch_size, double rate, ...) {
     double r = rate / (double) batch_size;
     int i, j, k, w, netsize = network->size, dsize = netsize - 1, times;
     int training_data_size = network->input_size;
     int label_data_size = network->output_size;
-    Gradient ** gradients = createGradients(network);
+    PSGradient ** gradients = createGradients(network);
     if (gradients == NULL) {
         network->status = STATUS_ERROR;
         return -999.0;
     }
     char * func = "updateWeights";
-    Gradient ** bp_gradients = NULL;
+    PSGradient ** bp_gradients = NULL;
     double ** series = NULL;
     int is_recurrent = network->flags & FLAG_RECURRENT;
     if (is_recurrent) {
@@ -2568,7 +2578,7 @@ double updateWeights(NeuralNetwork * network, double * training_data,
         if (series == NULL) {
             logerr(func, "Series is NULL");
             network->status = STATUS_ERROR;
-            deleteGradients(gradients, network);
+            PSDeleteGradients(gradients, network);
             return -999.0;
         }
     }
@@ -2586,7 +2596,7 @@ double updateWeights(NeuralNetwork * network, double * training_data,
             times = (int) *(x++);
             if (times == 0) {
                 logerr(func, "Series len must b > 0. (batch = %d)", i);
-                deleteGradients(gradients, network);
+                PSDeleteGradients(gradients, network);
                 return -999.0;
             }
             y = x + (times * training_data_size);
@@ -2594,53 +2604,53 @@ double updateWeights(NeuralNetwork * network, double * training_data,
         }
         if (bp_gradients == NULL) {
             network->status = STATUS_ERROR;
-            deleteGradients(gradients, network);
+            PSDeleteGradients(gradients, network);
             return -999.0;
         }
         for (j = 0; j < dsize; j++) {
-            Layer * layer = network->layers[j + 1];
-            Gradient * lgradients_bp = bp_gradients[j];
-            Gradient * lgradients = gradients[j];
+            PSLayer * layer = network->layers[j + 1];
+            PSGradient * lgradients_bp = bp_gradients[j];
+            PSGradient * lgradients = gradients[j];
             if (lgradients == NULL) continue;
             int lsize = layer->size;
             int wsize = 0;
             if (layer->type == Convolutional) {
-                LayerParameters * params = layer->parameters;
+                PSLayerParameters * params = layer->parameters;
                 lsize = (int) (params->parameters[PARAM_FEATURE_COUNT]);
                 int rsize = (int) (params->parameters[PARAM_REGION_SIZE]);
                 wsize = rsize * rsize;
             }
             for (k = 0; k < lsize; k++) {
                 if (!wsize) {
-                    Neuron * neuron = layer->neurons[k];
+                    PSNeuron * neuron = layer->neurons[k];
                     wsize = neuron->weights_size;
                 }
-                Gradient * gradient_bp = &(lgradients_bp[k]);
-                Gradient * gradient = &(lgradients[k]);
+                PSGradient * gradient_bp = &(lgradients_bp[k]);
+                PSGradient * gradient = &(lgradients[k]);
                 gradient->bias += gradient_bp->bias;
                 for (w = 0; w < wsize; w++) {
                     gradient->weights[w] += gradient_bp->weights[w];
                 }
             }
         }
-        deleteGradients(bp_gradients, network);
+        PSDeleteGradients(bp_gradients, network);
     }
     for (i = 0; i < dsize; i++) {
-        Gradient * lgradients = gradients[i];
+        PSGradient * lgradients = gradients[i];
         if (lgradients == NULL) continue;
-        Layer * layer = network->layers[i + 1];
-        LayerType ltype = layer->type;
+        PSLayer * layer = network->layers[i + 1];
+        PSLayerType ltype = layer->type;
         int l_size;
-        ConvolutionalSharedParams * shared = NULL;
+        PSSharedParams * shared = NULL;
         if (ltype == Convolutional) {
-            LayerParameters * params = layer->parameters;
+            PSLayerParameters * params = layer->parameters;
             l_size = (int) (params->parameters[PARAM_FEATURE_COUNT]);
             shared = getConvSharedParams(layer);
         } else l_size = layer->size;
         for (j = 0; j < l_size; j++) {
-            Gradient * g = &(lgradients[j]);
+            PSGradient * g = &(lgradients[j]);
             if (shared == NULL) {
-                Neuron * neuron = layer->neurons[j];
+                PSNeuron * neuron = layer->neurons[j];
                 neuron->bias = neuron->bias - r * g->bias;
                 for (k = 0; k < neuron->weights_size; k++) {
                     double w = neuron->weights[k];
@@ -2657,8 +2667,8 @@ double updateWeights(NeuralNetwork * network, double * training_data,
             }
         }
     }
-    deleteGradients(gradients, network);
-    Layer * out = network->layers[netsize - 1];
+    PSDeleteGradients(gradients, network);
+    PSLayer * out = network->layers[netsize - 1];
     int onehot = out->flags & FLAG_ONEHOT;
     if (onehot) label_data_size = 1;
     if (is_recurrent) label_data_size *= times;
@@ -2669,8 +2679,8 @@ double updateWeights(NeuralNetwork * network, double * training_data,
         else {
             if (onehot) {
                 int idx = (int) *(y + i);
-                Neuron * n = out->neurons[idx];
-                RecurrentCell * cell = getRecurrentCell(n);
+                PSNeuron * n = out->neurons[idx];
+                PSRecurrentCell * cell = getRecurrentCell(n);
                 outputs[i] = cell->states[i];
             } else fetchRecurrentOutputState(out, outputs, i, 0);
         }
@@ -2679,7 +2689,7 @@ double updateWeights(NeuralNetwork * network, double * training_data,
     return network->loss(outputs, y, label_data_size, onehot_s);
 }
 
-double gradientDescent(NeuralNetwork * network,
+double gradientDescent(PSNeuralNetwork * network,
                        double * training_data,
                        int element_size,
                        int elements_count,
@@ -2691,7 +2701,7 @@ double gradientDescent(NeuralNetwork * network,
     double ** series = NULL;
     if (network->flags & FLAG_RECURRENT) {
         if (series == NULL) {
-            Layer * out = network->layers[network->size - 1];
+            PSLayer * out = network->layers[network->size - 1];
             int o_size = (out->flags & FLAG_ONEHOT ? 1 : network->output_size);
             series = getRecurrentSeries(training_data,
                                         elements_count,
@@ -2728,13 +2738,13 @@ double gradientDescent(NeuralNetwork * network,
     return err / (double) batches_count;
 }
 
-float validate(NeuralNetwork * network, double * test_data, int data_size,
+float validate(PSNeuralNetwork * network, double * test_data, int data_size,
                int log) {
     int i, j;
     float accuracy = 0.0f;
     int correct_results = 0;
     float correct_amount = 0.0f;
-    Layer * output_layer = network->layers[network->size - 1];
+    PSLayer * output_layer = network->layers[network->size - 1];
     int input_size = network->input_size;
     int output_size = network->output_size;
     int y_size = output_size;
@@ -2778,7 +2788,7 @@ float validate(NeuralNetwork * network, double * test_data, int data_size,
             test_data += input_size;
             expected = test_data;
             
-            int ok = feedforward(network, inputs);
+            int ok = PSFeedforward(network, inputs);
             if (!ok) {
                 network->status = STATUS_ERROR;
                 fprintf(stderr,
@@ -2790,7 +2800,7 @@ float validate(NeuralNetwork * network, double * test_data, int data_size,
             int omax = 0;
             int emax = 0;
             for (j = 0; j < output_size; j++) {
-                Neuron * neuron = output_layer->neurons[j];
+                PSNeuron * neuron = output_layer->neurons[j];
                 if (neuron->activation > max) {
                     max = neuron->activation;
                     omax = j;
@@ -2814,7 +2824,7 @@ float validate(NeuralNetwork * network, double * test_data, int data_size,
             }
             expected = inputs + 1 + (times * input_size);
             
-            int ok = feedforward(network, inputs);
+            int ok = PSFeedforward(network, inputs);
             if (!ok) {
                 network->status = STATUS_ERROR;
                 fprintf(stderr,
@@ -2852,18 +2862,18 @@ float validate(NeuralNetwork * network, double * test_data, int data_size,
     return accuracy;
 }
 
-void train(NeuralNetwork * network,
-           double * training_data,
-           int data_size,
-           int epochs,
-           double learning_rate,
-           int batch_size,
-           int flags,
-           double * test_data,
-           int test_size) {
+void PSTrain(PSNeuralNetwork * network,
+             double * training_data,
+             int data_size,
+             int epochs,
+             double learning_rate,
+             int batch_size,
+             int flags,
+             double * test_data,
+             int test_size) {
     int i, elements_count;
     int element_size = network->input_size + network->output_size;
-    int valid = verifyNetwork(network);
+    int valid = PSVerifyNetwork(network);
     if (!valid) {
         network->status = STATUS_ERROR;
         return;
@@ -2924,41 +2934,41 @@ void train(NeuralNetwork * network,
     network->status = STATUS_TRAINED;
 }
 
-float test(NeuralNetwork * network, double * test_data, int data_size) {
+float PSTest(PSNeuralNetwork * network, double * test_data, int data_size) {
     return validate(network, test_data, data_size, 1);
 }
 
-int verifyNetwork(NeuralNetwork * network) {
+int PSVerifyNetwork(PSNeuralNetwork * network) {
     if (network == NULL) {
-        logerr("verifyNetwork", "Network is NULL");
+        logerr("PSVerifyNetwork", "Network is NULL");
         return 0;
     }
     int size = network->size, i;
-    Layer * previous = NULL;
+    PSLayer * previous = NULL;
     for (i = 0; i < size; i++) {
-        Layer * layer = network->layers[i];
+        PSLayer * layer = network->layers[i];
         if (layer == NULL) {
-            logerr("verifyNetwork", "Layer[%d] is NULL", i);
+            logerr("PSVerifyNetwork", "Layer[%d] is NULL", i);
             return 0;
         }
         int lsize = layer->size;
         int ltype = layer->type;
         if (i == 0) {
             if (ltype != FullyConnected) {
-                logerr("verifyNetwork", "Layer[%d] type must be '%s'",
+                logerr("PSVerifyNetwork", "Layer[%d] type must be '%s'",
                        i, getLabelForType(FullyConnected));
                 return 0;
             }
             if (layer->flags & FLAG_ONEHOT) {
-                LayerParameters * params = layer->parameters;
+                PSLayerParameters * params = layer->parameters;
                 if (params == NULL) {
-                    logerr("verifyNetwork",
+                    logerr("PSVerifyNetwork",
                            "Layer[%d] uses a onehot vector index as input, "
                            "but it has no parameters", i);
                     return 0;
                 }
                 if (params->count < 1) {
-                    logerr("verifyNetwork",
+                    logerr("PSVerifyNetwork",
                            "Layer[%d] uses a onehot vector index as input, "
                            "but parameters count is < 1", i);
                     return 0;
@@ -2966,25 +2976,25 @@ int verifyNetwork(NeuralNetwork * network) {
             }
         }
         if (ltype == Pooling && previous->type != Convolutional) {
-            logerr("verifyNetwork", "Layer[%d] type is Pooling, "
+            logerr("PSVerifyNetwork", "Layer[%d] type is Pooling, "
                    "but previous type is not Convolutional", i);
             return 0;
         }
         if (layer->activate == sigmoid &&
             layer->derivative != sigmoid_derivative) {
-            logerr("verifyNetwork",
+            logerr("PSVerifyNetwork",
                    "Layer[%d] activate function is sigmoid, "
                    "but derivative function is not sigmoid_derivative", i);
             return 0;
         }
         if (layer->activate == relu && layer->derivative != relu_derivative) {
-            logerr("verifyNetwork",
+            logerr("PSVerifyNetwork",
                    "Layer[%d] activate function is relu, "
                    "but derivative function is not relu_derivative", i);
             return 0;
         }
         if (layer->activate == tanh && layer->derivative != tanh_derivative) {
-            logerr("verifyNetwork",
+            logerr("PSVerifyNetwork",
                    "Layer[%d] activate function is tanh, "
                    "but derivative function is not tanh_derivative", i);
             return 0;
@@ -2992,9 +3002,9 @@ int verifyNetwork(NeuralNetwork * network) {
         previous = layer;
     }
     if (network->flags & FLAG_RECURRENT) {
-        Layer * output = network->layers[size - 1];
+        PSLayer * output = network->layers[size - 1];
         if (output->type != SoftMax) {
-            logerr("verifyNetwork",
+            logerr("PSVerifyNetwork",
                    "Recurrent networks require a Softmax output layer, "
                    "current one is of type %s.", getLabelForType(output->type));
             return 0;

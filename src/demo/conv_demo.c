@@ -63,7 +63,7 @@ int main(int argc, char** argv) {
                                 &test_data);
     }
 
-    NeuralNetwork * network = createNetwork();
+    PSNeuralNetwork * network = PSCreateNetwork("CNN MNIST Demo");
     if (network == NULL) {
         fprintf(stderr, "Could not create network!\n");
         if (training_data != NULL) free(training_data);
@@ -72,31 +72,31 @@ int main(int argc, char** argv) {
     }
     
     if (pretrained_file == NULL) {
-        LayerParameters * cparams;
-        LayerParameters * pparams;
-        cparams = createConvolutionalParameters(FEATURES_COUNT, REGIONS_SIZE,
-                                                1, 0, RELU_ENABLED);
-        pparams = createConvolutionalParameters(FEATURES_COUNT, POOL_SIZE,
-                                                0, 0, RELU_ENABLED);
+        PSLayerParameters * cparams;
+        PSLayerParameters * pparams;
+        cparams = PSCreateConvolutionalParameters(FEATURES_COUNT, REGIONS_SIZE,
+                                                  1, 0, RELU_ENABLED);
+        pparams = PSCreateConvolutionalParameters(FEATURES_COUNT, POOL_SIZE,
+                                                  0, 0, RELU_ENABLED);
         
         if (cparams == NULL || pparams == NULL) {
             fprintf(stderr, "Could not create layer params!\n");
-            deleteNetwork(network);
+            PSDeleteNetwork(network);
             if (training_data != NULL) free(training_data);
             if (test_data != NULL) free(test_data);
             return 1;
         }
         
-        addLayer(network, FullyConnected, INPUT_SIZE, NULL);
-        addConvolutionalLayer(network, cparams);
-        addPoolingLayer(network, pparams);
-        addLayer(network, FullyConnected, 30, NULL);
-        //addLayer(network, FullyConnected, 10, NULL);
-        addLayer(network, SoftMax, 10, NULL);
+        PSAddLayer(network, FullyConnected, INPUT_SIZE, NULL);
+        PSAddConvolutionalLayer(network, cparams);
+        PSAddPoolingLayer(network, pparams);
+        PSAddLayer(network, FullyConnected, 30, NULL);
+        //PSAddLayer(network, FullyConnected, 10, NULL);
+        PSAddLayer(network, SoftMax, 10, NULL);
         
         if (network->size < 1) {
             fprintf(stderr, "Could not add all layers!\n");
-            deleteNetwork(network);
+            PSDeleteNetwork(network);
             if (training_data != NULL) free(training_data);
             if (test_data != NULL) free(test_data);
             return 1;
@@ -109,7 +109,7 @@ int main(int argc, char** argv) {
                    TRAIN_DATASET_LEN);
             if (training_data != NULL) free(training_data);
             if (test_data != NULL) free(test_data);
-            deleteNetwork(network);
+            PSDeleteNetwork(network);
             return 1;
         } else {
             int remaining = element_count - train_dataset_len;
@@ -130,27 +130,25 @@ int main(int argc, char** argv) {
         }
         
     } else {
-        int loaded = loadNetwork(network, pretrained_file);
+        int loaded = PSLoadNetwork(network, pretrained_file);
         if (!loaded) {
             printf("Could not load pretrained data %s\n", pretrained_file);
-            deleteNetwork(network);
+            PSDeleteNetwork(network);
             return 1;
         }
         if (network->size < 1) {
             fprintf(stderr, "Could not add all layers!\n");
-            deleteNetwork(network);
+            PSDeleteNetwork(network);
             return 1;
         }
     }
     
     if (datalen > 0)
-        train(network, training_data, datalen, EPOCHS, 1.5, 10, 0,
-              validation_data, valdlen);
-    //int loaded = loadNetwork(network, "pretrained.mnist.data");
-    //if (!loaded) exit(1);
-    
+        PSTrain(network, training_data, datalen, EPOCHS, 1.5, 10, 0,
+                validation_data, valdlen);
+
     if (network->status == STATUS_ERROR) {
-        deleteNetwork(network);
+        PSDeleteNetwork(network);
         if (training_data != NULL) free(training_data);
         if (test_data != NULL) free(test_data);
         return 1;
@@ -158,11 +156,11 @@ int main(int argc, char** argv) {
     
     if (testlen > 0 && test_data != NULL) {
         printf("Test Data len: %d\n", testlen);
-        test(network, test_data, testlen);
+        PSTest(network, test_data, testlen);
     }
     if (pretrained_file == NULL)
-        saveNetwork(network, "/tmp/pretrained.cnn.data");
-    deleteNetwork(network);
+        PSSaveNetwork(network, "/tmp/pretrained.cnn.data");
+    PSDeleteNetwork(network);
     if (training_data != NULL) free(training_data);
     if (test_data != NULL) free(test_data);
     return 0;

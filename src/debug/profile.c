@@ -53,46 +53,46 @@ int main(int argc, char** argv) {
                                 "../../resources/t10k-labels-idx1-ubyte.gz",
                                 &test_data);
     
-    NeuralNetwork * network = createNetwork();
+    PSNeuralNetwork * network = PSCreateNetwork("Profiling Network");
     
-    LayerParameters * cparams;
-    LayerParameters * pparams;
-    cparams = createConvolutionalParameters(FEATURES_COUNT, REGIONS_SIZE,
-                                            1, 0, 1);
-    pparams = createConvolutionalParameters(FEATURES_COUNT, POOL_SIZE,
-                                            0, 0, 1);
-    addLayer(network, FullyConnected, INPUT_SIZE, NULL);
-    addConvolutionalLayer(network, cparams);
-    addPoolingLayer(network, pparams);
-    addLayer(network, FullyConnected, 30, NULL);
-    //addLayer(network, FullyConnected, 10, NULL);
-    addLayer(network, SoftMax, 10, NULL);
+    PSLayerParameters * cparams;
+    PSLayerParameters * pparams;
+    cparams = PSCreateConvolutionalParameters(FEATURES_COUNT, REGIONS_SIZE,
+                                              1, 0, 1);
+    pparams = PSCreateConvolutionalParameters(FEATURES_COUNT, POOL_SIZE,
+                                              0, 0, 1);
+    PSAddLayer(network, FullyConnected, INPUT_SIZE, NULL);
+    PSAddConvolutionalLayer(network, cparams);
+    PSAddPoolingLayer(network, pparams);
+    PSAddLayer(network, FullyConnected, 30, NULL);
+    //PSAddLayer(network, FullyConnected, 10, NULL);
+    PSAddLayer(network, SoftMax, 10, NULL);
     
     int element_size = network->input_size + network->output_size;
     datalen = element_size * TRAIN_DATASET_LEN;
     eval_data = train_data + datalen;
     int eval_datalen = element_size * EVAL_DATASET_LEN;
     
-    train(network, train_data, datalen, EPOCHS, 1.5, 1, 0, eval_data,
-          eval_datalen);
+    PSTrain(network, train_data, datalen, EPOCHS, 1.5, 1, 0, eval_data,
+            eval_datalen);
     
-    test(network, test_data, datalen);
+    PSTest(network, test_data, datalen);
     
-    deleteNetwork(network);
+    PSDeleteNetwork(network);
     free(train_data);
     free(test_data);
     
-    network = createNetwork();
+    network = PSCreateNetwork("Profiling RNN");
     network->flags |= FLAG_ONEHOT;
-    addLayer(network, FullyConnected, RNN_INPUT_SIZE, NULL);
-    addLayer(network, Recurrent, RNN_HIDDEN_SIZE, NULL);
-    addLayer(network, SoftMax, RNN_INPUT_SIZE, NULL);
+    PSAddLayer(network, FullyConnected, RNN_INPUT_SIZE, NULL);
+    PSAddLayer(network, Recurrent, RNN_HIDDEN_SIZE, NULL);
+    PSAddLayer(network, SoftMax, RNN_INPUT_SIZE, NULL);
     network->layers[network->size - 1]->flags |= FLAG_ONEHOT;
     
-    train(network, rnn_train_data, 10, EPOCHS, RNN_LEARNING_RATE, 1, 0,
-          NULL, 0);
+    PSTrain(network, rnn_train_data, 10, EPOCHS, RNN_LEARNING_RATE, 1, 0,
+            NULL, 0);
     
-    deleteNetwork(network);
+    PSDeleteNetwork(network);
     
     return 0;
 }

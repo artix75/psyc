@@ -32,7 +32,7 @@
 #define LEARNING_RATE       1.5
 #define BATCH_SIZE          10
 
-static LayerType getLayerType(char * name, NeuralNetwork * network) {
+static PSLayerType getLayerType(char * name, PSNeuralNetwork * network) {
     if (strcmp("fully_connected", name) == 0)
         return FullyConnected;
     else if (strcmp("convolutional", name) == 0)
@@ -47,7 +47,7 @@ static LayerType getLayerType(char * name, NeuralNetwork * network) {
         return LSTM;
     else {
         fprintf(stderr, "Unkown layer type %s\n", name);
-        deleteNetwork(network);
+        PSDeleteNetwork(network);
         exit(1);
     }
 }
@@ -81,7 +81,7 @@ char outputFile[255];
 void print_help(const char* program_path);
 
 int main(int argc, char ** argv) {
-    NeuralNetwork * network = createNetwork();
+    PSNeuralNetwork * network = PSCreateNetwork("CLI Network");
     int i, j;
     outputFile[0] = 0;
     int training_flags = 0;
@@ -90,9 +90,9 @@ int main(int argc, char ** argv) {
         char * arg = argv[i];
         if (strcmp("--load", arg) == 0 && ++i < argc) {
             char * file = argv[i];
-            int loaded = loadNetwork(network, file);
+            int loaded = PSLoadNetwork(network, file);
             if (!loaded) {
-                deleteNetwork(network);
+                PSDeleteNetwork(network);
                 fprintf(stderr, "Could not load pretrained network %s\n", file);
                 exit(1);
             }
@@ -117,15 +117,15 @@ int main(int argc, char ** argv) {
         
         if (strcmp("--layer", arg) == 0 && ++i < argc) {
             char * type = argv[i];
-            LayerType ltype = getLayerType(type, network);
+            PSLayerType ltype = getLayerType(type, network);
             if ((i + 1) >= argc) {
                 break;
             }
             if (Convolutional == ltype) {
-                LayerParameters * params = NULL;
-                params = createConvolutionalParameters(CONV_FEATURE_COUNT,
-                                                       CONV_REGION_SIZE,
-                                                       1, 0, 0);
+                PSLayerParameters * params = NULL;
+                params = PSCreateConvolutionalParameters(CONV_FEATURE_COUNT,
+                                                         CONV_REGION_SIZE,
+                                                         1, 0, 0);
                 double * lparams = params->parameters;
                 for (j = i + 1; j < argc; j++) {
                     char * carg = argv[j];
@@ -166,11 +166,12 @@ int main(int argc, char ** argv) {
                         break;
                     }
                 }
-                addConvolutionalLayer(network, params);
+                PSAddConvolutionalLayer(network, params);
             } else if (Pooling == ltype) {
-                LayerParameters * params = NULL;
-                params = createConvolutionalParameters(0, POOL_REGION_SIZE,
-                                                       POOL_REGION_SIZE, 0, 0);
+                PSLayerParameters * params = NULL;
+                params = PSCreateConvolutionalParameters(0, POOL_REGION_SIZE,
+                                                         POOL_REGION_SIZE,
+                                                         0, 0);
                 double * lparams = params->parameters;
                 for (j = i + 1; j < argc; j++) {
                     char * carg = argv[j];
@@ -187,17 +188,17 @@ int main(int argc, char ** argv) {
                         break;
                     }
                 }
-                addPoolingLayer(network, params);
+                PSAddPoolingLayer(network, params);
             } else {
                 int size = 0;
                 char * sizestr = argv[++i];
                 int matched = sscanf(sizestr, "%d", &size);
                 if (!matched) {
                     fprintf(stderr, "Invalid size %s\n", sizestr);
-                    deleteNetwork(network);
+                    PSDeleteNetwork(network);
                     exit(1);
                 }
-                addLayer(network, ltype, size, NULL);
+                PSAddLayer(network, ltype, size, NULL);
             }
             continue;
         }
@@ -209,7 +210,7 @@ int main(int argc, char ** argv) {
             }
             if (!mnist) {
                 fprintf(stderr, "Only MNIST data supported for train ATM :(\n");
-                deleteNetwork(network);
+                PSDeleteNetwork(network);
                 exit(1);
             } else {
                 train_dataset_len = 50000;
@@ -222,12 +223,12 @@ int main(int argc, char ** argv) {
                                         &training_data);
                 if (datalen == 0 || training_data == NULL) {
                     fprintf(stderr, "Could not load training data!\n");
-                    deleteNetwork(network);
+                    PSDeleteNetwork(network);
                     exit(1);
                 }
             } else {
                 fprintf(stderr, "Missing MNIST training data files\n");
-                deleteNetwork(network);
+                PSDeleteNetwork(network);
                 exit(1);
             }
             continue;
@@ -240,7 +241,7 @@ int main(int argc, char ** argv) {
             }
             if (!mnist) {
                 fprintf(stderr, "Only MNIST data supported ATM :(\n");
-                deleteNetwork(network);
+                PSDeleteNetwork(network);
                 exit(1);
             }
             if ((i + 2) < argc) {
@@ -250,12 +251,12 @@ int main(int argc, char ** argv) {
                                         &test_data);
                 if (testlen == 0 || test_data == NULL) {
                     fprintf(stderr, "Could not load test data!\n");
-                    deleteNetwork(network);
+                    PSDeleteNetwork(network);
                     exit(1);
                 }
             } else {
                 fprintf(stderr, "Missing MNIST test data files\n");
-                deleteNetwork(network);
+                PSDeleteNetwork(network);
                 exit(1);
             }
             continue;
@@ -328,7 +329,7 @@ int main(int argc, char ** argv) {
         if (element_count < train_dataset_len) {
             fprintf(stderr, "Loaded dataset elements %d < %d\n", element_count,
                    train_dataset_len);
-            deleteNetwork(network);
+            PSDeleteNetwork(network);
             return 1;
         } else {
             int remaining = element_count - train_dataset_len;
@@ -349,24 +350,24 @@ int main(int argc, char ** argv) {
                 valdlen = eval_dataset_len * element_size;
             }
         }
-        train(network, training_data, datalen, epochs, learning_rate,
-              batch_size, training_flags, validation_data, valdlen);
+        PSTrain(network, training_data, datalen, epochs, learning_rate,
+                batch_size, training_flags, validation_data, valdlen);
         free(training_data);
     }
     if (test_data != NULL) {
-        test(network, test_data, testlen);
+        PSTest(network, test_data, testlen);
         free(test_data);
     }
     if (!strlen(outputFile)) {
         getTempFileName("saved-network", outputFile);
     }
-    int saved = saveNetwork(network, outputFile);
+    int saved = PSSaveNetwork(network, outputFile);
     if (!saved) {
         fprintf(stderr, "Could not save network to %s\n", outputFile);
     } else {
         printf("Network saved to %s\n", outputFile);
     }
-    deleteNetwork(network);
+    PSDeleteNetwork(network);
     return 0;
 }
 
@@ -399,7 +400,7 @@ void print_help(const char* program_path) {
     printf("LAYER TYPES:\n");
     int i;
     for (i = 0; i < LAYER_TYPES; i++) {
-        LayerType type = (LayerType) i;
+        PSLayerType type = (PSLayerType) i;
         printf("    %s\n", getLabelForType(type));
     }
     printf("\n");

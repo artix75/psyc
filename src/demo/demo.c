@@ -13,19 +13,19 @@ double normalized_rand() {
 }
 
 int main(int argc, char** argv) {
-    NeuralNetwork * network = createNetwork();
-    addLayer(network, FullyConnected, INPUTS_SIZE, NULL);
-    addLayer(network, FullyConnected, 30, NULL);
-    addLayer(network, FullyConnected, 10, NULL);
+    PSNeuralNetwork * network = PSCreateNetwork(NULL);
+    PSAddLayer(network, FullyConnected, INPUTS_SIZE, NULL);
+    PSAddLayer(network, FullyConnected, 30, NULL);
+    PSAddLayer(network, FullyConnected, 10, NULL);
     
     double values[INPUTS_SIZE];
     int i;
     for (i = 0; i < INPUTS_SIZE; i++) {
         values[i] = normalized_rand();
     }
-    feedforward(network, values);
+    PSFeedforward(network, values);
     
-    deleteNetwork(network);
+    PSDeleteNetwork(network);
     
     double nums[] = {1,2,3,4,5,6,7,8,9,10,11,12};
     testShuffle(nums, 6, 2);
