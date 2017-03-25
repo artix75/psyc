@@ -75,7 +75,7 @@ static void logerr(const char* tag, char* fmt, ...) {
 /* Function Prototypes */
 
 RecurrentCell * createRecurrentCell(Neuron * neuron, int lsize);
-void addRecurrentState(Neuron * neuron, double state, int times, int t);
+double * addRecurrentState(Neuron * neuron, double state, int times, int t);
 void deleteLayerGradients(Gradient * lgradients, int size);
 void deleteGradients(Gradient ** gradients, NeuralNetwork * network);
 
@@ -1859,6 +1859,7 @@ int setLayerParameter(LayerParameters * params, int param, double value) {
         free(old_params);
     }
     params->parameters[param] = value;
+    return 1;
 }
 
 int addLayerParameter(LayerParameters * params, double val) {
@@ -2322,7 +2323,7 @@ Gradient ** backpropThroughTime(NeuralNetwork * network, double * x,
     if (outputLayer->type != SoftMax) {
         logerr("backpropThroughTime",
                "Recurrent networks require a Softmax output layer, "
-               "current one is of type %s.", getLayerTypeLabel(output));
+               "current one is of type %s.", getLayerTypeLabel(outputLayer));
         deleteGradients(gradients, network);
         return NULL;
     }
