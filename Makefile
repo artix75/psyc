@@ -26,6 +26,8 @@ clean:
 
 install:
 	cd src && $(MAKE) install
+uninstall:
+	cd src && $(MAKE) uninstall
 all: neural_cli demo
 	
         

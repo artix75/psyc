@@ -48,9 +48,8 @@ install: all
 	cp -r ../resources $(SHAREDIR)/resources
 
 uninstall:
-	echo "rm -rvf $(SHAREDIR)"
+	rm -rvf $(SHAREDIR)
 	rm -f $(BINDIR)/psyc_cli
 	rm -f $(LIBDIR)/$(LIBNAME)
 	rm -f $(INCLUDEDIR)/psyc.h
 	rm -f $(INCLUDEDIR)/psyc_mnist.h
-	echo "$(SHAREDIR)/resources"
