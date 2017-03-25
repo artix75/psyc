@@ -2362,6 +2362,7 @@ Gradient ** backpropThroughTime(NeuralNetwork * network, double * x,
 
         double softmax_sum = 0.0;
         int apply_derivative = shouldApplyDerivative(network);
+        // Calculate output deltas, output layer must be Softmax
         for (o = 0; o < osize; o++) {
             Neuron * neuron = outputLayer->neurons[o];
             RecurrentCell * cell = getRecurrentCell(neuron);
@@ -2378,7 +2379,7 @@ Gradient ** backpropThroughTime(NeuralNetwork * network, double * x,
             softmax_sum += d;
             delta[o] = d;
         }
-        // SoftMax
+        // Update gradients for output layer
         for (o = 0; o < osize; o++) {
             Neuron * neuron = outputLayer->neurons[o];
             RecurrentCell * cell = getRecurrentCell(neuron);
@@ -2410,6 +2411,7 @@ Gradient ** backpropThroughTime(NeuralNetwork * network, double * x,
             }
         }
         
+        // Cycle through other layers
         for (i = previousLayer->index; i > 0; i--) {
             Layer * layer = network->layers[i];
             previousLayer = network->layers[i - 1];
@@ -2426,6 +2428,7 @@ Gradient ** backpropThroughTime(NeuralNetwork * network, double * x,
                 return NULL;
             }
             memset(delta, 0, sizeof(double) * lsize);
+            // Calculate layer deltas
             for (j = 0; j < lsize; j++) {
                 Neuron * neuron = layer->neurons[j];
                 RecurrentCell * cell = getRecurrentCell(neuron);
