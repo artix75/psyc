@@ -47,7 +47,7 @@ install: all
 	cp psyc.h $(INCLUDEDIR)/psyc.h
 	cp mnist.h $(INCLUDEDIR)/psyc_mnist.h
 	cp -r ../resources $(SHAREDIR)/resources
-	[ $(PLATFORM) = "Linux" ] && /sbin/ldconfig -v
+	@if [ "$(PLATFORM)" = "Linux" ]; then /sbin/ldconfig; fi
 
 uninstall:
 	rm -rvf $(SHAREDIR)
