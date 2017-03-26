@@ -11,6 +11,8 @@ ifeq ($(AVX),on)
         REQUIRED_OBJS+=../avx.o
 endif
 
+default: all
+
 mnist_demo: $(REQUIRED_OBJS) mnist_demo.o
 	$(CC) -o ../../bin/mnist_demo $(REQUIRED_OBJS) mnist_demo.o $(LDFLAGS)
 conv_demo: $(REQUIRED_OBJS) conv_demo.o

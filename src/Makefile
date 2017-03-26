@@ -29,6 +29,8 @@ ifeq ($(AVX),on)
         psyc_OBJS+=avx.o
 endif
 
+default: all
+
 $(LIBNAME): $(psyc_OBJS)
 	$(CC) $(LIBOPTS) -o ../lib/$@ $(psyc_OBJS) $(LDFLAGS)
 

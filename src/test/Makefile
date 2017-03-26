@@ -10,6 +10,7 @@ ifeq ($(AVX),on)
         REQUIRED_OBJS+=../avx.o
 endif
 
+default: all
 
 main_tests: $(REQUIRED_OBJS) main_tests.o
 	$(CC) -o main_tests $(REQUIRED_OBJS) main_tests.o $(LDFLAGS)

@@ -10,6 +10,8 @@ ifeq ($(AVX),on)
         REQUIRED_OBJS+=../avx.o
 endif
 
+default: all
+
 profile: $(REQUIRED_OBJS) profile.o
 	$(CC) -o profile $(REQUIRED_OBJS) profile.o $(LDFLAGS)
 	valgrind --leak-check=yes ./profile
