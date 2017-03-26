@@ -1,6 +1,6 @@
 SHELL=/bin/bash
 CC=gcc
-CFLAGS=-std=gnu99
+CFLAGS=-std=gnu99 -Wall -W -Wno-missing-field-initializers
 LDFLAGS=-lz -lm
 psyc_OBJS=psyc.o mnist.o psyc_cli.o
 PREFIX?=/usr/local

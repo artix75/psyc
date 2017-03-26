@@ -169,7 +169,8 @@ int loadMNISTData(int type,
     tmplabels = fopen(tmpLabelsFileName, "r");
     fseek(tmpimages, 0, SEEK_SET);
     fseek(tmplabels, 0, SEEK_SET);
-    uint32_t magic_num = 0, image_count = 0, label_count = 0, i = 0, j = 0;
+    uint32_t magic_num = 0, image_count = 0, label_count = 0;
+    int i = 0, j = 0;
     fread(&magic_num, 1, 4, tmpimages);
     magic_num = le2be(magic_num);
     if (magic_num != IMAGES_MAGIC_NUM) {
@@ -220,7 +221,7 @@ int loadMNISTData(int type,
     int data_len = (img_area * image_count) + (label_count * 10);
     *data = malloc(data_len * sizeof(double));
     double * data_p = *data;
-    for (i = 0; i < image_count; i++) {
+    for (i = 0; i < (int) image_count; i++) {
         printf("\rLoading image %d/%d", i + 1, image_count);
         for (j = 0; j < img_area; j++) {
             int pixel = fgetc(tmpimages);
