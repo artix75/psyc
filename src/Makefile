@@ -13,7 +13,8 @@ LIBNAME := libpsyc
 
 ifeq ($(PLATFORM), Linux)
         LIBNAME := $(LIBNAME).so
-        LIBOPTS := -shared
+        LIBOPTS := -shared -fPIC -Wl,-soname,$(LIBNAME)
+        CFLAGS+=-fPIC
 endif
 
 ifeq ($(PLATFORM), Darwin)
@@ -46,6 +47,7 @@ install: all
 	cp psyc.h $(INCLUDEDIR)/psyc.h
 	cp mnist.h $(INCLUDEDIR)/psyc_mnist.h
 	cp -r ../resources $(SHAREDIR)/resources
+	[ $(PLATFORM) = "Linux" ] && /sbin/ldconfig -v
 
 uninstall:
 	rm -rvf $(SHAREDIR)
