@@ -44,6 +44,35 @@
 #define shouldApplyDerivative(network) (network->loss != crossEntropyLoss)
 #define printMemoryErrorMsg() logerr(NULL, "Could not allocate memory!")
 
+#ifdef USE_AVX
+
+#define AVXDotProduct(size, x, y, res, i, is_recurrent, t) do { \
+    int avx_step_len = AVXGetDotStepLen(size); \
+    avx_dot_product dot_product = AVXGetDotProductFunc(size); \
+    int avx_steps = size / avx_step_len, avx_step; \
+    for (avx_step = 0; avx_step < avx_steps; avx_step++) { \
+        double * x_vector = x + i; \
+        if (is_recurrent) x_vector += (t * size); \
+        double * y_vector = y + i; \
+        res += dot_product(x_vector, y_vector); \
+        i += avx_step_len; \
+    } \
+} while (0)
+
+#define AVXMultiplyValue(size, x, y, val, i, is_recurrent, t, mode) do { \
+    int avx_step_len = AVXGetStepLen(size); \
+    int avx_steps = size / avx_step_len, avx_step; \
+    avx_multiply_value multiply_val = AVXGetMultiplyValFunc(size); \
+    for (avx_step = 0; avx_step < avx_steps; avx_step++) { \
+        double * x_vector = x + i; \
+        if (is_recurrent) x_vector += (t * size); \
+        multiply_val(x_vector, val, y + i, mode); \
+        i += avx_step_len; \
+    } \
+} while (0)
+
+#endif
+
 typedef double (*PSGetDeltaFunction)(PSNeuron* n, PSLayer* l, PSLayer* next,
                                      double * last_d);
 
@@ -139,16 +168,8 @@ int fullFeedforward(void * _net, void * _layer, ...) {
         double sum = 0;
         j = 0;
 #ifdef USE_AVX
-        int avx_step_len = AVXGetDotStepLen(previous_size);
-        avx_dot_product dot_product = AVXGetDotProductFunc(previous_size);
-        int avx_steps = previous_size / avx_step_len, avx_step;
-        for (avx_step = 0; avx_step < avx_steps; avx_step++) {
-            double * x_vector = previous->avx_activation_cache + j;
-            if (is_recurrent) x_vector += (t * previous_size);
-            double * y_vector = neuron->weights + j;
-            sum += dot_product(x_vector, y_vector);
-            j += avx_step_len;
-        }
+        AVXDotProduct(previous_size, previous->avx_activation_cache,
+                      neuron->weights, sum, j, is_recurrent, t);
 #endif
         for (; j < previous_size; j++) {
             PSNeuron * prev_neuron = previous->neurons[j];
@@ -210,16 +231,8 @@ int softmaxFeedforward(void * _net, void * _layer, ...) {
         double sum = 0;
         j = 0;
 #ifdef USE_AVX
-        int avx_step_len = AVXGetDotStepLen(previous_size);
-        avx_dot_product dot_product = AVXGetDotProductFunc(previous_size);
-        int avx_steps = previous_size / avx_step_len, avx_step;
-        for (avx_step = 0; avx_step < avx_steps; avx_step++) {
-            double * x_vector = previous->avx_activation_cache + j;
-            if (is_recurrent) x_vector += (t * previous_size);
-            double * y_vector = neuron->weights + j;
-            sum += dot_product(x_vector, y_vector);
-            j += avx_step_len;
-        }
+        AVXDotProduct(previous_size, previous->avx_activation_cache,
+                      neuron->weights, sum, j, is_recurrent, t);
 #endif
         for (; j < previous_size; j++) {
             PSNeuron * prev_neuron = previous->neurons[j];
@@ -348,7 +361,7 @@ int convolve(void * _net, void * _layer, ...) {
                 for (avx_step = 0; avx_step < avx_steps; avx_step++) {
                     int nidx = feature_offset + (y * input_w) + x;
                     double * x_vector = previous->avx_activation_cache + nidx;
-                    //if (is_recurrent) x_vector += (t * previous_size);
+                    if (is_recurrent) x_vector += (t * previous->size);
                     double * y_vector = weights + widx;
                     sum += dot_product(x_vector, y_vector);
                     x += avx_step_len;
@@ -534,16 +547,8 @@ int recurrentFeedforward(void * _net, void * _layer, ...) {
         else {
             j = 0;
 #ifdef USE_AVX
-            int avx_step_len = AVXGetDotStepLen(previous_size);
-            avx_dot_product dot_product = AVXGetDotProductFunc(previous_size);
-            int avx_steps = previous_size / avx_step_len, avx_step;
-            for (avx_step = 0; avx_step < avx_steps; avx_step++) {
-                double * x_vector = previous->avx_activation_cache + j;
-                x_vector += (t * previous_size);
-                double * y_vector = neuron->weights + j;
-                sum += dot_product(x_vector, y_vector);
-                j += avx_step_len;
-            }
+            AVXDotProduct(previous_size, previous->avx_activation_cache,
+                          neuron->weights, sum, j, 1, t);
 #endif
             for (; j < previous_size; j++) {
                 PSNeuron * prev_neuron = previous->neurons[j];
@@ -556,18 +561,10 @@ int recurrentFeedforward(void * _net, void * _layer, ...) {
             int last_t = t - 1;
             w = 0;
 #ifdef USE_AVX
-            int avx_step_len = AVXGetDotStepLen(size);
-            avx_dot_product dot_product = AVXGetDotProductFunc(size);
-            int avx_steps = cell->weights_size / avx_step_len, avx_step;
-            for (avx_step = 0; avx_step < avx_steps; avx_step++) {
-                double * x_vector = layer->avx_activation_cache + w;
-                x_vector += (last_t * size);
-                double * y_vector = cell->weights + w;
-                bias += dot_product(x_vector, y_vector);
-                w += avx_step_len;
-            }
+            AVXDotProduct(size, layer->avx_activation_cache, cell->weights,
+                          bias, w, 1, last_t);
 #endif
-            for (; w < cell->weights_size; w++) {
+            for (; w < size; w++) {
                 PSNeuron * n = layer->neurons[w];
                 PSRecurrentCell * rc = getRecurrentCell(n);
                 if (rc == NULL) return 0;
@@ -2342,14 +2339,8 @@ PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y) {
             int wsize = neuron->weights_size;
             w = 0;
 #ifdef USE_AVX
-            int avx_step_len = AVXGetStepLen(wsize);
-            int avx_steps = wsize / avx_step_len, avx_step;
-            avx_multiply_value multiply_val = AVXGetMultiplyValFunc(wsize);
-            for (avx_step = 0; avx_step < avx_steps; avx_step++) {
-                double * x_vector = previousLayer->avx_activation_cache + w;
-                multiply_val(x_vector, d, gradient->weights + w, 0);
-                w += avx_step_len;
-            }
+            AVXMultiplyValue(wsize, previousLayer->avx_activation_cache,
+                             gradient->weights, d, w, 0, 0, 0);
 #endif
             for (; w < neuron->weights_size; w++) {
                 double prev_a = previousLayer->neurons[w]->activation;
@@ -2368,14 +2359,8 @@ PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y) {
             int wsize = neuron->weights_size;
             w = 0;
 #ifdef USE_AVX
-            int avx_step_len = AVXGetStepLen(wsize);
-            int avx_steps = wsize / avx_step_len, avx_step;
-            avx_multiply_value multiply_val = AVXGetMultiplyValFunc(wsize);
-            for (avx_step = 0; avx_step < avx_steps; avx_step++) {
-                double * x_vector = previousLayer->avx_activation_cache + w;
-                multiply_val(x_vector, d, gradient->weights + w, 0);
-                w += avx_step_len;
-            }
+            AVXMultiplyValue(wsize, previousLayer->avx_activation_cache,
+                             gradient->weights, d, w, 0, 0, 0);
 #endif
             for (; w < neuron->weights_size; w++) {
                 double prev_a = previousLayer->neurons[w]->activation;
@@ -2409,16 +2394,10 @@ PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y) {
                 w = 0;
                 int wsize = neuron->weights_size;
 #ifdef USE_AVX
-                int avx_step_len = AVXGetStepLen(wsize);
-                int avx_steps = wsize / avx_step_len, avx_step;
-                avx_multiply_value multiply_val = AVXGetMultiplyValFunc(wsize);
-                for (avx_step = 0; avx_step < avx_steps; avx_step++) {
-                    double * x_vector = previousLayer->avx_activation_cache + w;
-                    multiply_val(x_vector, d, gradient->weights + w, 0);
-                    w += avx_step_len;
-                }
+                AVXMultiplyValue(wsize, previousLayer->avx_activation_cache,
+                                 gradient->weights, d, w, 0, 0, 0);
 #endif
-                for (; w < neuron->weights_size; w++) {
+                for (; w < wsize; w++) {
                     double prev_a = previousLayer->neurons[w]->activation;
                     gradient->weights[w] = d * prev_a;
                 }
@@ -2544,18 +2523,10 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
             gradient->bias = d;
             w = 0;
 #ifdef USE_AVX
-            int avx_step_len = AVXGetStepLen(neuron->weights_size);
-            int avx_steps = neuron->weights_size / avx_step_len,
-                avx_step;
-            avx_multiply_value multiply;
-            multiply = AVXGetMultiplyValFunc(neuron->weights_size);
-            for (avx_step = 0; avx_step < avx_steps; avx_step++) {
-                double * xv = previousLayer->avx_activation_cache + w;
-                xv += (t * previousLayer->size);
-                double * weights = gradient->weights + w;
-                multiply(xv, d, weights, AVX_STORE_MODE_ADD);
-                w += avx_step_len;
-            }
+            AVXMultiplyValue(neuron->weights_size,
+                             previousLayer->avx_activation_cache,
+                             gradient->weights, d, w,
+                             1, t, AVX_STORE_MODE_ADD);
 #endif
             for (; w < neuron->weights_size; w++) {
                 PSNeuron * prev_neuron = previousLayer->neurons[w];
@@ -2645,26 +2616,17 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
                         int w_offs = neuron->weights_size - cell->weights_size;
                         double rsum = 0.0;
                         w = 0;
-#ifdef USE_AVX                        
-                        int avx_step_len = AVXGetStepLen(cell->weights_size);
-                        int avx_steps = cell->weights_size / avx_step_len,
-                            avx_step;
-                        avx_multiply_value multiply;
-                        multiply = AVXGetMultiplyValFunc(cell->weights_size);
-                        for (avx_step = 0; avx_step < avx_steps; avx_step++) {
-                            double * xv = layer->avx_activation_cache + w;
-                            xv += ((tt - 1) * cell->weights_size);
-                            double * weights = gradient->weights + w_offs + w;
-                            multiply(xv, dv, weights, AVX_STORE_MODE_ADD);
-                            w += avx_step_len;
-                        }
+#ifdef USE_AVX
+                        AVXMultiplyValue(cell->weights_size,
+                                         layer->avx_activation_cache,
+                                         gradient->weights + w_offs, dv, w,
+                                         1, (tt - 1), AVX_STORE_MODE_ADD);
 #endif
                         for (; w < cell->weights_size; w++) {
                             PSNeuron * rn = layer->neurons[w];
                             PSRecurrentCell * rc = getRecurrentCell(rn);
                             double a = rc->states[tt - 1];
                             gradient->weights[w_offs + w] += (dv * a);
-                            //sum += (delta[w] * );
                         }
                         for (w = 0; w < cell->weights_size; w++) {
                             PSNeuron * rn = layer->neurons[w];
