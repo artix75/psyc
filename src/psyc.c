@@ -813,18 +813,17 @@ void printLayerInfo(PSLayer * layer) {
 double quadraticLoss(double * outputs, double * desired, int size,
                      int onehot_size)
 {
-    double * d;
+    double * _diffs;
     double diffs[size];
     if (!onehot_size) {
         int i;
-        
         for (i = 0; i < size; i++) {
             double d = outputs[i] - desired[i];
             diffs[i] = d;
         }
-        d = diffs;
-    } else d = outputs;
-    double n = norm(diffs, size);
+        _diffs = diffs;
+    } else _diffs = outputs;
+    double n = norm(_diffs, size);
     double loss = 0.5 * (n * n);
     if (onehot_size) loss /= (double) onehot_size;
     return loss;

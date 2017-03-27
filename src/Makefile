@@ -14,7 +14,7 @@ LIBNAME := libpsyc
 ifeq ($(PLATFORM), Linux)
         LIBNAME := $(LIBNAME).so
         LIBOPTS := -shared -fPIC -Wl,-soname,$(LIBNAME)
-        CFLAGS+=-fPIC
+        CFLAGS+=-fPIC -Wno-unused-but-set-variable
 endif
 
 ifeq ($(PLATFORM), Darwin)
