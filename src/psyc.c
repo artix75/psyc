@@ -287,6 +287,14 @@ int convolve(void * _net, void * _layer, ...) {
         logerr(NULL, "Layer[%d]: parameters are invalid!", layer->index);
         return 0;
     }
+    int is_recurrent = (net->flags & FLAG_RECURRENT), times, t;
+    if (is_recurrent) {
+        va_list args;
+        va_start(args, _layer);
+        times = va_arg(args, int);
+        t = va_arg(args, int);
+        va_end(args);
+    }
     double * params = parameters->parameters;
     double * previous_params = previous_parameters->parameters;
     int feature_count = (int) (params[PARAM_FEATURE_COUNT]);
@@ -344,8 +352,16 @@ int convolve(void * _net, void * _layer, ...) {
             neuron->z_value = sum + bias;
             neuron->activation = layer->activate(neuron->z_value);
 #ifdef USE_AVX
-            layer->avx_activation_cache[idx] = neuron->activation;
+            if (!is_recurrent)
+                layer->avx_activation_cache[idx] = neuron->activation;
 #endif
+            if (is_recurrent) {
+                addRecurrentState(neuron, neuron->activation, times, t);
+                if (neuron->extra == NULL) {
+                    logerr("convolve", "Failed to allocate Recurrent Cell!");
+                    return 0;
+                }
+            }
         }
     }
     return 1;
@@ -378,6 +394,14 @@ int pool(void * _net, void * _layer, ...) {
     if (previous_parameters == NULL) {
         logerr(NULL, "Layer[%d]: parameters are invalid!", layer->index);
         return 0;
+    }
+    int is_recurrent = (net->flags & FLAG_RECURRENT), times, t;
+    if (is_recurrent) {
+        va_list args;
+        va_start(args, _layer);
+        times = va_arg(args, int);
+        t = va_arg(args, int);
+        va_end(args);
     }
     double * params = parameters->parameters;
     double * previous_params = previous_parameters->parameters;
@@ -415,8 +439,16 @@ int pool(void * _net, void * _layer, ...) {
             neuron->z_value = max_z;
             neuron->activation = max;
 #ifdef USE_AVX
-            layer->avx_activation_cache[idx] = neuron->activation;
+            if (!is_recurrent)
+                layer->avx_activation_cache[idx] = neuron->activation;
 #endif
+            if (is_recurrent) {
+                addRecurrentState(neuron, neuron->activation, times, t);
+                if (neuron->extra == NULL) {
+                    logerr("pool", "Failed to allocate Recurrent Cell!");
+                    return 0;
+                }
+            }
         }
     }
     return 1;
