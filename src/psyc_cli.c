@@ -382,8 +382,8 @@ void print_help(const char* program_path) {
     printf("                                    "
            "(if before 1st layer) or desired output\n");
     printf("                                    (if after output layer)\n");
-    printf("        --train TRAIN DATASET       Train network\n");
-    printf("        --test TEST DATASET         Perform tests\n");
+    printf("        --train TRAIN_DATASET       Train network\n");
+    printf("        --test TEST_DATASET         Perform tests\n");
     printf("        --training-datalen LEN      Training data length\n");
     printf("        --validation-datalen LEN    Validation data length\n");
     printf("        --epochs EPOCHS             Training epochs (def. %d)\n",

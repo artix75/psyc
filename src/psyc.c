@@ -44,6 +44,9 @@
 #define shouldApplyDerivative(network) (network->loss != crossEntropyLoss)
 #define printMemoryErrorMsg() logerr(NULL, "Could not allocate memory!")
 
+typedef double (*PSGetDeltaFunction)(PSNeuron* n, PSLayer* l, PSLayer* next,
+                                     double * last_d);
+
 static unsigned char randomSeeded = 0;
 
 static PSLossFunction loss_functions[] = {
@@ -308,9 +311,20 @@ int convolve(void * _net, void * _layer, ...) {
         logerr(NULL, "Layer[%d]: shared params are NULL!", layer->index);
         return 0;
     }
+    int previous_feature_size = 0, prev_features = 1, prev_features_step = 1;
+    if (previous->type == Pooling) {
+        prev_features = (int) (previous_params[PARAM_FEATURE_COUNT]);
+        previous_feature_size = previous->size / prev_features;
+        prev_features_step = feature_count / prev_features;
+    }
     for (i = 0; i < feature_count; i++) {
         double bias = shared->biases[i];
         double * weights = shared->weights[i];
+        int previous_feature = 0, feature_offset = 0;
+        if (prev_features > 1) {
+            previous_feature = i / prev_features_step;
+            feature_offset = previous_feature * previous_feature_size;
+        }
         row = 0;
         col = 0;
         for (j = 0; j < feature_size; j++) {
@@ -332,7 +346,7 @@ int convolve(void * _net, void * _layer, ...) {
                 avx_dot_product dot_product = AVXGetDotProductFunc(region_size);
                 int avx_steps = region_size / avx_step_len, avx_step;
                 for (avx_step = 0; avx_step < avx_steps; avx_step++) {
-                    int nidx = (y * input_w) + x;
+                    int nidx = feature_offset + (y * input_w) + x;
                     double * x_vector = previous->avx_activation_cache + nidx;
                     //if (is_recurrent) x_vector += (t * previous_size);
                     double * y_vector = weights + widx;
@@ -342,7 +356,7 @@ int convolve(void * _net, void * _layer, ...) {
                 }
 #endif
                 for (; x < max_x; x++) {
-                    int nidx = (y * input_w) + x;
+                    int nidx = feature_offset + (y * input_w) + x;
                     //printf("  -> %d,%d [%d]\n", x, y, nidx);
                     PSNeuron * prev_neuron = previous->neurons[nidx];
                     double a = prev_neuron->activation;
@@ -761,6 +775,86 @@ void fetchRecurrentOutputState(PSLayer * out, double * outputs,
         }
     }
     if (onehot) outputs[i] = max_idx;
+}
+
+double getDeltaForNeuron(PSNeuron * neuron,
+                         PSLayer * layer,
+                         PSLayer * nextLayer,
+                         double * last_delta)
+{
+    int index = neuron->index, i;
+    double dv = 0;
+    for (i = 0; i < nextLayer->size; i++) {
+        PSNeuron * nextNeuron = nextLayer->neurons[i];
+        double weight = nextNeuron->weights[index];
+        double d = last_delta[i];
+        dv += (d * weight);
+    }
+    if (layer->derivative != NULL)
+        dv *= layer->derivative(neuron->z_value);
+    return dv;
+}
+
+double getDeltaForConvolutionalNeuron(PSNeuron * neuron,
+                                      PSLayer * layer,
+                                      PSLayer * nextLayer,
+                                      double * last_delta)
+{
+    
+    int index = neuron->index, i, j, row, col;
+    int size = layer->size;
+    PSLayerParameters * lparams = layer->parameters;
+    int feature_count = (int) (lparams->parameters[PARAM_FEATURE_COUNT]);
+    double output_w = lparams->parameters[PARAM_OUTPUT_WIDTH];
+    int feature_size = size / feature_count;
+    int feature_idx = index / feature_size;
+    PSLayerParameters * nparams = nextLayer->parameters;
+    int next_feature_count = (int) (nparams->parameters[PARAM_FEATURE_COUNT]);
+    int next_region_size = (int) (nparams->parameters[PARAM_REGION_SIZE]);
+    int stride = (int) (nparams->parameters[PARAM_STRIDE]);
+    double next_output_w = nparams->parameters[PARAM_OUTPUT_WIDTH];
+    int next_feature_size = nextLayer->size / next_feature_count;
+    int features_step = next_feature_count / feature_count;
+    int next_feature_idx = feature_idx * features_step;
+    int max_feature_idx = next_feature_idx + features_step;
+    
+    int n_col = index % (int) output_w;
+    int n_row = index / (int) output_w;
+    
+    PSSharedParams * shared = getConvSharedParams(nextLayer);
+    if (shared == NULL) {
+        //TODO: handle shared == NULL
+        return 0;
+    }
+    
+    double dv = 0;
+    
+    for (i = next_feature_idx; i < max_feature_idx; i++) {
+        double * weights = shared->weights[i];
+        int offset = i * next_feature_size;
+        row = 0;
+        col = 0;
+        for (j = 0; j < next_feature_size; j++) {
+            int idx = offset + j;
+            double d = last_delta[idx];
+            col = idx % (int) next_output_w;
+            if (col == 0 && j > 0) row++;
+            int r_row = row * stride;
+            int r_col = col * stride;
+            if (r_col > n_col || r_row > n_row) break;
+            int max_x = next_region_size + r_col;
+            int max_y = next_region_size + r_row;
+            if ((n_col >= r_col && n_col < max_x) &&
+                (n_row >= r_row && n_row < max_y)) {
+                int widx = (r_row * next_region_size) + r_col;
+                dv += (d * weights[widx]);
+            }
+        }
+    }
+    
+    if (layer->derivative != NULL)
+        dv *= layer->derivative(neuron->z_value);
+    return dv;
 }
 
 static int compareVersion(const char* vers1, const char* vers2) {
@@ -1333,8 +1427,20 @@ void PSDeleteNeuron(PSNeuron * neuron, PSLayer * layer) {
 }
 
 void abortLayer(PSNeuralNetwork * network, PSLayer * layer) {
+    if (!network->size) return;
     if (layer->index == (network->size - 1)) {
         network->size--;
+        if (!network->size) {
+            network->input_size = 0;
+            network->output_size = 0;
+        } else {
+            PSLayer * outputLayer = network->layers[network->size - 1];
+            if (outputLayer) network->output_size = outputLayer->size;
+            else network->output_size = 0;
+            PSLayer * inputLayer = network->layers[0];
+            if (inputLayer) network->input_size = inputLayer->size;
+            else network->input_size = 0;
+        }
         PSDeleteLayer(layer);
     }
 }
@@ -1344,12 +1450,6 @@ int initConvolutionalLayer(PSNeuralNetwork * network, PSLayer * layer,
     int index = layer->index;
     char * func = "initConvolutionalLayer";
     PSLayer * previous = network->layers[index - 1];
-    if (previous->type != FullyConnected) {
-        fprintf(stderr,
-                "FullyConnected -> Convolutional trans. not supported ATM :(");
-        abortLayer(network, layer);
-        return 0;
-    }
     if (parameters == NULL) {
         logerr(func, "Layer parameters is NULL!");
         abortLayer(network, layer);
@@ -1388,7 +1488,27 @@ int initConvolutionalLayer(PSNeuralNetwork * network, PSLayer * layer,
     } else {
         input_w = previous_params->parameters[PARAM_OUTPUT_WIDTH];
         input_h = previous_params->parameters[PARAM_OUTPUT_HEIGHT];
-        double prev_area = input_w * input_h;
+        int prev_features = 1;
+        if (previous->type == Pooling) {
+            prev_features =
+                (int) previous_params->parameters[PARAM_FEATURE_COUNT];
+            int is_valid = 1;
+            if (feature_count < prev_features) {
+                logerr(func,"FEATURE_COUNT %d cannot be < than previous %d one",
+                       feature_count, prev_features);
+                is_valid = 0;
+            } else if ((feature_count % prev_features) != 0) {
+                logerr(func,"FEATURE_COUNT %d must be a multiple than "
+                       "previous %d one",
+                       feature_count, prev_features);
+                is_valid = 0;
+            }
+            if (!is_valid) {
+                abortLayer(network, layer);
+                return 0;
+            }
+        }
+        double prev_area = input_w * input_h * (double) prev_features;
         if ((int) prev_area != previous_size) {
             logerr(func, "Previous size %d != %lfx%lf",
                    previous_size, input_w, input_h);
@@ -1486,8 +1606,7 @@ int initPoolingLayer(PSNeuralNetwork * network, PSLayer * layer,
     char * func = "initPoolingLayer";
     PSLayer * previous = network->layers[index - 1];
     if (previous->type != Convolutional) {
-        fprintf(stderr,
-                "Pooling's previous layer must be a Convolutional layer!\n");
+        logerr(func, "Pooling's previous layer must be a Convolutional layer!");
         abortLayer(network, layer);
         return 0;
     }
@@ -1706,6 +1825,13 @@ PSLayer * PSAddLayer(PSNeuralNetwork * network, PSLayerType type, int size,
             previous_size = (int) (params->parameters[0]);
         }
         network->output_size = size;
+    }
+    if (previous && previous->type == Convolutional && type != Pooling) {
+        logerr(func, "Layer[%d]: only Pooling type is allowd after a "
+               "Convolutional layer (type = %s)", layer->index,
+               getLabelForType(type));
+        abortLayer(network, layer);
+        return NULL;
     }
     if (type == FullyConnected || type == SoftMax) {
         layer->neurons = malloc(sizeof(PSNeuron*) * size);
@@ -2113,7 +2239,7 @@ double * backpropPoolingToConv(PSLayer * pooling_layer,
 }
 
 double * backpropConvToFull(PSLayer* convolutional_layer,
-                            PSLayer * full_layer, double * delta,
+                            PSLayer * prev_layer, double * delta,
                             PSGradient * lgradients) {
     int size = convolutional_layer->size;
     PSLayerParameters * params = convolutional_layer->parameters;
@@ -2123,9 +2249,22 @@ double * backpropConvToFull(PSLayer* convolutional_layer,
     double input_w = params->parameters[PARAM_INPUT_WIDTH];
     double output_w = params->parameters[PARAM_OUTPUT_WIDTH];
     int feature_size = size / feature_count;
+    int previous_feature_size = 0, prev_features = 1, prev_features_step = 1;
+    if (prev_layer->type == Pooling) {
+        PSLayerParameters * prev_params = prev_layer->parameters;
+        //TODO: check if prev_params == NULL
+        prev_features = (int) (prev_params->parameters[PARAM_FEATURE_COUNT]);
+        previous_feature_size = prev_layer->size / prev_features;
+        prev_features_step = feature_count / prev_features;
+    }
     int i, j, row, col, x, y;
     for (i = 0; i < feature_count; i++) {
         PSGradient * feature_gradient = &(lgradients[i]);
+        int previous_feature = 0, feature_offset = 0;
+        if (prev_features > 1) {
+            previous_feature = i / prev_features_step;
+            feature_offset = previous_feature * previous_feature_size;
+        }
         row = 0;
         col = 0;
         for (j = 0; j < feature_size; j++) {
@@ -2142,16 +2281,16 @@ double * backpropConvToFull(PSLayer* convolutional_layer,
             int widx = 0;
             for (y = r_row; y < max_y; y++) {
                 for (x = r_col; x < max_x; x++) {
-                    int nidx = (y * input_w) + x;
+                    int nidx = feature_offset + (y * input_w) + x;
                     //printf("  -> %d,%d [%d]\n", x, y, nidx);
-                    PSNeuron * prev_neuron = full_layer->neurons[nidx];
+                    PSNeuron * prev_neuron = prev_layer->neurons[nidx];
                     double a = prev_neuron->activation;
                     feature_gradient->weights[widx++] += (a * d);
                 }
             }
         }
     }
-    return NULL;
+    return delta;
 }
 
 PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y) {
@@ -2173,7 +2312,7 @@ PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y) {
     }
     memset(delta, 0, sizeof(double) * osize);
     last_delta = delta;
-    int i, o, w, j, k;
+    int i, o, w, j;
     int ok = PSFeedforward(network, x);
     if (!ok) {
         PSDeleteGradients(gradients, network);
@@ -2262,19 +2401,11 @@ PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y) {
             memset(delta, 0, sizeof(double) * lsize);
             for (j = 0; j < lsize; j++) {
                 PSNeuron * neuron = layer->neurons[j];
-                double sum = 0;
-                for (k = 0; k < nextLayer->size; k++) {
-                    PSNeuron * nextNeuron = nextLayer->neurons[k];
-                    double weight = nextNeuron->weights[j];
-                    double d = last_delta[k];
-                    sum += (d * weight);
-                }
-                double dv = sum;
-                if (shouldApplyDerivative(network))
-                    dv *= layer->derivative(neuron->z_value);
-                delta[j] = dv;
+                double d = getDeltaForNeuron(neuron, layer,
+                                             nextLayer, last_delta);
+                delta[j] = d;
                 PSGradient * gradient = &(lgradients[j]);
-                gradient->bias = dv;
+                gradient->bias = delta[j];
                 w = 0;
                 int wsize = neuron->weights_size;
 #ifdef USE_AVX
@@ -2283,13 +2414,13 @@ PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y) {
                 avx_multiply_value multiply_val = AVXGetMultiplyValFunc(wsize);
                 for (avx_step = 0; avx_step < avx_steps; avx_step++) {
                     double * x_vector = previousLayer->avx_activation_cache + w;
-                    multiply_val(x_vector, dv, gradient->weights + w, 0);
+                    multiply_val(x_vector, d, gradient->weights + w, 0);
                     w += avx_step_len;
                 }
 #endif
                 for (; w < neuron->weights_size; w++) {
                     double prev_a = previousLayer->neurons[w]->activation;
-                    gradient->weights[w] = dv * prev_a;
+                    gradient->weights[w] = d * prev_a;
                 }
             }
         } else if (Pooling == ltype && Convolutional == prev_ltype) {
@@ -2300,24 +2431,19 @@ PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y) {
                 return NULL;
             }
             memset(delta, 0, sizeof(double) * lsize);
+            PSGetDeltaFunction _getDelta = NULL;
+            if (nextLayer->type == Convolutional)
+                _getDelta = getDeltaForConvolutionalNeuron;
+            else
+                _getDelta = getDeltaForNeuron;
             for (j = 0; j < lsize; j++) {
                 PSNeuron * neuron = layer->neurons[j];
-                double sum = 0;
-                for (k = 0; k < nextLayer->size; k++) {
-                    PSNeuron * nextNeuron = nextLayer->neurons[k];
-                    double weight = nextNeuron->weights[j];
-                    double d = last_delta[k];
-                    sum += (d * weight);
-                }
-                double dv = sum;
-                if (shouldApplyDerivative(network))
-                    dv *= layer->derivative(neuron->z_value);
-                delta[j] = dv;
+                delta[j] = _getDelta(neuron, layer, nextLayer, last_delta);
             }
             free(last_delta);
             last_delta = delta;
             delta = backpropPoolingToConv(layer, previousLayer, last_delta);
-        } else if (Convolutional == ltype && FullyConnected == prev_ltype) {
+        } else if (Convolutional == ltype/* && FullyConnected == prev_ltype*/) {
             delta = backpropConvToFull(layer, previousLayer,
                                        last_delta, lgradients);
         } else {
@@ -2329,9 +2455,11 @@ PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y) {
             if (delta != last_delta) free(delta);
             return NULL;
         }
-        free(last_delta);
-        last_delta = delta;
-        if (delta == NULL && Convolutional != ltype) {
+        if (last_delta != delta) {
+            free(last_delta);
+            last_delta = delta;
+        }
+        if (delta == NULL) {
             PSDeleteGradients(gradients, network);
             return NULL;
         }
@@ -2989,9 +3117,14 @@ int PSVerifyNetwork(PSNeuralNetwork * network) {
                 }
             }
         }
-        if (ltype == Pooling && previous->type != Convolutional) {
+        if (ltype == Pooling && previous && previous->type != Convolutional) {
             logerr("PSVerifyNetwork", "Layer[%d] type is Pooling, "
                    "but previous type is not Convolutional", i);
+            return 0;
+        }
+        if (ltype != Pooling && previous &&  previous->type == Convolutional) {
+            logerr("PSVerifyNetwork", "Layer[%d] previous type is "
+                   "Convolutional, but type is not Pooling", i);
             return 0;
         }
         if (layer->activate == sigmoid &&
