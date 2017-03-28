@@ -15,8 +15,8 @@
  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#ifndef __AVX_H
-#define __AVX_H
+#ifndef __PS_AVX_H
+#define __PS_AVX_H
 
 #define AVXGetStepLen(s) (s >= AVX_VECTOR_SIZE ? AVX_VECTOR_SIZE : \
     AVX_VECTOR_SIZE / 2)
@@ -53,4 +53,4 @@ void avx_multiply2(double * x, double * y, double * dest, int mode);
 void avx_multiply_value4(double * x, double value, double * dest, int mode);
 void avx_multiply4(double * x, double * y, double * dest, int mode);
 
-#endif //__AVX_H
+#endif //__PS_AVX_H

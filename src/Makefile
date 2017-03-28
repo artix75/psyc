@@ -2,7 +2,7 @@ SHELL=/bin/bash
 CC=gcc
 CFLAGS=-std=gnu99 -Wall -W -Wno-missing-field-initializers
 LDFLAGS=-lz -lm
-psyc_OBJS=psyc.o mnist.o psyc_cli.o
+OBJS=psyc.o utils.o convolutional.o recurrent.o mnist.o
 PREFIX?=/usr/local
 LIBDIR=$(PREFIX)/lib
 BINDIR=$(PREFIX)/bin
@@ -26,16 +26,18 @@ include avx.mk
 
 ifeq ($(AVX),on)
 	CFLAGS+=-DUSE_AVX -mavx2 -mfma
-        psyc_OBJS+=avx.o
+        OBJS+=avx.o
 endif
+
+CLI_OBJS=$(OBJS) psyc_cli.o
 
 default: all
 
-$(LIBNAME): $(psyc_OBJS)
-	$(CC) $(LIBOPTS) -o ../lib/$@ $(psyc_OBJS) $(LDFLAGS)
+$(LIBNAME): $(OBJS)
+	$(CC) $(LIBOPTS) -o ../lib/$@ $(OBJS) $(LDFLAGS)
 
-psyc_cli: $(psyc_OBJS)
-	$(CC) -o ../bin/psyc_cli $(psyc_OBJS) $(LDFLAGS)
+psyc_cli: $(CLI_OBJS)
+	$(CC) -o ../bin/psyc_cli $(CLI_OBJS) $(LDFLAGS)
 all: psyc_cli $(LIBNAME)
 
 install: all

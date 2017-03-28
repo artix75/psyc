@@ -15,8 +15,8 @@
  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#ifndef __TEST_H
-#define __TEST_H
+#ifndef __PS_TEST_H
+#define __PS_TEST_H
 
 #define NOT_PERFORMED -1
 
@@ -45,4 +45,5 @@ Test * addTest(TestCase * test_case, char * name, char * errmsg,
                TestFunction func);
 int performTests(TestCase * test_case);
 void deleteTest(TestCase * test_case);
-#endif
+
+#endif // __PS_TEST_H

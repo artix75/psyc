@@ -19,6 +19,9 @@
 #include <string.h>
 #include <stdlib.h>
 #include "psyc.h"
+#include "utils.h"
+#include "convolutional.h"
+#include "recurrent.h"
 #include "mnist.h"
 
 #define PROGRAM_NAME        "PsyC CLI"

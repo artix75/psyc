@@ -22,22 +22,11 @@
 
 #define LAYER_TYPES  6
 
-#define PARAM_FEATURE_COUNT     0
-#define PARAM_REGION_SIZE       1
-#define PARAM_STRIDE            2
-#define PARAM_INPUT_WIDTH       3
-#define PARAM_INPUT_HEIGHT      4
-#define PARAM_OUTPUT_WIDTH      5
-#define PARAM_OUTPUT_HEIGHT     6
-#define PARAM_PADDING           7
-#define PARAM_USE_RELU          8
-
 #define STATUS_UNTRAINED    0
 #define STATUS_TRAINED      1
 #define STATUS_TRAINING     2
 #define STATUS_ERROR        3
 
-#define CONV_PARAMETER_COUNT 9
 #define NULL_VALUE -9999999.99
 
 #define FLAG_NONE 0
@@ -175,6 +164,6 @@ char * getLayerTypeLabel(PSLayer * layer);
 double quadraticLoss(double * x, double * y, int size, int onehot_size);
 double crossEntropyLoss(double * x, double * y, int size, int onehot_size);
 
-#endif
+#endif // __PSYC_H
 
 

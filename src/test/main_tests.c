@@ -21,6 +21,7 @@
 #include <string.h>
 #include "test.h"
 #include "../psyc.h"
+#include "../convolutional.h"
 #include "../mnist.h"
 #ifdef USE_AVX
 #include "../avx.h"

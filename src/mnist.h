@@ -15,8 +15,8 @@
  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-#ifndef __MNIST_H
-#define __MNIST_H
+#ifndef __PS_MNIST_H
+#define __PS_MNIST_H
 
 #define TRAINING_DATA   0
 #define TEST_DATA       1
@@ -25,4 +25,4 @@ int loadMNISTData(int type,
                   const char * images_file,
                   const char * labels_file,
                   double ** data);
-#endif
+#endif // __PS_MNIST_H
