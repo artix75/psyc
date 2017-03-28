@@ -45,12 +45,15 @@ install: all
 	@mkdir -p $(LIBDIR)
 	@mkdir -p $(INCLUDEDIR)
 	@mkdir -p $(SHAREDIR)
-	@mkdir -p $(SHAREDIR)/bin
+	#@mkdir -p $(SHAREDIR)/bin
+	@mkdir -p $(SHAREDIR)/utils
 	cp ../bin/psyc_cli $(BINDIR)/psyc_cli
 	cp ../lib/$(LIBNAME) $(LIBDIR)/$(LIBNAME)
 	cp psyc.h $(INCLUDEDIR)/psyc.h
 	cp mnist.h $(INCLUDEDIR)/psyc_mnist.h
 	cp -r ../resources $(SHAREDIR)/resources
+	cp -r ../utils/*.rb $(SHAREDIR)/utils/
+	#cp ../bin/*_demo $(SHAREDIR)/bin/
 	@if [ "$(PLATFORM)" = "Linux" ]; then /sbin/ldconfig; fi
 
 uninstall:
