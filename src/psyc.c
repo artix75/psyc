@@ -2187,9 +2187,9 @@ void PSDeleteGradients(PSGradient ** gradients, PSNeuralNetwork * network) {
     free(gradients);
 }
 
-double * backpropPoolingToConv(PSLayer * pooling_layer,
-                               PSLayer * convolutional_layer,
-                               double * delta)
+double * poolingBackprop(PSLayer * pooling_layer,
+                         PSLayer * convolutional_layer,
+                         double * delta)
 {
     int conv_size = convolutional_layer->size;
     double * new_delta = malloc(sizeof(double) * conv_size);
@@ -2235,9 +2235,9 @@ double * backpropPoolingToConv(PSLayer * pooling_layer,
     return new_delta;
 }
 
-double * backpropConvToFull(PSLayer* convolutional_layer,
-                            PSLayer * prev_layer, double * delta,
-                            PSGradient * lgradients) {
+double * convolutionalBackprop(PSLayer* convolutional_layer,
+                               PSLayer * prev_layer, double * delta,
+                               PSGradient * lgradients) {
     int size = convolutional_layer->size;
     PSLayerParameters * params = convolutional_layer->parameters;
     int feature_count = (int) (params->parameters[PARAM_FEATURE_COUNT]);
@@ -2286,6 +2286,103 @@ double * backpropConvToFull(PSLayer* convolutional_layer,
                 }
             }
         }
+    }
+    return delta;
+}
+
+double * recurrentBackprop(PSLayer * layer,
+                           PSLayer * previousLayer,
+                           int lowest_t,
+                           double ** last_delta_p,
+                           PSGradient * lgradients,
+                           int t)
+{
+    PSLayerType ltype = layer->type;
+    int lsize = layer->size, i, w, tt;
+    double * delta = malloc(sizeof(double) * lsize);
+    if (delta == NULL) {
+        printMemoryErrorMsg();
+        return NULL;
+    }
+    memset(delta, 0, sizeof(double) * lsize);
+    double * last_delta = *last_delta_p;
+    for (tt = t; tt >= lowest_t; tt--) {
+        for (i = 0; i < lsize; i++) {
+            PSNeuron * neuron = layer->neurons[i];
+            PSRecurrentCell * cell = getRecurrentCell(neuron);
+            PSGradient * gradient = &(lgradients[i]);
+            double dv = last_delta[i];
+            gradient->bias += dv;
+            int wsize = neuron->weights_size - cell->weights_size;
+        
+            if (previousLayer->flags & FLAG_ONEHOT) {
+                PSLayerParameters * params = previousLayer->parameters;
+                if (params == NULL) {
+                    fprintf(stderr, "Layer %d params are NULL!\n",
+                            previousLayer->index);
+                    if (last_delta != NULL) {
+                        free(last_delta);
+                        *last_delta_p = NULL;
+                    }
+                    return NULL;
+                }
+                int vector_size = (int) params->parameters[0];
+                assert(vector_size > 0);
+                PSNeuron * prev_n = previousLayer->neurons[0];
+                PSRecurrentCell * prev_c = getRecurrentCell(prev_n);
+                double prev_a = prev_c->states[tt];
+                assert(prev_a < vector_size);
+                w = (int) prev_a;
+                gradient->weights[w] += dv;
+            } else {
+                for (w = 0; w < wsize; w++) {
+                    PSNeuron * prev_n = previousLayer->neurons[w];
+                    PSRecurrentCell * prev_c = getRecurrentCell(prev_n);
+                    double prev_a = prev_c->states[tt];
+                    gradient->weights[w] += (dv * prev_a);
+                }
+            }
+            
+            if (tt > 0) {
+                double rsum = 0.0;
+                w = 0;
+#ifdef USE_AVX
+                AVXMultiplyValue(cell->weights_size,
+                                 layer->avx_activation_cache,
+                                 gradient->weights + wsize, dv, w,
+                                 1, (tt - 1), AVX_STORE_MODE_ADD);
+#endif
+                for (; w < cell->weights_size; w++) {
+                    PSNeuron * rn = layer->neurons[w];
+                    PSRecurrentCell * rc = getRecurrentCell(rn);
+                    double a = rc->states[tt - 1];
+                    gradient->weights[wsize + w] += (dv * a);
+                }
+                for (w = 0; w < cell->weights_size; w++) {
+                    PSNeuron * rn = layer->neurons[w];
+                    PSRecurrentCell * rc = getRecurrentCell(rn);
+                    double rw = rc->weights[neuron->index];
+                    rsum += (last_delta[rn->index] * rw);
+                }
+                double prev_a = cell->states[tt - 1];
+                delta[neuron->index] = rsum * layer->derivative(prev_a);
+            }
+            
+        }
+        
+        free(last_delta);
+        last_delta = delta;
+        *last_delta_p = last_delta;
+        delta = malloc(sizeof(double) * lsize);
+        if (delta == NULL) {
+            printMemoryErrorMsg();
+            if (last_delta != NULL) {
+                free(last_delta);
+                *last_delta_p = NULL;
+            }
+            return NULL;
+        }
+        memset(delta, 0, sizeof(double) * lsize);
     }
     return delta;
 }
@@ -2421,10 +2518,10 @@ PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y) {
             }
             free(last_delta);
             last_delta = delta;
-            delta = backpropPoolingToConv(layer, previousLayer, last_delta);
+            delta = poolingBackprop(layer, previousLayer, last_delta);
         } else if (Convolutional == ltype/* && FullyConnected == prev_ltype*/) {
-            delta = backpropConvToFull(layer, previousLayer,
-                                       last_delta, lgradients);
+            delta = convolutionalBackprop(layer, previousLayer,
+                                          last_delta, lgradients);
         } else {
             fprintf(stderr, "Backprop from %s to %s not suported!\n",
                     getLayerTypeLabel(layer),
@@ -2566,94 +2663,60 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
                 }
                 double dv = sum * layer->derivative(cell->states[t]);
                 delta[j] = dv;
-            }
-            free(last_delta);
-            last_delta = delta;
-            delta = malloc(sizeof(double) * lsize);
-            if (delta == NULL) {
-                printMemoryErrorMsg();
-                if (last_delta != NULL) free(last_delta);
-                return NULL;
-            }
-            memset(delta, 0, sizeof(double) * lsize);
-            
-            for (tt = t; tt >= lowest_t; tt--) {
-                for (j = 0; j < lsize; j++) {
-                    PSNeuron * neuron = layer->neurons[j];
-                    PSRecurrentCell * cell = getRecurrentCell(neuron);
-                    PSGradient * gradient = &(lgradients[j]);
-                    double dv = last_delta[j];
+                
+                if (ltype != Recurrent) {
+                    PSGradient * gradient = &(lgradients[i]);
                     gradient->bias += dv;
-                    
+                    int wsize = neuron->weights_size;
                     if (previousLayer->flags & FLAG_ONEHOT) {
                         PSLayerParameters * params = previousLayer->parameters;
                         if (params == NULL) {
                             fprintf(stderr, "Layer %d params are NULL!\n",
                                     previousLayer->index);
-                            if (last_delta != NULL) free(last_delta);
+                            if (last_delta != NULL) {
+                                free(last_delta);
+                            }
                             return NULL;
                         }
                         int vector_size = (int) params->parameters[0];
                         assert(vector_size > 0);
                         PSNeuron * prev_n = previousLayer->neurons[0];
                         PSRecurrentCell * prev_c = getRecurrentCell(prev_n);
-                        double prev_a = prev_c->states[tt];
+                        double prev_a = prev_c->states[t];
                         assert(prev_a < vector_size);
                         w = (int) prev_a;
                         gradient->weights[w] += dv;
                     } else {
-                        int ws = neuron->weights_size;
-                        if (Recurrent == ltype) ws -= cell->weights_size;
-                        for (w = 0; w < ws; w++) {
+                        for (w = 0; w < wsize; w++) {
                             PSNeuron * prev_n = previousLayer->neurons[w];
                             PSRecurrentCell * prev_c = getRecurrentCell(prev_n);
                             double prev_a = prev_c->states[t];
                             gradient->weights[w] += (dv * prev_a);
                         }
                     }
-                    
-                    if (Recurrent == ltype && tt > 0) {
-                        int w_offs = neuron->weights_size - cell->weights_size;
-                        double rsum = 0.0;
-                        w = 0;
-#ifdef USE_AVX
-                        AVXMultiplyValue(cell->weights_size,
-                                         layer->avx_activation_cache,
-                                         gradient->weights + w_offs, dv, w,
-                                         1, (tt - 1), AVX_STORE_MODE_ADD);
-#endif
-                        for (; w < cell->weights_size; w++) {
-                            PSNeuron * rn = layer->neurons[w];
-                            PSRecurrentCell * rc = getRecurrentCell(rn);
-                            double a = rc->states[tt - 1];
-                            gradient->weights[w_offs + w] += (dv * a);
-                        }
-                        for (w = 0; w < cell->weights_size; w++) {
-                            PSNeuron * rn = layer->neurons[w];
-                            PSRecurrentCell * rc = getRecurrentCell(rn);
-                            double rw = rc->weights[neuron->index];
-                            rsum += (last_delta[rn->index] * rw);
-                        }
-                        double prev_a = cell->states[tt - 1];
-                        delta[neuron->index] =
-                            rsum * layer->derivative(prev_a);
-                    }
-
                 }
-                
-                free(last_delta);
-                last_delta = delta;
-                delta = malloc(sizeof(double) * lsize);
+            }
+            free(last_delta);
+            last_delta = delta;
+            
+            if (Recurrent == ltype) {
+                delta = recurrentBackprop(layer, previousLayer, lowest_t,
+                                          &last_delta, lgradients, t);
                 if (delta == NULL) {
-                    printMemoryErrorMsg();
                     if (last_delta != NULL) free(last_delta);
                     return NULL;
                 }
-                memset(delta, 0, sizeof(double) * lsize);
+                free(last_delta);
+                last_delta = delta;
+            } else {
+                for (i = 0; i < lsize; i++) {
+                    PSNeuron * neuron = layer->neurons[i];
+                    PSRecurrentCell * cell = getRecurrentCell(neuron);
+                    PSGradient * gradient = &(lgradients[i]);
+                    double dv = last_delta[i];
+
+                }
             }
-            
-            free(last_delta);
-            last_delta = delta;
         }
         if (delta != NULL) free(delta);
     }
@@ -3044,66 +3107,74 @@ float PSTest(PSNeuralNetwork * network, double * test_data, int data_size) {
 }
 
 int PSVerifyNetwork(PSNeuralNetwork * network) {
+    char * func = "PSVerifyNetwork";
     if (network == NULL) {
-        logerr("PSVerifyNetwork", "Network is NULL");
+        logerr(func, "Network is NULL");
         return 0;
     }
     int size = network->size, i;
     PSLayer * previous = NULL;
+    int onehot_input = 0;
     for (i = 0; i < size; i++) {
         PSLayer * layer = network->layers[i];
         if (layer == NULL) {
-            logerr("PSVerifyNetwork", "Layer[%d] is NULL", i);
+            logerr(func, "Layer[%d] is NULL", i);
             return 0;
         }
         int ltype = layer->type;
         if (i == 0) {
             if (ltype != FullyConnected) {
-                logerr("PSVerifyNetwork", "Layer[%d] type must be '%s'",
+                logerr(func, "Layer[%d] type must be '%s'",
                        i, getLabelForType(FullyConnected));
                 return 0;
             }
             if (layer->flags & FLAG_ONEHOT) {
                 PSLayerParameters * params = layer->parameters;
+                onehot_input = 1;
                 if (params == NULL) {
-                    logerr("PSVerifyNetwork",
+                    logerr(func,
                            "Layer[%d] uses a onehot vector index as input, "
                            "but it has no parameters", i);
                     return 0;
                 }
                 if (params->count < 1) {
-                    logerr("PSVerifyNetwork",
+                    logerr(func,
                            "Layer[%d] uses a onehot vector index as input, "
                            "but parameters count is < 1", i);
                     return 0;
                 }
             }
         }
+        if (onehot_input && ltype == Convolutional) {
+            logerr(func, "ONEHOT input Layer is not supported on "
+                   "Convolutional netowrks");
+            return 0;
+        }
         if (ltype == Pooling && previous && previous->type != Convolutional) {
-            logerr("PSVerifyNetwork", "Layer[%d] type is Pooling, "
+            logerr(func, "Layer[%d] type is Pooling, "
                    "but previous type is not Convolutional", i);
             return 0;
         }
         if (ltype != Pooling && previous &&  previous->type == Convolutional) {
-            logerr("PSVerifyNetwork", "Layer[%d] previous type is "
+            logerr(func, "Layer[%d] previous type is "
                    "Convolutional, but type is not Pooling", i);
             return 0;
         }
         if (layer->activate == sigmoid &&
             layer->derivative != sigmoid_derivative) {
-            logerr("PSVerifyNetwork",
+            logerr(func,
                    "Layer[%d] activate function is sigmoid, "
                    "but derivative function is not sigmoid_derivative", i);
             return 0;
         }
         if (layer->activate == relu && layer->derivative != relu_derivative) {
-            logerr("PSVerifyNetwork",
+            logerr(func,
                    "Layer[%d] activate function is relu, "
                    "but derivative function is not relu_derivative", i);
             return 0;
         }
         if (layer->activate == tanh && layer->derivative != tanh_derivative) {
-            logerr("PSVerifyNetwork",
+            logerr(func,
                    "Layer[%d] activate function is tanh, "
                    "but derivative function is not tanh_derivative", i);
             return 0;
@@ -3113,7 +3184,7 @@ int PSVerifyNetwork(PSNeuralNetwork * network) {
     if (network->flags & FLAG_RECURRENT) {
         PSLayer * output = network->layers[size - 1];
         if (output->type != SoftMax) {
-            logerr("PSVerifyNetwork",
+            logerr(func,
                    "Recurrent networks require a Softmax output layer, "
                    "current one is of type %s.", getLabelForType(output->type));
             return 0;
