@@ -45,9 +45,10 @@ install: all
 	@mkdir -p $(LIBDIR)
 	@mkdir -p $(INCLUDEDIR)
 	@mkdir -p $(SHAREDIR)
-	#@mkdir -p $(SHAREDIR)/bin
+	@mkdir -p $(SHAREDIR)/bin
 	@mkdir -p $(SHAREDIR)/utils
-	cp ../bin/psyc_cli $(BINDIR)/psyc_cli
+	cp ../bin/psyc_cli $(SHAREDIR)/bin/psyc_cli
+	ln -s -f $(SHAREDIR)/bin/psyc_cli $(BINDIR)/psyc_cli
 	cp ../lib/$(LIBNAME) $(LIBDIR)/$(LIBNAME)
 	cp psyc.h $(INCLUDEDIR)/psyc.h
 	cp mnist.h $(INCLUDEDIR)/psyc_mnist.h

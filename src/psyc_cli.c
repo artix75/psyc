@@ -18,6 +18,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <libgen.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <limits.h>
 #include "psyc.h"
 #include "utils.h"
 #include "convolutional.h"
@@ -34,6 +39,110 @@
 #define EPOCHS              30
 #define LEARNING_RATE       1.5
 #define BATCH_SIZE          10
+
+#define MNIST_TRAIN_IMAGES  0
+#define MNIST_TRAIN_LABELS  1
+#define MNIST_TEST_IMAGES   2
+#define MNIST_TEST_LABELS   3
+
+static char* MNIST_FILE_NAMES[4] = {
+    "resources/train-images-idx3-ubyte.gz",
+    "resources/train-labels-idx1-ubyte.gz",
+    "resources/t10k-images-idx3-ubyte.gz",
+    "resources/t10k-labels-idx1-ubyte.gz"
+};
+
+static char MNISTDataFiles[4][PATH_MAX + 1] = {
+    "\x0", "\x0", "\x0", "\x0"
+};
+
+static char * getPsycPath(char * executable) {
+    static char path[PATH_MAX + 1] = "\x0";
+    char _realpath[PATH_MAX + 1];
+    if (path[0]) return path;
+    _realpath[0] = 0;
+    if (realpath(executable, _realpath) != NULL) {
+        char * dir = dirname(_realpath);
+        if (dir == NULL) return NULL;
+        int len = strlen((const char*) dir);
+        if (len >= PATH_MAX) {
+            fprintf(stderr, "WARN: getPsycPath(): dirname length > %d",
+                    PATH_MAX);
+            return NULL;
+        }
+        memcpy(path, dir, len);
+        path[len] = 0;
+        return path;
+    } else {
+        char * syspath = getenv("PATH");
+        if (syspath == NULL) return NULL;
+        int execlen = strlen(executable);
+        char * p = syspath;
+        while ((p = strchr(p, ':'))) {
+            size_t len = p - syspath;
+            if (len > 0) {
+                if (len > PATH_MAX) {
+                    fprintf(stderr, "WARN: ENV['PATH'] path length > %d",
+                            PATH_MAX);
+                    return NULL;
+                }
+                char spath[PATH_MAX + 1] = "\x0";
+                char * s = spath;
+                memcpy(spath, syspath, len);
+                if (spath[len - 1] != '/') spath[len++] = '/';
+                s += len;
+                len = len + execlen;
+                if (len > PATH_MAX) {
+                    fprintf(stderr, "WARN: path length > %d",
+                            PATH_MAX);
+                    return NULL;
+                }
+                memcpy(s, executable, execlen);
+                spath[len] = 0;
+                struct stat file_stat;
+                int exists = lstat(spath, &file_stat);
+                if (exists >= 0) {
+                    _realpath[0] = 0;
+                    if (realpath(spath, _realpath) != NULL) {
+                        char * dir = dirname(_realpath);
+                        if (dir == NULL) return NULL;
+                        dir = dirname(dir);
+                        if (dir == NULL) return NULL;
+                        int len = strlen((const char*) dir);
+                        if (len >= PATH_MAX) {
+                            fprintf(stderr, "WARN: getPsycPath(): dirname "
+                                    "length > %d",
+                                    PATH_MAX);
+                            return NULL;
+                        }
+                        memcpy(path, dir, len);
+                        path[len] = 0;
+                        return path;
+                    }
+                }
+            }
+            p++;
+            syspath = p;
+        }
+        return NULL;
+    }
+}
+
+static int resolveMNISTDataFiles(char * path) {
+    if (!path) return 0;
+    if (MNISTDataFiles[0][0]) return 1;
+    int pathlen = strlen(path), i;
+    for (i = 0; i < 4; i++) {
+        char * mnist_fname = MNIST_FILE_NAMES[i];
+        char * mnist_path = MNISTDataFiles[i];
+        strcpy(mnist_path, path);
+        if (mnist_path[pathlen - 1] != '/')
+            strcat(mnist_path, "/");
+        strcat(mnist_path, mnist_fname);
+        //printf("[%d] %s\n", i, mnist_path);
+    }
+    return 1;
+}
 
 static PSLayerType getLayerType(char * name, PSNeuralNetwork * network) {
     if (strcmp("fully_connected", name) == 0)
@@ -219,18 +328,31 @@ int main(int argc, char ** argv) {
                 train_dataset_len = 50000;
                 eval_dataset_len = 10000;
             }
+            char * imgfile = NULL;
+            char * lblfile = NULL;
             if ((i + 2) < argc) {
-                char * imgfile = argv[++i];
-                char * lblfile = argv[++i];
-                datalen = loadMNISTData(TRAINING_DATA, imgfile, lblfile,
-                                        &training_data);
-                if (datalen == 0 || training_data == NULL) {
-                    fprintf(stderr, "Could not load training data!\n");
+                imgfile = argv[++i];
+                lblfile = argv[++i];
+                if (imgfile[0] == '-') {
+                    imgfile = NULL;
+                    lblfile = NULL;
+                    i -= 2;
+                }
+            }
+            if (imgfile == NULL) {
+                if (!resolveMNISTDataFiles(getPsycPath(argv[0]))) {
+                    fprintf(stderr, "Missing MNIST training data files\n");
                     PSDeleteNetwork(network);
                     exit(1);
                 }
-            } else {
-                fprintf(stderr, "Missing MNIST training data files\n");
+                imgfile = MNISTDataFiles[MNIST_TRAIN_IMAGES];
+                lblfile = MNISTDataFiles[MNIST_TRAIN_LABELS];
+            }
+            if (imgfile != NULL && lblfile != NULL)
+                datalen = loadMNISTData(TRAINING_DATA, imgfile, lblfile,
+                                        &training_data);
+            if (datalen == 0 || training_data == NULL) {
+                fprintf(stderr, "Could not load training data!\n");
                 PSDeleteNetwork(network);
                 exit(1);
             }
@@ -239,7 +361,7 @@ int main(int argc, char ** argv) {
         
         if (strcmp("--test", arg) == 0 && ++i < argc) {
             int mnist = 0;
-            if (strcmp("--mnist", argv[i])) {
+            if (strcmp("--mnist", argv[i]) == 0) {
                 mnist = 1;
             }
             if (!mnist) {
@@ -247,18 +369,31 @@ int main(int argc, char ** argv) {
                 PSDeleteNetwork(network);
                 exit(1);
             }
+            char * imgfile = NULL;
+            char * lblfile = NULL;
             if ((i + 2) < argc) {
-                char * imgfile = argv[++i];
-                char * lblfile = argv[++i];
-                testlen = loadMNISTData(TEST_DATA, imgfile, lblfile,
-                                        &test_data);
-                if (testlen == 0 || test_data == NULL) {
-                    fprintf(stderr, "Could not load test data!\n");
+                imgfile = argv[++i];
+                lblfile = argv[++i];
+                if (imgfile[0] == '-') {
+                    imgfile = NULL;
+                    lblfile = NULL;
+                    i -= 2;
+                }
+            }
+            if (imgfile == NULL) {
+                if (!resolveMNISTDataFiles(getPsycPath(argv[0]))) {
+                    fprintf(stderr, "Missing MNIST test data files\n");
                     PSDeleteNetwork(network);
                     exit(1);
                 }
-            } else {
-                fprintf(stderr, "Missing MNIST test data files\n");
+                imgfile = MNISTDataFiles[MNIST_TEST_IMAGES];
+                lblfile = MNISTDataFiles[MNIST_TEST_LABELS];
+            }
+            if (imgfile != NULL && lblfile != NULL)
+                testlen = loadMNISTData(TEST_DATA, imgfile, lblfile,
+                                        &test_data);
+            if (testlen == 0 || test_data == NULL) {
+                fprintf(stderr, "Could not load test data!\n");
                 PSDeleteNetwork(network);
                 exit(1);
             }
