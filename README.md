@@ -29,7 +29,7 @@ Support for non-POSIX platforms is not in my plans.
 Build and Install
 ===
 
-Building PsyC should be quite simple: just jump inside the PsyC directory and 
+Building PsyC should be quite simple, just jump inside the PsyC directory and 
 type:
 
     make
@@ -66,10 +66,37 @@ change it, just add the PREFIX variable:
 
     make install PREFIX=/usr/opt/local
 
-Running some demo
+Running some example
 ===
 
-You can use the command line tool psyc\_cli to make some test.
+You can use the command line tool psyc\_cli in order to try PsyC.
+
+Building and training a Fully Connected Network with MNIST data
+==
+
+    psyc_cli --layer fully_connected 784 --layer fully_connected 30 --layer fully_connected 10 --train --mnist --test --mnist
+
+The trained network will be saved in the /tmp/ directory, but you choose a different 
+output file with via the --save option, ie:
+
+    psyc_cli --layer fully_connected 784 --layer fully_connected 30 --layer fully_connected 10 --train --mnist --test --mnist --save /home/myhome/pretrained.data
+
+Loading a pretrained convolutional network
+==
+
+    psyc_cli --load /usr/local/share/psyc/resources/pretrained.cnn.data --test --mnist
+
+Trying to classify an image using a network pretrained on MNIST dataset
+==
+
+    psyc_cli --load /usr/local/share/psyc/resources/pretrained.mnist.data --classify-image /usr/local/share/psyc/resources/digit.2.png --grayscale
+
+
+
+
+
+
+
 
 
 
