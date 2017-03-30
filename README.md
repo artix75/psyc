@@ -73,7 +73,7 @@ change it, just add the PREFIX variable:
 Running some example
 ===
 
-You can use the command line tool `psyc\_cli` in order to try PsyC.
+You can use the command line tool `psyc_cli` in order to try PsyC.
 
 Building and training a Fully Connected Network with MNIST data
 ---
