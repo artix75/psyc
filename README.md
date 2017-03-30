@@ -4,7 +4,7 @@ PsyC
 PsyC is a C implementation of some of the most common Artificial Neural Networks.
 It provides a linkable dynamic library and a command line tool.
 It has been written mainly for autodidactic purpose, so it's not guaranteed to 
-be safely used in production contexts, but you can play with it if you want.
+be safe in production contexts, but you can play with it if you want.
 
 Surely it's not the state-of-the-art neural network implementation, because its 
 code has been structured with the aim of being easly readable and 
@@ -14,8 +14,12 @@ CPUs that have support it.
 It doesn't currenlty support CUDA, but i have plans for it in the future.
 
 PsyC currently has support for the following neural network models:
-Fully Condensed Neural Networks, Convolutional Neural Networks and basic 
-Recurrent Neural Networks.
+
+- Fully Condensed Neural Networks
+- Convolutional
+- Neural Networks 
+- Recurrent Neural Networks.
+
 LSTM networks aren't currenlty implemented, but they should be available in 
 the next future.
 
@@ -35,9 +39,9 @@ type:
     make
 
 The build process should automatically detect if your CPU supports AVX2, and 
-consequently enable AVX2 extension.
+consequently enable AVX2 extensions.
 Anyway if you want to turn AVX2 support off, or if it's not automatically 
-detected during build pahse, you can always enable/disable it by adding 
+detected during build phase, you can always enable/disable it by adding 
 the AVX variable after the make command, ie:
 
     make AVX=off  #disables AVX2 extensions
@@ -45,10 +49,10 @@ the AVX variable after the make command, ie:
     make AVX=on   #explicitly enables AVX2 extensions
 
 PsyC does ship with some convenience utility functions that make easy 
-to feed image files directly to the network (usefult with convolutional networks).
+to feed image files directly into the network (useful with convolutional networks).
 These functions require [ImageMagick](https://www.imagemagick.org/script/index.php) to be installed on your system.
 Again, the build process should automatically detect if you have ImageMagick 
-and its development libraries installed on your system, and automatically 
+and its development libraries installed on your system, so that it can automatically 
 disable image utility functions in case you haven't it.
 
 But if you encounter some problem with ImageMagick compatibility you can 
@@ -61,7 +65,7 @@ just use the canonical
 
     make install
 
-By default the installation prefix will be /usr/local/, but if you want to 
+By default, the installation prefix will be /usr/local/, but if you want to 
 change it, just add the PREFIX variable:
 
     make install PREFIX=/usr/opt/local
@@ -69,7 +73,7 @@ change it, just add the PREFIX variable:
 Running some example
 ===
 
-You can use the command line tool psyc\_cli in order to try PsyC.
+You can use the command line tool `psyc\_cli` in order to try PsyC.
 
 Building and training a Fully Connected Network with MNIST data
 ---

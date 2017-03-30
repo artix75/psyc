@@ -465,6 +465,7 @@ PSNeuralNetwork * PSCreateNetwork(const char* name) {
 }
 
 PSNeuralNetwork * PSCloneNetwork(PSNeuralNetwork * network, int layout_only) {
+    if (network == NULL) return NULL;
     PSNeuralNetwork * clone = PSCreateNetwork(NULL);
     if (clone == NULL) return NULL;
     char * func = "PSCloneNetwork";
@@ -555,6 +556,7 @@ PSNeuralNetwork * PSCloneNetwork(PSNeuralNetwork * network, int layout_only) {
 }
 
 int PSLoadNetwork(PSNeuralNetwork * network, const char* filename) {
+    if (network == NULL) return 0;
     FILE * f = fopen(filename, "r");
     printf("Loading network from %s\n", filename);
     if (f == NULL) {
@@ -895,6 +897,7 @@ void PSDeleteNeuron(PSNeuron * neuron, PSLayer * layer) {
 
 PSLayer * PSAddLayer(PSNeuralNetwork * network, PSLayerType type, int size,
                      PSLayerParameters* params) {
+    if (network == NULL) return NULL;
     char * func = "PSAddLayer";
     if (network->size == 0 && type != FullyConnected) {
         PSErr(func, "First layer type must be FullyConnected");
@@ -1163,6 +1166,7 @@ void PSDeleteLayerParamenters(PSLayerParameters * params) {
 int feedforwardThroughTime(PSNeuralNetwork * network, double * values,
                            int times)
 {
+    if (network == NULL) return 0;
     PSLayer * first = network->layers[0];
     int input_size = first->size;
     char * func = "feedforwardThroughTime";
@@ -1196,6 +1200,7 @@ int feedforwardThroughTime(PSNeuralNetwork * network, double * values,
 }
 
 int PSFeedforward(PSNeuralNetwork * network, double * values) {
+    if (network == NULL) return 0;
     char * func = "PSFeedforward";
     if (network->size == 0) {
         PSErr(func, "Empty network!");
@@ -1235,6 +1240,7 @@ int PSFeedforward(PSNeuralNetwork * network, double * values) {
 }
 
 PSGradient * createLayerGradients(PSLayer * layer) {
+    if (layer == NULL) return NULL;
     PSGradient * gradients;
     char * func = "createLayerGradients";
     PSLayerType ltype = layer->type;
@@ -1300,6 +1306,7 @@ int PSClassify(PSNeuralNetwork * network, double * values) {
 }
 
 PSGradient ** createGradients(PSNeuralNetwork * network) {
+    if (network == NULL) return NULL;
     PSGradient ** gradients = malloc(sizeof(PSGradient*) * network->size - 1);
     if (gradients == NULL) {
         printMemoryErrorMsg();
@@ -1345,6 +1352,7 @@ void PSDeleteGradients(PSGradient ** gradients, PSNeuralNetwork * network) {
 }
 
 PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y) {
+    if (network == NULL) return NULL;
     PSGradient ** gradients = createGradients(network);
     if (gradients == NULL) return NULL;
     int netsize = network->size;
@@ -1504,6 +1512,7 @@ PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y) {
 PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
                                   double * y, int times)
 {
+    if (network == NULL) return NULL;
     PSGradient ** gradients = createGradients(network);
     if (gradients == NULL) return NULL;
     int netsize = network->size;
@@ -2093,6 +2102,10 @@ int PSVerifyNetwork(PSNeuralNetwork * network) {
                     return 0;
                 }
             }
+        }
+        if (ltype == LSTM) {
+            PSErr(func, "Sorry, LSTM Layers are not supported ATM.");
+            return 0;
         }
         if (ltype == Convolutional) {
             if (onehot_input) {
