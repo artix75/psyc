@@ -46,7 +46,7 @@ the AVX variable after the make command, ie:
 
 PsyC does ship with some convenience utility functions that make easy 
 to feed image files directly to the network (usefult with convolutional networks).
-These functions require ImageMagick to be installed on your system.
+These functions require [ImageMagick](https://www.imagemagick.org/script/index.php) to be installed on your system.
 Again, the build process should automatically detect if you have ImageMagick 
 and its development libraries installed on your system, and automatically 
 disable image utility functions in case you haven't it.
@@ -72,7 +72,7 @@ Running some example
 You can use the command line tool psyc\_cli in order to try PsyC.
 
 Building and training a Fully Connected Network with MNIST data
-==
+---
 
     psyc_cli --layer fully_connected 784 --layer fully_connected 30 --layer fully_connected 10 --train --mnist --test --mnist
 
@@ -82,12 +82,12 @@ output file with via the --save option, ie:
     psyc_cli --layer fully_connected 784 --layer fully_connected 30 --layer fully_connected 10 --train --mnist --test --mnist --save /home/myhome/pretrained.data
 
 Loading a pretrained convolutional network
-==
+---
 
     psyc_cli --load /usr/local/share/psyc/resources/pretrained.cnn.data --test --mnist
 
 Trying to classify an image using a network pretrained on MNIST dataset
-==
+---
 
     psyc_cli --load /usr/local/share/psyc/resources/pretrained.mnist.data --classify-image /usr/local/share/psyc/resources/digit.2.png --grayscale
 
