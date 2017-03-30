@@ -29,6 +29,10 @@
 #include "recurrent.h"
 #include "mnist.h"
 
+#ifdef HAS_MAGICK
+#include "image_data.h"
+#endif
+
 #define PROGRAM_NAME        "PsyC CLI"
 
 #define CONV_FEATURE_COUNT  20
@@ -63,6 +67,8 @@ static char * getPsycPath(char * executable) {
     _realpath[0] = 0;
     if (realpath(executable, _realpath) != NULL) {
         char * dir = dirname(_realpath);
+        if (dir == NULL) return NULL;
+        dir = dirname(dir);
         if (dir == NULL) return NULL;
         int len = strlen((const char*) dir);
         if (len >= PATH_MAX) {
@@ -197,6 +203,13 @@ int main(int argc, char ** argv) {
     int i, j;
     outputFile[0] = 0;
     int training_flags = 0;
+#ifdef HAS_MAGICK
+    char * image_filename = NULL;
+    char * image_dump_filename = NULL;
+    char * image_bgcolor = "white";
+    int image_invert = 0;
+    int image_grayscale = 0;
+#endif
     for (i = 1; i < argc; i++) {
         //printf("ARG[%d]: %s\n", i, argv[i]);
         char * arg = argv[i];
@@ -400,6 +413,25 @@ int main(int argc, char ** argv) {
             continue;
         }
         
+#ifdef HAS_MAGICK
+        if (strcmp("--classify-image", arg) == 0 && ++i < argc) {
+            image_filename = argv[i];
+            //printf("Classifying %s...\n", image_filename);
+            int j = i;
+            while (++j < argc) {
+                char * imgarg = argv[j];
+                if (strcmp("--grayscale", imgarg) == 0) image_grayscale = 1;
+                else if (strcmp("--invert", imgarg) == 0) image_invert = 1;
+                else if (strcmp("--background-color",imgarg) == 0 && ++j<argc){
+                    image_bgcolor = argv[j];
+                }
+                else if (strcmp("--dump-image",imgarg) == 0 && ++j<argc) {
+                    image_dump_filename = argv[j];
+                } else  break;
+            }
+        }
+#endif
+        
         if (strcmp("--training-datalen", arg) == 0 && ++i < argc) {
             char * len_s = argv[i];
             int matched = sscanf(len_s, "%d", &train_dataset_len);
@@ -496,15 +528,30 @@ int main(int argc, char ** argv) {
         PSTest(network, test_data, testlen);
         free(test_data);
     }
-    if (!strlen(outputFile)) {
-        getTempFileName("saved-network", outputFile);
+    
+#ifdef HAS_MAGICK
+    if (image_filename != NULL) {
+        int res = PSClassifyImage(network, image_filename, image_grayscale,
+                                  image_invert, image_bgcolor,
+                                  image_dump_filename);
+        if (res >= 0) {
+            printf("Classify result: %d\n", res);
+        }
     }
-    int saved = PSSaveNetwork(network, outputFile);
-    if (!saved) {
-        fprintf(stderr, "Could not save network to %s\n", outputFile);
-    } else {
-        printf("Network saved to %s\n", outputFile);
+#endif
+    
+    if (training_data != NULL) {
+        if (!strlen(outputFile)) {
+            getTempFileName("saved-network", outputFile);
+        }
+        int saved = PSSaveNetwork(network, outputFile);
+        if (!saved) {
+            fprintf(stderr, "Could not save network to %s\n", outputFile);
+        } else {
+            printf("Network saved to %s\n", outputFile);
+        }
     }
+
     PSDeleteNetwork(network);
     return 0;
 }
@@ -522,6 +569,9 @@ void print_help(const char* program_path) {
     printf("                                    (if after output layer)\n");
     printf("        --train TRAIN_DATASET       Train network\n");
     printf("        --test TEST_DATASET         Perform tests\n");
+#ifdef HAS_MAGICK
+    printf("        --classify-image FILE [OPT] Perform tests\n");
+#endif
     printf("        --training-datalen LEN      Training data length\n");
     printf("        --validation-datalen LEN    Validation data length\n");
     printf("        --epochs EPOCHS             Training epochs (def. %d)\n",
@@ -551,5 +601,14 @@ void print_help(const char* program_path) {
            " (def. 1)\n");
     printf("        --use-relu                Use ReLU activation (for "
            "Convolutional Layers)\n");
+#ifdef HAS_MAGICK
+    printf("\n");
+    printf("IMAGE OPTIONS:\n");
+    printf("        --grayscale              Convert image to grayscale\n");
+    printf("        --invert                 Invert image pixels\n");
+    printf("        --background-color COLOR Padding background color "
+           "(ie. none, white, ...), default: white\n");
+    printf("        --dump-image FILE        Save image to file\n");
+#endif
     printf("\n");
 }

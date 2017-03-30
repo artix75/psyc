@@ -18,7 +18,7 @@
 #ifndef __PSYC_H
 #define __PSYC_H
 
-#define PSYC_VERSION      "0.1.0"
+#define PSYC_VERSION      "0.1.1"
 
 #define LAYER_TYPES  6
 
@@ -138,6 +138,7 @@ PSLayerParameters * PSCreateConvolutionalParameters(double feature_count,
                                                     int use_relu);
 void PSDeleteLayerParamenters(PSLayerParameters * params);
 int PSFeedforward(PSNeuralNetwork * network, double * values);
+int PSClassify(PSNeuralNetwork * network, double * values);
 
 void PSDeleteNetwork(PSNeuralNetwork * network);
 void PSDeleteLayer(PSLayer * layer);

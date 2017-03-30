@@ -1279,6 +1279,26 @@ PSGradient * createLayerGradients(PSLayer * layer) {
     return gradients;
 }
 
+int PSClassify(PSNeuralNetwork * network, double * values) {
+    int ok = PSFeedforward(network, values);
+    if (!ok) {
+        PSErr("PSClassify", "Feedforward failed");
+        return -1;
+    };
+    int netsize = network->size, outsize = network->output_size, i;
+    PSLayer * out = network->layers[netsize - 1];
+    double max = 0.0;
+    int max_idx = 0;
+    for (i = 0; i < outsize; i++) {
+        double a = out->neurons[i]->activation;
+        if (a > max) {
+            max = a;
+            max_idx = i;
+        }
+    }
+    return max_idx;
+}
+
 PSGradient ** createGradients(PSNeuralNetwork * network) {
     PSGradient ** gradients = malloc(sizeof(PSGradient*) * network->size - 1);
     if (gradients == NULL) {

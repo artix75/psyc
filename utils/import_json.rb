@@ -119,7 +119,7 @@ layers[1..-1].each_with_index{|l, i|
     lstr << "\n"
     out << lstr
 }
-out_file = ARGV[1] || "./network.#{Time.now.to_i}.data"
+out_file = ARGV[1] || "/tmp/network.#{Time.now.to_i}.data"
 File.open(out_file, 'w'){|f|
     f.write out
 }
