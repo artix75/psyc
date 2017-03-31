@@ -124,6 +124,12 @@ static int LSTMCellFeedforward(PSLayer * layer, PSLayer * previous,
         cell->input_gates = calloc(times, sizeof(double));
         cell->output_gates = calloc(times, sizeof(double));
         cell->forget_gates = calloc(times, sizeof(double));
+        if (cell->states == NULL) return 0;
+        if (cell->z_values == NULL) return 0;
+        if (cell->candidates == NULL) return 0;
+        if (cell->input_gates == NULL) return 0;
+        if (cell->output_gates == NULL) return 0;
+        if (cell->forget_gates == NULL) return 0;
 #ifdef USE_AVX
         if (neuron->index == 0) {
             if (layer->avx_activation_cache != NULL)
@@ -457,21 +463,20 @@ double * PSLSTMBackprop(PSLayer * layer,
                     gradient->weights[widx + (cwsize * FORGET_IDX)] +=
                         (df * a);
                 }
-            }
-            
-            double prev_a = cell->states[tt - 1];
-            for (w = 0; w < layer->size; w++) {
-                PSNeuron * rn = layer->neurons[w];
-                PSLSTMCell * rc = GetLSTMCell(rn);
-                double cw = rc->candidate_weights[neuron->index];
-                double iw = rc->input_weights[neuron->index];
-                double ow = rc->output_weights[neuron->index];
-                double fw = rc->forget_weights[neuron->index];
-                delta[neuron->index] += delta_c[rn->index] * cw;
-                delta[neuron->index] += delta_i[rn->index] * iw;
-                delta[neuron->index] += delta_o[rn->index] * ow;
-                delta[neuron->index] += delta_f[rn->index] * fw;
-                delta[neuron->index] *= layer->derivative(prev_a); //?
+                double prev_a = cell->states[tt - 1];
+                for (w = 0; w < layer->size; w++) {
+                    PSNeuron * rn = layer->neurons[w];
+                    PSLSTMCell * rc = GetLSTMCell(rn);
+                    double cw = rc->candidate_weights[neuron->index];
+                    double iw = rc->input_weights[neuron->index];
+                    double ow = rc->output_weights[neuron->index];
+                    double fw = rc->forget_weights[neuron->index];
+                    delta[neuron->index] += delta_c[rn->index] * cw;
+                    delta[neuron->index] += delta_i[rn->index] * iw;
+                    delta[neuron->index] += delta_o[rn->index] * ow;
+                    delta[neuron->index] += delta_f[rn->index] * fw;
+                    delta[neuron->index] *= layer->derivative(prev_a); //?
+                }
             }
             
         }
