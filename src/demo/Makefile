@@ -2,7 +2,7 @@ SHELL=/bin/bash
 CC=gcc
 CFLAGS=-std=c99 -g -ggdb
 LDFLAGS=-lz -lm
-OBJS=../psyc.o ../utils.o ../convolutional.o ../recurrent.o ../mnist.o
+OBJS=../psyc.o ../utils.o ../convolutional.o ../recurrent.o ../lstm.o ../mnist.o
 
 include ../avx.mk
 
@@ -19,6 +19,8 @@ conv_demo: $(OBJS) conv_demo.o
 	$(CC) -o ../../bin/conv_demo $(OBJS) conv_demo.o $(LDFLAGS)
 rnn_demo: $(OBJS) rnn_demo.o
 	$(CC) -o ../../bin/rnn_demo $(OBJS) rnn_demo.o $(LDFLAGS)
-all: mnist_demo conv_demo rnn_demo
+lstm_demo: $(OBJS) lstm_demo.o
+	$(CC) -o ../../bin/lstm_demo $(OBJS) lstm_demo.o $(LDFLAGS)
+all: mnist_demo conv_demo rnn_demo lstm_demo
 	
         

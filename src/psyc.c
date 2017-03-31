@@ -31,6 +31,7 @@
 #include "utils.h"
 #include "convolutional.h"
 #include "recurrent.h"
+#include "lstm.h"
 
 typedef double (*PSGetDeltaFunction)(PSNeuron* n, PSLayer* l, PSLayer* next,
                                      double * last_d);
@@ -292,7 +293,7 @@ void fetchRecurrentOutputState(PSLayer * out, double * outputs,
     double max = 0.0;
     for (j = 0; j < out->size; j++) {
         PSNeuron * neuron = out->neurons[j];
-        PSRecurrentCell * cell = getRecurrentCell(neuron);
+        PSRecurrentCell * cell = GetRecurrentCell(neuron);
         double s = cell->states[t];
         if (onehot) {
             if (s > max) {
@@ -534,8 +535,8 @@ PSNeuralNetwork * PSCloneNetwork(PSNeuralNetwork * network, int layout_only) {
                         cweights[w] = oweights[w];
                 }
                 if (layer->flags & FLAG_RECURRENT) {
-                    PSRecurrentCell * ocell = getRecurrentCell(orig_n);
-                    PSRecurrentCell * ccell = getRecurrentCell(clone_n);
+                    PSRecurrentCell * ocell = GetRecurrentCell(orig_n);
+                    PSRecurrentCell * ccell = GetRecurrentCell(clone_n);
                     int sc = ocell->states_count;
                     ccell->states_count = sc;
                     if (sc > 0) {
@@ -886,10 +887,12 @@ void PSDeleteNeuron(PSNeuron * neuron, PSLayer * layer) {
     if (neuron->weights != NULL) free(neuron->weights);
     if (neuron->extra != NULL) {
         if (layer->flags & FLAG_RECURRENT) {
-            PSRecurrentCell * cell = getRecurrentCell(neuron);
-            if (cell->states != NULL) free(cell->states);
-            //if (cell->weights != NULL) free(cell->weights);
-            free(cell);
+            if (layer->type == Recurrent) {
+                PSRecurrentCell * cell = GetRecurrentCell(neuron);
+                if (cell->states != NULL) free(cell->states);
+                free(cell);
+            } else if (layer->type == LSTM)
+                PSDeleteLSTMCell(GetLSTMCell(neuron));
         } else free(neuron->extra);
     }
     free(neuron);
@@ -1030,6 +1033,9 @@ PSLayer * PSAddLayer(PSNeuralNetwork * network, PSLayerType type, int size,
         initialized = PSInitPoolingLayer(network, layer, params);
     } else if (type == Recurrent) {
         initialized = PSInitRecurrentLayer(network, layer, size, previous_size);
+        if (initialized) network->loss = crossEntropyLoss;
+    } else if (type == LSTM) {
+        initialized = PSInitLSTMLayer(network, layer, size, previous_size);
         if (initialized) network->loss = crossEntropyLoss;
     }
     if (!initialized) {
@@ -1271,6 +1277,7 @@ PSGradient * createLayerGradients(PSLayer * layer) {
             }
         } else {
             ws = neuron->weights_size;
+            if (ltype == LSTM) ws += 4; // Make room for LSTM biases
         }
         gradients[i].bias = 0;
         int memsize = sizeof(double) * ws;
@@ -1561,7 +1568,7 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
         // Calculate output deltas, output layer must be Softmax
         for (o = 0; o < osize; o++) {
             PSNeuron * neuron = outputLayer->neurons[o];
-            PSRecurrentCell * cell = getRecurrentCell(neuron);
+            PSRecurrentCell * cell = GetRecurrentCell(neuron);
             double o_val = cell->states[t];
             double y_val;
             if (onehot)
@@ -1578,7 +1585,7 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
         // Update gradients for output layer
         for (o = 0; o < osize; o++) {
             PSNeuron * neuron = outputLayer->neurons[o];
-            PSRecurrentCell * cell = getRecurrentCell(neuron);
+            PSRecurrentCell * cell = GetRecurrentCell(neuron);
             double o_val = cell->states[t];
             if (apply_derivative) delta[o] -= (o_val * softmax_sum);
             double d = delta[o];
@@ -1593,7 +1600,7 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
 #endif
             for (; w < neuron->weights_size; w++) {
                 PSNeuron * prev_neuron = previousLayer->neurons[w];
-                PSRecurrentCell * prev_cell = getRecurrentCell(prev_neuron);
+                PSRecurrentCell * prev_cell = GetRecurrentCell(prev_neuron);
                 double prev_a = prev_cell->states[t];
                 gradient->weights[w] += (d * prev_a);
             }
@@ -1619,7 +1626,7 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
             // Calculate layer deltas
             for (j = 0; j < lsize; j++) {
                 PSNeuron * neuron = layer->neurons[j];
-                PSRecurrentCell * cell = getRecurrentCell(neuron);
+                PSRecurrentCell * cell = GetRecurrentCell(neuron);
                 double sum = 0;
                 for (k = 0; k < nextLayer->size; k++) {
                     PSNeuron * nextNeuron = nextLayer->neurons[k];
@@ -1630,7 +1637,7 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
                 double dv = sum * layer->derivative(cell->states[t]);
                 delta[j] = dv;
                 
-                if (ltype != Recurrent) {
+                if (ltype != Recurrent && ltype != LSTM) {
                     PSGradient * gradient = &(lgradients[i]);
                     gradient->bias += dv;
                     int wsize = neuron->weights_size;
@@ -1647,7 +1654,7 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
                         int vector_size = (int) params->parameters[0];
                         assert(vector_size > 0);
                         PSNeuron * prev_n = previousLayer->neurons[0];
-                        PSRecurrentCell * prev_c = getRecurrentCell(prev_n);
+                        PSRecurrentCell * prev_c = GetRecurrentCell(prev_n);
                         double prev_a = prev_c->states[t];
                         assert(prev_a < vector_size);
                         w = (int) prev_a;
@@ -1655,7 +1662,7 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
                     } else {
                         for (w = 0; w < wsize; w++) {
                             PSNeuron * prev_n = previousLayer->neurons[w];
-                            PSRecurrentCell * prev_c = getRecurrentCell(prev_n);
+                            PSRecurrentCell * prev_c = GetRecurrentCell(prev_n);
                             double prev_a = prev_c->states[t];
                             gradient->weights[w] += (dv * prev_a);
                         }
@@ -1664,10 +1671,19 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
             }
             free(last_delta);
             last_delta = delta;
+            int is_recurrent_type = 0;
             
             if (Recurrent == ltype) {
                 delta = PSRecurrentBackprop(layer, previousLayer, lowest_t,
                                             &last_delta, lgradients, t);
+                is_recurrent_type = 1;
+ 
+            } else if (LSTM == ltype) {
+                delta = PSLSTMBackprop(layer, previousLayer, lowest_t,
+                                       &last_delta, lgradients, t);
+                is_recurrent_type = 1;
+            }
+            if (is_recurrent_type) {
                 if (delta == NULL) {
                     if (last_delta != NULL) free(last_delta);
                     return NULL;
@@ -1773,12 +1789,18 @@ double updateWeights(PSNeuralNetwork * network, double * training_data,
             l_size = (int) (params->parameters[PARAM_FEATURE_COUNT]);
             shared = getConvSharedParams(layer);
         } else l_size = layer->size;
+        int is_lstm = ltype == LSTM;
         for (j = 0; j < l_size; j++) {
             PSGradient * g = &(lgradients[j]);
             if (shared == NULL) {
                 PSNeuron * neuron = layer->neurons[j];
                 neuron->bias = neuron->bias - r * g->bias;
-                for (k = 0; k < neuron->weights_size; k++) {
+                int wsize = neuron->weights_size;
+                if (is_lstm) {
+                    wsize -= 4;
+                    PSUpdateLSTMBiases(neuron, g, r);
+                }
+                for (k = 0; k < wsize; k++) {
                     double w = neuron->weights[k];
                     neuron->weights[k] = w - r * g->weights[k];
                 }
@@ -1806,7 +1828,7 @@ double updateWeights(PSNeuralNetwork * network, double * training_data,
             if (onehot) {
                 int idx = (int) *(y + i);
                 PSNeuron * n = out->neurons[idx];
-                PSRecurrentCell * cell = getRecurrentCell(n);
+                PSRecurrentCell * cell = GetRecurrentCell(n);
                 outputs[i] = cell->states[i];
             } else fetchRecurrentOutputState(out, outputs, i, 0);
         }
@@ -2102,10 +2124,6 @@ int PSVerifyNetwork(PSNeuralNetwork * network) {
                     return 0;
                 }
             }
-        }
-        if (ltype == LSTM) {
-            PSErr(func, "Sorry, LSTM Layers are not supported ATM.");
-            return 0;
         }
         if (ltype == Convolutional) {
             if (onehot_input) {

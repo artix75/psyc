@@ -20,7 +20,14 @@
 
 #include "psyc.h"
 
-#define getRecurrentCell(neuron) ((PSRecurrentCell*) neuron->extra)
+#define GetRecurrentCell(neuron) ((PSRecurrentCell*) neuron->extra)
+
+typedef struct {
+    int states_count;
+    int weights_size;
+    double * states;
+    double * weights;
+} PSRecurrentCell;
 
 PSRecurrentCell * PSCreateRecurrentCell(PSNeuron * neuron, int lsize);
 double * PSAddRecurrentState(PSNeuron * neuron, double state, int times, int t);

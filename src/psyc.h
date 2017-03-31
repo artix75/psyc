@@ -71,13 +71,6 @@ typedef struct {
 } PSSharedParams;
 
 typedef struct {
-    int states_count;
-    double * states;
-    int weights_size;
-    double * weights;
-} PSRecurrentCell;
-
-typedef struct {
     int index;
     int weights_size;
     double bias;

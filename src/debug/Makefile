@@ -2,7 +2,7 @@ SHELL=/bin/bash
 CC=gcc
 CFLAGS=-std=gnu99 -g -ggdb
 LDFLAGS=-lz -lm
-OBJS=../psyc.o ../utils.o ../convolutional.o ../recurrent.o ../mnist.o
+OBJS=../psyc.o ../utils.o ../convolutional.o ../recurrent.o ../lstm.o ../mnist.o
 
 include ../avx.mk
 ifeq ($(AVX),on)
