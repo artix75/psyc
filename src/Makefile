@@ -36,7 +36,7 @@ endif
 
 BIN_CFLAGS = $(CFLAGS)
 BIN_LDFLAGS = $(LDFLAGS)
-CLI_OBJS=$(OBJS) psyc_cli.o
+CLI_OBJS=$(OBJS) psycl.o
 
 ifneq ($(HAS_MAGICK), false)
         BIN_CFLAGS+=-DHAS_MAGICK
@@ -50,29 +50,30 @@ default: all
 image_data.o:
 	$(CC) $(MAGICK_CFLAGS) $(CFLAGS)  -c -o $@ image_data.c
 
-psyc_cli.o: 
-	$(CC) $(BIN_CFLAGS) -c -o $@ psyc_cli.c
+psycl.o: 
+	$(CC) $(BIN_CFLAGS) -c -o $@ psycl.c
 
 $(LIBNAME): $(OBJS)
 	$(CC) $(LIBOPTS) -o ../lib/$@ $(OBJS) $(LDFLAGS)
 
-psyc_cli: $(CLI_OBJS)
-	$(CC) -o ../bin/psyc_cli $(CLI_OBJS) $(BIN_LDFLAGS)
+psycl: $(CLI_OBJS)
+	$(CC) -o ../bin/psycl $(CLI_OBJS) $(BIN_LDFLAGS)
 
-all: psyc_cli $(LIBNAME)
+all: psycl $(LIBNAME)
 
 install: all
 	@mkdir -p $(BINDIR)
 	@mkdir -p $(LIBDIR)
-	@mkdir -p $(INCLUDEDIR)
+	@mkdir -p $(INCLUDEDIR)/psyc
 	@mkdir -p $(SHAREDIR)
 	@mkdir -p $(SHAREDIR)/bin
 	@mkdir -p $(SHAREDIR)/utils
-	cp ../bin/psyc_cli $(SHAREDIR)/bin/psyc_cli
-	ln -s -f $(SHAREDIR)/bin/psyc_cli $(BINDIR)/psyc_cli
+	cp ../bin/psycl $(SHAREDIR)/bin/psycl
+	ln -s -f $(SHAREDIR)/bin/psycl $(BINDIR)/psycl
 	cp ../lib/$(LIBNAME) $(LIBDIR)/$(LIBNAME)
-	cp psyc.h $(INCLUDEDIR)/psyc.h
-	cp mnist.h $(INCLUDEDIR)/psyc_mnist.h
+	cp psyc.h $(INCLUDEDIR)/psyc/
+	cp mnist.h $(INCLUDEDIR)/psyc/
+	cp image_data.h $(INCLUDEDIR)/psyc/
 	cp -r ../resources $(SHAREDIR)/resources
 	cp -r ../utils/*.rb $(SHAREDIR)/utils/
 	#cp ../bin/*_demo $(SHAREDIR)/bin/
@@ -80,7 +81,6 @@ install: all
 
 uninstall:
 	rm -rvf $(SHAREDIR)
-	rm -f $(BINDIR)/psyc_cli
+	rm -f $(BINDIR)/psycl
 	rm -f $(LIBDIR)/$(LIBNAME)
-	rm -f $(INCLUDEDIR)/psyc.h
-	rm -f $(INCLUDEDIR)/psyc_mnist.h
+	rm -rvf $(INCLUDEDIR)/psyc
