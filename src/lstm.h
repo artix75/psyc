@@ -26,12 +26,12 @@
 typedef struct {
     int states_count;
     int weights_size;
+    double * states;
+    double * z_values;
     double * candidates;
     double * input_gates;
     double * output_gates;
     double * forget_gates;
-    double * z_values;
-    double * states;
     double candidate_bias;
     double input_bias;
     double output_bias;
