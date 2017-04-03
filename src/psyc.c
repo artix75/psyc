@@ -1543,6 +1543,7 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
     }
     
     int last_t = times - 1;
+    double * lstm_delta = NULL;
     for (t = last_t; t >= 0; t--) {
         int lowest_t = t - bptt_truncate;
         if (lowest_t < 0) lowest_t = 0;
@@ -1669,30 +1670,32 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
                     }
                 }
             }
-            free(last_delta);
+            if (last_delta != lstm_delta) free(last_delta);
             last_delta = delta;
-            int is_recurrent_type = 0;
+            int is_recurrent = (Recurrent == ltype);
+            int is_lstm = (LSTM == ltype);
+            if (!is_recurrent && !is_lstm) continue;
             
-            if (Recurrent == ltype) {
+            if (is_recurrent) {
                 delta = PSRecurrentBackprop(layer, previousLayer, lowest_t,
                                             &last_delta, lgradients, t);
-                is_recurrent_type = 1;
- 
-            } else if (LSTM == ltype) {
-                delta = PSLSTMBackprop(layer, previousLayer, lowest_t,
-                                       &last_delta, lgradients, t);
-                is_recurrent_type = 1;
-            }
-            if (is_recurrent_type) {
                 if (delta == NULL) {
                     if (last_delta != NULL) free(last_delta);
                     return NULL;
                 }
-                free(last_delta);
+                if (last_delta != NULL) free(last_delta);
+                last_delta = delta;
+            } else if (is_lstm) {
+                delta = PSLSTMBackprop(layer, previousLayer, lowest_t,
+                                       last_delta, lstm_delta, lgradients, t);
+                if (lstm_delta != NULL) free(lstm_delta);
+                lstm_delta = delta;
                 last_delta = delta;
             }
         }
         if (delta != NULL) free(delta);
+        if (lstm_delta != NULL && lstm_delta != delta)
+            free(lstm_delta);
     }
     return gradients;
 }
@@ -1796,10 +1799,7 @@ double updateWeights(PSNeuralNetwork * network, double * training_data,
                 PSNeuron * neuron = layer->neurons[j];
                 neuron->bias = neuron->bias - r * g->bias;
                 int wsize = neuron->weights_size;
-                if (is_lstm) {
-                    wsize -= 4;
-                    PSUpdateLSTMBiases(neuron, g, r);
-                }
+                if (is_lstm) PSUpdateLSTMBiases(neuron, g, r);
                 for (k = 0; k < wsize; k++) {
                     double w = neuron->weights[k];
                     neuron->weights[k] = w - r * g->weights[k];
