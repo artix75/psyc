@@ -887,12 +887,13 @@ void PSDeleteNeuron(PSNeuron * neuron, PSLayer * layer) {
     if (neuron->weights != NULL) free(neuron->weights);
     if (neuron->extra != NULL) {
         if (layer->flags & FLAG_RECURRENT) {
-            if (layer->type == Recurrent) {
+            if (layer->type == LSTM)
+                PSDeleteLSTMCell(GetLSTMCell(neuron));
+            else {
                 PSRecurrentCell * cell = GetRecurrentCell(neuron);
                 if (cell->states != NULL) free(cell->states);
                 free(cell);
-            } else if (layer->type == LSTM)
-                PSDeleteLSTMCell(GetLSTMCell(neuron));
+            }
         } else free(neuron->extra);
     }
     free(neuron);
@@ -1689,14 +1690,15 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
                 delta = PSLSTMBackprop(layer, previousLayer, lowest_t,
                                        last_delta, lstm_delta, lgradients, t);
                 if (lstm_delta != NULL) free(lstm_delta);
+                if (last_delta != NULL && last_delta != lstm_delta) 
+                    free(last_delta);
                 lstm_delta = delta;
                 last_delta = delta;
             }
         }
-        if (delta != NULL) free(delta);
-        if (lstm_delta != NULL && lstm_delta != delta)
-            free(lstm_delta);
+        if (delta != NULL && lstm_delta != delta) free(delta);
     }
+    if (lstm_delta != NULL) free(lstm_delta);
     return gradients;
 }
 
