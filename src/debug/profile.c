@@ -94,5 +94,17 @@ int main(int argc, char** argv) {
     
     PSDeleteNetwork(network);
     
+    network = PSCreateNetwork("Profiling LSTM");
+    network->flags |= FLAG_ONEHOT;
+    PSAddLayer(network, FullyConnected, RNN_INPUT_SIZE, NULL);
+    PSAddLayer(network, LSTM, RNN_HIDDEN_SIZE, NULL);
+    PSAddLayer(network, SoftMax, RNN_INPUT_SIZE, NULL);
+    network->layers[network->size - 1]->flags |= FLAG_ONEHOT;
+    
+    PSTrain(network, rnn_train_data, 10, EPOCHS, RNN_LEARNING_RATE, 1, 0,
+            NULL, 0);
+    
+    PSDeleteNetwork(network);
+    
     return 0;
 }
