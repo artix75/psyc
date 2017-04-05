@@ -32,7 +32,7 @@
 
 #define BATCHES 1
 #define EPOCHS 30
-#define LEARNING_RATE 0.025
+#define LEARNING_RATE 0.005
 
 void handler(int sig) {
     void *array[10];
@@ -99,7 +99,7 @@ int main(int argc, char** argv) {
         PSTest(network, test_data, TEST_DATA_LEN);
     }
     if (pretrained_file == NULL)
-        PSSaveNetwork(network, "/tmp/pretrained.cnn.data");
+        PSSaveNetwork(network, "/tmp/pretrained.lstm.data");
     PSDeleteNetwork(network);
     //free(training_data);
     //if (TEST_DATA_LEN) free(test_data);
