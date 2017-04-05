@@ -735,11 +735,17 @@ int PSLoadNetwork(PSNeuralNetwork * network, const char* filename) {
         } else if (layer->type == Pooling) {
             continue;
         } else lsize = layer->size;
+        int is_lstm = (LSTM == layer->type);
         for (j = 0; j < lsize; j++) {
             double bias = 0;
             int wsize = 0;
             double * weights = NULL;
-            matched = fscanf(f, "%lf|", &bias);
+            //LSTM biases
+            double cb = 0.0, ib = 0.0, ob = 0.0, fb = 0.0;
+            if (!is_lstm)
+                matched = fscanf(f, "%lf|", &bias);
+            else
+                matched = fscanf(f, "%lf,%lf,%lf,%lf|", &cb, &ib, &ob, &fb);
             if (!matched) {
                 PSErr(func, "Layer %d, neuron %d: invalid bias!", i, j);
                 fclose(f);
@@ -750,6 +756,14 @@ int PSLoadNetwork(PSNeuralNetwork * network, const char* filename) {
                 wsize = neuron->weights_size;
                 neuron->bias = bias;
                 weights = neuron->weights;
+                if (is_lstm) {
+                    PSLSTMCell * cell = GetLSTMCell(neuron);
+                    assert(cell != NULL);
+                    cell->candidate_bias = cb;
+                    cell->input_bias = ib;
+                    cell->output_bias = ob;
+                    cell->forget_bias = fb;
+                }
             } else {
                 shared->biases[j] = bias;
                 wsize = shared->weights_size;
@@ -855,9 +869,20 @@ int PSSaveNetwork(PSNeuralNetwork * network, const char* filename) {
         }
         else if (Pooling == ltype) continue;
         else {
+            int is_lstm = (LSTM == ltype);
             for (j = 0; j < lsize; j++) {
                 PSNeuron * neuron = layer->neurons[j];
-                fprintf(f, "%.15e|", neuron->bias);
+                if (!is_lstm)
+                    fprintf(f, "%.15e|", neuron->bias);
+                else {
+                    PSLSTMCell * cell = GetLSTMCell(neuron);
+                    assert(cell != NULL);
+                    fprintf(f, "%.15e,%.15e,%.15e,%.15e|",
+                            cell->candidate_bias,
+                            cell->input_bias,
+                            cell->output_bias,
+                            cell->forget_bias);
+                }
                 for (k = 0; k < neuron->weights_size; k++) {
                     if (k > 0) fprintf(f, ",");
                     double w = neuron->weights[k];
@@ -1687,8 +1712,8 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
                 if (last_delta != NULL) free(last_delta);
                 last_delta = delta;
             } else if (is_lstm) {
-                delta = PSLSTMBackprop(layer, previousLayer, lowest_t,
-                                       last_delta, lstm_delta, lgradients, t);
+                delta = PSLSTMBackprop(layer, previousLayer, last_delta,
+                                       lstm_delta, lgradients, t);
                 if (lstm_delta != NULL) free(lstm_delta);
                 if (last_delta != NULL && last_delta != lstm_delta) 
                     free(last_delta);

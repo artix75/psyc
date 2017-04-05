@@ -59,7 +59,6 @@ int PSLSTMFeedforward(void * _net, void * _layer, ...);
 
 double * PSLSTMBackprop(PSLayer * layer,
                         PSLayer * previousLayer,
-                        int lowest_t,
                         double * last_delta,
                         double * last_lstm_delta,
                         PSGradient * lgradients,

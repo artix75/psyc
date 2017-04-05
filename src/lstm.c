@@ -324,8 +324,8 @@ int PSLSTMFeedforward(void * _net, void * _layer, ...) {
             return 0;
         }
     }
-    int i, j, w, previous_size = previous->size;
-    for (i = 0; i < size; i++) {
+    int i = 0;
+    for (; i < size; i++) {
         PSNeuron * neuron = layer->neurons[i];
         int ok = LSTMCellFeedforward(layer, previous, neuron,
                                      vector_idx, times, t);
@@ -344,7 +344,6 @@ int PSLSTMFeedforward(void * _net, void * _layer, ...) {
 
 double * PSLSTMBackprop(PSLayer * layer,
                         PSLayer * previousLayer,
-                        int lowest_t,
                         double * last_delta,
                         double * last_lstm_delta,
                         PSGradient * lgradients,
@@ -486,8 +485,7 @@ double * PSLSTMBackprop(PSLayer * layer,
             PSLSTMCell * cell = GetLSTMCell(neuron);
             int cwsize = cell->weights_size;
             int wsize = cwsize - layer->size;
-            double prev_a = cell->states[last_t];
-            double rsum = 0.0, csum = 0.0, isum = 0.0, osum = 0.0, fsum = 0.0;
+            //double prev_a = cell->states[last_t];
             for (w = 0; w < lsize; w++) {
                 PSNeuron * rn = layer->neurons[w];
                 PSLSTMCell * rc = GetLSTMCell(rn);
