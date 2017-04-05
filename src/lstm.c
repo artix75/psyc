@@ -165,8 +165,9 @@ static int LSTMCellFeedforward(PSLayer * layer, PSLayer * previous,
     neuron->z_value = candidate * input_gate + last_z * forget_gate;
     cell->z_values[t] = neuron->z_value;
     
-    double activation = output_gate * neuron->z_value;
+    double activation = neuron->z_value;
     if (layer->activate != NULL) activation = layer->activate(activation);
+    activation = output_gate * activation;
     neuron->activation = activation;
     cell->states[t] = activation;
     return 1;
@@ -393,10 +394,10 @@ double * PSLSTMBackprop(PSLayer * layer,
         double dc = c * dz;
         delta_z[i] = dz * cell->forget_gates[t];
         
-        dout *= (1 - dout); // sigmoid_derivative
-        di *= (1 - di); // sigmoid_derivative
-        df *= (1 - df);
-        dc = tanh_derivative(dc);
+        dout *= (og * (1 - og)); // sigmoid_derivative
+        di *= (ig * (1 - ig)); // sigmoid_derivative
+        df *= (fg * (1 - fg)); // sigmoid_derivative
+        dc *= tanh_derivative(c);
         
         delta_c[i] = dc;
         delta_i[i] = di;
@@ -500,8 +501,9 @@ double * PSLSTMBackprop(PSLayer * layer,
                 delta[neuron->index] += delta_o[rn->index] * ow;
                 delta[neuron->index] += delta_f[rn->index] * fw;
             }
-            if (layer->derivative != NULL)
+            /*if (layer->derivative != NULL)
                 delta[neuron->index] *= layer->derivative(prev_a); //?
+             */
         }
     }
     
