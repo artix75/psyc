@@ -2028,12 +2028,13 @@ float validate(PSNeuralNetwork * network, double * test_data, int data_size,
     if (log) printf("Completed in %ld sec.\n", end_t - start_t);
     if (series == NULL) {
         accuracy = (float) correct_results / (float) elements_count;
+        if (log) printf("Accuracy (%d/%d): %.2f\n",
+                        correct_results, elements_count,accuracy);
     } else {
         accuracy = correct_amount / (float) elements_count;
         free(series);
+        if (log) printf("Accuracy: %.2f\n", accuracy);
     }
-    if (log) printf("Accuracy (%d/%d): %.2f\n", correct_results, elements_count,
-                    accuracy);
     return accuracy;
 }
 

@@ -354,17 +354,22 @@ double * PSLSTMBackprop(PSLayer * layer,
     double * delta_i = calloc(sizeof(double), lsize);
     double * delta_o = calloc(sizeof(double), lsize);
     double * delta_f = calloc(sizeof(double), lsize);
-    double * lstm_delta = calloc(sizeof(double), 2 * lsize);
+    // lstm_delta has room for: LSTM additional delta for prev. layer,
+    //                          LSTM additional delta for itself,
+    //                          Delta z
+    double * lstm_delta = calloc(sizeof(double),
+                                 previousLayer->size + (2 * lsize));
     if (lstm_delta == NULL || delta_c == NULL || delta_i == NULL ||
         delta_o == NULL || delta_f == NULL) {
         printMemoryErrorMsg();
         FreeLSTMDeltas();
         return NULL;
     }
-    double * delta = lstm_delta;
-    double * delta_z = lstm_delta + lsize;
+    double * delta = lstm_delta + previousLayer->size;
+    double * delta_z = delta + lsize;
     double * last_delta_z = NULL;
-    if (last_lstm_delta != NULL) last_delta_z = last_lstm_delta + lsize;
+    if (last_lstm_delta != NULL)
+        last_delta_z = last_lstm_delta + previousLayer->size + lsize;
 
     for (i = 0; i < lsize; i++) {
         PSNeuron * neuron = layer->neurons[i];
@@ -386,12 +391,17 @@ double * PSLSTMBackprop(PSLayer * layer,
         double c = cell->candidates[t];
         
         double last_dz = (last_delta_z != NULL ? last_delta_z[i] : 0.0);
-        double dz = og * dv + last_dz;
-        double dout = z * dv;
-        double di = og * dz;
+        double z_deriv = 1, zz = z;
+        if (layer->derivative != NULL) {
+            z_deriv = layer->derivative(z);
+            zz = z_deriv;
+        }
+        double dz = og * dv * z_deriv + last_dz;
+        double dout = zz * dv;
+        double di = c * dz;
         double df = last_z * dz;
-        double dc = c * dz;
-        delta_z[i] = dz * cell->forget_gates[t];
+        double dc = ig * dz;
+        delta_z[i] = dz * fg;
         
         dout *= (og * (1 - og)); // sigmoid_derivative
         di *= (ig * (1 - ig)); // sigmoid_derivative
@@ -435,9 +445,9 @@ double * PSLSTMBackprop(PSLayer * layer,
                 gradient->weights[w] += (dc * prev_a);
                 gradient->weights[w + cwsize] += (di * prev_a);
                 gradient->weights[w + (cwsize * OUTPUT_IDX)] +=
-                (dout * prev_a);
+                    (dout * prev_a);
                 gradient->weights[w + (cwsize * FORGET_IDX)] +=
-                (df * prev_a);
+                    (df * prev_a);
             }
         }
         
@@ -470,9 +480,9 @@ double * PSLSTMBackprop(PSLayer * layer,
                 gradient->weights[widx] += (dc * a);
                 gradient->weights[widx + cwsize] += (di * a);
                 gradient->weights[widx + (cwsize * OUTPUT_IDX)] +=
-                (dout * a);
+                    (dout * a);
                 gradient->weights[widx + (cwsize * FORGET_IDX)] +=
-                (df * a);
+                    (df * a);
             }
             
         }
@@ -509,5 +519,5 @@ double * PSLSTMBackprop(PSLayer * layer,
     free(delta_i);
     free(delta_o);
     free(delta_f);
-    return delta;
+    return lstm_delta;
 }

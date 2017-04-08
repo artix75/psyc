@@ -31,8 +31,8 @@
 #include "w2v_training_data.h"
 
 #define BATCHES 1
-#define EPOCHS 30
-#define LEARNING_RATE 0.005
+#define EPOCHS 60
+#define LEARNING_RATE 0.0025
 
 void handler(int sig) {
     void *array[10];
@@ -68,7 +68,7 @@ int main(int argc, char** argv) {
     
     if (pretrained_file == NULL) {
         PSAddLayer(network, FullyConnected, VOCABULARY_SIZE, NULL);
-        PSAddLayer(network, LSTM, 60, NULL);
+        PSAddLayer(network, LSTM, VOCABULARY_SIZE / 10, NULL);
         PSAddLayer(network, SoftMax, VOCABULARY_SIZE, NULL);
         network->layers[network->size - 1]->flags |= FLAG_ONEHOT;
         if (network->size < 1) {
@@ -91,8 +91,8 @@ int main(int argc, char** argv) {
     }
     
     PSTrain(network, training_data, TRAIN_DATA_LEN, EPOCHS, LEARNING_RATE,
-            BATCHES, TRAINING_NO_SHUFFLE | TRAINING_ADJUST_RATE,
-            validation_data, EVAL_DATA_LEN);
+            BATCHES, TRAINING_NO_SHUFFLE,
+            training_data, TRAIN_DATA_LEN);
     
     if (TEST_DATA_LEN > 0) {
         printf("Test Data len: %d\n", TEST_DATA_LEN);

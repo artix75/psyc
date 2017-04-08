@@ -5,7 +5,7 @@ require 'optparse'
 VOCABULARY_SIZE = 5000
 START_TOKEN = '__S_START__'
 END_TOKEN = '__S_END__'
-UNKNOWN_TOKEN = '__UNK__' 
+UNKNOWN_TOKEN = '__UNK__'
 MAX_SENTENCES = 0#nil
 
 def print_progress(msg, idx, total)
@@ -44,7 +44,7 @@ end
 
 def one_hot(array)
     array.map{|idx|
-        vec = Array.new VOCABULARY_SIZE, 0 
+        vec = Array.new VOCABULARY_SIZE, 0
         vec[idx] = 1
         vec
     }
@@ -65,7 +65,7 @@ def do_verify(c)
         TRAIN_SENTENCES
         EVAL_SENTENCES
         TEST_SENTENCES
-    ) 
+    )
     var_names.each{|var|
         m = c.match(/#define\s+#{var}\s+(\d+)/)
         if !m
@@ -171,124 +171,23 @@ def do_verify(c)
     true
 end
 
-$options = {
-    vocabulary_size: VOCABULARY_SIZE,
-    max_sentences: MAX_SENTENCES,
-    words_var: 'words',
-    train_data_var: 'training_data',
-    eval_data_var: 'validation_data',
-    test_data_var: 'test_data'
-}
-
-optparse = OptionParser.new do |opts|
-
-    opts.banner = "Usage: #{File.basename($0)} [options]"
-
-    opts.on '-o', '--output OUTPUT', 'Output File' do |out|
-        $options[:output] = out
-    end
-    
-    opts.on '-s', '--vocabulary-size SIZE', 
-            "Vocabulary size (def. #{VOCABULARY_SIZE})" do |size|
-        size = size.to_i
-        if size.zero?
-            STDERR.puts "Invalid size"
-            exit 1
-        end
-        $options[:vocabulary_size] = size
-    end  
-
-    opts.on '', '--max-sentences MAX', 
-            "Maximum sentences, 0 for no limit (def. #{MAX_SENTENCES})" do |max|
-        max = max.to_i
-        if max.zero?
-            STDERR.puts "Invalid max sentences"
-            exit 1
-        end
-        $options[:max_sentences] = max
-    end
-
-    opts.on '', '--words-var VAR', 
-            "Words C variable name (def. #{$options[:words_var]})" do |var|
-        if !var[/^[_a-zA-Z][_a-zA-Z0-9]*$/]
-            STDERR.puts "Invalid word varabile name"
-            exit 1
-        end
-        $options[:words_var] = var
-    end
-
-    opts.on '', '--data-var VAR', 
-            "Training data C var. (def. #{$options[:train_data_var]})" do |var|
-        if !var[/^[_a-zA-Z][_a-zA-Z0-9]*$/]
-            STDERR.puts "Invalid training data varabile name"
-            exit 1
-        end
-        $options[:train_data_var] = var
-    end
-
-    opts.on '', '--validation-data-var VAR', 
-            "Validation data C var. (def. #{$options[:eval_data_var]})" do |var|
-        if !var[/^[_a-zA-Z][_a-zA-Z0-9]*$/]
-            STDERR.puts "Invalid validation data varabile name"
-            exit 1
-        end
-        $options[:eval_data_var] = var
-    end
-
-    opts.on '', '--test-data-var VAR', 
-            "Test data C var. (def. #{$options[:test_data_var]})" do |var|
-        if !var[/^[_a-zA-Z][_a-zA-Z0-9]*$/]
-            STDERR.puts "Invalid test data varabile name"
-            exit 1
-        end
-        $options[:test_data_var] = var
-    end
-
-    opts.on '', '--same-data-set', 
-            'Train also with test/validation datasets' do |same_dataset|
-        $options[:same_dataset] = true
-    end
-
-    opts.on '-v', '--verify [FILE]', 'Verify file integrity' do |file|
-        $options[:verify] = file || true
-    end
-
-    opts.on( '-h', '--help', 'Display this screen' ) do
-        puts opts
-        exit
-    end
-
-end
-
-optparse.banner << " WORDS_FILE"
-optparse.parse!
-
-filename = ARGV.first
-if !$options[:verify]
-    if !filename || filename.strip.empty?
-        puts optparse
-        exit 1
-    end
-
-    if !File.exists? filename
-        puts "#{filename} not found!"
-        exit 1
-    end
-end
-
-if filename
-    $sentences = []
-
+def load_data_from(filename, opts = {})
+    puts "Reading #{filename}"
     data = File.read(filename)
     if filename[/\.csv$/i]
         data = CSV.parse(File.read(filename))
         data.shift
     else
-        data = data.split /\n+/
+        sep = opts[:separator] || /\n+/
+        data = data.split sep
     end
+    $sentences ||= []
+    $tokenized_sentences ||= []
+    $words ||= {}
+    sent_len = $sentences.length
     puts "Parsing File..."
     data_len = data.length
-    max_s = $options[:max_sentences]
+    max_s = opts[:max_sentences] || $options[:max_sentences]
     data.each_with_index{|txt, idx|
         txt = txt[0] if txt.is_a? Array
         next if !txt || txt.strip.empty?
@@ -314,17 +213,19 @@ if filename
     puts "\nTokenizing sentences..."
     _idx = 0
     _tot = $sentences.length
-    $tokenized_sentences = $sentences.map{|s|
+    tokenized = $sentences[sent_len..-1].map{|s|
         print_progress "Sentence", _idx, _tot
         _idx += 1
         tokenize_sentence s
     }
     #p $tokenized_sentences
-    $words = {}
-    $tokenized_sentences.flatten.each{|w| 
+    #$words = {}
+    tokenized.flatten.each{|w|
         $words[w] ||= 0
         $words[w] += 1
     }
+
+    $tokenized_sentences += tokenized
 
     puts "Creating Vocabulary..."
 
@@ -355,18 +256,187 @@ if filename
     #p $tokenized_sentences[0,5]
     _idx = 0
     _len = $tokenized_sentences.length
-    puts "Creating training data..."
-    $training_data_indexed = []
-    $training_data = $tokenized_sentences.map{|sent|
+    puts "\nCreating training data..."
+    label = opts[:label]
+    $training_data_indexed ||= []
+    $training_data ||= []
+    $training_data += tokenized.map{|sent|
         print_progress "Sentence", _idx, _tot
         _idx += 1
         sent = sentence2vec sent, true
-        pair = [sent[0..-2], sent[1..-1]]
+        x = sent[0..-2]
+        y = sent[1..-1]
+        if label
+            if !label.is_a? Array
+                y = Array.new y.length, label.to_f
+            else
+                lengths = [y.length, label.length].sort
+                y = (label * (lengths[1] / lengths[0]))[0, y.length]
+            end
+        end
+        pair = [x, y]
         $training_data_indexed << pair
         pair
     }
+end
+
+$options = {
+    vocabulary_size: VOCABULARY_SIZE,
+    max_sentences: MAX_SENTENCES,
+    words_var: 'words',
+    train_data_var: 'training_data',
+    eval_data_var: 'validation_data',
+    test_data_var: 'test_data'
+}
+
+optparse = OptionParser.new do |opts|
+
+    opts.banner = "Usage: #{File.basename($0)} [options]"
+
+    opts.on '-o', '--output OUTPUT', 'Output File' do |out|
+        $options[:output] = out
+    end
+
+    opts.on '-s', '--vocabulary-size SIZE',
+            "Vocabulary size (def. #{VOCABULARY_SIZE})" do |size|
+        size = size.to_i
+        if size.zero?
+            STDERR.puts "Invalid size"
+            exit 1
+        end
+        $options[:vocabulary_size] = size
+    end
+
+    opts.on '', '--max-sentences MAX',
+            "Maximum sentences, 0 for no limit (def. #{MAX_SENTENCES})" do |max|
+        max = max.to_i
+        if max.zero?
+            STDERR.puts "Invalid max sentences"
+            exit 1
+        end
+        $options[:max_sentences] = max
+    end
+
+    opts.on '', '--words-var VAR',
+            "Words C variable name (def. #{$options[:words_var]})" do |var|
+        if !var[/^[_a-zA-Z][_a-zA-Z0-9]*$/]
+            STDERR.puts "Invalid word varabile name"
+            exit 1
+        end
+        $options[:words_var] = var
+    end
+
+    opts.on '', '--data-var VAR',
+            "Training data C var. (def. #{$options[:train_data_var]})" do |var|
+        if !var[/^[_a-zA-Z][_a-zA-Z0-9]*$/]
+            STDERR.puts "Invalid training data varabile name"
+            exit 1
+        end
+        $options[:train_data_var] = var
+    end
+
+    opts.on '', '--validation-data-var VAR',
+            "Validation data C var. (def. #{$options[:eval_data_var]})" do |var|
+        if !var[/^[_a-zA-Z][_a-zA-Z0-9]*$/]
+            STDERR.puts "Invalid validation data varabile name"
+            exit 1
+        end
+        $options[:eval_data_var] = var
+    end
+
+    opts.on '', '--test-data-var VAR',
+            "Test data C var. (def. #{$options[:test_data_var]})" do |var|
+        if !var[/^[_a-zA-Z][_a-zA-Z0-9]*$/]
+            STDERR.puts "Invalid test data varabile name"
+            exit 1
+        end
+        $options[:test_data_var] = var
+    end
+
+    opts.on '', '--same-data-set',
+            'Train also with test/validation datasets' do |same_dataset|
+        $options[:same_dataset] = true
+    end
+
+    opts.on '-l', '--labels LABELS', 'Add custom labels' do |labels|
+        $options[:labels] ||= []
+        $options[:labels] << labels
+    end
+
+    opts.on '', '--shuffle', 'Shuffle Data' do
+        $options[:shuffle] = true
+    end
+
+    opts.on '-v', '--verify [FILE]', 'Verify file integrity' do |file|
+        $options[:verify] = file || true
+    end
+
+    opts.on( '-h', '--help', 'Display this screen' ) do
+        puts opts
+        exit
+    end
+
+end
+
+optparse.banner << " WORDS_FILE"
+optparse.parse!
+
+filenames = ARGV
+if !$options[:verify]
+    if filenames.length.zero?
+        puts optparse
+        exit 1
+    end
+end
+
+if filenames.length > 0
+    $sentences = []
+    fidx = -1
+    labels = $options[:labels] || []
+    lbl_length = labels.length
+
+    all_files = filenames.map{|filename|
+        filename = File.expand_path filename if filename[/^\~/]
+        if filename['*']
+            files = Dir.glob filename
+        else
+            if !File.exists? filename
+                STDERR.puts "#{filename} not found!"
+                exit 1
+            end
+            files = [filename]
+        end
+        fidx += 1
+        if lbl_length > 0
+            lbl_idx = fidx % lbl_length
+            lbl = labels[lbl_idx]
+            lbl = lbl.split(',').map{|l| l.to_f} if lbl[',']
+            lbl = lbl.to_f if !lbl.is_a? Array
+        end
+        {files: files, label: lbl}
+    }.compact
+
+    max_sentences = $options[:max_sentences] || MAX_SENTENCES
+    max_sentences /= all_files.length
+
+    all_files.each_with_index{|f, idx|
+        files = f[:files]
+        label = f[:label]
+        files.each_with_index{|filename, fidx|
+            max_s = (max_sentences * (1 + idx))
+            load_data_from filename, label: label,
+                                     max_sentences: max_s
+            break if $sentences.length >= max_s
+        }
+    }
+
     #p $training_data[0]
     #p one_hot($training_data[0][0])
+    $training_data ||= []
+    if $options[:shuffle]
+        puts "Shuffling..."
+        $training_data.shuffle!
+    end
     tot_data_len = $training_data.length
     eval_data_len = (tot_data_len * 0.10).to_i
     test_data_len = (tot_data_len * 0.10).to_i
@@ -427,7 +497,7 @@ double #{$options[:test_data_var]}[] = {#{test_c_data}};
 #endif
     EOS
     File.open(output, 'w'){|f| f.write(c_code)}
-    puts "Written to #{output}"
+    puts "\nWritten to #{output}"
     if $options[:verify]
         do_verify c_code
     end
