@@ -1796,6 +1796,7 @@ double updateWeights(PSNeuralNetwork * network, double * training_data,
                 if (!wsize) {
                     PSNeuron * neuron = layer->neurons[k];
                     wsize = neuron->weights_size;
+                    if (layer->type == LSTM) wsize += 4; // LSTM biases
                 }
                 PSGradient * gradient_bp = &(lgradients_bp[k]);
                 PSGradient * gradient = &(lgradients[k]);
