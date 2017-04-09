@@ -22,6 +22,8 @@
 #include "test.h"
 #include "../psyc.h"
 #include "../convolutional.h"
+#include "../recurrent.h"
+#include "../lstm.h"
 #include "../mnist.h"
 #ifdef USE_AVX
 #include "../avx.h"
@@ -42,7 +44,12 @@
 #define RNN_INPUT_SIZE  4
 #define RNN_HIDDEN_SIZE 2
 #define RNN_TIMES       4
-#define RNN_LEARING_RATE 0.005
+#define RNN_LEARNING_RATE 0.005
+
+#define LSTM_LEARNING_RATE 0.1
+#define LSTM_TIMES 3
+#define LSTM_EPOCHS 1
+#define LSTM_BATCHES 1
 
 #define getNetwork(tc) ((PSNeuralNetwork*)(tc->data[0]))
 #define getTestData(tc) ((double*)(tc->data[1]))
@@ -52,6 +59,7 @@
 TestCase * fullNetworkTests;
 TestCase * convNetworkTests;
 TestCase * recurrentNetworkTests;
+TestCase * LSTMNetworkTests;
 
 #ifdef USE_AVX
 TestCase * AVXTests;
@@ -61,6 +69,7 @@ int genericSetup (void* test_case);
 int genericTeardown (void* test_case);
 int RNNSetup (void* test_case);
 int RNNTeardown (void* test_case);
+int LSTMSetup (void* test_case);
 
 int testGenericClone(void* test_case, void* test);
 int testGenericSave(void* test_case, void* test);
@@ -84,6 +93,9 @@ int testRNNLoad(void* test_case, void* test);
 int testRNNFeedforward(void* test_case, void* test);
 int testRNNBackprop(void* test_case, void* test);
 int testRNNStep(void* tc, void* t);
+
+int testLSTMLoad(void* test_case, void* test);
+int testLSTMTrain(void* test_case, void* test);
 
 /* psyc.c static function prototypes */
 
@@ -199,6 +211,46 @@ double rnn_trained_recurrent_weights[2][2] = {
 double rnn_inputs[5] = {4, 0, 1, 2, 3};
 double rnn_labels[4] = {3, 2, 1, 0};
 
+double lstm_training_data[] = {1.0, 3.0, 0.0, 1.0, 2.0, 1.0, 2.0, 3.0};
+double wg[2][6] = {{ 0.0097627,0.04303787,0.02055268,0.00897664,-0.01526904,0.02917882},{-0.01248256,0.0783546,0.09273255,-0.0233117,0.05834501,0.00577898}};
+double wi[2][6] = {{ 0.0097627,0.04303787,0.02055268,0.00897664,-0.01526904,0.02917882},{-0.01248256,0.0783546,0.09273255,-0.0233117,0.05834501,0.00577898}};
+double wo[2][6] = {{ 0.0097627,0.04303787,0.02055268,0.00897664,-0.01526904,0.02917882},{-0.01248256,0.0783546,0.09273255,-0.0233117,0.05834501,0.00577898}};
+double wf[2][6] = {{ 0.0097627,0.04303787,0.02055268,0.00897664,-0.01526904,0.02917882},{-0.01248256,0.0783546,0.09273255,-0.0233117,0.05834501,0.00577898}};
+double bg[2] = {0.0097627,0.04303787};
+double bi[2] = {0.0097627,0.04303787};
+double bo[2] = {0.0097627,0.04303787};
+double bf[2] = {0.0097627,0.04303787};
+
+double lstm_out_weights[4][2] = {
+    { 0.0097627,   0.04303787},
+    { 0.02055268,  0.00897664},
+    {-0.01526904,  0.02917882},
+    {-0.01248256,  0.0783546}};
+
+double lstm_expected_states[2][3] = {
+    {0.00497633, 0.01652635, 0.0163383},
+    {0.00787092, 0.03837129, 0.05927353}
+};
+
+double lstm_expected_outputs[3][4] = {
+    { 0.25001755, 0.24996395, 0.24995914, 0.25005937},
+    { 0.25006783, 0.24978575, 0.24983151, 0.2503149},
+    { 0.25008373, 0.24962334, 0.2497762, 0.25051672}
+};
+
+double expected_wg[2][6] = {{ 0.00999296, 0.04248274, 0.02021531, 0.00897664, -0.01527738, 0.02916151}, {-0.01314802, 0.07862118, 0.09379185, -0.0233117, 0.05836384, 0.00582172}};
+double expected_wi[2][6] = {{ 0.00976493, 0.04302353, 0.0205475, 0.00897664, -0.0152692, 0.02917851},
+    {-0.01249258, 0.07836999, 0.09280098, -0.0233117, 0.05834622, 0.00578173}};
+double expected_wo[2][6] = {{ 0.01026422, 0.04267428, 0.02022535, 0.00897664, -0.01527626, 0.0291634},
+    {-0.0132618, 0.0780873, 0.0936737, -0.0233117, 0.05835923, 0.00581299}};
+double expected_wf[2][6] = {{ 0.0097627, 0.0430352, 0.02054733, 0.00897664, -0.01526914, 0.02917859},
+    {-0.01248256, 0.07835657, 0.09276899, -0.0233117, 0.05834562, 0.00578039}};
+double expected_bg[2] = { 0.00910046, 0.04369829};
+double expected_bi[2] = { 0.00974541, 0.04311167};
+double expected_bo[2] = { 0.00957329, 0.04293248};
+double expected_bf[2] = { 0.00975467, 0.04307628};
+
+
 
 int compareNetworks(PSNeuralNetwork * net1, PSNeuralNetwork * net2, Test* test);
 
@@ -259,6 +311,16 @@ int main(int argc, char** argv) {
     addTest(recurrentNetworkTests, "Save", NULL, testGenericSave);
     performTests(recurrentNetworkTests);
     deleteTest(recurrentNetworkTests);
+    
+    LSTMNetworkTests = createTest("LSTM Network");
+    LSTMNetworkTests->setup = LSTMSetup;
+    LSTMNetworkTests->teardown = RNNTeardown;
+    //addTest(LSTMNetworkTests, "Load", NULL, testLSTMLoad);
+    addTest(LSTMNetworkTests, "Train", NULL, testLSTMTrain);
+    addTest(LSTMNetworkTests, "Clone", NULL, testGenericClone);
+    addTest(LSTMNetworkTests, "Save", NULL, testGenericSave);
+    performTests(LSTMNetworkTests);
+    deleteTest(LSTMNetworkTests);
     
     return 0;
     
@@ -367,6 +429,68 @@ int RNNTeardown (void* tc) {
     test_case->data = NULL;
     return 1;
 }
+
+int LSTMSetup (void* tc) {
+    TestCase * test_case = (TestCase*) tc;
+    PSNeuralNetwork * network = PSCreateNetwork("LSTM Test Network");
+    if (network == NULL) {
+        fprintf(stderr, "\nCould not create network!\n");
+        return 0;
+    }
+    network->flags |= FLAG_ONEHOT;
+    PSAddLayer(network, FullyConnected, RNN_INPUT_SIZE, NULL);
+    PSAddLayer(network, LSTM, RNN_HIDDEN_SIZE, NULL);
+    PSAddLayer(network, SoftMax, RNN_INPUT_SIZE, NULL);
+    if (network->size < 1) {
+        fprintf(stderr, "\nCould not add all layers!\n");
+        return 0;
+    }
+    PSLayer * out = network->layers[network->size - 1];
+    out->flags |= FLAG_ONEHOT;
+    PSLayer * layer = network->layers[1];
+    
+    int i, j, w;
+    for (i = 0; i < layer->size; i++) {
+        PSNeuron * neuron = layer->neurons[i];
+        PSLSTMCell * cell = GetLSTMCell(neuron);
+        cell->candidate_bias = bg[i];
+        cell->input_bias = bi[i];
+        cell->output_bias = bo[i];
+        cell->forget_bias = bf[i];
+        for (w = 0; w < cell->weights_size; w++) {
+            cell->candidate_weights[w] = wg[i][w];
+            cell->input_weights[w] = wi[i][w];
+            cell->output_weights[w] = wo[i][w];
+            cell->forget_weights[w] = wf[i][w];
+        }
+    }
+    
+    for (i = 0; i < out->size; i++) {
+        PSNeuron * neuron = out->neurons[i];
+        neuron->bias = 0.0;
+        for (w = 0; w < neuron->weights_size; w++) {
+            neuron->weights[w] = lstm_out_weights[i][w];
+        }
+    }
+    
+    test_case->data = malloc(2 * sizeof(void*));
+    if (test_case->data == NULL) {
+        fprintf(stderr, "\nCould not allocate memory!\n");
+        return 0;
+    }
+    test_case->data[0] = network;
+    int train_data_len = 2 + (LSTM_TIMES * 2);
+    double * training_data = malloc(train_data_len * sizeof(double));
+    double * p = training_data;
+    if (training_data == NULL) {
+        fprintf(stderr, "\nCould not allocate memory!\n");
+        return 0;
+    }
+    memcpy(training_data, lstm_training_data, train_data_len * sizeof(double));
+    test_case->data[1] = training_data;
+    return 1;
+}
+
 
 int testFullLoad(void* tc, void* t) {
     TestCase * test_case = (TestCase*) tc;
@@ -718,7 +842,7 @@ int testRNNStep(void* tc, void* t) {
     int ok = 1, i, j, w;
     
     double loss = updateWeights(network, training_data, 1,
-                                RNN_LEARING_RATE, series);
+                                RNN_LEARNING_RATE, series);
     
     for (i = 1; i < network->size; i++) {
         PSLayer * layer = network->layers[i];
@@ -750,6 +874,145 @@ int testRNNStep(void* tc, void* t) {
         if (!ok) break;
     }
     //free(series);
+    return ok;
+}
+
+int testLSTMTrain(void* tc, void* tst) {
+    TestCase * test_case = (TestCase*) tc;
+    Test * test = (Test*) tst;
+    PSNeuralNetwork * network = getNetwork(test_case);
+    int train_data_len = 2 + (LSTM_TIMES * 2);
+    double * training_data = getTestData(test_case);
+    
+    PSTrain(network, training_data, 8, LSTM_EPOCHS, LSTM_LEARNING_RATE,
+            LSTM_BATCHES, TRAINING_NO_SHUFFLE,
+            NULL, 0);
+    
+    PSLayer * layer = network->layers[1];
+    int i, t, w, ok = 1;
+    
+    for (i = 0; i < layer->size; i++) {
+        PSNeuron * neuron = layer->neurons[i];
+        PSLSTMCell * cell = GetLSTMCell(neuron);
+        int times = cell->states_count;
+        for (t = 0; t < times; t++) {
+            double h = getRoundedDouble(cell->states[t]);
+            double expected = getRoundedDouble(lstm_expected_states[i][t]);
+            ok = (h == expected);
+            printf("H[%d][%d] = %lf (%s)\n", t, i, h, (ok ? "OK" : "FAIL"));
+            if (!ok) {
+                char * msg = malloc(255 * sizeof(char));
+                test->error_message = msg;
+                sprintf(msg, "Neuron[%d]->state[%d]: %lf != %lf\n",
+                        i, t, h, expected);
+                break;
+            }
+        }
+        if (!ok) break;
+        double bias = getRoundedDouble(cell->candidate_bias);
+        double expected = getRoundedDouble(expected_bg[i]);
+        ok = (bias == expected);
+        if (!ok) {
+            char * msg = malloc(255 * sizeof(char));
+            test->error_message = msg;
+            sprintf(msg, "Neuron[%d]->candidate_bias: %lf != %lf\n",
+                    i, bias, expected);
+            break;
+        }
+        bias = getRoundedDouble(cell->input_bias);
+        expected = getRoundedDouble(expected_bi[i]);
+        ok = (bias == expected);
+        if (!ok) {
+            char * msg = malloc(255 * sizeof(char));
+            test->error_message = msg;
+            sprintf(msg, "Neuron[%d]->input_bias: %lf != %lf\n",
+                    i, bias, expected);
+            break;
+        }
+        bias = getRoundedDouble(cell->output_bias);
+        expected = getRoundedDouble(expected_bo[i]);
+        ok = (bias == expected);
+        if (!ok) {
+            char * msg = malloc(255 * sizeof(char));
+            test->error_message = msg;
+            sprintf(msg, "Neuron[%d]->output_bias: %lf != %lf\n",
+                    i, bias, expected);
+            break;
+        }
+        bias = getRoundedDouble(cell->forget_bias);
+        expected = getRoundedDouble(expected_bf[i]);
+        ok = (bias == expected);
+        if (!ok) {
+            char * msg = malloc(255 * sizeof(char));
+            test->error_message = msg;
+            sprintf(msg, "Neuron[%d]->forget_bias: %lf != %lf\n",
+                    i, bias, expected);
+            break;
+        }
+        for (w = 0; w < cell->weights_size; w++) {
+            double weight = getRoundedDouble(cell->candidate_weights[w]);
+            expected = getRoundedDouble(expected_wg[i][w]);
+            ok = (weight == expected);
+            if (!ok) {
+                char * msg = malloc(255 * sizeof(char));
+                test->error_message = msg;
+                sprintf(msg, "Neuron[%d]->candidate_weights[%d]: %lf != %lf\n",
+                        i, w, weight, expected);
+                break;
+            }
+            weight = getRoundedDouble(cell->input_weights[w]);
+            expected = getRoundedDouble(expected_wi[i][w]);
+            ok = (weight == expected);
+            if (!ok) {
+                char * msg = malloc(255 * sizeof(char));
+                test->error_message = msg;
+                sprintf(msg, "Neuron[%d]->input_weights[%d]: %lf != %lf\n",
+                        i, w, weight, expected);
+                break;
+            }
+            weight = getRoundedDouble(cell->output_weights[w]);
+            expected = getRoundedDouble(expected_wo[i][w]);
+            ok = (weight == expected);
+            if (!ok) {
+                char * msg = malloc(255 * sizeof(char));
+                test->error_message = msg;
+                sprintf(msg, "Neuron[%d]->output_weights[%d]: %lf != %lf\n",
+                        i, w, weight, expected);
+                break;
+            }
+            weight = getRoundedDouble(cell->forget_weights[w]);
+            expected = getRoundedDouble(expected_wf[i][w]);
+            ok = (weight == expected);
+            if (!ok) {
+                char * msg = malloc(255 * sizeof(char));
+                test->error_message = msg;
+                sprintf(msg, "Neuron[%d]->forget_weights[%d]: %lf != %lf\n",
+                        i, w, weight, expected);
+                break;
+            }
+        }
+    }
+    
+    PSLayer * out = network->layers[network->size - 1];
+    
+    for (i = 0; i < out->size; i++) {
+        PSNeuron * neuron = out->neurons[i];
+        PSRecurrentCell * cell = GetRecurrentCell(neuron);
+        int times = cell->states_count;
+        for (t = 0; t < times; t++) {
+            double h = getRoundedDouble(cell->states[t]);
+            double e = getRoundedDouble(lstm_expected_outputs[t][i]);
+            int ok = (h == e);
+            if (!ok) {
+                char * msg = malloc(255 * sizeof(char));
+                test->error_message = msg;
+                sprintf(msg, "Output->Neuron[%d]->output[%d]: %lf != %lf\n",
+                        i, t, h, e);
+                break;
+            }
+        }
+    }
+    
     return ok;
 }
 
@@ -878,10 +1141,47 @@ int compareNetworks(PSNeuralNetwork * network, PSNeuralNetwork * clone,
                             i, fidx, obias, cbias);
                     break;
                 }
-            } else if (otype != Recurrent) {
+            } else if (otype != Recurrent && otype != LSTM) {
                 double obias = getRoundedDouble(orig_n->bias);
                 double cbias = getRoundedDouble(clone_n->bias);
                 ok = (obias == cbias);
+            } else if (otype == LSTM) {
+                PSLSTMCell * ocell =  GetLSTMCell(orig_n);
+                PSLSTMCell * ccell =  GetLSTMCell(clone_n);
+                ok = (ocell->candidate_bias == ccell->candidate_bias);
+                if (!ok) {
+                    char * msg = malloc(255 * sizeof(char));
+                    test->error_message = msg;
+                    sprintf(msg, "Layer[%d][%d]: candidate_bias "
+                            "%.15e != %.15e\n",
+                            i, k, ocell->candidate_bias,
+                            ccell->candidate_bias);
+                    break;
+                }
+                ok = (ocell->input_bias == ccell->input_bias);
+                if (!ok) {
+                    char * msg = malloc(255 * sizeof(char));
+                    test->error_message = msg;
+                    sprintf(msg, "Layer[%d][%d]: input_bias %.15e != %.15e\n",
+                            i, k, ocell->input_bias, ccell->input_bias);
+                    break;
+                }
+                ok = (ocell->output_bias == ccell->output_bias);
+                if (!ok) {
+                    char * msg = malloc(255 * sizeof(char));
+                    test->error_message = msg;
+                    sprintf(msg, "Layer[%d][%d]: output_bias %.15e != %.15e\n",
+                            i, k, ocell->output_bias, ccell->output_bias);
+                    break;
+                }
+                ok = (ocell->forget_bias == ccell->forget_bias);
+                if (!ok) {
+                    char * msg = malloc(255 * sizeof(char));
+                    test->error_message = msg;
+                    sprintf(msg, "Layer[%d][%d]: forget_bias %.15e != %.15e\n",
+                            i, k, ocell->forget_bias, ccell->forget_bias);
+                    break;
+                }
             }
             if (!ok) {
                 char * msg = malloc(255 * sizeof(char));

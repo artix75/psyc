@@ -550,6 +550,14 @@ PSNeuralNetwork * PSCloneNetwork(PSNeuralNetwork * network, int layout_only) {
                             ccell->states[k] = ocell->states[k];
                     }
                 }
+                if (layer->type == LSTM) {
+                    PSLSTMCell * ocell = GetLSTMCell(orig_n);
+                    PSLSTMCell * ccell = GetLSTMCell(clone_n);
+                    ccell->candidate_bias = ocell->candidate_bias;
+                    ccell->input_bias = ocell->input_bias;
+                    ccell->output_bias = ocell->output_bias;
+                    ccell->forget_bias = ocell->forget_bias;
+                }
             }
         }
     }
