@@ -1711,14 +1711,9 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
             if (!is_recurrent && !is_lstm) continue;
             
             if (is_recurrent) {
-                delta = PSRecurrentBackprop(layer, previousLayer, lowest_t,
-                                            &last_delta, lgradients, t);
-                if (delta == NULL) {
-                    if (last_delta != NULL) free(last_delta);
-                    return NULL;
-                }
-                if (last_delta != NULL) free(last_delta);
-                last_delta = delta;
+                PSRecurrentBackprop(layer, previousLayer, lowest_t,
+                                    &last_delta, lgradients, t);
+                delta = NULL;
             } else if (is_lstm) {
                 delta = PSLSTMBackprop(layer, previousLayer, last_delta,
                                        lstm_delta, lgradients, t);
@@ -1730,6 +1725,7 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
             }
         }
         if (delta != NULL && lstm_delta != delta) free(delta);
+        if (last_delta != NULL && last_delta != delta) free(last_delta);
     }
     if (lstm_delta != NULL) free(lstm_delta);
     return gradients;

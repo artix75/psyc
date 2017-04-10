@@ -265,14 +265,14 @@ double * PSRecurrentBackprop(PSLayer * layer,
                              int t)
 {
     int lsize = layer->size, i, w, tt;
-    double * delta = malloc(sizeof(double) * lsize);
-    if (delta == NULL) {
-        printMemoryErrorMsg();
-        return NULL;
-    }
-    memset(delta, 0, sizeof(double) * lsize);
     double * last_delta = *last_delta_p;
     for (tt = t; tt >= lowest_t; tt--) {
+        double * delta = malloc(sizeof(double) * lsize);
+        if (delta == NULL) {
+            printMemoryErrorMsg();
+            return NULL;
+        }
+        memset(delta, 0, sizeof(double) * lsize);
         for (i = 0; i < lsize; i++) {
             PSNeuron * neuron = layer->neurons[i];
             PSRecurrentCell * cell = GetRecurrentCell(neuron);
@@ -286,6 +286,7 @@ double * PSRecurrentBackprop(PSLayer * layer,
                 if (params == NULL) {
                     fprintf(stderr, "Layer %d params are NULL!\n",
                             previousLayer->index);
+                    if (delta != NULL) free(delta);
                     if (last_delta != NULL) {
                         free(last_delta);
                         *last_delta_p = NULL;
@@ -339,16 +340,6 @@ double * PSRecurrentBackprop(PSLayer * layer,
         free(last_delta);
         last_delta = delta;
         *last_delta_p = last_delta;
-        delta = malloc(sizeof(double) * lsize);
-        if (delta == NULL) {
-            printMemoryErrorMsg();
-            if (last_delta != NULL) {
-                free(last_delta);
-                *last_delta_p = NULL;
-            }
-            return NULL;
-        }
-        memset(delta, 0, sizeof(double) * lsize);
     }
-    return delta;
+    return last_delta;
 }
