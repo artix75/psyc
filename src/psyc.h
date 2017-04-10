@@ -18,7 +18,7 @@
 #ifndef __PSYC_H
 #define __PSYC_H
 
-#define PSYC_VERSION      "0.1.1"
+#define PSYC_VERSION      "0.2.0"
 
 #define LAYER_TYPES  6
 
