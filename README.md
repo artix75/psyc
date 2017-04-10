@@ -19,9 +19,7 @@ PsyC currently has support for the following neural network models:
 - Convolutional
 - Neural Networks 
 - Recurrent Neural Networks.
-
-LSTM networks aren't currenlty implemented, but they should be available in 
-the next future.
+- LSTM
 
 Supported Platforms
 ===
