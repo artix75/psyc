@@ -462,6 +462,7 @@ PSNeuralNetwork * PSCreateNetwork(const char* name) {
     network->current_batch = 0;
     network->flags = FLAG_NONE;
     network->loss = quadraticLoss;
+    network->onEpochTrained = NULL;
     return network;
 }
 
@@ -2077,6 +2078,7 @@ void PSTrain(PSNeuralNetwork * network,
     epoch_t = start_t;
     time_t e_t = epoch_t;
     double prev_err = 0.0;
+    float acc = -999.99f;
     for (i = 0; i < epochs; i++) {
         network->current_epoch = i;
         double err = gradientDescent(network, training_data, element_size,
@@ -2094,7 +2096,7 @@ void PSTrain(PSNeuralNetwork * network,
                    epochs,
                    network->current_batch + 1,
                    batches_count);
-            float acc = validate(network, test_data, test_size, 0);
+            acc = validate(network, test_data, test_size, 0);
             printf("\rEpoch %d/%d: batch %d/%d",
                    network->current_epoch + 1,
                    epochs,
@@ -2107,6 +2109,9 @@ void PSTrain(PSNeuralNetwork * network,
         e_t = epoch_t;
         if (i > 0 && err > prev_err && (flags & TRAINING_ADJUST_RATE))
             learning_rate *= 0.5;
+        if (network->onEpochTrained != NULL)
+            network->onEpochTrained(network, i, err, prev_err,
+                                    acc, &learning_rate);
         prev_err = err;
         printf(", loss = %.2lf%s (%ld sec.)\n", err, accuracy_msg, elapsed_t);
     }

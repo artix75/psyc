@@ -24,9 +24,10 @@ def tokenize_sentence(s)
     s.split /\s+/
 end
 
-def sentence2vec(s, as_float = false)
-    unkn_idx = $word_index[UNKNOWN_TOKEN]
-    s = tokenize_sentences(s) if s.is_a? String
+def sentence2vec(s, as_float: false, char_mode: false)
+    unkn_tok = !char_mode ? UNKNOWN_TOKEN : "\n"
+    unkn_idx = $word_index[unkn_tok]
+    s = tokenize_sentences(s) if s.is_a?(String) && !char_mode
     s.map{|w|
         i = $word_index[w] || unkn_idx
         (as_float ? i.to_f : i)
@@ -174,12 +175,19 @@ end
 def load_data_from(filename, opts = {})
     puts "Reading #{filename}"
     data = File.read(filename)
+    whole_file = opts[:whole_file]
+    char_mode = opts[:mode] == :characters
     if filename[/\.csv$/i]
         data = CSV.parse(File.read(filename))
         data.shift
+        data = data.join(' ') if whole_file
     else
-        sep = opts[:separator] || /\n+/
-        data = data.split sep
+        if !whole_file
+            sep = opts[:separator] || /\n+/
+            data = data.split sep
+        else
+            data = [data]
+        end
     end
     $sentences ||= []
     $tokenized_sentences ||= []
@@ -193,14 +201,23 @@ def load_data_from(filename, opts = {})
         next if !txt || txt.strip.empty?
         #puts txt
         txt = txt.downcase
-        processed = txt.gsub /([a-zA-Z])(\s*\.\s*)([a-zA-Z])/, '\1__DOT__\3'
-        #puts processed
-        #puts "SENTENCES:"
-        sentences = processed.split '__DOT__'
+        if !whole_file && !char_mode
+            processed = txt.gsub /([a-zA-Z])(\s*\.\s*)([a-zA-Z])/, '\1__DOT__\3'
+            #puts processed
+            #puts "SENTENCES:"
+            sentences = processed.split '__DOT__'
+        else
+            processed = txt.gsub /([a-zA-Z])(\s*\.\s*)([a-zA-Z])/, '\1 . \3'
+            sentences = [processed]
+        end
         sentences.each{|sent|
             #puts sent
             #puts '-'*30
-            $sentences << "#{START_TOKEN} #{sent} #{END_TOKEN}"
+            if !char_mode
+                $sentences << "#{START_TOKEN} #{sent} #{END_TOKEN}"
+            else
+                $sentences << sent
+            end
         }
         if max_s > 0 && $sentences.length > max_s
             $sentences = $sentences[0, max_s]
@@ -216,7 +233,11 @@ def load_data_from(filename, opts = {})
     tokenized = $sentences[sent_len..-1].map{|s|
         print_progress "Sentence", _idx, _tot
         _idx += 1
-        tokenize_sentence s
+        if !char_mode
+            tokenize_sentence s
+        else
+            s.chars
+        end
     }
     #p $tokenized_sentences
     #$words = {}
@@ -224,6 +245,7 @@ def load_data_from(filename, opts = {})
         $words[w] ||= 0
         $words[w] += 1
     }
+    $words["\n"] = 1 if char_mode
 
     $tokenized_sentences += tokenized
 
@@ -231,7 +253,7 @@ def load_data_from(filename, opts = {})
 
     vocabulary_size = $options[:vocabulary_size]
     $vocabulary = $words.to_a.sort_by{|v| v[1]}.reverse[0, vocabulary_size - 1]
-    $vocabulary << UNKNOWN_TOKEN
+    $vocabulary << UNKNOWN_TOKEN if !char_mode 
     $word_index = {}
     $indexed_words = []
     $vocabulary.each_with_index{|v, i|
@@ -249,7 +271,7 @@ def load_data_from(filename, opts = {})
             if $word_index[w]
                 w
             else
-                UNKNOWN_TOKEN
+                char_mode ? "\n" : UNKNOWN_TOKEN
             end
         }
     }
@@ -263,12 +285,14 @@ def load_data_from(filename, opts = {})
     $training_data += tokenized.map{|sent|
         print_progress "Sentence", _idx, _tot
         _idx += 1
-        sent = sentence2vec sent, true
+        sent = sentence2vec sent, as_float: true, char_mode: char_mode
         x = sent[0..-2]
         y = sent[1..-1]
         if label
             if !label.is_a? Array
-                y = Array.new y.length, label.to_f
+                #y = Array.new y.length, label.to_f
+                x = sent[0..-1]
+                y = [label.to_f]
             else
                 lengths = [y.length, label.length].sort
                 y = (label * (lengths[1] / lengths[0]))[0, y.length]
@@ -286,7 +310,8 @@ $options = {
     words_var: 'words',
     train_data_var: 'training_data',
     eval_data_var: 'validation_data',
-    test_data_var: 'test_data'
+    test_data_var: 'test_data',
+    mode: :words
 }
 
 optparse = OptionParser.new do |opts|
@@ -353,9 +378,13 @@ optparse = OptionParser.new do |opts|
         $options[:test_data_var] = var
     end
 
-    opts.on '', '--same-data-set',
+    opts.on '', '--same-dataset',
             'Train also with test/validation datasets' do |same_dataset|
         $options[:same_dataset] = true
+    end
+
+    opts.on '', '--whole-file', 'Import whole file(s)' do
+        $options[:whole_file] = true
     end
 
     opts.on '-l', '--labels LABELS', 'Add custom labels' do |labels|
@@ -365,6 +394,14 @@ optparse = OptionParser.new do |opts|
 
     opts.on '', '--shuffle', 'Shuffle Data' do
         $options[:shuffle] = true
+    end
+
+    opts.on '-m', '--mode MODE', 'Mode: words|characters, def. words' do |mode|
+        if !%w(words characters).include? mode
+            STDERR.puts "Invalid mode: #{mode}"
+            exit 1
+        end
+        $options[:mode] = :"#{mode}"
     end
 
     opts.on '-v', '--verify [FILE]', 'Verify file integrity' do |file|
@@ -425,7 +462,9 @@ if filenames.length > 0
         files.each_with_index{|filename, fidx|
             max_s = (max_sentences * (1 + idx))
             load_data_from filename, label: label,
-                                     max_sentences: max_s
+                                     max_sentences: max_s,
+                                     whole_file: $options[:whole_file],
+                                     mode: $options[:mode]
             break if $sentences.length >= max_s
         }
     }
@@ -482,7 +521,7 @@ if filenames.length > 0
     c_code = <<-EOS
 #ifndef #{h_name}
 #define #{h_name}
-#define VOCABULARY_SIZE     #{$options[:vocabulary_size]}
+#define VOCABULARY_SIZE     #{$vocabulary.length}
 #define SENTENCE_COUNT      #{tot_data_len}
 #define TRAIN_DATA_LEN      #{train_c_data_len}
 #define EVAL_DATA_LEN       #{eval_c_data_len}

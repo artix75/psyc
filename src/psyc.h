@@ -43,6 +43,9 @@ typedef double  (*PSActivationFunction) (double);
 typedef int     (*PSFeedforwardFunction) (void * network, void * layer, ...);
 typedef double  (*PSLossFunction) (double* x, double* y, int size,
                                    int onehot_size);
+typedef void    (*PSTrainCallback) (void * network, int epoch, double loss,
+                                    double previous_loss, float accuracy,
+                                    double * rate);
 
 typedef struct {
     double bias;
@@ -109,6 +112,7 @@ typedef struct {
     int output_size;
     int current_epoch;
     int current_batch;
+    PSTrainCallback onEpochTrained;
 } PSNeuralNetwork;
 
 PSNeuralNetwork * PSCreateNetwork(const char* name);
