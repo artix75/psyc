@@ -127,7 +127,7 @@ Here is an example of a simple Fully Connected Network
     
     PSDeleteNetwork(netowrk);
 
-And now an example of a Convolutioanl Neural Network:
+And now an example of a Convolutional Neural Network:
 
     #define FEATURES_COUNT 20
     #define REGION_SIZE 5
@@ -153,6 +153,76 @@ And now an example of a Convolutioanl Neural Network:
     ...
     
     PSDeleteNetwork(netowrk);
+    
+Training Data Format
+===
+
+Here you'll find the specifications for training data.
+
+Non-Recurrent Networks
+---
+
+Training data layout for non-recurrent networks is quite simple.
+It's just an array of doubles that contains the sequence of all the inputs and 
+expected outputs (targets).
+Let's assume that we have a very simple network where the input layer is made of 
+4 units, and the output layer is made of 2 units.
+Let's also assume that the input data is 0.2, 0.0, 0.9, 0.3 and the expected 
+output is 0, 1.
+
+We'll have the following training data:
+
+    double data[] = {0.2, 0.0, 0.9, 0.3, 0.0, 1.0};
+
+If we have other pairs of inputs and expected outputs, they should be all 
+concatenated, so if we have another pair of inputs 0.0, 0.2, 0.0, 0.5 and 
+expected outputs 1.0, 0.0, we'll have:
+
+    double data[] = {
+        0.2, 0.0, 0.9, 0.3, 0.0, 1.0, 
+        0.0, 0.2, 0.0, 0.5, 1.0, 0.0
+    };
+
+And so on...
+
+When you start training the network, you'll pass the training data to the 
+**PSTrain** function along with the total count of the array elements (12 in the example above):
+
+    PSTrain(network, data, 12, EPOCHS, 3, 10, 0, NULL, 0);
+    
+
+Recurrent Networks
+---
+
+Since recurrent networks works on sequences, the length of each element is variable.
+In this case, the traing data array requires that you tell the network the total 
+number of input/output pairs and for each of them the number of items in every sequence.
+Let's assume that we'll train the network over 2 sequences.
+The first sequence inputs are 2,4,6 while the expected outputs are 4,6,8.
+The second sequence inputs will be 3,6,9,12 and the expected outputs 6,9,12,15.
+As you can see, the two sequences have different lengths.
+So the layout of training data is:
+
+Total Sequence Count,sequences....
+
+And for every sequence:
+
+Sequence length, inputs..., expected outputs...
+
+So, in the example above we have two sequences: the first one has three inputs 
+while the second one has four inputs.
+The training data array will be:
+
+    double data[] = {
+        2.0, 
+        3.0, 2.0, 4.0, 6.0, 4.0, 6.0, 8.0,
+        4.0, 3.0, 6.0, 9.0, 12.0, 6.0, 9.0, 12.0, 15.0
+    }
+    
+The total array length is 17, so we'll train the network with:
+
+    PSTrain(network, data, 17, EPOCHS, 3, 10, 0, NULL, 0);
+
 
 
 

@@ -407,13 +407,14 @@ double * PSLSTMBackprop(PSLayer * layer,
         double c = cell->candidates[t];
         
         double last_dz = (last_delta_z != NULL ? last_delta_z[i] : 0.0);
-        double z_deriv = 1, zz = z;
-        if (layer->derivative != NULL) {
-            z_deriv = layer->derivative(z);
-            zz = z_deriv;
+        double z_multiplier = 1, zz = z;
+        if (layer->activate != NULL) {
+            z_multiplier = layer->activate(z);
+            zz = z_multiplier;
+            z_multiplier = layer->derivative(z_multiplier);
         }
-        double dz = og * dv * z_deriv + last_dz;
         double dout = zz * dv;
+        double dz = og * dv * z_multiplier + last_dz;
         double di = c * dz;
         double df = last_z * dz;
         double dc = ig * dz;

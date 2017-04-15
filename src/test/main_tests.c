@@ -251,25 +251,25 @@ double lstm_expected_outputs[3][4] = {
 };
 
 double expected_wg[2][6] = {
-    { 0.00999296, 0.04248274, 0.02021531, 0.00897664, -0.01527738, 0.02916151},
-    {-0.01314802, 0.07862118, 0.09379185, -0.0233117, 0.05836384, 0.00582172}
+    {0.00998824,0.04246868,0.02021531,0.00897664,-0.01527745,0.02916139},
+    {-0.01314446,0.07862245,0.09379196,-0.0233117,0.05836385,0.00582174}
 };
 double expected_wi[2][6] = {
-    { 0.00976493, 0.04302353, 0.0205475, 0.00897664, -0.0152692, 0.02917851},
-    {-0.01249258, 0.07836999, 0.09280098, -0.0233117, 0.05834622, 0.00578173}
+    {0.00976488,0.04302317,0.0205475,0.00897664,-0.0152692,0.02917851},
+    {-0.01249252,0.07837006,0.09280098,-0.0233117,0.05834622,0.00578173}
 };
 double expected_wo[2][6] = {
-    { 0.01026422, 0.04267428, 0.02022535, 0.00897664, -0.01527626, 0.0291634},
-    {-0.0132618, 0.0780873, 0.0936737, -0.0233117, 0.05835923, 0.00581299}
+    {0.00976767,0.04302572,0.02054214,0.00897664,-0.01526927,0.02917832},
+    {-0.0124946,0.07833524,0.09283829,-0.0233117,0.05834666,0.00578289}
 };
 double expected_wf[2][6] = {
-    { 0.0097627, 0.0430352, 0.02054733, 0.00897664, -0.01526914, 0.02917859},
-    {-0.01248256, 0.07835657, 0.09276899, -0.0233117, 0.05834562, 0.00578039}
+    {0.0097627,0.04303513,0.02054733,0.00897664,-0.01526914,0.02917859},
+    {-0.01248256,0.07835658,0.09276899,-0.0233117,0.05834562,0.00578039}
 };
-double expected_bg[2] = { 0.00910046, 0.04369829};
-double expected_bi[2] = { 0.00974541, 0.04311167};
-double expected_bo[2] = { 0.00957329, 0.04293248};
-double expected_bf[2] = { 0.00975467, 0.04307628};
+double expected_bg[2] = {0.00908168, 0.04370323};
+double expected_bi[2] = {0.009745, 0.0431118};
+double expected_bo[2] = {0.00974497, 0.04311221};
+double expected_bf[2] = {0.00975461, 0.04307629};
 
 
 
@@ -1169,7 +1169,8 @@ int compareNetworks(PSNeuralNetwork * network, PSNeuralNetwork * clone,
             } else if (otype == LSTM) {
                 PSLSTMCell * ocell =  GetLSTMCell(orig_n);
                 PSLSTMCell * ccell =  GetLSTMCell(clone_n);
-                ok = (ocell->candidate_bias == ccell->candidate_bias);
+                ok = (getRoundedDouble(ocell->candidate_bias) ==
+                      getRoundedDouble(ccell->candidate_bias));
                 if (!ok) {
                     char * msg = malloc(255 * sizeof(char));
                     test->error_message = msg;
@@ -1179,7 +1180,8 @@ int compareNetworks(PSNeuralNetwork * network, PSNeuralNetwork * clone,
                             ccell->candidate_bias);
                     break;
                 }
-                ok = (ocell->input_bias == ccell->input_bias);
+                ok = (getRoundedDouble(ocell->input_bias) ==
+                      getRoundedDouble(ccell->input_bias));
                 if (!ok) {
                     char * msg = malloc(255 * sizeof(char));
                     test->error_message = msg;
@@ -1187,7 +1189,8 @@ int compareNetworks(PSNeuralNetwork * network, PSNeuralNetwork * clone,
                             i, k, ocell->input_bias, ccell->input_bias);
                     break;
                 }
-                ok = (ocell->output_bias == ccell->output_bias);
+                ok = (getRoundedDouble(ocell->output_bias) ==
+                      getRoundedDouble(ccell->output_bias));
                 if (!ok) {
                     char * msg = malloc(255 * sizeof(char));
                     test->error_message = msg;
@@ -1195,7 +1198,8 @@ int compareNetworks(PSNeuralNetwork * network, PSNeuralNetwork * clone,
                             i, k, ocell->output_bias, ccell->output_bias);
                     break;
                 }
-                ok = (ocell->forget_bias == ccell->forget_bias);
+                ok = (getRoundedDouble(ocell->forget_bias) ==
+                      getRoundedDouble(ccell->forget_bias));
                 if (!ok) {
                     char * msg = malloc(255 * sizeof(char));
                     test->error_message = msg;
