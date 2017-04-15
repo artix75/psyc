@@ -68,8 +68,9 @@ static int LSTMCellFeedforward(PSLayer * layer, PSLayer * previous,
         output_gate = cell->output_weights[onehot_idx];
         forget_gate = cell->forget_weights[onehot_idx];
     } else {
-        int i = 0, j = 0, o = 0, f = 0;
+        int i = 0;
 #ifdef USE_AVX
+        int j = 0, o = 0, f = 0;
         AVXDotProduct(previous->size, previous->avx_activation_cache,
                       cell->candidate_weights, candidate, i, 1, t);
         AVXDotProduct(previous->size, previous->avx_activation_cache,
@@ -93,8 +94,9 @@ static int LSTMCellFeedforward(PSLayer * layer, PSLayer * previous,
     if (t > 0) {
         int last_t = t - 1;
         last_z = cell->z_values[last_t];
-        int i = 0, j = 0, o = 0, f = 0;
+        int i = 0;
 #ifdef USE_AVX
+        int j = 0, o = 0, f = 0;
         AVXDotProduct(layer->size, layer->avx_activation_cache,
                       cell->candidate_weights + prev_size,
                       candidate, i, 1, last_t);
@@ -457,8 +459,9 @@ double * PSLSTMBackprop(PSLayer * layer,
         }
         
         if (t > 0) {
-            int w = 0, i = 0, o = 0, f = 0;
+            int w = 0;
 #ifdef USE_AVX
+            int i = 0, o = 0, f = 0;
             double * rweights = gradient->weights + wsize;
             AVXMultiplyValue(layer->size,
                              layer->avx_activation_cache,

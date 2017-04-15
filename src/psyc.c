@@ -81,7 +81,7 @@ int fullFeedforward(void * _net, void * _layer, ...) {
     }
     for (i = 0; i < size; i++) {
         PSNeuron * neuron = layer->neurons[i];
-        double sum = 0;
+        double sum = 0.0;
         j = 0;
 #ifdef USE_AVX
         AVXDotProduct(previous_size, previous->avx_activation_cache,
@@ -1446,7 +1446,7 @@ PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y) {
             AVXMultiplyValue(wsize, previousLayer->avx_activation_cache,
                              gradient->weights, d, w, 0, 0, 0);
 #endif
-            for (; w < neuron->weights_size; w++) {
+            for (; w < wsize; w++) {
                 double prev_a = previousLayer->neurons[w]->activation;
                 gradient->weights[w] = d * prev_a;
             }
@@ -1466,7 +1466,7 @@ PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y) {
             AVXMultiplyValue(wsize, previousLayer->avx_activation_cache,
                              gradient->weights, d, w, 0, 0, 0);
 #endif
-            for (; w < neuron->weights_size; w++) {
+            for (; w < wsize; w++) {
                 double prev_a = previousLayer->neurons[w]->activation;
                 gradient->weights[w] = d * prev_a;
             }
@@ -1806,9 +1806,13 @@ double updateWeights(PSNeuralNetwork * network, double * training_data,
                 PSGradient * gradient_bp = &(lgradients_bp[k]);
                 PSGradient * gradient = &(lgradients[k]);
                 gradient->bias += gradient_bp->bias;
-                for (w = 0; w < wsize; w++) {
+                w = 0;
+#ifdef USE_AVX
+                AVXSum(wsize, gradient->weights, gradient_bp->weights,
+                       gradient->weights, w, 0);
+#endif
+                for (; w < wsize; w++)
                     gradient->weights[w] += gradient_bp->weights[w];
-                }
             }
         }
         PSDeleteGradients(bp_gradients, network);
@@ -1833,18 +1837,23 @@ double updateWeights(PSNeuralNetwork * network, double * training_data,
                 neuron->bias = neuron->bias - r * g->bias;
                 int wsize = neuron->weights_size;
                 if (is_lstm) PSUpdateLSTMBiases(neuron, g, r);
-                for (k = 0; k < wsize; k++) {
-                    double w = neuron->weights[k];
-                    neuron->weights[k] = w - r * g->weights[k];
-                }
+                k = 0;
+#ifdef USE_AVX
+                AVXMultiplyValue(wsize, g->weights, neuron->weights,
+                                 r, k, 0, 0, AVX_STORE_MODE_SUB);
+#endif
+                for (; k < wsize; k++)
+                    neuron->weights[k] -= (r * g->weights[k]);
             } else {
-                double b = shared->biases[j];
-                shared->biases[j] = b - r * g->bias;
+                shared->biases[j] -= (r * g->bias);
                 double * weights = shared->weights[j];
-                for (k = 0; k < shared->weights_size; k++) {
-                    double w = weights[k];
-                    weights[k] = w - r * g->weights[k];
-                }
+                k = 0;
+#ifdef USE_AVX
+                AVXMultiplyValue(shared->weights_size, g->weights, weights,
+                                 r, k, 0, 0, AVX_STORE_MODE_SUB);
+#endif
+                for (; k < shared->weights_size; k++)
+                    weights[k] -= (r * g->weights[k]);
             }
         }
     }

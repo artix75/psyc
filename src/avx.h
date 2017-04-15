@@ -30,6 +30,10 @@
     avx_multiply_value2)
 #define AVXGetMultiplyFunc(s) (s >= AVX_VECTOR_SIZE ? avx_multiply4 : \
     avx_multiply2)
+#define AVXGetSumFunc(s) (s >= AVX_VECTOR_SIZE ? avx_sum4 : \
+    avx_sum2)
+#define AVXGetDiffFunc(s) (s >= AVX_VECTOR_SIZE ? avx_diff4 : \
+    avx_diff2)
 
 #define AVX_STORE_MODE_NORM 0
 #define AVX_STORE_MODE_ADD  1
@@ -42,6 +46,8 @@ extern int AVX_VECTOR2_SIZE;
 typedef double (* avx_dot_product)(double * x, double * y);
 typedef void (* avx_multiply_value)(double * x, double v, double * d, int mode);
 typedef void (* avx_multiply)(double * x, double * y, double * dest, int mode);
+typedef void (* avx_sum)(double * x, double * y, double * dest, int mode);
+typedef void (* avx_diff)(double * x, double * y, double * dest, int mode);
 
 double avx_dot_product2(double * x, double * y);
 double avx_dot_product4(double * x, double * y);
@@ -52,5 +58,10 @@ void avx_multiply_value2(double * x, double value, double * dest, int mode);
 void avx_multiply2(double * x, double * y, double * dest, int mode);
 void avx_multiply_value4(double * x, double value, double * dest, int mode);
 void avx_multiply4(double * x, double * y, double * dest, int mode);
+
+void avx_sum2(double * x, double * y, double * dest, int mode);
+void avx_sum4(double * x, double * y, double * dest, int mode);
+void avx_diff2(double * x, double * y, double * dest, int mode);
+void avx_diff4(double * x, double * y, double * dest, int mode);
 
 #endif //__PS_AVX_H

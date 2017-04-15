@@ -540,8 +540,9 @@ int main(int argc, char ** argv) {
     }
 #endif
     
-    if (training_data != NULL) {
-        if (!strlen(outputFile)) {
+    int outfile_len = strlen(outputFile);
+    if (training_data != NULL || outfile_len) {
+        if (!outfile_len) {
             getTempFileName("saved-network", outputFile);
         }
         int saved = PSSaveNetwork(network, outputFile);

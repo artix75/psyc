@@ -55,6 +55,30 @@
     } \
 } while (0)
 
+#define AVXSum(size, x, y, dest, i, mode) do { \
+    int avx_step_len = AVXGetStepLen(size); \
+    int avx_steps = size / avx_step_len, avx_step; \
+    int x_is_dest = (x == dest); \
+    avx_sum __avx_sum = AVXGetSumFunc(size); \
+    for (avx_step = 0; avx_step < avx_steps; avx_step++) { \
+        int doffs = (x_is_dest ? i : 0); \
+        __avx_sum(x + i, y + i, dest + doffs, mode); \
+        i += avx_step_len; \
+    } \
+} while (0)
+
+#define AVXDiff(size, x, y, dest, i, mode) do { \
+    int avx_step_len = AVXGetStepLen(size); \
+    int avx_steps = size / avx_step_len, avx_step; \
+    int x_is_dest = (x == dest); \
+    avx_sum __avx_diff = AVXGetDiffFunc(size); \
+    for (avx_step = 0; avx_step < avx_steps; avx_step++) { \
+        int doffs = (x_is_dest ? i : 0); \
+        __avx_diff(x + i, y + i, dest + doffs, mode); \
+        i += avx_step_len; \
+    } \
+} while (0)
+
 #endif
 
 #define printMemoryErrorMsg() PSErr(NULL, "Could not allocate memory!")
