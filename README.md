@@ -196,7 +196,7 @@ Recurrent Networks
 
 Since recurrent networks works on sequences, the length of each element is variable.
 In this case, the traing data array requires that you tell the network the total 
-number of input/output pairs and for each of them the number of items in every sequence.
+number of input/output pairs and, for each of them, the number of items in every sequence.
 Let's assume that we'll train the network over 2 sequences.
 The first sequence inputs are 2,4,6 while the expected outputs are 4,6,8.
 The second sequence inputs will be 3,6,9,12 and the expected outputs 6,9,12,15.

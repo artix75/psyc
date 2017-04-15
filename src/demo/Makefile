@@ -21,6 +21,8 @@ rnn_demo: $(OBJS) rnn_demo.o
 	$(CC) -o ../../bin/rnn_demo $(OBJS) rnn_demo.o $(LDFLAGS)
 lstm_demo: $(OBJS) lstm_demo.o
 	$(CC) -o ../../bin/lstm_demo $(OBJS) lstm_demo.o $(LDFLAGS)
-all: mnist_demo conv_demo rnn_demo lstm_demo
+char_rnn: $(OBJS) char_rnn.o
+	$(CC) -o ../../bin/char_rnn $(OBJS) char_rnn.o $(LDFLAGS)
+all: mnist_demo conv_demo rnn_demo lstm_demo char_rnn
 	
         
