@@ -16,10 +16,9 @@ It doesn't currenlty support [CUDA](http://www.nvidia.com/object/cuda_home_new.h
 PsyC currently has support for the following neural network models:
 
 - Fully Condensed Neural Networks
-- Convolutional
-- Neural Networks 
+- Convolutional Neural Networks 
 - Recurrent Neural Networks.
-- LSTM
+- LSTM Networks
 
 Supported Platforms
 ===
