@@ -23,6 +23,7 @@
 #include "utils.h"
 
 static ExceptionType serverity;
+static int __magick_instantiated = 0; //Ensure compatibility with older versions
 
 #define IS_OK(x) (x == MagickTrue) 
 #define LOG_MAGICK_ERR(wand) fprintf(stderr, "Magick ERROR: %s\n", \
@@ -53,8 +54,11 @@ static float getScaleFactorToFit(int w, int h, int fitW, int fitH) {
 static double * getImagePixels(char * filename, int fit_w, int fit_h,
                                int grayscale, int invert, char* bgcolor,
                                char* dump_file) {
-    if (IsMagickWandInstantiated() != MagickTrue)
+    //if (IsMagickWandInstantiated() != MagickTrue)
+    if (!__magick_instantiated) {
         MagickWandGenesis();
+        __magick_instantiated = 1;
+    }
     MagickWand * wand;
     wand = NewMagickWand();
     
