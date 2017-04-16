@@ -26,7 +26,7 @@
 
 #define getNeuronLayer(neuron) ((PSLayer*) neuron->layer)
 #define getLayerNetwork(layer) ((PSNeuralNetwork*) layer->network)
-#define shouldApplyDerivative(network) (network->loss != crossEntropyLoss)
+#define shouldApplyDerivative(network) (network->loss != PSCrossEntropyLoss)
 
 #ifdef USE_AVX
 

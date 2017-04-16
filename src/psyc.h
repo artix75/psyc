@@ -154,13 +154,14 @@ void PSTrain(PSNeuralNetwork * network,
 float PSTest(PSNeuralNetwork * network, double * test_data, int data_size);
 int PSVerifyNetwork(PSNeuralNetwork * network);
 //int arrayMaxIndex(double * array, int len);
-char * getLabelForType(PSLayerType type);
-char * getLayerTypeLabel(PSLayer * layer);
+char * PSGetLabelForType(PSLayerType type);
+char * PSGetLayerTypeLabel(PSLayer * layer);
+void PSPrintNetworkInfo(PSNeuralNetwork * network);
 
 // Loss functions
 
-double quadraticLoss(double * x, double * y, int size, int onehot_size);
-double crossEntropyLoss(double * x, double * y, int size, int onehot_size);
+double PSQuadraticLoss(double * x, double * y, int size, int onehot_size);
+double PSCrossEntropyLoss(double * x, double * y, int size, int onehot_size);
 
 #endif // __PSYC_H
 

@@ -1113,8 +1113,9 @@ int compareNetworks(PSNeuralNetwork * network, PSNeuralNetwork * clone,
         if (!ok) {
             char * msg = malloc(255 * sizeof(char));
             test->error_message = msg;
-            sprintf(msg, "Layer[%d]: Source type %s != Clone type %s\n",
-                    i, getLayerTypeLabel(orig_l), getLayerTypeLabel(clone_l));
+            sprintf(msg, "Layer[%d]: Source type %s != Clone type %s\n", i,
+                    PSGetLayerTypeLabel(orig_l),
+                    PSGetLayerTypeLabel(clone_l));
             break;
         }
         int o_size = orig_l->size;

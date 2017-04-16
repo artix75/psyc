@@ -447,6 +447,10 @@ if filenames.length > 0
         if lbl_length > 0
             lbl_idx = fidx % lbl_length
             lbl = labels[lbl_idx]
+            if (m = lbl.match(/^\[([\d\.,]+)\]$/))
+                lbl = m[1]
+                lbl << ',' if !lbl[',']
+            end
             lbl = lbl.split(',').map{|l| l.to_f} if lbl[',']
             lbl = lbl.to_f if !lbl.is_a? Array
         end

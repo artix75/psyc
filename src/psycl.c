@@ -590,7 +590,7 @@ void print_help(const char* program_path) {
     int i;
     for (i = 0; i < LAYER_TYPES; i++) {
         PSLayerType type = (PSLayerType) i;
-        printf("    %s\n", getLabelForType(type));
+        printf("    %s\n", PSGetLabelForType(type));
     }
     printf("\n");
     printf("LAYER OPTIONS:\n");

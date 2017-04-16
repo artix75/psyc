@@ -38,8 +38,8 @@ typedef double (*PSGetDeltaFunction)(PSNeuron* n, PSLayer* l, PSLayer* next,
 
 static PSLossFunction loss_functions[] = {
     NULL,
-    quadraticLoss,
-    crossEntropyLoss
+    PSQuadraticLoss,
+    PSCrossEntropyLoss
 };
 
 static size_t loss_functions_count = sizeof(loss_functions) /
@@ -52,7 +52,7 @@ void PSDeleteGradients(PSGradient ** gradients, PSNeuralNetwork * network);
 
 /* Feedforward Functions */
 
-int fullFeedforward(void * _net, void * _layer, ...) {
+static int fullFeedforward(void * _net, void * _layer, ...) {
     PSNeuralNetwork * network = (PSNeuralNetwork*) _net;
     PSLayer * layer = (PSLayer*) _layer;
     int size = layer->size;
@@ -114,7 +114,7 @@ int fullFeedforward(void * _net, void * _layer, ...) {
     return 1;
 }
 
-int softmaxFeedforward(void * _net, void * _layer, ...) {
+static int softmaxFeedforward(void * _net, void * _layer, ...) {
     PSNeuralNetwork * net = (PSNeuralNetwork*) _net;
     PSLayer * layer = (PSLayer*) _layer;
     int size = layer->size;
@@ -193,7 +193,7 @@ int softmaxFeedforward(void * _net, void * _layer, ...) {
 
 /* Utils */
 
-double norm(double* matrix, int size) {
+static double norm(double* matrix, int size) {
     double r = 0.0;
     int i;
     for (i = 0; i < size; i++) {
@@ -259,7 +259,7 @@ static double ** getRecurrentSeries(double * array, int series_count,
     return series;
 }
 
-int arrayMaxIndex(double * array, int len) {
+static int arrayMaxIndex(double * array, int len) {
     int i;
     double max = 0;
     int max_idx = 0;
@@ -273,7 +273,7 @@ int arrayMaxIndex(double * array, int len) {
     return max_idx;
 }
 
-double arrayMax(double * array, int len) {
+static double arrayMax(double * array, int len) {
     int i;
     double max = 0;
     for (i = 0; i < len; i++) {
@@ -285,8 +285,8 @@ double arrayMax(double * array, int len) {
     return max;
 }
 
-void fetchRecurrentOutputState(PSLayer * out, double * outputs,
-                               int i, int onehot)
+static void fetchRecurrentOutputState(PSLayer * out, double * outputs,
+                                      int i, int onehot)
 {
     int t = (onehot ? i : i % out->size), j;
     int max_idx = 0;
@@ -307,10 +307,10 @@ void fetchRecurrentOutputState(PSLayer * out, double * outputs,
     if (onehot) outputs[i] = max_idx;
 }
 
-double getDeltaForNeuron(PSNeuron * neuron,
-                         PSLayer * layer,
-                         PSLayer * nextLayer,
-                         double * last_delta)
+static double getDeltaForNeuron(PSNeuron * neuron,
+                                PSLayer * layer,
+                                PSLayer * nextLayer,
+                                double * last_delta)
 {
     int index = neuron->index, i;
     double dv = 0;
@@ -339,44 +339,55 @@ static int compareVersion(const char* vers1, const char* vers2) {
     return 0;
 }
 
-char * getLabelForType(PSLayerType type) {
+char * PSGetLabelForType(PSLayerType type) {
     switch (type) {
         case FullyConnected:
-            return "fully_connected";
-            break;
+            return "Fully Connected";
         case Convolutional:
-            return "convolutional";
-            break;
+            return "Convolutional";
         case Pooling:
-            return "pooling";
-            break;
+            return "Pooling";
         case Recurrent:
-            return "recurrent";
-            break;
+            return "Recurrent";
         case LSTM:
-            return "lstm";
-            break;
+            return "LSTM";
         case SoftMax:
-            return "softmax";
-            break;
+            return "Softmax";
     }
     return "UNKOWN";
 }
 
-char * getLayerTypeLabel(PSLayer * layer) {
-    return getLabelForType(layer->type);
+char * PSGetLayerTypeLabel(PSLayer * layer) {
+    return PSGetLabelForType(layer->type);
 }
 
-char * getLossFunctionName(PSLossFunction function) {
+static char * getLossFunctionName(PSLossFunction function) {
     if (function == NULL) return "null";
-    if (function == quadraticLoss) return "quadratic";
-    else if (function == crossEntropyLoss) return "cross_entropy";
+    if (function == PSQuadraticLoss) return "quadratic";
+    else if (function == PSCrossEntropyLoss) return "cross_entropy";
     return "UNKOWN";
 }
 
-void printLayerInfo(PSLayer * layer) {
+static char * getNetworkStatusLabel(PSNeuralNetwork * network) {
+    if (network == NULL) return "";
+    int status = network->status;
+    switch (status) {
+        case STATUS_UNTRAINED:
+            return "untrained";
+        case STATUS_TRAINING:
+            return "training";
+        case STATUS_TRAINED:
+            return "trained";
+        case STATUS_ERROR:
+            return "error";
+    }
+    return "UNKOWN";
+}
+
+static void printLayerInfo(PSLayer * layer) {
+    if (layer == NULL) return;
     PSLayerType ltype = layer->type;
-    char * type_name = getLayerTypeLabel(layer);
+    char * type_name = PSGetLayerTypeLabel(layer);
     PSLayerParameters * lparams = layer->parameters;
     char onehot_info[50];
     onehot_info[0] = 0;
@@ -402,9 +413,25 @@ void printLayerInfo(PSLayer * layer) {
     } else printf("\n");
 }
 
+void PSPrintNetworkInfo(PSNeuralNetwork * network) {
+    if (network == NULL) return;
+    const char * name = network->name;
+    if (name == NULL || !strlen(name)) name = "UNNAMED NETWORK";
+    printf("Network: %s\n", name);
+    printf("Size: %d\nLayers:\n", network->size);
+    int i;
+    for (i = 0; i < network->size; i++) {
+        PSLayer * layer = network->layers[i];
+        printLayerInfo(layer);
+    }
+    char * loss_name = getLossFunctionName(network->loss);
+    printf("Loss Function: %s\n", loss_name);
+    printf("Status: %s\n", getNetworkStatusLabel(network));
+}
+
 /* Loss Functions */
 
-double quadraticLoss(double * outputs, double * desired, int size,
+double PSQuadraticLoss(double * outputs, double * desired, int size,
                      int onehot_size)
 {
     double * _diffs;
@@ -423,7 +450,7 @@ double quadraticLoss(double * outputs, double * desired, int size,
     return loss;
 }
 
-double crossEntropyLoss(double * outputs, double * desired, int size,
+double PSCrossEntropyLoss(double * outputs, double * desired, int size,
                         int onehot_size)
 {
     double loss = 0.0;
@@ -461,7 +488,7 @@ PSNeuralNetwork * PSCreateNetwork(const char* name) {
     network->current_epoch = 0;
     network->current_batch = 0;
     network->flags = FLAG_NONE;
-    network->loss = quadraticLoss;
+    network->loss = PSQuadraticLoss;
     network->onEpochTrained = NULL;
     return network;
 }
@@ -1005,7 +1032,7 @@ PSLayer * PSAddLayer(PSNeuralNetwork * network, PSLayerType type, int size,
     if (previous && previous->type == Convolutional && type != Pooling) {
         PSErr(func, "Layer[%d]: only Pooling type is allowd after a "
               "Convolutional layer (type = %s)", layer->index,
-              getLabelForType(type));
+              PSGetLabelForType(type));
         PSAbortLayer(network, layer);
         return NULL;
     }
@@ -1059,7 +1086,7 @@ PSLayer * PSAddLayer(PSNeuralNetwork * network, PSLayerType type, int size,
             layer->activate = NULL;
             layer->derivative = NULL;
             layer->feedforward = softmaxFeedforward;
-            //network->loss = crossEntropyLoss;
+            //network->loss = PSCrossEntropyLoss;
         }
         initialized = 1;
     } else if (type == Convolutional) {
@@ -1068,10 +1095,10 @@ PSLayer * PSAddLayer(PSNeuralNetwork * network, PSLayerType type, int size,
         initialized = PSInitPoolingLayer(network, layer, params);
     } else if (type == Recurrent) {
         initialized = PSInitRecurrentLayer(network, layer, size, previous_size);
-        if (initialized) network->loss = crossEntropyLoss;
+        if (initialized) network->loss = PSCrossEntropyLoss;
     } else if (type == LSTM) {
         initialized = PSInitLSTMLayer(network, layer, size, previous_size);
-        if (initialized) network->loss = crossEntropyLoss;
+        if (initialized) network->loss = PSCrossEntropyLoss;
     }
     if (!initialized) {
         PSAbortLayer(network, layer);
@@ -1531,8 +1558,8 @@ PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y) {
                                             last_delta, lgradients);
         } else {
             fprintf(stderr, "Backprop from %s to %s not suported!\n",
-                    getLayerTypeLabel(layer),
-                    getLayerTypeLabel(previousLayer));
+                    PSGetLayerTypeLabel(layer),
+                    PSGetLayerTypeLabel(previousLayer));
             PSDeleteGradients(gradients, network);
             free(last_delta);
             if (delta != last_delta) free(delta);
@@ -1562,7 +1589,7 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
     if (outputLayer->type != SoftMax) {
         PSErr("backpropThroughTime",
               "Recurrent networks require a Softmax output layer, "
-              "current one is of type %s.", getLayerTypeLabel(outputLayer));
+              "current one is of type %s.", PSGetLayerTypeLabel(outputLayer));
         PSDeleteGradients(gradients, network);
         return NULL;
     }
@@ -2152,7 +2179,7 @@ int PSVerifyNetwork(PSNeuralNetwork * network) {
         if (i == 0) {
             if (ltype != FullyConnected) {
                 PSErr(func, "Layer[%d] type must be '%s'",
-                      i, getLabelForType(FullyConnected));
+                      i, PSGetLabelForType(FullyConnected));
                 return 0;
             }
             if (layer->flags & FLAG_ONEHOT) {
@@ -2220,7 +2247,8 @@ int PSVerifyNetwork(PSNeuralNetwork * network) {
         if (output->type != SoftMax) {
             PSErr(func,
                   "Recurrent networks require a Softmax output layer, "
-                  "current one is of type %s.", getLabelForType(output->type));
+                  "current one is of type %s.",
+                  PSGetLabelForType(output->type));
             return 0;
         }
     }
