@@ -1,2 +1,8 @@
+0.2.2: 
+    - L2 Weight Decay support
+    - Colors cna be enabled for output
+    - PSTrain: int flags has been replaced with PSTrainingOptions
+0.2.1: 
+    - Fixes
 0.2.0: 
     - Added LSTM support
