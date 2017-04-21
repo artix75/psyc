@@ -144,7 +144,7 @@ int main(int argc, char** argv) {
     }
     
     if (datalen > 0)
-        PSTrain(network, training_data, datalen, EPOCHS, 1.5, 10, 0,
+        PSTrain(network, training_data, datalen, EPOCHS, 1.5, 10, NULL,
                 validation_data, valdlen);
 
     if (network->status == STATUS_ERROR) {

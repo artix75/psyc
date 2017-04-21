@@ -22,7 +22,7 @@
 #define RESET   "\x1b[0m"
 
 
-#define getRoundedDouble(d) (round(d * 1000000.0) / 1000000.0)
+#define getRoundedDouble(d) d//(round(d * 1000000.0) / 1000000.0)
 #define getRoundedDoubleDec(d, dec) (round(d * dec) / dec)
 
 int compareNetworks(PSNeuralNetwork * network, PSNeuralNetwork * other)
@@ -158,6 +158,40 @@ int main(int argc, char** argv) {
     
     PSDeleteNetwork(std_network);
     PSDeleteNetwork(avx_network);
+    
+    std_network = PSCreateNetwork("STD CNN Network");
+    avx_network = PSCreateNetwork("AVX CNN Network");
+    
+    loaded = PSLoadNetwork(std_network, "/tmp/no_avx.l2_nn.data");
+    assert(loaded);
+    loaded = PSLoadNetwork(avx_network, "/tmp/avx.l2_nn.data");
+    assert(loaded);
+    printf(RESET CYAN "Fully Connected L2 comparison: " RESET);
+    ok = compareNetworks(std_network, avx_network);
+    if (!ok) printf(RED "FAILED" RESET);
+    else printf(GREEN "OK\n" RESET);
+    
+    PSDeleteNetwork(std_network);
+    PSDeleteNetwork(avx_network);
+    
+    printf(DIM);
+    
+    std_network = PSCreateNetwork("STD CNN Network");
+    avx_network = PSCreateNetwork("AVX CNN Network");
+    
+    loaded = PSLoadNetwork(std_network, "/tmp/no_avx.l2_cnn.data");
+    assert(loaded);
+    loaded = PSLoadNetwork(avx_network, "/tmp/avx.l2_cnn.data");
+    assert(loaded);
+    
+    printf(RESET CYAN "Convolutional L2 comparison: " RESET);
+    ok = compareNetworks(std_network, avx_network);
+    if (!ok) printf(RED "FAILED" RESET);
+    else printf(GREEN "OK\n" RESET);
+    
+    PSDeleteNetwork(std_network);
+    PSDeleteNetwork(avx_network);
+    
     return 0;
 }
 

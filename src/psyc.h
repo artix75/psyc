@@ -33,6 +33,10 @@
 #define FLAG_RECURRENT  (1 << 0)
 #define FLAG_ONEHOT     (1 << 1)
 
+/* Global Flags*/
+
+#define FLAG_LOG_COLORS (1 << 0)
+
 #define TRAINING_NO_SHUFFLE     (1 << 0)
 #define TRAINING_ADJUST_RATE    (1 << 1)
 
@@ -72,6 +76,11 @@ typedef struct {
     double * biases;
     double ** weights;
 } PSSharedParams;
+
+typedef struct {
+    int flags;
+    double l2_decay;
+} PSTrainingOptions;
 
 typedef struct {
     int index;
@@ -115,6 +124,8 @@ typedef struct {
     PSTrainCallback onEpochTrained;
 } PSNeuralNetwork;
 
+extern int PSGlobalFlags;
+
 PSNeuralNetwork * PSCreateNetwork(const char* name);
 PSNeuralNetwork * PSCloneNetwork(PSNeuralNetwork * network, int layout_only);
 int PSLoadNetwork(PSNeuralNetwork * network, const char* filename);
@@ -148,7 +159,7 @@ void PSTrain(PSNeuralNetwork * network,
              int epochs,
              double learning_rate,
              int batch_size,
-             int flags,
+             PSTrainingOptions * options,
              double * test_data,
              int test_size);
 float PSTest(PSNeuralNetwork * network, double * test_data, int data_size);

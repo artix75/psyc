@@ -315,9 +315,9 @@ double * PSRecurrentBackprop(PSLayer * layer,
                 w = 0;
 #ifdef USE_AVX
                 AVXMultiplyValue(cell->weights_size,
-                                 layer->avx_activation_cache,
-                                 gradient->weights + wsize, dv, w,
-                                 1, (tt - 1), AVX_STORE_MODE_ADD);
+                                 layer->avx_activation_cache, dv,
+                                 gradient->weights + wsize, w, 1,
+                                 (tt - 1), AVX_STORE_MODE_ADD);
 #endif
                 for (; w < cell->weights_size; w++) {
                     PSNeuron * rn = layer->neurons[w];

@@ -17,7 +17,7 @@ PsyC currently has support for the following neural network models:
 
 - Fully Condensed Neural Networks
 - Convolutional Neural Networks 
-- Recurrent Neural Networks.
+- Recurrent Neural Networks
 - LSTM Networks
 
 Supported Platforms
@@ -102,7 +102,6 @@ Here is an example of a simple Fully Connected Network
     #define EPOCHS 30
     #define LEARNING_RATE 0.5
     #define BATCH_SIZE 10
-    #define TRAIN_FLAGS 0
     
     double * training_data;
     double * evaluation_data;
@@ -119,7 +118,7 @@ Here is an example of a simple Fully Connected Network
     PSAddLayer(network, FullyConnected, 10, NULL);
     
     PSTrain(network, training_data, datalen, EPOCHS, LEARNING_RATE, 
-            BATCH_SIZE, TRAIN_FLAGS, evaluation_data, evaluation_datalen);
+            BATCH_SIZE, NULL, evaluation_data, evaluation_datalen);
     
     
     ...
@@ -187,7 +186,7 @@ And so on...
 When you start training the network, you'll pass the training data to the 
 **PSTrain** function along with the total count of the array elements (12 in the example above):
 
-    PSTrain(network, data, 12, EPOCHS, 3, 10, 0, NULL, 0);
+    PSTrain(network, data, 12, EPOCHS, 3, 10, NULL, NULL, 0);
     
 
 Recurrent Networks
@@ -220,7 +219,7 @@ The training data array will be:
     
 The total array length is 17, so we'll train the network with:
 
-    PSTrain(network, data, 17, EPOCHS, 3, 10, 0, NULL, 0);
+    PSTrain(network, data, 17, EPOCHS, 3, 10, NULL, NULL, 0);
 
 
 

@@ -73,7 +73,7 @@ int main(int argc, char** argv) {
     eval_data = train_data + datalen;
     int eval_datalen = element_size * EVAL_DATASET_LEN;
     
-    PSTrain(network, train_data, datalen, EPOCHS, 1.5, 1, 0, eval_data,
+    PSTrain(network, train_data, datalen, EPOCHS, 1.5, 1, NULL, eval_data,
             eval_datalen);
     
     PSTest(network, test_data, datalen);
@@ -89,7 +89,7 @@ int main(int argc, char** argv) {
     PSAddLayer(network, SoftMax, RNN_INPUT_SIZE, NULL);
     network->layers[network->size - 1]->flags |= FLAG_ONEHOT;
     
-    PSTrain(network, rnn_train_data, 10, EPOCHS, RNN_LEARNING_RATE, 1, 0,
+    PSTrain(network, rnn_train_data, 10, EPOCHS, RNN_LEARNING_RATE, 1, NULL,
             NULL, 0);
     
     PSDeleteNetwork(network);
@@ -101,7 +101,7 @@ int main(int argc, char** argv) {
     PSAddLayer(network, SoftMax, RNN_INPUT_SIZE, NULL);
     network->layers[network->size - 1]->flags |= FLAG_ONEHOT;
     
-    PSTrain(network, rnn_train_data, 10, EPOCHS, RNN_LEARNING_RATE, 1, 0,
+    PSTrain(network, rnn_train_data, 10, EPOCHS, RNN_LEARNING_RATE, 1, NULL,
             NULL, 0);
     
     PSDeleteNetwork(network);

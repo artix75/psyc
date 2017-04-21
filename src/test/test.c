@@ -27,6 +27,7 @@
 #define BLUE    "\x1b[34m"
 #define MAGENTA "\x1b[35m"
 #define CYAN    "\x1b[36m"
+#define WHITE   "\x1b[37m"
 #define BOLD    "\x1b[1m"
 #define DIM     "\x1b[2m"
 #define HIDDEN  "\x1b[8m"

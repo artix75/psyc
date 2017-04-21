@@ -51,7 +51,6 @@ void TrainCallback (void * _net, int epoch, double loss,
         }
         printf("%s", characters[idx]);
         inputs[0] += 1.0;
-        //printf("inputs[%d] = %lf (%s)\n", (int) inputs[0], (double) idx, characters[idx]);
         inputs[(int) inputs[0]] = (double) idx;
     }
     printf("\n");
@@ -62,7 +61,8 @@ int main(int argc, char**argv){
     network->onEpochTrained = TrainCallback;
     
     int epochs = EPOCHS;
-    float learning_rate = LEARNING_RATE;
+    double learning_rate = LEARNING_RATE;
+    double l2_decay = 0.0;
     PSLayerType type = LSTM;
     /*double * vdataset = validation_data;
     int vdlen = EVAL_DATALEN;
@@ -92,13 +92,15 @@ int main(int argc, char**argv){
                 }
             }
             if (strEq("--learning-rate", arg) || strEq("-r", arg)) {
-                learning_rate = (float) atof(next);
+                learning_rate = (double) atof(next);
                 if (learning_rate == 0.0) {
                     fputs("Invalid learing rate!", stderr);
                     return 1;
                 }
             }
-        } 
+            if (strEq("--l2-decay", arg))
+                l2_decay = (double) atof(next);
+        }
     }
     //printf("CHAR: %s\n", characters[6]);return 0;
     network->flags |= FLAG_ONEHOT;
@@ -119,9 +121,13 @@ int main(int argc, char**argv){
                        NULL);
     }
     //epochs = 2;
+    PSTrainingOptions options = {
+        .flags = TRAINING_NO_SHUFFLE,
+        .l2_decay = l2_decay
+    };
+    printf("L2 Decay: %.2f\n", (float) l2_decay);
     PSTrain(network, training_data, TRAIN_DATALEN, epochs, learning_rate,
-            BATCHES, TRAINING_NO_SHUFFLE,
-            training_data, TRAIN_DATALEN);
+            BATCHES, &options, training_data, TRAIN_DATALEN);
     
     PSTest(network, training_data, TRAIN_DATALEN);
 

@@ -193,6 +193,7 @@ int train_dataset_len = 0;
 int eval_dataset_len = 0;
 int epochs = EPOCHS;
 float learning_rate = LEARNING_RATE;
+float l2_decay = 0.0;
 int batch_size = BATCH_SIZE;
 char outputFile[255];
 
@@ -231,6 +232,12 @@ int main(int argc, char ** argv) {
             } else {
                 sprintf(outputFile, "%s", file);
             }
+            continue;
+        }
+        
+        if (strcmp("--name", arg) == 0 && ++i < argc) {
+            char * name = (char*) argv[i];
+            network->name = name;
             continue;
         }
         
@@ -465,10 +472,18 @@ int main(int argc, char ** argv) {
         }
         
         if (strcmp("--learning-rate", arg) == 0 && ++i < argc) {
-            char * len_s = argv[i];
-            int matched = sscanf(len_s, "%f", &learning_rate);
+            char * lr = argv[i];
+            int matched = sscanf(lr, "%f", &learning_rate);
             if (!matched)
-                fprintf(stderr, "Invalid learning rate %s\n", len_s);
+                fprintf(stderr, "Invalid learning rate %s\n", lr);
+            continue;
+        }
+        
+        if (strcmp("--l2-decay", arg) == 0 && ++i < argc) {
+            char * l2d = argv[i];
+            int matched = sscanf(l2d, "%f", &l2_decay);
+            if (!matched)
+                fprintf(stderr, "Invalid l2 decay %s\n", l2d);
             continue;
         }
         
@@ -480,6 +495,10 @@ int main(int argc, char ** argv) {
         if (strcmp("--training-adjust-rate", arg) == 0) {
             training_flags |= TRAINING_ADJUST_RATE;
             continue;
+        }
+        
+        if (strcmp("--enable-colors", arg) == 0) {
+            PSGlobalFlags |= FLAG_LOG_COLORS;
         }
         
         if (strcmp("-v", arg) == 0 || strcmp("--version", arg) == 0) {
@@ -520,8 +539,13 @@ int main(int argc, char ** argv) {
                 valdlen = eval_dataset_len * element_size;
             }
         }
+        
+        PSTrainingOptions options = {
+            .flags = training_flags,
+            .l2_decay = (double) l2_decay
+        };
         PSTrain(network, training_data, datalen, epochs, learning_rate,
-                batch_size, training_flags, validation_data, valdlen);
+                batch_size, &options, validation_data, valdlen);
         free(training_data);
     }
     if (test_data != NULL) {
@@ -562,6 +586,7 @@ void print_help(const char* program_path) {
     printf("OPTIONS:\n");
     printf("        --load PRETRAINED           Load a pretrained network\n");
     printf("        --save FILE                 Save network\n");
+    printf("        --name NAME                 Network name\n");
     printf("        --layer TYPE SIZE|OPTIONS   Add layer\n");
     printf("        --onehot                    "
            "Sets one-hot-vector flag for input\n");
@@ -581,6 +606,7 @@ void print_help(const char* program_path) {
            BATCH_SIZE);
     printf("        --learning-rate SIZE        Train. learn rate (def. %f)\n",
            LEARNING_RATE);
+    printf("        --l2-decay SIZE             L2 Weight Decay (def. 0)\n");
     printf("        --training-no-shuffle       Prevent dataset shuffle\n");
     printf("        --training-adjust-rate      Auto-adjust learn rate\n");
     printf("    -v, --version                   Print version\n");

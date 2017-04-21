@@ -76,6 +76,7 @@ int testGenericSave(void* test_case, void* test);
 
 #ifdef USE_AVX
 int testAVXDot(void* test_case, void* test);
+int testAVXSquare(void* test_case, void* test);
 int testAVXMultiplyVal(void* tc, void* t);
 #endif
 
@@ -104,7 +105,8 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
                                   double * y, int times);
 
 double updateWeights(PSNeuralNetwork * network, double * training_data,
-                     int batch_size, double rate, ...);
+                     int batch_size, int elements_count,
+                     PSTrainingOptions* opts, double rate, ...);
 
 int testlen = 0;
 
@@ -292,6 +294,7 @@ int main(int argc, char** argv) {
 #ifdef USE_AVX
     AVXTests = createTest("AVX");
     addTest(AVXTests, "Dot Product", NULL, testAVXDot);
+    addTest(AVXTests, "Square", NULL, testAVXSquare);
     addTest(AVXTests, "Multiply Value", NULL, testAVXMultiplyVal);
     performTests(AVXTests);
     deleteTest(AVXTests);
@@ -859,11 +862,11 @@ int testRNNStep(void* tc, void* t) {
     int train_data_len = 1 + (RNN_TIMES * 2);
     double * training_data = getTestData(test_case);
     double ** series = &training_data;
+    int elements_count = (int) *training_data;
     
     int ok = 1, i, j, w;
-    
-    double loss = updateWeights(network, training_data, 1,
-                                RNN_LEARNING_RATE, series);
+    double loss = updateWeights(network, training_data, 1, elements_count,
+                                NULL, RNN_LEARNING_RATE, series);
     
     for (i = 1; i < network->size; i++) {
         PSLayer * layer = network->layers[i];
@@ -905,9 +908,12 @@ int testLSTMTrain(void* tc, void* tst) {
     int train_data_len = 2 + (LSTM_TIMES * 2);
     double * training_data = getTestData(test_case);
     
+    PSTrainingOptions options = {
+        .flags = TRAINING_NO_SHUFFLE,
+        .l2_decay = 0.0
+    };
     PSTrain(network, training_data, 8, LSTM_EPOCHS, LSTM_LEARNING_RATE,
-            LSTM_BATCHES, TRAINING_NO_SHUFFLE,
-            NULL, 0);
+            LSTM_BATCHES, &options, NULL, 0);
     
     PSLayer * layer = network->layers[1];
     int i, t, w, ok = 1;
@@ -1307,6 +1313,64 @@ int testAVXDot(void* tc, void* t) {
     
     avx_res = avx_dot_product2(x2, y2);
     cmp_res = test_dot(x2, y2, 2);
+    ok = avx_res == cmp_res;
+    
+    if (!ok) {
+        char * msg = malloc(255 * sizeof(char));
+        test->error_message = msg;
+        sprintf(msg, "AVX[2]: Expected %lf != %lf\n", cmp_res, avx_res);
+        return 0;
+    }
+    
+    return ok;
+}
+
+int testAVXSquare(void* tc, void* t) {
+    TestCase * test_case = (TestCase*) tc;
+    Test * test = (Test*) t;
+    
+    double x2[2] = {1.0, 2.0};//5
+    double x4[4] = {1.0, 1.0, 2.0, 2.0};//10
+    double x8[8] = {1.0, 1.0, 2.0, 2.0, 1.0, 1.0, 2.0, 2.0};//20
+    
+    double x16[16] = {1.0, 1.0, 2.0, 2.0, 1.0, 1.0, 2.0, 2.0,
+        1.0, 1.0, 2.0, 2.0, 1.0, 1.0, 2.0, 2.0}; //40
+    
+    double avx_res = avx_dot_product16(x16, x16);
+    double cmp_res = test_dot(x16, x16, 16);
+    int ok = avx_res == cmp_res;
+    
+    if (!ok) {
+        char * msg = malloc(255 * sizeof(char));
+        test->error_message = msg;
+        sprintf(msg, "AVX[16]: Expected %lf != %lf\n", cmp_res, avx_res);
+        return 0;
+    }
+    
+    avx_res = avx_dot_product8(x8, x8);
+    cmp_res = test_dot(x8, x8, 8);
+    ok = avx_res == cmp_res;
+    
+    if (!ok) {
+        char * msg = malloc(255 * sizeof(char));
+        test->error_message = msg;
+        sprintf(msg, "AVX[8]: Expected %lf != %lf\n", cmp_res, avx_res);
+        return 0;
+    }
+    
+    avx_res = avx_dot_product4(x4, x4);
+    cmp_res = test_dot(x4, x4, 4);
+    ok = avx_res == cmp_res;
+    
+    if (!ok) {
+        char * msg = malloc(255 * sizeof(char));
+        test->error_message = msg;
+        sprintf(msg, "AVX[4]: Expected %lf != %lf\n", cmp_res, avx_res);
+        return 0;
+    }
+    
+    avx_res = avx_dot_product2(x2, x2);
+    cmp_res = test_dot(x2, x2, 2);
     ok = avx_res == cmp_res;
     
     if (!ok) {

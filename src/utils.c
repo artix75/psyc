@@ -29,6 +29,7 @@ void PSErr(const char* tag, char* fmt, ...) {
     va_list args;
     
     fflush (stdout);
+    if (PSGlobalFlags & FLAG_LOG_COLORS) fprintf(stderr, RED);
     fprintf(stderr, "ERROR");
     if (tag != NULL) fprintf(stderr, " [%s]: ", tag);
     else fprintf(stderr, ": ");
@@ -38,6 +39,7 @@ void PSErr(const char* tag, char* fmt, ...) {
     va_end(args);
     
     fprintf(stderr, "\n");
+    if (PSGlobalFlags & FLAG_LOG_COLORS) fprintf(stderr, WHITE);
 }
 
 /* Activation Functions */

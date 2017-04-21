@@ -76,7 +76,7 @@ int main(int argc, char** argv) {
     
     printf("Data len: %d\n", datalen);
     
-    if (!loaded) PSTrain(network, training_data, datalen, EPOCHS, 3, 10, 0,
+    if (!loaded) PSTrain(network, training_data, datalen, EPOCHS, 3, 10, NULL,
                          NULL, 0);
     if (network->status == STATUS_ERROR) {
         PSDeleteNetwork(network);

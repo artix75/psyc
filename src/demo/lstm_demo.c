@@ -90,8 +90,12 @@ int main(int argc, char** argv) {
         }
     }
     
+    PSTrainingOptions options = {
+        .flags = TRAINING_NO_SHUFFLE,
+        .l2_decay = 0.0
+    };
     PSTrain(network, training_data, TRAIN_DATA_LEN, EPOCHS, LEARNING_RATE,
-            BATCHES, TRAINING_NO_SHUFFLE,
+            BATCHES, &options,
             training_data, TRAIN_DATA_LEN);
     
     if (TEST_DATA_LEN > 0) {

@@ -466,19 +466,19 @@ double * PSLSTMBackprop(PSLayer * layer,
             double * rweights = gradient->weights + wsize;
             AVXMultiplyValue(layer->size,
                              layer->avx_activation_cache,
-                             rweights, dc, w,
+                             dc, rweights, w,
                              1, (last_t), AVX_STORE_MODE_ADD);
             AVXMultiplyValue(layer->size,
                              layer->avx_activation_cache,
-                             rweights + cwsize, di, i,
+                             di, rweights + cwsize, i,
                              1, (last_t), AVX_STORE_MODE_ADD);
             AVXMultiplyValue(layer->size,
                              layer->avx_activation_cache,
-                             rweights + (cwsize * OUTPUT_IDX), dout, o,
+                             dout, rweights + (cwsize * OUTPUT_IDX), o,
                              1, (last_t), AVX_STORE_MODE_ADD);
             AVXMultiplyValue(layer->size,
                              layer->avx_activation_cache,
-                             rweights + (cwsize * FORGET_IDX), df, f,
+                             df, rweights + (cwsize * FORGET_IDX), f,
                              1, (last_t), AVX_STORE_MODE_ADD);
 #endif
             for (; w < layer->size; w++) {

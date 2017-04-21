@@ -90,9 +90,12 @@ int main(int argc, char** argv) {
         }
     }
     
+    PSTrainingOptions options = {
+        .flags = TRAINING_NO_SHUFFLE | TRAINING_ADJUST_RATE,
+        .l2_decay = 0.0
+    };
     PSTrain(network, training_data, TRAIN_DATA_LEN, EPOCHS, LEARNING_RATE,
-            BATCHES, TRAINING_NO_SHUFFLE | TRAINING_ADJUST_RATE,
-            validation_data, EVAL_DATA_LEN);
+            BATCHES, &options, validation_data, EVAL_DATA_LEN);
     
     if (TEST_DATA_LEN > 0) {
         printf("Test Data len: %d\n", TEST_DATA_LEN);

@@ -43,14 +43,45 @@
     } \
 } while (0)
 
-#define AVXMultiplyValue(size, x, y, val, i, is_recurrent, t, mode) do { \
+
+#define AVXDotSquare(size, x, res, i, is_recurrent, t) do {\
+    int avx_step_len = AVXGetDotStepLen(size); \
+    avx_dot_product dot_product = AVXGetDotProductFunc(size); \
+    int avx_steps = size / avx_step_len, avx_step; \
+    for (avx_step = 0; avx_step < avx_steps; avx_step++) { \
+        double * x_vector = x + i; \
+        if (is_recurrent) x_vector += (t * size); \
+        res += dot_product(x_vector, x_vector); \
+        i += avx_step_len; \
+    } \
+} while (0)
+
+#define AVXMultiplyValue(size, x, val, dest, i, is_recurrent, t, mode) do { \
     int avx_step_len = AVXGetStepLen(size); \
     int avx_steps = size / avx_step_len, avx_step; \
     avx_multiply_value multiply_val = AVXGetMultiplyValFunc(size); \
     for (avx_step = 0; avx_step < avx_steps; avx_step++) { \
         double * x_vector = x + i; \
         if (is_recurrent) x_vector += (t * size); \
-        multiply_val(x_vector, val, y + i, mode); \
+        multiply_val(x_vector, val, dest + i, mode); \
+        i += avx_step_len; \
+    } \
+} while (0)
+
+#define AVXMultiplyValues(size, x1, v1, x2, v2, d, i, is_rec, t, m1, m2) do {\
+    int avx_step_len = AVXGetStepLen(size); \
+    int avx_steps = size / avx_step_len, avx_step; \
+    avx_multiply_value multiply_val = AVXGetMultiplyValFunc(size); \
+    for (avx_step = 0; avx_step < avx_steps; avx_step++) { \
+        double * xv1 = x1 + i; \
+        double * xv2 = x2 + i; \
+        double * dd = d + i; \
+        if (is_rec) {\
+            xv1 += (t * size); \
+            xv2 += (t * size); \
+        }\
+        multiply_val(xv1, v1, dd, m1); \
+        multiply_val(xv2, v2, dd, m2); \
         i += avx_step_len; \
     } \
 } while (0)
@@ -80,6 +111,19 @@
 } while (0)
 
 #endif
+
+#define RED     "\x1b[31m"
+#define GREEN   "\x1b[32m"
+#define YELLOW  "\x1b[33m"
+#define BLUE    "\x1b[34m"
+#define MAGENTA "\x1b[35m"
+#define CYAN    "\x1b[36m"
+#define WHITE   "\x1b[97m"
+#define BOLD    "\x1b[1m"
+#define DIM     "\x1b[2m"
+#define HIDDEN  "\x1b[8m"
+#define RESET   "\x1b[0m"
+#define RESET_BOLD "\x1b[21m"
 
 #define printMemoryErrorMsg() PSErr(NULL, "Could not allocate memory!")
 
