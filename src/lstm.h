@@ -57,12 +57,8 @@ int PSLSTMFeedforward(void * _net, void * _layer, ...);
 
 /* Backpropagation Functions */
 
-double * PSLSTMBackprop(PSLayer * layer,
-                        PSLayer * previousLayer,
-                        double * last_delta,
-                        double * last_lstm_delta,
-                        PSGradient * lgradients,
-                        int t);
+int PSLSTMBackprop(PSLayer * layer, PSLayer * previousLayer,
+                   PSGradient * lgradients, int t);
 
 
 #endif // __PS_LSTM_H

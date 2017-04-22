@@ -257,27 +257,18 @@ int PSRecurrentFeedforward(void * _net, void * _layer, ...) {
 
 /* Backpropagation Functions */
 
-double * PSRecurrentBackprop(PSLayer * layer,
-                             PSLayer * previousLayer,
-                             int lowest_t,
-                             double ** last_delta_p,
-                             PSGradient * lgradients,
-                             int t)
+int PSRecurrentBackprop(PSLayer * layer, PSLayer * previousLayer, int lowest_t,
+                             PSGradient * lgradients, int t)
 {
     int lsize = layer->size, i, w, tt;
-    double * last_delta = *last_delta_p;
     for (tt = t; tt >= lowest_t; tt--) {
-        double * delta = malloc(sizeof(double) * lsize);
-        if (delta == NULL) {
-            printMemoryErrorMsg();
-            return NULL;
-        }
-        memset(delta, 0, sizeof(double) * lsize);
+        double * delta = layer->delta;
+        double * new_delta = NULL;
         for (i = 0; i < lsize; i++) {
             PSNeuron * neuron = layer->neurons[i];
             PSRecurrentCell * cell = GetRecurrentCell(neuron);
             PSGradient * gradient = &(lgradients[i]);
-            double dv = last_delta[i];
+            double dv = delta[i];
             gradient->bias += dv;
             int wsize = neuron->weights_size - cell->weights_size;
             
@@ -286,12 +277,7 @@ double * PSRecurrentBackprop(PSLayer * layer,
                 if (params == NULL) {
                     fprintf(stderr, "Layer %d params are NULL!\n",
                             previousLayer->index);
-                    if (delta != NULL) free(delta);
-                    if (last_delta != NULL) {
-                        free(last_delta);
-                        *last_delta_p = NULL;
-                    }
-                    return NULL;
+                    return 0;
                 }
                 int vector_size = (int) params->parameters[0];
                 assert(vector_size > 0);
@@ -311,6 +297,13 @@ double * PSRecurrentBackprop(PSLayer * layer,
             }
             
             if (tt > 0) {
+                if (new_delta == NULL) {
+                    new_delta = calloc(lsize, sizeof(double));
+                    if (new_delta == NULL) {
+                        printMemoryErrorMsg();
+                        return 0;
+                    }
+                }
                 double rsum = 0.0;
                 w = 0;
 #ifdef USE_AVX
@@ -329,17 +322,17 @@ double * PSRecurrentBackprop(PSLayer * layer,
                     PSNeuron * rn = layer->neurons[w];
                     PSRecurrentCell * rc = GetRecurrentCell(rn);
                     double rw = rc->weights[neuron->index];
-                    rsum += (last_delta[rn->index] * rw);
+                    rsum += (delta[rn->index] * rw);
                 }
                 double prev_a = cell->states[tt - 1];
-                delta[neuron->index] = rsum * layer->derivative(prev_a);
+                new_delta[neuron->index] = rsum * layer->derivative(prev_a);
             }
             
         }
-        
-        free(last_delta);
-        last_delta = delta;
-        *last_delta_p = last_delta;
+        if (new_delta != NULL) {
+            free(delta);
+            layer->delta = new_delta;
+        }
     }
-    return last_delta;
+    return 1;
 }

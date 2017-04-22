@@ -43,11 +43,7 @@ int PSRecurrentFeedforward(void * _net, void * _layer, ...);
 
 /* Backpropagation Functions */
 
-double * PSRecurrentBackprop(PSLayer * layer,
-                             PSLayer * previousLayer,
-                             int lowest_t,
-                             double ** last_delta_p,
-                             PSGradient * lgradients,
-                             int t);
+int PSRecurrentBackprop(PSLayer * layer, PSLayer * previousLayer, int lowest_t,
+                        PSGradient * lgradients, int t);
 
 #endif //__PS_RECURRENT_H

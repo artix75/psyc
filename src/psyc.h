@@ -102,6 +102,7 @@ typedef struct {
     PSActivationFunction derivative;
     PSFeedforwardFunction feedforward;
     PSNeuron ** neurons;
+    double * delta;
     int flags;
     void * extra;
 #ifdef USE_AVX

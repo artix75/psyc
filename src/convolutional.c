@@ -560,12 +560,13 @@ double * PSPoolingBackprop(PSLayer * pooling_layer,
                            double * delta)
 {
     int conv_size = convolutional_layer->size;
-    double * new_delta = malloc(sizeof(double) * conv_size);
+    /*double * new_delta = malloc(sizeof(double) * conv_size);
     if (new_delta == NULL) {
         printMemoryErrorMsg();
         return NULL;
     }
-    memset(new_delta, 0, sizeof(double) * conv_size);
+    memset(new_delta, 0, sizeof(double) * conv_size);*/
+    double * new_delta = convolutional_layer->delta;
     PSLayerParameters * pool_params = pooling_layer->parameters;
     PSLayerParameters * conv_params = convolutional_layer->parameters;
     int feature_count = (int) (conv_params->parameters[PARAM_FEATURE_COUNT]);
@@ -604,8 +605,9 @@ double * PSPoolingBackprop(PSLayer * pooling_layer,
 }
 
 double * PSConvolutionalBackprop(PSLayer* convolutional_layer,
-                                 PSLayer * prev_layer, double * delta,
+                                 PSLayer * prev_layer, double * delme,
                                  PSGradient * lgradients) {
+    double * delta = convolutional_layer->delta;
     int size = convolutional_layer->size;
     PSLayerParameters * params = convolutional_layer->parameters;
     int feature_count = (int) (params->parameters[PARAM_FEATURE_COUNT]);

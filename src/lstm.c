@@ -172,6 +172,7 @@ static int LSTMCellFeedforward(PSLayer * layer, PSLayer * previous,
     activation = output_gate * activation;
     neuron->activation = activation;
     cell->states[t] = activation;
+    
     return 1;
 }
 
@@ -344,12 +345,9 @@ int PSLSTMFeedforward(void * _net, void * _layer, ...) {
 
 /* Backpropagation Functions */
 
-double * PSLSTMBackprop(PSLayer * layer,
-                        PSLayer * previousLayer,
-                        double * last_delta,
-                        double * last_lstm_delta,
-                        PSGradient * lgradients,
-                        int t){
+int PSLSTMBackprop(PSLayer * layer, PSLayer * previousLayer,
+                   PSGradient * lgradients, int t)
+{
     int onehot = previousLayer->flags & FLAG_ONEHOT;
     int lsize = layer->size, i, w, last_t = t - 1;
     int previous_size = previousLayer->size;
@@ -358,43 +356,25 @@ double * PSLSTMBackprop(PSLayer * layer,
         if (params == NULL) {
             fprintf(stderr, "Layer %d params are NULL!\n",
                     previousLayer->index);
-            return NULL;
+            return 0;
         }
         previous_size = (int) params->parameters[0];
         assert(previous_size > 0);
     }
-    //double * delta = malloc(sizeof(double) * lsize);
     double * delta_c = calloc(sizeof(double), lsize);
     double * delta_i = calloc(sizeof(double), lsize);
     double * delta_o = calloc(sizeof(double), lsize);
     double * delta_f = calloc(sizeof(double), lsize);
-    // lstm_delta has room for: LSTM additional delta for prev. layer,
-    //                          LSTM additional delta for itself,
-    //                          Delta z
-    double * lstm_delta = calloc(sizeof(double),
-                                 previous_size + (2 * lsize));
-    if (lstm_delta == NULL || delta_c == NULL || delta_i == NULL ||
-        delta_o == NULL || delta_f == NULL) {
-        printMemoryErrorMsg();
-        FreeLSTMDeltas();
-        return NULL;
-    }
-    double * delta = lstm_delta + previous_size;
+    
+    double * delta = layer->delta;
     double * delta_z = delta + lsize;
-    double * last_delta_z = NULL;
-    if (last_lstm_delta != NULL) {
-        last_lstm_delta += previous_size;
-        last_delta_z = last_lstm_delta + lsize;
-    }
 
     for (i = 0; i < lsize; i++) {
         PSNeuron * neuron = layer->neurons[i];
         PSLSTMCell * cell = GetLSTMCell(neuron);
         PSGradient * gradient = &(lgradients[i]);
         double * gradient_biases = GetLSTMGradientBiases(neuron, gradient);
-        if (last_lstm_delta != NULL) last_delta[i] += last_lstm_delta[i];
-        double dv = last_delta[i];
-        //gradient->bias += dv;
+        double dv = delta[i];
         int cwsize = cell->weights_size;
         int rwsize = layer->size;
         int wsize = cwsize - rwsize;
@@ -406,7 +386,7 @@ double * PSLSTMBackprop(PSLayer * layer,
         double fg = cell->forget_gates[t];
         double c = cell->candidates[t];
         
-        double last_dz = (last_delta_z != NULL ? last_delta_z[i] : 0.0);
+        double last_dz = delta_z[i];
         double z_multiplier = 1, zz = z;
         if (layer->activate != NULL) {
             z_multiplier = layer->activate(z);
@@ -499,31 +479,13 @@ double * PSLSTMBackprop(PSLayer * layer,
     }
     
     if (t > 0) {
-        if (layer->index > 1) {
-            for (i = 0; i < previous_size; i++) {
-                for (w = 0; w < lsize; w++) {
-                    PSNeuron * rn = layer->neurons[w];
-                    PSLSTMCell * rc = GetLSTMCell(rn);
-                    double cw = rc->candidate_weights[i];
-                    double iw = rc->input_weights[i];
-                    double ow = rc->output_weights[i];
-                    double fw = rc->forget_weights[i];
-                    delta[i] += delta_c[rn->index] * cw;
-                    delta[i] += delta_i[rn->index] * iw;
-                    delta[i] += delta_o[rn->index] * ow;
-                    delta[i] += delta_f[rn->index] * fw;
-                }
-                /*if (layer->derivative != NULL)
-                 delta[i] *= layer->derivative(prev_a); //?
-                 */
-            }
-        }
         for (i = 0; i < lsize; i++) {
             PSNeuron * neuron = layer->neurons[i];
             PSLSTMCell * cell = GetLSTMCell(neuron);
             int cwsize = cell->weights_size;
             int wsize = cwsize - layer->size;
             //double prev_a = cell->states[last_t];
+            double d = 0.0;
             for (w = 0; w < lsize; w++) {
                 PSNeuron * rn = layer->neurons[w];
                 PSLSTMCell * rc = GetLSTMCell(rn);
@@ -532,14 +494,13 @@ double * PSLSTMBackprop(PSLayer * layer,
                 double iw = rc->input_weights[widx];
                 double ow = rc->output_weights[widx];
                 double fw = rc->forget_weights[widx];
-                delta[neuron->index] += delta_c[rn->index] * cw;
-                delta[neuron->index] += delta_i[rn->index] * iw;
-                delta[neuron->index] += delta_o[rn->index] * ow;
-                delta[neuron->index] += delta_f[rn->index] * fw;
+                
+                d += delta_c[rn->index] * cw;
+                d += delta_i[rn->index] * iw;
+                d += delta_o[rn->index] * ow;
+                d += delta_f[rn->index] * fw;
             }
-            /*if (layer->derivative != NULL)
-                delta[neuron->index] *= layer->derivative(prev_a); //?
-             */
+            delta[neuron->index] = d;
         }
     }
     
@@ -547,5 +508,5 @@ double * PSLSTMBackprop(PSLayer * layer,
     free(delta_i);
     free(delta_o);
     free(delta_f);
-    return lstm_delta;
+    return 1;
 }

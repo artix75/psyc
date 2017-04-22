@@ -982,6 +982,7 @@ PSLayer * PSAddLayer(PSNeuralNetwork * network, PSLayerType type, int size,
     layer->parameters = params;
     layer->extra = NULL;
     layer->flags = FLAG_NONE;
+    layer->delta = NULL;
 #ifdef USE_AVX
     layer->avx_activation_cache = NULL;
 #endif
@@ -1107,6 +1108,17 @@ PSLayer * PSAddLayer(PSNeuralNetwork * network, PSLayerType type, int size,
         PSErr(func, "Could not initialize layer %d!", network->size + 1);
         return NULL;
     }
+    if (layer->index > 0) {
+        int dsize = layer->size;
+        if (type == LSTM) dsize *= 2;
+        layer->delta = calloc(dsize, sizeof(double));
+        if (layer->delta == NULL) {
+            PSAbortLayer(network, layer);
+            printMemoryErrorMsg();
+            PSErr(func, "Could not initialize layer %d!", network->size + 1);
+            return NULL;
+        }
+    }
     network->layers[layer->index] = layer;
     printLayerInfo(layer);
     return layer;
@@ -1155,6 +1167,7 @@ void PSDeleteLayer(PSLayer* layer) {
 #ifdef USE_AVX
     if (layer->avx_activation_cache != NULL) free(layer->avx_activation_cache);
 #endif
+    if (layer->delta != NULL) free(layer->delta);
     free(layer);
 }
 
@@ -1432,22 +1445,16 @@ PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y) {
     PSGradient * lgradients = gradients[netsize - 2]; //No gradient for inputs
     PSLayer * previousLayer = network->layers[outputLayer->index - 1];
     PSLayer * nextLayer = NULL;
-    double * delta;
-    double * last_delta;
-    delta = malloc(sizeof(double) * osize);
-    if (delta == NULL) {
-        printMemoryErrorMsg();
-        PSDeleteGradients(gradients, network);
-        return NULL;
-    }
-    memset(delta, 0, sizeof(double) * osize);
-    last_delta = delta;
-    int i, o, w, j;
-    int ok = PSFeedforward(network, x);
-    if (!ok) {
-        PSDeleteGradients(gradients, network);
-        free(delta);
-        return NULL;
+    double * delta = outputLayer->delta;
+    double * last_delta = delta;
+
+    int i, o, w, j, ok = 1;
+    if (x != NULL) {
+        ok = PSFeedforward(network, x);
+        if (!ok) {
+            PSDeleteGradients(gradients, network);
+            return NULL;
+        }
     }
     int apply_derivative = shouldApplyDerivative(network);
     double softmax_sum = 0.0;
@@ -1510,13 +1517,7 @@ PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y) {
         PSLayerType ltype = layer->type;
         PSLayerType prev_ltype = previousLayer->type;
         if (FullyConnected == ltype) {
-            delta = malloc(sizeof(double) * lsize);
-            if (delta == NULL) {
-                printMemoryErrorMsg();
-                if (last_delta != NULL) free(last_delta);
-                return NULL;
-            }
-            memset(delta, 0, sizeof(double) * lsize);
+            delta = layer->delta;
             for (j = 0; j < lsize; j++) {
                 PSNeuron * neuron = layer->neurons[j];
                 double d = getDeltaForNeuron(neuron, layer,
@@ -1536,13 +1537,7 @@ PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y) {
                 }
             }
         } else if (Pooling == ltype && Convolutional == prev_ltype) {
-            delta = malloc(sizeof(double) * lsize);
-            if (delta == NULL) {
-                printMemoryErrorMsg();
-                if (last_delta != NULL) free(last_delta);
-                return NULL;
-            }
-            memset(delta, 0, sizeof(double) * lsize);
+            delta = layer->delta;
             PSGetDeltaFunction _getDelta = NULL;
             if (nextLayer->type == Convolutional)
                 _getDelta = getDeltaForConvolutionalNeuron;
@@ -1552,31 +1547,20 @@ PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y) {
                 PSNeuron * neuron = layer->neurons[j];
                 delta[j] = _getDelta(neuron, layer, nextLayer, last_delta);
             }
-            free(last_delta);
             last_delta = delta;
-            delta = PSPoolingBackprop(layer, previousLayer, last_delta);
-        } else if (Convolutional == ltype/* && FullyConnected == prev_ltype*/) {
-            delta = PSConvolutionalBackprop(layer, previousLayer,
-                                            last_delta, lgradients);
+            PSPoolingBackprop(layer, previousLayer, last_delta);
+        } else if (Convolutional == ltype) {
+            PSConvolutionalBackprop(layer, previousLayer,
+                                    last_delta, lgradients);
         } else {
             fprintf(stderr, "Backprop from %s to %s not suported!\n",
                     PSGetLayerTypeLabel(layer),
                     PSGetLayerTypeLabel(previousLayer));
             PSDeleteGradients(gradients, network);
-            free(last_delta);
-            if (delta != last_delta) free(delta);
             return NULL;
         }
-        if (last_delta != delta) {
-            free(last_delta);
-            last_delta = delta;
-        }
-        if (delta == NULL) {
-            PSDeleteGradients(gradients, network);
-            return NULL;
-        }
+        if (last_delta != delta) last_delta = delta;
     }
-    if (delta != NULL) free(delta);
     return gradients;
 }
 
@@ -1607,27 +1591,27 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
     }
     
     int last_t = times - 1;
-    double * lstm_delta = NULL;
+    double * delta;
+    double * last_delta;
+    PSLayer * previousLayer;
+    PSLayer * nextLayer;
     for (t = last_t; t >= 0; t--) {
         int lowest_t = t - bptt_truncate;
         if (lowest_t < 0) lowest_t = 0;
+        PSLayer * previousLayer = NULL;
+        PSLayer * nextLayer = NULL;
         int ysize = (onehot ? 1 : osize);
         int time_offset = t * ysize;
         double * time_y = y + time_offset;
         
-        PSGradient * lgradients = gradients[netsize - 2]; //No grad. for inputs
-        PSLayer * previousLayer = network->layers[outputLayer->index - 1];
-        PSLayer * nextLayer = NULL;
-        double * delta;
-        double * last_delta;
-        delta = malloc(sizeof(double) * osize);
-        if (delta == NULL) {
-            printMemoryErrorMsg();
-            return NULL;
-        }
-        memset(delta, 0, sizeof(double) * osize);
+        PSGradient * lgradients =
+        gradients[netsize - 2];// No grad.for inputs
+        previousLayer = network->layers[outputLayer->index - 1];
+        nextLayer = NULL;
+        
+        delta = outputLayer->delta;
         last_delta = delta;
-
+        
         double softmax_sum = 0.0;
         int apply_derivative = shouldApplyDerivative(network);
         // Calculate output deltas, output layer must be Softmax
@@ -1679,15 +1663,12 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
             lgradients = gradients[i - 1];
             int lsize = layer->size;
             PSLayerType ltype = layer->type;
+            int is_recurrent = (Recurrent == ltype);
+            int is_lstm = (LSTM == ltype);
+            if (!is_recurrent && !is_lstm) continue;
             //PSLayerType prev_ltype = previousLayer->type;
             
-            delta = malloc(sizeof(double) * lsize);
-            if (delta == NULL) {
-                printMemoryErrorMsg();
-                if (last_delta != NULL) free(last_delta);
-                return NULL;
-            }
-            memset(delta, 0, sizeof(double) * lsize);
+            delta = layer->delta;
             // Calculate layer deltas
             for (j = 0; j < lsize; j++) {
                 PSNeuron * neuron = layer->neurons[j];
@@ -1700,9 +1681,12 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
                     sum += (d * weight);
                 }
                 double dv = sum * layer->derivative(cell->states[t]);
-                delta[j] = dv;
+                if (!is_lstm)
+                    delta[j] = dv;
+                else
+                    delta[j] += dv;
                 
-                if (ltype != Recurrent && ltype != LSTM) {
+                if (!is_recurrent && !is_lstm) {
                     PSGradient * gradient = &(lgradients[i]);
                     gradient->bias += dv;
                     int wsize = neuron->weights_size;
@@ -1711,9 +1695,6 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
                         if (params == NULL) {
                             fprintf(stderr, "Layer %d params are NULL!\n",
                                     previousLayer->index);
-                            if (last_delta != NULL) {
-                                free(last_delta);
-                            }
                             return NULL;
                         }
                         int vector_size = (int) params->parameters[0];
@@ -1734,30 +1715,16 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
                     }
                 }
             }
-            if (last_delta != lstm_delta) free(last_delta);
-            last_delta = delta;
-            int is_recurrent = (Recurrent == ltype);
-            int is_lstm = (LSTM == ltype);
-            if (!is_recurrent && !is_lstm) continue;
-            
-            if (is_recurrent) {
-                PSRecurrentBackprop(layer, previousLayer, lowest_t,
-                                    &last_delta, lgradients, t);
-                delta = NULL;
-            } else if (is_lstm) {
-                delta = PSLSTMBackprop(layer, previousLayer, last_delta,
-                                       lstm_delta, lgradients, t);
-                if (lstm_delta != NULL) free(lstm_delta);
-                if (last_delta != NULL && last_delta != lstm_delta) 
-                    free(last_delta);
-                lstm_delta = delta;
-                last_delta = delta;
-            }
+            int ok;
+            if (is_recurrent)
+                ok = PSRecurrentBackprop(layer, previousLayer, lowest_t,
+                                         lgradients, t);
+            else if (is_lstm)
+                ok = PSLSTMBackprop(layer, previousLayer, lgradients, t);
+            if (!ok) return NULL;
+            last_delta = layer->delta;
         }
-        if (delta != NULL && lstm_delta != delta) free(delta);
-        if (last_delta != NULL && last_delta != delta) free(last_delta);
     }
-    if (lstm_delta != NULL) free(lstm_delta);
     return gradients;
 }
 
