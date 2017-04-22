@@ -1550,8 +1550,7 @@ PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y) {
             last_delta = delta;
             PSPoolingBackprop(layer, previousLayer, last_delta);
         } else if (Convolutional == ltype) {
-            PSConvolutionalBackprop(layer, previousLayer,
-                                    last_delta, lgradients);
+            PSConvolutionalBackprop(layer, previousLayer, lgradients);
         } else {
             fprintf(stderr, "Backprop from %s to %s not suported!\n",
                     PSGetLayerTypeLabel(layer),
@@ -1593,8 +1592,6 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
     int last_t = times - 1;
     double * delta;
     double * last_delta;
-    PSLayer * previousLayer;
-    PSLayer * nextLayer;
     for (t = last_t; t >= 0; t--) {
         int lowest_t = t - bptt_truncate;
         if (lowest_t < 0) lowest_t = 0;
@@ -1715,7 +1712,7 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
                     }
                 }
             }
-            int ok;
+            int ok = 1;
             if (is_recurrent)
                 ok = PSRecurrentBackprop(layer, previousLayer, lowest_t,
                                          lgradients, t);

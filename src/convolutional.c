@@ -555,17 +555,9 @@ int PSPool(void * _net, void * _layer, ...) {
 
 /* Backpropagation Functions */
 
-double * PSPoolingBackprop(PSLayer * pooling_layer,
-                           PSLayer * convolutional_layer,
-                           double * delta)
+int PSPoolingBackprop(PSLayer * pooling_layer, PSLayer * convolutional_layer,
+                      double * delta)
 {
-    int conv_size = convolutional_layer->size;
-    /*double * new_delta = malloc(sizeof(double) * conv_size);
-    if (new_delta == NULL) {
-        printMemoryErrorMsg();
-        return NULL;
-    }
-    memset(new_delta, 0, sizeof(double) * conv_size);*/
     double * new_delta = convolutional_layer->delta;
     PSLayerParameters * pool_params = pooling_layer->parameters;
     PSLayerParameters * conv_params = convolutional_layer->parameters;
@@ -601,12 +593,12 @@ double * PSPoolingBackprop(PSLayer * pooling_layer,
             
         }
     }
-    return new_delta;
+    return 1;
 }
 
-double * PSConvolutionalBackprop(PSLayer* convolutional_layer,
-                                 PSLayer * prev_layer, double * delme,
-                                 PSGradient * lgradients) {
+int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer * prev_layer,
+                            PSGradient * lgradients)
+{
     double * delta = convolutional_layer->delta;
     int size = convolutional_layer->size;
     PSLayerParameters * params = convolutional_layer->parameters;
@@ -657,5 +649,5 @@ double * PSConvolutionalBackprop(PSLayer* convolutional_layer,
             }
         }
     }
-    return delta;
+    return 1;
 }

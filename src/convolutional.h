@@ -57,11 +57,9 @@ int PSPool(void * _net, void * _layer, ...);
 
 /* Backpropagation Functions */
 
-double * PSPoolingBackprop(PSLayer * pooling_layer,
-                           PSLayer * convolutional_layer,
-                           double * delta);
-double * PSConvolutionalBackprop(PSLayer* convolutional_layer,
-                                 PSLayer * prev_layer, double * delta,
-                                 PSGradient * lgradients);
+int PSPoolingBackprop(PSLayer * pooling_layer, PSLayer * convolutional_layer,
+                      double * delta);
+int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer * prev_layer,
+                            PSGradient * lgradients);
 
 #endif //__PS_CONVOLUTIONAL_H
