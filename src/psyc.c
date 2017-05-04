@@ -323,7 +323,7 @@ static double getDeltaForNeuron(PSNeuron * neuron,
         dv += (d * weight);
     }
     if (layer->derivative != NULL)
-        dv *= layer->derivative(neuron->z_value);
+        dv *= layer->derivative(neuron->activation);
     return dv;
 }
 
@@ -1465,7 +1465,8 @@ PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y) {
         double d = 0.0;
         if (outputLayer->type != SoftMax) {
             d = o_val - y_val;
-            if (apply_derivative) d *= outputLayer->derivative(neuron->z_value);
+            if (apply_derivative)
+                d *= outputLayer->derivative(neuron->activation);
         } else {
             y_val = (y_val < 1 ? 0 : 1);
             d = -(y_val - o_val);

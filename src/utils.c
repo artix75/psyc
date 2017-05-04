@@ -49,8 +49,7 @@ double sigmoid(double val) {
 }
 
 double sigmoid_derivative(double val) {
-    double s = sigmoid(val);
-    return s * (1 - s);
+    return val * (1 - val);
 }
 
 double relu(double val) {

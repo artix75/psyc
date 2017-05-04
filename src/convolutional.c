@@ -89,7 +89,7 @@ double getDeltaForConvolutionalNeuron(PSNeuron * neuron,
     }
     
     if (layer->derivative != NULL)
-        dv *= layer->derivative(neuron->z_value);
+        dv *= layer->derivative(neuron->activation);
     return dv;
 }
 
