@@ -2111,7 +2111,7 @@ void PSTrain(PSNeuralNetwork * network,
     if (PSGlobalFlags & FLAG_LOG_COLORS) printf(RESET);
     printf("Training data elements: %d\n", elements_count);
     printf("Batch Size: %d\n", batch_size);
-    printf("Learning Rate: %.2f\n", learning_rate);
+    printf("Learning Rate: %.4f\n", learning_rate);
     if (options != NULL) printf("L2 Decay: %.2f\n", options->l2_decay);
     network->status = STATUS_TRAINING;
     time_t start_t, end_t, epoch_t;
