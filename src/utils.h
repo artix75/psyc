@@ -152,4 +152,8 @@ double normalized_random();
 
 double gaussian_random(double mean, double stddev);
 
+int get_terminal_columns();
+
+void fill_with_blank(int line_length);
+
 #endif //__PS_UTILS_H

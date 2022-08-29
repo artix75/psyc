@@ -13,18 +13,19 @@
  THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
  IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
-*/
+ */
 
-#ifndef __PS_MNIST_H
-#define __PS_MNIST_H
+#ifndef __PS_CIFAR_H
+#define __PS_CIFAR_H
 
 #ifndef DATA_TYPE_TRAINING
 #define DATA_TYPE_TRAINING   0
 #define DATA_TYPE_TEST       1
 #endif
 
-int loadMNISTData(int type,
-                  const char * images_file,
-                  const char * labels_file,
+#define CIFAR_IMAGE_SIZE (32 * 32 * 3)
+
+int loadCIFARData(int type, int classes, const char * dataset_path,
                   double ** data);
-#endif // __PS_MNIST_H
+
+#endif // __PS_CIFAR_H

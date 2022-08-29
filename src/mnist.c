@@ -132,7 +132,7 @@ int loadMNISTData(int type,
     char * prefixImg;
     char * prefixLbl;
     int err;
-    if (type == TRAINING_DATA) {
+    if (type == DATA_TYPE_TRAINING) {
         printf("Loading MNIST Data for training...\n");
         prefixImg = "train-images";
         prefixLbl = "train-labels";
@@ -247,14 +247,4 @@ int loadMNISTData(int type,
     //printf("Allocated data size: %d\n", data_p - *data);
     return data_len;
 }
-
-/*int main(int argc, char** argv) {
-    //printf("Argc: %d\n", argc);
-    double * training_data = NULL;
-    loadMNISTData(TRAINING_DATA,
-                  "train-images-idx3-ubyte.gz",
-                  "train-labels-idx1-ubyte.gz",
-                  &training_data);
-    return 0;
-}*/
 

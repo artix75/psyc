@@ -18,6 +18,8 @@
 #ifndef __PSYC_H
 #define __PSYC_H
 
+#include <time.h>
+
 #define PSYC_VERSION      "0.2.2"
 
 #define LAYER_TYPES  6
@@ -26,6 +28,15 @@
 #define STATUS_TRAINED      1
 #define STATUS_TRAINING     2
 #define STATUS_ERROR        3
+#define STATUS_PAUSED       4
+#define STATUS_ABORTED      5
+
+#define ACTION_NONE         0
+#define ACTION_PAUSE        4
+#define ACTION_ABORT        5
+
+#define TRAINING_PHASE_FEEDFORWARD  1
+#define TRAINING_PHASE_BACKPROP     2
 
 #define NULL_VALUE -9999999.99
 
@@ -50,6 +61,7 @@ typedef double  (*PSLossFunction) (double* x, double* y, int size,
 typedef void    (*PSTrainCallback) (void * network, int epoch, double loss,
                                     double previous_loss, float accuracy,
                                     double * rate);
+typedef void    (*PSSignalHandler) (int);
 
 typedef struct {
     double bias;
@@ -80,7 +92,18 @@ typedef struct {
 typedef struct {
     int flags;
     double l2_decay;
+    FILE *debug_dump_to;
 } PSTrainingOptions;
+
+typedef struct {
+    int current_epoch;
+    int current_batch;
+    int current_element;
+    time_t started_at;
+    time_t ended_at;
+    int requested_action;
+    FILE *debug_dump_to;
+} PSTrainingInfo;
 
 typedef struct {
     int index;
@@ -120,8 +143,7 @@ typedef struct {
     unsigned char status;
     int input_size;
     int output_size;
-    int current_epoch;
-    int current_batch;
+    PSTrainingInfo * training;
     PSTrainCallback onEpochTrained;
 } PSNeuralNetwork;
 
@@ -163,6 +185,8 @@ void PSTrain(PSNeuralNetwork * network,
              PSTrainingOptions * options,
              double * test_data,
              int test_size);
+void PSPauseTraining(PSNeuralNetwork * network);
+void PSAbortTraining(PSNeuralNetwork * network);
 float PSTest(PSNeuralNetwork * network, double * test_data, int data_size);
 int PSVerifyNetwork(PSNeuralNetwork * network);
 //int arrayMaxIndex(double * array, int len);
@@ -174,6 +198,10 @@ void PSPrintNetworkInfo(PSNeuralNetwork * network);
 
 double PSQuadraticLoss(double * x, double * y, int size, int onehot_size);
 double PSCrossEntropyLoss(double * x, double * y, int size, int onehot_size);
+
+/* Miscellaneous functions */
+
+void PSHandleSignals(PSSignalHandler shutdown_handler);
 
 #endif // __PSYC_H
 

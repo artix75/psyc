@@ -4,11 +4,12 @@ CC=gcc
 default: all
 
 .PHONY: clean
+.PHONY: show-build-info
 
 demo:
-	cd src/demo/ && $(MAKE)
+	@cd src/demo/ && $(MAKE)
 neural_cli:
-	cd src && $(MAKE)
+	@cd src && $(MAKE)
 test:
 	cd src/test && $(MAKE)
 profile:
@@ -25,9 +26,10 @@ clean:
 	if [ -e tmp/README ]; then cp tmp/README lib/; fi
 
 install:
-	cd src && $(MAKE) install
+	@cd src && $(MAKE) install
 uninstall:
-	cd src && $(MAKE) uninstall
+	@cd src && $(MAKE) uninstall
 all: neural_cli demo
 	
-        
+show-build-info:
+	@cd src && $(MAKE) show-build-info

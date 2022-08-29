@@ -35,8 +35,8 @@
 #define getColumn(index, width) (index % width)
 #define getRow(index, width) ((int) ((int) index / (int) width))
 #define getConvSharedParams(layer) ((PSSharedParams*) layer->extra)
-#define calculateConvolutionalSide(s,rs,st,pad) ((s - rs + 2 * pad) / st + 1)
-#define calculatePoolingSide(s, rs) ((s - rs) / rs + 1)
+#define calculateConvolutionalSide(s,rs,st,pad) floor((s - rs + 2 * pad) / st+1)
+#define calculatePoolingSide(s, rs) floor((s - rs) / rs + 1)
 
 double getDeltaForConvolutionalNeuron(PSNeuron * neuron,
                                       PSLayer * layer,

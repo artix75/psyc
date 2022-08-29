@@ -21,7 +21,13 @@
 #include <math.h>
 #include <time.h>
 #include "psyc.h"
+#include "platform.h"
 #include "utils.h"
+
+#if IS_UNIX
+#include <sys/ioctl.h>
+#include <unistd.h>
+#endif
 
 static unsigned char randomSeeded = 0;
 
@@ -105,4 +111,27 @@ double gaussian_random(double mean, double stddev) {
     double y = mean + scale * sin(theta);
     double r = normalized_random();
     return (r > 0.5 ? y : x);
+}
+
+int get_terminal_columns() {
+    static int __term_columns = -1;
+    if (__term_columns < 0) {
+#if IS_UNIX
+        struct winsize w;
+        ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+        __term_columns = w.ws_col;
+#else
+        __term_columns = 0;
+#endif
+        if (__term_columns <= 0) __term_columns = 80;
+    }
+    return __term_columns;
+}
+
+void fill_with_blank(int line_length) {
+    int term_w = get_terminal_columns();
+    int pad = term_w - line_length, i;
+    if (pad <= 0) return;
+    for (i = 0; i < pad; i++) printf(" ");
+    fflush(stdout);
 }

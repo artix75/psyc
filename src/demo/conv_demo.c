@@ -49,7 +49,7 @@ int main(int argc, char** argv) {
     int eval_dataset_len = EVAL_DATASET_LEN;
     
     if (strcmp("--load", argv[1]) != 0) {
-        datalen = loadMNISTData(TRAINING_DATA, argv[1], argv[2],
+        datalen = loadMNISTData(DATA_TYPE_TRAINING, argv[1], argv[2],
                                 &training_data);
         if (datalen == 0 || training_data == NULL) {
             printf("Could not load training data!\n");
@@ -59,7 +59,7 @@ int main(int argc, char** argv) {
         pretrained_file = argv[2];
     }
     if (argc >= 5) {
-        testlen = loadMNISTData(TEST_DATA, argv[3], argv[4],
+        testlen = loadMNISTData(DATA_TYPE_TEST, argv[3], argv[4],
                                 &test_data);
     }
 

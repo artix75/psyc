@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
     double * test_data = NULL;
     double * train_data = NULL;
     double * eval_data = NULL;
-    int datalen = loadMNISTData(TRAINING_DATA,
+    int datalen = loadMNISTData(DATA_TYPE_TRAINING,
                                 "../../resources/train-images-idx3-ubyte.gz",
                                 "../../resources/train-labels-idx1-ubyte.gz",
                                 &train_data);
@@ -48,7 +48,7 @@ int main(int argc, char** argv) {
         printf("Could not load training data!\n");
         return 1;
     }
-    int testlen = loadMNISTData(TEST_DATA,
+    int testlen = loadMNISTData(DATA_TYPE_TEST,
                                 "../../resources/t10k-images-idx3-ubyte.gz",
                                 "../../resources/t10k-labels-idx1-ubyte.gz",
                                 &test_data);

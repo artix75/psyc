@@ -364,7 +364,7 @@ int genericSetup (void* tc) {
     }
     test_case->data[0] = network;
     double * test_data = NULL;
-    testlen = loadMNISTData(TEST_DATA, TEST_IMAGE_FILE, TEST_LABEL_FILE,
+    testlen = loadMNISTData(DATA_TYPE_TEST, TEST_IMAGE_FILE, TEST_LABEL_FILE,
                             &test_data);
     test_case->data[1] = test_data;
     if (test_data == NULL) {

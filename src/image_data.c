@@ -18,7 +18,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include "magick_conf.h"
+
+#ifndef PSYCH_MAGICK_VERSION
+#error "Missing PSYCH_MAGICK_VERSION definition (look for src/magick_conf.h)"
+#endif
+
+#if PSYCH_MAGICK_VERSION < 7
 #include <wand/MagickWand.h>
+#else
+#include <MagickWand/MagickWand.h>
+#endif
+
 #include "image_data.h"
 #include "utils.h"
 
@@ -147,7 +158,13 @@ static double * getImagePixels(char * filename, int fit_w, int fit_h,
         ssize_t y = (fit_h / 2) - (h / 2);
         //ok = MagickCompositeImageGravity(clone, wand, CopyCompositeOp,
         //                                 CenterGravity);
+#if PSYCH_MAGICK_VERSION < 7
         ok = MagickCompositeImage(clone, wand,CopyCompositeOp, x, y);
+#else
+        ok = MagickCompositeImage(
+            clone, wand,CopyCompositeOp, MagickFalse, x, y
+        );
+#endif
         if (!IS_OK(ok)) {
             LOG_MAGICK_ERR(wand);
             DestroyMagickWand(wand);
