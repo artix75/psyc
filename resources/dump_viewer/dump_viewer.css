@@ -1,0 +1,245 @@
+body {
+    margin: 0;
+    padding: 0;
+    font-family: sans-serif;
+}
+
+header {
+    position: fixed;
+    background-color: rgba(255,255,255,0.7);
+    top: 0;
+    left: 0;
+    box-shadow: 0 1px 3px 2px #00000042;
+    width: 100%;
+}
+
+h1{
+    width: 100%;
+    text-align: center;
+}
+
+#network-info {
+    list-style-type: none;
+    list-style-position: inside;
+    padding-left: 0;
+    margin-left: 1em;
+}
+
+#network-info li label {
+    font-weight: bold;
+    min-width: 8em;
+    display: inline-block;
+}
+
+#controls {
+    position: fixed;
+    bottom: 10px;
+    left: 20%;
+    padding: 1em;
+    width: 60%;
+    text-align: center;
+    background-color: rgba(255,255,255,0.9);
+    border: 0px none;
+    border-radius: 0.5em;
+    box-shadow: 0 0 9px 1px #00000052;
+}
+
+#controls ul {
+    list-style-type: none;
+    padding-top: 0;
+    padding-bottom: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+#controls li {
+    display: inline-block;
+    padding: 0.5em;
+}
+
+#controls li.control {
+    cursor: pointer;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+ul#speed-controls {
+    position: absolute;
+    right: 1em;
+    top: calc(50% - 0.5em);
+    list-style-type: none;
+}
+
+#speed-controls .control {
+    font-weight: bold;
+    font-size: 1.2em;
+}
+
+#controls li.control.pause{
+    display: none;
+}
+
+#controls.playing li.control.play{
+    display: none;
+}
+
+#controls.playing li.control.pause {
+    display: inline-block;
+}
+
+#controls li.control.disabled {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+#step-info {
+    font-size: 0.9em;
+}
+
+#network-view {
+    width: 100%;
+    max-width: 100%;
+    display: grid;
+    grid-template-columns: 80% 20%;
+}
+
+#layer-views {
+    display: grid;
+    align-items: start;
+    justify-items: center;
+    justify-content: space-between;
+    overflow-x: scroll;
+    grid-row: 1;
+    grid-column: 1;
+}
+
+#weight-views {
+    border-left: 1px solid #333;
+    grid-row: 1;
+    grid-column: 2;
+    overflow: scroll;
+    padding-left: 1em;
+}
+
+.layer-view {
+    grid-row: 1;
+    margin: 1em;
+}
+
+.layer-container {
+    overflow-y: scroll;
+}
+
+.layer-layout {
+    /*border: 1px solid #333;*/
+    width: 600px;
+    margin: auto;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.layer-row {
+    border: 1px solid #333;
+}
+
+/*.layer-row.first-feature-row {
+    border-top: 2px solid #000;
+}*/
+
+.layer-view h2,
+.weight-view h2 {
+    font-size: 1.1em;
+    text-align: center;
+}
+
+tr.feature-header {
+    border: 0 none;
+}
+
+td.neuron {
+    border: 1px solid #333;
+    font-family: monospace;
+    background-color: #ddf3f9;
+}
+
+td.neuron.padding {
+    border: 1px solid #aaa;
+    background-color: transparent;
+}
+
+td.neuron.padding.above-area{
+    border-bottom-color: #333;
+}
+
+td.neuron.padding.before-area{
+    border-right-color: #333;
+}
+
+td.neuron.real-neuron {
+    cursor: pointer;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+td.neuron.in-region {
+    background-color: #f5f57a75;
+}
+
+
+td.neuron.first-row {
+    border-top: 1px solid #333;
+}
+
+td.neuron.first-col {
+    border-left: 1px solid #333 !important;
+}
+
+td.neuron.current {
+    border-color: #0c3180;
+    background-color: #0c3180 !important;
+}
+
+td.neuron.target,
+td.weight.target {
+    background-color: #d48e2c !important;
+    border-color: #67400b;
+}
+
+td.neuron.source,
+td.weight.source {
+    background-color: #00aa00 !important;
+    border-color: #00ff00;
+}
+
+.weight-view {
+    display: none;
+}
+
+.weight-view.current {
+    display: block;
+}
+
+
+.weight-container {
+    overflow-y: scroll;
+}
+
+table.weights {
+    border-collapse: collapse;
+    margin-bottom: 1em;
+    table-layout: fixed;
+}
+
+.weights td.weight {
+    border: 1px solid #333;
+    background-color: #f5f57a75;
+    font-family: monospace;
+}
+
+table.weights tr.first-feature-row {
+    border-top: 2px solid #000;
+}

@@ -1,0 +1,45 @@
+<!doctype HTML>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <script src="$DUMP_JS_PATH"></script>
+        <script src="dump_viewer.js"></script>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+        <link rel="stylesheet" type="text/css" href="dump_viewer.css">
+    </head>
+    <body>
+        <header>
+            <h1 id="main-title">Psyc Dump Viewer - <span class="network-name"></span></h1>
+            <ul id="network-info"></ul>
+        </header>
+        <main>
+            <div id="network-view">
+                <div id="layer-views"></div>
+                <div id="weight-views"></div>
+            </div>
+        </main>
+        <footer>
+            <div id="controls">
+                <ul id="step-info">
+                    <li class="step-func"></li>
+                    <li class="step-layer"></li>
+                    <li class="step-feat"></li>
+                    <li class="step-neuron"></li>
+                </ul>
+                <ul id="controls-row">
+                    <li class="control step-backward"><i class="fa fa-step-backward"></i></li>
+                    <li class="control backward"><i class="fa fa-backward"></i></li>
+                    <li class="control play"><i class="fa fa-play"></i></li>
+                    <li class="control pause"><i class="fa fa-pause"></i></li>
+                    <li class="control forward"><i class="fa fa-forward"></i></li>
+                    <li class="control step-forward"><i class="fa fa-step-forward"></i></li>
+                </ul>
+                <ul id="speed-controls">
+                    <li class="control decrease">-</li>
+                    <li class="current-speed">1x</li>
+                    <li class="control increase">+</li>
+                </ul>
+            </div>
+        </footer>
+    </body>
+</html>

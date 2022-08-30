@@ -11,6 +11,10 @@ optparse = OptionParser.new do |opts|
 
     opts.banner = "#{$0} [OPTIONS] DUMP_FILE"
 
+    opts.on '-o', '--output FILE', 'Output File' do |opath|
+        $options[:output] = opath
+    end
+
     opts.on '', '--js JS_VAR',
             'Output a Javascript file instead of a JSON and',
             'puts everything into the variable JS_VAR' do |js_var|
@@ -277,23 +281,29 @@ if $options[:pretty]
 else
     $json = $data.to_json
 end
-dirname = File.dirname $dump_file
-dirname = File.expand_path dirname
-fname = File.basename $dump_file
-ext = File.extname fname
-if ext && !ext.strip.empty?
-    fstem = fname.sub /#{Regexp.escape(ext)}$/, ''
-else
-    fstem = fname.dup
-end
-outfname = nil
+outfile = $options[:output]
 output_content = $json
-if (js_var = $options[:js_var])
-    outfname = "#{fstem}.js"
+js_var = $options[:js_var]
+if js_var
     output_content = "var #{js_var} = #{$json};"
-else
-    outfname = "#{fstem}.json"
 end
-outfile = File.join dirname, outfname
+if !outfile || outfile.strip.empty?
+    dirname = File.dirname $dump_file
+    dirname = File.expand_path dirname
+    fname = File.basename $dump_file
+    ext = File.extname fname
+    if ext && !ext.strip.empty?
+        fstem = fname.sub /#{Regexp.escape(ext)}$/, ''
+    else
+        fstem = fname.dup
+    end
+    outfname = nil
+    if js_var
+        outfname = "#{fstem}.js"
+    else
+        outfname = "#{fstem}.json"
+    end
+    outfile = File.join dirname, outfname
+end
 File.open(outfile, 'w:utf-8'){|f| f.write(output_content)}
 puts "Written to: #{outfile.inspect}"
