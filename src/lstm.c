@@ -42,16 +42,24 @@
     if (lstm_delta != NULL) free(lstm_delta);\
 } while(0)
 
+#define UNUSED(V) ((void) V)
+
 static int LSTMCellFeedforward(PSLayer * layer, PSLayer * previous,
                                PSNeuron * neuron, int onehot_idx,
                                int times, int t)
 {
+    PSNeuralNetwork *net = (PSNeuralNetwork *) layer->network;
     PSLSTMCell * cell = GetLSTMCell(neuron);
     if (cell == NULL) {
         PSErr(NULL, "Layer[%d]: neuron[%d] cell is NULL!",
               layer->index, neuron->index);
         return 0;
     }
+#ifdef USE_AVX
+    int avx_disabled = PSIsAVXDisabled(net);
+#else
+    UNUSED(net);
+#endif
     int wsize = cell->weights_size;
     int prev_size = wsize - layer->size;
     
@@ -71,14 +79,16 @@ static int LSTMCellFeedforward(PSLayer * layer, PSLayer * previous,
         int i = 0;
 #ifdef USE_AVX
         int j = 0, o = 0, f = 0;
-        AVXDotProduct(previous->size, previous->avx_activation_cache,
-                      cell->candidate_weights, candidate, i, 1, t);
-        AVXDotProduct(previous->size, previous->avx_activation_cache,
-                      cell->input_weights, input_gate, j, 1, t);
-        AVXDotProduct(previous->size, previous->avx_activation_cache,
-                      cell->output_weights, output_gate, o, 1, t);
-        AVXDotProduct(previous->size, previous->avx_activation_cache,
-                      cell->forget_weights, forget_gate, f, 1, t);
+        if (!avx_disabled) {
+            AVXDotProduct(previous->size, previous->avx_activation_cache,
+                          cell->candidate_weights, candidate, i, 1, t);
+            AVXDotProduct(previous->size, previous->avx_activation_cache,
+                          cell->input_weights, input_gate, j, 1, t);
+            AVXDotProduct(previous->size, previous->avx_activation_cache,
+                          cell->output_weights, output_gate, o, 1, t);
+            AVXDotProduct(previous->size, previous->avx_activation_cache,
+                          cell->forget_weights, forget_gate, f, 1, t);
+        }
 #endif
         for (; i < previous->size; i++) {
             PSNeuron * prev_neuron = previous->neurons[i];
@@ -97,18 +107,20 @@ static int LSTMCellFeedforward(PSLayer * layer, PSLayer * previous,
         int i = 0;
 #ifdef USE_AVX
         int j = 0, o = 0, f = 0;
-        AVXDotProduct(layer->size, layer->avx_activation_cache,
-                      cell->candidate_weights + prev_size,
-                      candidate, i, 1, last_t);
-        AVXDotProduct(layer->size, layer->avx_activation_cache,
-                      cell->input_weights + prev_size,
-                      input_gate, j, 1, last_t);
-        AVXDotProduct(layer->size, layer->avx_activation_cache,
-                      cell->output_weights + prev_size,
-                      output_gate, o, 1, last_t);
-        AVXDotProduct(layer->size, layer->avx_activation_cache,
-                      cell->forget_weights + prev_size,
-                      forget_gate, f, 1, last_t);
+        if (!avx_disabled) {
+            AVXDotProduct(layer->size, layer->avx_activation_cache,
+                          cell->candidate_weights + prev_size,
+                          candidate, i, 1, last_t);
+            AVXDotProduct(layer->size, layer->avx_activation_cache,
+                          cell->input_weights + prev_size,
+                          input_gate, j, 1, last_t);
+            AVXDotProduct(layer->size, layer->avx_activation_cache,
+                          cell->output_weights + prev_size,
+                          output_gate, o, 1, last_t);
+            AVXDotProduct(layer->size, layer->avx_activation_cache,
+                          cell->forget_weights + prev_size,
+                          forget_gate, f, 1, last_t);
+        }
 #endif
         for (; i < layer->size; i++) {
             int w = i + prev_size;
@@ -142,7 +154,7 @@ static int LSTMCellFeedforward(PSLayer * layer, PSLayer * previous,
         if (cell->output_gates == NULL) return 0;
         if (cell->forget_gates == NULL) return 0;
 #ifdef USE_AVX
-        if (neuron->index == 0) {
+        if (!avx_disabled && neuron->index == 0) {
             if (layer->avx_activation_cache != NULL)
                 free(layer->avx_activation_cache);
             layer->avx_activation_cache = calloc(times * layer->size,
@@ -303,6 +315,9 @@ int PSLSTMFeedforward(void * _net, void * _layer, ...) {
         PSErr(NULL, "Layer[%d]: previous layer is NULL!", layer->index);
         return 0;
     }
+#ifdef USE_AVX
+    int avx_disabled = PSIsAVXDisabled(net);
+#endif
     int onehot = previous->flags & FLAG_ONEHOT;
     PSLayerParameters * params = NULL;
     int vector_size = 0, vector_idx = -1;
@@ -337,7 +352,8 @@ int PSLSTMFeedforward(void * _net, void * _layer, ...) {
             return 0;
         }
 #ifdef USE_AVX
-        layer->avx_activation_cache[(t * size) + i] = neuron->activation;
+        if (!avx_disabled)
+            layer->avx_activation_cache[(t * size) + i] = neuron->activation;
 #endif
     }
     return 1;
@@ -348,6 +364,12 @@ int PSLSTMFeedforward(void * _net, void * _layer, ...) {
 int PSLSTMBackprop(PSLayer * layer, PSLayer * previousLayer,
                    PSGradient * lgradients, int t)
 {
+    PSNeuralNetwork *net = (PSNeuralNetwork *) layer->network;
+#ifdef USE_AVX
+    int avx_disabled = PSIsAVXDisabled(net);
+#else
+    UNUSED(net);
+#endif
     int onehot = previousLayer->flags & FLAG_ONEHOT;
     int lsize = layer->size, i, w, last_t = t - 1;
     int previous_size = previousLayer->size;
@@ -443,23 +465,25 @@ int PSLSTMBackprop(PSLayer * layer, PSLayer * previousLayer,
             int w = 0;
 #ifdef USE_AVX
             int i = 0, o = 0, f = 0;
-            double * rweights = gradient->weights + wsize;
-            AVXMultiplyValue(layer->size,
-                             layer->avx_activation_cache,
-                             dc, rweights, w,
-                             1, (last_t), AVX_STORE_MODE_ADD);
-            AVXMultiplyValue(layer->size,
-                             layer->avx_activation_cache,
-                             di, rweights + cwsize, i,
-                             1, (last_t), AVX_STORE_MODE_ADD);
-            AVXMultiplyValue(layer->size,
-                             layer->avx_activation_cache,
-                             dout, rweights + (cwsize * OUTPUT_IDX), o,
-                             1, (last_t), AVX_STORE_MODE_ADD);
-            AVXMultiplyValue(layer->size,
-                             layer->avx_activation_cache,
-                             df, rweights + (cwsize * FORGET_IDX), f,
-                             1, (last_t), AVX_STORE_MODE_ADD);
+            if (!avx_disabled) {
+                double * rweights = gradient->weights + wsize;
+                AVXMultiplyValue(layer->size,
+                                 layer->avx_activation_cache,
+                                 dc, rweights, w,
+                                 1, (last_t), AVX_STORE_MODE_ADD);
+                AVXMultiplyValue(layer->size,
+                                 layer->avx_activation_cache,
+                                 di, rweights + cwsize, i,
+                                 1, (last_t), AVX_STORE_MODE_ADD);
+                AVXMultiplyValue(layer->size,
+                                 layer->avx_activation_cache,
+                                 dout, rweights + (cwsize * OUTPUT_IDX), o,
+                                 1, (last_t), AVX_STORE_MODE_ADD);
+                AVXMultiplyValue(layer->size,
+                                 layer->avx_activation_cache,
+                                 df, rweights + (cwsize * FORGET_IDX), f,
+                                 1, (last_t), AVX_STORE_MODE_ADD);
+            }
 #endif
             for (; w < layer->size; w++) {
                 PSNeuron * rn = layer->neurons[w];

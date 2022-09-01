@@ -18,6 +18,14 @@
 #ifndef __DEBUG_H
 #define __DEBUG_H
 
+#define DEBUG_PHASE_UPDATE_GRADS     1
+#define DEBUG_PHASE_UPDATE_WEIGHTS   2
+
+#define PSShouldDebugDump(network) (network->training != NULL &&\
+ network->training->debug_dump_to != NULL &&\
+ network->training->current_element == 0 &&\
+ network->training->current_epoch == 0)
+
 char *PSGetNeuronDebugID(PSNeuron *neuron, PSLayer *layer);
 void PSTrainingDebugDump(PSNeuralNetwork *network, char *fmt, ...);
 void PSTrainingDebugDumpStep(PSNeuralNetwork *network,
@@ -33,4 +41,14 @@ void PSTrainingDebugDumpHeader(PSNeuralNetwork *network,
                               int epochs,
                               double learning_rate,
                               int batch_size);
+
+void PSTrainingDebugDumpGradient(PSNeuralNetwork *network,
+                                 int phase,
+                                 char *func,
+                                 PSLayer *layer,
+                                 int gradient_idx,
+                                 int weight_size,
+                                 int weight_idx,
+                                 int is_avx,
+                                 int avx_len);
 #endif // __DEBUG_H

@@ -223,8 +223,7 @@ int main(int argc, char ** argv) {
                 exit(1);
             }
             continue;
-        }
-        if (strcmp("--save", arg) == 0 && ++i < argc) {
+        } else if (strcmp("--save", arg) == 0 && ++i < argc) {
             char * file = argv[i];
             if (strlen(file) > 254) {
                 fprintf(stderr, "--save filename length must be <= 254");
@@ -232,18 +231,15 @@ int main(int argc, char ** argv) {
                 sprintf(outputFile, "%s", file);
             }
             continue;
-        }
-        if (strcmp("--name", arg) == 0 && ++i < argc) {
+        } else if (strcmp("--name", arg) == 0 && ++i < argc) {
             char * name = (char*) argv[i];
             network->name = name;
             continue;
-        }
-        if (strcmp("--onehot", arg) == 0) {
+        } else if (strcmp("--onehot", arg) == 0) {
             if (network->size == 0) network->flags |= FLAG_ONEHOT;
             else network->layers[network->size - 1]->flags |= FLAG_ONEHOT;
             continue;
-        }
-        if (strcmp("--layer", arg) == 0 && ++i < argc) {
+        } else if (strcmp("--layer", arg) == 0 && ++i < argc) {
             char * type = argv[i];
             PSLayerType ltype = getLayerType(type, network);
             if ((i + 1) >= argc) {
@@ -329,8 +325,7 @@ int main(int argc, char ** argv) {
                 PSAddLayer(network, ltype, size, NULL);
             }
             continue;
-        }
-        if (strcmp("--train", arg) == 0 && ++i < argc) {
+        } else if (strcmp("--train", arg) == 0 && ++i < argc) {
             int mnist = 0;
             if (strcmp("--mnist", argv[i]) == 0) {
                 mnist = 1;
@@ -372,8 +367,7 @@ int main(int argc, char ** argv) {
                 exit(1);
             }
             continue;
-        }
-        if (strcmp("--test", arg) == 0 && ++i < argc) {
+        } else if (strcmp("--test", arg) == 0 && ++i < argc) {
             int mnist = 0;
             if (strcmp("--mnist", argv[i]) == 0) {
                 mnist = 1;
@@ -414,7 +408,7 @@ int main(int argc, char ** argv) {
             continue;
         }
 #ifdef HAS_MAGICK
-        if (strcmp("--classify-image", arg) == 0 && ++i < argc) {
+        else if (strcmp("--classify-image", arg) == 0 && ++i < argc) {
             image_filename = argv[i];
             //printf("Classifying %s...\n", image_filename);
             int j = i;
@@ -431,64 +425,54 @@ int main(int argc, char ** argv) {
             }
         }
 #endif
-        if (strcmp("--training-datalen", arg) == 0 && ++i < argc) {
+        else if (strcmp("--training-datalen", arg) == 0 && ++i < argc) {
             char * len_s = argv[i];
             int matched = sscanf(len_s, "%d", &train_dataset_len);
             if (!matched)
                 fprintf(stderr, "Invalid train. data len. %s\n", len_s);
             continue;
-        }
-        if (strcmp("--validation-datalen", arg) == 0 && ++i < argc) {
+        } else if (strcmp("--validation-datalen", arg) == 0 && ++i < argc) {
             char * len_s = argv[i];
             int matched = sscanf(len_s, "%d", &eval_dataset_len);
             if (!matched)
                 fprintf(stderr, "Invalid valid. data len. %s\n", len_s);
             continue;
-        }
-        if (strcmp("--epochs", arg) == 0 && ++i < argc) {
+        } else if (strcmp("--epochs", arg) == 0 && ++i < argc) {
             char * len_s = argv[i];
             int matched = sscanf(len_s, "%d", &epochs);
             if (!matched)
                 fprintf(stderr, "Invalid epochs %s\n", len_s);
             continue;
-        }
-        if (strcmp("--batch-size", arg) == 0 && ++i < argc) {
+        } else if (strcmp("--batch-size", arg) == 0 && ++i < argc) {
             char * len_s = argv[i];
             int matched = sscanf(len_s, "%d", &batch_size);
             if (!matched)
                 fprintf(stderr, "Invalid batch size %s\n", len_s);
             continue;
-        }
-        if (strcmp("--learning-rate", arg) == 0 && ++i < argc) {
+        } else if (strcmp("--learning-rate", arg) == 0 && ++i < argc) {
             char * lr = argv[i];
             int matched = sscanf(lr, "%f", &learning_rate);
             if (!matched)
                 fprintf(stderr, "Invalid learning rate %s\n", lr);
             continue;
-        }
-        if (strcmp("--l2-decay", arg) == 0 && ++i < argc) {
+        } else if (strcmp("--l2-decay", arg) == 0 && ++i < argc) {
             char * l2d = argv[i];
             int matched = sscanf(l2d, "%f", &l2_decay);
             if (!matched)
                 fprintf(stderr, "Invalid l2 decay %s\n", l2d);
             continue;
-        }
-        if (strcmp("--training-no-shuffle", arg) == 0) {
+        } else if (strcmp("--training-no-shuffle", arg) == 0) {
             training_flags |= TRAINING_NO_SHUFFLE;
             continue;
-        }
-        if (strcmp("--training-adjust-rate", arg) == 0) {
+        } else if (strcmp("--training-adjust-rate", arg) == 0) {
             training_flags |= TRAINING_ADJUST_RATE;
             continue;
-        }
-        if (strcmp("--enable-colors", arg) == 0) {
+        } else if (strcmp("--enable-colors", arg) == 0) {
             PSGlobalFlags |= FLAG_LOG_COLORS;
-        }
-        if (strcmp("-v", arg) == 0 || strcmp("--version", arg) == 0) {
+        } else if (strcmp("-v", arg) == 0 || strcmp("--version", arg) == 0) {
             printf("%s v%s\n", PROGRAM_NAME, PSYC_VERSION);
             exit(0);
-        }
-        if (strcmp("-h", arg) == 0 || strcmp("--help", arg) == 0) {
+        } else if (strcmp("-h", arg) == 0 || strcmp("--help", arg) == 0) {
             print_help(argv[0]);
             exit(0);
         }

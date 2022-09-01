@@ -32,6 +32,42 @@
 #include "recurrent.h"
 #include "debug.h"
 
+#define DumpConvolveStep(net,l,n,x,y,rx,ry,rx2,ry2,prev,fidx,nidx,nx,ny,widx) \
+ PSTrainingDebugDumpStep(net,TRAINING_PHASE_FEEDFORWARD, "PSConvolve",l,n,\
+ "neuron_pos=(%d,%d),region=(%d,%d,%d,%d),previous_layer=%d,"\
+ "previous_neuron=%d-%d-%d,previous_neuron_pos=(%d,%d),weight_idx=%d,"\
+ "srcline=%d\n",\
+ x, y, rx, ry, rx2, ry2,prev->index, prev->index, fidx, nidx, nx, ny, widx,\
+ __LINE__)
+
+#define DumpConvolveAVXStep(net,l,n,x,y,rx,ry,rx2,ry2,prv,fidx,nidx,nx,ny,\
+w,steplen,step,rowlen) \
+ PSTrainingDebugDumpStep(net,TRAINING_PHASE_FEEDFORWARD, "PSConvolve",l,n,\
+ "neuron_pos=(%d,%d),region=(%d,%d,%d,%d),previous_layer=%d,"\
+ "previous_neuron=%d-%d-%d,previous_neuron_pos=(%d,%d),weight_idx=%d,"\
+ "avx=1,avx_step_len=%d,avx_step=%d,rowlen=%d,srcline=%d\n",\
+ x, y, rx, ry, rx2, ry2, prv->index,prv->index, fidx, nidx, nx, ny, widx,\
+ steplen, step, rowlen, __LINE__)
+
+#define DumpPoolStep(net,l,n,x,y,rx,ry,rx2,ry2,prv,fidx,nidx,nx,ny) \
+ PSTrainingDebugDumpStep(net, TRAINING_PHASE_FEEDFORWARD, "PSPool", l, n,\
+ "neuron_pos=(%d,%d),region=(%d,%d,%d,%d),previous_layer=%d,"\
+ "previous_neuron=%d-%d-%d,previous_neuron_pos=(%d,%d),srcline=%d\n",\
+ x, y, rx, ry, rx2, ry2, prv->index,prv->index, fidx, nidx, nx, ny, __LINE__)
+
+#define DumpPoolBackpropStep(net,l,n,x,y,rx,ry,rx2,ry2,prv,fidx,nidx,nx,ny) \
+ PSTrainingDebugDumpStep(net, TRAINING_PHASE_BACKPROP, "PSPoolingBackprop",\
+ l, n, "neuron_pos=(%d,%d),region=(%d,%d,%d,%d),previous_neuron=%d-%d-%d,"\
+ "previous_neuron_pos=(%d,%d),srcline=%d\n", x, y, rx, ry, rx2, ry2,\
+ prv->index, fidx, nidx, nx, ny, __LINE__)
+
+#define DumpConvBackpropStep(net,l,n,x,y,rx,ry,rx2,ry2,prv,fidx,nidx,nx,ny,w) \
+ PSTrainingDebugDumpStep(net,TRAINING_PHASE_BACKPROP,"PSConvolutionalBackprop",\
+ l, n, "neuron_pos=(%d,%d),region=(%d,%d,%d,%d),previous_neuron=%d-%d-%d,"\
+ "previous_neuron_pos=(%d,%d),weight_idx=%d,srcline=%d\n",\
+ x, y, rx, ry, rx2, ry2, prv->index, fidx, nidx, nx, ny, widx, __LINE__)
+
+
 double getDeltaForConvolutionalNeuron(PSNeuron * neuron,
                                       PSLayer * layer,
                                       PSLayer * nextLayer,
@@ -129,7 +165,6 @@ double getDeltaForConvolutionalNeuron(PSNeuron * neuron,
             }
         }
     }
-    
     if (layer->derivative != NULL)
         dv *= layer->derivative(neuron->activation);
     return dv;
@@ -176,6 +211,9 @@ int PSInitConvolutionalLayer(PSNeuralNetwork * network, PSLayer * layer,
     PSLayerParameters * previous_params = previous->parameters;
     double input_w, input_h, output_w, output_h;
     int use_relu = (int) (params[PARAM_USE_RELU]);
+#ifdef USE_AVX
+    int avx_disabled = PSIsAVXDisabled(network);
+#endif
     if (previous_params == NULL) {
         double w = sqrt(previous_size);
         input_w = w; input_h = w;
@@ -217,11 +255,13 @@ int PSInitConvolutionalLayer(PSNeuralNetwork * network, PSLayer * layer,
         return 0;
     }
 #ifdef USE_AVX
-    layer->avx_activation_cache = calloc(size, sizeof(double));
-    if (layer->avx_activation_cache == NULL) {
-        printMemoryErrorMsg();
-        PSAbortLayer(network, layer);
-        return 0;
+    if (!avx_disabled) {
+        layer->avx_activation_cache = calloc(size, sizeof(double));
+        if (layer->avx_activation_cache == NULL) {
+            printMemoryErrorMsg();
+            PSAbortLayer(network, layer);
+            return 0;
+        }
     }
 #endif
     PSSharedParams * shared = malloc(sizeof(PSSharedParams));
@@ -333,6 +373,9 @@ int PSInitPoolingLayer(PSNeuralNetwork * network, PSLayer * layer,
     output_h = calculatePoolingSide(input_h, region_size);
     params[PARAM_OUTPUT_WIDTH] = output_w;
     params[PARAM_OUTPUT_HEIGHT] = output_h;
+#ifdef USE_AVX
+    int avx_disabled = PSIsAVXDisabled(network);
+#endif
     int area = (int)(output_w * output_h);
     int size = area * feature_count;
     layer->size = size;
@@ -343,11 +386,13 @@ int PSInitPoolingLayer(PSNeuralNetwork * network, PSLayer * layer,
         return 0;
     }
 #ifdef USE_AVX
-    layer->avx_activation_cache = calloc(size, sizeof(double));
-    if (layer->avx_activation_cache == NULL) {
-        printMemoryErrorMsg();
-        PSAbortLayer(network, layer);
-        return 0;
+    if (!avx_disabled) {
+        layer->avx_activation_cache = calloc(size, sizeof(double));
+        if (layer->avx_activation_cache == NULL) {
+            printMemoryErrorMsg();
+            PSAbortLayer(network, layer);
+            return 0;
+        }
     }
 #endif
     int i, j;
@@ -426,6 +471,9 @@ int PSConvolve(void * _net, void * _layer, ...) {
     double input_h = previous_params[PARAM_OUTPUT_HEIGHT];
     double output_w = params[PARAM_OUTPUT_WIDTH];
     int feature_size = size / feature_count;
+#ifdef USE_AVX
+    int avx_disabled = PSIsAVXDisabled(net);
+#endif
     PSSharedParams * shared = getConvSharedParams(layer);
     if (shared == NULL) {
         PSErr(NULL, "Layer[%d]: shared params are NULL!", layer->index);
@@ -472,39 +520,46 @@ int PSConvolve(void * _net, void * _layer, ...) {
                         continue;
                     }
                     x = r_col;
+                    if (x < 0) {
+                        /* If x is outside layer's area (ie. padding area)
+                         * and before it (x < 0), jump to column 0
+                         * after adding skipped weights to weight index
+                         * (widx). */
+                        widx += (0 - x);
+                        x = 0;
+                    }
+                    int x2 = max_x;
+                    if (x2 >= input_w) x2 = input_w - 1;
 #ifdef USE_AVX
-                    int avx_step_len = AVXGetDotStepLen(region_size);
-                    avx_dot_product dot_product =
-                        AVXGetDotProductFunc(region_size);
-                    int avx_steps = region_size / avx_step_len, avx_step;
-                    for (avx_step = 0; avx_step < avx_steps; avx_step++) {
-                        int nidx = feature_offset + (y * input_w) + x;
-                        double * x_vector = previous->avx_activation_cache +
-                                            nidx;
-                        if (is_recurrent) x_vector += (t * previous->size);
-                        double * y_vector = weights + widx;
-                        sum += dot_product(x_vector, y_vector);
-                        x += avx_step_len;
-                        widx += avx_step_len;
+                    int rowlen = x2 - x;
+                    if (!avx_disabled) {
+                        int avx_step_len = AVXGetDotStepLen(rowlen);
+                        avx_dot_product dot_product =
+                            AVXGetDotProductFunc(rowlen);
+                        int avx_steps = rowlen / avx_step_len, avx_step;
+                        for (avx_step = 0; avx_step < avx_steps; avx_step++) {
+                            int nidx = feature_offset + (y * input_w) + x;
+                            double * x_vector =
+                                previous->avx_activation_cache + nidx;
+                            if (is_recurrent) x_vector += (t * previous->size);
+                            double * y_vector = weights + widx;
+                            if (do_dump) DumpConvolveAVXStep(
+                                net, layer, neuron, col, row, r_col, r_row,
+                                max_x, max_y, previous, k, nidx, x, y, widx,
+                                avx_step_len, avx_step, rowlen
+                            );
+                            sum += dot_product(x_vector, y_vector);
+                            x += avx_step_len;
+                            widx += avx_step_len;
+                        }
                     }
 #endif
                     for (; x < max_x; x++) {
-                        if (x < 0) {
-                        /* If x is outside layer's area (ie. padding area) and
-                         * before it (x < 0), skip to next column after adding
-                         * skipped weight to weight index (widx). */
-                            widx++;
-                            continue;
-                        }
                         int nidx = feature_offset + (y * input_w) + x;
                         //printf("  -> %d,%d [%d]\n", x, y, nidx);
-                        if (nidx < 0) {
-                            widx++;
-                            continue;
-                        } else if (nidx >= previous->size) {
-                            break;
-                        }
-                        if (x >= input_w && max_x > input_w) {
+                        assert(nidx >= 0);
+                        if (nidx >= previous->size) break;
+                        if (x >= input_w) {
                             /* If x is outside layer's area (ie. padding area)
                              * and after it (x >= input_w), stop cycling row
                              * and jump to next one, after adding skipped
@@ -515,15 +570,9 @@ int PSConvolve(void * _net, void * _layer, ...) {
                         }
                         PSNeuron * prev_neuron = previous->neurons[nidx];
                         double a = prev_neuron->activation;
-                        if (do_dump) PSTrainingDebugDumpStep(
-                            net, TRAINING_PHASE_FEEDFORWARD, "PSConvolve",
-                            layer, neuron,
-                            "neuron_pos=(%d,%d),region=(%d,%d,%d,%d),"
-                            "previous_layer=%d,previous_neuron=%d-%d-%d,"
-                            "previous_neuron_pos=(%d,%d),weight_idx=%d\n",
-                            col, row, r_col, r_row, max_x, max_y,
-                            previous->index,previous->index, k, nidx,
-                            x, y, widx
+                        if (do_dump) DumpConvolveStep(net, layer, neuron,
+                            col, row, r_col, r_row, max_x, max_y,previous,
+                            k, nidx, x, y, widx
                         );
                         sum += (a * weights[widx++]);
                     }
@@ -533,11 +582,11 @@ int PSConvolve(void * _net, void * _layer, ...) {
             neuron->z_value = sum + bias;
             neuron->activation = layer->activate(neuron->z_value);
 #ifdef USE_AVX
-            if (!is_recurrent)
+            if (!is_recurrent && !avx_disabled)
                 layer->avx_activation_cache[idx] = neuron->activation;
 #endif
             if (is_recurrent) {
-                PSAddRecurrentState(neuron, neuron->activation, times, t);
+                PSAddRecurrentState(net, neuron, neuron->activation, times, t);
                 if (neuron->extra == NULL) {
                     PSErr("convolve", "Failed to allocate Recurrent Cell!");
                     return 0;
@@ -566,6 +615,9 @@ int PSPool(void * _net, void * _layer, ...) {
         return 0;
     }
     int i, j, x, y, row, col;
+#ifdef USE_AVX
+    int avx_disabled = PSIsAVXDisabled(net);
+#endif
     PSLayerParameters * parameters = layer->parameters;
     if (parameters == NULL) {
         PSErr(NULL, "Layer[%d]: parameters are NULL!", layer->index);
@@ -618,25 +670,19 @@ int PSPool(void * _net, void * _layer, ...) {
                         max = a;
                         max_z = z;
                     }
-                    if (do_dump) PSTrainingDebugDumpStep(
-                        net, TRAINING_PHASE_FEEDFORWARD, "PSPool",
-                        layer, neuron,
-                        "neuron_pos=(%d,%d),region=(%d,%d,%d,%d),"
-                        "previous_layer=%d,previous_neuron=%d-%d-%d,"
-                        "previous_neuron_pos=(%d,%d)\n",
-                        col, row, r_col, r_row, max_x, max_y,
-                        previous->index, previous->index, i, nidx, x, y
+                    if (do_dump) DumpPoolStep(net, layer, neuron, col, row,
+                        r_col, r_row, max_x, max_y, previous, i, nidx, x, y
                     );
                 }
             }
             neuron->z_value = max_z;
             neuron->activation = max;
 #ifdef USE_AVX
-            if (!is_recurrent)
+            if (!is_recurrent && !avx_disabled)
                 layer->avx_activation_cache[idx] = neuron->activation;
 #endif
             if (is_recurrent) {
-                PSAddRecurrentState(neuron, neuron->activation, times, t);
+                PSAddRecurrentState(net, neuron, neuron->activation, times, t);
                 if (neuron->extra == NULL) {
                     PSErr("pool", "Failed to allocate Recurrent Cell!");
                     return 0;
@@ -688,16 +734,10 @@ int PSPoolingBackprop(PSLayer * pooling_layer, PSLayer * convolutional_layer,
                 for (x = r_col; x < max_x; x++) {
                     int nidx = ((y * input_w) + x) + (prev_feat_size * i);
                     PSNeuron * prev_neuron = convolutional_layer->neurons[nidx];
-                    if (do_dump) PSTrainingDebugDumpStep(
-                        net, TRAINING_PHASE_BACKPROP,
-                        "PSPoolingBackprop",
-                        pooling_layer,
-                        pooling_layer->neurons[idx],
-                        "neuron_pos=(%d,%d),region=(%d,%d,%d,%d),"
-                        "previous_neuron=%d-%d-%d,"
-                        "previous_neuron_pos=(%d,%d)\n",
+                    if (do_dump) DumpPoolBackpropStep(
+                        net, pooling_layer, pooling_layer->neurons[idx],
                         col, row, r_col, r_row, max_x, max_y,
-                        convolutional_layer->index, i, nidx, x, y
+                        convolutional_layer, i, nidx, x, y
                     );
                     double a = prev_neuron->activation;
                     conv_delta[nidx] = (a < neuron->activation ? 0 : d);
@@ -772,12 +812,8 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer * prev_layer,
                         }
                         int nidx = feature_offset + (y * input_w) + x;
                         //printf("  -> %d,%d [%d]\n", x, y, nidx);
-                        if (nidx < 0) {
-                            widx++;
-                            continue;
-                        } else if (nidx >= prev_layer->size) {
-                            break;
-                        }
+                        assert(nidx >= 0);
+                        if (nidx >= prev_layer->size) break;
                         /* If x is outside layer (ie. inside padding area),
                          * exit x cycle and go to next row after adding
                          * skipped padding units to weight index (widx). */
@@ -801,16 +837,11 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer * prev_layer,
                                     convolutional_layer->index);
                             assert(widx < shared->weights_size);
                         }
-                        if (do_dump && k <= 1) PSTrainingDebugDumpStep(
-                            net, TRAINING_PHASE_BACKPROP,
-                            "PSConvolutionalBackprop",
-                            convolutional_layer,
+                        if (do_dump) DumpConvBackpropStep(
+                            net, convolutional_layer,
                             convolutional_layer->neurons[idx],
-                            "neuron_pos=(%d,%d),region=(%d,%d,%d,%d),"
-                            "previous_neuron=%d-%d-%d,"
-                            "previous_neuron_pos=(%d,%d),weight_idx=%d\n",
                             col, row, r_col, r_row, max_x, max_y,
-                            prev_layer->index, k, nidx, x, y, widx
+                            prev_layer, k, nidx, x, y, widx
                         );
                         feature_gradient->weights[widx++] += (a * d);
                     }

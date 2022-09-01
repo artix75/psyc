@@ -37,12 +37,14 @@
 
 #define TRAINING_PHASE_FEEDFORWARD  1
 #define TRAINING_PHASE_BACKPROP     2
+#define TRAINING_PHASE_UPDATE_GRAD  3
 
 #define NULL_VALUE -9999999.99
 
 #define FLAG_NONE 0
-#define FLAG_RECURRENT  (1 << 0)
-#define FLAG_ONEHOT     (1 << 1)
+#define FLAG_RECURRENT      (1 << 0)
+#define FLAG_ONEHOT         (1 << 1)
+#define FLAG_AVX_DISABLED   (1 << 2)
 
 /* Global Flags*/
 
@@ -52,6 +54,12 @@
 #define TRAINING_ADJUST_RATE    (1 << 1)
 
 #define BPTT_TRUNCATE   4
+
+#ifdef USE_AVX
+#define PSIsAVXDisabled(network) (network->flags & FLAG_AVX_DISABLED)
+#else
+#define PSIsAVXDisabled(network) (0)
+#endif
 
 
 typedef double  (*PSActivationFunction) (double);
@@ -99,6 +107,7 @@ typedef struct {
     int current_epoch;
     int current_batch;
     int current_element;
+    int batch_size;
     time_t started_at;
     time_t ended_at;
     int requested_action;

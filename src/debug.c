@@ -38,6 +38,10 @@
 #include <string.h>
 #include <stdarg.h>
 
+#ifdef USE_AVX
+#include "avx.h"
+#endif
+
 #include "platform.h"
 #include "psyc.h"
 #include "debug.h"
@@ -203,6 +207,12 @@ void segvHandler(int sig, siginfo_t *info, void *secret) {
     printf("PSNeuron:          %d\n", (int) sizeof(PSNeuron));
     printf("PSLayer:           %d\n", (int) sizeof(PSLayer));
     printf("PSNeuralNetwork:   %d\n", (int) sizeof(PSLayer));
+#if USE_AVX
+    printf("\n\n---- AVX ----\n");
+    printf("AVX_VECTOR_SIZE:   %d\n", AVX_VECTOR_SIZE);
+    printf("AVX_VECTOR2_SIZE:  %d\n", AVX_VECTOR2_SIZE);
+    printf("AVX_VECTOR4_SIZE:  %d\n", AVX_VECTOR4_SIZE);
+#endif
 
     if (eip != NULL) {
         Dl_info info;
@@ -264,9 +274,9 @@ char *PSGetNeuronDebugID(PSNeuron *neuron, PSLayer *layer) {
 void PSTrainingDebugDump(PSNeuralNetwork *network, char *format, ...) {
     if (network->training == NULL) return;
     if (network->training->debug_dump_to == NULL) return;
-    if (network->training->current_epoch > 0) return;
-    if (network->training->current_batch > 0) return;
     if (network->training->current_element > 0) return;
+    if (network->training->current_batch > 0) return;
+    if (network->training->current_epoch > 0) return;
     va_list ap;
     va_start(ap, format);
     vfprintf(network->training->debug_dump_to, format, ap);
@@ -282,9 +292,9 @@ void PSTrainingDebugDumpStep(PSNeuralNetwork *network,
 {
     if (network->training == NULL) return;
     if (network->training->debug_dump_to == NULL) return;
-    if (network->training->current_epoch > 0) return;
-    if (network->training->current_batch > 0) return;
     if (network->training->current_element > 0) return;
+    if (network->training->current_batch > 0) return;
+    if (network->training->current_epoch > 0) return;
     char *phase_name = NULL;
     if (training_phase == TRAINING_PHASE_FEEDFORWARD)
         phase_name = "feedforward";
@@ -313,6 +323,53 @@ void PSTrainingDebugDumpStep(PSNeuralNetwork *network,
     }
 }
 
+void PSTrainingDebugDumpGradient(PSNeuralNetwork *network,
+                                 int phase,
+                                 char *func,
+                                 PSLayer *layer,
+                                 int gradient_idx,
+                                 int weight_size,
+                                 int weight_idx,
+                                 int is_avx,
+                                 int avx_len)
+{
+    if (network->training == NULL) return;
+    if (network->training->debug_dump_to == NULL) return;
+    int batch_size = network->training->batch_size;
+    if (network->training->current_element != (batch_size - 1)) return;
+    char *phase_name = NULL;
+    switch (phase) {
+    case DEBUG_PHASE_UPDATE_GRADS: phase_name = "update_gradients"; break;
+    case DEBUG_PHASE_UPDATE_WEIGHTS: phase_name = "update_weights"; break;
+    default: phase_name = "unknown";
+    }
+    fprintf(
+        network->training->debug_dump_to, "gradient:phase=%s,func=%s",
+        phase_name, func
+    );
+    if (layer != NULL) {
+        char * type_name = PSGetLayerTypeLabel(layer);
+        fprintf(network->training->debug_dump_to,
+            ",layer=%d,type=%s",layer->index, type_name);
+    }
+    fprintf(network->training->debug_dump_to, ",gradient_idx=%d,weight_size=%d",
+        gradient_idx, weight_size);
+    int last_widx = -1;
+    if (!is_avx) last_widx = weight_size - 1;
+    else {
+        int avx_steps = weight_size / avx_len;
+        last_widx = (avx_steps * avx_len) - 1;
+    }
+    fprintf(network->training->debug_dump_to, ",weight_range=(%d,%d)",
+        weight_idx, last_widx);
+    if (is_avx) {
+        fprintf(
+            network->training->debug_dump_to, ",avx=1,avx_step_len=%d\n",
+            avx_len
+        );
+    } else fprintf(network->training->debug_dump_to, "\n");
+}
+
 void PSTrainingDebugDumpHeader(PSNeuralNetwork *network,
                               int data_size,
                               int test_size,
@@ -327,9 +384,11 @@ void PSTrainingDebugDumpHeader(PSNeuralNetwork *network,
     const char * name = network->name;
     if (name == NULL || !strlen(name)) name = "UNNAMED NETWORK";
     char * loss_name = getLossFunctionName(network->loss);
+    int avx_enabled = !PSIsAVXDisabled(network);
     PSTrainingDebugDump(network,
-        "network:name=%s,size=%d,loss_function=%s,status=%s\n",
-        name, network->size, loss_name, getNetworkStatusLabel(network)
+        "network:name=%s,size=%d,loss_function=%s,status=%s,avx=%d\n",
+        name, network->size, loss_name, getNetworkStatusLabel(network),
+        avx_enabled
     );
     int i;
     for (i = 0; i < network->size; i++) {

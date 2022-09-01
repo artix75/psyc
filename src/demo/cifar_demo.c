@@ -67,6 +67,9 @@ void print_help(char * progname) {
         "before Output (def. size %d)\n", FC_PREOUTPUT_SIZE);
     printf("        --softmax-output ENABLED        Softmax Output Layer "
            "(def. %d)\n", SOFTMAX_OUTPUT);
+#ifdef USE_AVX
+    printf("        --disable-avx                   Disable AVX\n");
+#endif
     printf("        --debug-dump-to FILE            Debug training to FILE\n"
            "                                        "
            "(pass 'stdout' for STDOUT)\n");
@@ -109,6 +112,7 @@ int main(int argc, char** argv) {
     int add_fully_connected = 0;
     int fc_preoutput_size = FC_PREOUTPUT_SIZE;
     int softmax_output = SOFTMAX_OUTPUT;
+    int disable_avx = 0;
     double learning_rate = LEARNING_RATE;
 
     FILE *debug_dump_to = NULL;
@@ -182,6 +186,10 @@ int main(int argc, char** argv) {
         } else if (strcmp("--debug-dump-to", arg) == 0 && (i + 1) < argc) {
             debug_output_str = argv[++i];
             continue;
+#ifdef USE_AVX
+        } else if (strcmp("--disable-avx", arg) == 0) {
+            disable_avx = 1;
+#endif
         } else if (strcmp("--help", arg) == 0 || strcmp("-h", arg) == 0) {
             print_help(argv[0]);
             return 0;
@@ -242,7 +250,9 @@ int main(int argc, char** argv) {
     }
     printf("Network created, AVX: ");
 #ifdef USE_AVX
-    printf("on\n");
+    if (disable_avx) network->flags |= FLAG_AVX_DISABLED;
+    if (!PSIsAVXDisabled(network)) printf("on\n");
+    else printf("off\n");
 #else
     printf("off\n");
 #endif

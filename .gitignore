@@ -1,3 +1,4 @@
+*.swp
 *.bck
 *.o
 bin/*

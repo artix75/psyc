@@ -45,6 +45,7 @@ class DumpViewer {
         this.renderNetworkInfo();
         this.renderLayerViews();
         this.currentStepIndex = -1;
+        this.currentGradientIndex = -1;
         this.playing = false;
         this.playIntervalSec = DEFAULT_PLAY_INTERVAL_SEC;
         this.$forward.addEventListener('click', (event) => {
@@ -112,6 +113,7 @@ class DumpViewer {
 
     renderNetworkInfo() {
         Object.keys(this.network).forEach(key => {
+            if (key === 'lineno') return;
             let val = this.network[key];
             if (typeof(val) === 'object') return;
             if (val instanceof Array) return;
@@ -457,6 +459,110 @@ class DumpViewer {
         }
     }
 
+    runGradientStep(gradient, grad_idx) {
+        if (!gradient) return;
+        let layer_index = gradient.layer;
+        if (layer_index === undefined) {
+            alert(`Missing layer in gradient ${grad_idx}`);
+            return;
+        }
+        let layer = this.dump.layer[layer_index];
+        if (!layer) {
+            alert(`Invalid layer ${layer_index} in gradient ${grad_idx}`);
+            return;
+        }
+        let weight_range = gradient.weight_range;
+        if (!weight_range) {
+            alert(`Missing weight_range in gradient ${grad_idx}`);
+            return;
+        }
+        if (weight_range.length < 2) {
+            alert(`Invalid weight_range in gradient ${grad_idx}`);
+            return;
+        }
+        let first_widx = weight_range[0], last_widx = weight_range[1];
+        let ltype = layer.type;
+        let is_avx = (gradient.avx === 1);
+        this.displayLayerWeights(layer_index);
+        this.resetViews();
+        let neuron = null, gradiend_idx = gradient.gradient_idx;
+        if (ltype === 'Convolutional') {
+            let fidx = gradiend_idx;
+            let $feat = this.$layerViews.querySelector(
+                `.layer-view[data-index="${layer_index}"] ` +
+                `tbody[data-feature-idx="${fidx}"]`
+            );
+            if (!$feat) {
+                alert(`Invalid layer feature ${fidx} for layer ${layer_index} `+
+                      `in gradient ${grad_idx}`);
+                return;
+            }
+            $feat.classList.add('current-gradient');
+            $feat.scrollIntoView({block: 'center', inline: 'nearest'});
+        } else {
+            let neuron_id = this.buildNeuronID(layer, gradiend_idx);
+            let $n = this.getNeuronCellByID(neuron_id);
+            if (!$n) {
+                alert(`Invalid neuron ${neuron_id} for gradient ${grad_idx}`);
+                return;
+            }
+            $n.classList.add('current');
+            $n.scrollIntoView({block: 'center', inline: 'nearest'});
+        }
+        if (gradient.current_weight_idx === undefined)
+            gradient.current_weight_idx = 0;
+        let phase = gradient.phase || 'update_gradient';
+        phase = phase.replace(/_+/g, '-');
+        let widx = first_widx + gradient.current_weight_idx;
+        if (widx > last_widx) widx = last_widx;
+        if (!is_avx) {
+            this.setWeightState(layer_index, widx, phase);
+        } else {
+            let max_widx = widx + gradient.avx_step_len;
+            if (max_widx > (last_widx + 1)) max_widx = last_widx + 1;
+            for (; widx < max_widx; widx++) {
+                this.setWeightState(layer_index, widx, phase);
+            }
+        }
+    }
+
+    runNextGradient() {
+        if (!this.dump.gradient) return;
+        let grad_idx = this.currentGradientIndex;
+        let gradient = null;
+        if (grad_idx >= 0) gradient = this.dump.gradient[grad_idx];
+        if (gradient) {
+            let weight_range = gradient.weight_range;
+            if (!weight_range) {
+                alert(`Missing weight_range in gradient ${grad_idx}`);
+                return;
+            }
+            if (weight_range.length < 2) {
+                alert(`Invalid weight_range in gradient ${grad_idx}`);
+                return;
+            }
+            let is_avx = (gradient.avx === 1);
+            let incr_by = (is_avx ? gradient.avx_step_len : 1);
+            if (gradient.current_weight_idx === undefined)
+                gradient.current_weight_idx = -1;
+            let first_widx = weight_range[0];
+            let last_widx = weight_range[1];
+            let max_idx = last_widx - first_widx;
+            gradient.current_weight_idx += incr_by;
+            if (gradient.current_weight_idx > max_idx) {
+                gradient.current_weight_idx = max_idx;
+                this.currentGradientIndex++;
+            }
+        } else this.currentGradientIndex++;
+        if (this.currentGradientIndex >= this.dump.gradient.length) {
+            this.currentGradientIndex = this.dump.gradient.length - 1;
+            return;
+        }
+        gradient = this.dump.gradient[this.currentGradientIndex];
+        if (!gradient) return;
+        this.runGradientStep(gradient, this.currentGradientIndex);
+    }
+
     playStep() {
         if (!this.playing) {
             this.$controls.classList.remove('playing');
@@ -553,12 +659,14 @@ class DumpViewer {
             );
             return;
         }
+        let is_avx = (step.avx === 1);
         this.displayLayerWeights(layer_index);
-        this.resetNeuronsState();
+        this.resetViews();
         $n.classList.add('current');
         $prev_n.classList.add('target');
         $n.scrollIntoView({block: 'center', inline: 'nearest'});
         $prev_n.scrollIntoView({block: 'center', inline: 'nearest'});
+        let ninfo = null;
         let region = step.region;
         if (region) {
             if (region.length < 4) {
@@ -572,7 +680,7 @@ class DumpViewer {
                 x2 = region[2], y2 = region[3];
             let y, x;
             let feature = 0;
-            let ninfo = this.parseNeuronID(prev_neuron_id);
+            ninfo = this.parseNeuronID(prev_neuron_id);
             if (ninfo.feature !== undefined) feature = ninfo.feature;
             for (y = y1; y < y2; y++) {
                 for (x = x1; x < x2; x++) {
@@ -588,6 +696,35 @@ class DumpViewer {
         if (widx === undefined) widx = step.weight_index;
         if (widx !== undefined)
             this.setWeightState(layer_index, widx, 'target');
+        if (is_avx) {
+            let avx_step_len = step.avx_step_len, sidx = 0;
+            if (avx_step_len === undefined) {
+                alert(`Missing avx_step_len in avx step ${step_idx}`);
+                return;
+            }
+            if (!ninfo) ninfo = this.parseNeuronID(prev_neuron_id);
+            let avx_widx = widx + 1;
+            let avx_neuron_idx = ninfo.index + 1;
+            for (; sidx < avx_step_len - 1; sidx++) {
+                let avx_neuron_id = [ninfo.layer];
+                if (ninfo.feature !== undefined)
+                    avx_neuron_id.push(ninfo.feature);
+                avx_neuron_id.push(avx_neuron_idx);
+                avx_neuron_id = avx_neuron_id.join('-');
+                let $avx_n = this.getNeuronCellByID(avx_neuron_id);
+                if (!$avx_n) {
+                    alert(
+                        `AVX Neuron cell not found for ID ${avx_neuron_id} ` +
+                        `in step ${step_idx}`
+                    );
+                    return;
+                }
+                $avx_n.classList.add('target');
+                this.setWeightState(layer_index, avx_widx, 'target');
+                avx_widx++;
+                avx_neuron_idx++;
+            }
+        }
     }
 
     runBackpropStep(step, step_idx) {
@@ -645,7 +782,7 @@ class DumpViewer {
             }
         }
         this.displayLayerWeights(weight_layer_idx);
-        this.resetNeuronsState();
+        this.resetViews();
         $n.classList.add('current');
         if ($next_n) $next_n.classList.add('source');
         if ($prev_n) $prev_n.classList.add('target');
@@ -729,6 +866,19 @@ class DumpViewer {
         return info;
     }
 
+    buildNeuronID(layer, neuron_index) {
+        let lsize = layer.size;
+        let features = layer.features || 1;
+        let id = [layer.index];
+        if (features > 1) {
+            let featsize = lsize / features;
+            let feat = neuron_index / featsize;
+            id.push(feat);
+        }
+        id.push(neuron_index);
+        return id.join('-');
+    }
+
     getRegionCell(layer, feature, x, y) {
         let index = (typeof(layer) === 'number' ? layer : layer.index);
         if (isNaN(index)) {
@@ -746,7 +896,7 @@ class DumpViewer {
         return document.querySelector(`#neuron-${id}`);
     }
 
-    resetNeuronsState() {
+    resetViews() {
         document.querySelectorAll('.neuron.current').forEach($n => {
             $n.classList.remove('current');
         });
@@ -764,6 +914,17 @@ class DumpViewer {
         });
         document.querySelectorAll('.weight.target').forEach($n => {
             $n.classList.remove('target');
+        });
+        document.querySelectorAll('.weight.update-gradients').forEach($n => {
+            $n.classList.remove('update-gradients');
+        });
+        document.querySelectorAll('.weight.update-weights').forEach($n => {
+            $n.classList.remove('update-weights');
+        });
+        document.querySelectorAll(
+            '.layer-view .current-gradient'
+        ).forEach($n => {
+            $n.classList.remove('current-gradient');
         });
     }
 

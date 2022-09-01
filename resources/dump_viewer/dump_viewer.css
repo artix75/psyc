@@ -209,6 +209,14 @@ td.weight.target {
     border-color: #67400b;
 }
 
+.weights td.weight.update-gradients {
+    background-color: #00ebff;
+}
+
+.weights td.weight.update-weights {
+    background-color: magenta;
+}
+
 td.neuron.source,
 td.weight.source {
     background-color: #00aa00 !important;

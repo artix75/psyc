@@ -29,6 +29,8 @@
 #include "recurrent.h"
 #include "utils.h"
 
+#define UNUSED(V) ((void) V)
+
 PSRecurrentCell * PSCreateRecurrentCell(PSNeuron * neuron, int lsize) {
     PSRecurrentCell * cell = malloc(sizeof(PSRecurrentCell));
     if (cell == NULL) return NULL;
@@ -40,7 +42,8 @@ PSRecurrentCell * PSCreateRecurrentCell(PSNeuron * neuron, int lsize) {
     return cell;
 }
 
-double * PSAddRecurrentState(PSNeuron * neuron, double state, int times, int t)
+double * PSAddRecurrentState(PSNeuralNetwork *net, PSNeuron *neuron,
+                             double state, int times, int t)
 {
     PSRecurrentCell * cell = GetRecurrentCell(neuron);
     if (cell == NULL) {
@@ -60,22 +63,26 @@ double * PSAddRecurrentState(PSNeuron * neuron, double state, int times, int t)
     }
     cell->states[t] = state;
 #ifdef USE_AVX
-    PSLayer * layer = getNeuronLayer(neuron);
-    assert(layer != NULL);
-    int lsize = layer->size;
-    if (t == 0 && neuron->index == 0) {
-        if (layer->avx_activation_cache != NULL)
-            free(layer->avx_activation_cache);
-        layer->avx_activation_cache = calloc(lsize * times, sizeof(double));
+    if (!PSIsAVXDisabled(net)) {
+        PSLayer * layer = getNeuronLayer(neuron);
+        assert(layer != NULL);
+        int lsize = layer->size;
+        if (t == 0 && neuron->index == 0) {
+            if (layer->avx_activation_cache != NULL)
+                free(layer->avx_activation_cache);
+            layer->avx_activation_cache = calloc(lsize * times, sizeof(double));
+        }
+        if (layer->avx_activation_cache == NULL) {
+            printMemoryErrorMsg();
+            neuron->extra = NULL;
+            if (cell->states != NULL) free(cell->states);
+            free(cell);
+            return NULL;
+        }
+        layer->avx_activation_cache[(t * lsize) + neuron->index] = state;
     }
-    if (layer->avx_activation_cache == NULL) {
-        printMemoryErrorMsg();
-        neuron->extra = NULL;
-        if (cell->states != NULL) free(cell->states);
-        free(cell);
-        return NULL;
-    }
-    layer->avx_activation_cache[(t * lsize) + neuron->index] = state;
+#else
+    UNUSED(net);
 #endif
     return cell->states;
 }
@@ -165,6 +172,9 @@ int PSRecurrentFeedforward(void * _net, void * _layer, ...) {
         PSErr(NULL, "Layer[%d]: previous layer is NULL!", layer->index);
         return 0;
     }
+#ifdef USE_AVX
+    int avx_disabled = PSIsAVXDisabled(net);
+#endif
     int onehot = previous->flags & FLAG_ONEHOT;
     PSLayerParameters * params = NULL;
     int vector_size = 0, vector_idx = 0;
@@ -203,8 +213,10 @@ int PSRecurrentFeedforward(void * _net, void * _layer, ...) {
         else {
             j = 0;
 #ifdef USE_AVX
-            AVXDotProduct(previous_size, previous->avx_activation_cache,
-                          neuron->weights, sum, j, 1, t);
+            if (!avx_disabled) {
+                AVXDotProduct(previous_size, previous->avx_activation_cache,
+                              neuron->weights, sum, j, 1, t);
+            }
 #endif
             for (; j < previous_size; j++) {
                 PSNeuron * prev_neuron = previous->neurons[j];
@@ -217,8 +229,10 @@ int PSRecurrentFeedforward(void * _net, void * _layer, ...) {
             int last_t = t - 1;
             w = 0;
 #ifdef USE_AVX
-            AVXDotProduct(size, layer->avx_activation_cache, cell->weights,
-                          bias, w, 1, last_t);
+            if (!avx_disabled) {
+                AVXDotProduct(size, layer->avx_activation_cache, cell->weights,
+                              bias, w, 1, last_t);
+            }
 #endif
             for (; w < size; w++) {
                 PSNeuron * n = layer->neurons[w];
@@ -233,7 +247,7 @@ int PSRecurrentFeedforward(void * _net, void * _layer, ...) {
             cell->states_count = times;
             cell->states = calloc(times, sizeof(double));
 #ifdef USE_AVX
-            if (neuron->index == 0) {
+            if (!avx_disabled && neuron->index == 0) {
                 if (layer->avx_activation_cache != NULL)
                     free(layer->avx_activation_cache);
                 layer->avx_activation_cache = calloc(times * size,
@@ -249,7 +263,8 @@ int PSRecurrentFeedforward(void * _net, void * _layer, ...) {
         neuron->activation = layer->activate(neuron->z_value);
         cell->states[t] = neuron->activation;
 #ifdef USE_AVX
-        layer->avx_activation_cache[(t * size) + i] = neuron->activation;
+        if (!avx_disabled)
+            layer->avx_activation_cache[(t * size) + i] = neuron->activation;
 #endif
     }
     return 1;
@@ -260,6 +275,12 @@ int PSRecurrentFeedforward(void * _net, void * _layer, ...) {
 int PSRecurrentBackprop(PSLayer * layer, PSLayer * previousLayer, int lowest_t,
                              PSGradient * lgradients, int t)
 {
+    PSNeuralNetwork *net = (PSNeuralNetwork *) layer->network;
+#ifdef USE_AVX
+    int avx_disabled = PSIsAVXDisabled(net);
+#else
+    UNUSED(net);
+#endif
     int lsize = layer->size, i, w, tt;
     for (tt = t; tt >= lowest_t; tt--) {
         double * delta = layer->delta;
@@ -307,10 +328,12 @@ int PSRecurrentBackprop(PSLayer * layer, PSLayer * previousLayer, int lowest_t,
                 double rsum = 0.0;
                 w = 0;
 #ifdef USE_AVX
-                AVXMultiplyValue(cell->weights_size,
-                                 layer->avx_activation_cache, dv,
-                                 gradient->weights + wsize, w, 1,
-                                 (tt - 1), AVX_STORE_MODE_ADD);
+                if (!avx_disabled) {
+                    AVXMultiplyValue(cell->weights_size,
+                                     layer->avx_activation_cache, dv,
+                                     gradient->weights + wsize, w, 1,
+                                     (tt - 1), AVX_STORE_MODE_ADD);
+                }
 #endif
                 for (; w < cell->weights_size; w++) {
                     PSNeuron * rn = layer->neurons[w];
