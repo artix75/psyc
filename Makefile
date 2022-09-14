@@ -32,10 +32,10 @@ uninstall:
 all: neural_cli demo
 
 valgrind:
-	$(MAKE) OPTIMIZATION="-O0" MALLOC="libc"
+	$(MAKE) OPTIMIZATION="-O0"
 
 helgrind:
-	$(MAKE) OPTIMIZATION="-O0" MALLOC="libc" CFLAGS="-D__ATOMIC_VAR_FORCE_SYNC_MACROS"
+	$(MAKE) OPTIMIZATION="-O0" CFLAGS="-D__ATOMIC_VAR_FORCE_SYNC_MACROS"
 	
 show-build-info:
 	@cd src && $(MAKE) show-build-info

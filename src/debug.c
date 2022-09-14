@@ -25,6 +25,12 @@
   *  Copyright (c) 2020, Redis Labs, Inc
  */
 
+#define _XOPEN_SOURCE 1
+#if defined(__linux__)
+#define _GNU_SOURCE
+#define _DEFAULT_SOURCE
+#endif
+
 #include <arpa/inet.h>
 #include <signal.h>
 #include <dlfcn.h>
@@ -46,8 +52,6 @@
 #include "psyc.h"
 #include "debug.h"
 #include "convolutional.h"
-
-#define _XOPEN_SOURCE 1
 
 #ifdef BACKTRACE_AVAILABLE
 #include <execinfo.h>

@@ -1,7 +1,9 @@
 SHELL=/bin/bash
 CC=gcc
-CFLAGS=-std=gnu99 -g -ggdb
-LDFLAGS=-lz -lm
+OPTIMIZATION?=-O2
+OPT=$(OPTIMIZATION)
+CFLAGS=-std=gnu99 -g -ggdb $(OPT)
+LDFLAGS=-lz -lm -ldl
 OBJS=../psyc.o ../utils.o ../convolutional.o ../recurrent.o ../lstm.o ../mnist.o ../debug.o test.o
 
 include ../avx.mk

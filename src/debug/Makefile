@@ -1,7 +1,7 @@
 SHELL=/bin/bash
 CC=gcc
-CFLAGS=-std=gnu99 -g -ggdb
-LDFLAGS=-lz -lm
+CFLAGS=-std=gnu99 -g -ggdb -O0
+LDFLAGS=-lz -lm -ldl
 OBJS=../psyc.o ../utils.o ../convolutional.o ../recurrent.o ../lstm.o ../mnist.o ../debug.o
 
 include ../avx.mk

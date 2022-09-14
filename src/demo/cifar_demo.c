@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
+#include <strings.h>
 
 #include <execinfo.h>
 #include <fenv.h>

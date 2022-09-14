@@ -1,7 +1,9 @@
 SHELL=/bin/bash
 CC=gcc
-CFLAGS=-std=gnu99 -Wall -W -Wno-missing-field-initializers
-LDFLAGS=-lz -lm
+OPTIMIZATION?=-O2
+OPT=$(OPTIMIZATION)
+CFLAGS=-std=gnu99 -Wall -W -Wno-missing-field-initializers $(OPT)
+LDFLAGS=-lz -lm -ldl
 OBJS=psyc.o utils.o convolutional.o recurrent.o lstm.o mnist.o debug.o cifar.o
 PREFIX?=/usr/local
 LIBDIR=$(PREFIX)/lib
