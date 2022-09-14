@@ -34,15 +34,16 @@ static int compareFilenames(const void* a, const void* b) {
 }
 
 int loadCIFARData(int type, int classes, const char * dataset_path,
-                  double **data, int max_files)
+                  double **data, int max_files, int max_elements)
 {
     if (classes != 10 && classes != 100) {
         fprintf(stderr, "Invalid classes %d: only 10 or 100 allowed.", classes);
         return 0;
     }
     int label_size = (classes == 100 ? 2 : 1);
-    int expected_fsize = (CIFAR_IMAGE_BYTESIZE + label_size) *
-                         CIFAR_FILE_IMG_COUNT;
+    int img_count = CIFAR_FILE_IMG_COUNT;
+    if (max_elements > 0) img_count = max_elements;
+    int expected_fsize = (CIFAR_IMAGE_BYTESIZE + label_size) * img_count;
     int fcount = 0, dataset_size = 0, i, j, k;
     char datafiles[CIFAR_DATAFILE_COUNT][255];
 
@@ -50,7 +51,7 @@ int loadCIFARData(int type, int classes, const char * dataset_path,
     struct dirent *finfo;
     dir = opendir(dataset_path);
     if (dir == NULL) {
-        fprintf(stderr, "Invalid path %s", dataset_path);
+        fprintf(stderr, "Invalid path %s\n", dataset_path);
         return 0;
     }
 
@@ -62,34 +63,33 @@ int loadCIFARData(int type, int classes, const char * dataset_path,
     qsort(datafiles, fcount, 255, compareFilenames);
     if (max_files > 0 && max_files < fcount) fcount = max_files;
 
-    int datasize = (fcount * CIFAR_FILE_IMG_COUNT *
-                    (classes + CIFAR_IMAGE_BYTESIZE));
+    int datasize = (fcount * img_count * (classes + CIFAR_IMAGE_BYTESIZE));
     dataset_size = datasize * sizeof(double);
     *data = calloc(dataset_size, 1);
     if (*data == NULL) return 0;
-    double * data_p = *data;
+    double *data_p = *data;
     for (i = 0; i < fcount; i++) {
         char *fname = datafiles[i];
         printf("Reading %s\n", fname);
         FILE *f = fopen(fname, "r");
         if (f == NULL) {
             fputs("Could not open file!", stderr);
-            free(data);
+            free(*data);
             data = NULL;
             return 0;
         }
         fseek(f, 0, SEEK_END);
         int pos = ftell(f);
-        if (pos != expected_fsize) {
+        if (pos < expected_fsize) {
             fprintf(stderr, "Invalid file size: %d != %d\n", pos,
                     expected_fsize);
-            free(data);
+            free(*data);
             data = NULL;
             fclose(f);
             return 0;
         }
         fseek(f, 0, SEEK_SET);
-        for (j = 0; j < CIFAR_FILE_IMG_COUNT; j++) {
+        for (j = 0; j < img_count; j++) {
             int label = 0;
             if (classes == 10) {
                 label = fgetc(f);

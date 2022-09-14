@@ -136,6 +136,7 @@ void print_help(char * progname) {
            "NUM batches (def. %d)\n", DUMP_ACTIVATIONS_EVERY);
     printf("        --dump-pretrained-to FILE       Dump Pretrained Network\n");
     printf("        --max-batches MAX               Max batches (for debug)\n");
+    printf("        --max-images MAX                Max images (for debug)\n");
     printf("        -h, --help              Print this help\n");
 }
 
@@ -227,6 +228,7 @@ int main(int argc, char** argv) {
     int fc_preoutput_size = FC_PREOUTPUT_SIZE;
     int softmax_output = SOFTMAX_OUTPUT;
     int disable_avx = 0;
+    int max_images = 0;
     double learning_rate = LEARNING_RATE;
     double momentum = MOMENTUM;
     double l2_decay = L2;
@@ -296,6 +298,9 @@ int main(int argc, char** argv) {
         } else if (strcmp("--max-batches", arg) == 0 && (i + 1) < argc) {
             max_batches = atoi(argv[++i]);
             if (max_batches < 0)  max_batches = 0;
+        } else if (strcmp("--max-images", arg) == 0 && (i + 1) < argc) {
+            max_images = atoi(argv[++i]);
+            if (max_images < 0)  max_images = 0;
         } else if (strcmp("--add-fully-connected", arg) == 0) {
             add_fully_connected = 1;
             if ((i + 1) < argc && argv[i + 1][0] != '-') {
@@ -354,10 +359,14 @@ int main(int argc, char** argv) {
 
     int train_dataset_len = TRAIN_DATASET_LEN;
     int eval_dataset_len = EVAL_DATASET_LEN;
+    if (max_images) {
+        train_dataset_len = max_images;
+        eval_dataset_len = 0;
+    }
 
     if (dataset_path != NULL) {
         datasize = loadCIFARData(DATA_TYPE_TRAINING, classes, dataset_path,
-                                &training_data, 0);
+                                &training_data, 0, max_images);
         if (datasize == 0 || training_data == NULL) {
             printf("Could not load training data!\n");
             return 1;
@@ -365,14 +374,17 @@ int main(int argc, char** argv) {
         datalen = datasize / sizeof(double);
         printf("Loaded training dataset (len: %d, size: %d)\n",
             datalen, datasize);
-        testsize = loadCIFARData(DATA_TYPE_TEST, classes, dataset_path,
-                                &test_data, 0);
-        if (testsize == 0 || test_data == NULL) {
-            printf("Could not load test data!\n");
-            return 1;
+        if (!max_images) {
+            testsize = loadCIFARData(DATA_TYPE_TEST, classes, dataset_path,
+                                    &test_data, 0, 0);
+            if (testsize == 0 || test_data == NULL) {
+                printf("Could not load test data!\n");
+                return 1;
+            }
+            testlen = testsize / sizeof(double);
+            printf("Loaded test dataset (len: %d, size: %d)\n", testlen,
+                   testsize);
         }
-        testlen = testsize / sizeof(double);
-        printf("Loaded test dataset (len: %d, size: %d)\n", testlen, testsize);
     }
 
     network = PSCreateNetwork("CNN CIFAR Demo");

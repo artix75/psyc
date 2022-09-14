@@ -26,6 +26,6 @@
 #define CIFAR_IMAGE_SIZE (32 * 32 * 3)
 
 int loadCIFARData(int type, int classes, const char * dataset_path,
-                  double **data, int max_files);
+                  double **data, int max_files, int max_elements);
 
 #endif // __PS_CIFAR_H
