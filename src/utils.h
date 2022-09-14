@@ -27,6 +27,8 @@
 #define getNeuronLayer(neuron) ((PSLayer*) neuron->layer)
 #define getLayerNetwork(layer) ((PSNeuralNetwork*) layer->network)
 #define shouldApplyDerivative(network) (network->loss != PSCrossEntropyLoss)
+#define PSGetElapsedTimeMS(st, et) ((((et.tv_sec - st.tv_sec) * 1000000) \
+    + (et.tv_usec - st.tv_usec)) / 1000)
 
 #ifdef USE_AVX
 

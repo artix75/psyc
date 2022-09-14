@@ -29,8 +29,12 @@
 #define CIFAR_IMAGE_BYTESIZE 3072
 #define CIFAR_DATAFILE_COUNT 6
 
+static int compareFilenames(const void* a, const void* b) {
+    return strcmp((const char*)a, (const char*)b);
+}
+
 int loadCIFARData(int type, int classes, const char * dataset_path,
-                  double **data)
+                  double **data, int max_files)
 {
     if (classes != 10 && classes != 100) {
         fprintf(stderr, "Invalid classes %d: only 10 or 100 allowed.", classes);
@@ -55,6 +59,8 @@ int loadCIFARData(int type, int classes, const char * dataset_path,
         if (strstr(finfo->d_name, prfx) == NULL) continue;
         sprintf(datafiles[fcount++], "%s/%s", dataset_path, finfo->d_name);
     }
+    qsort(datafiles, fcount, 255, compareFilenames);
+    if (max_files > 0 && max_files < fcount) fcount = max_files;
 
     int datasize = (fcount * CIFAR_FILE_IMG_COUNT *
                     (classes + CIFAR_IMAGE_BYTESIZE));

@@ -36,6 +36,8 @@
 #include "lstm.h"
 #include "debug.h"
 
+#define STATUS_ERROR_LOSS -999.00
+
 #ifdef BACKTRACE_AVAILABLE
 void segvHandler(int sig, siginfo_t *info, void *secret);
 #endif
@@ -99,7 +101,6 @@ void PSHandleSignals(PSSignalHandler shutdown_handler) {
     sigaction(SIGFPE, &act, NULL);
     sigaction(SIGILL, &act, NULL);
 #endif
-    return;
 }
 
 /* Feedforward Functions */
@@ -545,6 +546,14 @@ double PSQuadraticLoss(double * outputs, double * desired, int size,
         for (i = 0; i < size; i++) {
             double d = outputs[i] - desired[i];
             diffs[i] = d;
+            if (isnan(d)) {
+                fprintf(stderr,
+                    "\n\nPSQuadraticLoss: diffs[%d] is nan!\n"
+                    " -> output=%f, desired=%f\n",
+                    i, outputs[i], desired[i]
+                );
+                assert(!isnan(d));
+            }
         }
         _diffs = diffs;
     } else _diffs = outputs;
@@ -593,6 +602,7 @@ PSNeuralNetwork * PSCreateNetwork(const char* name) {
     network->loss = PSQuadraticLoss;
     network->training = NULL;
     network->onEpochTrained = NULL;
+    network->onBatchTrained = NULL;
     return network;
 }
 
@@ -957,7 +967,7 @@ int PSLoadNetwork(PSNeuralNetwork * network, const char* filename) {
 }
 
 int PSSaveNetwork(PSNeuralNetwork * network, const char* filename) {
-    char * func = "saveNetwork";
+    char * func = "PSSaveNetwork";
     if (network->size == 0) {
         PSErr(func, "Empty network!");
         return 0;
@@ -1063,6 +1073,149 @@ int PSSaveNetwork(PSNeuralNetwork * network, const char* filename) {
                 fprintf(f, "\n");
             }
         }
+    }
+    fclose(f);
+    return 1;
+}
+
+static void DumpNetworkHeader(PSNeuralNetwork * network, FILE *dump_file) {
+    fprintf(dump_file, "psyc:version=%s\n", PSYC_VERSION);
+    const char * name = network->name;
+    if (name == NULL || !strlen(name)) name = "UNNAMED NETWORK";
+    fprintf(
+        dump_file, "network:name=%s,size=%d,status=%s\n", name, network->size,
+        getNetworkStatusLabel(network)
+    );
+    if (network->training != NULL) {
+        fprintf(dump_file,
+            "training:started_at=%ld,current_epoch=%d,current_batch=%d,"
+            "current_element=%d,batch_size=%d\n",
+            network->training->started_at, network->training->current_epoch,
+            network->training->current_batch,
+            network->training->current_element, network->training->batch_size
+        );
+    }
+}
+
+static void DumpLayerInfo(PSLayer *layer, FILE *dump_file, int add_new_line) {
+    PSLayerType ltype = layer->type;
+    char *type_name = PSGetLayerTypeLabel(layer);
+    PSLayerParameters * lparams = layer->parameters;
+    fprintf(dump_file, "layer:index=%d,type=%s,size=%d", layer->index,
+        type_name, layer->size);
+    if (layer->index == 0 && layer->flags & FLAG_ONEHOT) {
+        PSLayerParameters * params = layer->parameters;
+        int onehot_sz = (int) (params->parameters[0]);
+        fprintf(dump_file, ",vector_size=%d", onehot_sz);
+    }
+    int fcount = 1;
+    if ((ltype == Convolutional || ltype == Pooling) && lparams != NULL) {
+        double * params = lparams->parameters;
+        fcount = (int) (params[PARAM_FEATURE_COUNT]);
+        int rsize = (int) (params[PARAM_REGION_SIZE]);
+        int input_w = (int) (params[PARAM_INPUT_WIDTH]);
+        int input_h = (int) (params[PARAM_INPUT_HEIGHT]);
+        int output_w = (int) (params[PARAM_OUTPUT_WIDTH]);
+        int output_h = (int) (params[PARAM_OUTPUT_HEIGHT]);
+        int stride = (int) (params[PARAM_STRIDE]);
+        int use_relu = (int) (params[PARAM_USE_RELU]);
+        if (stride <= 0 && ltype == Pooling) stride = rsize;
+        fprintf(
+            dump_file, ",input_size=%dx%d,output_size=%dx%d,features=%d"
+            ",region=%dx%d,stride=%d",
+            input_w, input_h, output_w, output_h, fcount,
+            rsize, rsize, stride
+        );
+        if (ltype == Convolutional) {
+            char * actv = (use_relu ? "relu" : "sigmoid");
+            int padding = (int) (params[PARAM_PADDING]);
+            if (padding < 0) padding = 0;
+            fprintf(dump_file, ",padding=%d,activation=%s", padding, actv);
+        }
+    } else if (lparams != NULL && ltype == FullyConnected) {
+        double * params = lparams->parameters;
+        fcount = (int) (params[PARAM_FEATURE_COUNT]);
+        if (fcount > 1) fprintf(dump_file, ",features=%d", fcount);
+    }
+    if (add_new_line) fprintf(dump_file, "\n");
+}
+
+int PSDumpNetworkActivations(PSNeuralNetwork * network, const char* filename) {
+    char * func = "PSDumpNetworkActivations";
+    if (network->size == 0) {
+        PSErr(func, "Empty network!");
+        return 0;
+    }
+    FILE * f = fopen(filename, "w");
+    if (f == NULL) {
+        fprintf(stderr, "Cannot open %s for writing!\n", filename);
+        return 0;
+    }
+    DumpNetworkHeader(network, f);
+    int i;
+    for (i = 0; i < network->size; i++) {
+        PSLayer * layer = network->layers[i];
+        PSLayerType ltype = layer->type;
+        PSLayerParameters * lparams = layer->parameters;
+        int fcount = 1, nidx = 0;
+        if ((ltype == Convolutional || ltype == Pooling ||
+            ltype == FullyConnected) && lparams != NULL)
+        {
+            double * params = lparams->parameters;
+            fcount = (int) (params[PARAM_FEATURE_COUNT]);
+        }
+        if (fcount < 0) fcount = 1;
+        DumpLayerInfo(layer, f, 0);
+        fprintf(f, ",activations=(");
+        for(; nidx < layer->size; nidx++) {
+            char *fmt = (nidx > 0 ? ",%.15e": "%.15e");
+            PSNeuron *n = layer->neurons[nidx];
+            fprintf(f, fmt, n->activation);
+        }
+        fprintf(f, ")\n");
+    }
+    fclose(f);
+    return 1;
+}
+
+int PSDumpNetworkDeltas(PSNeuralNetwork * network, const char* filename) {
+    char * func = "PSDumpNetworkDeltas";
+    if (network->size == 0) {
+        PSErr(func, "Empty network!");
+        return 0;
+    }
+    FILE * f = fopen(filename, "w");
+    if (f == NULL) {
+        fprintf(stderr, "Cannot open %s for writing!\n", filename);
+        return 0;
+    }
+    DumpNetworkHeader(network, f);
+    int i;
+    for (i = 0; i < network->size; i++) {
+        PSLayer *layer = network->layers[i];
+        PSLayerType ltype = layer->type;
+        PSLayerParameters * lparams = layer->parameters;
+        int fcount = 1, nidx = 0;
+        if ((ltype == Convolutional || ltype == Pooling ||
+            ltype == FullyConnected) && lparams != NULL)
+        {
+            double * params = lparams->parameters;
+            fcount = (int) (params[PARAM_FEATURE_COUNT]);
+        }
+        if (fcount < 0) fcount = 1;
+        DumpLayerInfo(layer, f, 0);
+        double *delta = layer->delta;
+        if (delta == NULL) {
+            fprintf(f, ",deltas=()\n");
+            continue;
+        }
+        fprintf(f, ",deltas=(");
+        for(; nidx < layer->size; nidx++) {
+            char *fmt = (nidx > 0 ? ",%.15e": "%.15e");
+            double d = delta[nidx];
+            fprintf(f, fmt, d);
+        }
+        fprintf(f, ")\n");
     }
     fclose(f);
     return 1;
@@ -1232,6 +1385,7 @@ PSLayer * PSAddLayer(PSNeuralNetwork * network, PSLayerType type, int size,
         initialized = 1;
     } else if (type == Convolutional) {
         initialized = PSInitConvolutionalLayer(network, layer, params);
+        /* TODO: Make PSCrossEntropyLoss default also for convolutional? */
     } else if (type == Pooling) {
         initialized = PSInitPoolingLayer(network, layer, params);
     } else if (type == Recurrent) {
@@ -1713,6 +1867,7 @@ PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y) {
             PSPoolingBackprop(layer, previousLayer, delta);
         } else if (Convolutional == ltype) {
             PSConvolutionalBackprop(layer, previousLayer, lgradients);
+            delta = layer->delta;
         } else {
             fprintf(stderr, "Backprop from %s to %s not suported!\n",
                     PSGetLayerTypeLabel(layer),
@@ -1893,7 +2048,8 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
 
 double updateWeights(PSNeuralNetwork * network, double * training_data,
                      int batch_size, int elements_count,
-                     PSTrainingOptions* opts, double rate, ...)
+                     PSTrainingOptions* opts, double rate,
+                     PSGradient **momentum_gradients, ...)
 {
     double r = rate / (double) batch_size;
     int i, j, k, w, netsize = network->size, dsize = netsize - 1, times;
@@ -1905,22 +2061,21 @@ double updateWeights(PSNeuralNetwork * network, double * training_data,
     PSGradient ** gradients = createGradients(network);
     if (gradients == NULL) {
         network->status = STATUS_ERROR;
-        return -999.0;
+        return STATUS_ERROR_LOSS;
     }
     char * func = "updateWeights";
-    PSGradient ** bp_gradients = NULL;
-    double ** series = NULL;
+    PSGradient **bp_gradients = NULL;
+    double **series = NULL;
     int is_recurrent = network->flags & FLAG_RECURRENT;
     if (is_recurrent) {
         va_list args;
-        va_start(args, rate);
+        va_start(args, momentum_gradients);
         series = va_arg(args, double**);
         va_end(args);
         if (series == NULL) {
             PSErr(func, "Series is NULL");
             network->status = STATUS_ERROR;
-            PSDeleteGradients(gradients, network);
-            return -999.0;
+            goto final;
         }
     }
     int do_dump = (
@@ -1947,16 +2102,17 @@ double updateWeights(PSNeuralNetwork * network, double * training_data,
             times = (int) *(x++);
             if (times == 0) {
                 PSErr(func, "Series len must b > 0. (batch = %d)", i);
-                PSDeleteGradients(gradients, network);
-                return -999.0;
+                /*PSDeleteGradients(gradients, network);
+                return STATUS_ERROR_LOSS;*/
+                network->status = STATUS_ERROR;
+                goto final;
             }
             y = x + (times * training_data_size);
             bp_gradients = backpropThroughTime(network, x, y, times);
         }
         if (bp_gradients == NULL) {
             network->status = STATUS_ERROR;
-            PSDeleteGradients(gradients, network);
-            return -999.0;
+            goto final;
         }
         for (j = 0; j < dsize; j++) {
             PSLayer * layer = network->layers[j + 1];
@@ -2010,40 +2166,64 @@ double updateWeights(PSNeuralNetwork * network, double * training_data,
         PSDeleteGradients(bp_gradients, network);
         if (network->status == STATUS_PAUSED) break;
     }
-    
-    double l1 = 0.0, l2 = 0.0, l2_loss = 0.0;
+
+    UNUSED(elements_count); /* TODO: remove elements_count arg if not needed */
+    double l1 = 0.0, l2 = 0.0, l2_loss = 0.0, momentum = 0.0;
     if (opts != NULL) {
         //if (opts->l1_decay != 0.0) l1 = opts->l1_decay / elements_count;
         if (opts->l2_decay != 0.0) {
-            l2 = opts->l2_decay / elements_count;
+            /*l2 = opts->l2_decay / elements_count;*/ /* TODO: Why l2 gets
+                                                       * divided by
+                                                       * elements_count? */
+            l2 = opts->l2_decay / batch_size;
             l2 = (1 - (rate * l2));
         }
         l1 = (1 - (rate * l1));
+        momentum = opts->momentum;
     }
-    
+    int apply_momentum = (momentum > 0.0);
+    if (apply_momentum) {
+        if (momentum_gradients == NULL) {
+            network->status = STATUS_ERROR;
+            goto final;
+        }
+        momentum /= batch_size;
+    }
+
     for (i = 0; i < dsize; i++) {
-        PSGradient * lgradients = gradients[i];
+        PSGradient *lgradients = gradients[i], *mgradients = NULL;
         if (lgradients == NULL) continue;
-        PSLayer * layer = network->layers[i + 1];
+        if (momentum_gradients != NULL) mgradients = momentum_gradients[i];
+        PSLayer *layer = network->layers[i + 1];
         PSLayerType ltype = layer->type;
         int l_size;
-        PSSharedParams * shared = NULL;
+        PSSharedParams *shared = NULL;
         if (ltype == Convolutional) {
-            PSLayerParameters * params = layer->parameters;
+            PSLayerParameters *params = layer->parameters;
             l_size = (int) (params->parameters[PARAM_FEATURE_COUNT]);
             shared = getConvSharedParams(layer);
         } else l_size = layer->size;
         int is_lstm = ltype == LSTM;
         for (j = 0; j < l_size; j++) {
-            PSGradient * g = &(lgradients[j]);
+            PSGradient *g = &(lgradients[j]), *mg = NULL;
+            if (mgradients != NULL) mg = &(mgradients[j]);
             if (shared == NULL) {
                 PSNeuron * neuron = layer->neurons[j];
-                neuron->bias = neuron->bias - r * g->bias;
+                double gbias = g->bias; /* TODO: divide by batch_size and
+                                         *      keep learning_rate and
+                                         *      momentum whole? */
+                if (apply_momentum) {
+                    assert(mg != NULL);
+                    double dg = momentum * mg->bias - r * gbias;
+                    mg->bias = dg;
+                    g->bias += dg;
+                } else neuron->bias = neuron->bias - r * gbias;
                 int wsize = neuron->weights_size;
                 if (is_lstm) PSUpdateLSTMBiases(neuron, g, r);
                 k = 0;
 #ifdef USE_AVX
-                if (!avx_disabled) {
+                /* TODO: implement momentum for AVX too */
+                if (!avx_disabled && !apply_momentum) {
                     if (do_dump) PSTrainingDebugDumpGradient(
                         network, DEBUG_PHASE_UPDATE_WEIGHTS, "updateWeights",
                         layer, j, wsize, k, 1, AVXGetStepLen(wsize)
@@ -2078,14 +2258,26 @@ double updateWeights(PSNeuralNetwork * network, double * training_data,
                         neuron->weights[k] *= l2;
                         l2_loss += (grad_w * grad_w);
                     }
-                    neuron->weights[k] -= (r * grad_w);
+                    if (apply_momentum) {
+                        assert(mg != NULL && mg->weights != NULL);
+                        double dg =
+                            momentum * mg->weights[i] - (r * grad_w);
+                        mg->weights[i] = dg;
+                        neuron->weights[k] += dg;
+                    } else neuron->weights[k] -= (r * grad_w);
                 }
             } else {
-                shared->biases[j] -= (r * g->bias);
-                double * weights = shared->weights[j];
+                if (apply_momentum) {
+                    assert(mg != NULL);
+                    double dg = momentum * mg->bias - (r * g->bias);
+                    mg->bias = dg;
+                    shared->biases[j] += dg;
+                } else shared->biases[j] -= (r * g->bias);
+                double *weights = shared->weights[j];
                 k = 0;
 #ifdef USE_AVX
-                if (!avx_disabled) {
+                /* TODO: implement momentum for AVX too */
+                if (!avx_disabled && !apply_momentum) {
                     if (do_dump) PSTrainingDebugDumpGradient(
                         network, DEBUG_PHASE_UPDATE_WEIGHTS, "updateWeights",
                         layer, j, shared->weights_size, k, 1,
@@ -2101,12 +2293,22 @@ double updateWeights(PSNeuralNetwork * network, double * training_data,
                         layer, j, shared->weights_size, k, 0, 0
                     );
                 }
-                for (; k < shared->weights_size; k++)
-                    weights[k] -= (r * g->weights[k]);
+                for (; k < shared->weights_size; k++) {
+                    if (apply_momentum) {
+                        assert(mg != NULL && mg->weights != NULL);
+                        double dg = (
+                            momentum * mg->weights[k] - (r * g->weights[k])
+                        );
+                        mg->weights[k] = dg;
+                        weights[k] += dg;
+                    } else weights[k] -= (r * g->weights[k]);
+                }
             }
         }
     }
+final:
     PSDeleteGradients(gradients, network);
+    if (network->status == STATUS_ERROR) return STATUS_ERROR_LOSS;
     PSLayer * out = network->layers[netsize - 1];
     int onehot = out->flags & FLAG_ONEHOT;
     if (onehot) label_data_size = 1;
@@ -2135,10 +2337,10 @@ double gradientDescent(PSNeuralNetwork * network,
                        int elements_count,
                        double learning_rate,
                        int batch_size,
-                       PSTrainingOptions * options,
+                       PSTrainingOptions *options,
                        int epochs) {
     int batches_count = elements_count / batch_size;
-    double ** series = NULL;
+    double **series = NULL;
     int flags = 0;
     if (options != NULL) flags = options->flags;
     if (network->flags & FLAG_RECURRENT) {
@@ -2151,7 +2353,7 @@ double gradientDescent(PSNeuralNetwork * network,
                                         o_size);
             if (series == NULL) {
                 network->status = STATUS_ERROR;
-                return -999.00;
+                return STATUS_ERROR_LOSS;
             }
         }
         if (!(flags & TRAINING_NO_SHUFFLE))
@@ -2160,9 +2362,17 @@ double gradientDescent(PSNeuralNetwork * network,
         if (!(flags & TRAINING_NO_SHUFFLE))
             shuffle(training_data, elements_count, element_size);
     }
-    int offset = (element_size * batch_size), i;
-    double err = 0.0;
+    double err = 0.0, previous_err = 0.0, avg_err = 0.0;
     long tot_t = 0, avg_t, elapsed_t;
+    PSGradient **momentum_gradients = NULL;
+    if (options != NULL && options->momentum != 0) {
+        momentum_gradients = createGradients(network);
+        if (momentum_gradients == NULL) {
+            network->status = STATUS_ERROR;
+            goto final;
+        }
+    }
+    int offset = (element_size * batch_size), i;
     for (i = 0; i < batches_count; i++) {
         network->training->current_batch = i;
         int batch_num = i + 1;
@@ -2181,25 +2391,27 @@ double gradientDescent(PSNeuralNetwork * network,
         struct timeval st, et;
         gettimeofday(&st, NULL);
         err += updateWeights(network, training_data, batch_size, elements_count,
-                             options, learning_rate, series);
+                             options, learning_rate, momentum_gradients,
+                             series);
         gettimeofday(&et, NULL);
-        elapsed_t = (
-            (((et.tv_sec - st.tv_sec) * 1000000) + (et.tv_usec - st.tv_usec)) /
-            1000
-        );
+        elapsed_t = PSGetElapsedTimeMS(st, et);
         tot_t += elapsed_t;
         avg_t = (tot_t / batch_num);
         if (batch_num < batches_count) {
-            double current_err = err / (double) batch_num;
-            llen += printf(", loss = %.2lf, avg_time = %ldms",
-                current_err, avg_t);
+            avg_err = err / (double) batch_num;
+            llen += printf(", loss = %.2lf, avg_time = %ldms", avg_err, avg_t);
             fill_with_blank(llen);
             fflush(stdout);
         }
         if (network->status == STATUS_ERROR) {
             if (series != NULL) free(series - (i * batches_count));
-            return -999.00;
+            return STATUS_ERROR_LOSS;
         }
+        if (network->onBatchTrained != NULL) {
+            network->onBatchTrained(network, network->training->current_epoch,
+                avg_err, previous_err, 0, &learning_rate, training_data);
+        }
+        previous_err = avg_err;
         if (series == NULL) training_data += offset;
         else series += batch_size;
         int action = network->training->requested_action;
@@ -2208,6 +2420,9 @@ double gradientDescent(PSNeuralNetwork * network,
             break;
         }
     }
+final:
+    if (momentum_gradients != NULL)
+        PSDeleteGradients(momentum_gradients, network);
     if (series != NULL) free(series - (batch_size * batches_count));
     return err / (double) batches_count;
 }
@@ -2238,7 +2453,7 @@ float validate(PSNeuralNetwork * network, double * test_data, int data_size,
                                     y_size);
         if (series == NULL) {
             network->status = STATUS_ERROR;
-            return -999.0f;
+            return STATUS_ERROR_LOSS;
         }
     } else elements_count = data_size / element_size;
     //double outputs[output_size];
@@ -2267,7 +2482,7 @@ float validate(PSNeuralNetwork * network, double * test_data, int data_size,
                 network->status = STATUS_ERROR;
                 fprintf(stderr,
                         "\nAn error occurred while validating, aborting!\n");
-                return -999.0;
+                return STATUS_ERROR_LOSS;
             }
             
             double max = 0.0;
@@ -2294,7 +2509,7 @@ float validate(PSNeuralNetwork * network, double * test_data, int data_size,
                 network->status = STATUS_ERROR;
                 fprintf(stderr,
                         "\nAn error occurred while validating, aborting!\n");
-                return -999.0;
+                return STATUS_ERROR_LOSS;
             }
             expected = inputs + 1 + (times * input_size);
             
@@ -2303,7 +2518,7 @@ float validate(PSNeuralNetwork * network, double * test_data, int data_size,
                 network->status = STATUS_ERROR;
                 fprintf(stderr,
                         "\nAn error occurred while validating, aborting!\n");
-                return -999.0;
+                return STATUS_ERROR_LOSS;
             }
             
             int label_data_size = y_size * times;
@@ -2337,13 +2552,13 @@ float validate(PSNeuralNetwork * network, double * test_data, int data_size,
     return accuracy;
 }
 
-void PSTrain(PSNeuralNetwork * network,
+void PSTrain(PSNeuralNetwork *network,
              double * training_data,
              int data_size,
              int epochs,
              double learning_rate,
              int batch_size,
-             PSTrainingOptions * options,
+             PSTrainingOptions *options,
              double * test_data,
              int test_size) {
     int i, elements_count;
@@ -2366,7 +2581,10 @@ void PSTrain(PSNeuralNetwork * network,
     printf("Training data elements: %d\n", elements_count);
     printf("Batch Size: %d\n", batch_size);
     printf("Learning Rate: %.4f\n", learning_rate);
-    if (options != NULL) printf("L2 Decay: %.2f\n", options->l2_decay);
+    if (options != NULL) {
+        printf("L2 Decay: %.4f\n", options->l2_decay);
+        printf("Momentum: %.4f\n", options->momentum);
+    }
     int was_paused = (network->status == STATUS_PAUSED);
     network->status = STATUS_TRAINING;
     time_t start_t, end_t, epoch_t;
@@ -2436,7 +2654,7 @@ void PSTrain(PSNeuralNetwork * network,
             learning_rate *= 0.5;
         if (network->onEpochTrained != NULL)
             network->onEpochTrained(network, i, err, prev_err,
-                                    acc, &learning_rate);
+                                    acc, &learning_rate, NULL);
         prev_err = err;
         llen = printf(
             ", loss = %.2lf%s (%ld sec.)\n", err, accuracy_msg, elapsed_t

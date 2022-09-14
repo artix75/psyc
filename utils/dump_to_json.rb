@@ -99,6 +99,8 @@ def parse_value(val)
         val.to_i
     elsif val[/^[\-\+]?\d+\.\d+$/]
         val.to_f
+    elsif val[/^[\-\+]?\d+\.\d+[eE][\-\+]\d+/]
+        val.to_f
     elsif val == 'true'
         true
     elsif val == false

@@ -19,6 +19,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
+
+#include <execinfo.h>
+#include <fenv.h>
+#include <xmmintrin.h>
+
 #include "../psyc.h"
 #include "../convolutional.h"
 #include "../cifar.h"
@@ -34,9 +39,57 @@
 #define EVAL_DATASET_LEN 10000
 #define RELU_ENABLED 0
 #define LEARNING_RATE 0.01
+#define MOMENTUM 0.9
 #define ADDITIONAL_LAYERS 1
 #define FC_PREOUTPUT_SIZE 20
 #define SOFTMAX_OUTPUT 1
+#define L2  0.0001
+#define DUMP_ACTIVATIONS_EVERY 4
+
+#if defined(__APPLE__) && defined(__MACH__)
+
+// Public domain polyfill for feenableexcept on OS X
+// http://www-personal.umich.edu/~williams/archive/computation/fe-handling-example.c
+
+int feenableexcept(unsigned int excepts)
+{
+    static fenv_t fenv;
+    unsigned int new_excepts = excepts & FE_ALL_EXCEPT;
+    // previous masks
+    unsigned int old_excepts;
+
+    if (fegetenv(&fenv)) {
+        return -1;
+    }
+    old_excepts = fenv.__control & FE_ALL_EXCEPT;
+
+    // unmask
+    fenv.__control &= ~new_excepts;
+    fenv.__mxcsr   &= ~(new_excepts << 7);
+
+    return fesetenv(&fenv) ? -1 : old_excepts;
+}
+
+int fedisableexcept(unsigned int excepts)
+{
+    static fenv_t fenv;
+    unsigned int new_excepts = excepts & FE_ALL_EXCEPT;
+    // all previous masks
+    unsigned int old_excepts;
+
+    if (fegetenv(&fenv)) {
+        return -1;
+    }
+    old_excepts = fenv.__control & FE_ALL_EXCEPT;
+
+    // mask
+    fenv.__control |= new_excepts;
+    fenv.__mxcsr   |= new_excepts << 7;
+
+    return fesetenv(&fenv) ? -1 : old_excepts;
+}
+
+#endif
 
 PSNeuralNetwork * network = NULL;
 int pause_requested;
@@ -55,6 +108,10 @@ void print_help(char * progname) {
         "Enable/Disable ReLU (def. %d)\n", RELU_ENABLED);
     printf("        --learning-rate RATE            Learnig Rate "
         "(def. %.02f)\n", LEARNING_RATE);
+    printf("        --momentum MOMENTUM             Momentum "
+        "(def. %.02f)\n", MOMENTUM);
+    printf("        --l2-decay DECAY                L2 Weight Decay "
+        "(def. %.02f)\n", L2);
     printf("        --epochs EPOCHS                 Epochs (def. %d)\n",
         EPOCHS);
     printf("        --batch-size SIZE               Batch size (def. %d)\n",
@@ -73,8 +130,19 @@ void print_help(char * progname) {
     printf("        --debug-dump-to FILE            Debug training to FILE\n"
            "                                        "
            "(pass 'stdout' for STDOUT)\n");
+    printf("        --dump-activations-to FILE      Dump Activations\n");
+    printf("        --dump-activations-every NUM    Dump Activations every \n"
+            "                                        "
+           "NUM batches (def. %d)\n", DUMP_ACTIVATIONS_EVERY);
+    printf("        --dump-pretrained-to FILE       Dump Pretrained Network\n");
+    printf("        --max-batches MAX               Max batches (for debug)\n");
     printf("        -h, --help              Print this help\n");
 }
+
+FILE *dump_activations_to = NULL;
+char *dump_activations_str = NULL;
+int dump_activations_every = DUMP_ACTIVATIONS_EVERY;
+int max_batches = 0;
 
 void handler(int sig) {
     if (network != NULL) {
@@ -90,7 +158,53 @@ void handler(int sig) {
     }
 }
 
+void onBatchTrained(void *_network, int epoch, double loss,
+                    double previous_loss, float accuracy,
+                    double *rate, double *training_data)
+{
+    if (dump_activations_str == NULL && max_batches <= 0) return;
+    PSNeuralNetwork *network = (PSNeuralNetwork *) _network;
+    if (network == NULL) return;
+    if (network->training == NULL) return;
+    int batch = network->training->current_batch;
+    if (max_batches > 0 && batch >= max_batches) {
+        raise(SIGINT);
+        raise(SIGINT);
+        return;
+    } else if (max_batches > 0 && dump_activations_str == NULL) return;
+    if ((batch % dump_activations_every) != 0) return;
+    char fname[1024];
+    int len = snprintf(fname, 1023, "%s/psyc-activations-batch-%d.dump",
+                       dump_activations_str, batch);
+    PSDumpNetworkActivations(network, fname);
+    len = snprintf(fname, 1023, "%s/psyc-deltas-batch-%d.dump",
+                   dump_activations_str, batch);
+    PSDumpNetworkDeltas(network, fname);
+    double *labels = training_data + CIFAR_IMAGE_SIZE;
+    len = snprintf(fname, 1023, "%s/psyc-labels-batch-%d.dump",
+                   dump_activations_str, batch);
+    FILE *lblfile = fopen(fname, "w");
+    if (lblfile == NULL)
+        fprintf(stderr, "\nCould not open %s for writing!\n", fname);
+    else {
+        int i = 0;
+        for (; i < 9; i++) {
+            char *fmt = (i > 0 ? ",%g" : "%g");
+            fprintf(lblfile, fmt, labels[i]);
+        }
+        fclose(lblfile);
+    }
+}
+
 int main(int argc, char** argv) {
+    _MM_SET_EXCEPTION_MASK( _MM_GET_EXCEPTION_MASK()
+           & ~( _MM_EXCEPT_INVALID |
+                _MM_EXCEPT_DENORM |
+                _MM_EXCEPT_DIV_ZERO |
+                _MM_EXCEPT_OVERFLOW |
+                _MM_EXCEPT_UNDERFLOW |
+                _MM_EXCEPT_INEXACT ) );
+    feenableexcept(FE_INVALID | FE_OVERFLOW);
     double *training_data = NULL;
     double *test_data = NULL;
     double *validation_data = NULL;
@@ -114,9 +228,13 @@ int main(int argc, char** argv) {
     int softmax_output = SOFTMAX_OUTPUT;
     int disable_avx = 0;
     double learning_rate = LEARNING_RATE;
+    double momentum = MOMENTUM;
+    double l2_decay = L2;
 
     FILE *debug_dump_to = NULL;
     char *debug_output_str = NULL;
+
+    char *dump_pretrained_fname = NULL;
 
     for (i = 1; i < argc; i++) {
         char * arg = argv[i];
@@ -144,6 +262,10 @@ int main(int argc, char** argv) {
                 fprintf(stderr, "Learning rate must be > 0\n");
                 return 1;
             }
+        } else if (strcmp("--momentum", arg) == 0 && (i + 1) < argc) {
+            momentum = (double) atof(argv[++i]);
+        } else if (strcmp("--l2-decay", arg) == 0 && (i + 1) < argc) {
+            l2_decay = (double) atof(argv[++i]);
         } else if (strcmp("--use-relu", arg) == 0 && (i + 1) < argc) {
             use_relu = atoi(argv[++i]);
         } else if (strcmp("--padding", arg) == 0 && (i + 1) < argc) {
@@ -171,6 +293,9 @@ int main(int argc, char** argv) {
                 fprintf(stderr, "Batch size must be >= 2\n");
                 return 1;
             }
+        } else if (strcmp("--max-batches", arg) == 0 && (i + 1) < argc) {
+            max_batches = atoi(argv[++i]);
+            if (max_batches < 0)  max_batches = 0;
         } else if (strcmp("--add-fully-connected", arg) == 0) {
             add_fully_connected = 1;
             if ((i + 1) < argc && argv[i + 1][0] != '-') {
@@ -185,6 +310,15 @@ int main(int argc, char** argv) {
             }
         } else if (strcmp("--debug-dump-to", arg) == 0 && (i + 1) < argc) {
             debug_output_str = argv[++i];
+            continue;
+        } else if (strcmp("--dump-activations-to", arg) == 0 && (i+1) < argc) {
+            dump_activations_str = argv[++i];
+            continue;
+        } else if (strcmp("--dump-activations-every", arg) == 0 && (i+1)<argc) {
+            dump_activations_every = atoi(argv[++i]);
+            if (dump_activations_every <= 0) dump_activations_every = 1;
+        } else if (strcmp("--dump-pretrained-to", arg) == 0 && (i+1) < argc) {
+            dump_pretrained_fname = argv[++i];
             continue;
 #ifdef USE_AVX
         } else if (strcmp("--disable-avx", arg) == 0) {
@@ -223,7 +357,7 @@ int main(int argc, char** argv) {
 
     if (dataset_path != NULL) {
         datasize = loadCIFARData(DATA_TYPE_TRAINING, classes, dataset_path,
-                                &training_data);
+                                &training_data, 0);
         if (datasize == 0 || training_data == NULL) {
             printf("Could not load training data!\n");
             return 1;
@@ -232,7 +366,7 @@ int main(int argc, char** argv) {
         printf("Loaded training dataset (len: %d, size: %d)\n",
             datalen, datasize);
         testsize = loadCIFARData(DATA_TYPE_TEST, classes, dataset_path,
-                                &test_data);
+                                &test_data, 0);
         if (testsize == 0 || test_data == NULL) {
             printf("Could not load test data!\n");
             return 1;
@@ -248,6 +382,8 @@ int main(int argc, char** argv) {
         if (test_data != NULL) free(test_data);
         return 1;
     }
+    if (dump_activations_str != NULL || max_batches > 0)
+        network->onBatchTrained = onBatchTrained;
     printf("Network created, AVX: ");
 #ifdef USE_AVX
     if (disable_avx) network->flags |= FLAG_AVX_DISABLED;
@@ -316,6 +452,7 @@ int main(int argc, char** argv) {
             PSAddLayer(network, FullyConnected, fc_preoutput_size, NULL);
         if (softmax_output) PSAddLayer(network, SoftMax, classes, NULL);
         else PSAddLayer(network, FullyConnected, classes, NULL);
+        network->loss = PSCrossEntropyLoss;
 
         if (network->size < 1) {
             fprintf(stderr, "Could not add all layers!\n");
@@ -378,8 +515,10 @@ int main(int argc, char** argv) {
     }
     if (datalen > 0) {
         /*signal(SIGINT, handler);*/
+        if (dump_pretrained_fname != NULL)
+            PSSaveNetwork(network, dump_pretrained_fname);
         PSTrainingOptions train_opts = {
-            0, 0, debug_dump_to
+            0, l2_decay, momentum, debug_dump_to
         };
         PSHandleSignals(handler);
         PSTrain(network, training_data, datalen, epochs, learning_rate,

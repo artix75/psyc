@@ -134,7 +134,8 @@ double getDeltaForConvolutionalNeuron(PSNeuron * neuron,
             if (col == 0 && j > 0) row++;
             int r_row = (row * stride) - padding; /* First region's row (Y) */
             int r_col = (col * stride) - padding; /* First region's col (X) */
-            if (r_col > n_col || r_row > n_row) break;
+            if (r_col > n_col && r_row > n_row) break;
+            if (r_col > n_col || r_row > n_row) continue;
             int max_x = next_region_size + r_col;
             int max_y = next_region_size + r_row;
             if ((n_col >= r_col && n_col < max_x) &&
@@ -281,8 +282,10 @@ int PSInitConvolutionalLayer(PSNeuralNetwork * network, PSLayer * layer,
     }
     layer->extra = shared;
     int i, j, w;
+    double wscale = sqrt(1.0 / shared->weights_size);
     for (i = 0; i < feature_count; i++) {
-        shared->biases[i] = gaussian_random(0, 1);
+        shared->biases[i] = (use_relu ? 0.1 : 0.0);
+        /* shared->biases[i] = gaussian_random(0, 1);*/
         shared->weights[i] = malloc(shared->weights_size * sizeof(double));
         if (shared->weights[i] == NULL) {
             PSErr(func, "Layer[%d]: Could not allocate weights!", index);
@@ -290,7 +293,7 @@ int PSInitConvolutionalLayer(PSNeuralNetwork * network, PSLayer * layer,
             return 0;
         }
         for (w = 0; w < shared->weights_size; w++) {
-            shared->weights[i][w] = gaussian_random(0, 1);
+            shared->weights[i][w] = gaussian_random(0, wscale);
         }
         for (j = 0; j < area; j++) {
             int idx = (i * area) + j;
@@ -415,7 +418,7 @@ int PSInitPoolingLayer(PSNeuralNetwork * network, PSLayer * layer,
         }
     }
     layer->activate = NULL;
-    layer->derivative = previous->derivative;
+    layer->derivative = NULL;
     layer->feedforward = PSPool;
     return 1;
 }
@@ -740,7 +743,13 @@ int PSPoolingBackprop(PSLayer * pooling_layer, PSLayer * convolutional_layer,
                         convolutional_layer, i, nidx, x, y
                     );
                     double a = prev_neuron->activation;
-                    conv_delta[nidx] = (a < neuron->activation ? 0 : d);
+                    double dv = (a < neuron->activation ? 0 : d);
+                    if (dv != 0 && convolutional_layer->derivative != NULL) {
+                        dv *= convolutional_layer->derivative(
+                            neuron->activation
+                        );
+                    }
+                    conv_delta[nidx] = dv;
                 }
             }
         }

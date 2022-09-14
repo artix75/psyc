@@ -58,7 +58,7 @@
 #ifdef USE_AVX
 #define PSIsAVXDisabled(network) (network->flags & FLAG_AVX_DISABLED)
 #else
-#define PSIsAVXDisabled(network) (0)
+#define PSIsAVXDisabled(network) (1)
 #endif
 
 
@@ -68,12 +68,12 @@ typedef double  (*PSLossFunction) (double* x, double* y, int size,
                                    int onehot_size);
 typedef void    (*PSTrainCallback) (void * network, int epoch, double loss,
                                     double previous_loss, float accuracy,
-                                    double * rate);
+                                    double *rate, double *training_data);
 typedef void    (*PSSignalHandler) (int);
 
 typedef struct {
     double bias;
-    double * weights;
+    double *weights;
 } PSGradient;
 
 typedef enum {
@@ -93,13 +93,14 @@ typedef struct {
 typedef struct {
     int feature_count;
     int weights_size;
-    double * biases;
-    double ** weights;
+    double *biases;
+    double **weights;
 } PSSharedParams;
 
 typedef struct {
     int flags;
     double l2_decay;
+    double momentum;
     FILE *debug_dump_to;
 } PSTrainingOptions;
 
@@ -154,6 +155,7 @@ typedef struct {
     int output_size;
     PSTrainingInfo * training;
     PSTrainCallback onEpochTrained;
+    PSTrainCallback onBatchTrained;
 } PSNeuralNetwork;
 
 extern int PSGlobalFlags;
@@ -202,6 +204,8 @@ int PSVerifyNetwork(PSNeuralNetwork * network);
 char * PSGetLabelForType(PSLayerType type);
 char * PSGetLayerTypeLabel(PSLayer * layer);
 void PSPrintNetworkInfo(PSNeuralNetwork * network);
+int PSDumpNetworkActivations(PSNeuralNetwork * network, const char* filename);
+int PSDumpNetworkDeltas(PSNeuralNetwork * network, const char* filename);
 
 // Loss functions
 

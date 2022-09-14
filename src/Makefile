@@ -2,7 +2,7 @@ SHELL=/bin/bash
 CC=gcc
 CFLAGS=-std=gnu99 -Wall -W -Wno-missing-field-initializers
 LDFLAGS=-lz -lm
-OBJS=psyc.o utils.o convolutional.o recurrent.o lstm.o mnist.o debug.o
+OBJS=psyc.o utils.o convolutional.o recurrent.o lstm.o mnist.o debug.o cifar.o
 PREFIX?=/usr/local
 LIBDIR=$(PREFIX)/lib
 BINDIR=$(PREFIX)/bin

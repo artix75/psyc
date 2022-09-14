@@ -470,7 +470,12 @@ int main(int argc, char ** argv) {
         } else if (strcmp("--enable-colors", arg) == 0) {
             PSGlobalFlags |= FLAG_LOG_COLORS;
         } else if (strcmp("-v", arg) == 0 || strcmp("--version", arg) == 0) {
-            printf("%s v%s\n", PROGRAM_NAME, PSYC_VERSION);
+            printf("%s v%s (AVX=", PROGRAM_NAME, PSYC_VERSION);
+#ifdef USE_AVX
+            printf("on)\n");
+#else
+            printf("off)\n");
+#endif
             exit(0);
         } else if (strcmp("-h", arg) == 0 || strcmp("--help", arg) == 0) {
             print_help(argv[0]);
