@@ -91,7 +91,6 @@ void PSHandleSignals(PSSignalHandler shutdown_handler) {
     act.sa_handler = shutdown_handler;
     sigaction(SIGTERM, &act, NULL);
     sigaction(SIGINT, &act, NULL);
-
 #ifdef BACKTRACE_AVAILABLE
     sigemptyset(&act.sa_mask);
     act.sa_flags = SA_NODEFER | SA_RESETHAND | SA_SIGINFO;
@@ -384,32 +383,6 @@ static void fetchRecurrentOutputState(PSLayer * out, double * outputs,
         }
     }
     if (onehot) outputs[i] = max_idx;
-}
-
-static double getDeltaForNeuron(PSNeuron * neuron,
-                                PSLayer * layer,
-                                PSLayer * nextLayer,
-                                double * last_delta)
-{
-    int index = neuron->index, i;
-    PSNeuralNetwork *net = (PSNeuralNetwork *) layer->network;
-    int do_dump = PSShouldDebugDump(net);
-    double dv = 0;
-    for (i = 0; i < nextLayer->size; i++) {
-        PSNeuron * nextNeuron = nextLayer->neurons[i];
-        double weight = nextNeuron->weights[index];
-        double d = last_delta[i];
-        dv += (d * weight);
-        if (do_dump) PSTrainingDebugDumpStep(
-            net, TRAINING_PHASE_BACKPROP, "getDeltaForNeuron",
-            layer, neuron,
-            "next_neuron=%d-%d,weight_index=%d\n",
-            nextLayer->index, i, index
-        );
-    }
-    if (layer->derivative != NULL)
-        dv *= layer->derivative(neuron->activation);
-    return dv;
 }
 
 static int compareVersion(const char* vers1, const char* vers2) {
@@ -1741,6 +1714,19 @@ void PSDeleteGradients(PSGradient ** gradients, PSNeuralNetwork * network) {
     free(gradients);
 }
 
+static void resetDeltas(PSNeuralNetwork *network) {
+    if (network->layers == NULL) return;
+    int i;
+    for (i = 0; i < network->size; i++) {
+        PSLayer *layer = network->layers[i];
+        if (layer->delta != NULL) {
+            int dsize = layer->size;
+            if (layer->type == LSTM) dsize *= 2;
+            memset(layer->delta, 0, (size_t) dsize * sizeof(double));
+        }
+    }
+}
+
 PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y) {
     if (network == NULL) return NULL;
     PSGradient ** gradients = createGradients(network);
@@ -1750,13 +1736,13 @@ PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y) {
     int osize = outputLayer->size;
     PSGradient * lgradients = gradients[netsize - 2]; //No gradient for inputs
     PSLayer * previousLayer = network->layers[outputLayer->index - 1];
-    PSLayer * nextLayer = NULL;
-    double * delta = outputLayer->delta;
-    double * last_delta = delta;
+    resetDeltas(network);
+    double *delta = outputLayer->delta;
 
     int i, o, w, j, ok = 1;
+    int avx_disabled = 1;
 #ifdef USE_AVX
-    int avx_disabled = PSIsAVXDisabled(network);
+    avx_disabled = PSIsAVXDisabled(network);
 #endif
     if (x != NULL) {
         ok = PSFeedforward(network, x);
@@ -1797,6 +1783,13 @@ PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y) {
             for (; w < wsize; w++) {
                 double prev_a = previousLayer->neurons[w]->activation;
                 gradient->weights[w] = d * prev_a;
+                if (avx_disabled)
+                    previousLayer->delta[w] += (d * neuron->weights[w]);
+            }
+            if (!avx_disabled) {
+                for (w = 0; w < wsize; w++) {
+                    previousLayer->delta[w] += (d * neuron->weights[w]);
+                }
             }
         }
     }
@@ -1819,13 +1812,19 @@ PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y) {
             for (; w < wsize; w++) {
                 double prev_a = previousLayer->neurons[w]->activation;
                 gradient->weights[w] = d * prev_a;
+                if (avx_disabled)
+                    previousLayer->delta[w] += (d * neuron->weights[w]);
+            }
+            if (!avx_disabled) {
+                for (w = 0; w < wsize; w++) {
+                    previousLayer->delta[w] += (d * neuron->weights[w]);
+                }
             }
         }
     }
     for (i = previousLayer->index; i > 0; i--) {
         PSLayer * layer = network->layers[i];
         previousLayer = network->layers[i - 1];
-        nextLayer = network->layers[i + 1];
         lgradients = gradients[i - 1];
         int lsize = layer->size;
         PSLayerType ltype = layer->type;
@@ -1834,11 +1833,13 @@ PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y) {
             delta = layer->delta;
             for (j = 0; j < lsize; j++) {
                 PSNeuron * neuron = layer->neurons[j];
-                double d = getDeltaForNeuron(neuron, layer,
-                                             nextLayer, last_delta);
-                delta[j] = d;
+                double d = delta[j];
+                if (layer->derivative != NULL) {
+                    d *= layer->derivative(neuron->activation);
+                    delta[j] = d;
+                }
                 PSGradient * gradient = &(lgradients[j]);
-                gradient->bias = delta[j];
+                gradient->bias = d;
                 w = 0;
                 int wsize = neuron->weights_size;
 #ifdef USE_AVX
@@ -1850,24 +1851,20 @@ PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y) {
                 for (; w < wsize; w++) {
                     double prev_a = previousLayer->neurons[w]->activation;
                     gradient->weights[w] = d * prev_a;
+                    if (avx_disabled && previousLayer->delta != NULL)
+                        previousLayer->delta[w] += (d * neuron->weights[w]);
+                }
+                if (!avx_disabled && previousLayer->delta != NULL) {
+                    for (w = 0; w < wsize; w++) {
+                        previousLayer->delta[w] += (d * neuron->weights[w]);
+                    }
                 }
             }
         } else if (Pooling == ltype && Convolutional == prev_ltype) {
             delta = layer->delta;
-            PSGetDeltaFunction _getDelta = NULL;
-            if (nextLayer->type == Convolutional)
-                _getDelta = getDeltaForConvolutionalNeuron;
-            else
-                _getDelta = getDeltaForNeuron;
-            for (j = 0; j < lsize; j++) {
-                PSNeuron * neuron = layer->neurons[j];
-                delta[j] = _getDelta(neuron, layer, nextLayer, last_delta);
-            }
-            last_delta = delta;
             PSPoolingBackprop(layer, previousLayer, delta);
         } else if (Convolutional == ltype) {
             PSConvolutionalBackprop(layer, previousLayer, lgradients);
-            delta = layer->delta;
         } else {
             fprintf(stderr, "Backprop from %s to %s not suported!\n",
                     PSGetLayerTypeLabel(layer),
@@ -1875,7 +1872,6 @@ PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y) {
             PSDeleteGradients(gradients, network);
             return NULL;
         }
-        if (last_delta != delta) last_delta = delta;
     }
     return gradients;
 }
@@ -1921,7 +1917,7 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
         double * time_y = y + time_offset;
         
         PSGradient * lgradients =
-        gradients[netsize - 2];// No grad.for inputs
+            gradients[netsize - 2];/* No gradients for inputs*/
         previousLayer = network->layers[outputLayer->index - 1];
         nextLayer = NULL;
         

@@ -68,111 +68,7 @@ w,steplen,step,rowlen) \
  x, y, rx, ry, rx2, ry2, prv->index, fidx, nidx, nx, ny, widx, __LINE__)
 
 
-double getDeltaForConvolutionalNeuron(PSNeuron * neuron,
-                                      PSLayer * layer,
-                                      PSLayer * nextLayer,
-                                      double * last_delta)
-{
-
-    int index = neuron->index, i, j, row, col;
-    int size = layer->size;
-    PSLayerParameters * lparams = layer->parameters;
-    int feature_count = (int) (lparams->parameters[PARAM_FEATURE_COUNT]);
-    if (feature_count < 1) feature_count = 1;
-    double output_w = lparams->parameters[PARAM_OUTPUT_WIDTH],
-           output_h = lparams->parameters[PARAM_OUTPUT_HEIGHT];
-    if (output_h <= 0) output_h = output_w;
-    int feature_size = size / feature_count;
-    int feature_idx = index / feature_size;
-    int feature_offs = feature_idx * feature_size;
-    /*int relative_idx = index % feature_size;*/
-    PSLayerParameters * nparams = nextLayer->parameters;
-    int next_feature_count = (int) (nparams->parameters[PARAM_FEATURE_COUNT]);
-    int next_region_size = (int) (nparams->parameters[PARAM_REGION_SIZE]);
-    int stride = (int) (nparams->parameters[PARAM_STRIDE]);
-    int padding = (int) (nparams->parameters[PARAM_PADDING]);
-    double next_output_w = nparams->parameters[PARAM_OUTPUT_WIDTH];
-    int next_feature_size = nextLayer->size / next_feature_count;
-    int n_col = (index - feature_offs) % (int) output_w;
-    int n_row = (index - feature_offs) / (int) output_h;
-    PSNeuralNetwork *net = (PSNeuralNetwork *) layer->network;
-    int do_dump = 0;
-    if (net != NULL) {
-        do_dump = (
-            net->training != NULL && net->training->debug_dump_to != NULL &&
-            feature_idx < 2 /*&&
-            (relative_idx < 2 || relative_idx > feature_size - 3)*/
-        );
-    }
-
-    PSSharedParams * shared = getConvSharedParams(nextLayer);
-    if (shared == NULL) {
-        //TODO: handle shared == NULL
-        return 0;
-    }
-    double dv = 0;
-    for (i = 0; i < next_feature_count; i++) {
-        /* Cycle every feature of the next layer */
-        if (do_dump && i > 1) do_dump = 0;
-        double * weights = shared->weights[i];
-        int weights_size = shared->weights_size;
-        int feature_weights_size = weights_size / feature_count;
-        int offset = i * next_feature_size;
-        row = 0;
-        col = 0;
-        if (do_dump) PSTrainingDebugDump(
-            net, "##### getDeltaForConvolutionalNeuron: Next Feature[%d], "
-            "offset=%d, weight_offset=%d\n", i, offset,
-            feature_idx * feature_weights_size
-        );
-        for (j = 0; j < next_feature_size; j++) {
-            /* Cycle every neuron of the next layer's feature, and get its
-             * delta, column, row and feature region */
-            int idx = offset + j;
-            double d = last_delta[idx];
-            col = idx % (int) next_output_w;
-            if (col == 0 && j > 0) row++;
-            int r_row = (row * stride) - padding; /* First region's row (Y) */
-            int r_col = (col * stride) - padding; /* First region's col (X) */
-            if (r_col > n_col && r_row > n_row) break;
-            if (r_col > n_col || r_row > n_row) continue;
-            int max_x = next_region_size + r_col;
-            int max_y = next_region_size + r_row;
-            if ((n_col >= r_col && n_col < max_x) &&
-                (n_row >= r_row && n_row < max_y)) {
-                /* Layer's neuron is inside region scanned by next layer's
-                 * neuron */
-                int woffs = feature_idx * feature_weights_size;
-                /* Get weight's column and row inside the weight's 'region' */
-                int w_row = n_row - r_row;
-                int w_col = n_col - r_col;
-                assert(w_row >= 0);
-                assert(w_col >= 0);
-                assert(w_row < next_region_size);
-                assert(w_col < next_region_size);
-                /*int widx = woffs + (r_row * next_region_size) + r_col;*/
-                int widx = woffs + (w_row * next_region_size) + w_col;
-                assert(widx >= 0);
-                assert(widx < weights_size);
-                if (do_dump) PSTrainingDebugDumpStep(
-                    net, TRAINING_PHASE_BACKPROP,
-                    "getDeltaForConvolutionalNeuron", layer, neuron,
-                    "next_neuron=%d-%d-%d,region=(%d,%d,%d,%d),"
-                    "region_pos=(%d,%d),weight_idx=%d\n",
-                    nextLayer->index, i, idx, r_col, r_row, max_x, max_y,
-                    w_col, w_row, widx
-                );
-                dv += (d * weights[widx]);
-            }
-        }
-    }
-    if (layer->derivative != NULL)
-        dv *= layer->derivative(neuron->activation);
-    return dv;
-}
-
 /* Init Functions */
-
 
 int PSInitConvolutionalLayer(PSNeuralNetwork * network, PSLayer * layer,
                              PSLayerParameters * parameters) {
@@ -760,7 +656,8 @@ int PSPoolingBackprop(PSLayer * pooling_layer, PSLayer * convolutional_layer,
 int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer * prev_layer,
                             PSGradient * lgradients)
 {
-    double * delta = convolutional_layer->delta;
+    double *delta = convolutional_layer->delta;
+    double *prev_delta = prev_layer->delta;
     int size = convolutional_layer->size;
     PSLayerParameters * params = convolutional_layer->parameters;
     int feature_count = (int) (params->parameters[PARAM_FEATURE_COUNT]);
@@ -852,7 +749,13 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer * prev_layer,
                             col, row, r_col, r_row, max_x, max_y,
                             prev_layer, k, nidx, x, y, widx
                         );
-                        feature_gradient->weights[widx++] += (a * d);
+                        feature_gradient->weights[widx] += (a * d);
+                        if (prev_delta != NULL) {
+                            PSNeuron *neuron =
+                                convolutional_layer->neurons[idx];
+                            prev_delta[nidx] += (d * neuron->weights[widx]);
+                        }
+                        widx++;
                     }
                 }
             }

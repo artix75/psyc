@@ -38,12 +38,7 @@
 #define calculateConvolutionalSide(s,rs,st,pad) floor((s - rs + 2 * pad) / st+1)
 #define calculatePoolingSide(s, rs) floor((s - rs) / rs + 1)
 
-double getDeltaForConvolutionalNeuron(PSNeuron * neuron,
-                                      PSLayer * layer,
-                                      PSLayer * nextLayer,
-                                      double * last_delta);
 /* Init Functions */
-
 
 int PSInitConvolutionalLayer(PSNeuralNetwork * network, PSLayer * layer,
                              PSLayerParameters * parameters);

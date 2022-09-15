@@ -19,6 +19,9 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
+#include <signal.h>
+#include <strings.h>
+
 #include "test.h"
 #include "../psyc.h"
 #include "../convolutional.h"
@@ -106,7 +109,8 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
 
 double updateWeights(PSNeuralNetwork * network, double * training_data,
                      int batch_size, int elements_count,
-                     PSTrainingOptions* opts, double rate, ...);
+                     PSTrainingOptions* opts, double rate,
+                     PSGradient **momentum_gradeints, ...);
 
 int testlen = 0;
 
@@ -290,7 +294,7 @@ static void getTmpFileName(const char * prfx, const char * sfx, char * buffer) {
 }
 
 int main(int argc, char** argv) {
-    
+    PSHandleSignals(NULL);
 #ifdef USE_AVX
     AVXTests = createTest("AVX");
     addTest(AVXTests, "Dot Product", NULL, testAVXDot);
@@ -866,7 +870,7 @@ int testRNNStep(void* tc, void* t) {
     
     int ok = 1, i, j, w;
     double loss = updateWeights(network, training_data, 1, elements_count,
-                                NULL, RNN_LEARNING_RATE, series);
+                                NULL, RNN_LEARNING_RATE, NULL, series);
     
     for (i = 1; i < network->size; i++) {
         PSLayer * layer = network->layers[i];

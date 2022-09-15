@@ -126,6 +126,7 @@ int compareNetworks(PSNeuralNetwork * network, PSNeuralNetwork * other)
 }
 
 int main(int argc, char** argv) {
+    PSHandleSignals(NULL);
     PSNeuralNetwork * std_network = PSCreateNetwork("STD Network");
     PSNeuralNetwork * avx_network = PSCreateNetwork("AVX Network");
     printf(DIM);
