@@ -46,6 +46,7 @@
 #define SOFTMAX_OUTPUT 1
 #define L2  0.0001
 #define DUMP_ACTIVATIONS_EVERY 4
+#define DEFAULT_OUTPUT_FILE "/tmp/pretrained.cnn.data"
 
 #if defined(__APPLE__) && defined(__MACH__)
 
@@ -93,13 +94,17 @@ int fedisableexcept(unsigned int excepts)
 #endif
 
 PSNeuralNetwork * network = NULL;
+char *output_path = DEFAULT_OUTPUT_FILE;
 int pause_requested;
 
 void print_help(char * progname) {
     printf("Usage %s OPTIONS\n", progname);
     printf("    OPTIONS:\n");
-    printf("        --data DATASET_DIR              Dataset directory\n");
-    printf("        --load TRAINED_DT_FILE          Load pretrained model\n");
+    printf("        -d, --data DATASET_DIR          Dataset directory\n");
+    printf("        -l, --load TRAINED_DT_FILE      Load pretrained model\n");
+    printf("        -s, --save TRAINED_DT_FILE      Save trained model\n"
+           "                                        "
+           "(default: %s)\n", DEFAULT_OUTPUT_FILE);
     printf("        --classes CLASSES               10 or 100 (def. 10)\n");
     printf("        --padding PADDING               Padding (def. %d)\n",
         PADDING);
@@ -136,6 +141,7 @@ void print_help(char * progname) {
             "                                        "
            "NUM batches (def. %d)\n", DUMP_ACTIVATIONS_EVERY);
     printf("        --dump-pretrained-to FILE       Dump Pretrained Network\n");
+    printf("        --no-shuffle                    Do not shuffle data\n");
     printf("        --max-batches MAX               Max batches (for debug)\n");
     printf("        --max-images MAX                Max images (for debug)\n");
     printf("        -h, --help              Print this help\n");
@@ -230,6 +236,7 @@ int main(int argc, char** argv) {
     int softmax_output = SOFTMAX_OUTPUT;
     int disable_avx = 0;
     int max_images = 0;
+    int no_shuffle = 0;
     double learning_rate = LEARNING_RATE;
     double momentum = MOMENTUM;
     double l2_decay = L2;
@@ -241,7 +248,8 @@ int main(int argc, char** argv) {
 
     for (i = 1; i < argc; i++) {
         char * arg = argv[i];
-        if (strcmp("--classes", arg) == 0 && (i + 1) < argc) {
+        int is_last = (i == (argc - 1));
+        if (strcmp("--classes", arg) == 0 && !is_last) {
             char * next = argv[++i];
             int matched = sscanf(next, "%d", &classes);
             if (!matched) fputs("Invalid classes", stderr);
@@ -249,10 +257,18 @@ int main(int argc, char** argv) {
                 fputs("Invalid classes", stderr);
                 return 1;
             }
-        } else if (strcmp("--load", arg) == 0 && (i + 1) < argc) {
+        } else if ((strcmp("--load", arg) == 0 || strcmp("-l", arg) == 0) &&
+                   !is_last)
+        {
             pretrained_file = argv[++i];
-        } else if (strcmp("--data", arg) == 0 && (i + 1) < argc) {
+        } else if ((strcmp("--data", arg) == 0 || strcmp("-d", arg) == 0) &&
+                   !is_last)
+        {
             dataset_path = argv[++i];
+        } else if ((strcmp("--save", arg) == 0 || strcmp("-s", arg) == 0) &&
+                   !is_last)
+        {
+             output_path = argv[++i];
         } else if (strcmp("--epochs", arg) == 0 && (i + 1) < argc) {
             epochs = atoi(argv[++i]);
             if (epochs < 1) {
@@ -330,6 +346,8 @@ int main(int argc, char** argv) {
         } else if (strcmp("--disable-avx", arg) == 0) {
             disable_avx = 1;
 #endif
+        } else if (strcmp("--no-shuffle", arg) == 0) {
+            no_shuffle = 1;
         } else if (strcmp("--help", arg) == 0 || strcmp("-h", arg) == 0) {
             print_help(argv[0]);
             return 0;
@@ -530,8 +548,10 @@ int main(int argc, char** argv) {
         /*signal(SIGINT, handler);*/
         if (dump_pretrained_fname != NULL)
             PSSaveNetwork(network, dump_pretrained_fname);
+        int flags = 0;
+        if (no_shuffle) flags |= TRAINING_NO_SHUFFLE;
         PSTrainingOptions train_opts = {
-            0, l2_decay, momentum, debug_dump_to
+            flags, l2_decay, momentum, debug_dump_to
         };
         PSHandleSignals(handler);
         PSTrain(network, training_data, datalen, epochs, learning_rate,
@@ -548,7 +568,7 @@ int main(int argc, char** argv) {
         PSTest(network, test_data, testlen);
     }
     //if (pretrained_file == NULL)
-    PSSaveNetwork(network, "/tmp/pretrained.cnn.data");
+    PSSaveNetwork(network, output_path);
     //printf("Network saved to: /tmp/pretrained.cnn.data\n");
     PSDeleteNetwork(network);
     if (training_data != NULL) free(training_data);

@@ -195,7 +195,9 @@ void segvHandler(int sig, siginfo_t *info, void *secret) {
     void *eip = getEip(uc);
     struct sigaction act;
 
-    printf("=== BUG REPORT ===\n");
+    fflush(stdout);
+    printf("\n\n=== BUG REPORT ===\n");
+    fflush(stdout);
     printf("Psyc %s crashed by signal: %d\n", PSYC_VERSION, sig);
     if (eip != NULL)
         printf("Running instruction at: %p\n", eip);
