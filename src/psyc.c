@@ -37,6 +37,14 @@
 #include "debug.h"
 
 #define STATUS_ERROR_LOSS -999.00
+#define PARAM_TYPE_BIAS          1
+#define PARAM_TYPE_WEIGHT        2
+
+#define applyGradientOnBias(opts, grad, val, mg, xg, r, i) \
+    applyGradientOnParameter(PARAM_TYPE_BIAS, opts, grad, val, mg, xg, r, i, 0)
+#define applyGradientOnWeight(opts, grad, val, mg, xg, r, i, widx) \
+    applyGradientOnParameter(PARAM_TYPE_WEIGHT, opts, grad, val, mg, xg, r, \
+    i, widx)
 
 #ifdef BACKTRACE_AVAILABLE
 void segvHandler(int sig, siginfo_t *info, void *secret);
@@ -444,6 +452,24 @@ char * getNetworkStatusLabel(PSNeuralNetwork * network) {
             return "paused";
         case STATUS_ABORTED:
             return "aborted";
+    }
+    return "UNKOWN";
+}
+
+char *getOptimizationName(PSTrainingOptimization optimization) {
+    switch (optimization) {
+    case NoTrainingOptimization:
+        return "None";
+    case Adam:
+        return "Adam";
+    case AdaGrad:
+        return "AdaGrad";
+    case AdaDelta:
+        return "AdaDelta";
+    case Nesterov:
+        return "Nesterov";
+    case WindowGrad:
+        return "WindowGrad";
     }
     return "UNKOWN";
 }
@@ -2042,15 +2068,97 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
     return gradients;
 }
 
+static double applyGradientOnParameter(
+    int param_type, PSTrainingOptions *options, double grad, double param,
+    PSGradient *mg, PSGradient *xg, double rate, int iteration,
+    int param_index
+)
+{
+    PSTrainingOptimization optimization = NoTrainingOptimization;
+    double dx, eps, rho, beta1, beta2, momentum = 0;
+    PSTrainingOptions default_opts = {0};
+    if (options == NULL) {
+        PSSetDefaultTrainingOptions(&default_opts);
+        options = &default_opts;
+    }
+    eps = options->eps;
+    rho = options->rho;
+    beta1 = options->beta1;
+    beta2 = options->beta2;
+    momentum = options->momentum;
+    optimization = options->optimization;
+    double *mptr = NULL, *xptr= NULL;
+    if (param_type == PARAM_TYPE_BIAS) {
+        if (mg != NULL) mptr = &(mg->bias);
+        if (xg != NULL) xptr = &(xg->bias);
+    } else if (param_type == PARAM_TYPE_WEIGHT) {
+        if (mg != NULL) mptr = mg->weights + param_index;
+        if (xg != NULL) xptr = xg->weights + param_index;
+    }
+    if (optimization == Adam) {
+        assert(mg != NULL);
+        assert(xg != NULL);
+        assert(beta1 != 0);
+        assert(beta2 != 0);
+        double correct1, correct2;
+        *mptr = *mptr * beta1 + (1- beta1) * grad;
+        *xptr = *xptr * beta2 + (1- beta2) * grad * grad;
+        correct1 = *mptr * (1 - pow(beta1, iteration));
+        correct2 = *xptr * (1 - pow(beta2, iteration));
+        assertWithMessage(
+            correct2 != 0, "Adam optimization at iteration %d, "
+            "param_type = %d, beta1=%g, beta2=%g, grad=%g, "
+            "*mptr=%g, *xptr=%g, param_index=%d\n", iteration,
+            param_type, beta1, beta2, grad, *mptr, *xptr, param_index
+        );
+        dx =  - rate * correct1 / (sqrt(correct2) + eps);
+        return param + dx;
+    } else if (optimization == AdaGrad) {
+        assert(mg != NULL);
+        *mptr = *mptr + grad * grad;
+        dx = - rate / sqrt(*mptr + eps) * grad;
+        return param + dx;
+    } else if (optimization == WindowGrad) {
+        assert(mg != NULL);
+        *mptr = rho * *mptr + (1 - rho) * grad * grad;
+        dx = - rate / sqrt(*mptr + eps) * grad;
+        return param + dx;
+    } else if (optimization == AdaDelta) {
+        assert(mg != NULL);
+        assert(xg != NULL);
+        *mptr = rho * *mptr + (1 - rho) * grad * grad;
+        dx = - sqrt((*xptr + eps) / (*mptr + eps)) * grad;
+        *xptr = rho * *xptr + (1 - rho) * dx * dx;
+        return param + dx;
+    } else if (optimization == Nesterov) {
+        assert(mg != NULL);
+        dx = *mptr;
+        *mptr = *mptr * momentum + rate * grad;
+        dx = momentum * dx - (1.0 + momentum) * *mptr;
+        return param + dx;
+    } else {
+        /* No Optimization */
+        if (momentum != 0) {
+            assert(mg != NULL);
+            double dg = momentum * *mptr - rate * grad;
+            *mptr = dg;
+            return param + dg;
+        } else return param - rate * grad;
+    }
+}
+
 double updateWeights(PSNeuralNetwork * network, double * training_data,
                      int batch_size, int elements_count,
                      PSTrainingOptions* opts, double rate,
-                     PSGradient **momentum_gradients, ...)
+                     PSGradient **momentum_gradients,
+                     PSGradient **aux_gradients, ...)
 {
-    double r = rate / (double) batch_size;
-    int i, j, k, w, netsize = network->size, dsize = netsize - 1, times;
+    int i, j, k, w, netsize = network->size, dsize = netsize - 1, times,
+        iteration = 0, avx_disabled = 1;
 #ifdef USE_AVX
-    int avx_disabled = PSIsAVXDisabled(network);
+    avx_disabled = PSIsAVXDisabled(network);
+#else
+    UNUSED(avx_disabled);
 #endif
     int training_data_size = network->input_size;
     int label_data_size = network->output_size;
@@ -2065,7 +2173,7 @@ double updateWeights(PSNeuralNetwork * network, double * training_data,
     int is_recurrent = network->flags & FLAG_RECURRENT;
     if (is_recurrent) {
         va_list args;
-        va_start(args, momentum_gradients);
+        va_start(args, aux_gradients);
         series = va_arg(args, double**);
         va_end(args);
         if (series == NULL) {
@@ -2086,6 +2194,7 @@ double updateWeights(PSNeuralNetwork * network, double * training_data,
         if (network->training != NULL) {
             network->training->current_element =
                 (network->training->current_batch * batch_size) + i;
+            iteration = network->training->current_element + 1;
         }
         if (series == NULL) {
             int element_size = training_data_size + label_data_size;
@@ -2165,31 +2274,42 @@ double updateWeights(PSNeuralNetwork * network, double * training_data,
 
     UNUSED(elements_count); /* TODO: remove elements_count arg if not needed */
     double l1 = 0.0, l2 = 0.0, l2_loss = 0.0, momentum = 0.0;
+    PSTrainingOptimization optimization = NoTrainingOptimization;
     if (opts != NULL) {
         //if (opts->l1_decay != 0.0) l1 = opts->l1_decay / elements_count;
         if (opts->l2_decay != 0.0) {
             /*l2 = opts->l2_decay / elements_count;*/ /* TODO: Why l2 gets
                                                        * divided by
                                                        * elements_count? */
-            l2 = opts->l2_decay / batch_size;
+            l2 = opts->l2_decay / batch_size; /* TODO: divide per batch size?*/
             l2 = (1 - (rate * l2));
         }
         l1 = (1 - (rate * l1));
         momentum = opts->momentum;
+        optimization = opts->optimization;
     }
     int apply_momentum = (momentum > 0.0);
-    if (apply_momentum) {
+    int use_optimization = (optimization != NoTrainingOptimization);
+    if (apply_momentum || use_optimization) {
         if (momentum_gradients == NULL) {
             network->status = STATUS_ERROR;
             goto final;
         }
-        momentum /= batch_size;
+        if (optimization == AdaDelta || optimization == Adam) {
+            if (aux_gradients == NULL) {
+                network->status = STATUS_ERROR;
+                goto final;
+            }
+        }
+        avx_disabled = 1;
     }
 
     for (i = 0; i < dsize; i++) {
-        PSGradient *lgradients = gradients[i], *mgradients = NULL;
+        PSGradient *lgradients = gradients[i], *mgradients = NULL,
+                   *xgradients = NULL;
         if (lgradients == NULL) continue;
         if (momentum_gradients != NULL) mgradients = momentum_gradients[i];
+        if (aux_gradients != NULL) xgradients = aux_gradients[i];
         PSLayer *layer = network->layers[i + 1];
         PSLayerType ltype = layer->type;
         int l_size;
@@ -2201,25 +2321,26 @@ double updateWeights(PSNeuralNetwork * network, double * training_data,
         } else l_size = layer->size;
         int is_lstm = ltype == LSTM;
         for (j = 0; j < l_size; j++) {
-            PSGradient *g = &(lgradients[j]), *mg = NULL;
+            PSGradient *g = &(lgradients[j]), *mg = NULL, *xg = NULL;
             if (mgradients != NULL) mg = &(mgradients[j]);
+            if (xgradients != NULL) xg = &(xgradients[j]);
+            double gbias = g->bias / (double) batch_size;
             if (shared == NULL) {
                 PSNeuron * neuron = layer->neurons[j];
-                double gbias = g->bias; /* TODO: divide by batch_size and
-                                         *      keep learning_rate and
-                                         *      momentum whole? */
-                if (apply_momentum) {
-                    assert(mg != NULL);
-                    double dg = momentum * mg->bias - r * gbias;
-                    mg->bias = dg;
-                    g->bias += dg;
-                } else neuron->bias = neuron->bias - r * gbias;
+                neuron->bias = applyGradientOnBias(
+                    opts, gbias, neuron->bias,
+                    mg, xg, rate, iteration
+                );
                 int wsize = neuron->weights_size;
-                if (is_lstm) PSUpdateLSTMBiases(neuron, g, r);
+                /* TODO Apply optimization also to LSTM Biases*/
+                /* TODO Passing rate / batch_size, in the futuer divide
+                 * gradient by batch_size and keep rate whole*/
+                if (is_lstm) PSUpdateLSTMBiases(neuron, g, rate / batch_size);
                 k = 0;
 #ifdef USE_AVX
                 /* TODO: implement momentum for AVX too */
-                if (!avx_disabled && !apply_momentum) {
+                if (!avx_disabled) {
+                    double r = rate / batch_size;
                     if (do_dump) PSTrainingDebugDumpGradient(
                         network, DEBUG_PHASE_UPDATE_WEIGHTS, "updateWeights",
                         layer, j, wsize, k, 1, AVXGetStepLen(wsize)
@@ -2234,7 +2355,7 @@ double updateWeights(PSNeuralNetwork * network, double * training_data,
                         AVXDotSquare(wsize, g->weights, l2_loss, kk, 0, 0);
                         if (kk < k) { /* AVX Step Length could differ */
                             for (; kk < k; kk++) {
-                                double grad_w = g->weights[kk];
+                                double grad_w = g->weights[kk] / batch_size;
                                 l2_loss += (grad_w * grad_w);
                             }
                         }
@@ -2249,30 +2370,26 @@ double updateWeights(PSNeuralNetwork * network, double * training_data,
                     layer, j, wsize, k, 0, 0
                 );
                 for (; k < wsize; k++) {
-                    double grad_w = g->weights[k];
+                    double grad_w = g->weights[k] / (double) batch_size;
                     if (l2 != 0.0) {
                         neuron->weights[k] *= l2;
                         l2_loss += (grad_w * grad_w);
                     }
-                    if (apply_momentum) {
-                        assert(mg != NULL && mg->weights != NULL);
-                        double dg =
-                            momentum * mg->weights[i] - (r * grad_w);
-                        mg->weights[i] = dg;
-                        neuron->weights[k] += dg;
-                    } else neuron->weights[k] -= (r * grad_w);
+                    neuron->weights[k] = applyGradientOnWeight(
+                        opts, grad_w, neuron->weights[k], mg, xg, rate,
+                        iteration, k
+                    );
                 }
             } else {
-                if (apply_momentum) {
-                    assert(mg != NULL);
-                    double dg = momentum * mg->bias - (r * g->bias);
-                    mg->bias = dg;
-                    shared->biases[j] += dg;
-                } else shared->biases[j] -= (r * g->bias);
+                shared->biases[j] = applyGradientOnBias(
+                    opts, gbias, shared->biases[j],
+                    mg, xg, rate, iteration
+                );
                 double *weights = shared->weights[j];
                 k = 0;
 #ifdef USE_AVX
                 /* TODO: implement momentum for AVX too */
+                double r = rate / batch_size;
                 if (!avx_disabled && !apply_momentum) {
                     if (do_dump) PSTrainingDebugDumpGradient(
                         network, DEBUG_PHASE_UPDATE_WEIGHTS, "updateWeights",
@@ -2290,14 +2407,15 @@ double updateWeights(PSNeuralNetwork * network, double * training_data,
                     );
                 }
                 for (; k < shared->weights_size; k++) {
-                    if (apply_momentum) {
-                        assert(mg != NULL && mg->weights != NULL);
-                        double dg = (
-                            momentum * mg->weights[k] - (r * g->weights[k])
-                        );
-                        mg->weights[k] = dg;
-                        weights[k] += dg;
-                    } else weights[k] -= (r * g->weights[k]);
+                    double grad_w = g->weights[k] / (size_t) batch_size;
+                    if (l2 != 0.0) {
+                        weights[k] *= l2;
+                        l2_loss += (grad_w * grad_w);
+                    }
+                    weights[k] = applyGradientOnWeight(
+                        opts, grad_w, weights[k], mg, xg, rate,
+                        iteration, k
+                    );
                 }
             }
         }
@@ -2360,12 +2478,22 @@ double gradientDescent(PSNeuralNetwork * network,
     }
     double err = 0.0, previous_err = 0.0, avg_err = 0.0;
     long tot_t = 0, avg_t, elapsed_t;
-    PSGradient **momentum_gradients = NULL;
-    if (options != NULL && options->momentum != 0) {
-        momentum_gradients = createGradients(network);
-        if (momentum_gradients == NULL) {
-            network->status = STATUS_ERROR;
-            goto final;
+    PSGradient **momentum_gradients = NULL, **aux_gradients = NULL;
+    if (options != NULL) {
+        PSTrainingOptimization optimization = options->optimization;
+        if (options->momentum != 0 || optimization != NoTrainingOptimization) {
+            momentum_gradients = createGradients(network);
+            if (momentum_gradients == NULL) {
+                network->status = STATUS_ERROR;
+                goto final;
+            }
+        }
+        if (optimization == AdaDelta || optimization == Adam) {
+            aux_gradients = createGradients(network);
+            if (aux_gradients == NULL) {
+                network->status = STATUS_ERROR;
+                goto final;
+            }
         }
     }
     int offset = (element_size * batch_size), i;
@@ -2388,7 +2516,7 @@ double gradientDescent(PSNeuralNetwork * network,
         gettimeofday(&st, NULL);
         err += updateWeights(network, training_data, batch_size, elements_count,
                              options, learning_rate, momentum_gradients,
-                             series);
+                             aux_gradients, series);
         gettimeofday(&et, NULL);
         elapsed_t = PSGetElapsedTimeMS(st, et);
         tot_t += elapsed_t;
@@ -2419,6 +2547,8 @@ double gradientDescent(PSNeuralNetwork * network,
 final:
     if (momentum_gradients != NULL)
         PSDeleteGradients(momentum_gradients, network);
+    if (aux_gradients != NULL)
+        PSDeleteGradients(aux_gradients, network);
     if (series != NULL) free(series - (batch_size * batches_count));
     return err / (double) batches_count;
 }
@@ -2548,6 +2678,22 @@ float validate(PSNeuralNetwork * network, double * test_data, int data_size,
     return accuracy;
 }
 
+static void checkTrainingOptions(PSTrainingOptions *options) {
+    if (options->optimization != NoTrainingOptimization) {
+        if (options->eps == 0) options->eps = DEFAULT_EPS;
+        if (options->rho == 0) options->rho = DEFAULT_RHO;
+        if (options->beta1 == 0) options->beta1 = DEFAULT_BETA1;
+        if (options->beta2 == 0) options->beta2 = DEFAULT_BETA2;
+    }
+}
+
+void PSSetDefaultTrainingOptions(PSTrainingOptions *options) {
+    options->rho = DEFAULT_RHO;
+    options->eps = DEFAULT_EPS;
+    options->beta1 = DEFAULT_BETA1;
+    options->beta2 = DEFAULT_BETA2;
+}
+
 void PSTrain(PSNeuralNetwork *network,
              double * training_data,
              int data_size,
@@ -2578,8 +2724,11 @@ void PSTrain(PSNeuralNetwork *network,
     printf("Batch Size: %d\n", batch_size);
     printf("Learning Rate: %.4f\n", learning_rate);
     if (options != NULL) {
+        checkTrainingOptions(options);
         printf("L2 Decay: %.4f\n", options->l2_decay);
         printf("Momentum: %.4f\n", options->momentum);
+        printf("Optimization: %s\n",
+            getOptimizationName(options->optimization));
     }
     int was_paused = (network->status == STATUS_PAUSED);
     network->status = STATUS_TRAINING;

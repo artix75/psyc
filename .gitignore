@@ -1,6 +1,7 @@
 *.swp
 *.bck
 *.o
+*.tmp
 bin/*
 !bin/README
 lib/*

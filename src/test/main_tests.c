@@ -59,6 +59,8 @@
 #define getRoundedDouble(d) (round(d * 1000000.0) / 1000000.0)
 #define getRoundedDoubleDec(d, dec) (round(d * dec) / dec)
 
+#define UNUSED(V) ((void) V)
+
 TestCase * fullNetworkTests;
 TestCase * convNetworkTests;
 TestCase * recurrentNetworkTests;
@@ -110,7 +112,8 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
 double updateWeights(PSNeuralNetwork * network, double * training_data,
                      int batch_size, int elements_count,
                      PSTrainingOptions* opts, double rate,
-                     PSGradient **momentum_gradeints, ...);
+                     PSGradient **momentum_gradeints,
+                     PSGradient **aux_gradients, ...);
 
 int testlen = 0;
 
@@ -294,6 +297,8 @@ static void getTmpFileName(const char * prfx, const char * sfx, char * buffer) {
 }
 
 int main(int argc, char** argv) {
+    UNUSED(argc);
+    UNUSED(argv);
     PSHandleSignals(NULL);
 #ifdef USE_AVX
     AVXTests = createTest("AVX");
@@ -477,7 +482,7 @@ int LSTMSetup (void* tc) {
     out->flags |= FLAG_ONEHOT;
     PSLayer * layer = network->layers[1];
     
-    int i, j, w;
+    int i, w;
     for (i = 0; i < layer->size; i++) {
         PSNeuron * neuron = layer->neurons[i];
         PSLSTMCell * cell = GetLSTMCell(neuron);
@@ -509,7 +514,6 @@ int LSTMSetup (void* tc) {
     test_case->data[0] = network;
     int train_data_len = 2 + (LSTM_TIMES * 2);
     double * training_data = malloc(train_data_len * sizeof(double));
-    double * p = training_data;
     if (training_data == NULL) {
         fprintf(stderr, "\nCould not allocate memory!\n");
         return 0;
@@ -521,8 +525,8 @@ int LSTMSetup (void* tc) {
 
 
 int testFullLoad(void* tc, void* t) {
+    UNUSED(t);
     TestCase * test_case = (TestCase*) tc;
-    Test * test = (Test*) t;
     PSNeuralNetwork * network = getNetwork(test_case);
     return PSLoadNetwork(network, PRETRAINED_FULL_NETWORK);
 }
@@ -863,15 +867,15 @@ int testRNNStep(void* tc, void* t) {
     TestCase * test_case = (TestCase*) tc;
     Test * test = (Test*) t;
     PSNeuralNetwork * network = getNetwork(test_case);
-    int train_data_len = 1 + (RNN_TIMES * 2);
+    /*int train_data_len = 1 + (RNN_TIMES * 2);*/
     double * training_data = getTestData(test_case);
     double ** series = &training_data;
     int elements_count = (int) *training_data;
     
     int ok = 1, i, j, w;
     double loss = updateWeights(network, training_data, 1, elements_count,
-                                NULL, RNN_LEARNING_RATE, NULL, series);
-    
+                                NULL, RNN_LEARNING_RATE, NULL, NULL, series);
+    UNUSED(loss);
     for (i = 1; i < network->size; i++) {
         PSLayer * layer = network->layers[i];
         for (j = 0; j < layer->size; j++) {
@@ -909,7 +913,8 @@ int testLSTMTrain(void* tc, void* tst) {
     TestCase * test_case = (TestCase*) tc;
     Test * test = (Test*) tst;
     PSNeuralNetwork * network = getNetwork(test_case);
-    int train_data_len = 2 + (LSTM_TIMES * 2);
+    /*int train_data_len = 2 + (LSTM_TIMES * 2);
+    UNUSED(train_data_len);*/
     double * training_data = getTestData(test_case);
     
     PSTrainingOptions options = {
@@ -1265,7 +1270,7 @@ double test_dot(double * x, double * y, int size) {
 }
 
 int testAVXDot(void* tc, void* t) {
-    TestCase * test_case = (TestCase*) tc;
+    UNUSED(tc);
     Test * test = (Test*) t;
     
     double x2[2] = {1.0, 2.0};
@@ -1330,7 +1335,7 @@ int testAVXDot(void* tc, void* t) {
 }
 
 int testAVXSquare(void* tc, void* t) {
-    TestCase * test_case = (TestCase*) tc;
+    UNUSED(tc);
     Test * test = (Test*) t;
     
     double x2[2] = {1.0, 2.0};//5
@@ -1388,7 +1393,7 @@ int testAVXSquare(void* tc, void* t) {
 }
 
 int testAVXMultiplyVal(void* tc, void* t) {
-    TestCase * test_case = (TestCase*) tc;
+    UNUSED(tc);
     Test * test = (Test*) t;
     int ok = 1, i;
     double x[4] = {0.0, 1.0, 2.0, 3.0};

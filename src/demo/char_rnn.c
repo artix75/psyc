@@ -11,15 +11,15 @@
 #define BATCHES 1
 
 #define strEq(s1,s2) (strcmp(s1, s2) == 0)
+#define UNUSED(V) ((void) V)
 
 void CompleteText (PSNeuralNetwork * network, char* text, int len,
                    float randomicity, int max_words)
 {
-    int i, wcount = 0;
+    int i = 0, wcount = 0;
     double inputs[len + 1];
     if (text == NULL) {
         srand ( time(NULL) - i);
-        int p = (rand() % 10) / 10.0f;
         inputs[0] = 1.0;
         inputs[1] = (double)(rand() % INPUT_SIZE);
         printf("\nSample:\n%s", characters[(int) inputs[1]]);
@@ -94,6 +94,12 @@ void TrainCallback (void * _net, int epoch, double loss,
                     double previous_loss, float accuracy,
                     double * rate, double *training_data)
 {
+    UNUSED(epoch);
+    UNUSED(loss);
+    UNUSED(previous_loss);
+    UNUSED(accuracy);
+    UNUSED(rate);
+    UNUSED(training_data);
     //if ((epoch % 2) != 0) return;
     PSNeuralNetwork * network = (PSNeuralNetwork*) _net;
     CompleteText(network, NULL, 255, 2.0f, 0);

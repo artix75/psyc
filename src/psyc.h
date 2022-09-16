@@ -24,6 +24,12 @@
 
 #define LAYER_TYPES  6
 
+#define DEFAULT_RHO     0.95
+#define DEFAULT_EPS     1e-8
+#define DEFAULT_BETA1   0.9
+#define DEFAULT_BETA2   0.999
+
+
 #define STATUS_UNTRAINED    0
 #define STATUS_TRAINED      1
 #define STATUS_TRAINING     2
@@ -85,6 +91,15 @@ typedef enum {
     SoftMax
 } PSLayerType;
 
+typedef enum {
+    NoTrainingOptimization,
+    Adam,
+    AdaGrad,
+    AdaDelta,
+    WindowGrad,
+    Nesterov
+} PSTrainingOptimization;
+
 typedef struct {
     int count;
     double * parameters;
@@ -98,10 +113,16 @@ typedef struct {
 } PSSharedParams;
 
 typedef struct {
-    int flags;
-    double l2_decay;
-    double momentum;
-    FILE *debug_dump_to;
+    int                     flags;
+    double                  l1_decay;
+    double                  l2_decay;
+    double                  momentum;
+    double                  rho;
+    double                  eps;
+    double                  beta1;
+    double                  beta2;
+    PSTrainingOptimization  optimization;
+    FILE                    *debug_dump_to;
 } PSTrainingOptions;
 
 typedef struct {
@@ -206,6 +227,7 @@ char * PSGetLayerTypeLabel(PSLayer * layer);
 void PSPrintNetworkInfo(PSNeuralNetwork * network);
 int PSDumpNetworkActivations(PSNeuralNetwork * network, const char* filename);
 int PSDumpNetworkDeltas(PSNeuralNetwork * network, const char* filename);
+void PSSetDefaultTrainingOptions(PSTrainingOptions *options);
 
 // Loss functions
 

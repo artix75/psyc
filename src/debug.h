@@ -26,6 +26,15 @@
  network->training->current_element == 0 &&\
  network->training->current_epoch == 0)
 
+#define assertWithMessage(expr, fmt, ...) do {\
+    if (!(expr)) {\
+        printf("\n\n== ASSERTION FAILURE ==\n");\
+        if (fmt != NULL) \
+            fprintf(stderr, fmt, __VA_ARGS__);\
+        assert(expr);\
+    }\
+} while (0);
+
 char *PSGetNeuronDebugID(PSNeuron *neuron, PSLayer *layer);
 void PSTrainingDebugDump(PSNeuralNetwork *network, char *fmt, ...);
 void PSTrainingDebugDumpStep(PSNeuralNetwork *network,

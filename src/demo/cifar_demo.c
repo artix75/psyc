@@ -48,6 +48,8 @@
 #define DUMP_ACTIVATIONS_EVERY 4
 #define DEFAULT_OUTPUT_FILE "/tmp/pretrained.cnn.data"
 
+#define UNUSED(V) ((void) V)
+
 #if defined(__APPLE__) && defined(__MACH__)
 
 // Public domain polyfill for feenableexcept on OS X
@@ -118,6 +120,11 @@ void print_help(char * progname) {
         "(def. %.02f)\n", MOMENTUM);
     printf("        --l2-decay DECAY                L2 Weight Decay "
         "(def. %.02f)\n", L2);
+    printf("        --optimization                  Training Optimization \n"
+          "                                        "
+          "(adagrad,adadelta,adam,windowgrad,\n"
+          "                                         "
+          "nesterov)\n");
     printf("        --epochs EPOCHS                 Epochs (def. %d)\n",
         EPOCHS);
     printf("        --batch-size SIZE               Batch size (def. %d)\n",
@@ -153,6 +160,7 @@ int dump_activations_every = DUMP_ACTIVATIONS_EVERY;
 int max_batches = 0;
 
 void handler(int sig) {
+    UNUSED(sig);
     if (network != NULL) {
         if (!pause_requested) {
             PSPauseTraining(network);
@@ -170,6 +178,11 @@ void onBatchTrained(void *_network, int epoch, double loss,
                     double previous_loss, float accuracy,
                     double *rate, double *training_data)
 {
+    UNUSED(epoch);
+    UNUSED(loss);
+    UNUSED(previous_loss);
+    UNUSED(accuracy);
+    UNUSED(rate);
     if (dump_activations_str == NULL && max_batches <= 0) return;
     PSNeuralNetwork *network = (PSNeuralNetwork *) _network;
     if (network == NULL) return;
@@ -182,15 +195,15 @@ void onBatchTrained(void *_network, int epoch, double loss,
     } else if (max_batches > 0 && dump_activations_str == NULL) return;
     if ((batch % dump_activations_every) != 0) return;
     char fname[1024];
-    int len = snprintf(fname, 1023, "%s/psyc-activations-batch-%d.dump",
-                       dump_activations_str, batch);
+    snprintf(fname, 1023, "%s/psyc-activations-batch-%d.dump",
+             dump_activations_str, batch);
     PSDumpNetworkActivations(network, fname);
-    len = snprintf(fname, 1023, "%s/psyc-deltas-batch-%d.dump",
-                   dump_activations_str, batch);
+    snprintf(fname, 1023, "%s/psyc-deltas-batch-%d.dump",
+             dump_activations_str, batch);
     PSDumpNetworkDeltas(network, fname);
     double *labels = training_data + CIFAR_IMAGE_SIZE;
-    len = snprintf(fname, 1023, "%s/psyc-labels-batch-%d.dump",
-                   dump_activations_str, batch);
+    snprintf(fname, 1023, "%s/psyc-labels-batch-%d.dump",
+             dump_activations_str, batch);
     FILE *lblfile = fopen(fname, "w");
     if (lblfile == NULL)
         fprintf(stderr, "\nCould not open %s for writing!\n", fname);
@@ -220,7 +233,6 @@ int main(int argc, char** argv) {
     const char *dataset_path = NULL;
     int testsize = 0;
     int datasize = 0;
-    int valdsize = 0;
     int testlen = 0;
     int datalen = 0;
     int valdlen = 0;
@@ -237,9 +249,11 @@ int main(int argc, char** argv) {
     int disable_avx = 0;
     int max_images = 0;
     int no_shuffle = 0;
+    PSTrainingOptimization optimization = NoTrainingOptimization;
     double learning_rate = LEARNING_RATE;
     double momentum = MOMENTUM;
     double l2_decay = L2;
+    UNUSED(disable_avx); /* Actually not used if USE_AVX macro not defined */
 
     FILE *debug_dump_to = NULL;
     char *debug_output_str = NULL;
@@ -348,6 +362,22 @@ int main(int argc, char** argv) {
 #endif
         } else if (strcmp("--no-shuffle", arg) == 0) {
             no_shuffle = 1;
+        } else if (strcmp("--optimization", arg) == 0 && !is_last) {
+            char *optname = argv[++i];
+            if (strcmp("adam", optname) == 0) optimization = Adam;
+            else if (strcmp("adagrad", optname) == 0) optimization = AdaGrad;
+            else if (strcmp("adadelta", optname) == 0) optimization = AdaDelta;
+            else if (strcmp("windowgrad", optname) == 0)
+                optimization = WindowGrad;
+            else if (strcmp("nesterov", optname) == 0) optimization = Nesterov;
+            else {
+                fprintf(stderr, "Invalid optmization `%s`\n", optname);
+                fprintf(
+                    stderr, "Valid values: adam, adagrad, adadelta, "
+                    "windowgrad, nesterov\n"
+                );
+                return 1;
+            }
         } else if (strcmp("--help", arg) == 0 || strcmp("-h", arg) == 0) {
             print_help(argv[0]);
             return 0;
@@ -551,8 +581,11 @@ int main(int argc, char** argv) {
         int flags = 0;
         if (no_shuffle) flags |= TRAINING_NO_SHUFFLE;
         PSTrainingOptions train_opts = {
-            flags, l2_decay, momentum, debug_dump_to
+            .flags = flags, .l2_decay = l2_decay, .momentum = momentum,
+            .debug_dump_to = debug_dump_to
         };
+        if (optimization != NoTrainingOptimization)
+            train_opts.optimization = optimization;
         PSHandleSignals(handler);
         PSTrain(network, training_data, datalen, epochs, learning_rate,
                 batch_size, &train_opts, validation_data, valdlen);

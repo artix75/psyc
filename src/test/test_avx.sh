@@ -43,7 +43,7 @@ bin/psycl --enable-colors --name "NO AVX L2 NN" --load resources/pretrained.mnis
 
 bin/psycl --enable-colors --name "NO AVX L2 CNN" --load resources/pretrained.cnn.data --training-no-shuffle --train --mnist --epochs 1 --training-datalen 1 --validation-datalen 0 --batch-size 10 --l2-decay 2.5 --save /tmp/no_avx.l2_cnn.data
 
-OBJS=(psyc utils convolutional recurrent lstm)
+OBJS=(psyc utils convolutional recurrent lstm debug)
 COBJS=""
 for OBJ in ${OBJS[@]}; do
     echo "gcc -o /tmp/$OBJ.o -c src/$OBJ.c"
