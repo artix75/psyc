@@ -90,11 +90,12 @@ void CompleteText (PSNeuralNetwork * network, char* text, int len,
     printf("\n");
 }
 
-void TrainCallback (void * _net, int epoch, double loss,
+void TrainCallback (void * _net, int epoch, int epochs, double loss,
                     double previous_loss, float accuracy,
                     double * rate, double *training_data)
 {
     UNUSED(epoch);
+    UNUSED(epochs);
     UNUSED(loss);
     UNUSED(previous_loss);
     UNUSED(accuracy);
@@ -208,7 +209,7 @@ int main(int argc, char**argv){
         
         if (pretest) {
             PSTest(network, training_data, TRAIN_DATALEN);
-            TrainCallback (network, 0, 0.0,
+            TrainCallback (network, 0, 0, 0.0,
                            0.0, 0.0,
                            NULL, NULL);
         }

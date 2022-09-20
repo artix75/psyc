@@ -31,19 +31,20 @@
 
 #define EPOCHS 200
 //#define BATCH_SIZE 32
-#define BATCH_SIZE 40
+#define BATCH_SIZE 4
 #define FEATURES_COUNT 32
 #define REGION_SIZE 5
 #define PADDING 2
 #define POOL_SIZE 2
 #define TRAIN_DATASET_LEN 40000
 #define EVAL_DATASET_LEN 10000
-#define RELU_ENABLED 0
+#define RELU_ENABLED 1
 #define LEARNING_RATE 0.01
-#define MOMENTUM 0.9
-#define ADDITIONAL_LAYERS 1
+#define MOMENTUM 0.0
+#define ADDITIONAL_LAYERS 2
 #define FC_PREOUTPUT_SIZE 20
 #define SOFTMAX_OUTPUT 1
+#define L1  0.0
 #define L2  0.0001
 #define DUMP_ACTIVATIONS_EVERY 4
 #define DEFAULT_OUTPUT_FILE "/tmp/pretrained.cnn.data"
@@ -115,11 +116,13 @@ void print_help(char * progname) {
     printf("        --use-relu ONE_OR_ZERO          "
         "Enable/Disable ReLU (def. %d)\n", RELU_ENABLED);
     printf("        --learning-rate RATE            Learnig Rate "
-        "(def. %.02f)\n", LEARNING_RATE);
+        "(def. %g)\n", LEARNING_RATE);
     printf("        --momentum MOMENTUM             Momentum "
-        "(def. %.02f)\n", MOMENTUM);
+        "(def. %g)\n", MOMENTUM);
+    printf("        --l1-decay DECAY                L1 Weight Decay "
+        "(def. %g)\n", L1);
     printf("        --l2-decay DECAY                L2 Weight Decay "
-        "(def. %.02f)\n", L2);
+        "(def. %g)\n", L2);
     printf("        --optimization                  Training Optimization \n"
           "                                        "
           "(adagrad,adadelta,adam,windowgrad,\n"
@@ -151,6 +154,7 @@ void print_help(char * progname) {
     printf("        --no-shuffle                    Do not shuffle data\n");
     printf("        --max-batches MAX               Max batches (for debug)\n");
     printf("        --max-images MAX                Max images (for debug)\n");
+    printf("        --validate-every BATCH_NUM      Validate inside epochs\n");
     printf("        -h, --help              Print this help\n");
 }
 
@@ -174,11 +178,12 @@ void handler(int sig) {
     }
 }
 
-void onBatchTrained(void *_network, int epoch, double loss,
+void onBatchTrained(void *_network, int epoch, int epochs, double loss,
                     double previous_loss, float accuracy,
                     double *rate, double *training_data)
 {
     UNUSED(epoch);
+    UNUSED(epochs);
     UNUSED(loss);
     UNUSED(previous_loss);
     UNUSED(accuracy);
@@ -252,7 +257,9 @@ int main(int argc, char** argv) {
     PSTrainingOptimization optimization = NoTrainingOptimization;
     double learning_rate = LEARNING_RATE;
     double momentum = MOMENTUM;
+    double l1_decay = L1;
     double l2_decay = L2;
+    int validate_every = 0;
     UNUSED(disable_avx); /* Actually not used if USE_AVX macro not defined */
 
     FILE *debug_dump_to = NULL;
@@ -297,6 +304,8 @@ int main(int argc, char** argv) {
             }
         } else if (strcmp("--momentum", arg) == 0 && (i + 1) < argc) {
             momentum = (double) atof(argv[++i]);
+        } else if (strcmp("--l1-decay", arg) == 0 && (i + 1) < argc) {
+            l1_decay = (double) atof(argv[++i]);
         } else if (strcmp("--l2-decay", arg) == 0 && (i + 1) < argc) {
             l2_decay = (double) atof(argv[++i]);
         } else if (strcmp("--use-relu", arg) == 0 && (i + 1) < argc) {
@@ -332,6 +341,9 @@ int main(int argc, char** argv) {
         } else if (strcmp("--max-images", arg) == 0 && (i + 1) < argc) {
             max_images = atoi(argv[++i]);
             if (max_images < 0)  max_images = 0;
+        } else if (strcmp("--validate-every", arg) == 0 && (i + 1) < argc) {
+            validate_every = atoi(argv[++i]);
+            if (validate_every < 0)  validate_every = 0;
         } else if (strcmp("--add-fully-connected", arg) == 0) {
             add_fully_connected = 1;
             if ((i + 1) < argc && argv[i + 1][0] != '-') {
@@ -581,8 +593,9 @@ int main(int argc, char** argv) {
         int flags = 0;
         if (no_shuffle) flags |= TRAINING_NO_SHUFFLE;
         PSTrainingOptions train_opts = {
-            .flags = flags, .l2_decay = l2_decay, .momentum = momentum,
-            .debug_dump_to = debug_dump_to
+            .flags = flags, .l1_decay = l1_decay, .l2_decay = l2_decay,
+            .momentum = momentum, .debug_dump_to = debug_dump_to,
+            .validate_every_batches = validate_every
         };
         if (optimization != NoTrainingOptimization)
             train_opts.optimization = optimization;

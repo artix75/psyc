@@ -44,7 +44,9 @@ typedef struct {
 
 PSLSTMCell * PSCreateLSTMCell(PSNeuron * neuron, int lsize);
 void PSDeleteLSTMCell(PSLSTMCell * cell);
-void PSUpdateLSTMBiases(PSNeuron * neuron, PSGradient * gradient, double rate);
+void PSUpdateLSTMBiases(PSNeuron * neuron, PSGradient * gradient,
+                        PSGradient *mg, PSGradient *xg, double rate,
+                        PSTrainingOptions *opts, int iteration);
 
 /* Init Functions */
 

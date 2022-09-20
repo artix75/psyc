@@ -41,6 +41,9 @@
 #define ACTION_PAUSE        4
 #define ACTION_ABORT        5
 
+#define PARAM_TYPE_BIAS          1
+#define PARAM_TYPE_WEIGHT        2
+
 #define TRAINING_PHASE_FEEDFORWARD  1
 #define TRAINING_PHASE_BACKPROP     2
 #define TRAINING_PHASE_UPDATE_GRAD  3
@@ -58,6 +61,7 @@
 
 #define TRAINING_NO_SHUFFLE     (1 << 0)
 #define TRAINING_ADJUST_RATE    (1 << 1)
+#define TRAINING_WEIGHT_DECAY   (1 << 2)
 
 #define BPTT_TRUNCATE   4
 
@@ -72,9 +76,10 @@ typedef double  (*PSActivationFunction) (double);
 typedef int     (*PSFeedforwardFunction) (void * network, void * layer, ...);
 typedef double  (*PSLossFunction) (double* x, double* y, int size,
                                    int onehot_size);
-typedef void    (*PSTrainCallback) (void * network, int epoch, double loss,
-                                    double previous_loss, float accuracy,
-                                    double *rate, double *training_data);
+typedef void    (*PSTrainCallback) (void * network, int epoch, int epochs,
+                                    double loss, double previous_loss,
+                                    float accuracy, double *rate,
+                                    double *training_data);
 typedef void    (*PSSignalHandler) (int);
 
 typedef struct {
@@ -122,6 +127,8 @@ typedef struct {
     double                  beta1;
     double                  beta2;
     PSTrainingOptimization  optimization;
+    int                     validate_every_batches;
+    int                     max_validation_elements;
     FILE                    *debug_dump_to;
 } PSTrainingOptions;
 

@@ -117,7 +117,7 @@ int get_terminal_columns() {
     static int __term_columns = -1;
     if (__term_columns < 0) {
 #if IS_UNIX
-        struct winsize w;
+        struct winsize w = {0};
         ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
         __term_columns = w.ws_col;
 #else
@@ -134,4 +134,12 @@ void fill_with_blank(int line_length) {
     if (pad <= 0) return;
     for (i = 0; i < pad; i++) printf(" ");
     fflush(stdout);
+}
+
+double *copy_doubles(double *src, size_t length) {
+    size_t size = length * sizeof(double);
+    double *dup = malloc(size);
+    if (dup == NULL) return NULL;
+    memcpy(dup, src, size);
+    return dup;
 }

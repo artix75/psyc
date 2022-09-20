@@ -44,6 +44,12 @@
 
 #define UNUSED(V) ((void) V)
 
+double applyGradientOnParameter(
+    int param_type, PSTrainingOptions *options, double grad, double param,
+    PSGradient *mg, PSGradient *xg, double rate, int iteration,
+    int param_index
+);
+
 static int LSTMCellFeedforward(PSLayer * layer, PSLayer * previous,
                                PSNeuron * neuron, int onehot_idx,
                                int times, int t)
@@ -225,13 +231,28 @@ void PSDeleteLSTMCell(PSLSTMCell * cell) {
     free(cell);
 }
 
-void PSUpdateLSTMBiases(PSNeuron * neuron, PSGradient * gradient, double rate) {
+void PSUpdateLSTMBiases(PSNeuron * neuron, PSGradient * gradient,
+                        PSGradient *mg, PSGradient *xg, double rate,
+                        PSTrainingOptions *opts, int iteration)
+{
     double * biases = GetLSTMGradientBiases(neuron, gradient);
     PSLSTMCell *cell = GetLSTMCell(neuron);
-    cell->candidate_bias -= (rate * biases[0]);
-    cell->input_bias -= (rate * biases[INPUT_IDX]);
-    cell->output_bias -= (rate * biases[OUTPUT_IDX]);
-    cell->forget_bias -= (rate * biases[FORGET_IDX]);
+    cell->candidate_bias = applyGradientOnParameter(
+        PARAM_TYPE_BIAS, opts, biases[CANDIDATE_IDX], cell->candidate_bias,
+        mg, xg, rate, iteration, 0
+    );
+    cell->input_bias = applyGradientOnParameter(
+        PARAM_TYPE_BIAS, opts, biases[INPUT_IDX], cell->input_bias,
+        mg, xg, rate, iteration, 0
+    );
+    cell->output_bias = applyGradientOnParameter(
+        PARAM_TYPE_BIAS, opts, biases[OUTPUT_IDX], cell->output_bias,
+        mg, xg, rate, iteration, 0
+    );
+    cell->forget_bias = applyGradientOnParameter(
+        PARAM_TYPE_BIAS, opts, biases[FORGET_IDX], cell->forget_bias,
+        mg, xg, rate, iteration, 0
+    );
 }
 
 /* Init Functions */
