@@ -29,8 +29,11 @@
 #define getNeuronLayer(neuron) ((PSLayer*) neuron->layer)
 #define getLayerNetwork(layer) ((PSNeuralNetwork*) layer->network)
 #define shouldApplyDerivative(network) (network->loss != PSCrossEntropyLoss)
+/* Get elapsed time in milliseconds */
 #define PSGetElapsedTimeMS(st, et) ((((et.tv_sec - st.tv_sec) * 1000000) \
-    + (et.tv_usec - st.tv_usec)) / 1000)
+/* Get elapsed time in microseconds */
+#define PSGetElapsedTimeUS(st, et) (((et.tv_sec - st.tv_sec) * 1000000) \
+    + (et.tv_usec - st.tv_usec))
 
 #define RED     "\x1b[31m"
 #define GREEN   "\x1b[32m"

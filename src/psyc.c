@@ -2645,10 +2645,15 @@ PSFloat gradientDescent(PSNeuralNetwork * network,
                              options, learning_rate, momentum_gradients,
                              aux_gradients, series);
         gettimeofday(&et, NULL);
-        elapsed_t = PSGetElapsedTimeMS(st, et);
+        elapsed_t = PSGetElapsedTimeUS(st, et);
         tot_t += elapsed_t;
         avg_t = (tot_t / batch_num);
         if (batch_num < batches_count) {
+            char *time_unit = "us";
+            if (avg_t >= 1000) {
+                avg_t /= 1000;
+                time_unit = "ms";
+            }
             avg_err = err / (PSFloat) batch_num;
             if (do_validate) {
                 if (i > 0 && (batch_num % validate_every) == 0) {
@@ -2660,11 +2665,12 @@ PSFloat gradientDescent(PSNeuralNetwork * network,
                     avg_acc = tot_acc / (PSFloat) ++validations;
                 }
                 PSLogTrainingProgress(network, epochs, batches_count, 1,
-                    "loss = %.2lf, acc. = %.2lf, avg. time = %ldms",
-                    avg_err, avg_acc, avg_t);
+                    "loss = %.2lf, acc. = %.2lf, avg. time = %ld%s",
+                    avg_err, avg_acc, avg_t, time_unit);
             } else {
                 PSLogTrainingProgress(network, epochs, batches_count, 1,
-                    "loss = %.2lf, avg. time = %ldms", avg_err, avg_t);
+                    "loss = %.2lf, avg. time = %ld%s",
+                    avg_err, avg_t, time_unit);
             }
         } else PSLogTrainingProgress(network, epochs, batches_count, 1, NULL);
         if (network->status == STATUS_ERROR) {
