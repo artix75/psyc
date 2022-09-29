@@ -90,15 +90,15 @@ int PSInitConvolutionalLayer(PSNeuralNetwork * network, PSLayer * layer,
         PSAbortLayer(network, layer);
         return 0;
     }
-    PSLayer * previous = network->layers[index - 1];
-    double * params = parameters->parameters;
+    PSLayer *previous = network->layers[index - 1];
+    PSFloat *params = parameters->parameters;
     int feature_count = (int) (params[PARAM_FEATURE_COUNT]);
     if (feature_count <= 0) {
         PSErr(func, "FEATURE_COUNT must be > 0 (given: %d)", feature_count);
         PSAbortLayer(network, layer);
         return 0;
     }
-    double region_size = params[PARAM_REGION_SIZE];
+    PSFloat region_size = params[PARAM_REGION_SIZE];
     if (region_size <= 0) {
         PSErr(func, "REGION_SIZE must be > 0 (given: %lf)", region_size);
         PSAbortLayer(network, layer);
@@ -106,13 +106,13 @@ int PSInitConvolutionalLayer(PSNeuralNetwork * network, PSLayer * layer,
     }
     int previous_size = previous->size, prev_features;
     PSLayerParameters * previous_params = previous->parameters;
-    double input_w, input_h, output_w, output_h;
+    PSFloat input_w, input_h, output_w, output_h;
     int use_relu = (int) (params[PARAM_USE_RELU]);
 #ifdef USE_AVX
     int avx_disabled = PSIsAVXDisabled(network);
 #endif
     if (previous_params == NULL) {
-        double w = sqrt(previous_size);
+        PSFloat w = PSSqrt(previous_size);
         input_w = w; input_h = w;
         previous_params = PSCreateConvolutionalParameters(1, 0, 0, 0, 0);
         previous_params->parameters[PARAM_OUTPUT_WIDTH] = input_w;
@@ -123,7 +123,7 @@ int PSInitConvolutionalLayer(PSNeuralNetwork * network, PSLayer * layer,
         input_w = previous_params->parameters[PARAM_OUTPUT_WIDTH];
         input_h = previous_params->parameters[PARAM_OUTPUT_HEIGHT];
         prev_features = (int) previous_params->parameters[PARAM_FEATURE_COUNT];
-        double prev_area = input_w * input_h * (double) prev_features;
+        PSFloat prev_area = input_w * input_h * (PSFloat) prev_features;
         if ((int) prev_area != previous_size) {
             PSErr(func, "Previous size %d != %lfx%lf",
                   previous_size, input_w, input_h);
@@ -135,11 +135,11 @@ int PSInitConvolutionalLayer(PSNeuralNetwork * network, PSLayer * layer,
     params[PARAM_INPUT_HEIGHT] = input_h;
     int stride = (int) params[PARAM_STRIDE];
     int padding = (int) params[PARAM_PADDING];
-    if (stride == 0) stride = 1;
-    output_w =  calculateConvolutionalSide(input_w, region_size,
-                                           (double) stride, (double) padding);
-    output_h =  calculateConvolutionalSide(input_h, region_size,
-                                           (double) stride, (double) padding);
+    if (stride <= 0) stride = 1;
+    output_w = calculateConvolutionalSide(input_w, region_size,
+                                          stride, (PSFloat) padding);
+    output_h = calculateConvolutionalSide(input_h, region_size,
+                                          stride, (PSFloat) padding);
     params[PARAM_OUTPUT_WIDTH] = output_w;
     params[PARAM_OUTPUT_HEIGHT] = output_h;
     int area = (int)(output_w * output_h);
@@ -153,7 +153,7 @@ int PSInitConvolutionalLayer(PSNeuralNetwork * network, PSLayer * layer,
     }
 #ifdef USE_AVX
     if (!avx_disabled) {
-        layer->avx_activation_cache = calloc(size, sizeof(double));
+        layer->avx_activation_cache = calloc(size, sizeof(PSFloat));
         if (layer->avx_activation_cache == NULL) {
             printMemoryErrorMsg();
             PSAbortLayer(network, layer);
@@ -169,8 +169,8 @@ int PSInitConvolutionalLayer(PSNeuralNetwork * network, PSLayer * layer,
     }
     shared->feature_count = feature_count;
     shared->weights_size = (int)(region_size * region_size) * prev_features;
-    shared->biases = malloc(feature_count * sizeof(double));
-    shared->weights = malloc(feature_count * sizeof(double*));
+    shared->biases = malloc(feature_count * sizeof(PSFloat));
+    shared->weights = malloc(feature_count * sizeof(PSFloat*));
     if (shared->biases == NULL || shared->weights == NULL) {
         PSErr(func, "Layer[%d]: Could not allocate memory!", index);
         PSAbortLayer(network, layer);
@@ -178,11 +178,11 @@ int PSInitConvolutionalLayer(PSNeuralNetwork * network, PSLayer * layer,
     }
     layer->extra = shared;
     int i, j, w;
-    double wscale = sqrt(1.0 / shared->weights_size);
+    PSFloat wscale = PSSqrt(1.0 / shared->weights_size);
     for (i = 0; i < feature_count; i++) {
         shared->biases[i] = (use_relu ? 0.1 : 0.0);
         /* shared->biases[i] = gaussian_random(0, 1);*/
-        shared->weights[i] = malloc(shared->weights_size * sizeof(double));
+        shared->weights[i] = malloc(shared->weights_size * sizeof(PSFloat));
         if (shared->weights[i] == NULL) {
             PSErr(func, "Layer[%d]: Could not allocate weights!", index);
             PSAbortLayer(network, layer);
@@ -240,7 +240,7 @@ int PSInitPoolingLayer(PSNeuralNetwork * network, PSLayer * layer,
         PSAbortLayer(network, layer);
         return 0;
     }
-    double * params = parameters->parameters;
+    PSFloat * params = parameters->parameters;
     PSLayerParameters * previous_parameters = previous->parameters;
     if (previous_parameters == NULL) {
         PSErr(func, "Previous layer parameters is NULL!");
@@ -253,21 +253,20 @@ int PSInitPoolingLayer(PSNeuralNetwork * network, PSLayer * layer,
         PSAbortLayer(network, layer);
         return 0;
     }
-    double * previous_params = previous_parameters->parameters;
+    PSFloat * previous_params = previous_parameters->parameters;
     int feature_count = (int) (previous_params[PARAM_FEATURE_COUNT]);
-    params[PARAM_FEATURE_COUNT] = (double) feature_count;
-    double region_size = params[PARAM_REGION_SIZE];
+    params[PARAM_FEATURE_COUNT] = (PSFloat) feature_count;
+    PSFloat region_size = params[PARAM_REGION_SIZE];
     if (region_size <= 0) {
         PSErr(func, "REGION_SIZE must be > 0 (given: %lf)", region_size);
         PSAbortLayer(network, layer);
         return 0;
     }
-    double input_w, input_h, output_w, output_h;
+    PSFloat input_w, input_h, output_w, output_h;
     input_w = previous_params[PARAM_OUTPUT_WIDTH];
     input_h = previous_params[PARAM_OUTPUT_HEIGHT];
     params[PARAM_INPUT_WIDTH] = input_w;
     params[PARAM_INPUT_HEIGHT] = input_h;
-    
     output_w = calculatePoolingSide(input_w, region_size);
     output_h = calculatePoolingSide(input_h, region_size);
     params[PARAM_OUTPUT_WIDTH] = output_w;
@@ -286,7 +285,7 @@ int PSInitPoolingLayer(PSNeuralNetwork * network, PSLayer * layer,
     }
 #ifdef USE_AVX
     if (!avx_disabled) {
-        layer->avx_activation_cache = calloc(size, sizeof(double));
+        layer->avx_activation_cache = calloc(size, sizeof(PSFloat));
         if (layer->avx_activation_cache == NULL) {
             printMemoryErrorMsg();
             PSAbortLayer(network, layer);
@@ -359,16 +358,16 @@ int PSConvolve(void * _net, void * _layer, ...) {
         t = va_arg(args, int);
         va_end(args);
     }
-    double * params = parameters->parameters;
-    double * previous_params = previous_parameters->parameters;
+    PSFloat * params = parameters->parameters;
+    PSFloat * previous_params = previous_parameters->parameters;
     int feature_count = (int) (params[PARAM_FEATURE_COUNT]);
     int stride = (int) (params[PARAM_STRIDE]);
     int padding = (int) (params[PARAM_PADDING]);
-    double region_size = params[PARAM_REGION_SIZE];
-    double region_area = region_size * region_size;
-    double input_w = previous_params[PARAM_OUTPUT_WIDTH];
-    double input_h = previous_params[PARAM_OUTPUT_HEIGHT];
-    double output_w = params[PARAM_OUTPUT_WIDTH];
+    PSFloat region_size = params[PARAM_REGION_SIZE];
+    PSFloat region_area = region_size * region_size;
+    PSFloat input_w = previous_params[PARAM_OUTPUT_WIDTH];
+    PSFloat input_h = previous_params[PARAM_OUTPUT_HEIGHT];
+    PSFloat output_w = params[PARAM_OUTPUT_WIDTH];
     int feature_size = size / feature_count;
 #ifdef USE_AVX
     int avx_disabled = PSIsAVXDisabled(net);
@@ -384,8 +383,8 @@ int PSConvolve(void * _net, void * _layer, ...) {
     previous_feature_size = previous->size / prev_features;
     for (i = 0; i < feature_count; i++) {
         if (do_dump && i > 1) do_dump = 0;
-        double bias = shared->biases[i];
-        double * weights = shared->weights[i];
+        PSFloat bias = shared->biases[i];
+        PSFloat * weights = shared->weights[i];
         row = 0;
         col = 0;
         for (j = 0; j < feature_size; j++) {
@@ -397,7 +396,7 @@ int PSConvolve(void * _net, void * _layer, ...) {
             int r_col = (col * stride) - padding;
             int max_x = region_size + r_col;
             int max_y = region_size + r_row;
-            double sum = 0;
+            PSFloat sum = 0;
             //printf("Neuron %d,%d: r: %d, b: %d\n", col, row, max_x, max_y);
             for (k = 0; k < prev_features; k++) {
                 int widx = k * (int) region_area;
@@ -431,23 +430,24 @@ int PSConvolve(void * _net, void * _layer, ...) {
                     if (x2 >= input_w) x2 = input_w - 1;
 #ifdef USE_AVX
                     int rowlen = x2 - x;
-                    if (!avx_disabled) {
+                    if (!avx_disabled && rowlen >= AVX_MIN_VECTOR_SIZE) {
                         int avx_step_len = AVXGetDotStepLen(rowlen);
-                        avx_dot_product dot_product =
-                            AVXGetDotProductFunc(rowlen);
-                        int avx_steps = rowlen / avx_step_len, avx_step;
+                        int avx_steps = 0, avx_step;
+                        if (avx_step_len > 0)
+                            avx_steps = rowlen / avx_step_len;
                         for (avx_step = 0; avx_step < avx_steps; avx_step++) {
                             int nidx = feature_offset + (y * input_w) + x;
-                            double * x_vector =
+                            PSFloat * x_vector =
                                 previous->avx_activation_cache + nidx;
                             if (is_recurrent) x_vector += (t * previous->size);
-                            double * y_vector = weights + widx;
+                            PSFloat * y_vector = weights + widx;
                             if (do_dump) DumpConvolveAVXStep(
                                 net, layer, neuron, col, row, r_col, r_row,
                                 max_x, max_y, previous, k, nidx, x, y, widx,
                                 avx_step_len, avx_step, rowlen
                             );
-                            sum += dot_product(x_vector, y_vector);
+                            sum += AVXDotProduct(x_vector, y_vector,
+                                                 avx_step_len, NULL);
                             x += avx_step_len;
                             widx += avx_step_len;
                         }
@@ -468,7 +468,7 @@ int PSConvolve(void * _net, void * _layer, ...) {
                             break;
                         }
                         PSNeuron * prev_neuron = previous->neurons[nidx];
-                        double a = prev_neuron->activation;
+                        PSFloat a = prev_neuron->activation;
                         if (do_dump) DumpConvolveStep(net, layer, neuron,
                             col, row, r_col, r_row, max_x, max_y,previous,
                             k, nidx, x, y, widx
@@ -537,12 +537,12 @@ int PSPool(void * _net, void * _layer, ...) {
         t = va_arg(args, int);
         va_end(args);
     }
-    double * params = parameters->parameters;
-    double * previous_params = previous_parameters->parameters;
+    PSFloat * params = parameters->parameters;
+    PSFloat * previous_params = previous_parameters->parameters;
     int feature_count = (int) (params[PARAM_FEATURE_COUNT]);
-    double region_size = params[PARAM_REGION_SIZE];
-    double input_w = previous_params[PARAM_OUTPUT_WIDTH];
-    double output_w = params[PARAM_OUTPUT_WIDTH];
+    PSFloat region_size = params[PARAM_REGION_SIZE];
+    PSFloat input_w = previous_params[PARAM_OUTPUT_WIDTH];
+    PSFloat output_w = params[PARAM_OUTPUT_WIDTH];
     int feature_size = size / feature_count;
     int prev_size = previous->size / feature_count;
     for (i = 0; i < feature_count; i++) {
@@ -558,13 +558,13 @@ int PSPool(void * _net, void * _layer, ...) {
             int r_col = col * region_size;
             int max_x = region_size + r_col;
             int max_y = region_size + r_row;
-            double max = 0.0, max_z = 0.0;
+            PSFloat max = 0.0, max_z = 0.0;
             for (y = r_row; y < max_y; y++) {
                 for (x = r_col; x < max_x; x++) {
                     int nidx = ((y * input_w) + x) + (prev_size * i);
                     PSNeuron * prev_neuron = previous->neurons[nidx];
-                    double a = prev_neuron->activation;
-                    double z = prev_neuron->z_value;
+                    PSFloat a = prev_neuron->activation;
+                    PSFloat z = prev_neuron->z_value;
                     if (a > max) {
                         max = a;
                         max_z = z;
@@ -595,16 +595,16 @@ int PSPool(void * _net, void * _layer, ...) {
 /* Backpropagation Functions */
 
 int PSPoolingBackprop(PSLayer * pooling_layer, PSLayer * convolutional_layer,
-                      double * delta)
+                      PSFloat * delta)
 {
-    double * conv_delta = convolutional_layer->delta;
+    PSFloat * conv_delta = convolutional_layer->delta;
     PSLayerParameters * pool_params = pooling_layer->parameters;
     PSLayerParameters * conv_params = convolutional_layer->parameters;
     int feature_count = (int) (conv_params->parameters[PARAM_FEATURE_COUNT]);
     int pool_size = (int) (pool_params->parameters[PARAM_REGION_SIZE]);
     int feature_size = pooling_layer->size / feature_count;
-    double input_w = pool_params->parameters[PARAM_INPUT_WIDTH];
-    double output_w = pool_params->parameters[PARAM_OUTPUT_WIDTH];
+    PSFloat input_w = pool_params->parameters[PARAM_INPUT_WIDTH];
+    PSFloat output_w = pool_params->parameters[PARAM_OUTPUT_WIDTH];
     int prev_feat_size = convolutional_layer->size / feature_count;
     PSNeuralNetwork *net = (PSNeuralNetwork *) pooling_layer->network;
     int do_dump = 0;
@@ -620,7 +620,7 @@ int PSPoolingBackprop(PSLayer * pooling_layer, PSLayer * convolutional_layer,
         col = 0;
         for (j = 0; j < feature_size; j++) {
             int idx = j + (i * feature_size);
-            double d = delta[idx];
+            PSFloat d = delta[idx];
             PSNeuron * neuron = pooling_layer->neurons[idx];
             col = idx % (int) output_w;
             if (col == 0 && j > 0) row++;
@@ -628,7 +628,7 @@ int PSPoolingBackprop(PSLayer * pooling_layer, PSLayer * convolutional_layer,
             int r_col = col * pool_size;
             int max_x = pool_size + r_col;
             int max_y = pool_size + r_row;
-            //double max = 0;
+            //PSFloat max = 0;
             for (y = r_row; y < max_y; y++) {
                 for (x = r_col; x < max_x; x++) {
                     int nidx = ((y * input_w) + x) + (prev_feat_size * i);
@@ -638,8 +638,8 @@ int PSPoolingBackprop(PSLayer * pooling_layer, PSLayer * convolutional_layer,
                         col, row, r_col, r_row, max_x, max_y,
                         convolutional_layer, i, nidx, x, y
                     );
-                    double a = prev_neuron->activation;
-                    double dv = (a < neuron->activation ? 0 : d);
+                    PSFloat a = prev_neuron->activation;
+                    PSFloat dv = (a < neuron->activation ? 0 : d);
                     if (dv != 0 && convolutional_layer->derivative != NULL) {
                         dv *= convolutional_layer->derivative(
                             neuron->activation
@@ -656,8 +656,8 @@ int PSPoolingBackprop(PSLayer * pooling_layer, PSLayer * convolutional_layer,
 int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer * prev_layer,
                             PSGradient * lgradients)
 {
-    double *delta = convolutional_layer->delta;
-    double *prev_delta = prev_layer->delta;
+    PSFloat *delta = convolutional_layer->delta;
+    PSFloat *prev_delta = prev_layer->delta;
     int size = convolutional_layer->size;
     PSLayerParameters * params = convolutional_layer->parameters;
     int feature_count = (int) (params->parameters[PARAM_FEATURE_COUNT]);
@@ -665,9 +665,9 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer * prev_layer,
     int region_area = region_size * region_size;
     int stride = (int) (params->parameters[PARAM_STRIDE]);
     int padding = (int) (params->parameters[PARAM_PADDING]);
-    double input_w = params->parameters[PARAM_INPUT_WIDTH];
-    double input_h = params->parameters[PARAM_INPUT_HEIGHT];
-    double output_w = params->parameters[PARAM_OUTPUT_WIDTH];
+    PSFloat input_w = params->parameters[PARAM_INPUT_WIDTH];
+    PSFloat input_h = params->parameters[PARAM_INPUT_HEIGHT];
+    PSFloat output_w = params->parameters[PARAM_OUTPUT_WIDTH];
     int feature_size = size / feature_count;
     int previous_feature_size = 0, prev_features = 1;
     PSLayerParameters * prev_params = prev_layer->parameters;
@@ -691,7 +691,7 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer * prev_layer,
         col = 0;
         for (j = 0; j < feature_size; j++) {
             int idx = j + (i * feature_size);
-            double d = delta[idx];
+            PSFloat d = delta[idx];
             feature_gradient->bias += d;
             col = idx % (int) output_w;
             if (col == 0 && j > 0) row++;
@@ -729,7 +729,7 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer * prev_layer,
                             break;
                         }
                         PSNeuron * prev_neuron = prev_layer->neurons[nidx];
-                        double a = prev_neuron->activation;
+                        PSFloat a = prev_neuron->activation;
                         assert(widx >= 0);
                         if (widx >= shared->weights_size) {
                             /* Ensure that weight index (widx) never exceeds

@@ -183,9 +183,9 @@ static void getTempFileName(const char * prefix, char * buffer) {
     fclose(urand);
 }
 
-double * training_data = NULL;
-double * test_data = NULL;
-double * validation_data = NULL;
+PSFloat * training_data = NULL;
+PSFloat * test_data = NULL;
+PSFloat * validation_data = NULL;
 int testlen = 0;
 int datalen = 0;
 int valdlen = 0;
@@ -250,7 +250,7 @@ int main(int argc, char ** argv) {
                 params = PSCreateConvolutionalParameters(CONV_FEATURE_COUNT,
                                                          CONV_REGION_SIZE,
                                                          1, 0, 0);
-                double * lparams = params->parameters;
+                PSFloat * lparams = params->parameters;
                 for (j = i + 1; j < argc; j++) {
                     char * carg = argv[j];
                     if (strcmp("--feature-count", carg) == 0 && ++j < argc) {
@@ -262,7 +262,7 @@ int main(int argc, char ** argv) {
                             continue;
                         }
                         i = j - 1;
-                        lparams[PARAM_FEATURE_COUNT] = (double) fcount;
+                        lparams[PARAM_FEATURE_COUNT] = (PSFloat) fcount;
                     } else if (strcmp("--region-size", carg) == 0 && ++j<argc) {
                         int rsize = 0;
                         char * rsstr = argv[j];
@@ -272,7 +272,7 @@ int main(int argc, char ** argv) {
                             continue;
                         }
                         i = j - 1;
-                        lparams[PARAM_REGION_SIZE] = (double) rsize;
+                        lparams[PARAM_REGION_SIZE] = (PSFloat) rsize;
                     } else if (strcmp("--stride", carg) == 0 && ++j < argc) {
                         int stride = 0;
                         char * ststr = argv[j];
@@ -282,7 +282,7 @@ int main(int argc, char ** argv) {
                             continue;
                         }
                         i = j - 1;
-                        lparams[PARAM_STRIDE] = (double) stride;
+                        lparams[PARAM_STRIDE] = (PSFloat) stride;
                     } else if (strcmp("--use-relu", carg) == 0) {
                         i = j - 1;
                         lparams[PARAM_USE_RELU] = 1.0;
@@ -296,7 +296,7 @@ int main(int argc, char ** argv) {
                 params = PSCreateConvolutionalParameters(0, POOL_REGION_SIZE,
                                                          POOL_REGION_SIZE,
                                                          0, 0);
-                double * lparams = params->parameters;
+                PSFloat * lparams = params->parameters;
                 for (j = i + 1; j < argc; j++) {
                     char * carg = argv[j];
                     if (strcmp("--region-size", carg) == 0 && ++j < argc) {
@@ -307,7 +307,7 @@ int main(int argc, char ** argv) {
                             fprintf(stderr, "Invalid region size %s\n", rsstr);
                             continue;
                         }
-                        lparams[PARAM_REGION_SIZE] = (double) rsize;
+                        lparams[PARAM_REGION_SIZE] = (PSFloat) rsize;
                     } else {
                         break;
                     }
@@ -472,10 +472,15 @@ int main(int argc, char ** argv) {
         } else if (strcmp("-v", arg) == 0 || strcmp("--version", arg) == 0) {
             printf("%s v%s (AVX=", PROGRAM_NAME, PSYC_VERSION);
 #ifdef USE_AVX
-            printf("on)\n");
+            printf("on");
 #else
-            printf("off)\n");
+            printf("off");
 #endif
+            int has_double_precision = (sizeof(PSFloat) == sizeof(double));
+            printf(
+                ",DOUBLE_PRECISION=%s)\n", (has_double_precision ? "on" : "off")
+            );
+
             exit(0);
         } else if (strcmp("-h", arg) == 0 || strcmp("--help", arg) == 0) {
             print_help(argv[0]);
@@ -512,7 +517,7 @@ int main(int argc, char ** argv) {
         
         PSTrainingOptions options = {
             .flags = training_flags,
-            .l2_decay = (double) l2_decay
+            .l2_decay = (PSFloat) l2_decay
         };
         PSTrain(network, training_data, datalen, epochs, learning_rate,
                 batch_size, &options, validation_data, valdlen);

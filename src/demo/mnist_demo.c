@@ -20,6 +20,7 @@
 #include <string.h>
 #include "../psyc.h"
 #include "../mnist.h"
+#include "../debug.h"
 
 #define INPUT_SIZE (28 * 28)
 #define EPOCHS 30
@@ -29,9 +30,12 @@ int main(int argc, char** argv) {
         printf("Usage %s IMAGE_FILE LABELS_FILE [TEST_FILES...]\n", argv[0]);
         return 1;
     }
-    
-    double * training_data = NULL;
-    double * test_data = NULL;
+#ifdef CATCH_FPE
+    PSCatchFloatingPointExceptions(/*FE_INVALID | */FE_OVERFLOW | FE_DIVBYZERO);
+#endif
+    PSHandleSignals(NULL);
+    PSFloat * training_data = NULL;
+    PSFloat * test_data = NULL;
     int testlen = 0;
     int datalen = 0;
     int loaded = 0;

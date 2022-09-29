@@ -77,7 +77,7 @@ def do_verify(c)
     }
     #words = c.match(/char \* #{$options[:words_var]}\[\] = \{(.*+?)\};/
     tr_data = c.match(
-        /double #{$options[:train_data_var]}\[\] = \{([\d\.,\s]+)\};/
+        /PSFloat #{$options[:train_data_var]}\[\] = \{([\d\.,\s]+)\};/
     )
     if !tr_data
         STDERR.puts "Verify: Couldn't find #{$options[:train_data_var]}, "+
@@ -86,7 +86,7 @@ def do_verify(c)
     end
     tr_data = tr_data[1].split(',').map{|n| n.strip.to_f}
     ev_data = c.match(
-        /double #{$options[:eval_data_var]}\[\] = \{([\d\.,\s]+)\};/
+        /PSFloat #{$options[:eval_data_var]}\[\] = \{([\d\.,\s]+)\};/
     )
     if !ev_data
         STDERR.puts "Verify: Couldn't find #{$options[:eval_data_var]}, "+
@@ -95,7 +95,7 @@ def do_verify(c)
     end
     ev_data = ev_data[1].split(',').map{|n| n.strip.to_f}
     ts_data = c.match(
-        /double #{$options[:test_data_var]}\[\] = \{([\d\.,\s]+)\};/
+        /PSFloat #{$options[:test_data_var]}\[\] = \{([\d\.,\s]+)\};/
     )
     if !ts_data
         STDERR.puts "Verify: Couldn't find #{$options[:test_data_var]}, "+
@@ -534,9 +534,9 @@ if filenames.length > 0
 #define EVAL_SENTENCES      #{eval_data_len}
 #define TEST_SENTENCES      #{test_data_len}
 char * #{$options[:words_var]}[] = {#{$indexed_words.map{|w|w.inspect}.join(',')}};
-double #{$options[:train_data_var]}[] = {#{train_c_data}};
-double #{$options[:eval_data_var]}[] = {#{eval_c_data}};
-double #{$options[:test_data_var]}[] = {#{test_c_data}};
+PSFloat #{$options[:train_data_var]}[] = {#{train_c_data}};
+PSFloat #{$options[:eval_data_var]}[] = {#{eval_c_data}};
+PSFloat #{$options[:test_data_var]}[] = {#{test_c_data}};
 #endif
     EOS
     File.open(output, 'w'){|f| f.write(c_code)}

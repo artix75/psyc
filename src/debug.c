@@ -62,6 +62,8 @@ typedef ucontext_t sigcontext_t;
 #endif
 #include <fcntl.h>
 #include <unistd.h>
+#include <fenv.h>
+#include <xmmintrin.h>
 #endif /* BACKTRACE_AVAILABLE */
 
 #ifdef __CYGWIN__
@@ -73,6 +75,10 @@ typedef ucontext_t sigcontext_t;
 #if defined(__APPLE__) && defined(__arm64__)
 #include <mach/mach.h>
 #endif
+
+int PSOriginalStdOutFD = -999;
+PSDebugInfo last_debug_info = {0};
+static void printLastDebugInfo(void);
 
 #ifdef BACKTRACE_AVAILABLE
 static void *getEip(ucontext_t *uc) {
@@ -130,7 +136,7 @@ static void *getEip(ucontext_t *uc) {
 
 void logStackTrace(ucontext_t *uc) {
     void *trace[101];
-    int trace_size = 0, fd = STDOUT_FILENO;
+    int trace_size = 0, fd = fileno(stdout);/* STDOUT_FILENO;*/
     trace_size = backtrace(trace + 1, 100);
 
     if (getEip(uc) != NULL) {
@@ -190,10 +196,28 @@ void dumpX86Calls(void *addr, size_t len) {
     }
 }
 
+#pragma fenv_access(on)
+static void dumpfloatinPointExecption() {
+    printf("\n\n-- FLOATING POINT EXC. --\n");
+    if (fetestexcept(FE_DIVBYZERO)) printf("FE_DIVBYZERO catched\n");
+    if (fetestexcept(FE_OVERFLOW)) printf("FE_OVERFLOW catched\n");
+    if (fetestexcept(FE_UNDERFLOW)) printf("FE_UNDERFLOW catched\n");
+    if (fetestexcept(FE_INEXACT)) printf("FE_INEXACT catched\n");
+    if (fetestexcept(FE_INVALID)) printf("FE_INVALID catched\n");
+}
+
 void segvHandler(int sig, siginfo_t *info, void *secret) {
     ucontext_t *uc = (ucontext_t*) secret;
     void *eip = getEip(uc);
     struct sigaction act;
+
+    if (PSOriginalStdOutFD >= 0 && fileno(stdout) != PSOriginalStdOutFD) {
+        /* STDOUT has been redirected, restore it. */
+        fflush(stdout);
+        fclose(stdout);
+        stdout = fdopen(PSOriginalStdOutFD, "w");
+        PSOriginalStdOutFD = -999;
+    }
 
     fflush(stdout);
     printf("\n\n=== BUG REPORT ===\n");
@@ -203,8 +227,12 @@ void segvHandler(int sig, siginfo_t *info, void *secret) {
         printf("Running instruction at: %p\n", eip);
     if (sig == SIGSEGV || sig == SIGBUS)
         printf("Accessing address: %p\n", (void*)info->si_addr);
+
+    if (last_debug_info.has_info) printLastDebugInfo();
     printf("\n\n------ STACK TRACE ------\n");
     logStackTrace(uc);
+
+    if (sig == SIGFPE) dumpfloatinPointExecption();
 
     printf("\n\n---- SIZEOF STRUCTS ----\n");
     printf("PSLayerParameters: %d\n", (int) sizeof(PSLayerParameters));
@@ -213,11 +241,15 @@ void segvHandler(int sig, siginfo_t *info, void *secret) {
     printf("PSNeuron:          %d\n", (int) sizeof(PSNeuron));
     printf("PSLayer:           %d\n", (int) sizeof(PSLayer));
     printf("PSNeuralNetwork:   %d\n", (int) sizeof(PSLayer));
+    printf("\n\n---- SIZEOF TYPES ----\n");
+    printf("PSFloat: %d\n", (int) sizeof(PSFloat));
 #if USE_AVX
     printf("\n\n---- AVX ----\n");
-    printf("AVX_VECTOR_SIZE:   %d\n", AVX_VECTOR_SIZE);
-    printf("AVX_VECTOR2_SIZE:  %d\n", AVX_VECTOR2_SIZE);
-    printf("AVX_VECTOR4_SIZE:  %d\n", AVX_VECTOR4_SIZE);
+    printf("AVX_VECTOR_SIZE:        %d\n", AVX_VECTOR_SIZE);
+    printf("AVX128_VECTOR_SIZE:     %d\n", AVX128_VECTOR_SIZE);
+    printf("AVX256_VECTOR_SIZE:     %d\n", AVX256_VECTOR_SIZE);
+    printf("AVX_MIN_VECTOR_SIZE:    %d\n", AVX_MIN_VECTOR_SIZE);
+    printf("AVX_MAX_VECTOR_SIZE:    %d\n", AVX_MAX_VECTOR_SIZE);
 #endif
 
     if (eip != NULL) {
@@ -255,8 +287,73 @@ void segvHandler(int sig, siginfo_t *info, void *secret) {
 
 #endif /* BACKTRACE_AVAILABLE */
 
+#if defined(__APPLE__) && defined(__MACH__)
+
+// Public domain polyfill for feenableexcept on OS X
+// http://www-personal.umich.edu/~williams/archive/computation/fe-handling-example.c
+
+#if defined(__arm) || defined(__arm64) || defined(__aarch64__)
+#define IS_ARM 1
+#define FE_EXCEPT_SHIFT 8
+#endif
+
+int feenableexcept(unsigned int excepts)
+{
+    static fenv_t fenv;
+    unsigned int new_excepts = excepts & FE_ALL_EXCEPT;
+    // previous masks
+    unsigned int old_excepts;
+
+    if (fegetenv(&fenv)) {
+        return -1;
+    }
+#if (IS_ARM == 1)
+    old_excepts = env.__fpcr;
+    // unmask
+    env.__fpcr = env.__fpcr | (excepts << FE_EXCEPT_SHIFT);
+#else
+    old_excepts = fenv.__control & FE_ALL_EXCEPT;
+    // unmask
+    fenv.__control &= ~new_excepts;
+    fenv.__mxcsr   &= ~(new_excepts << 7);
+#endif
+
+    return fesetenv(&fenv) ? -1 : old_excepts;
+}
+
+int fedisableexcept(unsigned int excepts)
+{
+    static fenv_t fenv;
+    unsigned int new_excepts = excepts & FE_ALL_EXCEPT;
+    // all previous masks
+    unsigned int old_excepts;
+
+    if (fegetenv(&fenv)) {
+        return -1;
+    }
+    old_excepts = fenv.__control & FE_ALL_EXCEPT;
+
+    // mask
+    fenv.__control |= new_excepts;
+    fenv.__mxcsr   |= new_excepts << 7;
+
+    return fesetenv(&fenv) ? -1 : old_excepts;
+}
+
+#endif
+
 char *getLossFunctionName(PSLossFunction function);
 char *getNetworkStatusLabel(PSNeuralNetwork *network);
+
+int PSIsFunctionAvailable(const char *func) {
+    return dlsym(RTLD_DEFAULT, func) != NULL;
+}
+
+int PSCatchFloatingPointExceptions(int except) {
+    if (!PSIsFunctionAvailable("feenableexcept")) return 0;
+    feenableexcept(except);
+    return 1;
+}
 
 char *PSGetNeuronDebugID(PSNeuron *neuron, PSLayer *layer) {
     static char neuron_id[255];
@@ -266,7 +363,7 @@ char *PSGetNeuronDebugID(PSNeuron *neuron, PSLayer *layer) {
     int fcount = 0, f_index;
     PSLayerParameters *lparams = layer->parameters;
     if (lparams != NULL) {
-        double *params = lparams->parameters;
+        PSFloat *params = lparams->parameters;
         fcount = (int) (params[PARAM_FEATURE_COUNT]);
     }
     if (fcount > 1) {
@@ -380,7 +477,7 @@ void PSTrainingDebugDumpHeader(PSNeuralNetwork *network,
                               int data_size,
                               int test_size,
                               int epochs,
-                              double learning_rate,
+                              PSFloat learning_rate,
                               int batch_size)
 {
     if (network->training == NULL) return;
@@ -410,7 +507,7 @@ void PSTrainingDebugDumpHeader(PSNeuralNetwork *network,
             PSTrainingDebugDump(network, ",vector_size=%d", onehot_sz);
         }
         if ((ltype == Convolutional || ltype == Pooling) && lparams != NULL) {
-            double * params = lparams->parameters;
+            PSFloat *params = lparams->parameters;
             int fcount = (int) (params[PARAM_FEATURE_COUNT]);
             int rsize = (int) (params[PARAM_REGION_SIZE]);
             int input_w = (int) (params[PARAM_INPUT_WIDTH]);
@@ -436,7 +533,7 @@ void PSTrainingDebugDumpHeader(PSNeuralNetwork *network,
                 );
             } else PSTrainingDebugDump(network, "\n");
         } else if (lparams != NULL && ltype == FullyConnected) {
-            double * params = lparams->parameters;
+            PSFloat *params = lparams->parameters;
             int fcount = (int) (params[PARAM_FEATURE_COUNT]);
             if (fcount > 1) {
                 PSTrainingDebugDump(
@@ -450,4 +547,140 @@ void PSTrainingDebugDumpHeader(PSNeuralNetwork *network,
         "epochs=%d,learning_rate=%.3f\n",
         time(NULL), data_size, test_size, batch_size, epochs, learning_rate
     );
+}
+
+void PSResetDebugInfo(void) {
+    memset(&last_debug_info, 0, sizeof(last_debug_info));
+    last_debug_info.layer_index = -1;
+    last_debug_info.layer2_index = -1;
+    last_debug_info.neuron_index = -1;
+    last_debug_info.neuron2_index = -1;
+    last_debug_info.weight = -99999;
+}
+
+void PSAddDebugInfo(void *network, char *file, const char *func, int line,
+                    void *layer, void *neuron1, void *neuron2,
+                    char *prop, PSFloat val)
+{
+    memset(&last_debug_info, 0, sizeof(last_debug_info));
+    last_debug_info.has_info = 1;
+    last_debug_info.time = time(NULL);
+    last_debug_info.file = file;
+    last_debug_info.func = func;
+    last_debug_info.line = line;
+    last_debug_info.layer_index = -1;
+    last_debug_info.layer2_index = -1;
+    last_debug_info.neuron_index = -1;
+    last_debug_info.neuron2_index = -1;
+    last_debug_info.weight = -99999;
+    if (network != NULL) {
+        PSNeuralNetwork *net = (PSNeuralNetwork *) network;
+        last_debug_info.status = net->status;
+        if (net->training != NULL) {
+            last_debug_info.current_epoch = net->training->current_epoch;
+            last_debug_info.current_batch = net->training->current_batch;
+            last_debug_info.current_element =
+                net->training->current_element;
+        }
+    }
+    if (layer != NULL) {
+        PSLayer *l = layer;
+        last_debug_info.layer_index = l->index;
+        last_debug_info.layer_type = l->type;
+    }
+    if (neuron1 != NULL) {
+        PSNeuron *n = neuron1;
+        last_debug_info.neuron_index = n->index;
+        PSLayer *l = (PSLayer *) n->layer;
+        if (layer == NULL) {
+            last_debug_info.layer_index = l->index;
+            last_debug_info.layer_type = l->type;
+        }
+        last_debug_info.activation = n->activation;
+        last_debug_info.z_value = n->z_value;
+        last_debug_info.bias = n->bias;
+        if (l->delta != NULL) last_debug_info.delta = l->delta[n->index];
+    }
+    if (neuron2 != NULL) {
+        PSNeuron *n2 = neuron2;
+        last_debug_info.neuron2_index = n2->index;
+        PSLayer *l2 = (PSLayer *) n2->layer;
+        last_debug_info.layer2_index = l2->index;
+        last_debug_info.activation2 = n2->activation;
+        if (l2->delta != NULL) last_debug_info.delta2 = l2->delta[n2->index];
+        if (neuron1 != NULL) {
+            PSNeuron *n = neuron1;
+            int widx = 0;
+            if (l2->index == (last_debug_info.layer_index - 1)) {
+                if (last_debug_info.layer_type != Convolutional &&
+                    last_debug_info.layer_type != Pooling)
+                {
+                    widx = n2->index;
+                    if (widx < n->weights_size)
+                        last_debug_info.weight = n->weights[widx];
+                }
+            } else if (l2->index == (last_debug_info.layer_index + 1)) {
+                if (l2->type != Convolutional && l2->type != Pooling)
+                {
+                    widx = n->index;
+                    if (widx < n2->weights_size)
+                        last_debug_info.weight = n->weights[widx];
+                }
+            }
+        }
+    }
+    last_debug_info.custom_prop = prop;
+    last_debug_info.custom_val = val;
+}
+
+static void printLastDebugInfo(void) {
+    if (!last_debug_info.has_info) return;
+    time_t now = time(NULL);
+    printf("\n\n------ DEBUG INFO ------\n");
+    if (last_debug_info.time > 0) {
+        time_t elapsed = now - last_debug_info.time;
+        printf("Debug time: %s (%ld sec. before crash)\n",
+            ctime(&last_debug_info.time), elapsed);
+    }
+    if (last_debug_info.file != NULL)
+        printf("File: %s\n", last_debug_info.file);
+    if (last_debug_info.func != NULL)
+        printf("Func: %s\n", last_debug_info.func);
+    if (last_debug_info.file != NULL || last_debug_info.func != NULL)
+        printf("Line: %d\n", last_debug_info.line);
+    if (last_debug_info.layer_index >= 0) {
+        printf("Layer: %d\n", last_debug_info.layer_index);
+        if (last_debug_info.layer_type >= 0) {
+            printf(
+                "Layer type: %s\n",
+                PSGetLabelForType(last_debug_info.layer_type)
+            );
+        }
+    }
+    if (last_debug_info.neuron_index >= 0) {
+        printf("Neuron: %d\n", last_debug_info.neuron_index);
+        printf(" -> ZValue: %g\n", last_debug_info.z_value);
+        printf(" -> Activation: %g\n", last_debug_info.activation);
+        printf(" -> Delta: %g\n", last_debug_info.delta);
+        printf(" -> Bias: %g\n", last_debug_info.bias);
+    }
+    if (last_debug_info.layer2_index>=0 && last_debug_info.neuron2_index>=0) {
+        int l2idx = last_debug_info.layer2_index;
+        int lidx = last_debug_info.layer_index;
+        char *rankstr = NULL;
+        if (l2idx == (lidx - 1)) rankstr = "Previous";
+        else if (l2idx == (lidx + 1)) rankstr = "Next";
+        if (rankstr != NULL) {
+            printf("%s Neuron: %d\n", rankstr, last_debug_info.neuron2_index);
+            printf(" -> Activation: %g\n", last_debug_info.activation2);
+            printf(" -> Delta: %g\n", last_debug_info.delta2);
+            if (last_debug_info.weight > -99999)
+                printf(" -> Weight: %g\n", last_debug_info.weight);
+        }
+    }
+    if (last_debug_info.custom_prop != NULL) {
+        printf(
+            "%s: %g\n", last_debug_info.custom_prop, last_debug_info.custom_val
+        );
+    }
 }

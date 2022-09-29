@@ -18,6 +18,10 @@
 #ifndef __DEBUG_H
 #define __DEBUG_H
 
+#include <time.h>
+#include <fenv.h>
+#include "types.h"
+
 #define DEBUG_PHASE_UPDATE_GRADS     1
 #define DEBUG_PHASE_UPDATE_WEIGHTS   2
 
@@ -35,6 +39,39 @@
     }\
 } while (0);
 
+#define PSAddContextualDebug(net,layer,neuron1,neuron2,prop,v) PSAddDebugInfo(\
+    network, __FILE__, __func__, __LINE__, layer, neuron1, neuron2, prop, v)
+
+typedef struct PSDebugInfo {
+    char *file;
+    const char *func;
+    int line;
+    int status;
+    int current_epoch;
+    int current_batch;
+    int current_element;
+    int layer_index;
+    int layer_type;
+    int neuron_index;
+    int neuron2_index;
+    int layer2_index;
+    int convolutional_feature;
+    PSFloat activation;
+    PSFloat activation2;
+    PSFloat z_value;
+    PSFloat bias;
+    PSFloat weight;
+    PSFloat delta;
+    PSFloat delta2;
+    char *custom_prop;
+    PSFloat custom_val;
+    time_t time;
+    int has_info;
+} PSDebugInfo;
+
+int PSIsFunctionAvailable(const char *func);
+int PSCatchFloatingPointExceptions(int except);
+
 char *PSGetNeuronDebugID(PSNeuron *neuron, PSLayer *layer);
 void PSTrainingDebugDump(PSNeuralNetwork *network, char *fmt, ...);
 void PSTrainingDebugDumpStep(PSNeuralNetwork *network,
@@ -48,7 +85,7 @@ void PSTrainingDebugDumpHeader(PSNeuralNetwork *network,
                               int data_size,
                               int test_size,
                               int epochs,
-                              double learning_rate,
+                              PSFloat learning_rate,
                               int batch_size);
 
 void PSTrainingDebugDumpGradient(PSNeuralNetwork *network,
@@ -60,4 +97,11 @@ void PSTrainingDebugDumpGradient(PSNeuralNetwork *network,
                                  int weight_idx,
                                  int is_avx,
                                  int avx_len);
+
+void PSResetDebugInfo(void);
+void PSAddDebugInfo(void *network, char *file, const char *func, int line,
+                    void *layer, void *neuron1, void *neuron2,
+                    char *prop, PSFloat val);
+
+extern int PSOriginalStdOutFD;
 #endif // __DEBUG_H

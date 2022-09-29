@@ -37,9 +37,9 @@ int main(int argc, char** argv) {
         return 1;
     }
     
-    double * training_data = NULL;
-    double * test_data = NULL;
-    double * validation_data = NULL;
+    PSFloat * training_data = NULL;
+    PSFloat * test_data = NULL;
+    PSFloat * validation_data = NULL;
     const char * pretrained_file = NULL;
     int testlen = 0;
     int datalen = 0;

@@ -1,35 +1,13 @@
-SHELL=/bin/bash
-CC=gcc
-OPTIMIZATION?=-O2
-OPT=$(OPTIMIZATION)
-CFLAGS=-std=gnu99 -Wall -W -Wno-missing-field-initializers $(OPT)
-LDFLAGS=-lz -lm -ldl
-OBJS=psyc.o utils.o convolutional.o recurrent.o lstm.o mnist.o debug.o cifar.o
-PREFIX?=/usr/local
-LIBDIR=$(PREFIX)/lib
-BINDIR=$(PREFIX)/bin
-INCLUDEDIR=$(PREFIX)/include
-SHAREDIR=$(PREFIX)/share/psyc
-PLATFORM := $(shell sh -c 'uname -s 2>/dev/null || echo not')
-LIBNAME := libpsyc
-WAND_CONFIG=Wand-config
-HAS_MAGICK=false
-MAGICK_VERSION=none
-MAGICK_VERSION_MAJOR=none
+include Makefile.common.mk
+include avx.mk
 
-ifeq ($(MAGICK), off)
-        HAS_MAGICK=false
-else
-        MAGICK_VERSION := $(shell sh -c '$(WAND_CONFIG) --version 2>/dev/null || echo none')
-ifeq ($(MAGICK_VERSION), none)
-        WAND_CONFIG=MagickWand-config
-        MAGICK_VERSION := $(shell sh -c '$(WAND_CONFIG) --version 2>/dev/null || echo none')
-endif
-ifneq ($(MAGICK_VERSION), none)
-        HAS_MAGICK=true
-endif
+ifeq ($(AVX),on)
+	CFLAGS+=-DUSE_AVX -mavx2 -mfma
+        OBJS+=avx.o
 endif
 
+
+LIBNAME=libpsyc
 ifeq ($(PLATFORM), Linux)
         LIBNAME := $(LIBNAME).so
         LIBOPTS := -shared -fPIC -Wl,-soname,$(LIBNAME)
@@ -39,13 +17,6 @@ endif
 ifeq ($(PLATFORM), Darwin)
         LIBNAME := $(LIBNAME).dylib
         LIBOPTS := -dynamiclib -install_name $(LIBDIR)/$(LIBNAME)
-endif
-
-include avx.mk
-
-ifeq ($(AVX),on)
-	CFLAGS+=-DUSE_AVX -mavx2 -mfma
-        OBJS+=avx.o
 endif
 
 BIN_CFLAGS = $(CFLAGS)

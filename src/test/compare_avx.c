@@ -7,6 +7,7 @@
 #include "../psyc.h"
 #include "../convolutional.h"
 #include "../recurrent.h"
+#include "../utils.h"
 #include "../lstm.h"
 #include "../mnist.h"
 
@@ -22,8 +23,8 @@
 #define RESET   "\x1b[0m"
 
 
-#define getRoundedDouble(d) d//(round(d * 1000000.0) / 1000000.0)
-#define getRoundedDoubleDec(d, dec) (round(d * dec) / dec)
+#define getRoundedFloat(d) d//(round(d * 1000000.0) / 1000000.0)
+#define getRoundedFloatDec(d, dec) (PSRound(d * dec) / dec)
 
 int compareNetworks(PSNeuralNetwork * network, PSNeuralNetwork * other)
 {
@@ -61,8 +62,8 @@ int compareNetworks(PSNeuralNetwork * network, PSNeuralNetwork * other)
                 }
                 int fsize = orig_l->size / oshared->feature_count;
                 int fidx = k / fsize;
-                double obias = getRoundedDouble(oshared->biases[fidx]);
-                double cbias = getRoundedDouble(cshared->biases[fidx]);
+                PSFloat obias = getRoundedFloat(oshared->biases[fidx]);
+                PSFloat cbias = getRoundedFloat(cshared->biases[fidx]);
                 ok = (obias == cbias);
                 if (!ok) {
                     sprintf(msg, "Layer[%d][%d]: bias %.15e != %.15e\n",
@@ -70,8 +71,8 @@ int compareNetworks(PSNeuralNetwork * network, PSNeuralNetwork * other)
                     break;
                 }
             } else if (otype != Recurrent && otype != LSTM) {
-                double obias = getRoundedDouble(orig_n->bias);
-                double cbias = getRoundedDouble(other_n->bias);
+                PSFloat obias = getRoundedFloat(orig_n->bias);
+                PSFloat cbias = getRoundedFloat(other_n->bias);
                 ok = (obias == cbias);
             } else if (otype == LSTM) {
                 PSLSTMCell * ocell =  GetLSTMCell(orig_n);
@@ -109,8 +110,8 @@ int compareNetworks(PSNeuralNetwork * network, PSNeuralNetwork * other)
                 break;
             }
             for (w = 0; w < orig_n->weights_size; w++) {
-                double ow = getRoundedDouble(orig_n->weights[w]);
-                double cw = getRoundedDouble(other_n->weights[w]);
+                PSFloat ow = getRoundedFloat(orig_n->weights[w]);
+                PSFloat cw = getRoundedFloat(other_n->weights[w]);
                 ok = ow == cw;
                 if (!ok) {
                     sprintf(msg, "Layer[%d][%d]: w[%d] %.15e != %.15e\n",

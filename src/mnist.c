@@ -126,7 +126,7 @@ void getTempFileName(const char * prefix, char * buffer) {
 int loadMNISTData(int type,
                   const char * images_file,
                   const char * labels_file,
-                  double ** data) {
+                  PSFloat ** data) {
     char tmpImagesFileName[255];
     char tmpLabelsFileName[255];
     char * prefixImg;
@@ -219,13 +219,13 @@ int loadMNISTData(int type,
         return 0;
     }
     int data_len = (img_area * image_count) + (label_count * 10);
-    *data = malloc(data_len * sizeof(double));
-    double * data_p = *data;
+    *data = malloc(data_len * sizeof(PSFloat));
+    PSFloat * data_p = *data;
     for (i = 0; i < (int) image_count; i++) {
         printf("\rLoading image %d/%d", i + 1, image_count);
         for (j = 0; j < img_area; j++) {
             int pixel = fgetc(tmpimages);
-            double d = (double) pixel / (double) 255;
+            PSFloat d = (PSFloat) pixel / (PSFloat) 255;
             *data_p = d;
             data_p++;
         }

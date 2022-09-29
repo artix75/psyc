@@ -28,6 +28,8 @@
 #include "../recurrent.h"
 #include "../lstm.h"
 #include "../mnist.h"
+#include "../utils.h"
+#include "../debug.h"
 #ifdef USE_AVX
 #include "../avx.h"
 #endif
@@ -55,9 +57,15 @@
 #define LSTM_BATCHES 1
 
 #define getNetwork(tc) ((PSNeuralNetwork*)(tc->data[0]))
-#define getTestData(tc) ((double*)(tc->data[1]))
-#define getRoundedDouble(d) (round(d * 1000000.0) / 1000000.0)
-#define getRoundedDoubleDec(d, dec) (round(d * dec) / dec)
+#define getTestData(tc) ((PSFloat*)(tc->data[1]))
+#ifdef PS_DOUBLE_PRECISION
+#define getRoundedFloat(d) (PSRound(d * 1000000.0) / 1000000.0)
+#define HIGH_PRECISION_DEC 100000000.0
+#else
+#define getRoundedFloat(d) (PSRound(d * 100000.0) / 100000.0)
+#define HIGH_PRECISION_DEC 10000000.0
+#endif
+#define getRoundedFloatDec(d, dec) (PSRound(d * dec) / dec)
 
 #define UNUSED(V) ((void) V)
 
@@ -105,19 +113,19 @@ int testLSTMTrain(void* test_case, void* test);
 
 /* psyc.c static function prototypes */
 
-PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y);
-PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
-                                  double * y, int times);
+PSGradient ** backprop(PSNeuralNetwork * network, PSFloat * x, PSFloat * y);
+PSGradient ** backpropThroughTime(PSNeuralNetwork * network, PSFloat * x,
+                                  PSFloat * y, int times);
 
-double updateWeights(PSNeuralNetwork * network, double * training_data,
+PSFloat updateWeights(PSNeuralNetwork * network, PSFloat * training_data,
                      int batch_size, int elements_count,
-                     PSTrainingOptions* opts, double rate,
+                     PSTrainingOptions* opts, PSFloat rate,
                      PSGradient **momentum_gradeints,
                      PSGradient **aux_gradients, ...);
 
 int testlen = 0;
 
-double fullNetworkFeedForwardResults[] = {
+PSFloat fullNetworkFeedForwardResults[] = {
     0.000000,
     0.000000,
     0.000003,
@@ -130,7 +138,7 @@ double fullNetworkFeedForwardResults[] = {
     0.000000
 };
 
-double convNetworkFeedForwardResults[] = {
+PSFloat convNetworkFeedForwardResults[] = {
     0.961797,
     0.000264,
     0.004449,
@@ -145,7 +153,7 @@ double convNetworkFeedForwardResults[] = {
 
 
 // Layer, Neuron, Bias, Weight1 idx, Weight2 idx, Weight1, Weight2
-double backpropGradients[8][7] = {
+PSFloat backpropGradients[8][7] = {
     {1.0, 6.0, 0.00000302, 0.0, 202.0, 0.00000000, 0.00000099},
     {1.0, 10.0, 0.00001238, 0.0, 202.0, 0.00000000, 0.00000408},
     {1.0, 28.0, 0.00000000, 0.0, 202.0, 0.00000000, 0.00000000},
@@ -157,128 +165,128 @@ double backpropGradients[8][7] = {
 };
 
 // Layer, Neuron, Bias, Weight1 idx, Weight2 idx, Weight1, Weight2
-double backpropConvGradients[8][8] = {
+PSFloat backpropConvGradients[8][8] = {
     {1.0, 0.0, 0.74930726, 0.0, 1.0, 0.01887213, 0.00558867},
     {1.0, 1.0, -0.12929553, 0.0, 1.0, -0.00580211, -0.00211678},
     {3.0, 6.0, 0.00000055, 0.0, 25.0, 0.00000028, 0.00000035},
     {4.0, 0.0, 0.03533965, 0.0, 2.0, 0.00000000, 0.03533965}
 };
 
-double rnn_inner_weights[2][4] = {
+PSFloat rnn_inner_weights[2][4] = {
     {0.23728831, -0.13215413,  0.22972574, -0.30660592},
     {0.20497796,  0.10017828, -0.42993062, 0.13334368}
 };
 
-double rnn_outer_weights[4][2] = {
+PSFloat rnn_outer_weights[4][2] = {
     { 0.66009386,  0.53237322},
     { 0.38653,    -0.17668558},
     { 0.39194875, -0.43592448},
     {-0.3616406,   0.22109871}
 };
 
-double rnn_recurrent_weights[2][2] = {
+PSFloat rnn_recurrent_weights[2][2] = {
     {-0.46118039, -0.06823764},
     {-0.05642161, -0.69206895}
 };
 
-double rnn_expected_output[4][4] = {
+PSFloat rnn_expected_output[4][4] = {
     {0.30070284, 0.24446228, 0.23227381, 0.22256106},
     {0.21998344, 0.24441611, 0.24745303, 0.28814742},
     {0.23400344, 0.27607197, 0.30379749, 0.1861271},
     {0.24796499, 0.21649963, 0.19729585, 0.33823952}
 };
 
-double rnn_inner_gradients[2][6] = {
+PSFloat rnn_inner_gradients[2][6] = {
     { 0.7147815, -0.21859849, 0.11033169, -0.38062627, -0.20556136, 0.087832},
     {-0.25557706, 0.18080836, 0.40002974, -0.39482105, -0.1891429, 0.158413}
 };
 
-double rnn_outer_gradients[4][2] = {
+PSFloat rnn_outer_gradients[4][2] = {
     { 0.4023519, -0.29857975},
     {-0.33460693, 0.37440608},
     { 0.26141107, 0.0456771},
     {-0.32915604, -0.12150343}
 };
 
-double rnn_trained_inner_weights[2][4] = {
+PSFloat rnn_trained_inner_weights[2][4] = {
     { 0.2337144,  -0.13106114,  0.22917408, -0.30470279},
     { 0.20625585,  0.09927424, -0.43193077,  0.13531779}
 };
 
-double rnn_trained_outer_weights[4][2] = {
+PSFloat rnn_trained_outer_weights[4][2] = {
     {0.6580821, 0.53386612},
     {0.38820303, -0.17855761},
     {0.39064169, -0.43615287},
     {-0.35999482, 0.22170623}
 };
 
-double rnn_trained_recurrent_weights[2][2] = {
+PSFloat rnn_trained_recurrent_weights[2][2] = {
     {-0.46015258, -0.0686768},
     {-0.0554759, -0.69286102}
 };
 
-double rnn_inputs[5] = {4, 0, 1, 2, 3};
-double rnn_labels[4] = {3, 2, 1, 0};
+PSFloat rnn_inputs[5] = {4, 0, 1, 2, 3};
+PSFloat rnn_labels[4] = {3, 2, 1, 0};
 
-double lstm_training_data[] = {1.0, 3.0, 0.0, 1.0, 2.0, 1.0, 2.0, 3.0};
-double wg[2][6] = {
+PSFloat lstm_training_data[] = {1.0, 3.0, 0.0, 1.0, 2.0, 1.0, 2.0, 3.0};
+PSFloat wg[2][6] = {
     { 0.0097627,0.04303787,0.02055268,0.00897664,-0.01526904,0.02917882},
     {-0.01248256,0.0783546,0.09273255,-0.0233117,0.05834501,0.00577898}
 };
-double wi[2][6] = {
+PSFloat wi[2][6] = {
     { 0.0097627,0.04303787,0.02055268,0.00897664,-0.01526904,0.02917882},
     {-0.01248256,0.0783546,0.09273255,-0.0233117,0.05834501,0.00577898}
 };
-double wo[2][6] = {
+PSFloat wo[2][6] = {
     { 0.0097627,0.04303787,0.02055268,0.00897664,-0.01526904,0.02917882},
     {-0.01248256,0.0783546,0.09273255,-0.0233117,0.05834501,0.00577898}
 };
-double wf[2][6] = {
+PSFloat wf[2][6] = {
     { 0.0097627,0.04303787,0.02055268,0.00897664,-0.01526904,0.02917882},
     {-0.01248256,0.0783546,0.09273255,-0.0233117,0.05834501,0.00577898}
 };
-double bg[2] = {0.0097627,0.04303787};
-double bi[2] = {0.0097627,0.04303787};
-double bo[2] = {0.0097627,0.04303787};
-double bf[2] = {0.0097627,0.04303787};
+PSFloat bg[2] = {0.0097627,0.04303787};
+PSFloat bi[2] = {0.0097627,0.04303787};
+PSFloat bo[2] = {0.0097627,0.04303787};
+PSFloat bf[2] = {0.0097627,0.04303787};
 
-double lstm_out_weights[4][2] = {
+PSFloat lstm_out_weights[4][2] = {
     { 0.0097627,   0.04303787},
     { 0.02055268,  0.00897664},
     {-0.01526904,  0.02917882},
     {-0.01248256,  0.0783546}};
 
-double lstm_expected_states[2][3] = {
+PSFloat lstm_expected_states[2][3] = {
     {0.00497633, 0.01652635, 0.0163383},
     {0.00787092, 0.03837129, 0.05927353}
 };
 
-double lstm_expected_outputs[3][4] = {
+PSFloat lstm_expected_outputs[3][4] = {
     { 0.25001755, 0.24996395, 0.24995914, 0.25005937},
     { 0.25006783, 0.24978575, 0.24983151, 0.2503149},
     { 0.25008373, 0.24962334, 0.2497762, 0.25051672}
 };
 
-double expected_wg[2][6] = {
+PSFloat expected_wg[2][6] = {
     {0.00998824,0.04246868,0.02021531,0.00897664,-0.01527745,0.02916139},
     {-0.01314446,0.07862245,0.09379196,-0.0233117,0.05836385,0.00582174}
 };
-double expected_wi[2][6] = {
+PSFloat expected_wi[2][6] = {
     {0.00976488,0.04302317,0.0205475,0.00897664,-0.0152692,0.02917851},
     {-0.01249252,0.07837006,0.09280098,-0.0233117,0.05834622,0.00578173}
 };
-double expected_wo[2][6] = {
+PSFloat expected_wo[2][6] = {
     {0.00976767,0.04302572,0.02054214,0.00897664,-0.01526927,0.02917832},
     {-0.0124946,0.07833524,0.09283829,-0.0233117,0.05834666,0.00578289}
 };
-double expected_wf[2][6] = {
+PSFloat expected_wf[2][6] = {
     {0.0097627,0.04303513,0.02054733,0.00897664,-0.01526914,0.02917859},
     {-0.01248256,0.07835658,0.09276899,-0.0233117,0.05834562,0.00578039}
 };
-double expected_bg[2] = {0.00908168, 0.04370323};
-double expected_bi[2] = {0.009745, 0.0431118};
-double expected_bo[2] = {0.00974497, 0.04311221};
-double expected_bf[2] = {0.00975461, 0.04307629};
+PSFloat expected_bg[2] = {0.00908168, 0.04370323};
+PSFloat expected_bi[2] = {0.009745, 0.0431118};
+PSFloat expected_bo[2] = {0.00974497, 0.04311221};
+PSFloat expected_bf[2] = {0.00975461, 0.04307629};
 
 
 
@@ -297,9 +305,12 @@ static void getTmpFileName(const char * prfx, const char * sfx, char * buffer) {
 }
 
 int main(int argc, char** argv) {
+#ifdef CATCH_FPE
+    PSCatchFloatingPointExceptions(FE_OVERFLOW | FE_DIVBYZERO);
+#endif
+    PSHandleSignals(NULL);
     UNUSED(argc);
     UNUSED(argv);
-    PSHandleSignals(NULL);
 #ifdef USE_AVX
     AVXTests = createTest("AVX");
     addTest(AVXTests, "Dot Product", NULL, testAVXDot);
@@ -372,7 +383,7 @@ int genericSetup (void* tc) {
         return 0;
     }
     test_case->data[0] = network;
-    double * test_data = NULL;
+    PSFloat * test_data = NULL;
     testlen = loadMNISTData(DATA_TYPE_TEST, TEST_IMAGE_FILE, TEST_LABEL_FILE,
                             &test_data);
     test_case->data[1] = test_data;
@@ -386,7 +397,7 @@ int genericTeardown (void* tc) {
     TestCase * test_case = (TestCase*) tc;
     PSNeuralNetwork * network = getNetwork(test_case);
     if (network != NULL) PSDeleteNetwork(network);
-    double * test_data = getTestData(test_case);
+    PSFloat * test_data = getTestData(test_case);
     if (test_data != NULL) free(test_data);
     free(test_case->data);
     test_case->data = NULL;
@@ -417,7 +428,7 @@ int RNNSetup (void* tc) {
             PSNeuron * n = layer->neurons[j];
             n->bias = 0;
             for (w = 0; w < n->weights_size; w++) {
-                double * weights;
+                PSFloat * weights;
                 int w_idx = w;
                 if (i == 1) {
                     if (w < RNN_INPUT_SIZE) weights = rnn_inner_weights[j];
@@ -439,15 +450,15 @@ int RNNSetup (void* tc) {
     test_case->data[0] = network;
     int train_data_len = 1 + (RNN_TIMES * 2);
     int labels_offset = 1 + RNN_TIMES;
-    double * training_data = malloc(train_data_len * sizeof(double));
-    double * p = training_data;
+    PSFloat * training_data = malloc(train_data_len * sizeof(PSFloat));
+    PSFloat * p = training_data;
     if (training_data == NULL) {
         fprintf(stderr, "\nCould not allocate memory!\n");
         return 0;
     }
-    memcpy(p, rnn_inputs, labels_offset * sizeof(double));
+    memcpy(p, rnn_inputs, labels_offset * sizeof(PSFloat));
     p += labels_offset;
-    memcpy(p, rnn_labels, RNN_TIMES * sizeof(double));
+    memcpy(p, rnn_labels, RNN_TIMES * sizeof(PSFloat));
     test_case->data[1] = training_data;
     return 1;
 }
@@ -456,7 +467,7 @@ int RNNTeardown (void* tc) {
     TestCase * test_case = (TestCase*) tc;
     PSNeuralNetwork * network = getNetwork(test_case);
     if (network != NULL) PSDeleteNetwork(network);
-    double * test_data = getTestData(test_case);
+    PSFloat * test_data = getTestData(test_case);
     if (test_data != NULL) free(test_data);
     free(test_case->data);
     test_case->data = NULL;
@@ -513,12 +524,12 @@ int LSTMSetup (void* tc) {
     }
     test_case->data[0] = network;
     int train_data_len = 2 + (LSTM_TIMES * 2);
-    double * training_data = malloc(train_data_len * sizeof(double));
+    PSFloat * training_data = malloc(train_data_len * sizeof(PSFloat));
     if (training_data == NULL) {
         fprintf(stderr, "\nCould not allocate memory!\n");
         return 0;
     }
-    memcpy(training_data, lstm_training_data, train_data_len * sizeof(double));
+    memcpy(training_data, lstm_training_data, train_data_len * sizeof(PSFloat));
     test_case->data[1] = training_data;
     return 1;
 }
@@ -535,17 +546,17 @@ int testFullFeedforward(void* tc, void* t) {
     TestCase * test_case = (TestCase*) tc;
     Test * test = (Test*) t;
     PSNeuralNetwork * network = getNetwork(test_case);
-    double * test_data = getTestData(test_case);
+    PSFloat * test_data = getTestData(test_case);
     PSFeedforward(network, test_data);
 
     PSLayer * output = network->layers[network->size - 1];
     int i, res = 1;
     for (i = 0; i < output->size; i++) {
         PSNeuron * n = output->neurons[i];
-        double a = n->activation;
-        double expected = fullNetworkFeedForwardResults[i];
-        a = getRoundedDouble(a);
-        expected = getRoundedDouble(expected);
+        PSFloat a = n->activation;
+        PSFloat expected = fullNetworkFeedForwardResults[i];
+        a = getRoundedFloat(a);
+        expected = getRoundedFloat(expected);
         if (a != expected) {
             res = 0;
             test->error_message = malloc(255 * sizeof(char));
@@ -561,9 +572,9 @@ int testFullAccuracy(void* tc, void* t) {
     TestCase * test_case = (TestCase*) tc;
     Test * testobj = (Test*) t;
     PSNeuralNetwork * network = getNetwork(test_case);
-    double * test_data = getTestData(test_case);
-    double accuracy = PSTest(network, test_data, testlen);
-    accuracy = round(accuracy * 100.0);
+    PSFloat * test_data = getTestData(test_case);
+    PSFloat accuracy = PSTest(network, test_data, testlen);
+    accuracy = PSRound(accuracy * 100.0);
     int ok = (accuracy == 95.0);
     if (!ok) {
         testobj->error_message = malloc(255 * sizeof(char));
@@ -578,43 +589,46 @@ int testFullBackprop(void* tc, void* t) {
     Test * testobj = (Test*) t;
     testobj->error_message = malloc(255 * sizeof(char));
     PSNeuralNetwork * network = getNetwork(test_case);
-    double * test_data = getTestData(test_case);
+    PSFloat * test_data = getTestData(test_case);
     int input_size = network->layers[0]->size;
-    double * x = test_data;
-    double * y = test_data + input_size;
+    PSFloat * x = test_data;
+    PSFloat * y = test_data + input_size;
     PSGradient ** gradients = backprop(network, x, y);
     int ok = 1, i;
     for (i = 0; i < BP_GRADIENTS_CHECKS; i++) {
         int lidx = (int) (backpropGradients[i][0]);
         int nidx = (int) (backpropGradients[i][1]);
-        double bias = backpropGradients[i][2];
+        PSFloat bias = backpropGradients[i][2];
         int widx1 = (int) (backpropGradients[i][3]);
         int widx2 = (int) (backpropGradients[i][4]);
-        double w1 = backpropGradients[i][5];
-        double w2 = backpropGradients[i][6];
+        PSFloat w1 = backpropGradients[i][5];
+        PSFloat w2 = backpropGradients[i][6];
         PSGradient * dl = gradients[lidx - 1];
         PSGradient * d = &(dl[nidx]);
-        double val = getRoundedDoubleDec(d->bias, 100000000.0);
+        PSFloat val = getRoundedFloatDec(d->bias, HIGH_PRECISION_DEC);
+        bias = getRoundedFloatDec(bias, HIGH_PRECISION_DEC);
+        w1 = getRoundedFloatDec(w1, HIGH_PRECISION_DEC);
+        w2 = getRoundedFloatDec(w2, HIGH_PRECISION_DEC);
         ok = (val == bias);
         if (!ok) {
             sprintf(testobj->error_message,
-                    "Gradient[%d][%d] bias %lf != from expected (%lf)",
+                    "Gradient[%d][%d] bias %g != from expected (%g)",
                     lidx - 1, nidx, val, bias);
             break;
         }
-        val = getRoundedDoubleDec(d->weights[widx1], 100000000.0);
+        val = getRoundedFloatDec(d->weights[widx1], HIGH_PRECISION_DEC);
         ok = (val == w1);
         if (!ok) {
             sprintf(testobj->error_message,
-                    "Gradient[%d][%d] weight[%d] %lf != from expected (%lf)",
+                    "Gradient[%d][%d] weight[%d] %g != from expected (%g)",
                     lidx - 1, nidx, widx1, val, w1);
             break;
         }
-        val = getRoundedDoubleDec(d->weights[widx2], 100000000.0);
+        val = getRoundedFloatDec(d->weights[widx2], HIGH_PRECISION_DEC);
         ok = (val == w2);
         if (!ok) {
             sprintf(testobj->error_message,
-                    "Gradient[%d][%d] weight[%d] %lf != from expected (%lf)",
+                    "Gradient[%d][%d] weight[%d] %g != from expected (%g)",
                     lidx - 1, nidx, widx2, val, w2);
             break;
         }
@@ -637,15 +651,15 @@ int testConvLoad(void* tc, void* t) {
     PSLayer * layer = network->layers[1];
     PSSharedParams * shared;
     shared = (PSSharedParams *) layer->extra;
-    double bias = shared->biases[0];
-    bias = getRoundedDouble(bias);
-    double expected = CONV_L1F0_BIAS;
-    expected = getRoundedDouble(expected);
+    PSFloat bias = shared->biases[0];
+    bias = getRoundedFloat(bias);
+    PSFloat expected = CONV_L1F0_BIAS;
+    expected = getRoundedFloat(expected);
     int ok = (expected == bias);
     if (!ok) {
         test->error_message = malloc(255 * sizeof(char));
         sprintf(test->error_message,
-                "Layer[1]->bias[0] %lf != from bias loaded from data %lf\n",
+                "Layer[1]->bias[0] %g != from bias loaded from data %g\n",
                 bias, expected);
     }
     return ok;
@@ -655,21 +669,21 @@ int testConvFeedforward(void* tc, void* t) {
     TestCase * test_case = (TestCase*) tc;
     Test * test = (Test*) t;
     PSNeuralNetwork * network = getNetwork(test_case);
-    double * test_data = getTestData(test_case);
+    PSFloat * test_data = getTestData(test_case);
     PSFeedforward(network, test_data);
     
     PSLayer * output = network->layers[network->size - 1];
     int i, res = 1;
     for (i = 0; i < output->size; i++) {
         PSNeuron * n = output->neurons[i];
-        double a = n->activation;
-        double expected = convNetworkFeedForwardResults[i];
-        a = getRoundedDouble(a);
-        expected = getRoundedDouble(expected);
+        PSFloat a = n->activation;
+        PSFloat expected = convNetworkFeedForwardResults[i];
+        a = getRoundedFloat(a);
+        expected = getRoundedFloat(expected);
         if (a != expected) {
             res = 0;
             test->error_message = malloc(255 * sizeof(char));
-            sprintf(test->error_message, "Output[%d]-> %lf != %lf", i, a,
+            sprintf(test->error_message, "Output[%d]-> %g != %g", i, a,
                     expected);
             break;
         }
@@ -682,44 +696,47 @@ int testConvBackprop(void* tc, void* t) {
     Test * testobj = (Test*) t;
     testobj->error_message = malloc(255 * sizeof(char));
     PSNeuralNetwork * network = getNetwork(test_case);
-    double * test_data = getTestData(test_case);
+    PSFloat * test_data = getTestData(test_case);
     int input_size = network->layers[0]->size;
-    double * x = test_data;
-    double * y = test_data + input_size;
+    PSFloat * x = test_data;
+    PSFloat * y = test_data + input_size;
     PSGradient ** gradients = backprop(network, x, y);
     int ok = 1, i;
     for (i = 0; i < BP_CONV_GRADIENTS_CHECKS; i++) {
         int lidx = (int) (backpropConvGradients[i][0]);
         int nidx = (int) (backpropConvGradients[i][1]);
-        double bias = backpropConvGradients[i][2];
+        PSFloat bias = backpropConvGradients[i][2];
         int widx1 = (int) (backpropConvGradients[i][3]);
         int widx2 = (int) (backpropConvGradients[i][4]);
-        double w1 = backpropConvGradients[i][5];
-        double w2 = backpropConvGradients[i][6];
+        PSFloat w1 = backpropConvGradients[i][5];
+        PSFloat w2 = backpropConvGradients[i][6];
         PSGradient * dl = gradients[lidx - 1];
         if (dl == NULL) continue;
         PSGradient * d = &(dl[nidx]);
-        double val = getRoundedDoubleDec(d->bias, 100000000.0);
+        PSFloat val = getRoundedFloat(d->bias);
+        bias = getRoundedFloat(bias);
         ok = (val == bias);
         if (!ok) {
             sprintf(testobj->error_message,
-                    "Gradient[%d][%d] bias %.8lf != from expected (%.8lf)",
+                    "Gradient[%d][%d] bias %g != from expected (%g)",
                     lidx - 1, nidx, val, bias);
             break;
         }
-        val = getRoundedDoubleDec(d->weights[widx1], 100000000.0);
+        val = getRoundedFloat(d->weights[widx1]);
+        w1 = getRoundedFloat(w1);
         ok = (val == w1);
         if (!ok) {
             sprintf(testobj->error_message,
-                    "Gradient[%d][%d] weight[%d] %.8lf != from expect. (%.8lf)",
+                    "Gradient[%d][%d] weight[%d] %g != from expect. (%g)",
                     lidx - 1, nidx, widx1, val, w1);
             break;
         }
-        val = getRoundedDoubleDec(d->weights[widx2], 100000000.0);
+        val = getRoundedFloat(d->weights[widx2]);
+        w2 = getRoundedFloat(w2);
         ok = (val == w2);
         if (!ok) {
             sprintf(testobj->error_message,
-                    "Gradient[%d][%d] weight[%d] %.8lf != from expect. (%.8lf)",
+                    "Gradient[%d][%d] weight[%d] %g != from expect. (%g)",
                     lidx - 1, nidx, widx2, val, w2);
             break;
         }
@@ -731,7 +748,7 @@ int testConvBackprop(void* tc, void* t) {
 int testConvAccuracy(void* tc, void* t) {
     TestCase * test_case = (TestCase*) tc;
     Test * testobj = (Test*) t;
-    double * test_data = getTestData(test_case);
+    PSFloat * test_data = getTestData(test_case);
     PSNeuralNetwork * network = PSCreateNetwork("CNN Test Network");
     int loaded = PSLoadNetwork(network, CONVOLUTIONAL_TRAINED_NETWORK);
     if (!loaded) {
@@ -742,12 +759,12 @@ int testConvAccuracy(void* tc, void* t) {
         return 0;
     }
     PSFeedforward(network, test_data);
-    double accuracy = PSTest(network, test_data, testlen);
-    accuracy = round(accuracy * 100.0);
+    PSFloat accuracy = PSTest(network, test_data, testlen);
+    accuracy = PSRound(accuracy * 100.0);
     int ok = (accuracy == 98.0);
     if (!ok) {
         testobj->error_message = malloc(255 * sizeof(char));
-        sprintf(testobj->error_message, "Accuracy %lf != from expected (%lf)",
+        sprintf(testobj->error_message, "Accuracy %g != from expected (%g)",
                 accuracy, 98.0);
     }
     PSDeleteNetwork(network);
@@ -772,7 +789,7 @@ int testRNNLoad(void* tc, void* t) {
         for (j = 0; j < layer->size; j++) {
             PSNeuron * n = layer->neurons[j];
             for (w = 0; w < n->weights_size; w++) {
-                double * weights;
+                PSFloat * weights;
                 int w_idx = w;
                 if (i == 1) {
                     if (w < RNN_INPUT_SIZE) weights = rnn_inner_weights[j];
@@ -810,12 +827,12 @@ int testRNNFeedforward(void* tc, void* t) {
         PSNeuron * n = output->neurons[i];
         PSRecurrentCell* cell = (PSRecurrentCell*) n->extra;
         for (j = 0; j < cell->states_count; j++) {
-            double s = getRoundedDouble(cell->states[j]);
-            double expected = getRoundedDouble(rnn_expected_output[j][i]);
+            PSFloat s = getRoundedFloatDec(cell->states[j], HIGH_PRECISION_DEC);
+            PSFloat expected = getRoundedFloatDec(rnn_expected_output[j][i], HIGH_PRECISION_DEC);
             ok = (s == expected);
             if (!ok) {
                 test->error_message = malloc(255 * sizeof(char));
-                sprintf(test->error_message, "Output[%d][%d]: %lf != %lf\n",
+                sprintf(test->error_message, "Output[%d][%d]: %g != %g\n",
                         i, j, s, expected);
                 break;
             }
@@ -840,16 +857,16 @@ int testRNNBackprop(void* tc, void* t) {
         for (j = 0; j < l->size; j++) {
             PSGradient * gradient = &(lgradients[j]);
             int ws = l->neurons[j]->weights_size;
-            double * expected = (i == 0 ? rnn_inner_gradients[j] :
+            PSFloat * expected = (i == 0 ? rnn_inner_gradients[j] :
                                  rnn_outer_gradients[j]);
             for (w = 0; w < ws; w++) {
-                double dw = getRoundedDouble(gradient->weights[w]);
-                double exp_dw = getRoundedDouble(expected[w]);
+                PSFloat dw = getRoundedFloat(gradient->weights[w]);
+                PSFloat exp_dw = getRoundedFloat(expected[w]);
                 ok = (dw == exp_dw);
                 if (!ok) {
                     char * msg = malloc(255 * sizeof(char));
                     test->error_message = msg;
-                    sprintf(msg, "Gradient[%d][%d]->weight[%d]: %lf != %lf\n",
+                    sprintf(msg, "Gradient[%d][%d]->weight[%d]: %g != %g\n",
                             i, j, w, dw, exp_dw);
                     break;
                 }
@@ -868,12 +885,12 @@ int testRNNStep(void* tc, void* t) {
     Test * test = (Test*) t;
     PSNeuralNetwork * network = getNetwork(test_case);
     /*int train_data_len = 1 + (RNN_TIMES * 2);*/
-    double * training_data = getTestData(test_case);
-    double ** series = &training_data;
+    PSFloat * training_data = getTestData(test_case);
+    PSFloat ** series = &training_data;
     int elements_count = (int) *training_data;
     
     int ok = 1, i, j, w;
-    double loss = updateWeights(network, training_data, 1, elements_count,
+    PSFloat loss = updateWeights(network, training_data, 1, elements_count,
                                 NULL, RNN_LEARNING_RATE, NULL, NULL, series);
     UNUSED(loss);
     for (i = 1; i < network->size; i++) {
@@ -881,7 +898,7 @@ int testRNNStep(void* tc, void* t) {
         for (j = 0; j < layer->size; j++) {
             PSNeuron * n = layer->neurons[j];
             for (w = 0; w < n->weights_size; w++) {
-                double * weights;
+                PSFloat * weights;
                 int w_idx = w;
                 if (i == 1) {
                     if (w < RNN_INPUT_SIZE)
@@ -891,13 +908,13 @@ int testRNNStep(void* tc, void* t) {
                         w_idx -= RNN_INPUT_SIZE;
                     }
                 } else weights = rnn_trained_outer_weights[j];
-                double w_val = getRoundedDouble(n->weights[w]);
-                double expected_w = getRoundedDouble(weights[w_idx]);
+                PSFloat w_val = getRoundedFloat(n->weights[w]);
+                PSFloat expected_w = getRoundedFloat(weights[w_idx]);
                 ok = (w_val == expected_w);
                 if (!ok) {
                     char * msg = malloc(255 * sizeof(char));
                     test->error_message = msg;
-                    sprintf(msg, "Layer[%d][%d]->weights[%d]: %lf != %lf\n",
+                    sprintf(msg, "Layer[%d][%d]->weights[%d]: %g != %g\n",
                             i, j, w, w_val, expected_w);
                     break;
                 }
@@ -915,7 +932,7 @@ int testLSTMTrain(void* tc, void* tst) {
     PSNeuralNetwork * network = getNetwork(test_case);
     /*int train_data_len = 2 + (LSTM_TIMES * 2);
     UNUSED(train_data_len);*/
-    double * training_data = getTestData(test_case);
+    PSFloat * training_data = getTestData(test_case);
     
     PSTrainingOptions options = {
         .flags = TRAINING_NO_SHUFFLE,
@@ -932,97 +949,97 @@ int testLSTMTrain(void* tc, void* tst) {
         PSLSTMCell * cell = GetLSTMCell(neuron);
         int times = cell->states_count;
         for (t = 0; t < times; t++) {
-            double h = getRoundedDouble(cell->states[t]);
-            double expected = getRoundedDouble(lstm_expected_states[i][t]);
+            PSFloat h = getRoundedFloat(cell->states[t]);
+            PSFloat expected = getRoundedFloat(lstm_expected_states[i][t]);
             ok = (h == expected);
-            printf("H[%d][%d] = %lf (%s)\n", t, i, h, (ok ? "OK" : "FAIL"));
+            printf("H[%d][%d] = %g (%s)\n", t, i, h, (ok ? "OK" : "FAIL"));
             if (!ok) {
                 char * msg = malloc(255 * sizeof(char));
                 test->error_message = msg;
-                sprintf(msg, "Neuron[%d]->state[%d]: %lf != %lf\n",
+                sprintf(msg, "Neuron[%d]->state[%d]: %g != %g\n",
                         i, t, h, expected);
                 break;
             }
         }
         if (!ok) break;
-        double bias = getRoundedDouble(cell->candidate_bias);
-        double expected = getRoundedDouble(expected_bg[i]);
+        PSFloat bias = getRoundedFloat(cell->candidate_bias);
+        PSFloat expected = getRoundedFloat(expected_bg[i]);
         ok = (bias == expected);
         if (!ok) {
             char * msg = malloc(255 * sizeof(char));
             test->error_message = msg;
-            sprintf(msg, "Neuron[%d]->candidate_bias: %lf != %lf\n",
+            sprintf(msg, "Neuron[%d]->candidate_bias: %g != %g\n",
                     i, bias, expected);
             break;
         }
-        bias = getRoundedDouble(cell->input_bias);
-        expected = getRoundedDouble(expected_bi[i]);
+        bias = getRoundedFloat(cell->input_bias);
+        expected = getRoundedFloat(expected_bi[i]);
         ok = (bias == expected);
         if (!ok) {
             char * msg = malloc(255 * sizeof(char));
             test->error_message = msg;
-            sprintf(msg, "Neuron[%d]->input_bias: %lf != %lf\n",
+            sprintf(msg, "Neuron[%d]->input_bias: %g != %g\n",
                     i, bias, expected);
             break;
         }
-        bias = getRoundedDouble(cell->output_bias);
-        expected = getRoundedDouble(expected_bo[i]);
+        bias = getRoundedFloat(cell->output_bias);
+        expected = getRoundedFloat(expected_bo[i]);
         ok = (bias == expected);
         if (!ok) {
             char * msg = malloc(255 * sizeof(char));
             test->error_message = msg;
-            sprintf(msg, "Neuron[%d]->output_bias: %lf != %lf\n",
+            sprintf(msg, "Neuron[%d]->output_bias: %g != %g\n",
                     i, bias, expected);
             break;
         }
-        bias = getRoundedDouble(cell->forget_bias);
-        expected = getRoundedDouble(expected_bf[i]);
+        bias = getRoundedFloat(cell->forget_bias);
+        expected = getRoundedFloat(expected_bf[i]);
         ok = (bias == expected);
         if (!ok) {
             char * msg = malloc(255 * sizeof(char));
             test->error_message = msg;
-            sprintf(msg, "Neuron[%d]->forget_bias: %lf != %lf\n",
+            sprintf(msg, "Neuron[%d]->forget_bias: %g != %g\n",
                     i, bias, expected);
             break;
         }
         for (w = 0; w < cell->weights_size; w++) {
-            double weight = getRoundedDouble(cell->candidate_weights[w]);
-            expected = getRoundedDouble(expected_wg[i][w]);
+            PSFloat weight = getRoundedFloat(cell->candidate_weights[w]);
+            expected = getRoundedFloat(expected_wg[i][w]);
             ok = (weight == expected);
             if (!ok) {
                 char * msg = malloc(255 * sizeof(char));
                 test->error_message = msg;
-                sprintf(msg, "Neuron[%d]->candidate_weights[%d]: %lf != %lf\n",
+                sprintf(msg, "Neuron[%d]->candidate_weights[%d]: %g != %g\n",
                         i, w, weight, expected);
                 break;
             }
-            weight = getRoundedDouble(cell->input_weights[w]);
-            expected = getRoundedDouble(expected_wi[i][w]);
+            weight = getRoundedFloat(cell->input_weights[w]);
+            expected = getRoundedFloat(expected_wi[i][w]);
             ok = (weight == expected);
             if (!ok) {
                 char * msg = malloc(255 * sizeof(char));
                 test->error_message = msg;
-                sprintf(msg, "Neuron[%d]->input_weights[%d]: %lf != %lf\n",
+                sprintf(msg, "Neuron[%d]->input_weights[%d]: %g != %g\n",
                         i, w, weight, expected);
                 break;
             }
-            weight = getRoundedDouble(cell->output_weights[w]);
-            expected = getRoundedDouble(expected_wo[i][w]);
+            weight = getRoundedFloat(cell->output_weights[w]);
+            expected = getRoundedFloat(expected_wo[i][w]);
             ok = (weight == expected);
             if (!ok) {
                 char * msg = malloc(255 * sizeof(char));
                 test->error_message = msg;
-                sprintf(msg, "Neuron[%d]->output_weights[%d]: %lf != %lf\n",
+                sprintf(msg, "Neuron[%d]->output_weights[%d]: %g != %g\n",
                         i, w, weight, expected);
                 break;
             }
-            weight = getRoundedDouble(cell->forget_weights[w]);
-            expected = getRoundedDouble(expected_wf[i][w]);
+            weight = getRoundedFloat(cell->forget_weights[w]);
+            expected = getRoundedFloat(expected_wf[i][w]);
             ok = (weight == expected);
             if (!ok) {
                 char * msg = malloc(255 * sizeof(char));
                 test->error_message = msg;
-                sprintf(msg, "Neuron[%d]->forget_weights[%d]: %lf != %lf\n",
+                sprintf(msg, "Neuron[%d]->forget_weights[%d]: %g != %g\n",
                         i, w, weight, expected);
                 break;
             }
@@ -1036,13 +1053,13 @@ int testLSTMTrain(void* tc, void* tst) {
         PSRecurrentCell * cell = GetRecurrentCell(neuron);
         int times = cell->states_count;
         for (t = 0; t < times; t++) {
-            double h = getRoundedDouble(cell->states[t]);
-            double e = getRoundedDouble(lstm_expected_outputs[t][i]);
+            PSFloat h = getRoundedFloat(cell->states[t]);
+            PSFloat e = getRoundedFloat(lstm_expected_outputs[t][i]);
             int ok = (h == e);
             if (!ok) {
                 char * msg = malloc(255 * sizeof(char));
                 test->error_message = msg;
-                sprintf(msg, "Output->Neuron[%d]->output[%d]: %lf != %lf\n",
+                sprintf(msg, "Output->Neuron[%d]->output[%d]: %g != %g\n",
                         i, t, h, e);
                 break;
             }
@@ -1168,8 +1185,8 @@ int compareNetworks(PSNeuralNetwork * network, PSNeuralNetwork * clone,
                 }
                 int fsize = orig_l->size / oshared->feature_count;
                 int fidx = k / fsize;
-                double obias = getRoundedDouble(oshared->biases[fidx]);
-                double cbias = getRoundedDouble(cshared->biases[fidx]);
+                PSFloat obias = getRoundedFloat(oshared->biases[fidx]);
+                PSFloat cbias = getRoundedFloat(cshared->biases[fidx]);
                 ok = (obias == cbias);
                 if (!ok) {
                     char * msg = malloc(255 * sizeof(char));
@@ -1179,14 +1196,14 @@ int compareNetworks(PSNeuralNetwork * network, PSNeuralNetwork * clone,
                     break;
                 }
             } else if (otype != Recurrent && otype != LSTM) {
-                double obias = getRoundedDouble(orig_n->bias);
-                double cbias = getRoundedDouble(clone_n->bias);
+                PSFloat obias = getRoundedFloat(orig_n->bias);
+                PSFloat cbias = getRoundedFloat(clone_n->bias);
                 ok = (obias == cbias);
             } else if (otype == LSTM) {
                 PSLSTMCell * ocell =  GetLSTMCell(orig_n);
                 PSLSTMCell * ccell =  GetLSTMCell(clone_n);
-                ok = (getRoundedDouble(ocell->candidate_bias) ==
-                      getRoundedDouble(ccell->candidate_bias));
+                ok = (getRoundedFloat(ocell->candidate_bias) ==
+                      getRoundedFloat(ccell->candidate_bias));
                 if (!ok) {
                     char * msg = malloc(255 * sizeof(char));
                     test->error_message = msg;
@@ -1196,8 +1213,8 @@ int compareNetworks(PSNeuralNetwork * network, PSNeuralNetwork * clone,
                             ccell->candidate_bias);
                     break;
                 }
-                ok = (getRoundedDouble(ocell->input_bias) ==
-                      getRoundedDouble(ccell->input_bias));
+                ok = (getRoundedFloat(ocell->input_bias) ==
+                      getRoundedFloat(ccell->input_bias));
                 if (!ok) {
                     char * msg = malloc(255 * sizeof(char));
                     test->error_message = msg;
@@ -1205,8 +1222,8 @@ int compareNetworks(PSNeuralNetwork * network, PSNeuralNetwork * clone,
                             i, k, ocell->input_bias, ccell->input_bias);
                     break;
                 }
-                ok = (getRoundedDouble(ocell->output_bias) ==
-                      getRoundedDouble(ccell->output_bias));
+                ok = (getRoundedFloat(ocell->output_bias) ==
+                      getRoundedFloat(ccell->output_bias));
                 if (!ok) {
                     char * msg = malloc(255 * sizeof(char));
                     test->error_message = msg;
@@ -1214,8 +1231,8 @@ int compareNetworks(PSNeuralNetwork * network, PSNeuralNetwork * clone,
                             i, k, ocell->output_bias, ccell->output_bias);
                     break;
                 }
-                ok = (getRoundedDouble(ocell->forget_bias) ==
-                      getRoundedDouble(ccell->forget_bias));
+                ok = (getRoundedFloat(ocell->forget_bias) ==
+                      getRoundedFloat(ccell->forget_bias));
                 if (!ok) {
                     char * msg = malloc(255 * sizeof(char));
                     test->error_message = msg;
@@ -1240,8 +1257,8 @@ int compareNetworks(PSNeuralNetwork * network, PSNeuralNetwork * clone,
                 break;
             }
             for (w = 0; w < orig_n->weights_size; w++) {
-                double ow = getRoundedDouble(orig_n->weights[w]);
-                double cw = getRoundedDouble(clone_n->weights[w]);
+                PSFloat ow = getRoundedFloat(orig_n->weights[w]);
+                PSFloat cw = getRoundedFloat(clone_n->weights[w]);
                 ok = ow == cw;
                 if (!ok) {
                     char * msg = malloc(255 * sizeof(char));
@@ -1260,9 +1277,9 @@ int compareNetworks(PSNeuralNetwork * network, PSNeuralNetwork * clone,
 
 #ifdef USE_AVX
 
-double test_dot(double * x, double * y, int size) {
+PSFloat test_dot(PSFloat * x, PSFloat * y, int size) {
     int i;
-    double dot = 0.0;
+    PSFloat dot = 0.0;
     for (i = 0; i < size; i++) {
         dot += (x[i] * y[i]);
     }
@@ -1273,64 +1290,85 @@ int testAVXDot(void* tc, void* t) {
     UNUSED(tc);
     Test * test = (Test*) t;
     
-    double x2[2] = {1.0, 2.0};
-    double y2[2] = {0.5, 0.5};
+    PSFloat x2[2] = {1.0, 2.0};
+    PSFloat y2[2] = {0.5, 0.5};
     
-    double x4[4] = {1.0, 1.0, 2.0, 2.0};
-    double y4[4] = {0.5, 0.5, 1.0, 0.5};
+    PSFloat x4[4] = {1.0, 1.0, 2.0, 2.0};
+    PSFloat y4[4] = {0.5, 0.5, 1.0, 0.5};
     
-    double x8[8] = {1.0, 1.0, 2.0, 2.0, 3.0, 2.0, 1.0, 1.0};
-    double y8[8] = {0.5, 0.5, 1.0, 0.5, 0.0, 1.0, 2.0, 1.0};
+    PSFloat x8[8] = {1.0, 1.0, 2.0, 2.0, 3.0, 2.0, 1.0, 1.0};
+    PSFloat y8[8] = {0.5, 0.5, 1.0, 0.5, 0.0, 1.0, 2.0, 1.0};
     
-    double x16[16] = {1.0, 1.0, 2.0, 2.0, 3.0, 2.0, 1.0, 1.0,
-                      0.5, 1.0, 0.0, 1.0, 3.0, 2.0, 1.0, 1.0};
-    double y16[16] = {0.5, 0.5, 1.0, 0.5, 0.0, 1.0, 2.0, 1.0,
-                      1.0, 2.0, 1.0, 0.0, 0.5, 1.0, 0.5, 0.5};
-    
-    double avx_res = avx_dot_product16(x16, y16);
-    double cmp_res = test_dot(x16, y16, 16);
-    int ok = avx_res == cmp_res;
+    PSFloat x16[16] = {1.0, 1.0, 2.0, 2.0, 3.0, 2.0, 1.0, 1.0,
+                       0.5, 1.0, 0.0, 1.0, 3.0, 2.0, 1.0, 1.0};
+    PSFloat y16[16] = {0.5, 0.5, 1.0, 0.5, 0.0, 1.0, 2.0, 1.0,
+                       1.0, 2.0, 1.0, 0.0, 0.5, 1.0, 0.5, 0.5};
+
+    PSFloat x32[32] = {1.0, 1.0, 2.0, 2.0, 3.0, 2.0, 1.0, 1.0,
+                       0.5, 1.0, 0.0, 1.0, 3.0, 2.0, 1.0, 1.0,
+                       1.0, 2.0, 2.0, 3.0, 2.0, 1.0, 1.0, 1.0,
+                       1.0, 0.0, 1.0, 3.0, 2.0, 1.0, 1.0, 0.5};
+    PSFloat y32[32] = {0.5, 0.5, 1.0, 0.5, 0.0, 1.0, 2.0, 1.0,
+                       1.0, 2.0, 1.0, 0.0, 0.5, 1.0, 0.5, 0.5,
+                       2.0, 1.0, 0.0, 0.5, 1.0, 0.5, 0.5, 1.0,
+                       0.5, 1.0, 0.5, 0.0, 1.0, 2.0, 1.0, 0.5};
+    PSFloat avx_res, cmp_res;
+    int ok;
+    if (AVX_MAX_VECTOR_SIZE >= 32) {
+        avx_res = AVXDotProduct(x32, y32, 32, NULL);
+        cmp_res = test_dot(x32, y32, 32);
+        ok = avx_res == cmp_res;
+        if (!ok) {
+            char * msg = malloc(255 * sizeof(char));
+            test->error_message = msg;
+            sprintf(msg, "AVX[32]: Expected %g != %g\n", cmp_res, avx_res);
+            return 0;
+        }
+    }
+    avx_res = AVXDotProduct(x16, y16, 16, NULL);
+    cmp_res = test_dot(x16, y16, 16);
+    ok = avx_res == cmp_res;
     
     if (!ok) {
         char * msg = malloc(255 * sizeof(char));
         test->error_message = msg;
-        sprintf(msg, "AVX[16]: Expected %lf != %lf\n", cmp_res, avx_res);
+        sprintf(msg, "AVX[16]: Expected %g != %g\n", cmp_res, avx_res);
         return 0;
     }
     
-    avx_res = avx_dot_product8(x8, y8);
+    avx_res = AVXDotProduct(x8, y8, 8, NULL);
     cmp_res = test_dot(x8, y8, 8);
     ok = avx_res == cmp_res;
     
     if (!ok) {
         char * msg = malloc(255 * sizeof(char));
         test->error_message = msg;
-        sprintf(msg, "AVX[8]: Expected %lf != %lf\n", cmp_res, avx_res);
+        sprintf(msg, "AVX[8]: Expected %g != %g\n", cmp_res, avx_res);
         return 0;
     }
     
-    avx_res = avx_dot_product4(x4, y4);
+    avx_res = AVXDotProduct(x4, y4, 4, NULL);
     cmp_res = test_dot(x4, y4, 4);
     ok = avx_res == cmp_res;
     
     if (!ok) {
         char * msg = malloc(255 * sizeof(char));
         test->error_message = msg;
-        sprintf(msg, "AVX[4]: Expected %lf != %lf\n", cmp_res, avx_res);
+        sprintf(msg, "AVX[4]: Expected %g != %g\n", cmp_res, avx_res);
         return 0;
     }
-    
-    avx_res = avx_dot_product2(x2, y2);
-    cmp_res = test_dot(x2, y2, 2);
-    ok = avx_res == cmp_res;
-    
-    if (!ok) {
-        char * msg = malloc(255 * sizeof(char));
-        test->error_message = msg;
-        sprintf(msg, "AVX[2]: Expected %lf != %lf\n", cmp_res, avx_res);
-        return 0;
+    if (AVX_MIN_VECTOR_SIZE <= 2) {
+        avx_res = AVXDotProduct(x2, y2, 2, NULL);
+        cmp_res = test_dot(x2, y2, 2);
+        ok = avx_res == cmp_res;
+        
+        if (!ok) {
+            char * msg = malloc(255 * sizeof(char));
+            test->error_message = msg;
+            sprintf(msg, "AVX[2]: Expected %g != %g\n", cmp_res, avx_res);
+            return 0;
+        }
     }
-    
     return ok;
 }
 
@@ -1338,55 +1376,57 @@ int testAVXSquare(void* tc, void* t) {
     UNUSED(tc);
     Test * test = (Test*) t;
     
-    double x2[2] = {1.0, 2.0};//5
-    double x4[4] = {1.0, 1.0, 2.0, 2.0};//10
-    double x8[8] = {1.0, 1.0, 2.0, 2.0, 1.0, 1.0, 2.0, 2.0};//20
+    PSFloat x2[2] = {1.0, 2.0};//5
+    PSFloat x4[4] = {1.0, 1.0, 2.0, 2.0};//10
+    PSFloat x8[8] = {1.0, 1.0, 2.0, 2.0, 1.0, 1.0, 2.0, 2.0};//20
     
-    double x16[16] = {1.0, 1.0, 2.0, 2.0, 1.0, 1.0, 2.0, 2.0,
+    PSFloat x16[16] = {1.0, 1.0, 2.0, 2.0, 1.0, 1.0, 2.0, 2.0,
         1.0, 1.0, 2.0, 2.0, 1.0, 1.0, 2.0, 2.0}; //40
     
-    double avx_res = avx_dot_product16(x16, x16);
-    double cmp_res = test_dot(x16, x16, 16);
+    PSFloat avx_res = AVXDotProduct(x16, x16, 16, NULL);
+    PSFloat cmp_res = test_dot(x16, x16, 16);
     int ok = avx_res == cmp_res;
     
     if (!ok) {
         char * msg = malloc(255 * sizeof(char));
         test->error_message = msg;
-        sprintf(msg, "AVX[16]: Expected %lf != %lf\n", cmp_res, avx_res);
+        sprintf(msg, "AVX[16]: Expected %g != %g\n", cmp_res, avx_res);
         return 0;
     }
     
-    avx_res = avx_dot_product8(x8, x8);
+    avx_res = AVXDotProduct(x8, x8, 8, NULL);
     cmp_res = test_dot(x8, x8, 8);
     ok = avx_res == cmp_res;
     
     if (!ok) {
         char * msg = malloc(255 * sizeof(char));
         test->error_message = msg;
-        sprintf(msg, "AVX[8]: Expected %lf != %lf\n", cmp_res, avx_res);
+        sprintf(msg, "AVX[8]: Expected %g != %g\n", cmp_res, avx_res);
         return 0;
     }
     
-    avx_res = avx_dot_product4(x4, x4);
+    avx_res = AVXDotProduct(x4, x4, 4, NULL);
     cmp_res = test_dot(x4, x4, 4);
     ok = avx_res == cmp_res;
     
     if (!ok) {
         char * msg = malloc(255 * sizeof(char));
         test->error_message = msg;
-        sprintf(msg, "AVX[4]: Expected %lf != %lf\n", cmp_res, avx_res);
+        sprintf(msg, "AVX[4]: Expected %g != %g\n", cmp_res, avx_res);
         return 0;
     }
-    
-    avx_res = avx_dot_product2(x2, x2);
-    cmp_res = test_dot(x2, x2, 2);
-    ok = avx_res == cmp_res;
-    
-    if (!ok) {
-        char * msg = malloc(255 * sizeof(char));
-        test->error_message = msg;
-        sprintf(msg, "AVX[2]: Expected %lf != %lf\n", cmp_res, avx_res);
-        return 0;
+
+    if (AVX_MIN_VECTOR_SIZE <= 2) {
+        avx_res = AVXDotProduct(x2, x2, 2, NULL);
+        cmp_res = test_dot(x2, x2, 2);
+        ok = avx_res == cmp_res;
+        
+        if (!ok) {
+            char * msg = malloc(255 * sizeof(char));
+            test->error_message = msg;
+            sprintf(msg, "AVX[2]: Expected %g != %g\n", cmp_res, avx_res);
+            return 0;
+        }
     }
     
     return ok;
@@ -1396,63 +1436,65 @@ int testAVXMultiplyVal(void* tc, void* t) {
     UNUSED(tc);
     Test * test = (Test*) t;
     int ok = 1, i;
-    double x[4] = {0.0, 1.0, 2.0, 3.0};
-    double val = 2.0;
-    double y[4] = {0.0, 2.0, 4.0, 6.0};
-    double dest[4] = {0.0, 0.0, 0.0, 0.0};
+    PSFloat x[4] = {0.0, 1.0, 2.0, 3.0};
+    PSFloat val = 2.0;
+    PSFloat y[4] = {0.0, 2.0, 4.0, 6.0};
+    PSFloat dest[4] = {0.0, 0.0, 0.0, 0.0};
     
-    double x2[2] = {2.0, 3.0};
-    double y2[2] = {4.0, 6.0};
-    double dest2[2] = {0.0, 0.0};
+    PSFloat x2[2] = {2.0, 3.0};
+    PSFloat y2[2] = {4.0, 6.0};
+    PSFloat dest2[2] = {0.0, 0.0};
     
-    avx_multiply_value4(x, val, dest, 0);
+    AVXMultiplyValue(x, val, 4, dest, 0);
     for (i = 0; i < 4; i++) {
         ok = dest[i] == y[i];
         if (!ok) {
             char * msg = malloc(255 * sizeof(char));
             test->error_message = msg;
-            sprintf(msg, "Store Mode Norm[4]: Expected %lf != %lf\n",
+            sprintf(msg, "Store Mode Norm[4]: Expected %g != %g\n",
                     y[i], dest[i]);
             return 0;
         }
     }
     
-    avx_multiply_value4(x, val, dest, AVX_STORE_MODE_ADD);
+    AVXMultiplyValue(x, val, 4, dest, AVX_STORE_MODE_ADD);
     for (i = 0; i < 4; i++) {
         ok = (dest[i] == (y[i] + y[i]));
         if (!ok) {
             char * msg = malloc(255 * sizeof(char));
             test->error_message = msg;
-            sprintf(msg, "Store Mode Norm[4]: Expected %lf != %lf\n",
+            sprintf(msg, "Store Mode Norm[4]: Expected %g != %g\n",
                     y[i], dest[i]);
             return 0;
         }
     }
     
-    avx_multiply_value2(x2, val, dest2, 0);
-    for (i = 0; i < 2; i++) {
-        ok = dest2[i] == y2[i];
-        if (!ok) {
-            char * msg = malloc(255 * sizeof(char));
-            test->error_message = msg;
-            sprintf(msg, "Store Mode Norm[2]: Expected %lf != %lf\n",
-                    y2[i], dest2[i]);
-            return 0;
+    if (AVX_MIN_VECTOR_SIZE <= 2) {
+        AVXMultiplyValue(x2, val, 2, dest2, 0);
+        for (i = 0; i < 2; i++) {
+            ok = dest2[i] == y2[i];
+            if (!ok) {
+                char * msg = malloc(255 * sizeof(char));
+                test->error_message = msg;
+                sprintf(msg, "Store Mode Norm[2]: Expected %g != %g\n",
+                        y2[i], dest2[i]);
+                return 0;
+            }
+        }
+        
+        AVXMultiplyValue(x2, val, 2, dest2, AVX_STORE_MODE_ADD);
+        for (i = 0; i < 2; i++) {
+            ok = (dest2[i] == (y2[i] + y2[i]));
+            if (!ok) {
+                char * msg = malloc(255 * sizeof(char));
+                test->error_message = msg;
+                sprintf(msg, "Store Mode Norm[2]: Expected %g != %g\n",
+                        y2[i], dest2[i]);
+                return 0;
+            }
         }
     }
-    
-    avx_multiply_value2(x2, val, dest2, AVX_STORE_MODE_ADD);
-    for (i = 0; i < 2; i++) {
-        ok = (dest2[i] == (y2[i] + y2[i]));
-        if (!ok) {
-            char * msg = malloc(255 * sizeof(char));
-            test->error_message = msg;
-            sprintf(msg, "Store Mode Norm[2]: Expected %lf != %lf\n",
-                    y2[i], dest2[i]);
-            return 0;
-        }
-    }
-    
+
     return ok;
 }
 

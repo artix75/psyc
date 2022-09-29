@@ -33,13 +33,13 @@
 #define RNN_TIMES       4
 #define RNN_LEARNING_RATE 0.005
 
-double rnn_train_data[10] = {1, 4, 0, 1, 2, 3, 3, 2, 1, 0};
+PSFloat rnn_train_data[10] = {1, 4, 0, 1, 2, 3, 3, 2, 1, 0};
 
 int main(int argc, char** argv) {
     
-    double * test_data = NULL;
-    double * train_data = NULL;
-    double * eval_data = NULL;
+    PSFloat * test_data = NULL;
+    PSFloat * train_data = NULL;
+    PSFloat * eval_data = NULL;
     int datalen = loadMNISTData(DATA_TYPE_TRAINING,
                                 "../../resources/train-images-idx3-ubyte.gz",
                                 "../../resources/train-labels-idx1-ubyte.gz",

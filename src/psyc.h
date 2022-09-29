@@ -19,6 +19,7 @@
 #define __PSYC_H
 
 #include <time.h>
+#include "types.h"
 
 #define PSYC_VERSION      "0.2.2"
 
@@ -71,20 +72,19 @@
 #define PSIsAVXDisabled(network) (1)
 #endif
 
-
-typedef double  (*PSActivationFunction) (double);
+typedef PSFloat  (*PSActivationFunction) (PSFloat);
 typedef int     (*PSFeedforwardFunction) (void * network, void * layer, ...);
-typedef double  (*PSLossFunction) (double* x, double* y, int size,
+typedef PSFloat  (*PSLossFunction) (PSFloat* x, PSFloat* y, int size,
                                    int onehot_size);
 typedef void    (*PSTrainCallback) (void * network, int epoch, int epochs,
-                                    double loss, double previous_loss,
-                                    float accuracy, double *rate,
-                                    double *training_data);
+                                    PSFloat loss, PSFloat previous_loss,
+                                    float accuracy, PSFloat *rate,
+                                    PSFloat *training_data);
 typedef void    (*PSSignalHandler) (int);
 
 typedef struct {
-    double bias;
-    double *weights;
+    PSFloat bias;
+    PSFloat *weights;
 } PSGradient;
 
 typedef enum {
@@ -107,25 +107,25 @@ typedef enum {
 
 typedef struct {
     int count;
-    double * parameters;
+    PSFloat *parameters;
 } PSLayerParameters;
 
 typedef struct {
     int feature_count;
     int weights_size;
-    double *biases;
-    double **weights;
+    PSFloat *biases;
+    PSFloat **weights;
 } PSSharedParams;
 
 typedef struct {
     int                     flags;
-    double                  l1_decay;
-    double                  l2_decay;
-    double                  momentum;
-    double                  rho;
-    double                  eps;
-    double                  beta1;
-    double                  beta2;
+    PSFloat                 l1_decay;
+    PSFloat                 l2_decay;
+    PSFloat                 momentum;
+    PSFloat                 rho;
+    PSFloat                 eps;
+    PSFloat                 beta1;
+    PSFloat                 beta2;
     PSTrainingOptimization  optimization;
     int                     validate_every_batches;
     int                     max_validation_elements;
@@ -146,10 +146,10 @@ typedef struct {
 typedef struct {
     int index;
     int weights_size;
-    double bias;
-    double * weights;
-    double activation;
-    double z_value;
+    PSFloat bias;
+    PSFloat * weights;
+    PSFloat activation;
+    PSFloat z_value;
     void * extra;
     void * layer;
 } PSNeuron;
@@ -163,11 +163,11 @@ typedef struct {
     PSActivationFunction derivative;
     PSFeedforwardFunction feedforward;
     PSNeuron ** neurons;
-    double * delta;
+    PSFloat * delta;
     int flags;
     void * extra;
 #ifdef USE_AVX
-    double * avx_activation_cache;
+    PSFloat * avx_activation_cache;
 #endif
     void * network;
 } PSLayer;
@@ -199,16 +199,16 @@ PSLayer * PSAddConvolutionalLayer(PSNeuralNetwork * network,
 PSLayer * PSAddPoolingLayer(PSNeuralNetwork * network,
                             PSLayerParameters* params);
 PSLayerParameters * PSCreateLayerParamenters(int count, ...);
-int PSSetLayerParameter(PSLayerParameters * params, int param, double value);
-int PSAddLayerParameter(PSLayerParameters * params, double val);
-PSLayerParameters * PSCreateConvolutionalParameters(double feature_count,
-                                                    double region_size,
+int PSSetLayerParameter(PSLayerParameters * params, int param, PSFloat value);
+int PSAddLayerParameter(PSLayerParameters * params, PSFloat val);
+PSLayerParameters * PSCreateConvolutionalParameters(PSFloat feature_count,
+                                                    PSFloat region_size,
                                                     int stride,
                                                     int padding,
                                                     int use_relu);
 void PSDeleteLayerParamenters(PSLayerParameters * params);
-int PSFeedforward(PSNeuralNetwork * network, double * values);
-int PSClassify(PSNeuralNetwork * network, double * values);
+int PSFeedforward(PSNeuralNetwork * network, PSFloat * values);
+int PSClassify(PSNeuralNetwork * network, PSFloat * values);
 
 void PSDeleteNetwork(PSNeuralNetwork * network);
 void PSDeleteLayer(PSLayer * layer);
@@ -216,19 +216,19 @@ void PSDeleteNeuron(PSNeuron * neuron, PSLayer * layer);
 void PSDeleteGradients(PSGradient ** gradients, PSNeuralNetwork * network);
 
 void PSTrain(PSNeuralNetwork * network,
-             double * training_data,
+             PSFloat * training_data,
              int data_size,
              int epochs,
-             double learning_rate,
+             PSFloat learning_rate,
              int batch_size,
              PSTrainingOptions * options,
-             double * test_data,
+             PSFloat * test_data,
              int test_size);
 void PSPauseTraining(PSNeuralNetwork * network);
 void PSAbortTraining(PSNeuralNetwork * network);
-float PSTest(PSNeuralNetwork * network, double * test_data, int data_size);
+float PSTest(PSNeuralNetwork * network, PSFloat * test_data, int data_size);
 int PSVerifyNetwork(PSNeuralNetwork * network);
-//int arrayMaxIndex(double * array, int len);
+//int arrayMaxIndex(PSFloat * array, int len);
 char * PSGetLabelForType(PSLayerType type);
 char * PSGetLayerTypeLabel(PSLayer * layer);
 void PSPrintNetworkInfo(PSNeuralNetwork * network);
@@ -238,8 +238,8 @@ void PSSetDefaultTrainingOptions(PSTrainingOptions *options);
 
 // Loss functions
 
-double PSQuadraticLoss(double * x, double * y, int size, int onehot_size);
-double PSCrossEntropyLoss(double * x, double * y, int size, int onehot_size);
+PSFloat PSQuadraticLoss(PSFloat * x, PSFloat * y, int size, int onehot_size);
+PSFloat PSCrossEntropyLoss(PSFloat * x, PSFloat * y, int size, int onehot_size);
 
 /* Miscellaneous functions */
 

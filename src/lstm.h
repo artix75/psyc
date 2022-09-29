@@ -26,26 +26,26 @@
 typedef struct {
     int states_count;
     int weights_size;
-    double * states;
-    double * z_values;
-    double * candidates;
-    double * input_gates;
-    double * output_gates;
-    double * forget_gates;
-    double candidate_bias;
-    double input_bias;
-    double output_bias;
-    double forget_bias;
-    double * candidate_weights;
-    double * input_weights;
-    double * output_weights;
-    double * forget_weights;
+    PSFloat * states;
+    PSFloat * z_values;
+    PSFloat * candidates;
+    PSFloat * input_gates;
+    PSFloat * output_gates;
+    PSFloat * forget_gates;
+    PSFloat candidate_bias;
+    PSFloat input_bias;
+    PSFloat output_bias;
+    PSFloat forget_bias;
+    PSFloat * candidate_weights;
+    PSFloat * input_weights;
+    PSFloat * output_weights;
+    PSFloat * forget_weights;
 } PSLSTMCell;
 
 PSLSTMCell * PSCreateLSTMCell(PSNeuron * neuron, int lsize);
 void PSDeleteLSTMCell(PSLSTMCell * cell);
 void PSUpdateLSTMBiases(PSNeuron * neuron, PSGradient * gradient,
-                        PSGradient *mg, PSGradient *xg, double rate,
+                        PSGradient *mg, PSGradient *xg, PSFloat rate,
                         PSTrainingOptions *opts, int iteration);
 
 /* Init Functions */

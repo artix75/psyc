@@ -34,7 +34,7 @@ static int compareFilenames(const void* a, const void* b) {
 }
 
 int loadCIFARData(int type, int classes, const char * dataset_path,
-                  double **data, int max_files, int max_elements)
+                  PSFloat **data, int max_files, int max_elements)
 {
     if (classes != 10 && classes != 100) {
         fprintf(stderr, "Invalid classes %d: only 10 or 100 allowed.", classes);
@@ -64,10 +64,10 @@ int loadCIFARData(int type, int classes, const char * dataset_path,
     if (max_files > 0 && max_files < fcount) fcount = max_files;
 
     int datasize = (fcount * img_count * (classes + CIFAR_IMAGE_BYTESIZE));
-    dataset_size = datasize * sizeof(double);
+    dataset_size = datasize * sizeof(PSFloat);
     *data = calloc(dataset_size, 1);
     if (*data == NULL) return 0;
-    double *data_p = *data;
+    PSFloat *data_p = *data;
     for (i = 0; i < fcount; i++) {
         char *fname = datafiles[i];
         printf("Reading %s\n", fname);
@@ -101,10 +101,10 @@ int loadCIFARData(int type, int classes, const char * dataset_path,
             for (k = 0; k < CIFAR_IMAGE_BYTESIZE; k++) {
                 float b = (float)(fgetc(f)) / 255.0f;
                 //printf("%d ", b);
-                *(data_p++) = (double) b;
+                *(data_p++) = (PSFloat) b;
             }
             for (k = 0; k < classes; k++) {
-                double y = (k == label ? 1.0 : 0.0);
+                PSFloat y = (k == label ? 1.0 : 0.0);
                 *(data_p++) = y;
             }
         }

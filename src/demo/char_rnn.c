@@ -17,11 +17,11 @@ void CompleteText (PSNeuralNetwork * network, char* text, int len,
                    float randomicity, int max_words)
 {
     int i = 0, wcount = 0;
-    double inputs[len + 1];
+    PSFloat inputs[len + 1];
     if (text == NULL) {
         srand ( time(NULL) - i);
         inputs[0] = 1.0;
-        inputs[1] = (double)(rand() % INPUT_SIZE);
+        inputs[1] = (PSFloat)(rand() % INPUT_SIZE);
         printf("\nSample:\n%s", characters[(int) inputs[1]]);
     } else {
         int txtlen = strlen(text), j;
@@ -29,7 +29,7 @@ void CompleteText (PSNeuralNetwork * network, char* text, int len,
             fprintf(stderr, "text legth >= length!\n");
             return;
         }
-        inputs[0] = (double) txtlen;
+        inputs[0] = (PSFloat) txtlen;
         printf("\nSample:\n");
         for (i = 0; i < txtlen; i++) {
             char c = text[i];
@@ -50,7 +50,7 @@ void CompleteText (PSNeuralNetwork * network, char* text, int len,
                 return;
             }
             printf("%s", characters[idx]);
-            inputs[i + 1] = (double) idx;
+            inputs[i + 1] = (PSFloat) idx;
         }
     }
     char last_char = 0;
@@ -64,11 +64,11 @@ void CompleteText (PSNeuralNetwork * network, char* text, int len,
         if (p <= randomicity && is_sep) {
             PSLayer * out = network->layers[network->size - 1];
             int o = 0;
-            double omax = 0.0;
+            PSFloat omax = 0.0;
             int oidx = 0;
             for (; o < out->size; o++) {
                 if (o == idx) continue;
-                double a = out->neurons[o]->activation;
+                PSFloat a = out->neurons[o]->activation;
                 if (a > omax) {
                     omax = a;
                     oidx = o;
@@ -85,14 +85,14 @@ void CompleteText (PSNeuralNetwork * network, char* text, int len,
         printf("%s", characters[idx]);
         inputs[0] += 1.0;
         last_char = characters[idx][0];
-        inputs[(int) inputs[0]] = (double) idx;
+        inputs[(int) inputs[0]] = (PSFloat) idx;
     }
     printf("\n");
 }
 
-void TrainCallback (void * _net, int epoch, int epochs, double loss,
-                    double previous_loss, float accuracy,
-                    double * rate, double *training_data)
+void TrainCallback (void * _net, int epoch, int epochs, PSFloat loss,
+                    PSFloat previous_loss, float accuracy,
+                    PSFloat * rate, PSFloat *training_data)
 {
     UNUSED(epoch);
     UNUSED(epochs);
@@ -112,8 +112,8 @@ int main(int argc, char**argv){
     
     int epochs = EPOCHS;
     int batch_size = BATCHES;
-    double learning_rate = LEARNING_RATE;
-    double l2_decay = 0.0;
+    PSFloat learning_rate = LEARNING_RATE;
+    PSFloat l2_decay = 0.0;
     PSLayerType type = LSTM;
     char * save_to = NULL;
     char * load_from = NULL;
@@ -121,9 +121,9 @@ int main(int argc, char**argv){
     float randomicity = 2.0f;
     int max_words = 0;
     int hidden_size = INPUT_SIZE / 2;
-    /*double * vdataset = validation_data;
+    /*PSFloat * vdataset = validation_data;
     int vdlen = EVAL_DATALEN;
-    double * tdataset = test_data;
+    PSFloat * tdataset = test_data;
     int tdlen = TEST_DATALEN;*/
     int pretest = 0 ;
     
@@ -163,14 +163,14 @@ int main(int argc, char**argv){
                 }
             }
             if (strEq("--learning-rate", arg) || strEq("-r", arg)) {
-                learning_rate = (double) atof(next);
+                learning_rate = (PSFloat) atof(next);
                 if (learning_rate == 0.0) {
                     fputs("Invalid learing rate!", stderr);
                     return 1;
                 }
             }
             if (strEq("--l2-decay", arg))
-                l2_decay = (double) atof(next);
+                l2_decay = (PSFloat) atof(next);
             if (strEq("--save", arg))
                 save_to = next;
             if (strEq("--load", arg))

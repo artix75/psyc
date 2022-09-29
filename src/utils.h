@@ -20,6 +20,7 @@
 
 #include <string.h>
 #include <math.h>
+#include "types.h"
 
 #ifndef M_PI
 #define M_PI 3.141592653589793
@@ -30,127 +31,6 @@
 #define shouldApplyDerivative(network) (network->loss != PSCrossEntropyLoss)
 #define PSGetElapsedTimeMS(st, et) ((((et.tv_sec - st.tv_sec) * 1000000) \
     + (et.tv_usec - st.tv_usec)) / 1000)
-
-#ifdef USE_AVX
-
-/* Iteratively compute AVX dot product (sum of multiplication of two arrays)
- * up to N elements of the the array `x` and array `y` of size `size` and
- * store results in variable `res`, after mmatching the proper AVX
- * dot product function.
- * Note that the function will process elements divided in steps until
- * every step fills the AVX registers, so the array could not be completely
- * multiplied. The argument `i` will keep count of the processed elements,
- * so that you can manually complete the operation.
- * If `is_recurrent`, use `t` for recurrent network values. */
-
-#define AVXDotProduct(size, x, y, res, i, is_recurrent, t) do { \
-    int avx_step_len = AVXGetDotStepLen(size); \
-    avx_dot_product dot_product = AVXGetDotProductFunc(size); \
-    int avx_steps = size / avx_step_len, avx_step; \
-    for (avx_step = 0; avx_step < avx_steps; avx_step++) { \
-        double * x_vector = x + i; \
-        if (is_recurrent) x_vector += (t * size); \
-        double * y_vector = y + i; \
-        res += dot_product(x_vector, y_vector); \
-        i += avx_step_len; \
-    } \
-} while (0)
-
-
-/* Same as AVXDotProduct, but multply array `x` by itself (square). */
-#define AVXDotSquare(size, x, res, i, is_recurrent, t) do {\
-    int avx_step_len = AVXGetDotStepLen(size); \
-    avx_dot_product dot_product = AVXGetDotProductFunc(size); \
-    int avx_steps = size / avx_step_len, avx_step; \
-    for (avx_step = 0; avx_step < avx_steps; avx_step++) { \
-        double * x_vector = x + i; \
-        if (is_recurrent) x_vector += (t * size); \
-        res += dot_product(x_vector, x_vector); \
-        i += avx_step_len; \
-    } \
-} while (0)
-
-/* Iteratively multply via AVX up to N elements of the the array `x` of size
- * `size` by value `val` and store results in array `dest`, by automatically
- * matching the proper AVX multply function.
- * Note that the function will multiply elements divided in steps until
- * every step fills the AVX registers, so the array could not be completely
- * multiplied. The argument `i` will keep count of the processed elements,
- * so that you can manually complete the operation.
- * Results are stored in `dest` using the AVX operator `mode` (NORM, SUB,
- * etc.).
- * If `is_recurrent`, use `t` for recurrent network values. */
-
-#define AVXMultiplyValue(size, x, val, dest, i, is_recurrent, t, mode) do { \
-    int avx_step_len = AVXGetStepLen(size); \
-    int avx_steps = size / avx_step_len, avx_step; \
-    avx_multiply_value multiply_val = AVXGetMultiplyValFunc(size); \
-    for (avx_step = 0; avx_step < avx_steps; avx_step++) { \
-        double * x_vector = x + i; \
-        if (is_recurrent) x_vector += (t * size); \
-        multiply_val(x_vector, val, dest + i, mode); \
-        i += avx_step_len; \
-    } \
-} while (0)
-
-/* Iteratively multply via AVX up to N elements of the the array `x1` of size
- * `size` by value `v1` and elements of array `x2` with value `v2` and then
- * store results in array `d`, by automatically matching the proper AVX
- * multply function.
- * Note that the function will multiply elements divided in steps until
- * every step fills the AVX registers, so the array could not be completely
- * multiplied. The argument `i` will keep count of the processed elements,
- * so that you can manually complete the operation.
- * Results of `x1` multiplication are stored in `d` using the AVX operator
- * `m1` (NORM, SUB, etc.), while results of `x2` are stored using operator
- * `m2`.
- * If `is_rec` (recurrent), use `t` for recurrent network values. */
-
-#define AVXMultiplyValues(size, x1, v1, x2, v2, d, i, is_rec, t, m1, m2) do {\
-    int avx_step_len = AVXGetStepLen(size); \
-    int avx_steps = size / avx_step_len, avx_step; \
-    avx_multiply_value multiply_val = AVXGetMultiplyValFunc(size); \
-    for (avx_step = 0; avx_step < avx_steps; avx_step++) { \
-        double * xv1 = x1 + i; \
-        double * xv2 = x2 + i; \
-        double * dd = d + i; \
-        if (is_rec) {\
-            xv1 += (t * size); \
-            xv2 += (t * size); \
-        }\
-        multiply_val(xv1, v1, dd, m1); \
-        multiply_val(xv2, v2, dd, m2); \
-        i += avx_step_len; \
-    } \
-} while (0)
-
-/* Iteratively sum via AVX up to N elements of the the array `x` with array
- * `y` and store results into array `dest` using operator `mode`. */
-#define AVXSum(size, x, y, dest, i, mode) do { \
-    int avx_step_len = AVXGetStepLen(size); \
-    int avx_steps = size / avx_step_len, avx_step; \
-    int x_is_dest = (x == dest); \
-    avx_sum __avx_sum = AVXGetSumFunc(size); \
-    for (avx_step = 0; avx_step < avx_steps; avx_step++) { \
-        int doffs = (x_is_dest ? i : 0); \
-        __avx_sum(x + i, y + i, dest + doffs, mode); \
-        i += avx_step_len; \
-    } \
-} while (0)
-
-#define AVXDiff(size, x, y, dest, i, mode) do { \
-    int avx_step_len = AVXGetStepLen(size); \
-    int avx_steps = size / avx_step_len, avx_step; \
-    int x_is_dest = (x == dest); \
-    avx_sum __avx_diff = AVXGetDiffFunc(size); \
-    for (avx_step = 0; avx_step < avx_steps; avx_step++) { \
-        int doffs = (x_is_dest ? i : 0); \
-        __avx_diff(x + i, y + i, dest + doffs, mode); \
-        i += avx_step_len; \
-    } \
-} while (0)
-
-#endif
 
 #define RED     "\x1b[31m"
 #define GREEN   "\x1b[32m"
@@ -167,19 +47,40 @@
 
 #define printMemoryErrorMsg() PSErr(NULL, "Could not allocate memory!")
 
+#ifdef PS_DOUBLE_PRECISION
+#define tanh_activation tanh
+#define PSSqrt(v) sqrt(v)
+#define PSFloor(v) floor(v)
+#define PSExp(v) exp(v)
+#define PSRound(v) round(v)
+#define PSMathLog(v) log(v)
+#define PSAbs(v) fabs(v)
+#define PSPow(a,b) pow(a, b)
+#else
+#define tanh_activation tanhf
+#define PSSqrt(v) sqrtf(v)
+#define PSFloor(v) floorf(v)
+#define PSExp(v) expf(v)
+#define PSRound(v) roundf(v)
+#define PSMathLog(v) logf(v)
+#define PSAbs(v) fabsf(v)
+#define PSPow(a,b) powf(a, b)
+#endif
+
+
 void PSErr(const char* tag, char* fmt, ...);
 
 /* Activation Functions */
 
-double sigmoid(double val);
+PSFloat sigmoid(PSFloat val);
 
-double sigmoid_derivative(double val);
+PSFloat sigmoid_derivative(PSFloat val);
 
-double relu(double val);
+PSFloat relu(PSFloat val);
 
-double relu_derivative(double val);
+PSFloat relu_derivative(PSFloat val);
 
-double tanh_derivative(double val);
+PSFloat tanh_derivative(PSFloat val);
 
 /* Network Functions */
 
@@ -187,14 +88,14 @@ void PSAbortLayer(PSNeuralNetwork * network, PSLayer * layer);
 
 /* Misc */
 
-double normalized_random();
+PSFloat normalized_random();
 
-double gaussian_random(double mean, double stddev);
+PSFloat gaussian_random(PSFloat mean, PSFloat stddev);
 
 int get_terminal_columns();
 
 void fill_with_blank(int line_length);
 
-double *copy_doubles(double *src, size_t size);
+PSFloat *copy_floats(PSFloat *src, size_t size);
 
 #endif //__PS_UTILS_H

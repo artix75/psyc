@@ -1,16 +1,13 @@
-SHELL=/bin/bash
-CC=gcc
-OPTIMIZATION?=-O2
-OPT=$(OPTIMIZATION)
-CFLAGS=-std=gnu99 -Wall -W -Wno-missing-field-initializers $(OPT)
-LDFLAGS=-lz -lm -ldl
-OBJS=../psyc.o ../utils.o ../debug.o ../convolutional.o ../recurrent.o ../lstm.o ../mnist.o ../cifar.o
-
+include ../Makefile.common.mk
 include ../avx.mk
 
+OBJS=../psyc.o ../utils.o ../debug.o ../convolutional.o ../recurrent.o ../lstm.o ../mnist.o ../cifar.o
 ifeq ($(AVX),on)
-	CFLAGS=-DUSE_AVX -mavx2 -mfma -std=c99 -g -ggdb
+	CFLAGS+=-DUSE_AVX -mavx2 -mfma
         OBJS+=../avx.o
+endif
+ifeq ($(CATCH_FPE),on)
+	CFLAGS+=-DCATCH_FPE
 endif
 
 default: all

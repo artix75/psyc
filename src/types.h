@@ -1,7 +1,7 @@
 /*
  Copyright (c) 2016 Fabio Nicotra.
  All rights reserved.
- 
+
  Redistribution and use in source and binary forms are permitted
  provided that the above copyright notice and this paragraph are
  duplicated in all such forms and that any documentation,
@@ -15,19 +15,15 @@
  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#ifndef __PS_CIFAR_H
-#define __PS_CIFAR_H
+#ifndef __PS_TYPES_H__
+#define __PS_TYPES_H__
 
-#include "types.h"
-
-#ifndef DATA_TYPE_TRAINING
-#define DATA_TYPE_TRAINING   0
-#define DATA_TYPE_TEST       1
+#ifdef PS_DOUBLE_PRECISION
+#define PSFLOAT_FORMAT "%lg"
+typedef double PSFloat;
+#else
+#define PSFLOAT_FORMAT "%g"
+typedef float PSFloat;
 #endif
 
-#define CIFAR_IMAGE_SIZE (32 * 32 * 3)
-
-int loadCIFARData(int type, int classes, const char * dataset_path,
-                  PSFloat **data, int max_files, int max_elements);
-
-#endif // __PS_CIFAR_H
+#endif /* __PS_TYPES_H__ */

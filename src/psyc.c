@@ -52,8 +52,8 @@ void segvHandler(int sig, siginfo_t *info, void *secret);
 
 int PSGlobalFlags = 0;
 
-typedef double (*PSGetDeltaFunction)(PSNeuron* n, PSLayer* l, PSLayer* next,
-                                     double * last_d);
+typedef PSFloat (*PSGetDeltaFunction)(PSNeuron* n, PSLayer* l, PSLayer* next,
+                                     PSFloat * last_d);
 
 static PSLossFunction loss_functions[] = {
     NULL,
@@ -138,7 +138,7 @@ int PSLogTrainingProgress(PSNeuralNetwork *network, int epochs, int batches,
 
 /* Feedforward Functions */
 
-float validate(PSNeuralNetwork * network, double * test_data, int data_size,
+float validate(PSNeuralNetwork * network, PSFloat * test_data, int data_size,
                int log);
 
 static int fullFeedforward(void * _net, void * _layer, ...) {
@@ -174,12 +174,14 @@ static int fullFeedforward(void * _net, void * _layer, ...) {
     }
     for (i = 0; i < size; i++) {
         PSNeuron * neuron = layer->neurons[i];
-        double sum = 0.0;
+        PSFloat sum = 0.0;
         j = 0;
 #ifdef USE_AVX
         if (!avx_disabled) {
-            AVXDotProduct(previous_size, previous->avx_activation_cache,
-                          neuron->weights, sum, j, is_recurrent, t);
+            AVXIterativeDotProduct(
+                previous_size, previous->avx_activation_cache,
+                neuron->weights, sum, j, is_recurrent, t
+            );
         }
 #endif
         for (; j < previous_size; j++) {
@@ -194,9 +196,15 @@ static int fullFeedforward(void * _net, void * _layer, ...) {
                 layer, neuron, "previous_neuron=%d-%d,weight_index=%d\n",
                 previous->index, i, j
             );
-            double a = prev_neuron->activation;
+#ifdef PS_DEBUG_MODE
+            PSAddContextualDebug(network, layer, neuron, prev_neuron, NULL, 0);
+#endif
+            PSFloat a = prev_neuron->activation;
             sum += (a * neuron->weights[j]);
         }
+#ifdef PS_DEBUG_MODE
+        PSAddContextualDebug(network, layer, neuron, NULL, "Sum", sum);
+#endif
         neuron->z_value = sum + neuron->bias;
         neuron->activation = layer->activate(neuron->z_value);
 #ifdef USE_AVX
@@ -210,6 +218,9 @@ static int fullFeedforward(void * _net, void * _layer, ...) {
                 return 0;
             }
         }
+#ifdef PS_DEBUG_MODE
+        PSResetDebugInfo();
+#endif
     }
     return 1;
 }
@@ -244,15 +255,17 @@ static int softmaxFeedforward(void * _net, void * _layer, ...) {
         t = va_arg(args, int);
         va_end(args);
     }
-    double max = 0.0, esum = 0.0;
+    PSFloat max = 0.0, esum = 0.0;
     for (i = 0; i < size; i++) {
         PSNeuron * neuron = layer->neurons[i];
-        double sum = 0;
+        PSFloat sum = 0;
         j = 0;
 #ifdef USE_AVX
         if (!avx_disabled) {
-            AVXDotProduct(previous_size, previous->avx_activation_cache,
-                          neuron->weights, sum, j, is_recurrent, t);
+            AVXIterativeDotProduct(
+                previous_size, previous->avx_activation_cache,
+                neuron->weights, sum, j, is_recurrent, t
+            );
         }
 #endif
         for (; j < previous_size; j++) {
@@ -262,7 +275,7 @@ static int softmaxFeedforward(void * _net, void * _layer, ...) {
                       layer->index, j);
                 return 0;
             }
-            double a = prev_neuron->activation;
+            PSFloat a = prev_neuron->activation;
             sum += (a * neuron->weights[j]);
         }
         neuron->z_value = sum + neuron->bias;
@@ -273,8 +286,8 @@ static int softmaxFeedforward(void * _net, void * _layer, ...) {
     }
     for (i = 0; i < size; i++) {
         PSNeuron * neuron = layer->neurons[i];
-        double z = neuron->z_value;
-        double e = exp(z - max);
+        PSFloat z = neuron->z_value;
+        PSFloat e = PSExp(z - max);
         esum += e;
         neuron->activation = e;
     }
@@ -298,35 +311,35 @@ static int softmaxFeedforward(void * _net, void * _layer, ...) {
 
 /* Utils */
 
-static double norm(double* matrix, int size) {
-    double r = 0.0;
+static PSFloat norm(PSFloat* matrix, int size) {
+    PSFloat r = 0.0;
     int i;
     for (i = 0; i < size; i++) {
-        double v = matrix[i];
+        PSFloat v = matrix[i];
         r += (v * v);
     }
-    /*assert(!isnan(sqrt(r)));*/
-    double norm = sqrt(r);
+    /*assert(!isnan(PSSqrt(r)));*/
+    PSFloat norm = PSSqrt(r);
     if (isnan(norm)) {
-        fprintf(stderr, "\n\nsqrt(%f) is nan!\n", r);
+        fprintf(stderr, "\n\nPSSqrt(%g) is nan!\n", r);
         for (i = 0; i < size; i++) {
-            double v = matrix[i];
-            fprintf(stderr, " -> matrix[%d] = %f\n", i, v);
+            PSFloat v = matrix[i];
+            fprintf(stderr, " -> matrix[%d] = %g\n", i, v);
         }
         assert(!isnan(norm));
     }
     return norm;
 }
 
-static void shuffle ( double * array, int size, int element_size )
+static void shuffle ( PSFloat * array, int size, int element_size )
 {
     srand ( time(NULL) );
-    int byte_size = element_size * sizeof(double);
+    int byte_size = element_size * sizeof(PSFloat);
     for (int i = size - 1; i > 0; i--) {
         int j = rand() % (i+1);
         //printf("Shuffle cycle %d: random is %d\n", i, j);
-        double tmp_a[element_size];
-        double tmp_b[element_size];
+        PSFloat tmp_a[element_size];
+        PSFloat tmp_b[element_size];
         int idx_a = i * element_size;
         int idx_b = j * element_size;
         //printf("-> idx_a: %d\n", idx_a);
@@ -338,29 +351,29 @@ static void shuffle ( double * array, int size, int element_size )
     }
 }
 
-static void shuffleSeries ( double ** series, int size)
+static void shuffleSeries ( PSFloat ** series, int size)
 {
     srand ( time(NULL) );
     for (int i = size - 1; i > 0; i--) {
         int j = rand() % (i+1);
         //printf("Shuffle cycle %d: random is %d\n", i, j);
-        double * tmp_a = series[i];
-        double * tmp_b = series[j];
+        PSFloat * tmp_a = series[i];
+        PSFloat * tmp_b = series[j];
         series[i] = tmp_b;
         series[j] = tmp_a;
     }
 }
 
-static double ** getRecurrentSeries(double * array, int series_count,
+static PSFloat ** getRecurrentSeries(PSFloat * array, int series_count,
                                     int x_size, int y_size)
 {
-    double ** series = malloc(series_count * sizeof(double**));
+    PSFloat ** series = malloc(series_count * sizeof(PSFloat**));
     if (series == NULL) {
         PSErr(NULL, "Could not allocate memory for recurrent series!");
         return NULL;
     }
     int i;
-    double * p = array;
+    PSFloat * p = array;
     for (i = 0; i < series_count; i++) {
         int series_size = (int) *p;
         if (!series_size) {
@@ -374,12 +387,12 @@ static double ** getRecurrentSeries(double * array, int series_count,
     return series;
 }
 
-static int arrayMaxIndex(double * array, int len) {
+static int arrayMaxIndex(PSFloat * array, int len) {
     int i;
-    double max = 0;
+    PSFloat max = 0;
     int max_idx = 0;
     for (i = 0; i < len; i++) {
-        double v = array[i];
+        PSFloat v = array[i];
         if (v > max) {
             max = v;
             max_idx = i;
@@ -388,11 +401,11 @@ static int arrayMaxIndex(double * array, int len) {
     return max_idx;
 }
 
-/*static double arrayMax(double * array, int len) {
+/*static PSFloat arrayMax(PSFloat * array, int len) {
     int i;
-    double max = 0;
+    PSFloat max = 0;
     for (i = 0; i < len; i++) {
-        double v = array[i];
+        PSFloat v = array[i];
         if (v > max) {
             max = v;
         }
@@ -400,16 +413,16 @@ static int arrayMaxIndex(double * array, int len) {
     return max;
 }*/
 
-static void fetchRecurrentOutputState(PSLayer * out, double * outputs,
+static void fetchRecurrentOutputState(PSLayer * out, PSFloat * outputs,
                                       int i, int onehot)
 {
     int t = (onehot ? i : i % out->size), j;
     int max_idx = 0;
-    double max = 0.0;
+    PSFloat max = 0.0;
     for (j = 0; j < out->size; j++) {
         PSNeuron * neuron = out->neurons[j];
         PSRecurrentCell * cell = GetRecurrentCell(neuron);
-        double s = cell->states[t];
+        PSFloat s = cell->states[t];
         if (onehot) {
             if (s > max) {
                 max = s;
@@ -518,7 +531,7 @@ static void printLayerInfo(PSLayer * layer) {
     printf("Layer[%d]: %s, size = %d", layer->index, type_name, layer->size);
     if (onehot_info[0]) printf(" %s", onehot_info);
     if ((ltype == Convolutional || ltype == Pooling) && lparams != NULL) {
-        double * params = lparams->parameters;
+        PSFloat * params = lparams->parameters;
         int fcount = (int) (params[PARAM_FEATURE_COUNT]);
         int rsize = (int) (params[PARAM_REGION_SIZE]);
         int input_w = (int) (params[PARAM_INPUT_WIDTH]);
@@ -538,7 +551,7 @@ static void printLayerInfo(PSLayer * layer) {
             printf(", padding = %d, activation = %s\n", padding, actv);
         } else printf("\n");
     } else if (lparams != NULL && ltype == FullyConnected) {
-        double * params = lparams->parameters;
+        PSFloat * params = lparams->parameters;
         int fcount = (int) (params[PARAM_FEATURE_COUNT]);
         if (fcount > 1) printf(", features = %d\n", fcount);
         else printf("\n");
@@ -564,20 +577,20 @@ void PSPrintNetworkInfo(PSNeuralNetwork * network) {
 
 /* Loss Functions */
 
-double PSQuadraticLoss(double * outputs, double * desired, int size,
+PSFloat PSQuadraticLoss(PSFloat * outputs, PSFloat * desired, int size,
                      int onehot_size)
 {
-    double * _diffs;
-    double diffs[size];
+    PSFloat * _diffs;
+    PSFloat diffs[size];
     if (!onehot_size) {
         int i;
         for (i = 0; i < size; i++) {
-            double d = outputs[i] - desired[i];
+            PSFloat d = outputs[i] - desired[i];
             diffs[i] = d;
             if (isnan(d)) {
                 fprintf(stderr,
                     "\n\nPSQuadraticLoss: diffs[%d] is nan!\n"
-                    " -> output=%f, desired=%f\n",
+                    " -> output=%g, desired=%g\n",
                     i, outputs[i], desired[i]
                 );
                 assert(!isnan(d));
@@ -585,30 +598,30 @@ double PSQuadraticLoss(double * outputs, double * desired, int size,
         }
         _diffs = diffs;
     } else _diffs = outputs;
-    double n = norm(_diffs, size);
-    double loss = 0.5 * (n * n);
-    if (onehot_size) loss /= (double) onehot_size;
+    PSFloat n = norm(_diffs, size);
+    PSFloat loss = 0.5 * (n * n);
+    if (onehot_size) loss /= (PSFloat) onehot_size;
     return loss;
 }
 
-double PSCrossEntropyLoss(double * outputs, double * desired, int size,
+PSFloat PSCrossEntropyLoss(PSFloat * outputs, PSFloat * desired, int size,
                         int onehot_size)
 {
-    double loss = 0.0;
+    PSFloat loss = 0.0;
     int i;
     for (i = 0; i < size; i++) {
-        double o = outputs[i];
+        PSFloat o = outputs[i];
         if (o == 0.0) continue;
-        if (onehot_size) loss += (log(o));
+        if (onehot_size) loss += (PSMathLog(o));
         else {
             if (o == 1) continue; // log(1 - 1) would be NaN
-            double y = desired[i];
-            loss += (y * log(o) + (1 - y) * log(1 - o));
+            PSFloat y = desired[i];
+            loss += (y * PSMathLog(o) + (1 - y) * PSMathLog(1 - o));
         }
     }
     loss *= -1;
     if (onehot_size)
-        loss = (loss / (double) size);// / log((double) onehot_size);
+        loss = (loss / (PSFloat) size);// / log((PSFloat) onehot_size);
     return loss;
 }
 
@@ -670,7 +683,7 @@ PSNeuralNetwork * PSCloneNetwork(PSNeuralNetwork * network, int layout_only) {
                 return NULL;
             }
             cparams->count = oparams->count;
-            cparams->parameters = malloc(cparams->count * sizeof(double));
+            cparams->parameters = malloc(cparams->count * sizeof(PSFloat));
             if (cparams->parameters == NULL) {
                 PSErr(func, "Layer[%d]: Could not allocate layer params!", i);
                 PSDeleteNetwork(clone);
@@ -707,8 +720,8 @@ PSNeuralNetwork * PSCloneNetwork(PSNeuralNetwork * network, int layout_only) {
                 clone_n->bias = orig_n->bias;
 
                 if (Convolutional != type && Pooling != type) {
-                    double * oweights = orig_n->weights;
-                    double * cweights = clone_n->weights;
+                    PSFloat * oweights = orig_n->weights;
+                    PSFloat * cweights = clone_n->weights;
                     for (w = 0; w < orig_n->weights_size; w++)
                         cweights[w] = oweights[w];
                 }
@@ -718,7 +731,7 @@ PSNeuralNetwork * PSCloneNetwork(PSNeuralNetwork * network, int layout_only) {
                     int sc = ocell->states_count;
                     ccell->states_count = sc;
                     if (sc > 0) {
-                        ccell->states = malloc(sc * sizeof(double));
+                        ccell->states = malloc(sc * sizeof(PSFloat));
                         if (ccell->states == NULL) {
                             printMemoryErrorMsg();
                             PSDeleteNetwork(clone);
@@ -880,7 +893,7 @@ int PSLoadNetwork(PSNeuralNetwork * network, const char* filename) {
                 for (aidx = 0; aidx < argc; aidx++) {
                     if (aidx >= params->count) break;
                     int arg = args[aidx];
-                    double val = params->parameters[aidx];
+                    PSFloat val = params->parameters[aidx];
                     if (arg != (int) val) {
                         PSErr(func, "Layer %d arg[%d] %d diff. from %d!",
                               i, aidx,(int) val, arg);
@@ -898,7 +911,7 @@ int PSLoadNetwork(PSNeuralNetwork * network, const char* filename) {
                 for (aidx = 0; aidx < argc; aidx++) {
                     if (aidx >= param_c) break;
                     int arg = args[aidx];
-                    params->parameters[aidx] = (double) arg;
+                    params->parameters[aidx] = (PSFloat) arg;
                 }
                 layer = PSAddLayer(network, ltype, lsize, params);
             } else {
@@ -909,7 +922,7 @@ int PSLoadNetwork(PSNeuralNetwork * network, const char* filename) {
                     params = PSCreateLayerParamenters(argc);
                     for (aidx = 0; aidx < argc; aidx++) {
                         int arg = args[aidx];
-                        params->parameters[aidx] = (double) arg;
+                        params->parameters[aidx] = (PSFloat) arg;
                     }
                 }
                 layer = PSAddLayer(network, ltype, lsize, params);
@@ -938,16 +951,16 @@ int PSLoadNetwork(PSNeuralNetwork * network, const char* filename) {
             continue;
         } else lsize = layer->size;
         int is_lstm = (LSTM == layer->type);
+        char *lstm_fmt = PSFLOAT_FORMAT "," PSFLOAT_FORMAT "," PSFLOAT_FORMAT
+            "," PSFLOAT_FORMAT "|";
         for (j = 0; j < lsize; j++) {
-            double bias = 0;
+            PSFloat bias = 0;
             int wsize = 0;
-            double * weights = NULL;
+            PSFloat * weights = NULL;
             //LSTM biases
-            double cb = 0.0, ib = 0.0, ob = 0.0, fb = 0.0;
-            if (!is_lstm)
-                matched = fscanf(f, "%lf|", &bias);
-            else
-                matched = fscanf(f, "%lf,%lf,%lf,%lf|", &cb, &ib, &ob, &fb);
+            PSFloat cb = 0.0, ib = 0.0, ob = 0.0, fb = 0.0;
+            if (!is_lstm) matched = fscanf(f, PSFLOAT_FORMAT "|", &bias);
+            else matched = fscanf(f, lstm_fmt, &cb, &ib, &ob, &fb);
             if (!matched) {
                 PSErr(func, "Layer %d, neuron %d: invalid bias!", i, j);
                 fclose(f);
@@ -972,10 +985,10 @@ int PSLoadNetwork(PSNeuralNetwork * network, const char* filename) {
                 weights = shared->weights[j];
             }
             for (k = 0; k < wsize; k++) {
-                double w = 0;
+                PSFloat w = 0;
                 char * last = (k == (wsize - 1) ? eol : sep);
                 char fmt[5];
-                sprintf(fmt, "%%lf%s", last);
+                sprintf(fmt, "%s%s", PSFLOAT_FORMAT, last);
                 matched = fscanf(f, fmt, &w);
                 if (!matched) {
                     PSErr(func,"Layer %d neuron %d: invalid weight[%d]",
@@ -1066,12 +1079,12 @@ int PSSaveNetwork(PSNeuralNetwork * network, const char* filename) {
                 return 0;
             }
             for (j = 0; j < feature_count; j++) {
-                double bias = shared->biases[j];
-                double * weights = shared->weights[j];
+                PSFloat bias = shared->biases[j];
+                PSFloat * weights = shared->weights[j];
                 fprintf(f, "%.15e|", bias);
                 for (k = 0; k < shared->weights_size; k++) {
                     if (k > 0) fprintf(f, ",");
-                    double w = weights[k];
+                    PSFloat w = weights[k];
                     fprintf(f, "%.15e", w);
                 }
                 fprintf(f, "\n");
@@ -1095,7 +1108,7 @@ int PSSaveNetwork(PSNeuralNetwork * network, const char* filename) {
                 }
                 for (k = 0; k < neuron->weights_size; k++) {
                     if (k > 0) fprintf(f, ",");
-                    double w = neuron->weights[k];
+                    PSFloat w = neuron->weights[k];
                     fprintf(f, "%.15e", w);
                 }
                 fprintf(f, "\n");
@@ -1138,7 +1151,7 @@ static void DumpLayerInfo(PSLayer *layer, FILE *dump_file, int add_new_line) {
     }
     int fcount = 1;
     if ((ltype == Convolutional || ltype == Pooling) && lparams != NULL) {
-        double * params = lparams->parameters;
+        PSFloat * params = lparams->parameters;
         fcount = (int) (params[PARAM_FEATURE_COUNT]);
         int rsize = (int) (params[PARAM_REGION_SIZE]);
         int input_w = (int) (params[PARAM_INPUT_WIDTH]);
@@ -1161,7 +1174,7 @@ static void DumpLayerInfo(PSLayer *layer, FILE *dump_file, int add_new_line) {
             fprintf(dump_file, ",padding=%d,activation=%s", padding, actv);
         }
     } else if (lparams != NULL && ltype == FullyConnected) {
-        double * params = lparams->parameters;
+        PSFloat * params = lparams->parameters;
         fcount = (int) (params[PARAM_FEATURE_COUNT]);
         if (fcount > 1) fprintf(dump_file, ",features=%d", fcount);
     }
@@ -1189,7 +1202,7 @@ int PSDumpNetworkActivations(PSNeuralNetwork * network, const char* filename) {
         if ((ltype == Convolutional || ltype == Pooling ||
             ltype == FullyConnected) && lparams != NULL)
         {
-            double * params = lparams->parameters;
+            PSFloat * params = lparams->parameters;
             fcount = (int) (params[PARAM_FEATURE_COUNT]);
         }
         if (fcount < 0) fcount = 1;
@@ -1227,12 +1240,12 @@ int PSDumpNetworkDeltas(PSNeuralNetwork * network, const char* filename) {
         if ((ltype == Convolutional || ltype == Pooling ||
             ltype == FullyConnected) && lparams != NULL)
         {
-            double * params = lparams->parameters;
+            PSFloat * params = lparams->parameters;
             fcount = (int) (params[PARAM_FEATURE_COUNT]);
         }
         if (fcount < 0) fcount = 1;
         DumpLayerInfo(layer, f, 0);
-        double *delta = layer->delta;
+        PSFloat *delta = layer->delta;
         if (delta == NULL) {
             fprintf(f, ",deltas=()\n");
             continue;
@@ -1240,7 +1253,7 @@ int PSDumpNetworkDeltas(PSNeuralNetwork * network, const char* filename) {
         fprintf(f, ",deltas=(");
         for(; nidx < layer->size; nidx++) {
             char *fmt = (nidx > 0 ? ",%.15e": "%.15e");
-            double d = delta[nidx];
+            PSFloat d = delta[nidx];
             fprintf(f, fmt, d);
         }
         fprintf(f, ")\n");
@@ -1317,7 +1330,7 @@ PSLayer * PSAddLayer(PSNeuralNetwork * network, PSLayerType type, int size,
         if ((network->flags & FLAG_ONEHOT) && params == NULL) {
             layer->flags |= FLAG_ONEHOT;
             PSLayerParameters * params;
-            params = PSCreateLayerParamenters(1, (double) size);
+            params = PSCreateLayerParamenters(1, (PSFloat) size);
             layer->parameters = params;
             size = 1;
             layer->size = 1;
@@ -1365,7 +1378,7 @@ PSLayer * PSAddLayer(PSNeuralNetwork * network, PSLayerType type, int size,
         }
 #ifdef USE_AVX
         if (!avx_disabled) {
-            layer->avx_activation_cache = calloc(size, sizeof(double));
+            layer->avx_activation_cache = calloc(size, sizeof(PSFloat));
             if (layer->avx_activation_cache == NULL) {
                 printMemoryErrorMsg();
                 PSAbortLayer(network, layer);
@@ -1386,7 +1399,7 @@ PSLayer * PSAddLayer(PSNeuralNetwork * network, PSLayerType type, int size,
             if (layer->index > 0) {
                 neuron->weights_size = previous_size;
                 neuron->bias = gaussian_random(0, 1);
-                neuron->weights = malloc(sizeof(double) * previous_size);
+                neuron->weights = malloc(sizeof(PSFloat) * previous_size);
                 for (j = 0; j < previous_size; j++) {
                     neuron->weights[j] = gaussian_random(0, 1);
                 }
@@ -1431,7 +1444,7 @@ PSLayer * PSAddLayer(PSNeuralNetwork * network, PSLayerType type, int size,
     if (layer->index > 0) {
         int dsize = layer->size;
         if (type == LSTM) dsize *= 2;
-        layer->delta = calloc(dsize, sizeof(double));
+        layer->delta = calloc(dsize, sizeof(PSFloat));
         if (layer->delta == NULL) {
             PSAbortLayer(network, layer);
             printMemoryErrorMsg();
@@ -1500,7 +1513,7 @@ PSLayerParameters * PSCreateLayerParamenters(int count, ...) {
     params->count = count;
     if (count == 0) params->parameters = NULL;
     else {
-        params->parameters = malloc(sizeof(double) * count);
+        params->parameters = malloc(sizeof(PSFloat) *count);
         if (params->parameters == NULL) {
             PSErr(NULL, "Could not allocate Layer Parameters!");
             free(params);
@@ -1510,53 +1523,53 @@ PSLayerParameters * PSCreateLayerParamenters(int count, ...) {
         va_start(args, count);
         int i;
         for (i = 0; i < count; i++)
-            params->parameters[i] = va_arg(args, double);
+            params->parameters[i] = (PSFloat) (va_arg(args, double));
         va_end(args);
     }
     return params;
 }
 
-PSLayerParameters * PSCreateConvolutionalParameters(double feature_count,
-                                                    double region_size,
+PSLayerParameters * PSCreateConvolutionalParameters(PSFloat feature_count,
+                                                    PSFloat region_size,
                                                     int stride,
                                                     int padding,
                                                     int use_relu)
 {
     return PSCreateLayerParamenters(CONV_PARAMETER_COUNT, feature_count,
-                                    region_size, (double) stride,
+                                    region_size, (PSFloat) stride,
                                     0.0f, 0.0f, 0.0f, 0.0f,
-                                    (double) padding, (double) use_relu);
+                                    (PSFloat) padding, (PSFloat) use_relu);
 }
 
-int PSSetLayerParameter(PSLayerParameters * params, int param, double value) {
+int PSSetLayerParameter(PSLayerParameters * params, int param, PSFloat value) {
     if (params->parameters == NULL) {
         int len = param + 1;
-        params->parameters = malloc(sizeof(double) * len);
+        params->parameters = malloc(sizeof(PSFloat) * len);
         if (params->parameters == NULL) {
             printMemoryErrorMsg();
             return 0;
         }
-        memset(params->parameters, 0.0f, sizeof(double) * len);
+        memset(params->parameters, 0.0f, sizeof(PSFloat) * len);
         params->count = len;
     } else if (param >= params->count) {
         int len = params->count;
         int new_len = param + 1;
-        double * old_params = params->parameters;
-        size_t size = sizeof(double) * new_len;
-        params->parameters = malloc(sizeof(double) * size);
+        PSFloat * old_params = params->parameters;
+        size_t size = sizeof(PSFloat) * new_len;
+        params->parameters = malloc(sizeof(PSFloat) * size);
         if (params->parameters == NULL) {
             printMemoryErrorMsg();
             return 0;
         }
-        memset(params->parameters, 0.0f, sizeof(double) * size);
-        memcpy(params->parameters, old_params, len * sizeof(double));
+        memset(params->parameters, 0.0f, sizeof(PSFloat) * size);
+        memcpy(params->parameters, old_params, len * sizeof(PSFloat));
         free(old_params);
     }
     params->parameters[param] = value;
     return 1;
 }
 
-int PSAddLayerParameter(PSLayerParameters * params, double val) {
+int PSAddLayerParameter(PSLayerParameters * params, PSFloat val) {
     return PSSetLayerParameter(params, params->count + 1, val);
 }
 
@@ -1566,7 +1579,7 @@ void PSDeleteLayerParamenters(PSLayerParameters * params) {
     free(params);
 }
 
-int feedforwardThroughTime(PSNeuralNetwork * network, double * values,
+int feedforwardThroughTime(PSNeuralNetwork * network, PSFloat * values,
                            int times)
 {
     if (network == NULL) return 0;
@@ -1602,7 +1615,7 @@ int feedforwardThroughTime(PSNeuralNetwork * network, double * values,
     return 1;
 }
 
-int PSFeedforward(PSNeuralNetwork * network, double * values) {
+int PSFeedforward(PSNeuralNetwork * network, PSFloat * values) {
     if (network == NULL) return 0;
     char * func = "PSFeedforward";
     if (network->size == 0) {
@@ -1691,7 +1704,7 @@ PSGradient * createLayerGradients(PSLayer * layer) {
             if (ltype == LSTM) ws += 4; // Make room for LSTM biases
         }
         gradients[i].bias = 0;
-        int memsize = sizeof(double) * ws;
+        int memsize = sizeof(PSFloat) * ws;
         gradients[i].weights = malloc(memsize);
         if (gradients[i].weights == NULL) {
             PSErr(func, "Could not allocate memory!");
@@ -1703,7 +1716,7 @@ PSGradient * createLayerGradients(PSLayer * layer) {
     return gradients;
 }
 
-int PSClassify(PSNeuralNetwork * network, double * values) {
+int PSClassify(PSNeuralNetwork * network, PSFloat * values) {
     int ok = PSFeedforward(network, values);
     if (!ok) {
         PSErr("PSClassify", "Feedforward failed");
@@ -1711,10 +1724,10 @@ int PSClassify(PSNeuralNetwork * network, double * values) {
     };
     int netsize = network->size, outsize = network->output_size, i;
     PSLayer * out = network->layers[netsize - 1];
-    double max = 0.0;
+    PSFloat max = 0.0;
     int max_idx = 0;
     for (i = 0; i < outsize; i++) {
-        double a = out->neurons[i]->activation;
+        PSFloat a = out->neurons[i]->activation;
         if (a > max) {
             max = a;
             max_idx = i;
@@ -1777,12 +1790,12 @@ static void resetDeltas(PSNeuralNetwork *network) {
         if (layer->delta != NULL) {
             int dsize = layer->size;
             if (layer->type == LSTM) dsize *= 2;
-            memset(layer->delta, 0, (size_t) dsize * sizeof(double));
+            memset(layer->delta, 0, (size_t) dsize * sizeof(PSFloat));
         }
     }
 }
 
-PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y) {
+PSGradient ** backprop(PSNeuralNetwork * network, PSFloat * x, PSFloat * y) {
     if (network == NULL) return NULL;
     PSGradient ** gradients = createGradients(network);
     if (gradients == NULL) return NULL;
@@ -1792,7 +1805,7 @@ PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y) {
     PSGradient * lgradients = gradients[netsize - 2]; //No gradient for inputs
     PSLayer * previousLayer = network->layers[outputLayer->index - 1];
     resetDeltas(network);
-    double *delta = outputLayer->delta;
+    PSFloat *delta = outputLayer->delta;
 
     int i, o, w, j, ok = 1;
     int avx_disabled = 1;
@@ -1807,12 +1820,12 @@ PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y) {
         }
     }
     int apply_derivative = shouldApplyDerivative(network);
-    double softmax_sum = 0.0;
+    PSFloat softmax_sum = 0.0;
     for (o = 0; o < osize; o++) {
         PSNeuron * neuron = outputLayer->neurons[o];
-        double o_val = neuron->activation;
-        double y_val = y[o];
-        double d = 0.0;
+        PSFloat o_val = neuron->activation;
+        PSFloat y_val = y[o];
+        PSFloat d = 0.0;
         if (outputLayer->type != SoftMax) {
             d = o_val - y_val;
             if (apply_derivative)
@@ -1831,12 +1844,14 @@ PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y) {
             w = 0;
 #ifdef USE_AVX
             if (!avx_disabled) {
-                AVXMultiplyValue(wsize, previousLayer->avx_activation_cache, d,
-                                 gradient->weights, w, 0, 0, 0);
+                AVXIterativeMultiplyValue(
+                    wsize, previousLayer->avx_activation_cache, d,
+                    gradient->weights, w, 0, 0, 0
+                );
             }
 #endif
             for (; w < wsize; w++) {
-                double prev_a = previousLayer->neurons[w]->activation;
+                PSFloat prev_a = previousLayer->neurons[w]->activation;
                 gradient->weights[w] = d * prev_a;
                 if (avx_disabled)
                     previousLayer->delta[w] += (d * neuron->weights[w]);
@@ -1851,21 +1866,23 @@ PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y) {
     if (outputLayer->type == SoftMax) {
         for (o = 0; o < osize; o++) {
             PSNeuron * neuron = outputLayer->neurons[o];
-            double o_val = neuron->activation;
+            PSFloat o_val = neuron->activation;
             if (apply_derivative) delta[o] -= (o_val * softmax_sum);
-            double d = delta[o];
+            PSFloat d = delta[o];
             PSGradient * gradient = &(lgradients[o]);
             gradient->bias = d;
             int wsize = neuron->weights_size;
             w = 0;
 #ifdef USE_AVX
             if (!avx_disabled) {
-                AVXMultiplyValue(wsize, previousLayer->avx_activation_cache,
-                                d, gradient->weights, w, 0, 0, 0);
+                AVXIterativeMultiplyValue(
+                    wsize, previousLayer->avx_activation_cache,
+                    d, gradient->weights, w, 0, 0, 0
+                );
             }
 #endif
             for (; w < wsize; w++) {
-                double prev_a = previousLayer->neurons[w]->activation;
+                PSFloat prev_a = previousLayer->neurons[w]->activation;
                 gradient->weights[w] = d * prev_a;
                 if (avx_disabled)
                     previousLayer->delta[w] += (d * neuron->weights[w]);
@@ -1888,7 +1905,7 @@ PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y) {
             delta = layer->delta;
             for (j = 0; j < lsize; j++) {
                 PSNeuron * neuron = layer->neurons[j];
-                double d = delta[j];
+                PSFloat d = delta[j];
                 if (layer->derivative != NULL) {
                     d *= layer->derivative(neuron->activation);
                     delta[j] = d;
@@ -1899,12 +1916,14 @@ PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y) {
                 int wsize = neuron->weights_size;
 #ifdef USE_AVX
                 if (!avx_disabled) {
-                    AVXMultiplyValue(wsize, previousLayer->avx_activation_cache,
-                                     d, gradient->weights, w, 0, 0, 0);
+                    AVXIterativeMultiplyValue(
+                        wsize, previousLayer->avx_activation_cache,
+                        d, gradient->weights, w, 0, 0, 0
+                    );
                 }
 #endif
                 for (; w < wsize; w++) {
-                    double prev_a = previousLayer->neurons[w]->activation;
+                    PSFloat prev_a = previousLayer->neurons[w]->activation;
                     gradient->weights[w] = d * prev_a;
                     if (avx_disabled && previousLayer->delta != NULL)
                         previousLayer->delta[w] += (d * neuron->weights[w]);
@@ -1931,8 +1950,8 @@ PSGradient ** backprop(PSNeuralNetwork * network, double * x, double * y) {
     return gradients;
 }
 
-PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
-                                  double * y, int times)
+PSGradient ** backpropThroughTime(PSNeuralNetwork * network, PSFloat * x,
+                                  PSFloat * y, int times)
 {
     if (network == NULL) return NULL;
     PSGradient ** gradients = createGradients(network);
@@ -1960,8 +1979,8 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
 #ifdef USE_AVX
     int avx_disabled = PSIsAVXDisabled(network);
 #endif
-    double * delta;
-    double * last_delta;
+    PSFloat * delta;
+    PSFloat * last_delta;
     for (t = last_t; t >= 0; t--) {
         int lowest_t = t - bptt_truncate;
         if (lowest_t < 0) lowest_t = 0;
@@ -1969,7 +1988,7 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
         PSLayer * nextLayer = NULL;
         int ysize = (onehot ? 1 : osize);
         int time_offset = t * ysize;
-        double * time_y = y + time_offset;
+        PSFloat * time_y = y + time_offset;
         
         PSGradient * lgradients =
             gradients[netsize - 2];/* No gradients for inputs*/
@@ -1979,19 +1998,19 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
         delta = outputLayer->delta;
         last_delta = delta;
         
-        double softmax_sum = 0.0;
+        PSFloat softmax_sum = 0.0;
         int apply_derivative = shouldApplyDerivative(network);
         // Calculate output deltas, output layer must be Softmax
         for (o = 0; o < osize; o++) {
             PSNeuron * neuron = outputLayer->neurons[o];
             PSRecurrentCell * cell = GetRecurrentCell(neuron);
-            double o_val = cell->states[t];
-            double y_val;
+            PSFloat o_val = cell->states[t];
+            PSFloat y_val;
             if (onehot)
                 y_val = ((int) *(time_y) == o);
             else
                 y_val = time_y[o];
-            double d = 0.0;
+            PSFloat d = 0.0;
             y_val = (y_val < 1 ? 0 : 1);
             d = -(y_val - o_val);
             if (apply_derivative) d *= o_val;
@@ -2002,24 +2021,24 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
         for (o = 0; o < osize; o++) {
             PSNeuron * neuron = outputLayer->neurons[o];
             PSRecurrentCell * cell = GetRecurrentCell(neuron);
-            double o_val = cell->states[t];
+            PSFloat o_val = cell->states[t];
             if (apply_derivative) delta[o] -= (o_val * softmax_sum);
-            double d = delta[o];
+            PSFloat d = delta[o];
             PSGradient * gradient = &(lgradients[o]);
             gradient->bias = d;
             w = 0;
 #ifdef USE_AVX
             if (!avx_disabled) {
-                AVXMultiplyValue(neuron->weights_size,
-                                 previousLayer->avx_activation_cache, d,
-                                 gradient->weights, w,
-                                 1, t, AVX_STORE_MODE_ADD);
+                AVXIterativeMultiplyValue(neuron->weights_size,
+                    previousLayer->avx_activation_cache, d,
+                    gradient->weights, w, 1, t, AVX_STORE_MODE_ADD
+                );
             }
 #endif
             for (; w < neuron->weights_size; w++) {
                 PSNeuron * prev_neuron = previousLayer->neurons[w];
                 PSRecurrentCell * prev_cell = GetRecurrentCell(prev_neuron);
-                double prev_a = prev_cell->states[t];
+                PSFloat prev_a = prev_cell->states[t];
                 gradient->weights[w] += (d * prev_a);
             }
         }
@@ -2042,14 +2061,14 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
             for (j = 0; j < lsize; j++) {
                 PSNeuron * neuron = layer->neurons[j];
                 PSRecurrentCell * cell = GetRecurrentCell(neuron);
-                double sum = 0;
+                PSFloat sum = 0;
                 for (k = 0; k < nextLayer->size; k++) {
                     PSNeuron * nextNeuron = nextLayer->neurons[k];
-                    double weight = nextNeuron->weights[j];
-                    double d = last_delta[k];
+                    PSFloat weight = nextNeuron->weights[j];
+                    PSFloat d = last_delta[k];
                     sum += (d * weight);
                 }
-                double dv = sum * layer->derivative(cell->states[t]);
+                PSFloat dv = sum * layer->derivative(cell->states[t]);
                 if (!is_lstm)
                     delta[j] = dv;
                 else
@@ -2070,7 +2089,7 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
                         assert(vector_size > 0);
                         PSNeuron * prev_n = previousLayer->neurons[0];
                         PSRecurrentCell * prev_c = GetRecurrentCell(prev_n);
-                        double prev_a = prev_c->states[t];
+                        PSFloat prev_a = prev_c->states[t];
                         assert(prev_a < vector_size);
                         w = (int) prev_a;
                         gradient->weights[w] += dv;
@@ -2078,7 +2097,7 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
                         for (w = 0; w < wsize; w++) {
                             PSNeuron * prev_n = previousLayer->neurons[w];
                             PSRecurrentCell * prev_c = GetRecurrentCell(prev_n);
-                            double prev_a = prev_c->states[t];
+                            PSFloat prev_a = prev_c->states[t];
                             gradient->weights[w] += (dv * prev_a);
                         }
                     }
@@ -2097,14 +2116,14 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, double * x,
     return gradients;
 }
 
-double applyGradientOnParameter(
-    int param_type, PSTrainingOptions *options, double grad, double param,
-    PSGradient *mg, PSGradient *xg, double rate, int iteration,
+PSFloat applyGradientOnParameter(
+    int param_type, PSTrainingOptions *options, PSFloat grad, PSFloat param,
+    PSGradient *mg, PSGradient *xg, PSFloat rate, int iteration,
     int param_index
 )
 {
     PSTrainingOptimization optimization = NoTrainingOptimization;
-    double dx, eps, rho, beta1, beta2, momentum = 0;
+    PSFloat dx, eps, rho, beta1, beta2, momentum = 0;
     PSTrainingOptions default_opts = {0};
     if (options == NULL) {
         PSSetDefaultTrainingOptions(&default_opts);
@@ -2116,7 +2135,7 @@ double applyGradientOnParameter(
     beta2 = options->beta2;
     momentum = options->momentum;
     optimization = options->optimization;
-    double *mptr = NULL, *xptr= NULL;
+    PSFloat *mptr = NULL, *xptr= NULL;
     if (param_type == PARAM_TYPE_BIAS) {
         if (mg != NULL) mptr = &(mg->bias);
         if (xg != NULL) xptr = &(xg->bias);
@@ -2129,34 +2148,34 @@ double applyGradientOnParameter(
         assert(xg != NULL);
         assert(beta1 != 0);
         assert(beta2 != 0);
-        double correct1, correct2;
+        PSFloat correct1, correct2;
         *mptr = *mptr * beta1 + (1- beta1) * grad;
         *xptr = *xptr * beta2 + (1- beta2) * grad * grad;
-        correct1 = *mptr * (1 - pow(beta1, iteration));
-        correct2 = *xptr * (1 - pow(beta2, iteration));
+        correct1 = *mptr * (1 - PSPow(beta1, iteration));
+        correct2 = *xptr * (1 - PSPow(beta2, iteration));
         assertWithMessage(
             correct2 != 0, "Adam optimization at iteration %d, "
             "param_type = %d, beta1=%g, beta2=%g, grad=%g, "
             "*mptr=%g, *xptr=%g, param_index=%d\n", iteration,
             param_type, beta1, beta2, grad, *mptr, *xptr, param_index
         );
-        dx =  - rate * correct1 / (sqrt(correct2) + eps);
+        dx =  - rate * correct1 / (PSSqrt(correct2) + eps);
         return param + dx;
     } else if (optimization == AdaGrad) {
         assert(mg != NULL);
         *mptr = *mptr + grad * grad;
-        dx = - rate / sqrt(*mptr + eps) * grad;
+        dx = - rate / PSSqrt(*mptr + eps) * grad;
         return param + dx;
     } else if (optimization == WindowGrad) {
         assert(mg != NULL);
         *mptr = rho * *mptr + (1 - rho) * grad * grad;
-        dx = - rate / sqrt(*mptr + eps) * grad;
+        dx = - rate / PSSqrt(*mptr + eps) * grad;
         return param + dx;
     } else if (optimization == AdaDelta) {
         assert(mg != NULL);
         assert(xg != NULL);
         *mptr = rho * *mptr + (1 - rho) * grad * grad;
-        dx = - sqrt((*xptr + eps) / (*mptr + eps)) * grad;
+        dx = - PSSqrt((*xptr + eps) / (*mptr + eps)) * grad;
         *xptr = rho * *xptr + (1 - rho) * dx * dx;
         return param + dx;
     } else if (optimization == Nesterov) {
@@ -2169,7 +2188,7 @@ double applyGradientOnParameter(
         /* No Optimization */
         if (momentum != 0) {
             assert(mg != NULL);
-            double dg = momentum * *mptr - rate * grad;
+            PSFloat dg = momentum * *mptr - rate * grad;
             *mptr = dg;
             return param + dg;
         } else return param - rate * grad;
@@ -2184,9 +2203,9 @@ double applyGradientOnParameter(
  * (L1, L2, Weight decay) and the specified optimization method (ie. AdaGrad,
  * AdaDelta, etc.).
  * The function will return the calculated error (loss). */
-double updateWeights(PSNeuralNetwork * network, double * training_data,
+PSFloat updateWeights(PSNeuralNetwork * network, PSFloat * training_data,
                      int batch_size, int elements_count,
-                     PSTrainingOptions* opts, double rate,
+                     PSTrainingOptions* opts, PSFloat rate,
                      PSGradient **momentum_gradients,
                      PSGradient **aux_gradients, ...)
 {
@@ -2207,12 +2226,12 @@ double updateWeights(PSNeuralNetwork * network, double * training_data,
     }
     char * func = "updateWeights";
     PSGradient **bp_gradients = NULL;
-    double **series = NULL;
+    PSFloat **series = NULL;
     int is_recurrent = network->flags & FLAG_RECURRENT;
     if (is_recurrent) {
         va_list args;
         va_start(args, aux_gradients);
-        series = va_arg(args, double**);
+        series = va_arg(args, PSFloat**);
         va_end(args);
         if (series == NULL) {
             PSErr(func, "Series is NULL");
@@ -2226,8 +2245,8 @@ double updateWeights(PSNeuralNetwork * network, double * training_data,
         network->training->current_batch == 0 &&
         network->training->current_epoch == 0
     );
-    double * x; /* Training element */
-    double * y; /* Labels */
+    PSFloat * x; /* Training element */
+    PSFloat * y; /* Labels */
     /* Iterate elements of the batch and, for each element, get gradients
      * from the backpropagation of the error. Then, sum the backpropagation
      * gradients to the batch's gradients. */
@@ -2306,8 +2325,10 @@ double updateWeights(PSNeuralNetwork * network, double * training_data,
                         network, DEBUG_PHASE_UPDATE_GRADS, "updateWeights",
                         layer, k, wsize, w, 1, AVXGetStepLen(wsize)
                     );
-                    AVXSum(wsize, gradient->weights, gradient_bp->weights,
-                           gradient->weights, w, 0);
+                    AVXIterativeSum(
+                        wsize, gradient->weights, gradient_bp->weights,
+                        gradient->weights, w, 0
+                    );
                 }
 #endif
                 if (do_dump && w < wsize) PSTrainingDebugDumpGradient(
@@ -2323,7 +2344,7 @@ double updateWeights(PSNeuralNetwork * network, double * training_data,
     }
 
     UNUSED(elements_count); /* TODO: remove elements_count arg if not needed */
-    double l1 = 0.0, l2 = 0.0, l1_loss = 0.0, l2_loss = 0.0, momentum = 0.0;
+    PSFloat l1 = 0.0, l2 = 0.0, l1_loss = 0.0, l2_loss = 0.0, momentum = 0.0;
     PSTrainingOptimization optimization = NoTrainingOptimization;
     int use_weight_decay = 0;
     if (opts != NULL) {
@@ -2400,8 +2421,8 @@ double updateWeights(PSNeuralNetwork * network, double * training_data,
             if (mgradients != NULL) mg = &(mgradients[j]);
             if (xgradients != NULL) xg = &(xgradients[j]);
 
-            double *bias_ptr = NULL, *weights = NULL;
-            double bias;
+            PSFloat *bias_ptr = NULL, *weights = NULL;
+            PSFloat bias;
             int wsize;
             PSNeuron *neuron = NULL;
             if (shared == NULL || is_lstm) {
@@ -2418,7 +2439,7 @@ double updateWeights(PSNeuralNetwork * network, double * training_data,
             }
 
             /* Update Bias */
-            double gbias = g->bias / (double) batch_size;
+            PSFloat gbias = g->bias / (PSFloat) batch_size;
             *bias_ptr = applyGradientOnBias(
                 opts, gbias, bias,
                 mg, xg, rate, iteration
@@ -2433,7 +2454,7 @@ double updateWeights(PSNeuralNetwork * network, double * training_data,
             /* TODO: implement momentum for AVX too? */
 #ifdef USE_AVX
             if (!avx_disabled) {
-                double r = rate / batch_size;
+                PSFloat r = rate / batch_size;
                 if (do_dump) PSTrainingDebugDumpGradient(
                     network, DEBUG_PHASE_UPDATE_WEIGHTS, "updateWeights",
                     layer, j, wsize, k, 1, AVXGetStepLen(wsize)
@@ -2442,38 +2463,47 @@ double updateWeights(PSNeuralNetwork * network, double * training_data,
                     /* Apply L2 */
                     int kk = 0;
                     if (use_weight_decay) {
-                        AVXMultiplyValues(wsize, weights, l2,
-                                          g->weights, r, weights,
-                                          k, 0, 0,
-                                          AVX_STORE_MODE_NORM,
-                                          AVX_STORE_MODE_SUB);
+                        AVXIterativeMultiplyValues(
+                            wsize, weights, l2,
+                            g->weights, r, weights,
+                            k, 0, 0,
+                            AVX_STORE_MODE_NORM,
+                            AVX_STORE_MODE_SUB
+                        );
                     } else {
-                        double *l2_grads = copy_doubles(weights, (size_t)wsize);
+                        PSFloat *l2_grads = copy_floats(weights, (size_t)wsize);
                         if (l2_grads == NULL) goto end_avx_weights;
-                        AVXMultiplyValue(wsize, l2_grads, l2, l2_grads, k,
-                                         0, 0, AVX_STORE_MODE_NORM);
+                        AVXIterativeMultiplyValue(
+                            wsize, l2_grads, l2, l2_grads, k,
+                            0, 0, AVX_STORE_MODE_NORM
+                        );
                         k = 0;
-                        AVXSum(wsize, l2_grads, g->weights, l2_grads, k,
-                               AVX_STORE_MODE_NORM);
+                        AVXIterativeSum(
+                            wsize, l2_grads, g->weights, l2_grads, k,
+                            AVX_STORE_MODE_NORM
+                        );
                         k = 0;
-                        AVXMultiplyValue(wsize, l2_grads, r,
-                                         weights, k, 0, 0,
-                                         AVX_STORE_MODE_SUB);
+                        AVXIterativeMultiplyValue(
+                            wsize, l2_grads, r, weights, k, 0, 0,
+                            AVX_STORE_MODE_SUB
+                        );
                         free(l2_grads);
                         l2_grads = NULL;
-                        AVXDotSquare(
+                        AVXIterativeDotSquare(
                             wsize, weights, l2_loss, kk, 0, 0
                         );
                     }
                     if (kk < k) { /* AVX Step Length could differ */
                         for (; kk < k; kk++) {
-                            double w = weights[kk];
+                            PSFloat w = weights[kk];
                             l2_loss += (w * w);
                         }
                     }
                 } else {
-                    AVXMultiplyValue(wsize, g->weights, r, weights,
-                                     k, 0, 0, AVX_STORE_MODE_SUB);
+                    AVXIterativeMultiplyValue(
+                        wsize, g->weights, r, weights, k, 0, 0,
+                        AVX_STORE_MODE_SUB
+                    );
                 }
             }
 end_avx_weights:
@@ -2483,12 +2513,12 @@ end_avx_weights:
                 layer, j, wsize, k, 0, 0
             );
             for (; k < wsize; k++) {
-                double grad_w, l1_grad = 0.0, l2_grad = 0.0, w = weights[k];
+                PSFloat grad_w, l1_grad = 0.0, l2_grad = 0.0, w = weights[k];
                 if (l1 != 0.0) {
                     if (use_weight_decay) weights[k] *= l1;
                     else {
                         l1_grad = l1 * (w > 0 ? 1 : -1);
-                        l1_loss += fabs(w);
+                        l1_loss += PSAbs(w);
                     }
                 }
                 if (l2 != 0.0) {
@@ -2499,7 +2529,7 @@ end_avx_weights:
                     }
                 }
                 grad_w = (l1_grad + l2_grad + g->weights[k]) /
-                         (double) batch_size;
+                         (PSFloat) batch_size;
                 weights[k] = applyGradientOnWeight(
                     opts, grad_w, w, mg, xg, rate, iteration, k
                 );
@@ -2513,7 +2543,7 @@ final:
     int onehot = out->flags & FLAG_ONEHOT;
     if (onehot) label_data_size = 1;
     if (is_recurrent) label_data_size *= times;
-    double outputs[label_data_size];
+    PSFloat outputs[label_data_size];
     for (i = 0; i < label_data_size; i++) {
         if (!is_recurrent)
             outputs[i] = out->neurons[i]->activation;
@@ -2538,18 +2568,18 @@ final:
  * (Stochastic Gradient Descent). Training data is divided into batches
  * depending on `batch_size` and, for each batch, gradients are generated
  * and applied on network's by the `updateWeights` */
-double gradientDescent(PSNeuralNetwork * network,
-                       double * training_data,
+PSFloat gradientDescent(PSNeuralNetwork * network,
+                       PSFloat * training_data,
                        int element_size,
                        int elements_count,
-                       double learning_rate,
+                       PSFloat learning_rate,
                        int batch_size,
                        PSTrainingOptions *options,
                        int epochs,
-                       double *test_data,
+                       PSFloat *test_data,
                        int test_size) {
     int batches_count = elements_count / batch_size;
-    double **series = NULL;
+    PSFloat **series = NULL;
     int flags = 0, do_validate = 0;
     if (options != NULL) flags = options->flags;
     if (network->flags & FLAG_RECURRENT) {
@@ -2571,7 +2601,7 @@ double gradientDescent(PSNeuralNetwork * network,
         if (!(flags & TRAINING_NO_SHUFFLE))
             shuffle(training_data, elements_count, element_size);
     }
-    double err = 0.0, previous_err = 0.0, avg_err = 0.0,
+    PSFloat err = 0.0, previous_err = 0.0, avg_err = 0.0,
            acc = 0.0, tot_acc = 0.0, avg_acc = 0.0;
     long tot_t = 0, avg_t, elapsed_t, test_data_size, validations = 0;
     int offset = (element_size * batch_size), validate_every = 0, i;
@@ -2619,7 +2649,7 @@ double gradientDescent(PSNeuralNetwork * network,
         tot_t += elapsed_t;
         avg_t = (tot_t / batch_num);
         if (batch_num < batches_count) {
-            avg_err = err / (double) batch_num;
+            avg_err = err / (PSFloat) batch_num;
             if (do_validate) {
                 if (i > 0 && (batch_num % validate_every) == 0) {
                     PSLogTrainingProgress(network, epochs, batches_count, 1,
@@ -2627,7 +2657,7 @@ double gradientDescent(PSNeuralNetwork * network,
                         test_data_size / element_size);
                     acc = validate(network, test_data, test_data_size, 0);
                     tot_acc += acc;
-                    avg_acc = tot_acc / (double) ++validations;
+                    avg_acc = tot_acc / (PSFloat) ++validations;
                 }
                 PSLogTrainingProgress(network, epochs, batches_count, 1,
                     "loss = %.2lf, acc. = %.2lf, avg. time = %ldms",
@@ -2663,10 +2693,10 @@ final:
     if (aux_gradients != NULL)
         PSDeleteGradients(aux_gradients, network);
     if (series != NULL) free(series - (batch_size * batches_count));
-    return err / (double) batches_count;
+    return err / (PSFloat) batches_count;
 }
 
-float validate(PSNeuralNetwork * network, double * test_data, int data_size,
+float validate(PSNeuralNetwork * network, PSFloat * test_data, int data_size,
                int log) {
     int i, j;
     float accuracy = 0.0f;
@@ -2679,7 +2709,7 @@ float validate(PSNeuralNetwork * network, double * test_data, int data_size,
     int onehot = output_layer->flags & FLAG_ONEHOT;
     int element_size = input_size + output_size;
     int elements_count;
-    double ** series = NULL;
+    PSFloat ** series = NULL;
     if (network->flags & FLAG_RECURRENT) {
         // First training data number for Recurrent networks must indicate
         // the data elements count
@@ -2695,7 +2725,7 @@ float validate(PSNeuralNetwork * network, double * test_data, int data_size,
             return STATUS_ERROR_LOSS;
         }
     } else elements_count = data_size / element_size;
-    //double outputs[output_size];
+    //PSFloat outputs[output_size];
     if (log) printf("Test data elements: %d\n", elements_count);
     time_t start_t, end_t;
     char timestr[80];
@@ -2707,8 +2737,8 @@ float validate(PSNeuralNetwork * network, double * test_data, int data_size,
     for (i = 0; i < elements_count; i++) {
         if (log) printf("\rTesting %d/%d", i + 1, elements_count);
         fflush(stdout);
-        double * inputs = NULL;
-        double * expected = NULL;
+        PSFloat * inputs = NULL;
+        PSFloat * expected = NULL;
         int times = 0;
         if (series == NULL) {
             // Not Recurrent
@@ -2724,7 +2754,7 @@ float validate(PSNeuralNetwork * network, double * test_data, int data_size,
                 return STATUS_ERROR_LOSS;
             }
             
-            double max = 0.0;
+            PSFloat max = 0.0;
             int omax = 0;
             int emax = 0;
             for (j = 0; j < output_size; j++) {
@@ -2762,7 +2792,7 @@ float validate(PSNeuralNetwork * network, double * test_data, int data_size,
             
             int label_data_size = y_size * times;
             int correct_states = 0;
-            double outputs[label_data_size];
+            PSFloat outputs[label_data_size];
             for (j = 0; j < label_data_size; j++) {
                 fetchRecurrentOutputState(output_layer, outputs, j, onehot);
                 if (onehot && (outputs[j] == expected[j])) correct_states++;
@@ -2811,13 +2841,13 @@ void PSSetDefaultTrainingOptions(PSTrainingOptions *options) {
 }
 
 void PSTrain(PSNeuralNetwork *network,
-             double * training_data,
+             PSFloat * training_data,
              int data_size,
              int epochs,
-             double learning_rate,
+             PSFloat learning_rate,
              int batch_size,
              PSTrainingOptions *options,
-             double * test_data,
+             PSFloat * test_data,
              int test_size) {
     int i, elements_count;
     int element_size = network->input_size + network->output_size;
@@ -2869,7 +2899,7 @@ void PSTrain(PSNeuralNetwork *network,
     if (PSGlobalFlags & FLAG_LOG_COLORS) printf(WHITE);
     epoch_t = start_t;
     time_t e_t = epoch_t;
-    double prev_err = 0.0;
+    PSFloat prev_err = 0.0;
     float acc = -999.99f;
     int adjust_rate = 0;
     if (options != NULL) adjust_rate = (options->flags & TRAINING_ADJUST_RATE);
@@ -2891,7 +2921,7 @@ void PSTrain(PSNeuralNetwork *network,
     network->training->requested_action = ACTION_NONE;
     for (i = first_epoch; i < epochs; i++) {
         network->training->current_epoch = i;
-        double err = gradientDescent(network, training_data, element_size,
+        PSFloat err = gradientDescent(network, training_data, element_size,
                                      elements_count, learning_rate,
                                      batch_size, options, epochs,
                                      test_data, test_size);
@@ -2934,7 +2964,7 @@ void PSTrain(PSNeuralNetwork *network,
     if (network->status == STATUS_TRAINING) network->status = STATUS_TRAINED;
 }
 
-float PSTest(PSNeuralNetwork * network, double * test_data, int data_size) {
+float PSTest(PSNeuralNetwork * network, PSFloat * test_data, int data_size) {
     return validate(network, test_data, data_size, 1);
 }
 
@@ -3027,9 +3057,11 @@ int PSVerifyNetwork(PSNeuralNetwork * network) {
                   "but derivative function is not relu_derivative", i);
             return 0;
         }
-        if (layer->activate == tanh && layer->derivative != tanh_derivative) {
+        if (layer->activate == tanh_activation &&
+            layer->derivative != tanh_derivative)
+        {
             PSErr(func,
-                  "Layer[%d] activate function is tanh, "
+                  "Layer[%d] activate function is tanh_activation, "
                   "but derivative function is not tanh_derivative", i);
             return 0;
         }

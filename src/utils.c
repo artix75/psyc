@@ -50,23 +50,23 @@ void PSErr(const char* tag, char* fmt, ...) {
 
 /* Activation Functions */
 
-double sigmoid(double val) {
-    return 1.0 / (1.0 + exp(-val));
+PSFloat sigmoid(PSFloat val) {
+    return 1.0 / (1.0 + PSExp(-val));
 }
 
-double sigmoid_derivative(double val) {
+PSFloat sigmoid_derivative(PSFloat val) {
     return val * (1 - val);
 }
 
-double relu(double val) {
+PSFloat relu(PSFloat val) {
     return (val >= 0.0 ? val : 0.0);
 }
 
-double relu_derivative(double val) {
-    return (double)(val > 0.0);
+PSFloat relu_derivative(PSFloat val) {
+    return (PSFloat)(val > 0.0);
 }
 
-double tanh_derivative(double val) {
+PSFloat tanh_derivative(PSFloat val) {
     return (1 - (val * val));
 }
 
@@ -94,22 +94,22 @@ void PSAbortLayer(PSNeuralNetwork * network, PSLayer * layer) {
 /* Misc */
 
 
-double normalized_random() {
+PSFloat normalized_random() {
     if (!randomSeeded) {
         randomSeeded = 1;
         srand(time(NULL));
     }
     int r = rand();
-    return ((double) r / (double) RAND_MAX);
+    return ((PSFloat) r / (PSFloat) RAND_MAX);
 }
 
-double gaussian_random(double mean, double stddev) {
-    double theta = 2 * M_PI * normalized_random();
-    double rho = sqrt(-2 * log(1 - normalized_random()));
-    double scale = stddev * rho;
-    double x = mean + scale * cos(theta);
-    double y = mean + scale * sin(theta);
-    double r = normalized_random();
+PSFloat gaussian_random(PSFloat mean, PSFloat stddev) {
+    PSFloat theta = 2 * M_PI * normalized_random();
+    PSFloat rho = PSSqrt(-2 * PSMathLog(1 - normalized_random()));
+    PSFloat scale = stddev * rho;
+    PSFloat x = mean + scale * cos(theta);
+    PSFloat y = mean + scale * sin(theta);
+    PSFloat r = normalized_random();
     return (r > 0.5 ? y : x);
 }
 
@@ -136,9 +136,9 @@ void fill_with_blank(int line_length) {
     fflush(stdout);
 }
 
-double *copy_doubles(double *src, size_t length) {
-    size_t size = length * sizeof(double);
-    double *dup = malloc(size);
+PSFloat *copy_floats(PSFloat *src, size_t length) {
+    size_t size = length * sizeof(PSFloat);
+    PSFloat *dup = malloc(size);
     if (dup == NULL) return NULL;
     memcpy(dup, src, size);
     return dup;

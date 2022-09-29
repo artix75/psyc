@@ -19,6 +19,7 @@
 #define __PS_CONVOLUTIONAL_H
 
 #include "psyc.h"
+#include "utils.h"
 
 #define PARAM_FEATURE_COUNT     0
 #define PARAM_REGION_SIZE       1
@@ -34,9 +35,10 @@
 
 #define getColumn(index, width) (index % width)
 #define getRow(index, width) ((int) ((int) index / (int) width))
-#define getConvSharedParams(layer) ((PSSharedParams*) layer->extra)
-#define calculateConvolutionalSide(s,rs,st,pad) floor((s - rs + 2 * pad) / st+1)
-#define calculatePoolingSide(s, rs) floor((s - rs) / rs + 1)
+#define getConvSharedParams(layer) ((PSSharedParams *) layer->extra)
+#define calculateConvolutionalSide(s,rs,st,pad) \
+    PSFloor(((PSFloat)(s - rs + 2 * pad) / (PSFloat) st) + 1)
+#define calculatePoolingSide(s, rs) PSFloor((s - rs) / rs + 1)
 
 /* Init Functions */
 
@@ -53,7 +55,7 @@ int PSPool(void * _net, void * _layer, ...);
 /* Backpropagation Functions */
 
 int PSPoolingBackprop(PSLayer * pooling_layer, PSLayer * convolutional_layer,
-                      double * delta);
+                      PSFloat * delta);
 int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer * prev_layer,
                             PSGradient * lgradients);
 

@@ -44,9 +44,9 @@
 
 #define UNUSED(V) ((void) V)
 
-double applyGradientOnParameter(
-    int param_type, PSTrainingOptions *options, double grad, double param,
-    PSGradient *mg, PSGradient *xg, double rate, int iteration,
+PSFloat applyGradientOnParameter(
+    int param_type, PSTrainingOptions *options, PSFloat grad, PSFloat param,
+    PSGradient *mg, PSGradient *xg, PSFloat rate, int iteration,
     int param_index
 );
 
@@ -69,12 +69,12 @@ static int LSTMCellFeedforward(PSLayer * layer, PSLayer * previous,
     int wsize = cell->weights_size;
     int prev_size = wsize - layer->size;
     
-    double candidate = 0.0;
-    double input_gate = 0.0;
-    double output_gate = 0.0;
-    double forget_gate = 0.0;
+    PSFloat candidate = 0.0;
+    PSFloat input_gate = 0.0;
+    PSFloat output_gate = 0.0;
+    PSFloat forget_gate = 0.0;
     
-    double last_z = 0.0;
+    PSFloat last_z = 0.0;
     
     if (onehot_idx >= 0) {
         candidate = cell->candidate_weights[onehot_idx];
@@ -86,20 +86,28 @@ static int LSTMCellFeedforward(PSLayer * layer, PSLayer * previous,
 #ifdef USE_AVX
         int j = 0, o = 0, f = 0;
         if (!avx_disabled) {
-            AVXDotProduct(previous->size, previous->avx_activation_cache,
-                          cell->candidate_weights, candidate, i, 1, t);
-            AVXDotProduct(previous->size, previous->avx_activation_cache,
-                          cell->input_weights, input_gate, j, 1, t);
-            AVXDotProduct(previous->size, previous->avx_activation_cache,
-                          cell->output_weights, output_gate, o, 1, t);
-            AVXDotProduct(previous->size, previous->avx_activation_cache,
-                          cell->forget_weights, forget_gate, f, 1, t);
+            AVXIterativeDotProduct(
+                previous->size, previous->avx_activation_cache,
+                cell->candidate_weights, candidate, i, 1, t
+            );
+            AVXIterativeDotProduct(
+                previous->size, previous->avx_activation_cache,
+                cell->input_weights, input_gate, j, 1, t
+            );
+            AVXIterativeDotProduct(
+                previous->size, previous->avx_activation_cache,
+                cell->output_weights, output_gate, o, 1, t
+            );
+            AVXIterativeDotProduct(
+                previous->size, previous->avx_activation_cache,
+                cell->forget_weights, forget_gate, f, 1, t
+            );
         }
 #endif
         for (; i < previous->size; i++) {
             PSNeuron * prev_neuron = previous->neurons[i];
             if (prev_neuron == NULL) return 0;
-            double a = prev_neuron->activation;
+            PSFloat a = prev_neuron->activation;
             candidate += (a * cell->candidate_weights[i]);
             input_gate += (a * cell->input_weights[i]);
             output_gate += (a * cell->output_weights[i]);
@@ -114,18 +122,18 @@ static int LSTMCellFeedforward(PSLayer * layer, PSLayer * previous,
 #ifdef USE_AVX
         int j = 0, o = 0, f = 0;
         if (!avx_disabled) {
-            AVXDotProduct(layer->size, layer->avx_activation_cache,
-                          cell->candidate_weights + prev_size,
-                          candidate, i, 1, last_t);
-            AVXDotProduct(layer->size, layer->avx_activation_cache,
-                          cell->input_weights + prev_size,
-                          input_gate, j, 1, last_t);
-            AVXDotProduct(layer->size, layer->avx_activation_cache,
-                          cell->output_weights + prev_size,
-                          output_gate, o, 1, last_t);
-            AVXDotProduct(layer->size, layer->avx_activation_cache,
-                          cell->forget_weights + prev_size,
-                          forget_gate, f, 1, last_t);
+            AVXIterativeDotProduct(layer->size, layer->avx_activation_cache,
+                cell->candidate_weights + prev_size,
+                candidate, i, 1, last_t);
+            AVXIterativeDotProduct(layer->size, layer->avx_activation_cache,
+                cell->input_weights + prev_size,
+                input_gate, j, 1, last_t);
+            AVXIterativeDotProduct(layer->size, layer->avx_activation_cache,
+                cell->output_weights + prev_size,
+                output_gate, o, 1, last_t);
+            AVXIterativeDotProduct(layer->size, layer->avx_activation_cache,
+                cell->forget_weights + prev_size,
+                forget_gate, f, 1, last_t);
         }
 #endif
         for (; i < layer->size; i++) {
@@ -133,7 +141,7 @@ static int LSTMCellFeedforward(PSLayer * layer, PSLayer * previous,
             PSNeuron * n = layer->neurons[i];
             PSLSTMCell * c = GetLSTMCell(n);
             if (c == NULL) return 0;
-            double last_state = c->states[last_t];
+            PSFloat last_state = c->states[last_t];
             candidate += (cell->candidate_weights[w] * last_state);
             input_gate += (cell->input_weights[w] * last_state);
             output_gate += (cell->output_weights[w] * last_state);
@@ -147,12 +155,12 @@ static int LSTMCellFeedforward(PSLayer * layer, PSLayer * previous,
         if (cell->output_gates != NULL) free(cell->output_gates);
         if (cell->forget_gates != NULL) free(cell->forget_gates);
         cell->states_count = times;
-        cell->states = calloc(times, sizeof(double));
-        cell->z_values = calloc(times, sizeof(double));
-        cell->candidates = calloc(times, sizeof(double));
-        cell->input_gates = calloc(times, sizeof(double));
-        cell->output_gates = calloc(times, sizeof(double));
-        cell->forget_gates = calloc(times, sizeof(double));
+        cell->states = calloc(times, sizeof(PSFloat));
+        cell->z_values = calloc(times, sizeof(PSFloat));
+        cell->candidates = calloc(times, sizeof(PSFloat));
+        cell->input_gates = calloc(times, sizeof(PSFloat));
+        cell->output_gates = calloc(times, sizeof(PSFloat));
+        cell->forget_gates = calloc(times, sizeof(PSFloat));
         if (cell->states == NULL) return 0;
         if (cell->z_values == NULL) return 0;
         if (cell->candidates == NULL) return 0;
@@ -164,7 +172,7 @@ static int LSTMCellFeedforward(PSLayer * layer, PSLayer * previous,
             if (layer->avx_activation_cache != NULL)
                 free(layer->avx_activation_cache);
             layer->avx_activation_cache = calloc(times * layer->size,
-                                                 sizeof(double));
+                                                 sizeof(PSFloat));
             if (layer->avx_activation_cache == NULL) {
                 printMemoryErrorMsg();
                 return 0;
@@ -172,7 +180,7 @@ static int LSTMCellFeedforward(PSLayer * layer, PSLayer * previous,
         }
 #endif
     }
-    candidate = tanh(candidate + cell->candidate_bias);
+    candidate = tanh_activation(candidate + cell->candidate_bias);
     input_gate = sigmoid(input_gate + cell->input_bias);
     output_gate = sigmoid(output_gate + cell->output_bias);
     forget_gate = sigmoid(forget_gate + cell->forget_bias);
@@ -185,7 +193,7 @@ static int LSTMCellFeedforward(PSLayer * layer, PSLayer * previous,
     neuron->z_value = candidate * input_gate + last_z * forget_gate;
     cell->z_values[t] = neuron->z_value;
     
-    double activation = neuron->z_value;
+    PSFloat activation = neuron->z_value;
     if (layer->activate != NULL) activation = layer->activate(activation);
     activation = output_gate * activation;
     neuron->activation = activation;
@@ -232,10 +240,10 @@ void PSDeleteLSTMCell(PSLSTMCell * cell) {
 }
 
 void PSUpdateLSTMBiases(PSNeuron * neuron, PSGradient * gradient,
-                        PSGradient *mg, PSGradient *xg, double rate,
+                        PSGradient *mg, PSGradient *xg, PSFloat rate,
                         PSTrainingOptions *opts, int iteration)
 {
-    double * biases = GetLSTMGradientBiases(neuron, gradient);
+    PSFloat * biases = GetLSTMGradientBiases(neuron, gradient);
     PSLSTMCell *cell = GetLSTMCell(neuron);
     cell->candidate_bias = applyGradientOnParameter(
         PARAM_TYPE_BIAS, opts, biases[CANDIDATE_IDX], cell->candidate_bias,
@@ -279,7 +287,7 @@ int PSInitLSTMLayer(PSNeuralNetwork * network, PSLayer * layer,
         neuron->index = i;
         neuron->weights_size = tot_ws;
         neuron->bias = gaussian_random(0, 1);
-        neuron->weights = malloc(sizeof(double) * tot_ws);
+        neuron->weights = malloc(sizeof(PSFloat) * tot_ws);
         if (neuron->weights ==  NULL) {
             PSAbortLayer(network, layer);
             PSErr(func, "Could not allocate neuron weights!");
@@ -299,7 +307,7 @@ int PSInitLSTMLayer(PSNeuralNetwork * network, PSLayer * layer,
         neuron->layer = layer;
     }
     layer->flags |= FLAG_RECURRENT;
-    layer->activate = tanh;
+    layer->activate = tanh_activation;
     layer->derivative = tanh_derivative;
     layer->feedforward = PSLSTMFeedforward;
     network->flags |= FLAG_RECURRENT;
@@ -404,43 +412,43 @@ int PSLSTMBackprop(PSLayer * layer, PSLayer * previousLayer,
         previous_size = (int) params->parameters[0];
         assert(previous_size > 0);
     }
-    double * delta_c = calloc(sizeof(double), lsize);
-    double * delta_i = calloc(sizeof(double), lsize);
-    double * delta_o = calloc(sizeof(double), lsize);
-    double * delta_f = calloc(sizeof(double), lsize);
+    PSFloat * delta_c = calloc(sizeof(PSFloat), lsize);
+    PSFloat * delta_i = calloc(sizeof(PSFloat), lsize);
+    PSFloat * delta_o = calloc(sizeof(PSFloat), lsize);
+    PSFloat * delta_f = calloc(sizeof(PSFloat), lsize);
     
-    double * delta = layer->delta;
-    double * delta_z = delta + lsize;
+    PSFloat * delta = layer->delta;
+    PSFloat * delta_z = delta + lsize;
 
     for (i = 0; i < lsize; i++) {
         PSNeuron * neuron = layer->neurons[i];
         PSLSTMCell * cell = GetLSTMCell(neuron);
         PSGradient * gradient = &(lgradients[i]);
-        double * gradient_biases = GetLSTMGradientBiases(neuron, gradient);
-        double dv = delta[i];
+        PSFloat * gradient_biases = GetLSTMGradientBiases(neuron, gradient);
+        PSFloat dv = delta[i];
         int cwsize = cell->weights_size;
         int rwsize = layer->size;
         int wsize = cwsize - rwsize;
         
-        double z = cell->z_values[t];
-        double last_z = (t > 0 ? cell->z_values[last_t] : 0.0);
-        double ig = cell->input_gates[t];
-        double og = cell->output_gates[t];
-        double fg = cell->forget_gates[t];
-        double c = cell->candidates[t];
+        PSFloat z = cell->z_values[t];
+        PSFloat last_z = (t > 0 ? cell->z_values[last_t] : 0.0);
+        PSFloat ig = cell->input_gates[t];
+        PSFloat og = cell->output_gates[t];
+        PSFloat fg = cell->forget_gates[t];
+        PSFloat c = cell->candidates[t];
         
-        double last_dz = delta_z[i];
-        double z_multiplier = 1, zz = z;
+        PSFloat last_dz = delta_z[i];
+        PSFloat z_multiplier = 1, zz = z;
         if (layer->activate != NULL) {
             z_multiplier = layer->activate(z);
             zz = z_multiplier;
             z_multiplier = layer->derivative(z_multiplier);
         }
-        double dout = zz * dv;
-        double dz = og * dv * z_multiplier + last_dz;
-        double di = c * dz;
-        double df = last_z * dz;
-        double dc = ig * dz;
+        PSFloat dout = zz * dv;
+        PSFloat dz = og * dv * z_multiplier + last_dz;
+        PSFloat di = c * dz;
+        PSFloat df = last_z * dz;
+        PSFloat dc = ig * dz;
         delta_z[i] = dz * fg;
         
         dout *= (og * (1 - og)); // sigmoid_derivative
@@ -461,7 +469,7 @@ int PSLSTMBackprop(PSLayer * layer, PSLayer * previousLayer,
         if (onehot) {
             PSNeuron * prev_n = previousLayer->neurons[0];
             PSLSTMCell * prev_c = GetLSTMCell(prev_n);
-            double prev_a = prev_c->states[t];
+            PSFloat prev_a = prev_c->states[t];
             assert(prev_a < previous_size);
             w = (int) prev_a;
             gradient->weights[w] += dc;
@@ -472,7 +480,7 @@ int PSLSTMBackprop(PSLayer * layer, PSLayer * previousLayer,
             for (w = 0; w < wsize; w++) {
                 PSNeuron * prev_n = previousLayer->neurons[w];
                 PSLSTMCell * prev_c = GetLSTMCell(prev_n);
-                double prev_a = prev_c->states[t];
+                PSFloat prev_a = prev_c->states[t];
                 gradient->weights[w] += (dc * prev_a);
                 gradient->weights[w + cwsize] += (di * prev_a);
                 gradient->weights[w + (cwsize * OUTPUT_IDX)] +=
@@ -487,29 +495,29 @@ int PSLSTMBackprop(PSLayer * layer, PSLayer * previousLayer,
 #ifdef USE_AVX
             int i = 0, o = 0, f = 0;
             if (!avx_disabled) {
-                double * rweights = gradient->weights + wsize;
-                AVXMultiplyValue(layer->size,
-                                 layer->avx_activation_cache,
-                                 dc, rweights, w,
-                                 1, (last_t), AVX_STORE_MODE_ADD);
-                AVXMultiplyValue(layer->size,
-                                 layer->avx_activation_cache,
-                                 di, rweights + cwsize, i,
-                                 1, (last_t), AVX_STORE_MODE_ADD);
-                AVXMultiplyValue(layer->size,
-                                 layer->avx_activation_cache,
-                                 dout, rweights + (cwsize * OUTPUT_IDX), o,
-                                 1, (last_t), AVX_STORE_MODE_ADD);
-                AVXMultiplyValue(layer->size,
-                                 layer->avx_activation_cache,
-                                 df, rweights + (cwsize * FORGET_IDX), f,
-                                 1, (last_t), AVX_STORE_MODE_ADD);
+                PSFloat * rweights = gradient->weights + wsize;
+                AVXIterativeMultiplyValue(layer->size,
+                    layer->avx_activation_cache,
+                    dc, rweights, w,
+                    1, (last_t), AVX_STORE_MODE_ADD);
+                AVXIterativeMultiplyValue(layer->size,
+                    layer->avx_activation_cache,
+                    di, rweights + cwsize, i,
+                    1, (last_t), AVX_STORE_MODE_ADD);
+                AVXIterativeMultiplyValue(layer->size,
+                    layer->avx_activation_cache,
+                    dout, rweights + (cwsize * OUTPUT_IDX), o,
+                    1, (last_t), AVX_STORE_MODE_ADD);
+                AVXIterativeMultiplyValue(layer->size,
+                    layer->avx_activation_cache,
+                    df, rweights + (cwsize * FORGET_IDX), f,
+                    1, (last_t), AVX_STORE_MODE_ADD);
             }
 #endif
             for (; w < layer->size; w++) {
                 PSNeuron * rn = layer->neurons[w];
                 PSLSTMCell * rc = GetLSTMCell(rn);
-                double a = rc->states[last_t];
+                PSFloat a = rc->states[last_t];
                 int widx = wsize + w;
                 gradient->weights[widx] += (dc * a);
                 gradient->weights[widx + cwsize] += (di * a);
@@ -529,16 +537,16 @@ int PSLSTMBackprop(PSLayer * layer, PSLayer * previousLayer,
             PSLSTMCell * cell = GetLSTMCell(neuron);
             int cwsize = cell->weights_size;
             int wsize = cwsize - layer->size;
-            //double prev_a = cell->states[last_t];
-            double d = 0.0;
+            //PSFloat prev_a = cell->states[last_t];
+            PSFloat d = 0.0;
             for (w = 0; w < lsize; w++) {
                 PSNeuron * rn = layer->neurons[w];
                 PSLSTMCell * rc = GetLSTMCell(rn);
                 int widx = neuron->index + wsize;
-                double cw = rc->candidate_weights[widx];
-                double iw = rc->input_weights[widx];
-                double ow = rc->output_weights[widx];
-                double fw = rc->forget_weights[widx];
+                PSFloat cw = rc->candidate_weights[widx];
+                PSFloat iw = rc->input_weights[widx];
+                PSFloat ow = rc->output_weights[widx];
+                PSFloat fw = rc->forget_weights[widx];
                 
                 d += delta_c[rn->index] * cw;
                 d += delta_i[rn->index] * iw;

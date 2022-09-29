@@ -103,8 +103,8 @@ Here is an example of a simple Fully Connected Network
     #define LEARNING_RATE 0.5
     #define BATCH_SIZE 10
     
-    double * training_data;
-    double * evaluation_data;
+    PSFloat * training_data;
+    PSFloat * evaluation_data;
     int datalen;
     int evaluation_datalen;
 
@@ -161,7 +161,7 @@ Non-Recurrent Networks
 ---
 
 Training data layout for non-recurrent networks is quite simple.
-It's just an array of doubles that contains the sequence of all the inputs and 
+It's just an array of floats that contains the sequence of all the inputs and 
 expected outputs (targets).
 Let's assume that we have a very simple network where the input layer is made of 
 4 units, and the output layer is made of 2 units.
@@ -170,13 +170,13 @@ output is 0, 1.
 
 We'll have the following training data:
 
-    double data[] = {0.2, 0.0, 0.9, 0.3, 0.0, 1.0};
+    PSFloat data[] = {0.2, 0.0, 0.9, 0.3, 0.0, 1.0};
 
 If we have other pairs of inputs and expected outputs, they should be all 
 concatenated, so if we have another pair of inputs 0.0, 0.2, 0.0, 0.5 and 
 expected outputs 1.0, 0.0, we'll have:
 
-    double data[] = {
+    PSFloat data[] = {
         0.2, 0.0, 0.9, 0.3, 0.0, 1.0, 
         0.0, 0.2, 0.0, 0.5, 1.0, 0.0
     };
@@ -211,7 +211,7 @@ So, in the example above we have two sequences: the first one has three inputs
 while the second one has four inputs.
 The training data array will be:
 
-    double data[] = {
+    PSFloat data[] = {
         2.0, 
         3.0, 2.0, 4.0, 6.0, 4.0, 6.0, 8.0,
         4.0, 3.0, 6.0, 9.0, 12.0, 6.0, 9.0, 12.0, 15.0

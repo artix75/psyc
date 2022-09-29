@@ -28,6 +28,7 @@
 #include "../psyc.h"
 #include "../convolutional.h"
 #include "../cifar.h"
+#include "../debug.h"
 
 #define EPOCHS 200
 //#define BATCH_SIZE 32
@@ -50,51 +51,6 @@
 #define DEFAULT_OUTPUT_FILE "/tmp/pretrained.cnn.data"
 
 #define UNUSED(V) ((void) V)
-
-#if defined(__APPLE__) && defined(__MACH__)
-
-// Public domain polyfill for feenableexcept on OS X
-// http://www-personal.umich.edu/~williams/archive/computation/fe-handling-example.c
-
-int feenableexcept(unsigned int excepts)
-{
-    static fenv_t fenv;
-    unsigned int new_excepts = excepts & FE_ALL_EXCEPT;
-    // previous masks
-    unsigned int old_excepts;
-
-    if (fegetenv(&fenv)) {
-        return -1;
-    }
-    old_excepts = fenv.__control & FE_ALL_EXCEPT;
-
-    // unmask
-    fenv.__control &= ~new_excepts;
-    fenv.__mxcsr   &= ~(new_excepts << 7);
-
-    return fesetenv(&fenv) ? -1 : old_excepts;
-}
-
-int fedisableexcept(unsigned int excepts)
-{
-    static fenv_t fenv;
-    unsigned int new_excepts = excepts & FE_ALL_EXCEPT;
-    // all previous masks
-    unsigned int old_excepts;
-
-    if (fegetenv(&fenv)) {
-        return -1;
-    }
-    old_excepts = fenv.__control & FE_ALL_EXCEPT;
-
-    // mask
-    fenv.__control |= new_excepts;
-    fenv.__mxcsr   |= new_excepts << 7;
-
-    return fesetenv(&fenv) ? -1 : old_excepts;
-}
-
-#endif
 
 PSNeuralNetwork * network = NULL;
 char *output_path = DEFAULT_OUTPUT_FILE;
@@ -178,9 +134,9 @@ void handler(int sig) {
     }
 }
 
-void onBatchTrained(void *_network, int epoch, int epochs, double loss,
-                    double previous_loss, float accuracy,
-                    double *rate, double *training_data)
+void onBatchTrained(void *_network, int epoch, int epochs, PSFloat loss,
+                    PSFloat previous_loss, float accuracy,
+                    PSFloat *rate, PSFloat *training_data)
 {
     UNUSED(epoch);
     UNUSED(epochs);
@@ -206,7 +162,7 @@ void onBatchTrained(void *_network, int epoch, int epochs, double loss,
     snprintf(fname, 1023, "%s/psyc-deltas-batch-%d.dump",
              dump_activations_str, batch);
     PSDumpNetworkDeltas(network, fname);
-    double *labels = training_data + CIFAR_IMAGE_SIZE;
+    PSFloat *labels = training_data + CIFAR_IMAGE_SIZE;
     snprintf(fname, 1023, "%s/psyc-labels-batch-%d.dump",
              dump_activations_str, batch);
     FILE *lblfile = fopen(fname, "w");
@@ -230,10 +186,13 @@ int main(int argc, char** argv) {
                 _MM_EXCEPT_OVERFLOW |
                 _MM_EXCEPT_UNDERFLOW |
                 _MM_EXCEPT_INEXACT ) );
-    feenableexcept(FE_INVALID | FE_OVERFLOW);
-    double *training_data = NULL;
-    double *test_data = NULL;
-    double *validation_data = NULL;
+#ifdef CATCH_FPE
+    PSCatchFloatingPointExceptions(/*FE_INVALID | */FE_OVERFLOW | FE_DIVBYZERO);
+#endif
+    PSHandleSignals(handler);
+    PSFloat *training_data = NULL;
+    PSFloat *test_data = NULL;
+    PSFloat *validation_data = NULL;
     const char *pretrained_file = NULL;
     const char *dataset_path = NULL;
     int testsize = 0;
@@ -255,10 +214,10 @@ int main(int argc, char** argv) {
     int max_images = 0;
     int no_shuffle = 0;
     PSTrainingOptimization optimization = NoTrainingOptimization;
-    double learning_rate = LEARNING_RATE;
-    double momentum = MOMENTUM;
-    double l1_decay = L1;
-    double l2_decay = L2;
+    PSFloat learning_rate = LEARNING_RATE;
+    PSFloat momentum = MOMENTUM;
+    PSFloat l1_decay = L1;
+    PSFloat l2_decay = L2;
     int validate_every = 0;
     UNUSED(disable_avx); /* Actually not used if USE_AVX macro not defined */
 
@@ -297,17 +256,17 @@ int main(int argc, char** argv) {
                 return 1;
             }
         } else if (strcmp("--learning-rate", arg) == 0 && (i + 1) < argc) {
-            learning_rate = (double) atof(argv[++i]);
+            learning_rate = (PSFloat) atof(argv[++i]);
             if (learning_rate <= 0.0) {
                 fprintf(stderr, "Learning rate must be > 0\n");
                 return 1;
             }
         } else if (strcmp("--momentum", arg) == 0 && (i + 1) < argc) {
-            momentum = (double) atof(argv[++i]);
+            momentum = (PSFloat) atof(argv[++i]);
         } else if (strcmp("--l1-decay", arg) == 0 && (i + 1) < argc) {
-            l1_decay = (double) atof(argv[++i]);
+            l1_decay = (PSFloat) atof(argv[++i]);
         } else if (strcmp("--l2-decay", arg) == 0 && (i + 1) < argc) {
-            l2_decay = (double) atof(argv[++i]);
+            l2_decay = (PSFloat) atof(argv[++i]);
         } else if (strcmp("--use-relu", arg) == 0 && (i + 1) < argc) {
             use_relu = atoi(argv[++i]);
         } else if (strcmp("--padding", arg) == 0 && (i + 1) < argc) {
@@ -432,7 +391,7 @@ int main(int argc, char** argv) {
             printf("Could not load training data!\n");
             return 1;
         }
-        datalen = datasize / sizeof(double);
+        datalen = datasize / sizeof(PSFloat);
         printf("Loaded training dataset (len: %d, size: %d)\n",
             datalen, datasize);
         if (!max_images) {
@@ -442,7 +401,7 @@ int main(int argc, char** argv) {
                 printf("Could not load test data!\n");
                 return 1;
             }
-            testlen = testsize / sizeof(double);
+            testlen = testsize / sizeof(PSFloat);
             printf("Loaded test dataset (len: %d, size: %d)\n", testlen,
                    testsize);
         }
@@ -465,6 +424,7 @@ int main(int argc, char** argv) {
 #else
     printf("off\n");
 #endif
+    printf("Size of PSFloat: %d\n", (int) sizeof(PSFloat));
 
     if (pretrained_file == NULL) {
         PSLayerParameters * iparams; /* Input layer parameters */
@@ -599,7 +559,6 @@ int main(int argc, char** argv) {
         };
         if (optimization != NoTrainingOptimization)
             train_opts.optimization = optimization;
-        PSHandleSignals(handler);
         PSTrain(network, training_data, datalen, epochs, learning_rate,
                 batch_size, &train_opts, validation_data, valdlen);
     }

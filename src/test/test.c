@@ -19,6 +19,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <time.h>
+#include "../psyc.h"
+#include "../debug.h"
 #include "test.h"
 
 #define RED     "\x1b[31m"
@@ -88,12 +90,17 @@ int performTests(TestCase * test_case) {
         printf(CYAN "%s", test->name); printf(":");
         printf(RESET);
         //printf(HIDDEN);
+#ifndef PS_VERBOSE_TESTS
         stdout_fd = dup(fileno(stdout));
+        PSOriginalStdOutFD = stdout_fd;
         freopen("/dev/null", "w", stdout);
+#endif
         test->status = test->run(test_case, test);
+#ifndef PS_VERBOSE_TESTS
         fflush(stdout);
         fclose(stdout);
         stdout = fdopen(stdout_fd, "w");
+#endif
         //printf(RESET);
         if (!test->status) {
             printf(RED "\tFAILED");

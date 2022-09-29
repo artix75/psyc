@@ -18,13 +18,16 @@
 #ifndef __PS_MNIST_H
 #define __PS_MNIST_H
 
+#include "types.h"
+
 #ifndef DATA_TYPE_TRAINING
 #define DATA_TYPE_TRAINING   0
 #define DATA_TYPE_TEST       1
 #endif
 
+
 int loadMNISTData(int type,
                   const char * images_file,
                   const char * labels_file,
-                  double ** data);
+                  PSFloat **data);
 #endif // __PS_MNIST_H

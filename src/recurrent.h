@@ -25,13 +25,13 @@
 typedef struct {
     int states_count;
     int weights_size;
-    double * states;
-    double * weights;
+    PSFloat * states;
+    PSFloat * weights;
 } PSRecurrentCell;
 
 PSRecurrentCell * PSCreateRecurrentCell(PSNeuron * neuron, int lsize);
-double * PSAddRecurrentState(PSNeuralNetwork *net, PSNeuron *neuron,
-                             double state, int times, int t);
+PSFloat * PSAddRecurrentState(PSNeuralNetwork *net, PSNeuron *neuron,
+                             PSFloat state, int times, int t);
 
 /* Init Functions */
 
