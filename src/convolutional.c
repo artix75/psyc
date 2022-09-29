@@ -371,6 +371,8 @@ int PSConvolve(void * _net, void * _layer, ...) {
     int feature_size = size / feature_count;
 #ifdef USE_AVX
     int avx_disabled = PSIsAVXDisabled(net);
+    /* AVX doesn't offer performance increase if not applied on big vectors */
+    int avx_min_size = AVX_MIN_VECTOR_SIZE * 2;
 #endif
     PSSharedParams * shared = getConvSharedParams(layer);
     if (shared == NULL) {
@@ -430,7 +432,7 @@ int PSConvolve(void * _net, void * _layer, ...) {
                     if (x2 >= input_w) x2 = input_w - 1;
 #ifdef USE_AVX
                     int rowlen = x2 - x;
-                    if (!avx_disabled && rowlen >= AVX_MIN_VECTOR_SIZE) {
+                    if (!avx_disabled && rowlen >= avx_min_size) {
                         int avx_step_len = AVXGetDotStepLen(rowlen);
                         int avx_steps = 0, avx_step;
                         if (avx_step_len > 0)

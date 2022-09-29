@@ -108,7 +108,7 @@ PSFloat AVXDotProduct(PSFloat *x, PSFloat *y, int size, int *count) {
     assert(num_vectors <= MAX_AVX_VECTORS);
     size = num_vectors * reglen; /* Ensure vector_len is multiple of reglen */
     if (count != NULL) *count = size;
-    int sumv_len = reglen, i;
+    int sumv_len = reglen, count_divisor = 1, i;
     void *sumv = NULL;
     AVX128 dp128;
     AVX256 dp256;
@@ -118,6 +118,7 @@ PSFloat AVXDotProduct(PSFloat *x, PSFloat *y, int size, int *count) {
         AVX128 xy = AVX128Multiply(xv, yv);
         AVX128 zeros = AVX128SetVal(0);
         dp128 = AVX128HorizontalAdd(xy, zeros);
+        count_divisor = 2;
         sumv = &dp128;
     } else {
         AVX256 xv[MAX_AVX_VECTORS];
@@ -140,7 +141,10 @@ PSFloat AVXDotProduct(PSFloat *x, PSFloat *y, int size, int *count) {
             assert(i < num_vectors);
             AVX256 xy1 = xy[idx1], xy2;
             if (idx2 < num_vectors) xy2 = xy[idx2];
-            else xy2 = AVX256SetVal(0);/*xy2 = xy1;*/
+            else {
+                xy2 = AVX256SetVal(0);
+                count_divisor = 2;
+            }
             /* Horizontal sum adiacent pairs of elements in vectors `xy1` and
              * `xy2` storing them packed in `tempv[i]`. Example for vectors
              * composed of four elements:
@@ -169,7 +173,7 @@ PSFloat AVXDotProduct(PSFloat *x, PSFloat *y, int size, int *count) {
             sumv = &dp256;
         }
     }
-    int numbers_to_sum = sumv_len;
+    int numbers_to_sum = sumv_len / count_divisor;
     assert(numbers_to_sum > 0);
     if (numbers_to_sum == 1) return *((PSFloat *) sumv);
     int vidx = 0;
