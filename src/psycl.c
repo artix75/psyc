@@ -514,7 +514,7 @@ int main(int argc, char ** argv) {
                 valdlen = eval_dataset_len * element_size;
             }
         }
-        
+
         PSTrainingOptions options = {
             .flags = training_flags,
             .l2_decay = (PSFloat) l2_decay
@@ -527,7 +527,7 @@ int main(int argc, char ** argv) {
         PSTest(network, test_data, testlen);
         free(test_data);
     }
-    
+
 #ifdef HAS_MAGICK
     if (image_filename != NULL) {
         int res = PSClassifyImage(network, image_filename, image_grayscale,
@@ -538,7 +538,7 @@ int main(int argc, char ** argv) {
         }
     }
 #endif
-    
+
     int outfile_len = strlen(outputFile);
     if (training_data != NULL || outfile_len) {
         if (!outfile_len) {

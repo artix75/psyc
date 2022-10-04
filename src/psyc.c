@@ -668,7 +668,7 @@ PSNeuralNetwork * PSCloneNetwork(PSNeuralNetwork * network, int layout_only) {
     }
     clone->flags = network->flags;
     clone->loss = network->loss;
-    
+
     int i, j, k, w;
     for (i = 0; i < network->size; i++) {
         PSLayer * layer = network->layers[i];
@@ -1989,15 +1989,15 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, PSFloat * x,
         int ysize = (onehot ? 1 : osize);
         int time_offset = t * ysize;
         PSFloat * time_y = y + time_offset;
-        
+
         PSGradient * lgradients =
             gradients[netsize - 2];/* No gradients for inputs*/
         previousLayer = network->layers[outputLayer->index - 1];
         nextLayer = NULL;
-        
+
         delta = outputLayer->delta;
         last_delta = delta;
-        
+
         PSFloat softmax_sum = 0.0;
         int apply_derivative = shouldApplyDerivative(network);
         // Calculate output deltas, output layer must be Softmax
@@ -2042,7 +2042,7 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, PSFloat * x,
                 gradient->weights[w] += (d * prev_a);
             }
         }
-        
+
         // Cycle through other layers
         for (i = previousLayer->index; i > 0; i--) {
             PSLayer * layer = network->layers[i];
@@ -2055,7 +2055,7 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, PSFloat * x,
             int is_lstm = (LSTM == ltype);
             if (!is_recurrent && !is_lstm) continue;
             //PSLayerType prev_ltype = previousLayer->type;
-            
+
             delta = layer->delta;
             // Calculate layer deltas
             for (j = 0; j < lsize; j++) {
@@ -2073,7 +2073,7 @@ PSGradient ** backpropThroughTime(PSNeuralNetwork * network, PSFloat * x,
                     delta[j] = dv;
                 else
                     delta[j] += dv;
-                
+
                 if (!is_recurrent && !is_lstm) {
                     PSGradient * gradient = &(lgradients[i]);
                     gradient->bias += dv;
@@ -2751,7 +2751,7 @@ float validate(PSNeuralNetwork * network, PSFloat * test_data, int data_size,
             inputs = test_data;
             test_data += input_size;
             expected = test_data;
-            
+
             int ok = PSFeedforward(network, inputs);
             if (!ok) {
                 network->status = STATUS_ERROR;
@@ -2759,7 +2759,7 @@ float validate(PSNeuralNetwork * network, PSFloat * test_data, int data_size,
                         "\nAn error occurred while validating, aborting!\n");
                 return STATUS_ERROR_LOSS;
             }
-            
+
             PSFloat max = 0.0;
             int omax = 0;
             int emax = 0;
@@ -2787,7 +2787,7 @@ float validate(PSNeuralNetwork * network, PSFloat * test_data, int data_size,
                 return STATUS_ERROR_LOSS;
             }
             expected = inputs + 1 + (times * input_size);
-            
+
             int ok = PSFeedforward(network, inputs);
             if (!ok) {
                 network->status = STATUS_ERROR;
@@ -2795,7 +2795,7 @@ float validate(PSNeuralNetwork * network, PSFloat * test_data, int data_size,
                         "\nAn error occurred while validating, aborting!\n");
                 return STATUS_ERROR_LOSS;
             }
-            
+
             int label_data_size = y_size * times;
             int correct_states = 0;
             PSFloat outputs[label_data_size];

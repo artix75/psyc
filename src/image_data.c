@@ -33,7 +33,7 @@
 #include "image_data.h"
 #include "utils.h"
 
-#define IS_OK(x) (x == MagickTrue) 
+#define IS_OK(x) (x == MagickTrue)
 #define LOG_MAGICK_ERR(wand) fprintf(stderr, "Magick ERROR: %s\n", \
     MagickGetException(wand, &serverity))
 

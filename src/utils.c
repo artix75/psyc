@@ -33,17 +33,17 @@ static unsigned char randomSeeded = 0;
 
 void PSErr(const char* tag, char* fmt, ...) {
     va_list args;
-    
+
     fflush (stdout);
     if (PSGlobalFlags & FLAG_LOG_COLORS) fprintf(stderr, RED);
     fprintf(stderr, "ERROR");
     if (tag != NULL) fprintf(stderr, " [%s]: ", tag);
     else fprintf(stderr, ": ");
-    
+
     va_start(args, fmt);
     vfprintf(stderr, fmt, args);
     va_end(args);
-    
+
     fprintf(stderr, "\n");
     if (PSGlobalFlags & FLAG_LOG_COLORS) fprintf(stderr, WHITE);
 }

@@ -296,7 +296,7 @@ int PSRecurrentBackprop(PSLayer * layer, PSLayer * previousLayer, int lowest_t,
             PSFloat dv = delta[i];
             gradient->bias += dv;
             int wsize = neuron->weights_size - cell->weights_size;
-            
+
             if (previousLayer->flags & FLAG_ONEHOT) {
                 PSLayerParameters * params = previousLayer->parameters;
                 if (params == NULL) {
@@ -320,7 +320,7 @@ int PSRecurrentBackprop(PSLayer * layer, PSLayer * previousLayer, int lowest_t,
                     gradient->weights[w] += (dv * prev_a);
                 }
             }
-            
+
             if (tt > 0) {
                 if (new_delta == NULL) {
                     new_delta = calloc(lsize, sizeof(PSFloat));
@@ -355,7 +355,7 @@ int PSRecurrentBackprop(PSLayer * layer, PSLayer * previousLayer, int lowest_t,
                 PSFloat prev_a = cell->states[tt - 1];
                 new_delta[neuron->index] = rsum * layer->derivative(prev_a);
             }
-            
+
         }
         if (new_delta != NULL) {
             free(delta);

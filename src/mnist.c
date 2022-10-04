@@ -37,7 +37,7 @@ int decompressGZip(FILE *source, FILE * dest) {
     z_stream strm;
     unsigned char in[CHUNK];
     unsigned char out[CHUNK];
-    
+
     /* allocate inflate state */
     strm.zalloc = Z_NULL;
     strm.zfree = Z_NULL;

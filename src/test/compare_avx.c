@@ -54,10 +54,10 @@ int compareNetworks(PSNeuralNetwork * network, PSNeuralNetwork * other)
         int c_size = other_l->size;
         PSLayerType otype = orig_l->type;
         PSLayerType ctype = other_l->type;
-        
+
         if (i == 0) continue;
         if (otype == Pooling) continue;
-        
+
         int conv_features_checked = 0;
         for (k = 0; k < o_size; k++) {
             PSNeuron * orig_n = orig_l->neurons[k];
@@ -156,31 +156,31 @@ int main(int argc, char** argv) {
     int ok = compareNetworks(std_network, avx_network);
     if (!ok) printf(RED "FAILED" RESET);
     else printf(GREEN "OK\n" RESET);
-    
+
     PSDeleteNetwork(std_network);
     PSDeleteNetwork(avx_network);
-    
+
     printf(DIM);
-    
+
     std_network = PSCreateNetwork("STD CNN Network");
     avx_network = PSCreateNetwork("AVX CNN Network");
-    
+
     loaded = PSLoadNetwork(std_network, "/tmp/no_avx.cnn.data");
     assert(loaded);
     loaded = PSLoadNetwork(avx_network, "/tmp/avx.cnn.data");
     assert(loaded);
-    
+
     printf(RESET CYAN "Convolutional comparison: " RESET);
     ok = compareNetworks(std_network, avx_network);
     if (!ok) printf(RED "FAILED" RESET);
     else printf(GREEN "OK\n" RESET);
-    
+
     PSDeleteNetwork(std_network);
     PSDeleteNetwork(avx_network);
-    
+
     std_network = PSCreateNetwork("STD CNN Network");
     avx_network = PSCreateNetwork("AVX CNN Network");
-    
+
     loaded = PSLoadNetwork(std_network, "/tmp/no_avx.l2_nn.data");
     assert(loaded);
     loaded = PSLoadNetwork(avx_network, "/tmp/avx.l2_nn.data");
@@ -189,27 +189,27 @@ int main(int argc, char** argv) {
     ok = compareNetworks(std_network, avx_network);
     if (!ok) printf(RED "FAILED" RESET);
     else printf(GREEN "OK\n" RESET);
-    
+
     PSDeleteNetwork(std_network);
     PSDeleteNetwork(avx_network);
-    
+
     printf(DIM);
-    
+
     std_network = PSCreateNetwork("STD CNN Network");
     avx_network = PSCreateNetwork("AVX CNN Network");
-    
+
     loaded = PSLoadNetwork(std_network, "/tmp/no_avx.l2_cnn.data");
     assert(loaded);
     loaded = PSLoadNetwork(avx_network, "/tmp/avx.l2_cnn.data");
     assert(loaded);
-    
+
     printf(RESET CYAN "Convolutional L2 comparison: " RESET);
     ok = compareNetworks(std_network, avx_network);
     if (!ok) printf(RED "FAILED" RESET);
     else printf(GREEN "OK\n" RESET);
-    
+
     PSDeleteNetwork(std_network);
     PSDeleteNetwork(avx_network);
-    
+
     return 0;
 }

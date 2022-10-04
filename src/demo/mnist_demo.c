@@ -47,13 +47,13 @@ int main(int argc, char** argv) {
     PSAddLayer(network, FullyConnected, INPUT_SIZE, NULL);
     PSAddLayer(network, FullyConnected, 30, NULL);
     PSAddLayer(network, FullyConnected, 10, NULL);
-    
+
     if (network->size < 1) {
         fprintf(stderr, "Could not add all layers!\n");
         PSDeleteNetwork(network);
         return 1;
     }
-    
+
     if (strcmp("--load", argv[1]) == 0) {
         loaded = PSLoadNetwork(network, argv[2]);
         if (!loaded) {
@@ -77,9 +77,9 @@ int main(int argc, char** argv) {
         testlen = loadMNISTData(DATA_TYPE_TEST, argv[3], argv[4],
                                 &test_data);
     };
-    
+
     printf("Data len: %d\n", datalen);
-    
+
     if (!loaded) PSTrain(network, training_data, datalen, EPOCHS, 3, 10, NULL,
                          NULL, 0);
     if (network->status == STATUS_ERROR) {
@@ -88,12 +88,12 @@ int main(int argc, char** argv) {
         if (test_data != NULL) free(test_data);
         return 1;
     }
-    
+
     if (testlen > 0 && test_data != NULL) {
         printf("Test Data len: %d\n", testlen);
         PSTest(network, test_data, testlen);
     }
-    
+
     PSDeleteNetwork(network);
     if (training_data != NULL) free(training_data);
     if (test_data != NULL) free(test_data);

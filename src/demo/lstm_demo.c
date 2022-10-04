@@ -37,10 +37,10 @@
 void handler(int sig) {
     void *array[10];
     size_t size;
-    
+
     // get void*'s for all entries on the stack
     size = backtrace(array, 10);
-    
+
     // print out all the frames to stderr
     fprintf(stdout, "Error: signal %d:\n", sig);
     backtrace_symbols_fd(array, size, STDOUT_FILENO);
@@ -48,24 +48,24 @@ void handler(int sig) {
 }
 
 int main(int argc, char** argv) {
-    
+
     signal(SIGSEGV, handler);
     signal(8, handler);
     _MM_SET_EXCEPTION_MASK(_MM_GET_EXCEPTION_MASK() & ~_MM_MASK_INVALID);
-    
+
     const char * pretrained_file = NULL;
-    
+
     if (argc >= 3 && strcmp("--load", argv[1]) == 0) {
         pretrained_file = argv[2];
     }
-    
+
     PSNeuralNetwork * network = PSCreateNetwork("RNN Demo");
     if (network == NULL) {
         fprintf(stderr, "Could not create network!\n");
         return 1;
     }
     network->flags |= FLAG_ONEHOT;
-    
+
     if (pretrained_file == NULL) {
         PSAddLayer(network, FullyConnected, VOCABULARY_SIZE, NULL);
         PSAddLayer(network, LSTM, VOCABULARY_SIZE / 10, NULL);
@@ -89,7 +89,7 @@ int main(int argc, char** argv) {
             return 1;
         }
     }
-    
+
     PSTrainingOptions options = {
         .flags = TRAINING_NO_SHUFFLE,
         .l2_decay = 0.0
@@ -97,7 +97,7 @@ int main(int argc, char** argv) {
     PSTrain(network, training_data, TRAIN_DATA_LEN, EPOCHS, LEARNING_RATE,
             BATCHES, &options,
             training_data, TRAIN_DATA_LEN);
-    
+
     if (TEST_DATA_LEN > 0) {
         printf("Test Data len: %d\n", TEST_DATA_LEN);
         PSTest(network, test_data, TEST_DATA_LEN);

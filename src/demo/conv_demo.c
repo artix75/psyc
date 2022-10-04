@@ -36,7 +36,7 @@ int main(int argc, char** argv) {
         printf("      %s --load TRAINED_DT_FILE [TEST_FILES...]\n", argv[0]);
         return 1;
     }
-    
+
     PSFloat * training_data = NULL;
     PSFloat * test_data = NULL;
     PSFloat * validation_data = NULL;
@@ -44,10 +44,10 @@ int main(int argc, char** argv) {
     int testlen = 0;
     int datalen = 0;
     int valdlen = 0;
-    
+
     int train_dataset_len = TRAIN_DATASET_LEN;
     int eval_dataset_len = EVAL_DATASET_LEN;
-    
+
     if (strcmp("--load", argv[1]) != 0) {
         datalen = loadMNISTData(DATA_TYPE_TRAINING, argv[1], argv[2],
                                 &training_data);
@@ -70,7 +70,7 @@ int main(int argc, char** argv) {
         if (test_data != NULL) free(test_data);
         return 1;
     }
-    
+
     if (pretrained_file == NULL) {
         PSLayerParameters * cparams;
         PSLayerParameters * pparams;
@@ -78,7 +78,7 @@ int main(int argc, char** argv) {
                                                   1, 0, RELU_ENABLED);
         pparams = PSCreateConvolutionalParameters(FEATURES_COUNT, POOL_SIZE,
                                                   0, 0, RELU_ENABLED);
-        
+
         if (cparams == NULL || pparams == NULL) {
             fprintf(stderr, "Could not create layer params!\n");
             PSDeleteNetwork(network);
@@ -86,14 +86,14 @@ int main(int argc, char** argv) {
             if (test_data != NULL) free(test_data);
             return 1;
         }
-        
+
         PSAddLayer(network, FullyConnected, INPUT_SIZE, NULL);
         PSAddConvolutionalLayer(network, cparams);
         PSAddPoolingLayer(network, pparams);
         PSAddLayer(network, FullyConnected, 30, NULL);
         //PSAddLayer(network, FullyConnected, 10, NULL);
         PSAddLayer(network, SoftMax, 10, NULL);
-        
+
         if (network->size < 1) {
             fprintf(stderr, "Could not add all layers!\n");
             PSDeleteNetwork(network);
@@ -101,7 +101,7 @@ int main(int argc, char** argv) {
             if (test_data != NULL) free(test_data);
             return 1;
         }
-        
+
         int element_size = network->input_size + network->output_size;
         int element_count = datalen / element_size;
         if (element_count < train_dataset_len) {
@@ -128,7 +128,7 @@ int main(int argc, char** argv) {
                 valdlen = eval_dataset_len * element_size;
             }
         }
-        
+
     } else {
         int loaded = PSLoadNetwork(network, pretrained_file);
         if (!loaded) {
@@ -142,7 +142,7 @@ int main(int argc, char** argv) {
             return 1;
         }
     }
-    
+
     if (datalen > 0)
         PSTrain(network, training_data, datalen, EPOCHS, 1.5, 10, NULL,
                 validation_data, valdlen);
@@ -153,7 +153,7 @@ int main(int argc, char** argv) {
         if (test_data != NULL) free(test_data);
         return 1;
     }
-    
+
     if (testlen > 0 && test_data != NULL) {
         printf("Test Data len: %d\n", testlen);
         PSTest(network, test_data, testlen);

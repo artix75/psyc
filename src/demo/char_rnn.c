@@ -126,7 +126,7 @@ void TrainCallback (void * _net, int epoch, int epochs, PSFloat loss,
 int main(int argc, char**argv){
     PSNeuralNetwork * network = PSCreateNetwork("TEST CHAR RNN");
     network->onEpochTrained = TrainCallback;
-    
+
     int epochs = EPOCHS;
     int batch_size = BATCHES;
     PSFloat learning_rate = LEARNING_RATE;
@@ -143,7 +143,7 @@ int main(int argc, char**argv){
     PSFloat * tdataset = test_data;
     int tdlen = TEST_DATALEN;*/
     int pretest = 0 ;
-    
+
     int i;
     for (i = 0; i < argc; i++) {
         char * arg = argv[i];
@@ -208,13 +208,13 @@ int main(int argc, char**argv){
     }
     //printf("CHAR: %s\n", characters[6]);return 0;
     network->flags |= FLAG_ONEHOT;
-    
+
     PSAddLayer(network, FullyConnected, INPUT_SIZE, NULL);
     PSAddLayer(network, type, hidden_size, NULL);
     PSAddLayer(network, SoftMax, INPUT_SIZE, NULL);
 
     network->layers[network->size - 1]->flags |= FLAG_ONEHOT;
-    
+
     if (load_from != NULL) {
         PSLoadNetwork(network, load_from);
         if (complete_text)
@@ -223,7 +223,7 @@ int main(int argc, char**argv){
     else {
         printf("Epochs: %d\n", epochs);
         printf("Rate: %f\n", learning_rate);
-        
+
         if (pretest) {
             PSTest(network, training_data, TRAIN_DATALEN);
             TrainCallback (network, 0, 0, 0.0,
@@ -238,9 +238,9 @@ int main(int argc, char**argv){
         printf("L2 Decay: %.2f\n", (float) l2_decay);
         PSTrain(network, training_data, TRAIN_DATALEN, epochs, learning_rate,
                 batch_size, &options, training_data, TRAIN_DATALEN);
-        
+
         PSTest(network, training_data, TRAIN_DATALEN);
-        
+
         if (save_to != NULL)
             PSSaveNetwork(network, save_to);
     }

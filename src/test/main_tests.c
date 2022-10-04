@@ -319,7 +319,7 @@ int main(int argc, char** argv) {
     performTests(AVXTests);
     deleteTest(AVXTests);
 #endif
-    
+
     fullNetworkTests = createTest("Fully Connected Network");
     fullNetworkTests->setup = genericSetup;
     fullNetworkTests->teardown = genericTeardown;
@@ -331,7 +331,7 @@ int main(int argc, char** argv) {
     addTest(fullNetworkTests, "Save", NULL, testGenericSave);
     performTests(fullNetworkTests);
     deleteTest(fullNetworkTests);
-    
+
     convNetworkTests = createTest("Convolutional Network");
     convNetworkTests->setup = genericSetup;
     convNetworkTests->teardown = genericTeardown;
@@ -343,7 +343,7 @@ int main(int argc, char** argv) {
     addTest(convNetworkTests, "Save", NULL, testGenericSave);
     performTests(convNetworkTests);
     deleteTest(convNetworkTests);
-    
+
     recurrentNetworkTests = createTest("Recurrent Network");
     recurrentNetworkTests->setup = RNNSetup;
     recurrentNetworkTests->teardown = RNNTeardown;
@@ -355,7 +355,7 @@ int main(int argc, char** argv) {
     addTest(recurrentNetworkTests, "Save", NULL, testGenericSave);
     performTests(recurrentNetworkTests);
     deleteTest(recurrentNetworkTests);
-    
+
     LSTMNetworkTests = createTest("LSTM Network");
     LSTMNetworkTests->setup = LSTMSetup;
     LSTMNetworkTests->teardown = RNNTeardown;
@@ -365,9 +365,9 @@ int main(int argc, char** argv) {
     addTest(LSTMNetworkTests, "Save", NULL, testGenericSave);
     performTests(LSTMNetworkTests);
     deleteTest(LSTMNetworkTests);
-    
+
     return 0;
-    
+
 }
 
 int genericSetup (void* tc) {
@@ -420,7 +420,7 @@ int RNNSetup (void* tc) {
         return 0;
     }
     network->layers[network->size - 1]->flags |= FLAG_ONEHOT;
-    
+
     int i, j, w;
     for (i = 1; i < network->size; i++) {
         PSLayer * layer = network->layers[i];
@@ -492,7 +492,7 @@ int LSTMSetup (void* tc) {
     PSLayer * out = network->layers[network->size - 1];
     out->flags |= FLAG_ONEHOT;
     PSLayer * layer = network->layers[1];
-    
+
     int i, w;
     for (i = 0; i < layer->size; i++) {
         PSNeuron * neuron = layer->neurons[i];
@@ -508,7 +508,7 @@ int LSTMSetup (void* tc) {
             cell->forget_weights[w] = wf[i][w];
         }
     }
-    
+
     for (i = 0; i < out->size; i++) {
         PSNeuron * neuron = out->neurons[i];
         neuron->bias = 0.0;
@@ -516,7 +516,7 @@ int LSTMSetup (void* tc) {
             neuron->weights[w] = lstm_out_weights[i][w];
         }
     }
-    
+
     test_case->data = malloc(2 * sizeof(void*));
     if (test_case->data == NULL) {
         fprintf(stderr, "\nCould not allocate memory!\n");
@@ -671,7 +671,7 @@ int testConvFeedforward(void* tc, void* t) {
     PSNeuralNetwork * network = getNetwork(test_case);
     PSFloat * test_data = getTestData(test_case);
     PSFeedforward(network, test_data);
-    
+
     PSLayer * output = network->layers[network->size - 1];
     int i, res = 1;
     for (i = 0; i < output->size; i++) {
@@ -782,7 +782,7 @@ int testRNNLoad(void* tc, void* t) {
                 RECURRENT_NETWORK);
         return 0;
     }
-    
+
     int ok = 1, i, j, w;
     for (i = 1; i < network->size; i++) {
         PSLayer * layer = network->layers[i];
@@ -811,7 +811,7 @@ int testRNNLoad(void* tc, void* t) {
         }
         if (!ok) break;
     }
-    
+
     return ok;
 }
 
@@ -820,7 +820,7 @@ int testRNNFeedforward(void* tc, void* t) {
     Test * test = (Test*) t;
     PSNeuralNetwork * network = getNetwork(test_case);
     PSFeedforward(network, rnn_inputs);
-    
+
     PSLayer * output = network->layers[network->size - 1];
     int ok = 1, i, j;
     for (i = 0; i < output->size; i++) {
@@ -847,7 +847,7 @@ int testRNNBackprop(void* tc, void* t) {
     Test * test = (Test*) t;
     PSNeuralNetwork * network = getNetwork(test_case);
     int ok = 1, i, j, w;
-    
+
     PSGradient ** gradients = backpropThroughTime(network, rnn_inputs + 1,
                                                   rnn_labels, RNN_TIMES);
     int dsize = network->size - 1;
@@ -874,9 +874,9 @@ int testRNNBackprop(void* tc, void* t) {
         }
         if (!ok) break;
     }
-    
+
     PSDeleteGradients(gradients, network);
-    
+
     return ok;
 }
 
@@ -888,7 +888,7 @@ int testRNNStep(void* tc, void* t) {
     PSFloat * training_data = getTestData(test_case);
     PSFloat ** series = &training_data;
     int elements_count = (int) *training_data;
-    
+
     int ok = 1, i, j, w;
     PSFloat loss = updateWeights(network, training_data, 1, elements_count,
                                 NULL, RNN_LEARNING_RATE, NULL, NULL, series);
@@ -933,17 +933,17 @@ int testLSTMTrain(void* tc, void* tst) {
     /*int train_data_len = 2 + (LSTM_TIMES * 2);
     UNUSED(train_data_len);*/
     PSFloat * training_data = getTestData(test_case);
-    
+
     PSTrainingOptions options = {
         .flags = TRAINING_NO_SHUFFLE,
         .l2_decay = 0.0
     };
     PSTrain(network, training_data, 8, LSTM_EPOCHS, LSTM_LEARNING_RATE,
             LSTM_BATCHES, &options, NULL, 0);
-    
+
     PSLayer * layer = network->layers[1];
     int i, t, w, ok = 1;
-    
+
     for (i = 0; i < layer->size; i++) {
         PSNeuron * neuron = layer->neurons[i];
         PSLSTMCell * cell = GetLSTMCell(neuron);
@@ -1045,9 +1045,9 @@ int testLSTMTrain(void* tc, void* tst) {
             }
         }
     }
-    
+
     PSLayer * out = network->layers[network->size - 1];
-    
+
     for (i = 0; i < out->size; i++) {
         PSNeuron * neuron = out->neurons[i];
         PSRecurrentCell * cell = GetRecurrentCell(neuron);
@@ -1065,7 +1065,7 @@ int testLSTMTrain(void* tc, void* tst) {
             }
         }
     }
-    
+
     return ok;
 }
 
@@ -1080,9 +1080,9 @@ int testGenericClone(void* tc, void* t) {
         sprintf(msg, "Could not create network clone!\n");
         return 0;
     }
-    
+
     int ok = compareNetworks(network, clone, test);
-    
+
     PSDeleteNetwork(clone);
     return ok;
 }
@@ -1114,9 +1114,9 @@ int testGenericSave(void* tc, void* t) {
         sprintf(msg, "Could not load network!\n");
         return 0;
     }
-    
+
     ok = compareNetworks(network, clone, test);
-    
+
     remove(tmpfile);
     PSDeleteNetwork(clone);
     return ok;
@@ -1126,7 +1126,7 @@ int compareNetworks(PSNeuralNetwork * network, PSNeuralNetwork * clone,
                     Test* test)
 {
     int ok = 1, i, k, w;
-    
+
     ok = network->size == clone->size;
     if (!ok) {
         char * msg = malloc(255 * sizeof(char));
@@ -1135,7 +1135,7 @@ int compareNetworks(PSNeuralNetwork * network, PSNeuralNetwork * clone,
                 network->size, clone->size);
         return 0;
     }
-    
+
     for (i = 0; i < network->size; i++) {
         PSLayer * orig_l = network->layers[i];
         PSLayer * clone_l = clone->layers[i];
@@ -1289,16 +1289,16 @@ PSFloat test_dot(PSFloat * x, PSFloat * y, int size) {
 int testAVXDot(void* tc, void* t) {
     UNUSED(tc);
     Test * test = (Test*) t;
-    
+
     PSFloat x2[2] = {1.0, 2.0};
     PSFloat y2[2] = {0.5, 0.5};
-    
+
     PSFloat x4[4] = {1.0, 1.0, 2.0, 2.0};
     PSFloat y4[4] = {0.5, 0.5, 1.0, 0.5};
-    
+
     PSFloat x8[8] = {1.0, 1.0, 2.0, 2.0, 3.0, 2.0, 1.0, 1.0};
     PSFloat y8[8] = {0.5, 0.5, 1.0, 0.5, 0.0, 1.0, 2.0, 1.0};
-    
+
     PSFloat x16[16] = {1.0, 1.0, 2.0, 2.0, 3.0, 2.0, 1.0, 1.0,
                        0.5, 1.0, 0.0, 1.0, 3.0, 2.0, 1.0, 1.0};
     PSFloat y16[16] = {0.5, 0.5, 1.0, 0.5, 0.0, 1.0, 2.0, 1.0,
@@ -1328,29 +1328,29 @@ int testAVXDot(void* tc, void* t) {
     avx_res = AVXDotProduct(x16, y16, 16, NULL);
     cmp_res = test_dot(x16, y16, 16);
     ok = avx_res == cmp_res;
-    
+
     if (!ok) {
         char * msg = malloc(255 * sizeof(char));
         test->error_message = msg;
         sprintf(msg, "AVX[16]: Expected %g != %g\n", cmp_res, avx_res);
         return 0;
     }
-    
+
     avx_res = AVXDotProduct(x8, y8, 8, NULL);
     cmp_res = test_dot(x8, y8, 8);
     ok = avx_res == cmp_res;
-    
+
     if (!ok) {
         char * msg = malloc(255 * sizeof(char));
         test->error_message = msg;
         sprintf(msg, "AVX[8]: Expected %g != %g\n", cmp_res, avx_res);
         return 0;
     }
-    
+
     avx_res = AVXDotProduct(x4, y4, 4, NULL);
     cmp_res = test_dot(x4, y4, 4);
     ok = avx_res == cmp_res;
-    
+
     if (!ok) {
         char * msg = malloc(255 * sizeof(char));
         test->error_message = msg;
@@ -1361,7 +1361,7 @@ int testAVXDot(void* tc, void* t) {
         avx_res = AVXDotProduct(x2, y2, 2, NULL);
         cmp_res = test_dot(x2, y2, 2);
         ok = avx_res == cmp_res;
-        
+
         if (!ok) {
             char * msg = malloc(255 * sizeof(char));
             test->error_message = msg;
@@ -1375,40 +1375,40 @@ int testAVXDot(void* tc, void* t) {
 int testAVXSquare(void* tc, void* t) {
     UNUSED(tc);
     Test * test = (Test*) t;
-    
+
     PSFloat x2[2] = {1.0, 2.0};//5
     PSFloat x4[4] = {1.0, 1.0, 2.0, 2.0};//10
     PSFloat x8[8] = {1.0, 1.0, 2.0, 2.0, 1.0, 1.0, 2.0, 2.0};//20
-    
+
     PSFloat x16[16] = {1.0, 1.0, 2.0, 2.0, 1.0, 1.0, 2.0, 2.0,
         1.0, 1.0, 2.0, 2.0, 1.0, 1.0, 2.0, 2.0}; //40
-    
+
     PSFloat avx_res = AVXDotProduct(x16, x16, 16, NULL);
     PSFloat cmp_res = test_dot(x16, x16, 16);
     int ok = avx_res == cmp_res;
-    
+
     if (!ok) {
         char * msg = malloc(255 * sizeof(char));
         test->error_message = msg;
         sprintf(msg, "AVX[16]: Expected %g != %g\n", cmp_res, avx_res);
         return 0;
     }
-    
+
     avx_res = AVXDotProduct(x8, x8, 8, NULL);
     cmp_res = test_dot(x8, x8, 8);
     ok = avx_res == cmp_res;
-    
+
     if (!ok) {
         char * msg = malloc(255 * sizeof(char));
         test->error_message = msg;
         sprintf(msg, "AVX[8]: Expected %g != %g\n", cmp_res, avx_res);
         return 0;
     }
-    
+
     avx_res = AVXDotProduct(x4, x4, 4, NULL);
     cmp_res = test_dot(x4, x4, 4);
     ok = avx_res == cmp_res;
-    
+
     if (!ok) {
         char * msg = malloc(255 * sizeof(char));
         test->error_message = msg;
@@ -1420,7 +1420,7 @@ int testAVXSquare(void* tc, void* t) {
         avx_res = AVXDotProduct(x2, x2, 2, NULL);
         cmp_res = test_dot(x2, x2, 2);
         ok = avx_res == cmp_res;
-        
+
         if (!ok) {
             char * msg = malloc(255 * sizeof(char));
             test->error_message = msg;
@@ -1428,7 +1428,7 @@ int testAVXSquare(void* tc, void* t) {
             return 0;
         }
     }
-    
+
     return ok;
 }
 
@@ -1440,11 +1440,11 @@ int testAVXMultiplyVal(void* tc, void* t) {
     PSFloat val = 2.0;
     PSFloat y[4] = {0.0, 2.0, 4.0, 6.0};
     PSFloat dest[4] = {0.0, 0.0, 0.0, 0.0};
-    
+
     PSFloat x2[2] = {2.0, 3.0};
     PSFloat y2[2] = {4.0, 6.0};
     PSFloat dest2[2] = {0.0, 0.0};
-    
+
     AVXMultiplyValue(x, val, 4, dest, 0);
     for (i = 0; i < 4; i++) {
         ok = dest[i] == y[i];
@@ -1456,7 +1456,7 @@ int testAVXMultiplyVal(void* tc, void* t) {
             return 0;
         }
     }
-    
+
     AVXMultiplyValue(x, val, 4, dest, AVX_STORE_MODE_ADD);
     for (i = 0; i < 4; i++) {
         ok = (dest[i] == (y[i] + y[i]));
@@ -1468,7 +1468,7 @@ int testAVXMultiplyVal(void* tc, void* t) {
             return 0;
         }
     }
-    
+
     if (AVX_MIN_VECTOR_SIZE <= 2) {
         AVXMultiplyValue(x2, val, 2, dest2, 0);
         for (i = 0; i < 2; i++) {
@@ -1481,7 +1481,7 @@ int testAVXMultiplyVal(void* tc, void* t) {
                 return 0;
             }
         }
-        
+
         AVXMultiplyValue(x2, val, 2, dest2, AVX_STORE_MODE_ADD);
         for (i = 0; i < 2; i++) {
             ok = (dest2[i] == (y2[i] + y2[i]));
