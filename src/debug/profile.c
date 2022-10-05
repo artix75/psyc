@@ -37,9 +37,9 @@ PSFloat rnn_train_data[10] = {1, 4, 0, 1, 2, 3, 3, 2, 1, 0};
 
 int main(int argc, char** argv) {
 
-    PSFloat * test_data = NULL;
-    PSFloat * train_data = NULL;
-    PSFloat * eval_data = NULL;
+    PSFloat *test_data = NULL;
+    PSFloat *train_data = NULL;
+    PSFloat *eval_data = NULL;
     int datalen = loadMNISTData(DATA_TYPE_TRAINING,
                                 "../../resources/train-images-idx3-ubyte.gz",
                                 "../../resources/train-labels-idx1-ubyte.gz",
@@ -53,10 +53,10 @@ int main(int argc, char** argv) {
                                 "../../resources/t10k-labels-idx1-ubyte.gz",
                                 &test_data);
 
-    PSNeuralNetwork * network = PSCreateNetwork("Profiling Network");
+    PSNeuralNetwork *network = PSCreateNetwork("Profiling Network");
 
-    PSLayerParameters * cparams;
-    PSLayerParameters * pparams;
+    PSLayerParameters *cparams;
+    PSLayerParameters *pparams;
     cparams = PSCreateConvolutionalParameters(FEATURES_COUNT, REGIONS_SIZE,
                                               1, 0, 1);
     pparams = PSCreateConvolutionalParameters(FEATURES_COUNT, POOL_SIZE,
@@ -65,13 +65,13 @@ int main(int argc, char** argv) {
     PSAddConvolutionalLayer(network, cparams);
     PSAddPoolingLayer(network, pparams);
     PSAddLayer(network, FullyConnected, 30, NULL);
-    //PSAddLayer(network, FullyConnected, 10, NULL);
+    /* PSAddLayer(network, FullyConnected, 10, NULL); */
     PSAddLayer(network, SoftMax, 10, NULL);
 
     int element_size = network->input_size + network->output_size;
-    datalen = element_size * TRAIN_DATASET_LEN;
+    datalen = element_size *TRAIN_DATASET_LEN;
     eval_data = train_data + datalen;
-    int eval_datalen = element_size * EVAL_DATASET_LEN;
+    int eval_datalen = element_size *EVAL_DATASET_LEN;
 
     PSTrain(network, train_data, datalen, EPOCHS, 1.5, 1, NULL, eval_data,
             eval_datalen);

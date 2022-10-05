@@ -31,7 +31,7 @@
     (x << 8 & 0x00FF0000) | \
     (x << 24))
 
-int decompressGZip(FILE *source, FILE * dest) {
+int decompressGZip(FILE *source, FILE *dest) {
     int ret;
     unsigned have;
     z_stream strm;
@@ -110,8 +110,8 @@ void zerr(int ret)
     }
 }
 
-void getTempFileName(const char * prefix, char * buffer) {
-    FILE * urand = fopen("/dev/urandom", "r");
+void getTempFileName(const char *prefix, char *buffer) {
+    FILE *urand = fopen("/dev/urandom", "r");
     char buff[4];
     fgets(buff, 4, urand);
     sprintf(buffer, "/tmp/%s-%02x%02x%02x%02x",
@@ -124,13 +124,13 @@ void getTempFileName(const char * prefix, char * buffer) {
 }
 
 int loadMNISTData(int type,
-                  const char * images_file,
-                  const char * labels_file,
-                  PSFloat ** data) {
+                  const char *images_file,
+                  const char *labels_file,
+                  PSFloat **data) {
     char tmpImagesFileName[255];
     char tmpLabelsFileName[255];
-    char * prefixImg;
-    char * prefixLbl;
+    char *prefixImg;
+    char *prefixLbl;
     int err;
     if (type == DATA_TYPE_TRAINING) {
         printf("Loading MNIST Data for training...\n");
@@ -143,8 +143,8 @@ int loadMNISTData(int type,
     }
     getTempFileName(prefixImg, tmpImagesFileName);
     getTempFileName(prefixLbl, tmpLabelsFileName);
-    FILE * images = fopen(images_file, "r");
-    FILE * labels = fopen(labels_file, "r");
+    FILE *images = fopen(images_file, "r");
+    FILE *labels = fopen(labels_file, "r");
     if (images == NULL) {
         fprintf(stderr, "Cannot open %s\n", images_file);
         data = NULL;
@@ -155,8 +155,8 @@ int loadMNISTData(int type,
         data = NULL;
         return 0;
     }
-    FILE * tmpimages = fopen(tmpImagesFileName, "w");
-    FILE * tmplabels = fopen(tmpLabelsFileName, "w");
+    FILE *tmpimages = fopen(tmpImagesFileName, "w");
+    FILE *tmplabels = fopen(tmpLabelsFileName, "w");
     printf("Loading images...\n");
     err = decompressGZip(images, tmpimages);
     if (err) {zerr(err); data = NULL; return 0;}
@@ -212,15 +212,15 @@ int loadMNISTData(int type,
     rows = le2be(rows);
     cols = le2be(cols);
     printf("Image size: %dx%d\n", rows, cols);
-    int img_area = rows * cols;
+    int img_area = rows *cols;
     if (img_area == 0) {
         fputs("Invalid image size!\n", stderr);
         data = NULL;
         return 0;
     }
-    int data_len = (img_area * image_count) + (label_count * 10);
+    int data_len = (img_area *image_count) + (label_count * 10);
     *data = malloc(data_len * sizeof(PSFloat));
-    PSFloat * data_p = *data;
+    PSFloat *data_p = *data;
     for (i = 0; i < (int) image_count; i++) {
         printf("\rLoading image %d/%d", i + 1, image_count);
         for (j = 0; j < img_area; j++) {
@@ -230,7 +230,7 @@ int loadMNISTData(int type,
             data_p++;
         }
         int label = fgetc(tmplabels);
-        //printf("Label: %d", label);
+        /* printf("Label: %d", label); */
         for (j = 0; j < 10; j++) {
             *data_p = (j == label);
             data_p++;
@@ -243,7 +243,7 @@ int loadMNISTData(int type,
     fclose(tmplabels);
     remove(tmpImagesFileName);
     remove(tmpLabelsFileName);
-    //printf("Datalen: %d\n", data_len);
-    //printf("Allocated data size: %d\n", data_p - *data);
+    /* printf("Datalen: %d\n", data_len); */
+    /* printf("Allocated data size: %d\n", data_p - *data); */
     return data_len;
 }

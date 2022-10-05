@@ -81,7 +81,7 @@
     int avx_step_len = AVXGetStepLen(size);\
     int avx_steps = (avx_step_len > 0 ? size / avx_step_len : 0), avx_step;\
     for (avx_step = 0; avx_step < avx_steps; avx_step++) {\
-        PSFloat * x_vector = x + i;\
+        PSFloat *x_vector = x + i;\
         if (is_recurrent) x_vector += (t * size);\
         int c = AVXMultiplyValue(x_vector, val, avx_step_len, dest + i, mode);\
         assert(c == avx_step_len);\
@@ -106,12 +106,12 @@
     int avx_step_len = AVXGetStepLen(size); \
     int avx_steps = (avx_step_len > 0 ? size / avx_step_len : 0), avx_step;\
     for (avx_step = 0; avx_step < avx_steps; avx_step++) { \
-        PSFloat * xv1 = x1 + i; \
-        PSFloat * xv2 = x2 + i; \
-        PSFloat * dd = dest + i; \
+        PSFloat *xv1 = x1 + i;\
+        PSFloat *xv2 = x2 + i;\
+        PSFloat *dd = dest + i;\
         if (is_recurrent) {\
-            xv1 += (t * size); \
-            xv2 += (t * size); \
+            xv1 += (t * size);\
+            xv2 += (t * size);\
         }\
         int c1 = AVXMultiplyValue(xv1, v1, avx_step_len, dd, mode1);\
         assert(c1 == avx_step_len);\
@@ -142,7 +142,7 @@
     int avx_steps = (avx_step_len > 0 ? size / avx_step_len : 0), avx_step;\
     int x_is_dest = (x == dest);\
     for (avx_step = 0; avx_step < avx_steps; avx_step++) {\
-        int doffs = (x_is_dest ? i : 0); \
+        int doffs = (x_is_dest ? i : 0);\
         int c = AVXDiff(x + i, y + i, avx_step_len, dest + doffs, mode);\
         assert(c == avx_step_len);\
         i += avx_step_len;\

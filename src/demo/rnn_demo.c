@@ -38,10 +38,10 @@ void handler(int sig) {
     void *array[10];
     size_t size;
 
-    // get void*'s for all entries on the stack
+    /*  get void*'s for all entries on the stack */
     size = backtrace(array, 10);
 
-    // print out all the frames to stderr
+    /*  print out all the frames to stderr */
     fprintf(stdout, "Error: signal %d:\n", sig);
     backtrace_symbols_fd(array, size, STDOUT_FILENO);
     exit(1);
@@ -53,13 +53,13 @@ int main(int argc, char** argv) {
     signal(8, handler);
     _MM_SET_EXCEPTION_MASK(_MM_GET_EXCEPTION_MASK() & ~_MM_MASK_INVALID);
 
-    const char * pretrained_file = NULL;
+    const char *pretrained_file = NULL;
 
     if (argc >= 3 && strcmp("--load", argv[1]) == 0) {
         pretrained_file = argv[2];
     }
 
-    PSNeuralNetwork * network = PSCreateNetwork("RNN Demo");
+    PSNeuralNetwork *network = PSCreateNetwork("RNN Demo");
     if (network == NULL) {
         fprintf(stderr, "Could not create network!\n");
         return 1;
@@ -104,7 +104,7 @@ int main(int argc, char** argv) {
     if (pretrained_file == NULL)
         PSSaveNetwork(network, "/tmp/pretrained.rnn.data");
     PSDeleteNetwork(network);
-    //free(training_data);
-    //if (TEST_DATA_LEN) free(test_data);
+    /* free(training_data); */
+    /* if (TEST_DATA_LEN) free(test_data); */
     return 0;
 }

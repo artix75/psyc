@@ -34,12 +34,12 @@ int main(int argc, char** argv) {
     PSCatchFloatingPointExceptions(/*FE_INVALID | */FE_OVERFLOW | FE_DIVBYZERO);
 #endif
     PSHandleSignals(NULL);
-    PSFloat * training_data = NULL;
-    PSFloat * test_data = NULL;
+    PSFloat *training_data = NULL;
+    PSFloat *test_data = NULL;
     int testlen = 0;
     int datalen = 0;
     int loaded = 0;
-    PSNeuralNetwork * network = PSCreateNetwork("MNIST Demo");
+    PSNeuralNetwork *network = PSCreateNetwork("MNIST Demo");
     if (network == NULL) {
         fprintf(stderr, "Could not create network!\n");
         return 1;

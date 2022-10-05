@@ -25,26 +25,26 @@
 typedef struct {
     int states_count;
     int weights_size;
-    PSFloat * states;
-    PSFloat * weights;
+    PSFloat *states;
+    PSFloat *weights;
 } PSRecurrentCell;
 
-PSRecurrentCell * PSCreateRecurrentCell(PSNeuron * neuron, int lsize);
-PSFloat * PSAddRecurrentState(PSNeuralNetwork *net, PSNeuron *neuron,
+PSRecurrentCell *PSCreateRecurrentCell(PSNeuron *neuron, int lsize);
+PSFloat *PSAddRecurrentState(PSNeuralNetwork *net, PSNeuron *neuron,
                              PSFloat state, int times, int t);
 
 /* Init Functions */
 
-int PSInitRecurrentLayer(PSNeuralNetwork * network, PSLayer * layer,
+int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
                          int size, int ws);
 
 /* Feedforward Functions */
 
-int PSRecurrentFeedforward(void * _net, void * _layer, ...);
+int PSRecurrentFeedforward(void *_net, void *_layer, ...);
 
 /* Backpropagation Functions */
 
-int PSRecurrentBackprop(PSLayer * layer, PSLayer * previousLayer, int lowest_t,
-                        PSGradient * lgradients, int t);
+int PSRecurrentBackprop(PSLayer *layer, PSLayer *previousLayer, int lowest_t,
+                        PSGradient *lgradients, int t);
 
-#endif //__PS_RECURRENT_H
+#endif /* __PS_RECURRENT_H */

@@ -87,7 +87,7 @@ int AVXComputeStepLength(int size, int allow_multiple_vectors, int *bits) {
     int num_vectors = size / reglen;
     assert(num_vectors <= MAX_AVX_VECTORS);
     while (num_vectors > 1 && (num_vectors % 2) != 0) num_vectors--;
-    size = num_vectors * reglen; /* Ensure vector_len is multiple of reglen */
+    size = num_vectors *reglen; /* Ensure vector_len is multiple of reglen */
     return size;
 }
 
@@ -106,7 +106,7 @@ PSFloat AVXDotProduct(PSFloat *x, PSFloat *y, int size, int *count) {
     int reglen = regbits / (8 * sizeof(PSFloat));
     int num_vectors = size / reglen;
     assert(num_vectors <= MAX_AVX_VECTORS);
-    size = num_vectors * reglen; /* Ensure vector_len is multiple of reglen */
+    size = num_vectors *reglen; /* Ensure vector_len is multiple of reglen */
     if (count != NULL) *count = size;
     int sumv_len = reglen, count_divisor = 1, i;
     void *sumv = NULL;

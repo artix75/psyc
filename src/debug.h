@@ -104,4 +104,4 @@ void PSAddDebugInfo(void *network, char *file, const char *func, int line,
                     char *prop, PSFloat val);
 
 extern int PSOriginalStdOutFD;
-#endif // __DEBUG_H
+#endif /*  __DEBUG_H */

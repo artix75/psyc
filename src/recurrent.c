@@ -31,8 +31,8 @@
 
 #define UNUSED(V) ((void) V)
 
-PSRecurrentCell * PSCreateRecurrentCell(PSNeuron * neuron, int lsize) {
-    PSRecurrentCell * cell = malloc(sizeof(PSRecurrentCell));
+PSRecurrentCell *PSCreateRecurrentCell(PSNeuron *neuron, int lsize) {
+    PSRecurrentCell *cell = malloc(sizeof(PSRecurrentCell));
     if (cell == NULL) return NULL;
     cell->states_count = 0;
     cell->states = NULL;
@@ -42,10 +42,10 @@ PSRecurrentCell * PSCreateRecurrentCell(PSNeuron * neuron, int lsize) {
     return cell;
 }
 
-PSFloat * PSAddRecurrentState(PSNeuralNetwork *net, PSNeuron *neuron,
+PSFloat *PSAddRecurrentState(PSNeuralNetwork *net, PSNeuron *neuron,
                              PSFloat state, int times, int t)
 {
-    PSRecurrentCell * cell = GetRecurrentCell(neuron);
+    PSRecurrentCell *cell = GetRecurrentCell(neuron);
     if (cell == NULL) {
         cell = PSCreateRecurrentCell(neuron, 0);
         neuron->extra = cell;
@@ -64,13 +64,13 @@ PSFloat * PSAddRecurrentState(PSNeuralNetwork *net, PSNeuron *neuron,
     cell->states[t] = state;
 #ifdef USE_AVX
     if (!PSIsAVXDisabled(net)) {
-        PSLayer * layer = getNeuronLayer(neuron);
+        PSLayer *layer = getNeuronLayer(neuron);
         assert(layer != NULL);
         int lsize = layer->size;
         if (t == 0 && neuron->index == 0) {
             if (layer->avx_activation_cache != NULL)
                 free(layer->avx_activation_cache);
-            layer->avx_activation_cache = calloc(lsize * times, sizeof(PSFloat));
+            layer->avx_activation_cache = calloc(lsize *times, sizeof(PSFloat));
         }
         if (layer->avx_activation_cache == NULL) {
             printMemoryErrorMsg();
@@ -89,12 +89,12 @@ PSFloat * PSAddRecurrentState(PSNeuralNetwork *net, PSNeuron *neuron,
 
 /* Init Functions */
 
-int PSInitRecurrentLayer(PSNeuralNetwork * network, PSLayer * layer,
+int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
                          int size,int ws)
 {
     int i, j;
     ws += size;
-    char * func = "PSInitRecurrentLayer";
+    char *func = "PSInitRecurrentLayer";
     layer->neurons = malloc(sizeof(PSNeuron*) * size);
     /*#ifdef USE_AVX
      layer->avx_activation_cache = calloc(size, sizeof(PSFloat));
@@ -105,7 +105,7 @@ int PSInitRecurrentLayer(PSNeuralNetwork * network, PSLayer * layer,
         return 0;
     }
     for (i = 0; i < size; i++) {
-        PSNeuron * neuron = malloc(sizeof(PSNeuron));
+        PSNeuron *neuron = malloc(sizeof(PSNeuron));
         if (neuron == NULL) {
             PSErr(func, "Could not allocate neuron!");
             PSAbortLayer(network, layer);
@@ -144,10 +144,10 @@ int PSInitRecurrentLayer(PSNeuralNetwork * network, PSLayer * layer,
 /* Feedforward Functions */
 
 
-int PSRecurrentFeedforward(void * _net, void * _layer, ...) {
-    PSNeuralNetwork * net = (PSNeuralNetwork*) _net;
-    PSLayer * layer = (PSLayer*) _layer;
-    char * func = "PSRecurrentFeedforward";
+int PSRecurrentFeedforward(void *_net, void *_layer, ...) {
+    PSNeuralNetwork *net = (PSNeuralNetwork*) _net;
+    PSLayer *layer = (PSLayer*) _layer;
+    char *func = "PSRecurrentFeedforward";
     va_list args;
     va_start(args, _layer);
     int times = va_arg(args, int);
@@ -167,7 +167,7 @@ int PSRecurrentFeedforward(void * _net, void * _layer, ...) {
         PSErr(NULL, "Cannot feedforward on layer 0!");
         return 0;
     }
-    PSLayer * previous = net->layers[layer->index - 1];
+    PSLayer *previous = net->layers[layer->index - 1];
     if (previous == NULL) {
         PSErr(NULL, "Layer[%d]: previous layer is NULL!", layer->index);
         return 0;
@@ -176,7 +176,7 @@ int PSRecurrentFeedforward(void * _net, void * _layer, ...) {
     int avx_disabled = PSIsAVXDisabled(net);
 #endif
     int onehot = previous->flags & FLAG_ONEHOT;
-    PSLayerParameters * params = NULL;
+    PSLayerParameters *params = NULL;
     int vector_size = 0, vector_idx = 0;
     if (onehot) {
         params = previous->parameters;
@@ -191,7 +191,7 @@ int PSRecurrentFeedforward(void * _net, void * _layer, ...) {
             return 0;
         }
         vector_size = (int) (params->parameters[0]);
-        PSNeuron * prev_neuron = previous->neurons[0];
+        PSNeuron *prev_neuron = previous->neurons[0];
         vector_idx = (int) (prev_neuron->activation);
         if (vector_size == 0 && vector_idx >= vector_size) {
             PSErr(NULL, "Layer[%d]: invalid vector index %d (max. %d)!",
@@ -201,8 +201,8 @@ int PSRecurrentFeedforward(void * _net, void * _layer, ...) {
     }
     int i, j, w, previous_size = previous->size;
     for (i = 0; i < size; i++) {
-        PSNeuron * neuron = layer->neurons[i];
-        PSRecurrentCell * cell = GetRecurrentCell(neuron);
+        PSNeuron *neuron = layer->neurons[i];
+        PSRecurrentCell *cell = GetRecurrentCell(neuron);
         if (cell == NULL) {
             PSErr(NULL, "Layer[%d]: neuron[%d] cell is NULL!",
                   layer->index, i);
@@ -221,7 +221,7 @@ int PSRecurrentFeedforward(void * _net, void * _layer, ...) {
             }
 #endif
             for (; j < previous_size; j++) {
-                PSNeuron * prev_neuron = previous->neurons[j];
+                PSNeuron *prev_neuron = previous->neurons[j];
                 if (prev_neuron == NULL) return 0;
                 PSFloat a = prev_neuron->activation;
                 sum += (a * neuron->weights[j]);
@@ -239,12 +239,12 @@ int PSRecurrentFeedforward(void * _net, void * _layer, ...) {
             }
 #endif
             for (; w < size; w++) {
-                PSNeuron * n = layer->neurons[w];
-                PSRecurrentCell * rc = GetRecurrentCell(n);
+                PSNeuron *n = layer->neurons[w];
+                PSRecurrentCell *rc = GetRecurrentCell(n);
                 if (rc == NULL) return 0;
                 PSFloat weight = cell->weights[w];
                 PSFloat last_state = rc->states[last_t];
-                bias += (weight * last_state);
+                bias += (weight *last_state);
             }
         } else {
             if (cell->states != NULL) free(cell->states);
@@ -254,7 +254,7 @@ int PSRecurrentFeedforward(void * _net, void * _layer, ...) {
             if (!avx_disabled && neuron->index == 0) {
                 if (layer->avx_activation_cache != NULL)
                     free(layer->avx_activation_cache);
-                layer->avx_activation_cache = calloc(times * size,
+                layer->avx_activation_cache = calloc(times *size,
                                                      sizeof(PSFloat));
                 if (layer->avx_activation_cache == NULL) {
                     printMemoryErrorMsg();
@@ -276,8 +276,8 @@ int PSRecurrentFeedforward(void * _net, void * _layer, ...) {
 
 /* Backpropagation Functions */
 
-int PSRecurrentBackprop(PSLayer * layer, PSLayer * previousLayer, int lowest_t,
-                             PSGradient * lgradients, int t)
+int PSRecurrentBackprop(PSLayer *layer, PSLayer *previousLayer, int lowest_t,
+                             PSGradient *lgradients, int t)
 {
     PSNeuralNetwork *net = (PSNeuralNetwork *) layer->network;
 #ifdef USE_AVX
@@ -287,18 +287,18 @@ int PSRecurrentBackprop(PSLayer * layer, PSLayer * previousLayer, int lowest_t,
 #endif
     int lsize = layer->size, i, w, tt;
     for (tt = t; tt >= lowest_t; tt--) {
-        PSFloat * delta = layer->delta;
-        PSFloat * new_delta = NULL;
+        PSFloat *delta = layer->delta;
+        PSFloat *new_delta = NULL;
         for (i = 0; i < lsize; i++) {
-            PSNeuron * neuron = layer->neurons[i];
-            PSRecurrentCell * cell = GetRecurrentCell(neuron);
-            PSGradient * gradient = &(lgradients[i]);
+            PSNeuron *neuron = layer->neurons[i];
+            PSRecurrentCell *cell = GetRecurrentCell(neuron);
+            PSGradient *gradient = &(lgradients[i]);
             PSFloat dv = delta[i];
             gradient->bias += dv;
             int wsize = neuron->weights_size - cell->weights_size;
 
             if (previousLayer->flags & FLAG_ONEHOT) {
-                PSLayerParameters * params = previousLayer->parameters;
+                PSLayerParameters *params = previousLayer->parameters;
                 if (params == NULL) {
                     fprintf(stderr, "Layer %d params are NULL!\n",
                             previousLayer->index);
@@ -306,18 +306,18 @@ int PSRecurrentBackprop(PSLayer * layer, PSLayer * previousLayer, int lowest_t,
                 }
                 int vector_size = (int) params->parameters[0];
                 assert(vector_size > 0);
-                PSNeuron * prev_n = previousLayer->neurons[0];
-                PSRecurrentCell * prev_c = GetRecurrentCell(prev_n);
+                PSNeuron *prev_n = previousLayer->neurons[0];
+                PSRecurrentCell *prev_c = GetRecurrentCell(prev_n);
                 PSFloat prev_a = prev_c->states[tt];
                 assert(prev_a < vector_size);
                 w = (int) prev_a;
                 gradient->weights[w] += dv;
             } else {
                 for (w = 0; w < wsize; w++) {
-                    PSNeuron * prev_n = previousLayer->neurons[w];
-                    PSRecurrentCell * prev_c = GetRecurrentCell(prev_n);
+                    PSNeuron *prev_n = previousLayer->neurons[w];
+                    PSRecurrentCell *prev_c = GetRecurrentCell(prev_n);
                     PSFloat prev_a = prev_c->states[tt];
-                    gradient->weights[w] += (dv * prev_a);
+                    gradient->weights[w] += (dv *prev_a);
                 }
             }
 
@@ -341,19 +341,19 @@ int PSRecurrentBackprop(PSLayer * layer, PSLayer * previousLayer, int lowest_t,
                 }
 #endif
                 for (; w < cell->weights_size; w++) {
-                    PSNeuron * rn = layer->neurons[w];
-                    PSRecurrentCell * rc = GetRecurrentCell(rn);
+                    PSNeuron *rn = layer->neurons[w];
+                    PSRecurrentCell *rc = GetRecurrentCell(rn);
                     PSFloat a = rc->states[tt - 1];
-                    gradient->weights[wsize + w] += (dv * a);
+                    gradient->weights[wsize + w] += (dv *a);
                 }
                 for (w = 0; w < cell->weights_size; w++) {
-                    PSNeuron * rn = layer->neurons[w];
-                    PSRecurrentCell * rc = GetRecurrentCell(rn);
+                    PSNeuron *rn = layer->neurons[w];
+                    PSRecurrentCell *rc = GetRecurrentCell(rn);
                     PSFloat rw = rc->weights[neuron->index];
                     rsum += (delta[rn->index] * rw);
                 }
                 PSFloat prev_a = cell->states[tt - 1];
-                new_delta[neuron->index] = rsum * layer->derivative(prev_a);
+                new_delta[neuron->index] = rsum *layer->derivative(prev_a);
             }
 
         }

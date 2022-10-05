@@ -87,7 +87,7 @@ PSFloat tanh_derivative(PSFloat val);
 
 /* Network Functions */
 
-void PSAbortLayer(PSNeuralNetwork * network, PSLayer * layer);
+void PSAbortLayer(PSNeuralNetwork *network, PSLayer *layer);
 
 /* Misc */
 
@@ -101,4 +101,4 @@ void fill_with_blank(int line_length);
 
 PSFloat *copy_floats(PSFloat *src, size_t size);
 
-#endif //__PS_UTILS_H
+#endif /* __PS_UTILS_H */

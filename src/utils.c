@@ -67,12 +67,12 @@ PSFloat relu_derivative(PSFloat val) {
 }
 
 PSFloat tanh_derivative(PSFloat val) {
-    return (1 - (val * val));
+    return (1 - (val *val));
 }
 
 /* Network Functions */
 
-void PSAbortLayer(PSNeuralNetwork * network, PSLayer * layer) {
+void PSAbortLayer(PSNeuralNetwork *network, PSLayer *layer) {
     if (!network->size) return;
     if (layer->index == (network->size - 1)) {
         network->size--;
@@ -80,10 +80,10 @@ void PSAbortLayer(PSNeuralNetwork * network, PSLayer * layer) {
             network->input_size = 0;
             network->output_size = 0;
         } else {
-            PSLayer * outputLayer = network->layers[network->size - 1];
+            PSLayer *outputLayer = network->layers[network->size - 1];
             if (outputLayer) network->output_size = outputLayer->size;
             else network->output_size = 0;
-            PSLayer * inputLayer = network->layers[0];
+            PSLayer *inputLayer = network->layers[0];
             if (inputLayer) network->input_size = inputLayer->size;
             else network->input_size = 0;
         }
@@ -104,11 +104,11 @@ PSFloat normalized_random() {
 }
 
 PSFloat gaussian_random(PSFloat mean, PSFloat stddev) {
-    PSFloat theta = 2 * M_PI * normalized_random();
+    PSFloat theta = 2 * M_PI *normalized_random();
     PSFloat rho = PSSqrt(-2 * PSMathLog(1 - normalized_random()));
-    PSFloat scale = stddev * rho;
-    PSFloat x = mean + scale * cos(theta);
-    PSFloat y = mean + scale * sin(theta);
+    PSFloat scale = stddev *rho;
+    PSFloat x = mean + scale *cos(theta);
+    PSFloat y = mean + scale *sin(theta);
     PSFloat r = normalized_random();
     return (r > 0.5 ? y : x);
 }

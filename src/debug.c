@@ -289,8 +289,8 @@ void segvHandler(int sig, siginfo_t *info, void *secret) {
 
 #if defined(__APPLE__) && defined(__MACH__)
 
-// Public domain polyfill for feenableexcept on OS X
-// http://www-personal.umich.edu/~williams/archive/computation/fe-handling-example.c
+/*  Public domain polyfill for feenableexcept on OS X */
+/*  http://www-personal.umich.edu/~williams/archive/computation/fe-handling-example.c */
 
 #if defined(__arm) || defined(__arm64) || defined(__aarch64__)
 #define IS_ARM 1
@@ -301,7 +301,7 @@ int feenableexcept(unsigned int excepts)
 {
     static fenv_t fenv;
     unsigned int new_excepts = excepts & FE_ALL_EXCEPT;
-    // previous masks
+    /*  previous masks */
     unsigned int old_excepts;
 
     if (fegetenv(&fenv)) {
@@ -309,11 +309,11 @@ int feenableexcept(unsigned int excepts)
     }
 #if (IS_ARM == 1)
     old_excepts = env.__fpcr;
-    // unmask
+    /*  unmask */
     env.__fpcr = env.__fpcr | (excepts << FE_EXCEPT_SHIFT);
 #else
     old_excepts = fenv.__control & FE_ALL_EXCEPT;
-    // unmask
+    /*  unmask */
     fenv.__control &= ~new_excepts;
     fenv.__mxcsr   &= ~(new_excepts << 7);
 #endif
@@ -325,7 +325,7 @@ int fedisableexcept(unsigned int excepts)
 {
     static fenv_t fenv;
     unsigned int new_excepts = excepts & FE_ALL_EXCEPT;
-    // all previous masks
+    /*  all previous masks */
     unsigned int old_excepts;
 
     if (fegetenv(&fenv)) {
@@ -333,7 +333,7 @@ int fedisableexcept(unsigned int excepts)
     }
     old_excepts = fenv.__control & FE_ALL_EXCEPT;
 
-    // mask
+    /*  mask */
     fenv.__control |= new_excepts;
     fenv.__mxcsr   |= new_excepts << 7;
 
@@ -409,7 +409,7 @@ void PSTrainingDebugDumpStep(PSNeuralNetwork *network,
         phase_name, func
     );
     if (layer != NULL) {
-        char * type_name = PSGetLayerTypeLabel(layer);
+        char *type_name = PSGetLayerTypeLabel(layer);
         fprintf(network->training->debug_dump_to,
             ",layer=%d,type=%s",layer->index, type_name);
         if (neuron != NULL) {
@@ -451,7 +451,7 @@ void PSTrainingDebugDumpGradient(PSNeuralNetwork *network,
         phase_name, func
     );
     if (layer != NULL) {
-        char * type_name = PSGetLayerTypeLabel(layer);
+        char *type_name = PSGetLayerTypeLabel(layer);
         fprintf(network->training->debug_dump_to,
             ",layer=%d,type=%s",layer->index, type_name);
     }
@@ -461,7 +461,7 @@ void PSTrainingDebugDumpGradient(PSNeuralNetwork *network,
     if (!is_avx) last_widx = weight_size - 1;
     else {
         int avx_steps = weight_size / avx_len;
-        last_widx = (avx_steps * avx_len) - 1;
+        last_widx = (avx_steps *avx_len) - 1;
     }
     fprintf(network->training->debug_dump_to, ",weight_range=(%d,%d)",
         weight_idx, last_widx);
@@ -484,9 +484,9 @@ void PSTrainingDebugDumpHeader(PSNeuralNetwork *network,
     if (network->training->debug_dump_to == NULL) return;
     PSTrainingDebugDump(network, "### HEADER\n");
     PSTrainingDebugDump(network, "psyc:version=%s\n", PSYC_VERSION);
-    const char * name = network->name;
+    const char *name = network->name;
     if (name == NULL || !strlen(name)) name = "UNNAMED NETWORK";
-    char * loss_name = getLossFunctionName(network->loss);
+    char *loss_name = getLossFunctionName(network->loss);
     int avx_enabled = !PSIsAVXDisabled(network);
     PSTrainingDebugDump(network,
         "network:name=%s,size=%d,loss_function=%s,status=%s,avx=%d\n",
@@ -495,14 +495,14 @@ void PSTrainingDebugDumpHeader(PSNeuralNetwork *network,
     );
     int i;
     for (i = 0; i < network->size; i++) {
-        PSLayer * layer = network->layers[i];
+        PSLayer *layer = network->layers[i];
         PSLayerType ltype = layer->type;
-        char * type_name = PSGetLayerTypeLabel(layer);
-        PSLayerParameters * lparams = layer->parameters;
+        char *type_name = PSGetLayerTypeLabel(layer);
+        PSLayerParameters *lparams = layer->parameters;
         PSTrainingDebugDump(network, "layer:index=%d,type=%s,size=%d",
             i, type_name, layer->size);
         if (i == 0 && layer->flags & FLAG_ONEHOT) {
-            PSLayerParameters * params = layer->parameters;
+            PSLayerParameters *params = layer->parameters;
             int onehot_sz = (int) (params->parameters[0]);
             PSTrainingDebugDump(network, ",vector_size=%d", onehot_sz);
         }
@@ -525,7 +525,7 @@ void PSTrainingDebugDumpHeader(PSNeuralNetwork *network,
                 rsize, rsize, stride
             );
             if (ltype == Convolutional) {
-                char * actv = (use_relu ? "relu" : "sigmoid");
+                char *actv = (use_relu ? "relu" : "sigmoid");
                 int padding = (int) (params[PARAM_PADDING]);
                 if (padding < 0) padding = 0;
                 PSTrainingDebugDump(

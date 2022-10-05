@@ -24,13 +24,13 @@
 
 #define EPOCHS 300
 #define LEARNING_RATE 0.0025
-//#define LEARNING_RATE 0.01
+/* #define LEARNING_RATE 0.01 */
 #define BATCHES 1
 
 #define strEq(s1,s2) (strcmp(s1, s2) == 0)
 #define UNUSED(V) ((void) V)
 
-void CompleteText (PSNeuralNetwork * network, char* text, int len,
+void CompleteText (PSNeuralNetwork *network, char* text, int len,
                    float randomicity, int max_words)
 {
     int i = 0, wcount = 0;
@@ -53,7 +53,7 @@ void CompleteText (PSNeuralNetwork * network, char* text, int len,
             if (c == 0) break;
             int idx = -1;
             for (j = 0; j < INPUT_SIZE; j++) {
-                char * chr = characters[j];
+                char *chr = characters[j];
                 if (chr[0] == c) {
                     idx = j;
                     break;
@@ -79,7 +79,7 @@ void CompleteText (PSNeuralNetwork * network, char* text, int len,
         is_sep = (last_char == ' ' || last_char == ',' || last_char == '.');
         if (max_words > 0 && is_sep && (++wcount > max_words)) break;
         if (p <= randomicity && is_sep) {
-            PSLayer * out = network->layers[network->size - 1];
+            PSLayer *out = network->layers[network->size - 1];
             int o = 0;
             PSFloat omax = 0.0;
             int oidx = 0;
@@ -92,8 +92,8 @@ void CompleteText (PSNeuralNetwork * network, char* text, int len,
                 }
             }
             idx = oidx;
-            //printf("RND(%.2f):(%s)", p, characters[idx]);
-            //idx = (rand() % INPUT_SIZE);
+            /* printf("RND(%.2f):(%s)", p, characters[idx]); */
+            /* idx = (rand() % INPUT_SIZE); */
         }
         if (idx >= INPUT_SIZE) {
             fprintf(stderr, "Index %d >= %d", idx, INPUT_SIZE);
@@ -107,9 +107,9 @@ void CompleteText (PSNeuralNetwork * network, char* text, int len,
     printf("\n");
 }
 
-void TrainCallback (void * _net, int epoch, int epochs, PSFloat loss,
+void TrainCallback (void *_net, int epoch, int epochs, PSFloat loss,
                     PSFloat previous_loss, float accuracy,
-                    PSFloat * rate, PSFloat *training_data)
+                    PSFloat *rate, PSFloat *training_data)
 {
     UNUSED(epoch);
     UNUSED(epochs);
@@ -118,13 +118,13 @@ void TrainCallback (void * _net, int epoch, int epochs, PSFloat loss,
     UNUSED(accuracy);
     UNUSED(rate);
     UNUSED(training_data);
-    //if ((epoch % 2) != 0) return;
-    PSNeuralNetwork * network = (PSNeuralNetwork*) _net;
+    /* if ((epoch % 2) != 0) return; */
+    PSNeuralNetwork *network = (PSNeuralNetwork*) _net;
     CompleteText(network, NULL, 255, 2.0f, 0);
 }
 
 int main(int argc, char**argv){
-    PSNeuralNetwork * network = PSCreateNetwork("TEST CHAR RNN");
+    PSNeuralNetwork *network = PSCreateNetwork("TEST CHAR RNN");
     network->onEpochTrained = TrainCallback;
 
     int epochs = EPOCHS;
@@ -132,21 +132,21 @@ int main(int argc, char**argv){
     PSFloat learning_rate = LEARNING_RATE;
     PSFloat l2_decay = 0.0;
     PSLayerType type = LSTM;
-    char * save_to = NULL;
-    char * load_from = NULL;
-    char * complete_text = NULL;
+    char *save_to = NULL;
+    char *load_from = NULL;
+    char *complete_text = NULL;
     float randomicity = 2.0f;
     int max_words = 0;
     int hidden_size = INPUT_SIZE / 2;
-    /*PSFloat * vdataset = validation_data;
+    /*PSFloat *vdataset = validation_data;
     int vdlen = EVAL_DATALEN;
-    PSFloat * tdataset = test_data;
+    PSFloat *tdataset = test_data;
     int tdlen = TEST_DATALEN;*/
     int pretest = 0 ;
 
     int i;
     for (i = 0; i < argc; i++) {
-        char * arg = argv[i];
+        char *arg = argv[i];
         int next_idx = i + 1;
         if (strEq("--use-rnn", arg)) type = Recurrent;
         /*if (strEq("--same-dataset", arg)) {
@@ -157,7 +157,7 @@ int main(int argc, char**argv){
         }*/
         if (strEq("--pre-test", arg)) pretest = 1;
         if (next_idx < argc) {
-            char * next = argv[next_idx];
+            char *next = argv[next_idx];
             if (strEq("--epochs", arg) || strEq("-e", arg)) {
                 epochs = atoi(next);
                 if (!epochs) {
@@ -206,7 +206,7 @@ int main(int argc, char**argv){
             }
         }
     }
-    //printf("CHAR: %s\n", characters[6]);return 0;
+    /* printf("CHAR: %s\n", characters[6]);return 0; */
     network->flags |= FLAG_ONEHOT;
 
     PSAddLayer(network, FullyConnected, INPUT_SIZE, NULL);
@@ -230,7 +230,7 @@ int main(int argc, char**argv){
                            0.0, 0.0,
                            NULL, NULL);
         }
-        //epochs = 2;
+        /* epochs = 2; */
         PSTrainingOptions options = {
             .flags = TRAINING_NO_SHUFFLE,
             .l2_decay = l2_decay

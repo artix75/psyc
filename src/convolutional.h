@@ -42,21 +42,21 @@
 
 /* Init Functions */
 
-int PSInitConvolutionalLayer(PSNeuralNetwork * network, PSLayer * layer,
-                             PSLayerParameters * parameters);
-int PSInitPoolingLayer(PSNeuralNetwork * network, PSLayer * layer,
-                       PSLayerParameters * parameters);
+int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
+                             PSLayerParameters *parameters);
+int PSInitPoolingLayer(PSNeuralNetwork *network, PSLayer *layer,
+                       PSLayerParameters *parameters);
 
 /* Feedforward Functions */
 
-int PSConvolve(void * _net, void * _layer, ...);
-int PSPool(void * _net, void * _layer, ...);
+int PSConvolve(void *_net, void *_layer, ...);
+int PSPool(void *_net, void *_layer, ...);
 
 /* Backpropagation Functions */
 
-int PSPoolingBackprop(PSLayer * pooling_layer, PSLayer * convolutional_layer,
-                      PSFloat * delta);
-int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer * prev_layer,
-                            PSGradient * lgradients);
+int PSPoolingBackprop(PSLayer *pooling_layer, PSLayer *convolutional_layer,
+                      PSFloat *delta);
+int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
+                            PSGradient *lgradients);
 
-#endif //__PS_CONVOLUTIONAL_H
+#endif /* __PS_CONVOLUTIONAL_H */

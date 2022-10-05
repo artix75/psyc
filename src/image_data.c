@@ -70,14 +70,14 @@ static float getScaleFactorToFit(int w, int h, int fitW, int fitH) {
     return (scale > 1 ? 1 : scale);
 }
 
-static PSFloat * getImagePixels(char * filename, int fit_w, int fit_h,
+static PSFloat *getImagePixels(char *filename, int fit_w, int fit_h,
                                int grayscale, int invert, char* bgcolor,
                                char* dump_file) {
     if (!__magick_instantiated) {
         MagickWandGenesis();
         __magick_instantiated = 1;
     }
-    MagickWand * wand;
+    MagickWand *wand;
     wand = NewMagickWand();
 
     MagickBooleanType ok = MagickReadImage(wand, filename);
@@ -97,7 +97,7 @@ static PSFloat * getImagePixels(char * filename, int fit_w, int fit_h,
     ColorspaceType colorspace = MagickGetImageColorspace(wand);*/
 
     int pixel_size;
-    char * channel_map;
+    char *channel_map;
 
     if (grayscale) {
         pixel_size = 1;
@@ -135,8 +135,8 @@ static PSFloat * getImagePixels(char * filename, int fit_w, int fit_h,
             MagickWandTerminus();
             return NULL;
         }
-        MagickWand * clone = NewMagickWand();
-        PixelWand * pwand = NewPixelWand();
+        MagickWand *clone = NewMagickWand();
+        PixelWand *pwand = NewPixelWand();
         if (clone == NULL || pwand == NULL) {
             LOG_MAGICK_ERR(wand);
             DestroyMagickWand(wand);
@@ -191,7 +191,7 @@ static PSFloat * getImagePixels(char * filename, int fit_w, int fit_h,
         }
     }
 
-    PSFloat * pixels = malloc(fit_w * fit_h * pixel_size * sizeof(PSFloat));
+    PSFloat *pixels = malloc(fit_w *fit_h *pixel_size *sizeof(PSFloat));
     if (pixels == NULL) {
         fprintf(stderr, "Could not allocate memory for image pixels!\n");
         DestroyMagickWand(wand);
@@ -208,7 +208,7 @@ static PSFloat * getImagePixels(char * filename, int fit_w, int fit_h,
     }
 
     if (dump_file != NULL) {
-        MagickWand * swand = NewMagickWand();
+        MagickWand *swand = NewMagickWand();
         if (swand != NULL) {
             ok = MagickConstituteImage(swand, fit_w, fit_h, channel_map,
                                        PSFloatPixel, pixels);
@@ -231,12 +231,12 @@ static PSFloat * getImagePixels(char * filename, int fit_w, int fit_h,
     return pixels;
 }
 
-int PSClassifyImage(PSNeuralNetwork * network, char * filename, int grayscale,
+int PSClassifyImage(PSNeuralNetwork *network, char *filename, int grayscale,
                     int invert, char* bgcolor, char* dump_file)
 {
     int input_size = network->input_size;
     int w = (int) PSSqrt((PSFloat) input_size);
-    PSFloat * pixels = getImagePixels(filename, w, w, grayscale,
+    PSFloat *pixels = getImagePixels(filename, w, w, grayscale,
                                      invert, bgcolor, dump_file);
     if (pixels == NULL) {
         PSErr("PSClassifyImage", "Failed to get pixels from %s", filename);

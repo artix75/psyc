@@ -70,10 +70,10 @@ w,steplen,step,rowlen) \
 
 /* Init Functions */
 
-int PSInitConvolutionalLayer(PSNeuralNetwork * network, PSLayer * layer,
-                             PSLayerParameters * parameters) {
+int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
+                             PSLayerParameters *parameters) {
     int index = layer->index;
-    char * func = "initConvolutionalLayer";
+    char *func = "initConvolutionalLayer";
     if (index == 0) {
         PSErr(func, "First (input) layer cannot be a convolutional layer!");
         PSAbortLayer(network, layer);
@@ -105,7 +105,7 @@ int PSInitConvolutionalLayer(PSNeuralNetwork * network, PSLayer * layer,
         return 0;
     }
     int previous_size = previous->size, prev_features;
-    PSLayerParameters * previous_params = previous->parameters;
+    PSLayerParameters *previous_params = previous->parameters;
     PSFloat input_w, input_h, output_w, output_h;
     int use_relu = (int) (params[PARAM_USE_RELU]);
 #ifdef USE_AVX
@@ -123,7 +123,7 @@ int PSInitConvolutionalLayer(PSNeuralNetwork * network, PSLayer * layer,
         input_w = previous_params->parameters[PARAM_OUTPUT_WIDTH];
         input_h = previous_params->parameters[PARAM_OUTPUT_HEIGHT];
         prev_features = (int) previous_params->parameters[PARAM_FEATURE_COUNT];
-        PSFloat prev_area = input_w * input_h * (PSFloat) prev_features;
+        PSFloat prev_area = input_w *input_h * (PSFloat) prev_features;
         if ((int) prev_area != previous_size) {
             PSErr(func, "Previous size %d != %lfx%lf",
                   previous_size, input_w, input_h);
@@ -142,8 +142,8 @@ int PSInitConvolutionalLayer(PSNeuralNetwork * network, PSLayer * layer,
                                           stride, (PSFloat) padding);
     params[PARAM_OUTPUT_WIDTH] = output_w;
     params[PARAM_OUTPUT_HEIGHT] = output_h;
-    int area = (int)(output_w * output_h);
-    int size = area * feature_count;
+    int area = (int)(output_w *output_h);
+    int size = area *feature_count;
     layer->size = size;
     layer->neurons = malloc(sizeof(PSNeuron*) * size);
     if (layer->neurons == NULL) {
@@ -161,14 +161,14 @@ int PSInitConvolutionalLayer(PSNeuralNetwork * network, PSLayer * layer,
         }
     }
 #endif
-    PSSharedParams * shared = malloc(sizeof(PSSharedParams));
+    PSSharedParams *shared = malloc(sizeof(PSSharedParams));
     if (shared == NULL) {
         PSErr(func, "Layer[%d]: Couldn't allocate shared params!", index);
         PSAbortLayer(network, layer);
         return 0;
     }
     shared->feature_count = feature_count;
-    shared->weights_size = (int)(region_size * region_size) * prev_features;
+    shared->weights_size = (int)(region_size *region_size) * prev_features;
     shared->biases = malloc(feature_count * sizeof(PSFloat));
     shared->weights = malloc(feature_count * sizeof(PSFloat*));
     if (shared->biases == NULL || shared->weights == NULL) {
@@ -193,7 +193,7 @@ int PSInitConvolutionalLayer(PSNeuralNetwork * network, PSLayer * layer,
         }
         for (j = 0; j < area; j++) {
             int idx = (i * area) + j;
-            PSNeuron * neuron = malloc(sizeof(PSNeuron));
+            PSNeuron *neuron = malloc(sizeof(PSNeuron));
             if (neuron == NULL) {
                 PSErr(func, "Layer[%d]: Couldn't allocate neuron!",index);
                 PSAbortLayer(network, layer);
@@ -219,11 +219,11 @@ int PSInitConvolutionalLayer(PSNeuralNetwork * network, PSLayer * layer,
     return 1;
 }
 
-int PSInitPoolingLayer(PSNeuralNetwork * network, PSLayer * layer,
-                       PSLayerParameters * parameters) {
+int PSInitPoolingLayer(PSNeuralNetwork *network, PSLayer *layer,
+                       PSLayerParameters *parameters) {
     int index = layer->index;
-    char * func = "initPoolingLayer";
-    PSLayer * previous = network->layers[index - 1];
+    char *func = "initPoolingLayer";
+    PSLayer *previous = network->layers[index - 1];
     if (previous->type != Convolutional) {
         PSErr(func, "Pooling's previous layer must be a Convolutional layer!");
         PSAbortLayer(network, layer);
@@ -240,8 +240,8 @@ int PSInitPoolingLayer(PSNeuralNetwork * network, PSLayer * layer,
         PSAbortLayer(network, layer);
         return 0;
     }
-    PSFloat * params = parameters->parameters;
-    PSLayerParameters * previous_parameters = previous->parameters;
+    PSFloat *params = parameters->parameters;
+    PSLayerParameters *previous_parameters = previous->parameters;
     if (previous_parameters == NULL) {
         PSErr(func, "Previous layer parameters is NULL!");
         PSAbortLayer(network, layer);
@@ -253,7 +253,7 @@ int PSInitPoolingLayer(PSNeuralNetwork * network, PSLayer * layer,
         PSAbortLayer(network, layer);
         return 0;
     }
-    PSFloat * previous_params = previous_parameters->parameters;
+    PSFloat *previous_params = previous_parameters->parameters;
     int feature_count = (int) (previous_params[PARAM_FEATURE_COUNT]);
     params[PARAM_FEATURE_COUNT] = (PSFloat) feature_count;
     PSFloat region_size = params[PARAM_REGION_SIZE];
@@ -274,8 +274,8 @@ int PSInitPoolingLayer(PSNeuralNetwork * network, PSLayer * layer,
 #ifdef USE_AVX
     int avx_disabled = PSIsAVXDisabled(network);
 #endif
-    int area = (int)(output_w * output_h);
-    int size = area * feature_count;
+    int area = (int)(output_w *output_h);
+    int size = area *feature_count;
     layer->size = size;
     layer->neurons = malloc(sizeof(PSNeuron*) * size);
     if (layer->neurons == NULL) {
@@ -297,7 +297,7 @@ int PSInitPoolingLayer(PSNeuralNetwork * network, PSLayer * layer,
     for (i = 0; i < feature_count; i++) {
         for (j = 0; j < area; j++) {
             int idx = (i * area) + j;
-            PSNeuron * neuron = malloc(sizeof(PSNeuron));
+            PSNeuron *neuron = malloc(sizeof(PSNeuron));
             if (neuron == NULL) {
                 PSErr(func, "Layer[%d]: Couldn't allocate neuron!", index);
                 PSAbortLayer(network, layer);
@@ -320,9 +320,9 @@ int PSInitPoolingLayer(PSNeuralNetwork * network, PSLayer * layer,
 
 /* Feedforward Functions */
 
-int PSConvolve(void * _net, void * _layer, ...) {
-    PSNeuralNetwork * net = (PSNeuralNetwork*) _net;
-    PSLayer * layer = (PSLayer*) _layer;
+int PSConvolve(void *_net, void *_layer, ...) {
+    PSNeuralNetwork *net = (PSNeuralNetwork*) _net;
+    PSLayer *layer = (PSLayer*) _layer;
     int size = layer->size;
     if (layer->neurons == NULL) {
         PSErr(NULL, "Layer[%d] has no neurons!", layer->index);
@@ -332,7 +332,7 @@ int PSConvolve(void * _net, void * _layer, ...) {
         PSErr(NULL, "Cannot feedforward on layer 0!");
         return 0;
     }
-    PSLayer * previous = net->layers[layer->index - 1];
+    PSLayer *previous = net->layers[layer->index - 1];
     if (previous == NULL) {
         PSErr(NULL, "Layer[%d]: previous layer is NULL!", layer->index);
         return 0;
@@ -340,12 +340,12 @@ int PSConvolve(void * _net, void * _layer, ...) {
     int do_dump =
         (net->training != NULL && net->training->debug_dump_to != NULL);
     int i, j, k, x, y, row, col;
-    PSLayerParameters * parameters = layer->parameters;
+    PSLayerParameters *parameters = layer->parameters;
     if (parameters == NULL) {
         PSErr(NULL, "Layer[%d]: parameters are NULL!", layer->index);
         return 0;
     }
-    PSLayerParameters * previous_parameters = previous->parameters;
+    PSLayerParameters *previous_parameters = previous->parameters;
     if (previous_parameters == NULL) {
         PSErr(NULL, "Layer[%d]: parameters are invalid!", layer->index);
         return 0;
@@ -358,13 +358,13 @@ int PSConvolve(void * _net, void * _layer, ...) {
         t = va_arg(args, int);
         va_end(args);
     }
-    PSFloat * params = parameters->parameters;
-    PSFloat * previous_params = previous_parameters->parameters;
+    PSFloat *params = parameters->parameters;
+    PSFloat *previous_params = previous_parameters->parameters;
     int feature_count = (int) (params[PARAM_FEATURE_COUNT]);
     int stride = (int) (params[PARAM_STRIDE]);
     int padding = (int) (params[PARAM_PADDING]);
     PSFloat region_size = params[PARAM_REGION_SIZE];
-    PSFloat region_area = region_size * region_size;
+    PSFloat region_area = region_size *region_size;
     PSFloat input_w = previous_params[PARAM_OUTPUT_WIDTH];
     PSFloat input_h = previous_params[PARAM_OUTPUT_HEIGHT];
     PSFloat output_w = params[PARAM_OUTPUT_WIDTH];
@@ -374,7 +374,7 @@ int PSConvolve(void * _net, void * _layer, ...) {
     /* AVX doesn't offer performance increase if not applied on big vectors */
     int avx_min_size = AVX_MIN_VECTOR_SIZE * 2;
 #endif
-    PSSharedParams * shared = getConvSharedParams(layer);
+    PSSharedParams *shared = getConvSharedParams(layer);
     if (shared == NULL) {
         PSErr(NULL, "Layer[%d]: shared params are NULL!", layer->index);
         return 0;
@@ -386,20 +386,20 @@ int PSConvolve(void * _net, void * _layer, ...) {
     for (i = 0; i < feature_count; i++) {
         if (do_dump && i > 1) do_dump = 0;
         PSFloat bias = shared->biases[i];
-        PSFloat * weights = shared->weights[i];
+        PSFloat *weights = shared->weights[i];
         row = 0;
         col = 0;
         for (j = 0; j < feature_size; j++) {
             int idx = (i * feature_size) + j;
-            PSNeuron * neuron = layer->neurons[idx];
+            PSNeuron *neuron = layer->neurons[idx];
             col = idx % (int) output_w;
             if (col == 0 && j > 0) row++;
-            int r_row = (row * stride) - padding;
-            int r_col = (col * stride) - padding;
+            int r_row = (row *stride) - padding;
+            int r_col = (col *stride) - padding;
             int max_x = region_size + r_col;
             int max_y = region_size + r_row;
             PSFloat sum = 0;
-            //printf("Neuron %d,%d: r: %d, b: %d\n", col, row, max_x, max_y);
+            /* printf("Neuron %d,%d: r: %d, b: %d\n", col, row, max_x, max_y); */
             for (k = 0; k < prev_features; k++) {
                 int widx = k * (int) region_area;
                 int feature_offset = k * previous_feature_size;
@@ -439,10 +439,10 @@ int PSConvolve(void * _net, void * _layer, ...) {
                             avx_steps = rowlen / avx_step_len;
                         for (avx_step = 0; avx_step < avx_steps; avx_step++) {
                             int nidx = feature_offset + (y * input_w) + x;
-                            PSFloat * x_vector =
+                            PSFloat *x_vector =
                                 previous->avx_activation_cache + nidx;
                             if (is_recurrent) x_vector += (t * previous->size);
-                            PSFloat * y_vector = weights + widx;
+                            PSFloat *y_vector = weights + widx;
                             if (do_dump) DumpConvolveAVXStep(
                                 net, layer, neuron, col, row, r_col, r_row,
                                 max_x, max_y, previous, k, nidx, x, y, widx,
@@ -457,7 +457,7 @@ int PSConvolve(void * _net, void * _layer, ...) {
 #endif
                     for (; x < max_x; x++) {
                         int nidx = feature_offset + (y * input_w) + x;
-                        //printf("  -> %d,%d [%d]\n", x, y, nidx);
+                        /* printf("  -> %d,%d [%d]\n", x, y, nidx); */
                         assert(nidx >= 0);
                         if (nidx >= previous->size) break;
                         if (x >= input_w) {
@@ -469,7 +469,7 @@ int PSConvolve(void * _net, void * _layer, ...) {
                             if (skip_w > 0) widx += skip_w;
                             break;
                         }
-                        PSNeuron * prev_neuron = previous->neurons[nidx];
+                        PSNeuron *prev_neuron = previous->neurons[nidx];
                         PSFloat a = prev_neuron->activation;
                         if (do_dump) DumpConvolveStep(net, layer, neuron,
                             col, row, r_col, r_row, max_x, max_y,previous,
@@ -478,7 +478,7 @@ int PSConvolve(void * _net, void * _layer, ...) {
                         sum += (a * weights[widx++]);
                     }
                 }
-                //weights += (int) region_area;
+                /* weights += (int) region_area; */
             }
             neuron->z_value = sum + bias;
             neuron->activation = layer->activate(neuron->z_value);
@@ -498,9 +498,9 @@ int PSConvolve(void * _net, void * _layer, ...) {
     return 1;
 }
 
-int PSPool(void * _net, void * _layer, ...) {
-    PSNeuralNetwork * net = (PSNeuralNetwork*) _net;
-    PSLayer * layer = (PSLayer*) _layer;
+int PSPool(void *_net, void *_layer, ...) {
+    PSNeuralNetwork *net = (PSNeuralNetwork*) _net;
+    PSLayer *layer = (PSLayer*) _layer;
     int size = layer->size;
     if (layer->neurons == NULL) {
         PSErr(NULL, "Layer[%d] has no neurons!", layer->index);
@@ -510,7 +510,7 @@ int PSPool(void * _net, void * _layer, ...) {
         PSErr(NULL, "Cannot feedforward on layer 0!");
         return 0;
     }
-    PSLayer * previous = net->layers[layer->index - 1];
+    PSLayer *previous = net->layers[layer->index - 1];
     if (previous == NULL) {
         PSErr(NULL, "Layer[%d]: previous layer is NULL!", layer->index);
         return 0;
@@ -519,12 +519,12 @@ int PSPool(void * _net, void * _layer, ...) {
 #ifdef USE_AVX
     int avx_disabled = PSIsAVXDisabled(net);
 #endif
-    PSLayerParameters * parameters = layer->parameters;
+    PSLayerParameters *parameters = layer->parameters;
     if (parameters == NULL) {
         PSErr(NULL, "Layer[%d]: parameters are NULL!", layer->index);
         return 0;
     }
-    PSLayerParameters * previous_parameters = previous->parameters;
+    PSLayerParameters *previous_parameters = previous->parameters;
     if (previous_parameters == NULL) {
         PSErr(NULL, "Layer[%d]: parameters are invalid!", layer->index);
         return 0;
@@ -539,8 +539,8 @@ int PSPool(void * _net, void * _layer, ...) {
         t = va_arg(args, int);
         va_end(args);
     }
-    PSFloat * params = parameters->parameters;
-    PSFloat * previous_params = previous_parameters->parameters;
+    PSFloat *params = parameters->parameters;
+    PSFloat *previous_params = previous_parameters->parameters;
     int feature_count = (int) (params[PARAM_FEATURE_COUNT]);
     PSFloat region_size = params[PARAM_REGION_SIZE];
     PSFloat input_w = previous_params[PARAM_OUTPUT_WIDTH];
@@ -553,18 +553,18 @@ int PSPool(void * _net, void * _layer, ...) {
         col = 0;
         for (j = 0; j < feature_size; j++) {
             int idx = (i * feature_size) + j;
-            PSNeuron * neuron = layer->neurons[idx];
+            PSNeuron *neuron = layer->neurons[idx];
             col = idx % (int) output_w;
             if (col == 0 && j > 0) row++;
-            int r_row = row * region_size;
-            int r_col = col * region_size;
+            int r_row = row *region_size;
+            int r_col = col *region_size;
             int max_x = region_size + r_col;
             int max_y = region_size + r_row;
             PSFloat max = 0.0, max_z = 0.0;
             for (y = r_row; y < max_y; y++) {
                 for (x = r_col; x < max_x; x++) {
-                    int nidx = ((y * input_w) + x) + (prev_size * i);
-                    PSNeuron * prev_neuron = previous->neurons[nidx];
+                    int nidx = ((y * input_w) + x) + (prev_size *i);
+                    PSNeuron *prev_neuron = previous->neurons[nidx];
                     PSFloat a = prev_neuron->activation;
                     PSFloat z = prev_neuron->z_value;
                     if (a > max) {
@@ -596,12 +596,12 @@ int PSPool(void * _net, void * _layer, ...) {
 
 /* Backpropagation Functions */
 
-int PSPoolingBackprop(PSLayer * pooling_layer, PSLayer * convolutional_layer,
-                      PSFloat * delta)
+int PSPoolingBackprop(PSLayer *pooling_layer, PSLayer *convolutional_layer,
+                      PSFloat *delta)
 {
-    PSFloat * conv_delta = convolutional_layer->delta;
-    PSLayerParameters * pool_params = pooling_layer->parameters;
-    PSLayerParameters * conv_params = convolutional_layer->parameters;
+    PSFloat *conv_delta = convolutional_layer->delta;
+    PSLayerParameters *pool_params = pooling_layer->parameters;
+    PSLayerParameters *conv_params = convolutional_layer->parameters;
     int feature_count = (int) (conv_params->parameters[PARAM_FEATURE_COUNT]);
     int pool_size = (int) (pool_params->parameters[PARAM_REGION_SIZE]);
     int feature_size = pooling_layer->size / feature_count;
@@ -623,18 +623,18 @@ int PSPoolingBackprop(PSLayer * pooling_layer, PSLayer * convolutional_layer,
         for (j = 0; j < feature_size; j++) {
             int idx = j + (i * feature_size);
             PSFloat d = delta[idx];
-            PSNeuron * neuron = pooling_layer->neurons[idx];
+            PSNeuron *neuron = pooling_layer->neurons[idx];
             col = idx % (int) output_w;
             if (col == 0 && j > 0) row++;
-            int r_row = row * pool_size;
-            int r_col = col * pool_size;
+            int r_row = row *pool_size;
+            int r_col = col *pool_size;
             int max_x = pool_size + r_col;
             int max_y = pool_size + r_row;
-            //PSFloat max = 0;
+            /* PSFloat max = 0; */
             for (y = r_row; y < max_y; y++) {
                 for (x = r_col; x < max_x; x++) {
-                    int nidx = ((y * input_w) + x) + (prev_feat_size * i);
-                    PSNeuron * prev_neuron = convolutional_layer->neurons[nidx];
+                    int nidx = ((y * input_w) + x) + (prev_feat_size *i);
+                    PSNeuron *prev_neuron = convolutional_layer->neurons[nidx];
                     if (do_dump) DumpPoolBackpropStep(
                         net, pooling_layer, pooling_layer->neurons[idx],
                         col, row, r_col, r_row, max_x, max_y,
@@ -655,16 +655,16 @@ int PSPoolingBackprop(PSLayer * pooling_layer, PSLayer * convolutional_layer,
     return 1;
 }
 
-int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer * prev_layer,
-                            PSGradient * lgradients)
+int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
+                            PSGradient *lgradients)
 {
     PSFloat *delta = convolutional_layer->delta;
     PSFloat *prev_delta = prev_layer->delta;
     int size = convolutional_layer->size;
-    PSLayerParameters * params = convolutional_layer->parameters;
+    PSLayerParameters *params = convolutional_layer->parameters;
     int feature_count = (int) (params->parameters[PARAM_FEATURE_COUNT]);
     int region_size = (int) (params->parameters[PARAM_REGION_SIZE]);
-    int region_area = region_size * region_size;
+    int region_area = region_size *region_size;
     int stride = (int) (params->parameters[PARAM_STRIDE]);
     int padding = (int) (params->parameters[PARAM_PADDING]);
     PSFloat input_w = params->parameters[PARAM_INPUT_WIDTH];
@@ -672,13 +672,13 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer * prev_layer,
     PSFloat output_w = params->parameters[PARAM_OUTPUT_WIDTH];
     int feature_size = size / feature_count;
     int previous_feature_size = 0, prev_features = 1;
-    PSLayerParameters * prev_params = prev_layer->parameters;
+    PSLayerParameters *prev_params = prev_layer->parameters;
     if (prev_params != NULL) {
         prev_features = (int) (prev_params->parameters[PARAM_FEATURE_COUNT]);
         previous_feature_size = prev_layer->size / prev_features;
     }
     PSNeuralNetwork *net = (PSNeuralNetwork *) convolutional_layer->network;
-    PSSharedParams * shared = getConvSharedParams(convolutional_layer);
+    PSSharedParams *shared = getConvSharedParams(convolutional_layer);
     int do_dump = 0;
     if (net != NULL) {
         do_dump = (
@@ -688,7 +688,7 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer * prev_layer,
     int i, j, k, row, col, x, y;
     for (i = 0; i < feature_count; i++) {
         if (do_dump && i > 1) do_dump = 0;
-        PSGradient * feature_gradient = &(lgradients[i]);
+        PSGradient *feature_gradient = &(lgradients[i]);
         row = 0;
         col = 0;
         for (j = 0; j < feature_size; j++) {
@@ -697,8 +697,8 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer * prev_layer,
             feature_gradient->bias += d;
             col = idx % (int) output_w;
             if (col == 0 && j > 0) row++;
-            int r_row = (row * stride) - padding;
-            int r_col = (col * stride) - padding;
+            int r_row = (row *stride) - padding;
+            int r_col = (col *stride) - padding;
             int max_x = region_size + r_col;
             int max_y = region_size + r_row;
             for (k = 0; k < prev_features; k++) {
@@ -719,7 +719,7 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer * prev_layer,
                             continue;
                         }
                         int nidx = feature_offset + (y * input_w) + x;
-                        //printf("  -> %d,%d [%d]\n", x, y, nidx);
+                        /* printf("  -> %d,%d [%d]\n", x, y, nidx); */
                         assert(nidx >= 0);
                         if (nidx >= prev_layer->size) break;
                         /* If x is outside layer (ie. inside padding area),
@@ -730,7 +730,7 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer * prev_layer,
                             if (skip_w > 0) widx += skip_w;
                             break;
                         }
-                        PSNeuron * prev_neuron = prev_layer->neurons[nidx];
+                        PSNeuron *prev_neuron = prev_layer->neurons[nidx];
                         PSFloat a = prev_neuron->activation;
                         assert(widx >= 0);
                         if (widx >= shared->weights_size) {

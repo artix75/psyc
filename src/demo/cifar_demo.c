@@ -31,7 +31,7 @@
 #include "../debug.h"
 
 #define EPOCHS 200
-//#define BATCH_SIZE 32
+/* #define BATCH_SIZE 32 */
 #define BATCH_SIZE 4
 #define FEATURES_COUNT 32
 #define REGION_SIZE 5
@@ -52,11 +52,11 @@
 
 #define UNUSED(V) ((void) V)
 
-PSNeuralNetwork * network = NULL;
+PSNeuralNetwork *network = NULL;
 char *output_path = DEFAULT_OUTPUT_FILE;
 int pause_requested;
 
-void print_help(char * progname) {
+void print_help(char *progname) {
     printf("Usage %s OPTIONS\n", progname);
     printf("    OPTIONS:\n");
     printf("        -d, --data DATASET_DIR          Dataset directory\n");
@@ -227,10 +227,10 @@ int main(int argc, char** argv) {
     char *dump_pretrained_fname = NULL;
 
     for (i = 1; i < argc; i++) {
-        char * arg = argv[i];
+        char *arg = argv[i];
         int is_last = (i == (argc - 1));
         if (strcmp("--classes", arg) == 0 && !is_last) {
-            char * next = argv[++i];
+            char *next = argv[++i];
             int matched = sscanf(next, "%d", &classes);
             if (!matched) fputs("Invalid classes", stderr);
             if (classes != 10 && classes != 100) {
@@ -427,9 +427,9 @@ int main(int argc, char** argv) {
     printf("Size of PSFloat: %d\n", (int) sizeof(PSFloat));
 
     if (pretrained_file == NULL) {
-        PSLayerParameters * iparams; /* Input layer parameters */
-        PSLayerParameters * cparams; /* Convloutional layer parameters */
-        PSLayerParameters * pparams; /* Pooling layer parameters */
+        PSLayerParameters *iparams; /* Input layer parameters */
+        PSLayerParameters *cparams; /* Convloutional layer parameters */
+        PSLayerParameters *pparams; /* Pooling layer parameters */
         iparams = PSCreateConvolutionalParameters(3, 0, 0, 0, 0);
         iparams->parameters[PARAM_OUTPUT_WIDTH] = 32.0;
         iparams->parameters[PARAM_OUTPUT_HEIGHT] = 32.0;
@@ -480,7 +480,7 @@ int main(int argc, char** argv) {
             PSAddPoolingLayer(network, pparams);
         }
 
-        //PSAddLayer(network, FullyConnected, 512, NULL);
+        /* PSAddLayer(network, FullyConnected, 512, NULL); */
         if (add_fully_connected && fc_preoutput_size >= 10)
             PSAddLayer(network, FullyConnected, fc_preoutput_size, NULL);
         if (softmax_output) PSAddLayer(network, SoftMax, classes, NULL);
@@ -518,11 +518,11 @@ int main(int argc, char** argv) {
                 eval_dataset_len = remaining;
             }
             printf("Evaluation dataset length: %d\n", eval_dataset_len);
-            datalen = train_dataset_len * element_size;
+            datalen = train_dataset_len *element_size;
             if (eval_dataset_len == 0) validation_data = NULL;
             else {
                 validation_data = training_data + datalen;
-                valdlen = eval_dataset_len * element_size;
+                valdlen = eval_dataset_len *element_size;
                 int validation_elements_count = valdlen / element_size;
                 element_count = datalen / element_size;
                 printf("Evaluation elements: %d\n", validation_elements_count);
@@ -572,9 +572,9 @@ int main(int argc, char** argv) {
         printf("Test Data len: %d\n", testlen);
         PSTest(network, test_data, testlen);
     }
-    //if (pretrained_file == NULL)
+    /* if (pretrained_file == NULL) */
     PSSaveNetwork(network, output_path);
-    //printf("Network saved to: /tmp/pretrained.cnn.data\n");
+    /* printf("Network saved to: /tmp/pretrained.cnn.data\n"); */
     PSDeleteNetwork(network);
     if (training_data != NULL) free(training_data);
     if (test_data != NULL) free(test_data);

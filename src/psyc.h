@@ -73,10 +73,10 @@
 #endif
 
 typedef PSFloat  (*PSActivationFunction) (PSFloat);
-typedef int     (*PSFeedforwardFunction) (void * network, void * layer, ...);
+typedef int     (*PSFeedforwardFunction) (void *network, void *layer, ...);
 typedef PSFloat  (*PSLossFunction) (PSFloat* x, PSFloat* y, int size,
                                    int onehot_size);
-typedef void    (*PSTrainCallback) (void * network, int epoch, int epochs,
+typedef void    (*PSTrainCallback) (void *network, int epoch, int epochs,
                                     PSFloat loss, PSFloat previous_loss,
                                     float accuracy, PSFloat *rate,
                                     PSFloat *training_data);
@@ -147,102 +147,102 @@ typedef struct {
     int index;
     int weights_size;
     PSFloat bias;
-    PSFloat * weights;
+    PSFloat *weights;
     PSFloat activation;
     PSFloat z_value;
-    void * extra;
-    void * layer;
+    void *extra;
+    void *layer;
 } PSNeuron;
 
 typedef struct {
     PSLayerType type;
     int index;
     int size;
-    PSLayerParameters * parameters;
+    PSLayerParameters *parameters;
     PSActivationFunction activate;
     PSActivationFunction derivative;
     PSFeedforwardFunction feedforward;
-    PSNeuron ** neurons;
-    PSFloat * delta;
+    PSNeuron **neurons;
+    PSFloat *delta;
     int flags;
-    void * extra;
+    void *extra;
 #ifdef USE_AVX
-    PSFloat * avx_activation_cache;
+    PSFloat *avx_activation_cache;
 #endif
-    void * network;
+    void *network;
 } PSLayer;
 
 typedef struct {
-    const char * name;
+    const char *name;
     int size;
-    PSLayer ** layers;
+    PSLayer **layers;
     PSLossFunction loss;
     int flags;
     unsigned char status;
     int input_size;
     int output_size;
-    PSTrainingInfo * training;
+    PSTrainingInfo *training;
     PSTrainCallback onEpochTrained;
     PSTrainCallback onBatchTrained;
 } PSNeuralNetwork;
 
 extern int PSGlobalFlags;
 
-PSNeuralNetwork * PSCreateNetwork(const char* name);
-PSNeuralNetwork * PSCloneNetwork(PSNeuralNetwork * network, int layout_only);
-int PSLoadNetwork(PSNeuralNetwork * network, const char* filename);
-int PSSaveNetwork(PSNeuralNetwork * network, const char* filename);
-PSLayer * PSAddLayer(PSNeuralNetwork * network, PSLayerType type, int size,
+PSNeuralNetwork *PSCreateNetwork(const char* name);
+PSNeuralNetwork *PSCloneNetwork(PSNeuralNetwork *network, int layout_only);
+int PSLoadNetwork(PSNeuralNetwork *network, const char* filename);
+int PSSaveNetwork(PSNeuralNetwork *network, const char* filename);
+PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
                      PSLayerParameters* params);
-PSLayer * PSAddConvolutionalLayer(PSNeuralNetwork * network,
+PSLayer *PSAddConvolutionalLayer(PSNeuralNetwork *network,
                                   PSLayerParameters* params);
-PSLayer * PSAddPoolingLayer(PSNeuralNetwork * network,
+PSLayer *PSAddPoolingLayer(PSNeuralNetwork *network,
                             PSLayerParameters* params);
-PSLayerParameters * PSCreateLayerParamenters(int count, ...);
-int PSSetLayerParameter(PSLayerParameters * params, int param, PSFloat value);
-int PSAddLayerParameter(PSLayerParameters * params, PSFloat val);
-PSLayerParameters * PSCreateConvolutionalParameters(PSFloat feature_count,
+PSLayerParameters *PSCreateLayerParamenters(int count, ...);
+int PSSetLayerParameter(PSLayerParameters *params, int param, PSFloat value);
+int PSAddLayerParameter(PSLayerParameters *params, PSFloat val);
+PSLayerParameters *PSCreateConvolutionalParameters(PSFloat feature_count,
                                                     PSFloat region_size,
                                                     int stride,
                                                     int padding,
                                                     int use_relu);
-void PSDeleteLayerParamenters(PSLayerParameters * params);
-int PSFeedforward(PSNeuralNetwork * network, PSFloat * values);
-int PSClassify(PSNeuralNetwork * network, PSFloat * values);
+void PSDeleteLayerParamenters(PSLayerParameters *params);
+int PSFeedforward(PSNeuralNetwork *network, PSFloat *values);
+int PSClassify(PSNeuralNetwork *network, PSFloat *values);
 
-void PSDeleteNetwork(PSNeuralNetwork * network);
-void PSDeleteLayer(PSLayer * layer);
-void PSDeleteNeuron(PSNeuron * neuron, PSLayer * layer);
-void PSDeleteGradients(PSGradient ** gradients, PSNeuralNetwork * network);
+void PSDeleteNetwork(PSNeuralNetwork *network);
+void PSDeleteLayer(PSLayer *layer);
+void PSDeleteNeuron(PSNeuron *neuron, PSLayer *layer);
+void PSDeleteGradients(PSGradient **gradients, PSNeuralNetwork *network);
 
-void PSTrain(PSNeuralNetwork * network,
-             PSFloat * training_data,
+void PSTrain(PSNeuralNetwork *network,
+             PSFloat *training_data,
              int data_size,
              int epochs,
              PSFloat learning_rate,
              int batch_size,
-             PSTrainingOptions * options,
-             PSFloat * test_data,
+             PSTrainingOptions *options,
+             PSFloat *test_data,
              int test_size);
-void PSPauseTraining(PSNeuralNetwork * network);
-void PSAbortTraining(PSNeuralNetwork * network);
-float PSTest(PSNeuralNetwork * network, PSFloat * test_data, int data_size);
-int PSVerifyNetwork(PSNeuralNetwork * network);
-//int arrayMaxIndex(PSFloat * array, int len);
-char * PSGetLabelForType(PSLayerType type);
-char * PSGetLayerTypeLabel(PSLayer * layer);
-void PSPrintNetworkInfo(PSNeuralNetwork * network);
-int PSDumpNetworkActivations(PSNeuralNetwork * network, const char* filename);
-int PSDumpNetworkDeltas(PSNeuralNetwork * network, const char* filename);
+void PSPauseTraining(PSNeuralNetwork *network);
+void PSAbortTraining(PSNeuralNetwork *network);
+float PSTest(PSNeuralNetwork *network, PSFloat *test_data, int data_size);
+int PSVerifyNetwork(PSNeuralNetwork *network);
+/* int arrayMaxIndex(PSFloat *array, int len); */
+char *PSGetLabelForType(PSLayerType type);
+char *PSGetLayerTypeLabel(PSLayer *layer);
+void PSPrintNetworkInfo(PSNeuralNetwork *network);
+int PSDumpNetworkActivations(PSNeuralNetwork *network, const char* filename);
+int PSDumpNetworkDeltas(PSNeuralNetwork *network, const char* filename);
 void PSSetDefaultTrainingOptions(PSTrainingOptions *options);
 
-// Loss functions
+/*  Loss functions */
 
-PSFloat PSQuadraticLoss(PSFloat * x, PSFloat * y, int size, int onehot_size);
-PSFloat PSCrossEntropyLoss(PSFloat * x, PSFloat * y, int size, int onehot_size);
+PSFloat PSQuadraticLoss(PSFloat *x, PSFloat *y, int size, int onehot_size);
+PSFloat PSCrossEntropyLoss(PSFloat *x, PSFloat *y, int size, int onehot_size);
 
 /* Miscellaneous functions */
 
 void PSHandleSignals(PSSignalHandler shutdown_handler);
 
-#endif // __PSYC_H
+#endif /*  __PSYC_H */

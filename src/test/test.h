@@ -25,25 +25,25 @@ typedef int (* SetupFunction) (void* test_case);
 typedef int (* TeardownFunction) (void* test_case);
 
 typedef struct {
-    char * name;
-    char * error_message;
+    char *name;
+    char *error_message;
     int status;
     TestFunction run;
 } Test;
 
 typedef struct {
-    char * name;
+    char *name;
     SetupFunction setup;
     TeardownFunction teardown;
     int count;
-    Test * tests;
-    void ** data;
+    Test *tests;
+    void **data;
 } TestCase;
 
-TestCase * createTest(char * name);
-Test * addTest(TestCase * test_case, char * name, char * errmsg,
+TestCase *createTest(char *name);
+Test *addTest(TestCase *test_case, char *name, char *errmsg,
                TestFunction func);
-int performTests(TestCase * test_case);
-void deleteTest(TestCase * test_case);
+int performTests(TestCase *test_case);
+void deleteTest(TestCase *test_case);
 
-#endif // __PS_TEST_H
+#endif /*  __PS_TEST_H */

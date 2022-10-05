@@ -60,13 +60,13 @@ static char MNISTDataFiles[4][PATH_MAX + 1] = {
     "\x0", "\x0", "\x0", "\x0"
 };
 
-static char * getPsycPath(char * executable) {
+static char *getPsycPath(char *executable) {
     static char path[PATH_MAX + 1] = "\x0";
     char _realpath[PATH_MAX + 1];
     if (path[0]) return path;
     _realpath[0] = 0;
     if (realpath(executable, _realpath) != NULL) {
-        char * dir = dirname(_realpath);
+        char *dir = dirname(_realpath);
         if (dir == NULL) return NULL;
         dir = dirname(dir);
         if (dir == NULL) return NULL;
@@ -80,10 +80,10 @@ static char * getPsycPath(char * executable) {
         path[len] = 0;
         return path;
     } else {
-        char * syspath = getenv("PATH");
+        char *syspath = getenv("PATH");
         if (syspath == NULL) return NULL;
         int execlen = strlen(executable);
-        char * p = syspath;
+        char *p = syspath;
         while ((p = strchr(p, ':'))) {
             size_t len = p - syspath;
             if (len > 0) {
@@ -93,7 +93,7 @@ static char * getPsycPath(char * executable) {
                     return NULL;
                 }
                 char spath[PATH_MAX + 1] = "\x0";
-                char * s = spath;
+                char *s = spath;
                 memcpy(spath, syspath, len);
                 if (spath[len - 1] != '/') spath[len++] = '/';
                 s += len;
@@ -110,7 +110,7 @@ static char * getPsycPath(char * executable) {
                 if (exists >= 0) {
                     _realpath[0] = 0;
                     if (realpath(spath, _realpath) != NULL) {
-                        char * dir = dirname(_realpath);
+                        char *dir = dirname(_realpath);
                         if (dir == NULL) return NULL;
                         dir = dirname(dir);
                         if (dir == NULL) return NULL;
@@ -134,23 +134,23 @@ static char * getPsycPath(char * executable) {
     }
 }
 
-static int resolveMNISTDataFiles(char * path) {
+static int resolveMNISTDataFiles(char *path) {
     if (!path) return 0;
     if (MNISTDataFiles[0][0]) return 1;
     int pathlen = strlen(path), i;
     for (i = 0; i < 4; i++) {
-        char * mnist_fname = MNIST_FILE_NAMES[i];
-        char * mnist_path = MNISTDataFiles[i];
+        char *mnist_fname = MNIST_FILE_NAMES[i];
+        char *mnist_path = MNISTDataFiles[i];
         strcpy(mnist_path, path);
         if (mnist_path[pathlen - 1] != '/')
             strcat(mnist_path, "/");
         strcat(mnist_path, mnist_fname);
-        //printf("[%d] %s\n", i, mnist_path);
+        /* printf("[%d] %s\n", i, mnist_path); */
     }
     return 1;
 }
 
-static PSLayerType getLayerType(char * name, PSNeuralNetwork * network) {
+static PSLayerType getLayerType(char *name, PSNeuralNetwork *network) {
     if (strcmp("fully_connected", name) == 0)
         return FullyConnected;
     else if (strcmp("convolutional", name) == 0)
@@ -170,8 +170,8 @@ static PSLayerType getLayerType(char * name, PSNeuralNetwork * network) {
     }
 }
 
-static void getTempFileName(const char * prefix, char * buffer) {
-    FILE * urand = fopen("/dev/urandom", "r");
+static void getTempFileName(const char *prefix, char *buffer) {
+    FILE *urand = fopen("/dev/urandom", "r");
     char buff[4];
     fgets(buff, 4, urand);
     sprintf(buffer, "/tmp/%s-%02x%02x%02x%02x.data",
@@ -183,9 +183,9 @@ static void getTempFileName(const char * prefix, char * buffer) {
     fclose(urand);
 }
 
-PSFloat * training_data = NULL;
-PSFloat * test_data = NULL;
-PSFloat * validation_data = NULL;
+PSFloat *training_data = NULL;
+PSFloat *test_data = NULL;
+PSFloat *validation_data = NULL;
 int testlen = 0;
 int datalen = 0;
 int valdlen = 0;
@@ -199,23 +199,23 @@ char outputFile[255];
 
 void print_help(const char* program_path);
 
-int main(int argc, char ** argv) {
-    PSNeuralNetwork * network = PSCreateNetwork("CLI Network");
+int main(int argc, char **argv) {
+    PSNeuralNetwork *network = PSCreateNetwork("CLI Network");
     int i, j;
     outputFile[0] = 0;
     int training_flags = 0;
 #ifdef HAS_MAGICK
-    char * image_filename = NULL;
-    char * image_dump_filename = NULL;
-    char * image_bgcolor = "white";
+    char *image_filename = NULL;
+    char *image_dump_filename = NULL;
+    char *image_bgcolor = "white";
     int image_invert = 0;
     int image_grayscale = 0;
 #endif
     for (i = 1; i < argc; i++) {
-        //printf("ARG[%d]: %s\n", i, argv[i]);
-        char * arg = argv[i];
+        /* printf("ARG[%d]: %s\n", i, argv[i]); */
+        char *arg = argv[i];
         if (strcmp("--load", arg) == 0 && ++i < argc) {
-            char * file = argv[i];
+            char *file = argv[i];
             int loaded = PSLoadNetwork(network, file);
             if (!loaded) {
                 PSDeleteNetwork(network);
@@ -224,7 +224,7 @@ int main(int argc, char ** argv) {
             }
             continue;
         } else if (strcmp("--save", arg) == 0 && ++i < argc) {
-            char * file = argv[i];
+            char *file = argv[i];
             if (strlen(file) > 254) {
                 fprintf(stderr, "--save filename length must be <= 254");
             } else {
@@ -232,7 +232,7 @@ int main(int argc, char ** argv) {
             }
             continue;
         } else if (strcmp("--name", arg) == 0 && ++i < argc) {
-            char * name = (char*) argv[i];
+            char *name = (char*) argv[i];
             network->name = name;
             continue;
         } else if (strcmp("--onehot", arg) == 0) {
@@ -240,22 +240,22 @@ int main(int argc, char ** argv) {
             else network->layers[network->size - 1]->flags |= FLAG_ONEHOT;
             continue;
         } else if (strcmp("--layer", arg) == 0 && ++i < argc) {
-            char * type = argv[i];
+            char *type = argv[i];
             PSLayerType ltype = getLayerType(type, network);
             if ((i + 1) >= argc) {
                 break;
             }
             if (Convolutional == ltype) {
-                PSLayerParameters * params = NULL;
+                PSLayerParameters *params = NULL;
                 params = PSCreateConvolutionalParameters(CONV_FEATURE_COUNT,
                                                          CONV_REGION_SIZE,
                                                          1, 0, 0);
-                PSFloat * lparams = params->parameters;
+                PSFloat *lparams = params->parameters;
                 for (j = i + 1; j < argc; j++) {
-                    char * carg = argv[j];
+                    char *carg = argv[j];
                     if (strcmp("--feature-count", carg) == 0 && ++j < argc) {
                         int fcount = 0;
-                        char * fcstr = argv[j];
+                        char *fcstr = argv[j];
                         int matched = sscanf(fcstr, "%d", &fcount);
                         if (!matched) {
                             fprintf(stderr, "Invalid feature count %s\n",fcstr);
@@ -265,7 +265,7 @@ int main(int argc, char ** argv) {
                         lparams[PARAM_FEATURE_COUNT] = (PSFloat) fcount;
                     } else if (strcmp("--region-size", carg) == 0 && ++j<argc) {
                         int rsize = 0;
-                        char * rsstr = argv[j];
+                        char *rsstr = argv[j];
                         int matched = sscanf(rsstr, "%d", &rsize);
                         if (!matched) {
                             fprintf(stderr, "Invalid region size %s\n", rsstr);
@@ -275,7 +275,7 @@ int main(int argc, char ** argv) {
                         lparams[PARAM_REGION_SIZE] = (PSFloat) rsize;
                     } else if (strcmp("--stride", carg) == 0 && ++j < argc) {
                         int stride = 0;
-                        char * ststr = argv[j];
+                        char *ststr = argv[j];
                         int matched = sscanf(ststr, "%d", &stride);
                         if (!matched) {
                             fprintf(stderr, "Invalid stride %s\n", ststr);
@@ -292,16 +292,16 @@ int main(int argc, char ** argv) {
                 }
                 PSAddConvolutionalLayer(network, params);
             } else if (Pooling == ltype) {
-                PSLayerParameters * params = NULL;
+                PSLayerParameters *params = NULL;
                 params = PSCreateConvolutionalParameters(0, POOL_REGION_SIZE,
                                                          POOL_REGION_SIZE,
                                                          0, 0);
-                PSFloat * lparams = params->parameters;
+                PSFloat *lparams = params->parameters;
                 for (j = i + 1; j < argc; j++) {
-                    char * carg = argv[j];
+                    char *carg = argv[j];
                     if (strcmp("--region-size", carg) == 0 && ++j < argc) {
                         int rsize = 0;
-                        char * rsstr = argv[j];
+                        char *rsstr = argv[j];
                         int matched = sscanf(rsstr, "%d", &rsize);
                         if (!matched) {
                             fprintf(stderr, "Invalid region size %s\n", rsstr);
@@ -315,7 +315,7 @@ int main(int argc, char ** argv) {
                 PSAddPoolingLayer(network, params);
             } else {
                 int size = 0;
-                char * sizestr = argv[++i];
+                char *sizestr = argv[++i];
                 int matched = sscanf(sizestr, "%d", &size);
                 if (!matched) {
                     fprintf(stderr, "Invalid size %s\n", sizestr);
@@ -338,8 +338,8 @@ int main(int argc, char ** argv) {
                 train_dataset_len = 50000;
                 eval_dataset_len = 10000;
             }
-            char * imgfile = NULL;
-            char * lblfile = NULL;
+            char *imgfile = NULL;
+            char *lblfile = NULL;
             if ((i + 2) < argc) {
                 imgfile = argv[++i];
                 lblfile = argv[++i];
@@ -377,8 +377,8 @@ int main(int argc, char ** argv) {
                 PSDeleteNetwork(network);
                 exit(1);
             }
-            char * imgfile = NULL;
-            char * lblfile = NULL;
+            char *imgfile = NULL;
+            char *lblfile = NULL;
             if ((i + 2) < argc) {
                 imgfile = argv[++i];
                 lblfile = argv[++i];
@@ -410,10 +410,10 @@ int main(int argc, char ** argv) {
 #ifdef HAS_MAGICK
         else if (strcmp("--classify-image", arg) == 0 && ++i < argc) {
             image_filename = argv[i];
-            //printf("Classifying %s...\n", image_filename);
+            /* printf("Classifying %s...\n", image_filename); */
             int j = i;
             while (++j < argc) {
-                char * imgarg = argv[j];
+                char *imgarg = argv[j];
                 if (strcmp("--grayscale", imgarg) == 0) image_grayscale = 1;
                 else if (strcmp("--invert", imgarg) == 0) image_invert = 1;
                 else if (strcmp("--background-color",imgarg) == 0 && ++j<argc){
@@ -426,37 +426,37 @@ int main(int argc, char ** argv) {
         }
 #endif
         else if (strcmp("--training-datalen", arg) == 0 && ++i < argc) {
-            char * len_s = argv[i];
+            char *len_s = argv[i];
             int matched = sscanf(len_s, "%d", &train_dataset_len);
             if (!matched)
                 fprintf(stderr, "Invalid train. data len. %s\n", len_s);
             continue;
         } else if (strcmp("--validation-datalen", arg) == 0 && ++i < argc) {
-            char * len_s = argv[i];
+            char *len_s = argv[i];
             int matched = sscanf(len_s, "%d", &eval_dataset_len);
             if (!matched)
                 fprintf(stderr, "Invalid valid. data len. %s\n", len_s);
             continue;
         } else if (strcmp("--epochs", arg) == 0 && ++i < argc) {
-            char * len_s = argv[i];
+            char *len_s = argv[i];
             int matched = sscanf(len_s, "%d", &epochs);
             if (!matched)
                 fprintf(stderr, "Invalid epochs %s\n", len_s);
             continue;
         } else if (strcmp("--batch-size", arg) == 0 && ++i < argc) {
-            char * len_s = argv[i];
+            char *len_s = argv[i];
             int matched = sscanf(len_s, "%d", &batch_size);
             if (!matched)
                 fprintf(stderr, "Invalid batch size %s\n", len_s);
             continue;
         } else if (strcmp("--learning-rate", arg) == 0 && ++i < argc) {
-            char * lr = argv[i];
+            char *lr = argv[i];
             int matched = sscanf(lr, "%f", &learning_rate);
             if (!matched)
                 fprintf(stderr, "Invalid learning rate %s\n", lr);
             continue;
         } else if (strcmp("--l2-decay", arg) == 0 && ++i < argc) {
-            char * l2d = argv[i];
+            char *l2d = argv[i];
             int matched = sscanf(l2d, "%f", &l2_decay);
             if (!matched)
                 fprintf(stderr, "Invalid l2 decay %s\n", l2d);
@@ -507,11 +507,11 @@ int main(int argc, char ** argv) {
                         "WARNING: no dataset remaining for evaluation!\n");
                 eval_dataset_len = remaining;
             }
-            datalen = train_dataset_len * element_size;
+            datalen = train_dataset_len *element_size;
             if (eval_dataset_len == 0) validation_data = NULL;
             else {
                 validation_data = training_data + datalen;
-                valdlen = eval_dataset_len * element_size;
+                valdlen = eval_dataset_len *element_size;
             }
         }
 

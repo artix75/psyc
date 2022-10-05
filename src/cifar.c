@@ -33,7 +33,7 @@ static int compareFilenames(const void* a, const void* b) {
     return strcmp((const char*)a, (const char*)b);
 }
 
-int loadCIFARData(int type, int classes, const char * dataset_path,
+int loadCIFARData(int type, int classes, const char *dataset_path,
                   PSFloat **data, int max_files, int max_elements)
 {
     if (classes != 10 && classes != 100) {
@@ -55,7 +55,7 @@ int loadCIFARData(int type, int classes, const char * dataset_path,
         return 0;
     }
 
-    char * prfx = (type == DATA_TYPE_TRAINING ? "data_batch" : "test_batch");
+    char *prfx = (type == DATA_TYPE_TRAINING ? "data_batch" : "test_batch");
     while ((finfo = readdir(dir))) {
         if (strstr(finfo->d_name, prfx) == NULL) continue;
         sprintf(datafiles[fcount++], "%s/%s", dataset_path, finfo->d_name);
@@ -63,7 +63,7 @@ int loadCIFARData(int type, int classes, const char * dataset_path,
     qsort(datafiles, fcount, 255, compareFilenames);
     if (max_files > 0 && max_files < fcount) fcount = max_files;
 
-    int datasize = (fcount * img_count * (classes + CIFAR_IMAGE_BYTESIZE));
+    int datasize = (fcount *img_count * (classes + CIFAR_IMAGE_BYTESIZE));
     dataset_size = datasize * sizeof(PSFloat);
     *data = calloc(dataset_size, 1);
     if (*data == NULL) return 0;
@@ -97,10 +97,10 @@ int loadCIFARData(int type, int classes, const char * dataset_path,
                 label = 100 * fgetc(f);
                 label += fgetc(f);
             }
-            //printf("Label: %d\n", label);
+            /* printf("Label: %d\n", label); */
             for (k = 0; k < CIFAR_IMAGE_BYTESIZE; k++) {
                 float b = (float)(fgetc(f)) / 255.0f;
-                //printf("%d ", b);
+                /* printf("%d ", b); */
                 *(data_p++) = (PSFloat) b;
             }
             for (k = 0; k < classes; k++) {

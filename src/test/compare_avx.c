@@ -40,16 +40,16 @@
 #define RESET   "\x1b[0m"
 
 
-#define getRoundedFloat(d) d//(round(d * 1000000.0) / 1000000.0)
+#define getRoundedFloat(d) d/* (round(d * 1000000.0) / 1000000.0) */
 #define getRoundedFloatDec(d, dec) (PSRound(d * dec) / dec)
 
-int compareNetworks(PSNeuralNetwork * network, PSNeuralNetwork * other)
+int compareNetworks(PSNeuralNetwork *network, PSNeuralNetwork *other)
 {
     int ok = 1, i, k, w;
     char msg[2000];
     for (i = 0; i < network->size; i++) {
-        PSLayer * orig_l = network->layers[i];
-        PSLayer * other_l = other->layers[i];
+        PSLayer *orig_l = network->layers[i];
+        PSLayer *other_l = other->layers[i];
         int o_size = orig_l->size;
         int c_size = other_l->size;
         PSLayerType otype = orig_l->type;
@@ -60,8 +60,8 @@ int compareNetworks(PSNeuralNetwork * network, PSNeuralNetwork * other)
 
         int conv_features_checked = 0;
         for (k = 0; k < o_size; k++) {
-            PSNeuron * orig_n = orig_l->neurons[k];
-            PSNeuron * other_n = other_l->neurons[k];
+            PSNeuron *orig_n = orig_l->neurons[k];
+            PSNeuron *other_n = other_l->neurons[k];
             if (otype == Convolutional) {
                 PSSharedParams* oshared;
                 PSSharedParams* cshared;
@@ -92,8 +92,8 @@ int compareNetworks(PSNeuralNetwork * network, PSNeuralNetwork * other)
                 PSFloat cbias = getRoundedFloat(other_n->bias);
                 ok = (obias == cbias);
             } else if (otype == LSTM) {
-                PSLSTMCell * ocell =  GetLSTMCell(orig_n);
-                PSLSTMCell * ccell =  GetLSTMCell(other_n);
+                PSLSTMCell *ocell =  GetLSTMCell(orig_n);
+                PSLSTMCell *ccell =  GetLSTMCell(other_n);
                 ok = (ocell->candidate_bias == ccell->candidate_bias);
                 if (!ok) {
                     sprintf(msg, "Layer[%d][%d]: candidate_bias "
@@ -145,8 +145,8 @@ int compareNetworks(PSNeuralNetwork * network, PSNeuralNetwork * other)
 
 int main(int argc, char** argv) {
     PSHandleSignals(NULL);
-    PSNeuralNetwork * std_network = PSCreateNetwork("STD Network");
-    PSNeuralNetwork * avx_network = PSCreateNetwork("AVX Network");
+    PSNeuralNetwork *std_network = PSCreateNetwork("STD Network");
+    PSNeuralNetwork *avx_network = PSCreateNetwork("AVX Network");
     printf(DIM);
     int loaded = PSLoadNetwork(std_network, "/tmp/no_avx.nn.data");
     assert(loaded);

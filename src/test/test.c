@@ -37,8 +37,8 @@
 
 int stdout_fd = -999;
 
-TestCase * createTest(char * name) {
-    TestCase * test_case = malloc(sizeof(TestCase));
+TestCase *createTest(char *name) {
+    TestCase *test_case = malloc(sizeof(TestCase));
     test_case->name = name;
     test_case->setup = NULL;
     test_case->teardown = NULL;
@@ -48,7 +48,7 @@ TestCase * createTest(char * name) {
     return test_case;
 }
 
-Test * addTest(TestCase * test_case, char * name, char * errmsg,
+Test *addTest(TestCase *test_case, char *name, char *errmsg,
                TestFunction func) {
     Test test;
     test.name = name;
@@ -67,7 +67,7 @@ Test * addTest(TestCase * test_case, char * name, char * errmsg,
 }
 
 
-int performTests(TestCase * test_case) {
+int performTests(TestCase *test_case) {
     printf("\n");
     printf(BOLD "Performing tests on %s\n", test_case->name);
     printf(RESET);
@@ -85,11 +85,11 @@ int performTests(TestCase * test_case) {
     time_t start_t, end_t;
     time(&start_t);
     for (i = 0; i < count; i++) {
-        Test * test = &(test_case->tests[i]);
+        Test *test = &(test_case->tests[i]);
         printf(" -> [%d] ", i);
         printf(CYAN "%s", test->name); printf(":");
         printf(RESET);
-        //printf(HIDDEN);
+        /* printf(HIDDEN); */
 #ifndef PS_VERBOSE_TESTS
         stdout_fd = dup(fileno(stdout));
         PSOriginalStdOutFD = stdout_fd;
@@ -101,7 +101,7 @@ int performTests(TestCase * test_case) {
         fclose(stdout);
         stdout = fdopen(stdout_fd, "w");
 #endif
-        //printf(RESET);
+        /* printf(RESET); */
         if (!test->status) {
             printf(RED "\tFAILED");
             if (test->error_message != NULL)
@@ -127,12 +127,12 @@ int performTests(TestCase * test_case) {
     return errors;
 }
 
-void deleteTest(TestCase * test_case) {
+void deleteTest(TestCase *test_case) {
     if (test_case->data != NULL) free(test_case->data);
     if (test_case->tests != NULL) {
         int i;
         for (i = 0; i < test_case->count; i++) {
-            Test * test = &(test_case->tests[i]);
+            Test *test = &(test_case->tests[i]);
             if (test->error_message != NULL) free(test->error_message);
         }
         free(test_case->tests);
