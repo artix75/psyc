@@ -49,8 +49,8 @@ int PSInitPoolingLayer(PSNeuralNetwork *network, PSLayer *layer,
 
 /* Feedforward Functions */
 
-int PSConvolve(void *_net, void *_layer, ...);
-int PSPool(void *_net, void *_layer, ...);
+int PSConvolve(PSNeuralNetwork *net, PSLayer *layer, ...);
+int PSPool(PSNeuralNetwork *net, PSLayer *layer, ...);
 
 /* Backpropagation Functions */
 

@@ -99,8 +99,8 @@ void PSTrainingDebugDumpGradient(PSNeuralNetwork *network,
                                  int avx_len);
 
 void PSResetDebugInfo(void);
-void PSAddDebugInfo(void *network, char *file, const char *func, int line,
-                    void *layer, void *neuron1, void *neuron2,
+void PSAddDebugInfo(PSNeuralNetwork *network, char *file, const char *func,
+                    int line, PSLayer *layer, void *neuron1, void *neuron2,
                     char *prop, PSFloat val);
 
 extern int PSOriginalStdOutFD;

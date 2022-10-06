@@ -558,8 +558,8 @@ void PSResetDebugInfo(void) {
     last_debug_info.weight = -99999;
 }
 
-void PSAddDebugInfo(void *network, char *file, const char *func, int line,
-                    void *layer, void *neuron1, void *neuron2,
+void PSAddDebugInfo(PSNeuralNetwork *network, char *file, const char *func,
+                    int line, PSLayer *layer, void *neuron1, void *neuron2,
                     char *prop, PSFloat val)
 {
     memset(&last_debug_info, 0, sizeof(last_debug_info));

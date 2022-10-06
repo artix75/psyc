@@ -55,7 +55,7 @@ int PSInitLSTMLayer(PSNeuralNetwork *network, PSLayer *layer,
 
 /* Feedforward Functions */
 
-int PSLSTMFeedforward(void *_net, void *_layer, ...);
+int PSLSTMFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...);
 
 /* Backpropagation Functions */
 

@@ -64,7 +64,7 @@ PSFloat *PSAddRecurrentState(PSNeuralNetwork *net, PSNeuron *neuron,
     cell->states[t] = state;
 #ifdef USE_AVX
     if (!PSIsAVXDisabled(net)) {
-        PSLayer *layer = getNeuronLayer(neuron);
+        PSLayer *layer = neuron->layer;
         assert(layer != NULL);
         int lsize = layer->size;
         if (t == 0 && neuron->index == 0) {
@@ -144,12 +144,10 @@ int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
 /* Feedforward Functions */
 
 
-int PSRecurrentFeedforward(void *_net, void *_layer, ...) {
-    PSNeuralNetwork *net = (PSNeuralNetwork*) _net;
-    PSLayer *layer = (PSLayer*) _layer;
+int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
     char *func = "PSRecurrentFeedforward";
     va_list args;
-    va_start(args, _layer);
+    va_start(args, layer);
     int times = va_arg(args, int);
     int t = va_arg(args, int);
     va_end(args);

@@ -134,8 +134,8 @@ void handler(int sig) {
     }
 }
 
-void onBatchTrained(void *_network, int epoch, int epochs, PSFloat loss,
-                    PSFloat previous_loss, float accuracy,
+void onBatchTrained(PSNeuralNetwork *network, int epoch, int epochs,
+                    PSFloat loss, PSFloat previous_loss, float accuracy,
                     PSFloat *rate, PSFloat *training_data)
 {
     UNUSED(epoch);
@@ -145,7 +145,6 @@ void onBatchTrained(void *_network, int epoch, int epochs, PSFloat loss,
     UNUSED(accuracy);
     UNUSED(rate);
     if (dump_activations_str == NULL && max_batches <= 0) return;
-    PSNeuralNetwork *network = (PSNeuralNetwork *) _network;
     if (network == NULL) return;
     if (network->training == NULL) return;
     int batch = network->training->current_batch;

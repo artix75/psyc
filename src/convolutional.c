@@ -320,9 +320,7 @@ int PSInitPoolingLayer(PSNeuralNetwork *network, PSLayer *layer,
 
 /* Feedforward Functions */
 
-int PSConvolve(void *_net, void *_layer, ...) {
-    PSNeuralNetwork *net = (PSNeuralNetwork*) _net;
-    PSLayer *layer = (PSLayer*) _layer;
+int PSConvolve(PSNeuralNetwork *net, PSLayer *layer, ...) {
     int size = layer->size;
     if (layer->neurons == NULL) {
         PSErr(NULL, "Layer[%d] has no neurons!", layer->index);
@@ -353,7 +351,7 @@ int PSConvolve(void *_net, void *_layer, ...) {
     int is_recurrent = (net->flags & FLAG_RECURRENT), times, t;
     if (is_recurrent) {
         va_list args;
-        va_start(args, _layer);
+        va_start(args, layer);
         times = va_arg(args, int);
         t = va_arg(args, int);
         va_end(args);
@@ -498,9 +496,7 @@ int PSConvolve(void *_net, void *_layer, ...) {
     return 1;
 }
 
-int PSPool(void *_net, void *_layer, ...) {
-    PSNeuralNetwork *net = (PSNeuralNetwork*) _net;
-    PSLayer *layer = (PSLayer*) _layer;
+int PSPool(PSNeuralNetwork *net, PSLayer *layer, ...) {
     int size = layer->size;
     if (layer->neurons == NULL) {
         PSErr(NULL, "Layer[%d] has no neurons!", layer->index);
@@ -534,7 +530,7 @@ int PSPool(void *_net, void *_layer, ...) {
     int is_recurrent = (net->flags & FLAG_RECURRENT), times, t;
     if (is_recurrent) {
         va_list args;
-        va_start(args, _layer);
+        va_start(args, layer);
         times = va_arg(args, int);
         t = va_arg(args, int);
         va_end(args);

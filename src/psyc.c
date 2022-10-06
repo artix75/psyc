@@ -141,9 +141,7 @@ int PSLogTrainingProgress(PSNeuralNetwork *network, int epochs, int batches,
 float validate(PSNeuralNetwork *network, PSFloat *test_data, int data_size,
                int log);
 
-static int fullFeedforward(void *_net, void *_layer, ...) {
-    PSNeuralNetwork *network = (PSNeuralNetwork*) _net;
-    PSLayer *layer = (PSLayer*) _layer;
+static int fullFeedforward(PSNeuralNetwork *network, PSLayer *layer, ...) {
     int size = layer->size;
     char *func = "fullFeedforward";
     if (layer->neurons == NULL) {
@@ -167,7 +165,7 @@ static int fullFeedforward(void *_net, void *_layer, ...) {
 #endif
     if (is_recurrent) {
         va_list args;
-        va_start(args, _layer);
+        va_start(args, layer);
         times = va_arg(args, int);
         t = va_arg(args, int);
         va_end(args);
@@ -225,9 +223,7 @@ static int fullFeedforward(void *_net, void *_layer, ...) {
     return 1;
 }
 
-static int softmaxFeedforward(void *_net, void *_layer, ...) {
-    PSNeuralNetwork *net = (PSNeuralNetwork*) _net;
-    PSLayer *layer = (PSLayer*) _layer;
+static int softmaxFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
     int size = layer->size;
     char *func = "softmaxFeedforward";
     if (layer->neurons == NULL) {
@@ -250,7 +246,7 @@ static int softmaxFeedforward(void *_net, void *_layer, ...) {
 #endif
     if (is_recurrent) {
         va_list args;
-        va_start(args, _layer);
+        va_start(args, layer);
         times = va_arg(args, int);
         t = va_arg(args, int);
         va_end(args);
@@ -331,8 +327,7 @@ static PSFloat norm(PSFloat* matrix, int size) {
     return norm;
 }
 
-static void shuffle ( PSFloat *array, int size, int element_size )
-{
+static void shuffle(PSFloat *array, int size, int element_size) {
     srand ( time(NULL) );
     int byte_size = element_size * sizeof(PSFloat);
     for (int i = size - 1; i > 0; i--) {
@@ -351,8 +346,7 @@ static void shuffle ( PSFloat *array, int size, int element_size )
     }
 }
 
-static void shuffleSeries ( PSFloat **series, int size)
-{
+static void shuffleSeries(PSFloat **series, int size) {
     srand ( time(NULL) );
     for (int i = size - 1; i > 0; i--) {
         int j = rand() % (i+1);
@@ -400,18 +394,6 @@ static int arrayMaxIndex(PSFloat *array, int len) {
     }
     return max_idx;
 }
-
-/*static PSFloat arrayMax(PSFloat *array, int len) {
-    int i;
-    PSFloat max = 0;
-    for (i = 0; i < len; i++) {
-        PSFloat v = array[i];
-        if (v > max) {
-            max = v;
-        }
-    }
-    return max;
-}*/
 
 static void fetchRecurrentOutputState(PSLayer *out, PSFloat *outputs,
                                       int i, int onehot)
@@ -482,18 +464,18 @@ char *getNetworkStatusLabel(PSNeuralNetwork *network) {
     if (network == NULL) return "";
     int status = network->status;
     switch (status) {
-        case STATUS_UNTRAINED:
-            return "untrained";
-        case STATUS_TRAINING:
-            return "training";
-        case STATUS_TRAINED:
-            return "trained";
-        case STATUS_ERROR:
-            return "error";
-        case STATUS_PAUSED:
-            return "paused";
-        case STATUS_ABORTED:
-            return "aborted";
+    case STATUS_UNTRAINED:
+        return "untrained";
+    case STATUS_TRAINING:
+        return "training";
+    case STATUS_TRAINED:
+        return "trained";
+    case STATUS_ERROR:
+        return "error";
+    case STATUS_PAUSED:
+        return "paused";
+    case STATUS_ABORTED:
+        return "aborted";
     }
     return "UNKOWN";
 }
@@ -578,7 +560,7 @@ void PSPrintNetworkInfo(PSNeuralNetwork *network) {
 /* Loss Functions */
 
 PSFloat PSQuadraticLoss(PSFloat *outputs, PSFloat *desired, int size,
-                     int onehot_size)
+                        int onehot_size)
 {
     PSFloat *_diffs;
     PSFloat diffs[size];

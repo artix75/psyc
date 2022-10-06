@@ -40,7 +40,7 @@ int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
 
 /* Feedforward Functions */
 
-int PSRecurrentFeedforward(void *_net, void *_layer, ...);
+int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...);
 
 /* Backpropagation Functions */
 

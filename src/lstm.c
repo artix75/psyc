@@ -316,12 +316,10 @@ int PSInitLSTMLayer(PSNeuralNetwork *network, PSLayer *layer,
 
 /* Feedforward Functions */
 
-int PSLSTMFeedforward(void *_net, void *_layer, ...) {
-    PSNeuralNetwork *net = (PSNeuralNetwork*) _net;
-    PSLayer *layer = (PSLayer*) _layer;
+int PSLSTMFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
     char *func = "PSLSTMFeedforward";
     va_list args;
-    va_start(args, _layer);
+    va_start(args, layer);
     int times = va_arg(args, int);
     int t = va_arg(args, int);
     va_end(args);

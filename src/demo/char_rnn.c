@@ -107,8 +107,8 @@ void CompleteText (PSNeuralNetwork *network, char* text, int len,
     printf("\n");
 }
 
-void TrainCallback (void *_net, int epoch, int epochs, PSFloat loss,
-                    PSFloat previous_loss, float accuracy,
+void TrainCallback (PSNeuralNetwork *network, int epoch, int epochs,
+                    PSFloat loss, PSFloat previous_loss, float accuracy,
                     PSFloat *rate, PSFloat *training_data)
 {
     UNUSED(epoch);
@@ -119,7 +119,6 @@ void TrainCallback (void *_net, int epoch, int epochs, PSFloat loss,
     UNUSED(rate);
     UNUSED(training_data);
     /* if ((epoch % 2) != 0) return; */
-    PSNeuralNetwork *network = (PSNeuralNetwork*) _net;
     CompleteText(network, NULL, 255, 2.0f, 0);
 }
 
