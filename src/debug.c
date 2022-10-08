@@ -388,7 +388,7 @@ void PSTrainingDebugDump(PSNeuralNetwork *network, char *format, ...) {
 
 void PSTrainingDebugDumpStep(PSNeuralNetwork *network,
                              int training_phase,
-                             char *func,
+                             const char *func,
                              PSLayer *layer,
                              PSNeuron *neuron,
                              char *format, ...)
@@ -428,7 +428,7 @@ void PSTrainingDebugDumpStep(PSNeuralNetwork *network,
 
 void PSTrainingDebugDumpGradient(PSNeuralNetwork *network,
                                  int phase,
-                                 char *func,
+                                 const char *func,
                                  PSLayer *layer,
                                  int gradient_idx,
                                  int weight_size,

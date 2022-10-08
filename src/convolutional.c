@@ -73,19 +73,18 @@ w,steplen,step,rowlen) \
 int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
                              PSLayerParameters *parameters) {
     int index = layer->index;
-    char *func = "initConvolutionalLayer";
     if (index == 0) {
-        PSErr(func, "First (input) layer cannot be a convolutional layer!");
+        PSErr(__func__, "First (input) layer cannot be a convolutional layer!");
         PSAbortLayer(network, layer);
         return 0;
     }
     if (parameters == NULL) {
-        PSErr(func, "Layer parameters is NULL!");
+        PSErr(__func__, "Layer parameters is NULL!");
         PSAbortLayer(network, layer);
         return 0;
     }
     if (parameters->count < CONV_PARAMETER_COUNT) {
-        PSErr(func, "Convolutional Layer parameters count must be %d",
+        PSErr(__func__, "Convolutional Layer parameters count must be %d",
               CONV_PARAMETER_COUNT);
         PSAbortLayer(network, layer);
         return 0;
@@ -94,13 +93,13 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
     PSFloat *params = parameters->parameters;
     int feature_count = (int) (params[PARAM_FEATURE_COUNT]);
     if (feature_count <= 0) {
-        PSErr(func, "FEATURE_COUNT must be > 0 (given: %d)", feature_count);
+        PSErr(__func__, "FEATURE_COUNT must be > 0 (given: %d)", feature_count);
         PSAbortLayer(network, layer);
         return 0;
     }
     PSFloat region_size = params[PARAM_REGION_SIZE];
     if (region_size <= 0) {
-        PSErr(func, "REGION_SIZE must be > 0 (given: %lf)", region_size);
+        PSErr(__func__, "REGION_SIZE must be > 0 (given: %lf)", region_size);
         PSAbortLayer(network, layer);
         return 0;
     }
@@ -125,7 +124,7 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
         prev_features = (int) previous_params->parameters[PARAM_FEATURE_COUNT];
         PSFloat prev_area = input_w *input_h * (PSFloat) prev_features;
         if ((int) prev_area != previous_size) {
-            PSErr(func, "Previous size %d != %lfx%lf",
+            PSErr(__func__, "Previous size %d != %lfx%lf",
                   previous_size, input_w, input_h);
             PSAbortLayer(network, layer);
             return 0;
@@ -147,7 +146,7 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
     layer->size = size;
     layer->neurons = malloc(sizeof(PSNeuron*) * size);
     if (layer->neurons == NULL) {
-        PSErr(func, "Layer[%d]: Could not allocate neurons!", index);
+        PSErr(__func__, "Layer[%d]: Could not allocate neurons!", index);
         PSAbortLayer(network, layer);
         return 0;
     }
@@ -163,7 +162,7 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
 #endif
     PSSharedParams *shared = malloc(sizeof(PSSharedParams));
     if (shared == NULL) {
-        PSErr(func, "Layer[%d]: Couldn't allocate shared params!", index);
+        PSErr(__func__, "Layer[%d]: Couldn't allocate shared params!", index);
         PSAbortLayer(network, layer);
         return 0;
     }
@@ -172,7 +171,7 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
     shared->biases = malloc(feature_count * sizeof(PSFloat));
     shared->weights = malloc(feature_count * sizeof(PSFloat*));
     if (shared->biases == NULL || shared->weights == NULL) {
-        PSErr(func, "Layer[%d]: Could not allocate memory!", index);
+        PSErr(__func__, "Layer[%d]: Could not allocate memory!", index);
         PSAbortLayer(network, layer);
         return 0;
     }
@@ -184,7 +183,7 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
         /* shared->biases[i] = PSGaussianRandom(0, 1);*/
         shared->weights[i] = malloc(shared->weights_size * sizeof(PSFloat));
         if (shared->weights[i] == NULL) {
-            PSErr(func, "Layer[%d]: Could not allocate weights!", index);
+            PSErr(__func__, "Layer[%d]: Could not allocate weights!", index);
             PSAbortLayer(network, layer);
             return 0;
         }
@@ -195,7 +194,7 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
             int idx = (i * area) + j;
             PSNeuron *neuron = malloc(sizeof(PSNeuron));
             if (neuron == NULL) {
-                PSErr(func, "Layer[%d]: Couldn't allocate neuron!",index);
+                PSErr(__func__, "Layer[%d]: Couldn't allocate neuron!",index);
                 PSAbortLayer(network, layer);
                 return 0;
             }
@@ -222,20 +221,21 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
 int PSInitPoolingLayer(PSNeuralNetwork *network, PSLayer *layer,
                        PSLayerParameters *parameters) {
     int index = layer->index;
-    char *func = "initPoolingLayer";
     PSLayer *previous = network->layers[index - 1];
     if (previous->type != Convolutional) {
-        PSErr(func, "Pooling's previous layer must be a Convolutional layer!");
+        PSErr(
+            __func__, "Pooling's previous layer must be a Convolutional layer!"
+        );
         PSAbortLayer(network, layer);
         return 0;
     }
     if (parameters == NULL) {
-        PSErr(func, "Layer parameters is NULL!");
+        PSErr(__func__, "Layer parameters is NULL!");
         PSAbortLayer(network, layer);
         return 0;
     }
     if (parameters->count < CONV_PARAMETER_COUNT) {
-        PSErr(func, "Convolutional Layer parameters count must be %d",
+        PSErr(__func__, "Convolutional Layer parameters count must be %d",
               CONV_PARAMETER_COUNT);
         PSAbortLayer(network, layer);
         return 0;
@@ -243,12 +243,12 @@ int PSInitPoolingLayer(PSNeuralNetwork *network, PSLayer *layer,
     PSFloat *params = parameters->parameters;
     PSLayerParameters *previous_parameters = previous->parameters;
     if (previous_parameters == NULL) {
-        PSErr(func, "Previous layer parameters is NULL!");
+        PSErr(__func__, "Previous layer parameters is NULL!");
         PSAbortLayer(network, layer);
         return 0;
     }
     if (previous_parameters->count < CONV_PARAMETER_COUNT) {
-        PSErr(func, "Convolutional Layer parameters count must be %d",
+        PSErr(__func__, "Convolutional Layer parameters count must be %d",
               CONV_PARAMETER_COUNT);
         PSAbortLayer(network, layer);
         return 0;
@@ -258,7 +258,7 @@ int PSInitPoolingLayer(PSNeuralNetwork *network, PSLayer *layer,
     params[PARAM_FEATURE_COUNT] = (PSFloat) feature_count;
     PSFloat region_size = params[PARAM_REGION_SIZE];
     if (region_size <= 0) {
-        PSErr(func, "REGION_SIZE must be > 0 (given: %lf)", region_size);
+        PSErr(__func__, "REGION_SIZE must be > 0 (given: %lf)", region_size);
         PSAbortLayer(network, layer);
         return 0;
     }
@@ -279,7 +279,7 @@ int PSInitPoolingLayer(PSNeuralNetwork *network, PSLayer *layer,
     layer->size = size;
     layer->neurons = malloc(sizeof(PSNeuron*) * size);
     if (layer->neurons == NULL) {
-        PSErr(func, "Layer[%d]: Could not allocate neurons!", index);
+        PSErr(__func__, "Layer[%d]: Could not allocate neurons!", index);
         PSAbortLayer(network, layer);
         return 0;
     }
@@ -299,7 +299,7 @@ int PSInitPoolingLayer(PSNeuralNetwork *network, PSLayer *layer,
             int idx = (i * area) + j;
             PSNeuron *neuron = malloc(sizeof(PSNeuron));
             if (neuron == NULL) {
-                PSErr(func, "Layer[%d]: Couldn't allocate neuron!", index);
+                PSErr(__func__, "Layer[%d]: Couldn't allocate neuron!", index);
                 PSAbortLayer(network, layer);
                 return 0;
             }

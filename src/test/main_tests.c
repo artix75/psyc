@@ -117,11 +117,12 @@ PSGradient **backprop(PSNeuralNetwork *network, PSFloat *x, PSFloat *y);
 PSGradient **backpropThroughTime(PSNeuralNetwork *network, PSFloat *x,
                                   PSFloat *y, int times);
 
-PSFloat updateWeights(PSNeuralNetwork *network, PSFloat *training_data,
-                     int batch_size, int elements_count,
-                     PSTrainingOptions* opts, PSFloat rate,
-                     PSGradient **momentum_gradeints,
-                     PSGradient **aux_gradients, ...);
+PSFloat updateNetworkParameters(PSNeuralNetwork *network,
+                                PSFloat *training_data,
+                                int batch_size, int elements_count,
+                                PSTrainingOptions* opts, PSFloat rate,
+                                PSGradient **momentum_gradeints,
+                                PSGradient **aux_gradients, ...);
 
 int testlen = 0;
 
@@ -892,8 +893,10 @@ int testRNNStep(void* tc, void* t) {
     int elements_count = (int) *training_data;
 
     int ok = 1, i, j, w;
-    PSFloat loss = updateWeights(network, training_data, 1, elements_count,
-                                NULL, RNN_LEARNING_RATE, NULL, NULL, series);
+    PSFloat loss = updateNetworkParameters(
+        network, training_data, 1, elements_count,
+        NULL, RNN_LEARNING_RATE, NULL, NULL, series
+    );
     UNUSED(loss);
     for (i = 1; i < network->size; i++) {
         PSLayer *layer = network->layers[i];

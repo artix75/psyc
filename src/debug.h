@@ -76,7 +76,7 @@ char *PSGetNeuronDebugID(PSNeuron *neuron, PSLayer *layer);
 void PSTrainingDebugDump(PSNeuralNetwork *network, char *fmt, ...);
 void PSTrainingDebugDumpStep(PSNeuralNetwork *network,
                              int training_phase,
-                             char *func,
+                             const char *func,
                              PSLayer *layer,
                              PSNeuron *neuron,
                              char *format, ...);
@@ -90,7 +90,7 @@ void PSTrainingDebugDumpHeader(PSNeuralNetwork *network,
 
 void PSTrainingDebugDumpGradient(PSNeuralNetwork *network,
                                  int phase,
-                                 char *func,
+                                 const char *func,
                                  PSLayer *layer,
                                  int gradient_idx,
                                  int weight_size,

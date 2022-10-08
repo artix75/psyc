@@ -94,20 +94,19 @@ int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
 {
     int i, j;
     ws += size;
-    char *func = "PSInitRecurrentLayer";
     layer->neurons = malloc(sizeof(PSNeuron*) * size);
     /*#ifdef USE_AVX
      layer->avx_activation_cache = calloc(size, sizeof(PSFloat));
      #endif*/
     if (layer->neurons == NULL) {
-        PSErr(func, "Could not allocate layer neurons!");
+        PSErr(__func__, "Could not allocate layer neurons!");
         PSAbortLayer(network, layer);
         return 0;
     }
     for (i = 0; i < size; i++) {
         PSNeuron *neuron = malloc(sizeof(PSNeuron));
         if (neuron == NULL) {
-            PSErr(func, "Could not allocate neuron!");
+            PSErr(__func__, "Could not allocate neuron!");
             PSAbortLayer(network, layer);
             return 0;
         }
@@ -117,7 +116,7 @@ int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
         neuron->weights = malloc(sizeof(PSFloat) * ws);
         if (neuron->weights ==  NULL) {
             PSAbortLayer(network, layer);
-            PSErr(func, "Could not allocate neuron weights!");
+            PSErr(__func__, "Could not allocate neuron weights!");
             return 0;
         }
         for (j = 0; j < ws; j++) {
@@ -145,14 +144,13 @@ int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
 
 
 int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
-    char *func = "PSRecurrentFeedforward";
     va_list args;
     va_start(args, layer);
     int times = va_arg(args, int);
     int t = va_arg(args, int);
     va_end(args);
     if (times < 1) {
-        PSErr(func, "Layer[%d]: times must be >= 1 (found %d)",
+        PSErr(__func__, "Layer[%d]: times must be >= 1 (found %d)",
               layer->index, times);
         return 0;
     }
