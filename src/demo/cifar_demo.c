@@ -426,9 +426,9 @@ int main(int argc, char** argv) {
     printf("Size of PSFloat: %d\n", (int) sizeof(PSFloat));
 
     if (pretrained_file == NULL) {
-        PSLayerParameters *iparams; /* Input layer parameters */
-        PSLayerParameters *cparams; /* Convloutional layer parameters */
-        PSLayerParameters *pparams; /* Pooling layer parameters */
+        PSHyperParameters *iparams; /* Input layer parameters */
+        PSHyperParameters *cparams; /* Convloutional layer parameters */
+        PSHyperParameters *pparams; /* Pooling layer parameters */
         iparams = PSCreateConvolutionalParameters(3, 0, 0, 0, 0);
         iparams->parameters[PARAM_OUTPUT_WIDTH] = 32.0;
         iparams->parameters[PARAM_OUTPUT_HEIGHT] = 32.0;

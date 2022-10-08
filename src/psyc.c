@@ -500,11 +500,11 @@ static void printLayerInfo(PSLayer *layer) {
     if (layer == NULL) return;
     PSLayerType ltype = layer->type;
     char *type_name = PSGetLayerTypeLabel(layer);
-    PSLayerParameters *lparams = layer->parameters;
+    PSHyperParameters *lparams = layer->hyper_parameters;
     char onehot_info[50];
     onehot_info[0] = 0;
     if (layer->index == 0 && layer->flags & FLAG_ONEHOT) {
-        PSLayerParameters *params = layer->parameters;
+        PSHyperParameters *params = layer->hyper_parameters;
         int onehot_sz = (int) (params->parameters[0]);
         sprintf(onehot_info, " (vector size: %d)", onehot_sz);
     }
@@ -652,10 +652,10 @@ PSNeuralNetwork *PSCloneNetwork(PSNeuralNetwork *network, int layout_only) {
     for (i = 0; i < network->size; i++) {
         PSLayer *layer = network->layers[i];
         PSLayerType type = layer->type;
-        PSLayerParameters *oparams = layer->parameters;
-        PSLayerParameters *cparams = NULL;
+        PSHyperParameters *oparams = layer->hyper_parameters;
+        PSHyperParameters *cparams = NULL;
         if (oparams) {
-            cparams = malloc(sizeof(PSLayerParameters));
+            cparams = malloc(sizeof(PSHyperParameters));
             if (cparams == NULL) {
                 PSErr(
                     __func__, "Layer[%d]: Could not allocate layer params!", i
@@ -866,7 +866,7 @@ int PSLoadNetwork(PSNeuralNetwork *network, const char* filename) {
                 return 0;
             }
             if (ltype == Convolutional || ltype == Pooling) {
-                PSLayerParameters *params = layer->parameters;
+                PSHyperParameters *params = layer->hyper_parameters;
                 if (params == NULL) {
                     PSErr(__func__, "Layer %d params are NULL!", i);
                     fclose(f);
@@ -886,10 +886,10 @@ int PSLoadNetwork(PSNeuralNetwork *network, const char* filename) {
             }
         } else {
             layer = NULL;
-            PSLayerParameters *params = NULL;
+            PSHyperParameters *params = NULL;
             if (ltype == Convolutional || ltype == Pooling) {
                 int param_c = CONV_PARAMETER_COUNT;
-                params = PSCreateLayerParamenters(param_c);
+                params = PSCreateHyperParamenters(param_c);
                 for (aidx = 0; aidx < argc; aidx++) {
                     if (aidx >= param_c) break;
                     int arg = args[aidx];
@@ -901,7 +901,7 @@ int PSLoadNetwork(PSNeuralNetwork *network, const char* filename) {
                     lsize = args[0];
                     network->flags |= FLAG_ONEHOT;
                 } else if (argc > 0) {
-                    params = PSCreateLayerParamenters(argc);
+                    params = PSCreateHyperParamenters(argc);
                     for (aidx = 0; aidx < argc; aidx++) {
                         int arg = args[aidx];
                         params->parameters[aidx] = (PSFloat) arg;
@@ -1026,7 +1026,7 @@ int PSSaveNetwork(PSNeuralNetwork *network, const char* filename) {
         PSLayerType ltype = layer->type;
         if (i > 0) fprintf(f, ",");
         int flags = layer->flags;
-        PSLayerParameters *params = layer->parameters;
+        PSHyperParameters *params = layer->hyper_parameters;
         if (FullyConnected == ltype && !flags && !params)
             fprintf(f, "%d", layer->size);
         else if (params) {
@@ -1122,11 +1122,11 @@ static void DumpNetworkHeader(PSNeuralNetwork *network, FILE *dump_file) {
 static void DumpLayerInfo(PSLayer *layer, FILE *dump_file, int add_new_line) {
     PSLayerType ltype = layer->type;
     char *type_name = PSGetLayerTypeLabel(layer);
-    PSLayerParameters *lparams = layer->parameters;
+    PSHyperParameters *lparams = layer->hyper_parameters;
     fprintf(dump_file, "layer:index=%d,type=%s,size=%d", layer->index,
         type_name, layer->size);
     if (layer->index == 0 && layer->flags & FLAG_ONEHOT) {
-        PSLayerParameters *params = layer->parameters;
+        PSHyperParameters *params = layer->hyper_parameters;
         int onehot_sz = (int) (params->parameters[0]);
         fprintf(dump_file, ",vector_size=%d", onehot_sz);
     }
@@ -1177,7 +1177,7 @@ int PSDumpNetworkActivations(PSNeuralNetwork *network, const char* filename) {
     for (i = 0; i < network->size; i++) {
         PSLayer *layer = network->layers[i];
         PSLayerType ltype = layer->type;
-        PSLayerParameters *lparams = layer->parameters;
+        PSHyperParameters *lparams = layer->hyper_parameters;
         int fcount = 1, nidx = 0;
         if ((ltype == Convolutional || ltype == Pooling ||
             ltype == FullyConnected) && lparams != NULL)
@@ -1214,7 +1214,7 @@ int PSDumpNetworkDeltas(PSNeuralNetwork *network, const char* filename) {
     for (i = 0; i < network->size; i++) {
         PSLayer *layer = network->layers[i];
         PSLayerType ltype = layer->type;
-        PSLayerParameters *lparams = layer->parameters;
+        PSHyperParameters *lparams = layer->hyper_parameters;
         int fcount = 1, nidx = 0;
         if ((ltype == Convolutional || ltype == Pooling ||
             ltype == FullyConnected) && lparams != NULL)
@@ -1271,7 +1271,7 @@ void PSDeleteNeuron(PSNeuron *neuron, PSLayer *layer) {
 }
 
 PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
-                     PSLayerParameters* params) {
+                     PSHyperParameters* params) {
     if (network == NULL) return NULL;
     if (network->size == 0 && type != FullyConnected) {
         PSErr(__func__, "First layer type must be FullyConnected");
@@ -1286,7 +1286,7 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
     layer->index = network->size++;
     layer->type = type;
     layer->size = size;
-    layer->parameters = params;
+    layer->hyper_parameters = params;
     layer->extra = NULL;
     layer->flags = FLAG_NONE;
     layer->delta = NULL;
@@ -1307,9 +1307,9 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
         }
         if ((network->flags & FLAG_ONEHOT) && params == NULL) {
             layer->flags |= FLAG_ONEHOT;
-            PSLayerParameters *params;
-            params = PSCreateLayerParamenters(1, (PSFloat) size);
-            layer->parameters = params;
+            PSHyperParameters *params;
+            params = PSCreateHyperParamenters(1, (PSFloat) size);
+            layer->hyper_parameters = params;
             size = 1;
             layer->size = 1;
         }
@@ -1330,7 +1330,7 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
         }
         previous_size = previous->size;
         if (layer->index == 1 && previous->flags & FLAG_ONEHOT) {
-            PSLayerParameters *params = previous->parameters;
+            PSHyperParameters *params = previous->hyper_parameters;
             if (params == NULL) {
                 PSAbortLayer(network, layer);
                 PSErr(__func__, "Missing layer params on onehot layer[0]!");
@@ -1442,13 +1442,13 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
 }
 
 PSLayer *PSAddConvolutionalLayer(PSNeuralNetwork *network,
-                                  PSLayerParameters* params)
+                                  PSHyperParameters* params)
 {
     return PSAddLayer(network, Convolutional, 0, params);
 }
 
 PSLayer *PSAddPoolingLayer(PSNeuralNetwork *network,
-                            PSLayerParameters* params)
+                            PSHyperParameters* params)
 {
     return PSAddLayer(network, Pooling, 0, params);
 }
@@ -1464,8 +1464,8 @@ void PSDeleteLayer(PSLayer* layer) {
             free(neuron);
     }
     free(layer->neurons);
-    PSLayerParameters *params = layer->parameters;
-    if (params != NULL) PSDeleteLayerParamenters(params);
+    PSHyperParameters *params = layer->hyper_parameters;
+    if (params != NULL) PSDeleteHyperParamenters(params);
     void *extra = layer->extra;
     if (extra != NULL) {
         if (layer->type == Convolutional) {
@@ -1488,8 +1488,8 @@ void PSDeleteLayer(PSLayer* layer) {
     free(layer);
 }
 
-PSLayerParameters *PSCreateLayerParamenters(int count, ...) {
-    PSLayerParameters *params = malloc(sizeof(PSLayerParameters));
+PSHyperParameters *PSCreateHyperParamenters(int count, ...) {
+    PSHyperParameters *params = malloc(sizeof(PSHyperParameters));
     if (params == NULL) {
         PSErr(NULL, "Could not allocate Layer Parameters!");
         return NULL;
@@ -1513,19 +1513,19 @@ PSLayerParameters *PSCreateLayerParamenters(int count, ...) {
     return params;
 }
 
-PSLayerParameters *PSCreateConvolutionalParameters(PSFloat feature_count,
+PSHyperParameters *PSCreateConvolutionalParameters(PSFloat feature_count,
                                                     PSFloat region_size,
                                                     int stride,
                                                     int padding,
                                                     int use_relu)
 {
-    return PSCreateLayerParamenters(CONV_PARAMETER_COUNT, feature_count,
+    return PSCreateHyperParamenters(CONV_PARAMETER_COUNT, feature_count,
                                     region_size, (PSFloat) stride,
                                     0.0f, 0.0f, 0.0f, 0.0f,
                                     (PSFloat) padding, (PSFloat) use_relu);
 }
 
-int PSSetLayerParameter(PSLayerParameters *params, int param, PSFloat value) {
+int PSSetHyperParameter(PSHyperParameters *params, int param, PSFloat value) {
     if (params->parameters == NULL) {
         int len = param + 1;
         params->parameters = malloc(sizeof(PSFloat) * len);
@@ -1553,11 +1553,11 @@ int PSSetLayerParameter(PSLayerParameters *params, int param, PSFloat value) {
     return 1;
 }
 
-int PSAddLayerParameter(PSLayerParameters *params, PSFloat val) {
-    return PSSetLayerParameter(params, params->count + 1, val);
+int PSAddHyperParameter(PSHyperParameters *params, PSFloat val) {
+    return PSSetHyperParameter(params, params->count + 1, val);
 }
 
-void PSDeleteLayerParamenters(PSLayerParameters *params) {
+void PSDeleteHyperParamenters(PSHyperParameters *params) {
     if (params == NULL) return;
     if (params->parameters != NULL) free(params->parameters);
     free(params);
@@ -1645,9 +1645,9 @@ PSGradient *createLayerGradients(PSLayer *layer) {
     PSLayerType ltype = layer->type;
     if (ltype == Pooling) return NULL;
     int size = layer->size;
-    PSLayerParameters *parameters = NULL;
+    PSHyperParameters *parameters = NULL;
     if (ltype == Convolutional) {
-        parameters = layer->parameters;
+        parameters = layer->hyper_parameters;
         if (parameters == NULL) {
             PSErr(__func__, "Layer %d parameters are NULL!", layer->index);
             return NULL;
@@ -1671,7 +1671,8 @@ PSGradient *createLayerGradients(PSLayer *layer) {
                 if (layer->index >= 1) {
                     PSNeuralNetwork *net = (PSNeuralNetwork*) layer->network;
                     prev_layer = net->layers[layer->index - 1];
-                    PSLayerParameters *prev_params = prev_layer->parameters;
+                    PSHyperParameters *prev_params =
+                        prev_layer->hyper_parameters;
                     if (prev_params != NULL) {
                         int prev_feats =
                             (int)(prev_params->parameters[PARAM_FEATURE_COUNT]);
@@ -1755,7 +1756,7 @@ void PSDeleteGradients(PSGradient **gradients, PSNeuralNetwork *network) {
         PSLayer *layer = network->layers[i];
         int lsize;
         if (layer->type == Convolutional) {
-            PSLayerParameters *params = layer->parameters;
+            PSHyperParameters *params = layer->hyper_parameters;
             lsize = (int) (params->parameters[PARAM_FEATURE_COUNT]);
         } else lsize = layer->size;
         PSDeleteLayerGradients(lgradients, lsize);
@@ -2061,7 +2062,8 @@ PSGradient **backpropThroughTime(PSNeuralNetwork *network, PSFloat *x,
                     gradient->bias += dv;
                     int wsize = neuron->weights_size;
                     if (previousLayer->flags & FLAG_ONEHOT) {
-                        PSLayerParameters *params = previousLayer->parameters;
+                        PSHyperParameters *params =
+                            previousLayer->hyper_parameters;
                         if (params == NULL) {
                             fprintf(stderr, "Layer %d params are NULL!\n",
                                     previousLayer->index);
@@ -2279,12 +2281,12 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
                 /* Number of gradients for Convolutional layers is determined
                  * on the number of their feature maps/filters and not on
                  * the number of their nodes (neurons). */
-                PSLayerParameters *params = layer->parameters;
+                PSHyperParameters *params = layer->hyper_parameters;
                 lsize = (int) (params->parameters[PARAM_FEATURE_COUNT]);
                 int rsize = (int) (params->parameters[PARAM_REGION_SIZE]);
                 wsize = rsize *rsize;
                 PSLayer *prev_layer = network->layers[j];
-                PSLayerParameters *prev_params = prev_layer->parameters;
+                PSHyperParameters *prev_params = prev_layer->hyper_parameters;
                 if (prev_params != NULL) {
                     int prev_feat_count = (int) (
                         prev_params->parameters[PARAM_FEATURE_COUNT]
@@ -2393,7 +2395,7 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
          * layer's feature maps/filters count. Otherwise, layer size
          * is taken into account. */
         if (ltype == Convolutional) {
-            PSLayerParameters *params = layer->parameters;
+            PSHyperParameters *params = layer->hyper_parameters;
             l_size = (int) (params->parameters[PARAM_FEATURE_COUNT]);
             shared = PSGetConvSharedParams(layer);
         } else l_size = layer->size;
@@ -2997,7 +2999,7 @@ int PSVerifyNetwork(PSNeuralNetwork *network) {
                 return 0;
             }
             if (layer->flags & FLAG_ONEHOT) {
-                PSLayerParameters *params = layer->parameters;
+                PSHyperParameters *params = layer->hyper_parameters;
                 onehot_input = 1;
                 if (params == NULL) {
                     PSErr(

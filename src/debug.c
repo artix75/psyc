@@ -235,7 +235,7 @@ void segvHandler(int sig, siginfo_t *info, void *secret) {
     if (sig == SIGFPE) dumpfloatinPointExecption();
 
     printf("\n\n---- SIZEOF STRUCTS ----\n");
-    printf("PSLayerParameters: %d\n", (int) sizeof(PSLayerParameters));
+    printf("PSHyperParameters: %d\n", (int) sizeof(PSHyperParameters));
     printf("PSTrainingOptions: %d\n", (int) sizeof(PSTrainingOptions));
     printf("PSTrainingInfo:    %d\n", (int) sizeof(PSTrainingInfo));
     printf("PSNeuron:          %d\n", (int) sizeof(PSNeuron));
@@ -361,7 +361,7 @@ char *PSGetNeuronDebugID(PSNeuron *neuron, PSLayer *layer) {
     int n_index = neuron->index;
     int l_lindex = layer->index;
     int fcount = 0, f_index;
-    PSLayerParameters *lparams = layer->parameters;
+    PSHyperParameters *lparams = layer->hyper_parameters;
     if (lparams != NULL) {
         PSFloat *params = lparams->parameters;
         fcount = (int) (params[PARAM_FEATURE_COUNT]);
@@ -498,11 +498,11 @@ void PSTrainingDebugDumpHeader(PSNeuralNetwork *network,
         PSLayer *layer = network->layers[i];
         PSLayerType ltype = layer->type;
         char *type_name = PSGetLayerTypeLabel(layer);
-        PSLayerParameters *lparams = layer->parameters;
+        PSHyperParameters *lparams = layer->hyper_parameters;
         PSTrainingDebugDump(network, "layer:index=%d,type=%s,size=%d",
             i, type_name, layer->size);
         if (i == 0 && layer->flags & FLAG_ONEHOT) {
-            PSLayerParameters *params = layer->parameters;
+            PSHyperParameters *params = layer->hyper_parameters;
             int onehot_sz = (int) (params->parameters[0]);
             PSTrainingDebugDump(network, ",vector_size=%d", onehot_sz);
         }

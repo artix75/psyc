@@ -43,9 +43,9 @@
 /* Init Functions */
 
 int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
-                             PSLayerParameters *parameters);
+                             PSHyperParameters *parameters);
 int PSInitPoolingLayer(PSNeuralNetwork *network, PSLayer *layer,
-                       PSLayerParameters *parameters);
+                       PSHyperParameters *parameters);
 
 /* Feedforward Functions */
 

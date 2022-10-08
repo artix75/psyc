@@ -246,7 +246,7 @@ int main(int argc, char **argv) {
                 break;
             }
             if (Convolutional == ltype) {
-                PSLayerParameters *params = NULL;
+                PSHyperParameters *params = NULL;
                 params = PSCreateConvolutionalParameters(CONV_FEATURE_COUNT,
                                                          CONV_REGION_SIZE,
                                                          1, 0, 0);
@@ -292,7 +292,7 @@ int main(int argc, char **argv) {
                 }
                 PSAddConvolutionalLayer(network, params);
             } else if (Pooling == ltype) {
-                PSLayerParameters *params = NULL;
+                PSHyperParameters *params = NULL;
                 params = PSCreateConvolutionalParameters(0, POOL_REGION_SIZE,
                                                          POOL_REGION_SIZE,
                                                          0, 0);

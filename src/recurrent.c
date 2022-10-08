@@ -172,10 +172,10 @@ int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
     int avx_disabled = PSIsAVXDisabled(net);
 #endif
     int onehot = previous->flags & FLAG_ONEHOT;
-    PSLayerParameters *params = NULL;
+    PSHyperParameters *params = NULL;
     int vector_size = 0, vector_idx = 0;
     if (onehot) {
-        params = previous->parameters;
+        params = previous->hyper_parameters;
         if (params == NULL) {
             PSErr(NULL, "Layer[%d]: prev. onehot layer params are NULL!",
                   layer->index);
@@ -294,7 +294,7 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previousLayer, int lowest_t,
             int wsize = neuron->weights_size - cell->weights_size;
 
             if (previousLayer->flags & FLAG_ONEHOT) {
-                PSLayerParameters *params = previousLayer->parameters;
+                PSHyperParameters *params = previousLayer->hyper_parameters;
                 if (params == NULL) {
                     fprintf(stderr, "Layer %d params are NULL!\n",
                             previousLayer->index);

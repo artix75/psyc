@@ -113,7 +113,7 @@ typedef enum {
 typedef struct {
     int count;
     PSFloat *parameters;
-} PSLayerParameters;
+} PSHyperParameters;
 
 typedef struct {
     int feature_count;
@@ -163,7 +163,7 @@ typedef struct PSLayer {
     PSLayerType             type;
     int                     index;
     int                     size;
-    PSLayerParameters       *parameters;
+    PSHyperParameters       *hyper_parameters;
     PSActivationFunction    activate;
     PSActivationFunction    derivative;
     PSFeedforwardFunction   feedforward;
@@ -198,20 +198,20 @@ PSNeuralNetwork *PSCloneNetwork(PSNeuralNetwork *network, int layout_only);
 int PSLoadNetwork(PSNeuralNetwork *network, const char* filename);
 int PSSaveNetwork(PSNeuralNetwork *network, const char* filename);
 PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
-                    PSLayerParameters* params);
+                    PSHyperParameters* params);
 PSLayer *PSAddConvolutionalLayer(PSNeuralNetwork *network,
-                                 PSLayerParameters* params);
+                                 PSHyperParameters* params);
 PSLayer *PSAddPoolingLayer(PSNeuralNetwork *network,
-                           PSLayerParameters* params);
-PSLayerParameters *PSCreateLayerParamenters(int count, ...);
-int PSSetLayerParameter(PSLayerParameters *params, int param, PSFloat value);
-int PSAddLayerParameter(PSLayerParameters *params, PSFloat val);
-PSLayerParameters *PSCreateConvolutionalParameters(PSFloat feature_count,
+                           PSHyperParameters* params);
+PSHyperParameters *PSCreateHyperParamenters(int count, ...);
+int PSSetHyperParameter(PSHyperParameters *params, int param, PSFloat value);
+int PSAddHyperParameter(PSHyperParameters *params, PSFloat val);
+PSHyperParameters *PSCreateConvolutionalParameters(PSFloat feature_count,
                                                    PSFloat region_size,
                                                    int stride,
                                                    int padding,
                                                    int use_relu);
-void PSDeleteLayerParamenters(PSLayerParameters *params);
+void PSDeleteHyperParamenters(PSHyperParameters *params);
 int PSFeedforward(PSNeuralNetwork *network, PSFloat *values);
 int PSClassify(PSNeuralNetwork *network, PSFloat *values);
 

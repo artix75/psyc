@@ -55,8 +55,8 @@ int main(int argc, char** argv) {
 
     PSNeuralNetwork *network = PSCreateNetwork("Profiling Network");
 
-    PSLayerParameters *cparams;
-    PSLayerParameters *pparams;
+    PSHyperParameters *cparams;
+    PSHyperParameters *pparams;
     cparams = PSCreateConvolutionalParameters(FEATURES_COUNT, REGIONS_SIZE,
                                               1, 0, 1);
     pparams = PSCreateConvolutionalParameters(FEATURES_COUNT, POOL_SIZE,

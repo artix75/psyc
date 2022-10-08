@@ -71,7 +71,7 @@ w,steplen,step,rowlen) \
 /* Init Functions */
 
 int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
-                             PSLayerParameters *parameters) {
+                             PSHyperParameters *parameters) {
     int index = layer->index;
     if (index == 0) {
         PSErr(__func__, "First (input) layer cannot be a convolutional layer!");
@@ -104,7 +104,7 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
         return 0;
     }
     int previous_size = previous->size, prev_features;
-    PSLayerParameters *previous_params = previous->parameters;
+    PSHyperParameters *previous_params = previous->hyper_parameters;
     PSFloat input_w, input_h, output_w, output_h;
     int use_relu = (int) (params[PARAM_USE_RELU]);
 #ifdef USE_AVX
@@ -116,7 +116,7 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
         previous_params = PSCreateConvolutionalParameters(1, 0, 0, 0, 0);
         previous_params->parameters[PARAM_OUTPUT_WIDTH] = input_w;
         previous_params->parameters[PARAM_OUTPUT_HEIGHT] = input_h;
-        previous->parameters = previous_params;
+        previous->hyper_parameters = previous_params;
         prev_features = 1;
     } else {
         input_w = previous_params->parameters[PARAM_OUTPUT_WIDTH];
@@ -219,7 +219,7 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
 }
 
 int PSInitPoolingLayer(PSNeuralNetwork *network, PSLayer *layer,
-                       PSLayerParameters *parameters) {
+                       PSHyperParameters *parameters) {
     int index = layer->index;
     PSLayer *previous = network->layers[index - 1];
     if (previous->type != Convolutional) {
@@ -241,7 +241,7 @@ int PSInitPoolingLayer(PSNeuralNetwork *network, PSLayer *layer,
         return 0;
     }
     PSFloat *params = parameters->parameters;
-    PSLayerParameters *previous_parameters = previous->parameters;
+    PSHyperParameters *previous_parameters = previous->hyper_parameters;
     if (previous_parameters == NULL) {
         PSErr(__func__, "Previous layer parameters is NULL!");
         PSAbortLayer(network, layer);
@@ -338,12 +338,12 @@ int PSConvolve(PSNeuralNetwork *net, PSLayer *layer, ...) {
     int do_dump =
         (net->training != NULL && net->training->debug_dump_to != NULL);
     int i, j, k, x, y, row, col;
-    PSLayerParameters *parameters = layer->parameters;
+    PSHyperParameters *parameters = layer->hyper_parameters;
     if (parameters == NULL) {
         PSErr(NULL, "Layer[%d]: parameters are NULL!", layer->index);
         return 0;
     }
-    PSLayerParameters *previous_parameters = previous->parameters;
+    PSHyperParameters *previous_parameters = previous->hyper_parameters;
     if (previous_parameters == NULL) {
         PSErr(NULL, "Layer[%d]: parameters are invalid!", layer->index);
         return 0;
@@ -514,12 +514,12 @@ int PSPool(PSNeuralNetwork *net, PSLayer *layer, ...) {
 #ifdef USE_AVX
     int avx_disabled = PSIsAVXDisabled(net);
 #endif
-    PSLayerParameters *parameters = layer->parameters;
+    PSHyperParameters *parameters = layer->hyper_parameters;
     if (parameters == NULL) {
         PSErr(NULL, "Layer[%d]: parameters are NULL!", layer->index);
         return 0;
     }
-    PSLayerParameters *previous_parameters = previous->parameters;
+    PSHyperParameters *previous_parameters = previous->hyper_parameters;
     if (previous_parameters == NULL) {
         PSErr(NULL, "Layer[%d]: parameters are invalid!", layer->index);
         return 0;
@@ -595,8 +595,8 @@ int PSPoolingBackprop(PSLayer *pooling_layer, PSLayer *convolutional_layer,
                       PSFloat *delta)
 {
     PSFloat *conv_delta = convolutional_layer->delta;
-    PSLayerParameters *pool_params = pooling_layer->parameters;
-    PSLayerParameters *conv_params = convolutional_layer->parameters;
+    PSHyperParameters *pool_params = pooling_layer->hyper_parameters;
+    PSHyperParameters *conv_params = convolutional_layer->hyper_parameters;
     int feature_count = (int) (conv_params->parameters[PARAM_FEATURE_COUNT]);
     int pool_size = (int) (pool_params->parameters[PARAM_REGION_SIZE]);
     int feature_size = pooling_layer->size / feature_count;
@@ -656,7 +656,7 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
     PSFloat *delta = convolutional_layer->delta;
     PSFloat *prev_delta = prev_layer->delta;
     int size = convolutional_layer->size;
-    PSLayerParameters *params = convolutional_layer->parameters;
+    PSHyperParameters *params = convolutional_layer->hyper_parameters;
     int feature_count = (int) (params->parameters[PARAM_FEATURE_COUNT]);
     int region_size = (int) (params->parameters[PARAM_REGION_SIZE]);
     int region_area = region_size *region_size;
@@ -667,7 +667,7 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
     PSFloat output_w = params->parameters[PARAM_OUTPUT_WIDTH];
     int feature_size = size / feature_count;
     int previous_feature_size = 0, prev_features = 1;
-    PSLayerParameters *prev_params = prev_layer->parameters;
+    PSHyperParameters *prev_params = prev_layer->hyper_parameters;
     if (prev_params != NULL) {
         prev_features = (int) (prev_params->parameters[PARAM_FEATURE_COUNT]);
         previous_feature_size = prev_layer->size / prev_features;

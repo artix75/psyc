@@ -347,10 +347,10 @@ int PSLSTMFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
     int avx_disabled = PSIsAVXDisabled(net);
 #endif
     int onehot = previous->flags & FLAG_ONEHOT;
-    PSLayerParameters *params = NULL;
+    PSHyperParameters *params = NULL;
     int vector_size = 0, vector_idx = -1;
     if (onehot) {
-        params = previous->parameters;
+        params = previous->hyper_parameters;
         if (params == NULL) {
             PSErr(NULL, "Layer[%d]: prev. onehot layer params are NULL!",
                   layer->index);
@@ -402,7 +402,7 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previousLayer,
     int lsize = layer->size, i, w, last_t = t - 1;
     int previous_size = previousLayer->size;
     if (onehot) {
-        PSLayerParameters *params = previousLayer->parameters;
+        PSHyperParameters *params = previousLayer->hyper_parameters;
         if (params == NULL) {
             fprintf(stderr, "Layer %d params are NULL!\n",
                     previousLayer->index);

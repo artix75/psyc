@@ -72,8 +72,8 @@ int main(int argc, char** argv) {
     }
 
     if (pretrained_file == NULL) {
-        PSLayerParameters *cparams;
-        PSLayerParameters *pparams;
+        PSHyperParameters *cparams;
+        PSHyperParameters *pparams;
         cparams = PSCreateConvolutionalParameters(FEATURES_COUNT, REGIONS_SIZE,
                                                   1, 0, RELU_ENABLED);
         pparams = PSCreateConvolutionalParameters(FEATURES_COUNT, POOL_SIZE,
