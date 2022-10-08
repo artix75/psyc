@@ -123,10 +123,9 @@ void getTempFileName(const char *prefix, char *buffer) {
     fclose(urand);
 }
 
-int loadMNISTData(int type,
-                  const char *images_file,
-                  const char *labels_file,
-                  PSFloat **data) {
+int PSLoadMNISTData(int type, const char *images_file, const char *labels_file,
+                    PSFloat **data)
+{
     char tmpImagesFileName[255];
     char tmpLabelsFileName[255];
     char *prefixImg;

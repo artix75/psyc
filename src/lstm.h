@@ -20,8 +20,9 @@
 
 #include "psyc.h"
 
-#define GetLSTMCell(neuron) ((PSLSTMCell*) neuron->extra)
-#define GetLSTMGradientBiases(n, gradient) (gradient->weights + n->weights_size)
+#define PSGetLSTMCell(neuron) ((PSLSTMCell*) neuron->extra)
+#define PSGetLSTMGradientBiases(n, gradient) (gradient->weights +\
+ n->weights_size)
 
 typedef struct {
     int states_count;

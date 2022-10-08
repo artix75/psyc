@@ -136,10 +136,10 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
     int stride = (int) params[PARAM_STRIDE];
     int padding = (int) params[PARAM_PADDING];
     if (stride <= 0) stride = 1;
-    output_w = calculateConvolutionalSide(input_w, region_size,
-                                          stride, (PSFloat) padding);
-    output_h = calculateConvolutionalSide(input_h, region_size,
-                                          stride, (PSFloat) padding);
+    output_w = PSCalculateConvolutionalSide(input_w, region_size,
+                                            stride, (PSFloat) padding);
+    output_h = PSCalculateConvolutionalSide(input_h, region_size,
+                                            stride, (PSFloat) padding);
     params[PARAM_OUTPUT_WIDTH] = output_w;
     params[PARAM_OUTPUT_HEIGHT] = output_h;
     int area = (int)(output_w *output_h);
@@ -155,7 +155,7 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
     if (!avx_disabled) {
         layer->avx_activation_cache = calloc(size, sizeof(PSFloat));
         if (layer->avx_activation_cache == NULL) {
-            printMemoryErrorMsg();
+            PSPrintMemoryErrorMsg();
             PSAbortLayer(network, layer);
             return 0;
         }
@@ -181,7 +181,7 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
     PSFloat wscale = PSSqrt(1.0 / shared->weights_size);
     for (i = 0; i < feature_count; i++) {
         shared->biases[i] = (use_relu ? 0.1 : 0.0);
-        /* shared->biases[i] = gaussian_random(0, 1);*/
+        /* shared->biases[i] = PSGaussianRandom(0, 1);*/
         shared->weights[i] = malloc(shared->weights_size * sizeof(PSFloat));
         if (shared->weights[i] == NULL) {
             PSErr(func, "Layer[%d]: Could not allocate weights!", index);
@@ -189,7 +189,7 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
             return 0;
         }
         for (w = 0; w < shared->weights_size; w++) {
-            shared->weights[i][w] = gaussian_random(0, wscale);
+            shared->weights[i][w] = PSGaussianRandom(0, wscale);
         }
         for (j = 0; j < area; j++) {
             int idx = (i * area) + j;
@@ -209,11 +209,11 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
         }
     }
     if (!use_relu) {
-        layer->activate = sigmoid;
-        layer->derivative = sigmoid_derivative;
+        layer->activate = PSSigmoid;
+        layer->derivative = PSSigmoidDerivative;
     } else {
-        layer->activate = relu;
-        layer->derivative = relu_derivative;
+        layer->activate = PSRelu;
+        layer->derivative = PSReluDerivative;
     }
     layer->feedforward = PSConvolve;
     return 1;
@@ -267,8 +267,8 @@ int PSInitPoolingLayer(PSNeuralNetwork *network, PSLayer *layer,
     input_h = previous_params[PARAM_OUTPUT_HEIGHT];
     params[PARAM_INPUT_WIDTH] = input_w;
     params[PARAM_INPUT_HEIGHT] = input_h;
-    output_w = calculatePoolingSide(input_w, region_size);
-    output_h = calculatePoolingSide(input_h, region_size);
+    output_w = PSCalculatePoolingSide(input_w, region_size);
+    output_h = PSCalculatePoolingSide(input_h, region_size);
     params[PARAM_OUTPUT_WIDTH] = output_w;
     params[PARAM_OUTPUT_HEIGHT] = output_h;
 #ifdef USE_AVX
@@ -287,7 +287,7 @@ int PSInitPoolingLayer(PSNeuralNetwork *network, PSLayer *layer,
     if (!avx_disabled) {
         layer->avx_activation_cache = calloc(size, sizeof(PSFloat));
         if (layer->avx_activation_cache == NULL) {
-            printMemoryErrorMsg();
+            PSPrintMemoryErrorMsg();
             PSAbortLayer(network, layer);
             return 0;
         }
@@ -306,7 +306,7 @@ int PSInitPoolingLayer(PSNeuralNetwork *network, PSLayer *layer,
             neuron->index = idx;
             neuron->extra = NULL;
             neuron->weights_size = 0;
-            neuron->bias = NULL_VALUE;
+            neuron->bias = PS_NULL_VALUE;
             neuron->weights = NULL;
             neuron->layer = layer;
             layer->neurons[idx] = neuron;
@@ -372,7 +372,7 @@ int PSConvolve(PSNeuralNetwork *net, PSLayer *layer, ...) {
     /* AVX doesn't offer performance increase if not applied on big vectors */
     int avx_min_size = AVX_MIN_VECTOR_SIZE * 2;
 #endif
-    PSSharedParams *shared = getConvSharedParams(layer);
+    PSSharedParams *shared = PSGetConvSharedParams(layer);
     if (shared == NULL) {
         PSErr(NULL, "Layer[%d]: shared params are NULL!", layer->index);
         return 0;
@@ -397,7 +397,6 @@ int PSConvolve(PSNeuralNetwork *net, PSLayer *layer, ...) {
             int max_x = region_size + r_col;
             int max_y = region_size + r_row;
             PSFloat sum = 0;
-            /* printf("Neuron %d,%d: r: %d, b: %d\n", col, row, max_x, max_y); */
             for (k = 0; k < prev_features; k++) {
                 int widx = k * (int) region_area;
                 int feature_offset = k * previous_feature_size;
@@ -674,7 +673,7 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
         previous_feature_size = prev_layer->size / prev_features;
     }
     PSNeuralNetwork *net = (PSNeuralNetwork *) convolutional_layer->network;
-    PSSharedParams *shared = getConvSharedParams(convolutional_layer);
+    PSSharedParams *shared = PSGetConvSharedParams(convolutional_layer);
     int do_dump = 0;
     if (net != NULL) {
         do_dump = (

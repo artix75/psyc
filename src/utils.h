@@ -26,7 +26,7 @@
 #define M_PI 3.141592653589793
 #endif
 
-#define shouldApplyDerivative(network) (network->loss != PSCrossEntropyLoss)
+#define PSShouldApplyDerivative(network) (network->loss != PSCrossEntropyLoss)
 /* Get elapsed time in milliseconds */
 #define PSGetElapsedTimeMS(st, et) ((((et.tv_sec - st.tv_sec) * 1000000) \
 /* Get elapsed time in microseconds */
@@ -46,10 +46,10 @@
 #define RESET   "\x1b[0m"
 #define RESET_BOLD "\x1b[21m"
 
-#define printMemoryErrorMsg() PSErr(NULL, "Could not allocate memory!")
+#define PSPrintMemoryErrorMsg() PSErr(NULL, "Could not allocate memory!")
 
 #ifdef PS_DOUBLE_PRECISION
-#define tanh_activation tanh
+#define PSTanhActivation tanh
 #define PSSqrt(v) sqrt(v)
 #define PSFloor(v) floor(v)
 #define PSExp(v) exp(v)
@@ -58,7 +58,7 @@
 #define PSAbs(v) fabs(v)
 #define PSPow(a,b) pow(a, b)
 #else
-#define tanh_activation tanhf
+#define PSTanhActivation tanhf
 #define PSSqrt(v) sqrtf(v)
 #define PSFloor(v) floorf(v)
 #define PSExp(v) expf(v)
@@ -73,15 +73,15 @@ void PSErr(const char* tag, char* fmt, ...);
 
 /* Activation Functions */
 
-PSFloat sigmoid(PSFloat val);
+PSFloat PSSigmoid(PSFloat val);
 
-PSFloat sigmoid_derivative(PSFloat val);
+PSFloat PSSigmoidDerivative(PSFloat val);
 
-PSFloat relu(PSFloat val);
+PSFloat PSRelu(PSFloat val);
 
-PSFloat relu_derivative(PSFloat val);
+PSFloat PSReluDerivative(PSFloat val);
 
-PSFloat tanh_derivative(PSFloat val);
+PSFloat PSTanhDerivative(PSFloat val);
 
 /* Network Functions */
 
@@ -89,14 +89,14 @@ void PSAbortLayer(PSNeuralNetwork *network, PSLayer *layer);
 
 /* Misc */
 
-PSFloat normalized_random();
+PSFloat PSNormalizedRandom();
 
-PSFloat gaussian_random(PSFloat mean, PSFloat stddev);
+PSFloat PSGaussianRandom(PSFloat mean, PSFloat stddev);
 
-int get_terminal_columns();
+int PSGetTerminalColumns();
 
-void fill_with_blank(int line_length);
+void PSFillWithBlank(int line_length);
 
-PSFloat *copy_floats(PSFloat *src, size_t size);
+PSFloat *PSCopyFloats(PSFloat *src, size_t size);
 
 #endif /* __PS_UTILS_H */

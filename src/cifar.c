@@ -33,8 +33,8 @@ static int compareFilenames(const void* a, const void* b) {
     return strcmp((const char*)a, (const char*)b);
 }
 
-int loadCIFARData(int type, int classes, const char *dataset_path,
-                  PSFloat **data, int max_files, int max_elements)
+int PSLoadCIFARData(int type, int classes, const char *dataset_path,
+                    PSFloat **data, int max_files, int max_elements)
 {
     if (classes != 10 && classes != 100) {
         fprintf(stderr, "Invalid classes %d: only 10 or 100 allowed.", classes);

@@ -525,7 +525,7 @@ void PSTrainingDebugDumpHeader(PSNeuralNetwork *network,
                 rsize, rsize, stride
             );
             if (ltype == Convolutional) {
-                char *actv = (use_relu ? "relu" : "sigmoid");
+                char *actv = (use_relu ? "PSRelu" : "PSSigmoid");
                 int padding = (int) (params[PARAM_PADDING]);
                 if (padding < 0) padding = 0;
                 PSTrainingDebugDump(

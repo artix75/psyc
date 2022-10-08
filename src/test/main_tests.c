@@ -384,8 +384,8 @@ int genericSetup (void* tc) {
     }
     test_case->data[0] = network;
     PSFloat *test_data = NULL;
-    testlen = loadMNISTData(DATA_TYPE_TEST, TEST_IMAGE_FILE, TEST_LABEL_FILE,
-                            &test_data);
+    testlen = PSLoadMNISTData(DATA_TYPE_TEST, TEST_IMAGE_FILE, TEST_LABEL_FILE,
+                              &test_data);
     test_case->data[1] = test_data;
     if (test_data == NULL) {
         return 0;
@@ -496,7 +496,7 @@ int LSTMSetup (void* tc) {
     int i, w;
     for (i = 0; i < layer->size; i++) {
         PSNeuron *neuron = layer->neurons[i];
-        PSLSTMCell *cell = GetLSTMCell(neuron);
+        PSLSTMCell *cell = PSGetLSTMCell(neuron);
         cell->candidate_bias = bg[i];
         cell->input_bias = bi[i];
         cell->output_bias = bo[i];
@@ -828,7 +828,9 @@ int testRNNFeedforward(void* tc, void* t) {
         PSRecurrentCell* cell = (PSRecurrentCell*) n->extra;
         for (j = 0; j < cell->states_count; j++) {
             PSFloat s = getRoundedFloatDec(cell->states[j], HIGH_PRECISION_DEC);
-            PSFloat expected = getRoundedFloatDec(rnn_expected_output[j][i], HIGH_PRECISION_DEC);
+            PSFloat expected = getRoundedFloatDec(
+                rnn_expected_output[j][i], HIGH_PRECISION_DEC
+            );
             ok = (s == expected);
             if (!ok) {
                 test->error_message = malloc(255 * sizeof(char));
@@ -946,7 +948,7 @@ int testLSTMTrain(void* tc, void* tst) {
 
     for (i = 0; i < layer->size; i++) {
         PSNeuron *neuron = layer->neurons[i];
-        PSLSTMCell *cell = GetLSTMCell(neuron);
+        PSLSTMCell *cell = PSGetLSTMCell(neuron);
         int times = cell->states_count;
         for (t = 0; t < times; t++) {
             PSFloat h = getRoundedFloat(cell->states[t]);
@@ -1050,7 +1052,7 @@ int testLSTMTrain(void* tc, void* tst) {
 
     for (i = 0; i < out->size; i++) {
         PSNeuron *neuron = out->neurons[i];
-        PSRecurrentCell *cell = GetRecurrentCell(neuron);
+        PSRecurrentCell *cell = PSGetRecurrentCell(neuron);
         int times = cell->states_count;
         for (t = 0; t < times; t++) {
             PSFloat h = getRoundedFloat(cell->states[t]);
@@ -1200,8 +1202,8 @@ int compareNetworks(PSNeuralNetwork *network, PSNeuralNetwork *clone,
                 PSFloat cbias = getRoundedFloat(clone_n->bias);
                 ok = (obias == cbias);
             } else if (otype == LSTM) {
-                PSLSTMCell *ocell =  GetLSTMCell(orig_n);
-                PSLSTMCell *ccell =  GetLSTMCell(clone_n);
+                PSLSTMCell *ocell =  PSGetLSTMCell(orig_n);
+                PSLSTMCell *ccell =  PSGetLSTMCell(clone_n);
                 ok = (getRoundedFloat(ocell->candidate_bias) ==
                       getRoundedFloat(ccell->candidate_bias));
                 if (!ok) {

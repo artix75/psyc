@@ -384,8 +384,8 @@ int main(int argc, char** argv) {
     }
 
     if (dataset_path != NULL) {
-        datasize = loadCIFARData(DATA_TYPE_TRAINING, classes, dataset_path,
-                                &training_data, 0, max_images);
+        datasize = PSLoadCIFARData(DATA_TYPE_TRAINING, classes, dataset_path,
+                                   &training_data, 0, max_images);
         if (datasize == 0 || training_data == NULL) {
             printf("Could not load training data!\n");
             return 1;
@@ -394,8 +394,8 @@ int main(int argc, char** argv) {
         printf("Loaded training dataset (len: %d, size: %d)\n",
             datalen, datasize);
         if (!max_images) {
-            testsize = loadCIFARData(DATA_TYPE_TEST, classes, dataset_path,
-                                    &test_data, 0, 0);
+            testsize = PSLoadCIFARData(DATA_TYPE_TEST, classes, dataset_path,
+                                       &test_data, 0, 0);
             if (testsize == 0 || test_data == NULL) {
                 printf("Could not load test data!\n");
                 return 1;

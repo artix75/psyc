@@ -359,7 +359,7 @@ int main(int argc, char **argv) {
                 lblfile = MNISTDataFiles[MNIST_TRAIN_LABELS];
             }
             if (imgfile != NULL && lblfile != NULL)
-                datalen = loadMNISTData(DATA_TYPE_TRAINING, imgfile, lblfile,
+                datalen = PSLoadMNISTData(DATA_TYPE_TRAINING, imgfile, lblfile,
                                         &training_data);
             if (datalen == 0 || training_data == NULL) {
                 fprintf(stderr, "Could not load training data!\n");
@@ -398,7 +398,7 @@ int main(int argc, char **argv) {
                 lblfile = MNISTDataFiles[MNIST_TEST_LABELS];
             }
             if (imgfile != NULL && lblfile != NULL)
-                testlen = loadMNISTData(DATA_TYPE_TEST, imgfile, lblfile,
+                testlen = PSLoadMNISTData(DATA_TYPE_TEST, imgfile, lblfile,
                                         &test_data);
             if (testlen == 0 || test_data == NULL) {
                 fprintf(stderr, "Could not load test data!\n");

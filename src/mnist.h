@@ -26,8 +26,6 @@
 #endif
 
 
-int loadMNISTData(int type,
-                  const char *images_file,
-                  const char *labels_file,
-                  PSFloat **data);
+int PSLoadMNISTData(int type, const char *images_file, const char *labels_file,
+                    PSFloat **data);
 #endif /*  __PS_MNIST_H */

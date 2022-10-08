@@ -92,8 +92,8 @@ int compareNetworks(PSNeuralNetwork *network, PSNeuralNetwork *other)
                 PSFloat cbias = getRoundedFloat(other_n->bias);
                 ok = (obias == cbias);
             } else if (otype == LSTM) {
-                PSLSTMCell *ocell =  GetLSTMCell(orig_n);
-                PSLSTMCell *ccell =  GetLSTMCell(other_n);
+                PSLSTMCell *ocell =  PSGetLSTMCell(orig_n);
+                PSLSTMCell *ccell =  PSGetLSTMCell(other_n);
                 ok = (ocell->candidate_bias == ccell->candidate_bias);
                 if (!ok) {
                     sprintf(msg, "Layer[%d][%d]: candidate_bias "

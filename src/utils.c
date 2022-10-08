@@ -50,23 +50,23 @@ void PSErr(const char* tag, char* fmt, ...) {
 
 /* Activation Functions */
 
-PSFloat sigmoid(PSFloat val) {
+PSFloat PSSigmoid(PSFloat val) {
     return 1.0 / (1.0 + PSExp(-val));
 }
 
-PSFloat sigmoid_derivative(PSFloat val) {
+PSFloat PSSigmoidDerivative(PSFloat val) {
     return val * (1 - val);
 }
 
-PSFloat relu(PSFloat val) {
+PSFloat PSRelu(PSFloat val) {
     return (val >= 0.0 ? val : 0.0);
 }
 
-PSFloat relu_derivative(PSFloat val) {
+PSFloat PSReluDerivative(PSFloat val) {
     return (PSFloat)(val > 0.0);
 }
 
-PSFloat tanh_derivative(PSFloat val) {
+PSFloat PSTanhDerivative(PSFloat val) {
     return (1 - (val *val));
 }
 
@@ -94,7 +94,7 @@ void PSAbortLayer(PSNeuralNetwork *network, PSLayer *layer) {
 /* Misc */
 
 
-PSFloat normalized_random() {
+PSFloat PSNormalizedRandom() {
     if (!randomSeeded) {
         randomSeeded = 1;
         srand(time(NULL));
@@ -103,17 +103,17 @@ PSFloat normalized_random() {
     return ((PSFloat) r / (PSFloat) RAND_MAX);
 }
 
-PSFloat gaussian_random(PSFloat mean, PSFloat stddev) {
-    PSFloat theta = 2 * M_PI *normalized_random();
-    PSFloat rho = PSSqrt(-2 * PSMathLog(1 - normalized_random()));
+PSFloat PSGaussianRandom(PSFloat mean, PSFloat stddev) {
+    PSFloat theta = 2 * M_PI *PSNormalizedRandom();
+    PSFloat rho = PSSqrt(-2 * PSMathLog(1 - PSNormalizedRandom()));
     PSFloat scale = stddev *rho;
     PSFloat x = mean + scale *cos(theta);
     PSFloat y = mean + scale *sin(theta);
-    PSFloat r = normalized_random();
+    PSFloat r = PSNormalizedRandom();
     return (r > 0.5 ? y : x);
 }
 
-int get_terminal_columns() {
+int PSGetTerminalColumns() {
     static int __term_columns = -1;
     if (__term_columns < 0) {
 #if IS_UNIX
@@ -128,15 +128,15 @@ int get_terminal_columns() {
     return __term_columns;
 }
 
-void fill_with_blank(int line_length) {
-    int term_w = get_terminal_columns();
+void PSFillWithBlank(int line_length) {
+    int term_w = PSGetTerminalColumns();
     int pad = term_w - line_length, i;
     if (pad <= 0) return;
     for (i = 0; i < pad; i++) printf(" ");
     fflush(stdout);
 }
 
-PSFloat *copy_floats(PSFloat *src, size_t length) {
+PSFloat *PSCopyFloats(PSFloat *src, size_t length) {
     size_t size = length * sizeof(PSFloat);
     PSFloat *dup = malloc(size);
     if (dup == NULL) return NULL;

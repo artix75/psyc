@@ -45,7 +45,7 @@ PSRecurrentCell *PSCreateRecurrentCell(PSNeuron *neuron, int lsize) {
 PSFloat *PSAddRecurrentState(PSNeuralNetwork *net, PSNeuron *neuron,
                              PSFloat state, int times, int t)
 {
-    PSRecurrentCell *cell = GetRecurrentCell(neuron);
+    PSRecurrentCell *cell = PSGetRecurrentCell(neuron);
     if (cell == NULL) {
         cell = PSCreateRecurrentCell(neuron, 0);
         neuron->extra = cell;
@@ -73,7 +73,7 @@ PSFloat *PSAddRecurrentState(PSNeuralNetwork *net, PSNeuron *neuron,
             layer->avx_activation_cache = calloc(lsize *times, sizeof(PSFloat));
         }
         if (layer->avx_activation_cache == NULL) {
-            printMemoryErrorMsg();
+            PSPrintMemoryErrorMsg();
             neuron->extra = NULL;
             if (cell->states != NULL) free(cell->states);
             free(cell);
@@ -113,7 +113,7 @@ int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
         }
         neuron->index = i;
         neuron->weights_size = ws;
-        neuron->bias = gaussian_random(0, 1);
+        neuron->bias = PSGaussianRandom(0, 1);
         neuron->weights = malloc(sizeof(PSFloat) * ws);
         if (neuron->weights ==  NULL) {
             PSAbortLayer(network, layer);
@@ -121,7 +121,7 @@ int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
             return 0;
         }
         for (j = 0; j < ws; j++) {
-            neuron->weights[j] = gaussian_random(0, 1);
+            neuron->weights[j] = PSGaussianRandom(0, 1);
         }
         neuron->activation = 0;
         neuron->z_value = 0;
@@ -134,8 +134,8 @@ int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
         neuron->layer = layer;
     }
     layer->flags |= FLAG_RECURRENT;
-    layer->activate = tanh_activation;
-    layer->derivative = tanh_derivative;
+    layer->activate = PSTanhActivation;
+    layer->derivative = PSTanhDerivative;
     layer->feedforward = PSRecurrentFeedforward;
     network->flags |= FLAG_RECURRENT;
     return 1;
@@ -200,7 +200,7 @@ int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
     int i, j, w, previous_size = previous->size;
     for (i = 0; i < size; i++) {
         PSNeuron *neuron = layer->neurons[i];
-        PSRecurrentCell *cell = GetRecurrentCell(neuron);
+        PSRecurrentCell *cell = PSGetRecurrentCell(neuron);
         if (cell == NULL) {
             PSErr(NULL, "Layer[%d]: neuron[%d] cell is NULL!",
                   layer->index, i);
@@ -238,7 +238,7 @@ int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
 #endif
             for (; w < size; w++) {
                 PSNeuron *n = layer->neurons[w];
-                PSRecurrentCell *rc = GetRecurrentCell(n);
+                PSRecurrentCell *rc = PSGetRecurrentCell(n);
                 if (rc == NULL) return 0;
                 PSFloat weight = cell->weights[w];
                 PSFloat last_state = rc->states[last_t];
@@ -255,7 +255,7 @@ int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
                 layer->avx_activation_cache = calloc(times *size,
                                                      sizeof(PSFloat));
                 if (layer->avx_activation_cache == NULL) {
-                    printMemoryErrorMsg();
+                    PSPrintMemoryErrorMsg();
                     return 0;
                 }
             }
@@ -289,7 +289,7 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previousLayer, int lowest_t,
         PSFloat *new_delta = NULL;
         for (i = 0; i < lsize; i++) {
             PSNeuron *neuron = layer->neurons[i];
-            PSRecurrentCell *cell = GetRecurrentCell(neuron);
+            PSRecurrentCell *cell = PSGetRecurrentCell(neuron);
             PSGradient *gradient = &(lgradients[i]);
             PSFloat dv = delta[i];
             gradient->bias += dv;
@@ -305,7 +305,7 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previousLayer, int lowest_t,
                 int vector_size = (int) params->parameters[0];
                 assert(vector_size > 0);
                 PSNeuron *prev_n = previousLayer->neurons[0];
-                PSRecurrentCell *prev_c = GetRecurrentCell(prev_n);
+                PSRecurrentCell *prev_c = PSGetRecurrentCell(prev_n);
                 PSFloat prev_a = prev_c->states[tt];
                 assert(prev_a < vector_size);
                 w = (int) prev_a;
@@ -313,7 +313,7 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previousLayer, int lowest_t,
             } else {
                 for (w = 0; w < wsize; w++) {
                     PSNeuron *prev_n = previousLayer->neurons[w];
-                    PSRecurrentCell *prev_c = GetRecurrentCell(prev_n);
+                    PSRecurrentCell *prev_c = PSGetRecurrentCell(prev_n);
                     PSFloat prev_a = prev_c->states[tt];
                     gradient->weights[w] += (dv *prev_a);
                 }
@@ -323,7 +323,7 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previousLayer, int lowest_t,
                 if (new_delta == NULL) {
                     new_delta = calloc(lsize, sizeof(PSFloat));
                     if (new_delta == NULL) {
-                        printMemoryErrorMsg();
+                        PSPrintMemoryErrorMsg();
                         return 0;
                     }
                 }
@@ -340,13 +340,13 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previousLayer, int lowest_t,
 #endif
                 for (; w < cell->weights_size; w++) {
                     PSNeuron *rn = layer->neurons[w];
-                    PSRecurrentCell *rc = GetRecurrentCell(rn);
+                    PSRecurrentCell *rc = PSGetRecurrentCell(rn);
                     PSFloat a = rc->states[tt - 1];
                     gradient->weights[wsize + w] += (dv *a);
                 }
                 for (w = 0; w < cell->weights_size; w++) {
                     PSNeuron *rn = layer->neurons[w];
-                    PSRecurrentCell *rc = GetRecurrentCell(rn);
+                    PSRecurrentCell *rc = PSGetRecurrentCell(rn);
                     PSFloat rw = rc->weights[neuron->index];
                     rsum += (delta[rn->index] * rw);
                 }

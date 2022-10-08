@@ -30,7 +30,7 @@
  network->training->current_element == 0 &&\
  network->training->current_epoch == 0)
 
-#define assertWithMessage(expr, fmt, ...) do {\
+#define PSAssertWithMessage(expr, fmt, ...) do {\
     if (!(expr)) {\
         printf("\n\n== ASSERTION FAILURE ==\n");\
         if (fmt != NULL) \

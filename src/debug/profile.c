@@ -40,18 +40,18 @@ int main(int argc, char** argv) {
     PSFloat *test_data = NULL;
     PSFloat *train_data = NULL;
     PSFloat *eval_data = NULL;
-    int datalen = loadMNISTData(DATA_TYPE_TRAINING,
-                                "../../resources/train-images-idx3-ubyte.gz",
-                                "../../resources/train-labels-idx1-ubyte.gz",
-                                &train_data);
+    int datalen = PSLoadMNISTData(DATA_TYPE_TRAINING,
+                                  "../../resources/train-images-idx3-ubyte.gz",
+                                  "../../resources/train-labels-idx1-ubyte.gz",
+                                  &train_data);
     if (datalen == 0 || train_data == NULL) {
         printf("Could not load training data!\n");
         return 1;
     }
-    int testlen = loadMNISTData(DATA_TYPE_TEST,
-                                "../../resources/t10k-images-idx3-ubyte.gz",
-                                "../../resources/t10k-labels-idx1-ubyte.gz",
-                                &test_data);
+    int testlen = PSLoadMNISTData(DATA_TYPE_TEST,
+                                  "../../resources/t10k-images-idx3-ubyte.gz",
+                                  "../../resources/t10k-labels-idx1-ubyte.gz",
+                                  &test_data);
 
     PSNeuralNetwork *network = PSCreateNetwork("Profiling Network");
 

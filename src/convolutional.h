@@ -33,12 +33,12 @@
 
 #define CONV_PARAMETER_COUNT 9
 
-#define getColumn(index, width) (index % width)
-#define getRow(index, width) ((int) ((int) index / (int) width))
-#define getConvSharedParams(layer) ((PSSharedParams *) layer->extra)
-#define calculateConvolutionalSide(s,rs,st,pad) \
+#define PSGetColumn(index, width) (index % width)
+#define PSGetRow(index, width) ((int) ((int) index / (int) width))
+#define PSGetConvSharedParams(layer) ((PSSharedParams *) layer->extra)
+#define PSCalculateConvolutionalSide(s,rs,st,pad) \
     PSFloor(((PSFloat)(s - rs + 2 * pad) / (PSFloat) st) + 1)
-#define calculatePoolingSide(s, rs) PSFloor((s - rs) / rs + 1)
+#define PSCalculatePoolingSide(s, rs) PSFloor((s - rs) / rs + 1)
 
 /* Init Functions */
 

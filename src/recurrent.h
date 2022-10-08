@@ -20,7 +20,7 @@
 
 #include "psyc.h"
 
-#define GetRecurrentCell(neuron) ((PSRecurrentCell*) neuron->extra)
+#define PSGetRecurrentCell(neuron) ((PSRecurrentCell*) neuron->extra)
 
 typedef struct {
     int states_count;
