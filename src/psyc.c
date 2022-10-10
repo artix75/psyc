@@ -454,7 +454,7 @@ char *PSGetLayerTypeLabel(PSLayer *layer) {
 char *getLossFunctionName(PSLossFunction function) {
     if (function == NULL) return "null";
     if (function == PSQuadraticLoss) return "quadratic";
-    else if (function == PSCrossEntropyLoss) return "cross_entropy";
+    else if (function == PSCrossEntropyLoss) return "cross-entropy";
     return "UNKOWN";
 }
 
@@ -2880,6 +2880,10 @@ void PSTrain(PSNeuralNetwork *network,
         printf("Optimization: %s\n",
             getOptimizationName(options->optimization));
     }
+    char *loss_func_name = NULL;
+    if (network->loss != NULL)
+        loss_func_name = getLossFunctionName(network->loss);
+    printf("Loss Function: %s\n", loss_func_name);
     int was_paused = (network->status == STATUS_PAUSED);
     network->status = STATUS_TRAINING;
     time_t start_t, end_t, epoch_t;
@@ -3080,4 +3084,19 @@ int PSVerifyNetwork(PSNeuralNetwork *network) {
         }
     }
     return 1;
+}
+
+size_t PSIterateLossFunctions(
+    void ( *callback) (const char *name, PSLossFunction func)
+)
+{
+    size_t i;
+    for (i = 1; i < loss_functions_count; i++) {
+        if (callback != NULL) {
+            PSLossFunction func = loss_functions[i];
+            char *name = getLossFunctionName(func);
+            callback((const char*) name, func);
+        }
+    }
+    return loss_functions_count - 1;
 }

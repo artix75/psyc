@@ -122,9 +122,16 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
         input_w = previous_params->parameters[PARAM_OUTPUT_WIDTH];
         input_h = previous_params->parameters[PARAM_OUTPUT_HEIGHT];
         prev_features = (int) previous_params->parameters[PARAM_FEATURE_COUNT];
+        if (input_h == 0) input_h = input_w;
+        if (input_w == 0) {
+            if (prev_features < 1) prev_features = 1;
+            PSFloat featsize = previous_size / prev_features;
+            input_w = PSSqrt(featsize);
+            input_h = input_w;
+        }
         PSFloat prev_area = input_w *input_h * (PSFloat) prev_features;
         if ((int) prev_area != previous_size) {
-            PSErr(__func__, "Previous size %d != %lfx%lf",
+            PSErr(__func__, "Previous size %d != %gx%g",
                   previous_size, input_w, input_h);
             PSAbortLayer(network, layer);
             return 0;

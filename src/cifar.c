@@ -24,6 +24,8 @@
 #include <dirent.h>
 
 #include "cifar.h"
+#include "convolutional.h"
+#include "utils.h"
 
 #define CIFAR_FILE_IMG_COUNT 10000
 #define CIFAR_IMAGE_BYTESIZE 3072
@@ -112,4 +114,16 @@ int PSLoadCIFARData(int type, int classes, const char *dataset_path,
     }
     (void) closedir (dir);
     return dataset_size;
+}
+
+PSLayer *PSAddCIFARInputLayer(PSNeuralNetwork *network) {
+    if (network->size > 0) {
+        PSErr(__func__, "CIFAR layer must be input layer!\n");
+        return NULL;
+    }
+    PSHyperParameters *iparams = PSCreateConvolutionalParameters(3, 0, 0, 0, 0);
+    if (iparams == NULL) return NULL;
+    iparams->parameters[PARAM_OUTPUT_WIDTH] = 32.0;
+    iparams->parameters[PARAM_OUTPUT_HEIGHT] = 32.0;
+    return PSAddLayer(network, FullyConnected, CIFAR_IMAGE_SIZE, iparams);
 }

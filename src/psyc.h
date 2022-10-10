@@ -23,7 +23,7 @@
 
 #define PSYC_VERSION      "0.2.2"
 
-#define LAYER_TYPES  6
+#define LAYER_TYPES     6
 
 #define DEFAULT_RHO     0.95
 #define DEFAULT_EPS     1e-8
@@ -249,5 +249,8 @@ PSFloat PSCrossEntropyLoss(PSFloat *x, PSFloat *y, int size, int onehot_size);
 /* Miscellaneous functions */
 
 void PSHandleSignals(PSSignalHandler shutdown_handler);
+size_t PSIterateLossFunctions(
+    void ( *callback) (const char *name, PSLossFunction func)
+);
 
 #endif /*  __PSYC_H */

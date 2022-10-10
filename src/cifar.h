@@ -19,6 +19,7 @@
 #define __PS_CIFAR_H
 
 #include "types.h"
+#include "psyc.h"
 
 #ifndef DATA_TYPE_TRAINING
 #define DATA_TYPE_TRAINING   0
@@ -29,5 +30,6 @@
 
 int PSLoadCIFARData(int type, int classes, const char *dataset_path,
                     PSFloat **data, int max_files, int max_elements);
+PSLayer *PSAddCIFARInputLayer(PSNeuralNetwork *network);
 
 #endif /*  __PS_CIFAR_H */
