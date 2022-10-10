@@ -158,7 +158,7 @@ static int fullFeedforward(PSNeuralNetwork *network, PSLayer *layer, ...) {
     }
     int do_dump = PSShouldDebugDump(network);
     int i, j, previous_size = previous->size;
-    int is_recurrent = (network->flags & FLAG_RECURRENT), times, t;
+    int is_recurrent = (network->flags & FLAG_RECURRENT), times = 0, t = 0;
 #ifdef USE_AVX
     int avx_disabled = PSIsAVXDisabled(network);
 #endif
@@ -238,7 +238,7 @@ static int softmaxFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
         return 0;
     }
     int i, j, previous_size = previous->size;
-    int is_recurrent = (net->flags & FLAG_RECURRENT), times, t;
+    int is_recurrent = (net->flags & FLAG_RECURRENT), times = 0, t = 0;
 #ifdef USE_AVX
     int avx_disabled = PSIsAVXDisabled(net);
 #endif
@@ -2195,8 +2195,11 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
                                 PSGradient **momentum_gradients,
                                 PSGradient **aux_gradients, ...)
 {
-    int i, j, k, w, netsize = network->size, gsize = netsize - 1, times,
+    int i, j, k, w, netsize = network->size, gsize = netsize - 1, times = 0,
         iteration = 0, avx_disabled = 1;
+    PSFloat *x = NULL; /* Training element */
+    PSFloat *y = NULL; /* Labels */
+    PSFloat l1 = 0.0, l2 = 0.0, l1_loss = 0.0, l2_loss = 0.0, momentum = 0.0;
 #ifdef USE_AVX
     avx_disabled = PSIsAVXDisabled(network);
 #else
@@ -2230,8 +2233,6 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
         network->training->current_batch == 0 &&
         network->training->current_epoch == 0
     );
-    PSFloat *x; /* Training element */
-    PSFloat *y; /* Labels */
     /* Iterate elements of the batch and, for each element, get gradients
      * from the backpropagation of the error. Then, sum the backpropagation
      * gradients to the batch's gradients. */
@@ -2329,7 +2330,6 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
     }
 
     UNUSED(elements_count); /* TODO: remove elements_count arg if not needed */
-    PSFloat l1 = 0.0, l2 = 0.0, l1_loss = 0.0, l2_loss = 0.0, momentum = 0.0;
     PSTrainingOptimization optimization = NoTrainingOptimization;
     int use_weight_decay = 0;
     if (opts != NULL) {

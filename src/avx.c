@@ -72,10 +72,10 @@ typedef __m256 AVX256;
 #endif
 
 const int AVX_VECTOR_SIZE = _AVX_VECTOR_SIZE;
-const int AVX256_VECTOR_SIZE = AVX_VECTOR_SIZE;
-const int AVX128_VECTOR_SIZE = AVX_VECTOR_SIZE / 2;
-const int AVX_MIN_VECTOR_SIZE = AVX128_VECTOR_SIZE;
-const int AVX_MAX_VECTOR_SIZE = 4 * AVX_VECTOR_SIZE;
+const int AVX256_VECTOR_SIZE = _AVX_VECTOR_SIZE;
+const int AVX128_VECTOR_SIZE = _AVX_VECTOR_SIZE / 2;
+const int AVX_MIN_VECTOR_SIZE = _AVX_VECTOR_SIZE / 2;
+const int AVX_MAX_VECTOR_SIZE = MAX_AVX_VECTORS * _AVX_VECTOR_SIZE;
 
 int AVXComputeStepLength(int size, int allow_multiple_vectors, int *bits) {
     if (size < AVX_MIN_VECTOR_SIZE) return 0;

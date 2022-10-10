@@ -18,6 +18,10 @@ HAS_MAGICK=false
 MAGICK_VERSION=none
 MAGICK_VERSION_MAJOR=none
 
+ifeq ($(PLATFORM), Linux)
+        CFLAGS+=-fdiagnostics-color -Wno-unused-result
+endif
+
 ifeq ($(MAGICK), off)
         HAS_MAGICK=false
 else
