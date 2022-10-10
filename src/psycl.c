@@ -58,6 +58,11 @@
 #define CONFIG_MAX_LINE     1024
 #define CONFIG_MAX_TOKENS   500
 
+#define CMD_MAX_LEN        4096
+
+#define TRAIN_EVENT_BATCH   1
+#define TRAIN_EVENT_EPOCH   2
+
 #define UNUSED(V) ((void) V)
 
 static char* MNIST_FILE_NAMES[4] = {
@@ -89,8 +94,11 @@ float momentum = 0.0;
 PSTrainingOptimization optimization = NoTrainingOptimization;
 int validate_every = 0;
 int batch_size = BATCH_SIZE;
-char outputFile[255];
+char outputFile[PATH_MAX];
 int training_flags = 0;
+char *on_batch_trained = NULL;
+char *on_epoch_trained = NULL;
+int batch_script_every = 1;
 #ifdef HAS_MAGICK
 char *image_filename = NULL;
 char *image_dump_filename = NULL;
@@ -100,6 +108,20 @@ int image_grayscale = 0;
 #endif
 PSNeuralNetwork *network = NULL;
 
+/* Forward declarations */
+void printHelp(const char* program_path);
+int parseOptionsFromFile(const char *filename);
+PSLossFunction getLossFunctionByName(char *name);
+void onBatchTrained(PSNeuralNetwork *network, int epoch, int epochs,
+                    PSFloat loss, PSFloat previous_loss, float accuracy,
+                    PSFloat *rate, PSFloat *training_data);
+void onEpochTrained(PSNeuralNetwork *network, int epoch, int epochs,
+                    PSFloat loss, PSFloat previous_loss, float accuracy,
+                    PSFloat *rate, PSFloat *training_data);
+static void cleanup(void);
+
+
+/* Helper Functions */
 static void toLowerCase(char *str) {
     if (str == NULL) return;
     char *p = str;
@@ -201,9 +223,7 @@ static int resolveMNISTDataFiles(char *path) {
     return 1;
 }
 
-static PSLayerType getLayerType(char *name, PSNeuralNetwork *network,
-                                int *is_cifar)
-{
+static PSLayerType getLayerType(char *name, int *is_cifar) {
     if (strcasecmp("fully_connected", name) == 0)
         return FullyConnected;
     else if (strcasecmp("Fully Connected", name) == 0)
@@ -231,7 +251,7 @@ static PSLayerType getLayerType(char *name, PSNeuralNetwork *network,
         return FullyConnected;
     } else {
         fprintf(stderr, "Unkown layer type %s\n", name);
-        PSDeleteNetwork(network);
+        cleanup();
         exit(1);
     }
 }
@@ -340,7 +360,7 @@ static int loadCIFARData(int data_type, int classes, int argc, char **argv,
         if (next[0] == '-') {
             fprintf(stderr, "ERROR: %s requires an integer argument\n",
                     arg);
-            if (network != NULL) PSDeleteNetwork(network);
+            cleanup();
             exit(1);
         }
         *max_p = atoi(next);
@@ -417,12 +437,20 @@ static int loadData(int data_type, int argc, char **argv, int *arg_idx) {
     else return loadCIFARData(data_type, cifar, argc, argv, arg_idx);
 }
 
-/* Forward declarations */
-void printHelp(const char* program_path);
-int parseOptionsFromFile(const char *filename);
-PSLossFunction getLossFunctionByName(char *name);
+static void cleanup(void) {
+    if (on_epoch_trained != NULL) free(on_epoch_trained);
+    if (on_batch_trained != NULL) free(on_batch_trained);
+#ifdef HAS_MAGICK
+    if (image_filename != NULL) free(image_filename);
+#endif
+    if (network != NULL) {
+        if (network->name != (char *)NETWORK_NAME && network->name != NULL)
+            free((void *)network->name);
+        PSDeleteNetwork(network);
+        network = NULL;
+    }
+}
 
-/* Helper Functions */
 void parseOptions(int argc, char **argv) {
     int i, j;
     for (i = 1; i < argc; i++) {
@@ -449,22 +477,25 @@ void parseOptions(int argc, char **argv) {
             }
         } else if (strcmp("--save", arg) == 0 && !is_last) {
             char *file = argv[++i];
-            if (strlen(file) > 254) {
-                fprintf(stderr, "--save filename length must be <= 254");
+            if (strlen(file) > PATH_MAX) {
+                fprintf(
+                    stderr, "--save filename length must be <= %d\n",
+                    PATH_MAX
+                );
                 goto err;
             } else {
-                sprintf(outputFile, "%s", file);
+                snprintf(outputFile, PATH_MAX, "%s", file);
             }
         } else if (strcmp("--name", arg) == 0 && !is_last) {
             char *name = (char*) argv[++i];
-            network->name = name;
+            network->name = strdup(name);
         } else if (strcmp("--onehot", arg) == 0) {
             if (network->size == 0) network->flags |= FLAG_ONEHOT;
             else network->layers[network->size - 1]->flags |= FLAG_ONEHOT;
         } else if (strcmp("--layer", arg) == 0 && !is_last) {
             char *type = argv[++i];
             int is_cifar = 0;
-            PSLayerType ltype = getLayerType(type, network, &is_cifar);
+            PSLayerType ltype = getLayerType(type, &is_cifar);
             if ((i + 1) >= argc) break;
             if (Convolutional == ltype) {
                 PSHyperParameters *params = NULL;
@@ -615,7 +646,7 @@ void parseOptions(int argc, char **argv) {
         }
 #ifdef HAS_MAGICK
         else if (strcmp("--classify-image", arg) == 0 && ++i < argc) {
-            image_filename = argv[i];
+            image_filename = strdup(argv[i]);
             /* printf("Classifying %s...\n", image_filename); */
             int j = i;
             while (++j < argc) {
@@ -729,6 +760,24 @@ void parseOptions(int argc, char **argv) {
             network->flags |= FLAG_AVX_DISABLED;
         } else if (strcmp("--enable-colors", arg) == 0) {
             PSGlobalFlags |= FLAG_LOG_COLORS;
+        } else if (strcmp("--on-batch-trained", arg) == 0 && !is_last) {
+            on_batch_trained = strdup(argv[++i]);
+            if (strlen(on_batch_trained) > 0)
+                network->onBatchTrained = onBatchTrained;
+        } else if (strcmp("--on-epoch-trained", arg) == 0 && !is_last) {
+            on_epoch_trained =strdup( argv[++i]);
+            if (strlen(on_epoch_trained) > 0)
+                network->onEpochTrained = onEpochTrained;
+        } else if (strcmp("--batch-script-every", arg) == 0 && !is_last) {
+            char *every = argv[++i];
+            int matched = sscanf(every, "%d", &batch_script_every);
+            if (!matched) {
+                fprintf(
+                    stderr, "ERROR: invalid value for --batch-script-every: "
+                    "'%s'\n", every
+                );
+                goto err;
+            }
         } else if (strcmp("-v", arg) == 0 || strcmp("--version", arg) == 0) {
             printf("%s v%s (AVX=", PROGRAM_NAME, PSYC_VERSION);
 #ifdef USE_AVX
@@ -740,11 +789,11 @@ void parseOptions(int argc, char **argv) {
             printf(
                 ",DOUBLE_PRECISION=%s)\n", (has_double_precision ? "on" : "off")
             );
-            if (network != NULL) PSDeleteNetwork(network);
+            cleanup();
             exit(0);
         } else if (strcmp("-h", arg) == 0 || strcmp("--help", arg) == 0) {
             printHelp(argv[0]);
-            if (network != NULL) PSDeleteNetwork(network);
+            cleanup();
             exit(1);
         } else {
             fprintf(stderr, "ERROR: invalid argument %s\n", arg);
@@ -753,8 +802,8 @@ void parseOptions(int argc, char **argv) {
     }
     return;
 err:
-        if (network != NULL) PSDeleteNetwork(network);
-        exit(1);
+    cleanup();
+    exit(1);
 }
 
 int parseOptionsFromFile(const char *filename) {
@@ -866,6 +915,85 @@ cleanup:
     return success;
 }
 
+/* Event functions */
+
+void onTrainEvent(int event_type, PSNeuralNetwork *network, int epoch,
+                  int epochs, PSFloat loss, PSFloat previous_loss,
+                  float accuracy, PSFloat *rate)
+{
+    char *script = NULL, *event = NULL;
+    if (event_type == TRAIN_EVENT_BATCH) {
+        script = on_batch_trained;
+        event = "batch";
+    } else if (event_type == TRAIN_EVENT_EPOCH) {
+        script = on_epoch_trained;
+        event = "epoch";
+    }
+    if (script == NULL) return;
+    char cmd[CMD_MAX_LEN];
+    cmd[0] = 0;
+    int written = snprintf(
+        cmd, CMD_MAX_LEN,
+        "%s --event %s-trained --name '%s' --epoch %d --epochs %d "
+        "--loss %g --previous-loss %g --accuracy %g --learning-rate %g",
+        on_batch_trained, event, network->name, epoch, epochs, loss,
+        previous_loss, accuracy, *rate
+    );
+    if (written >= CMD_MAX_LEN) {
+        fprintf(stderr, "\nWARN: onBatchTrained command is too big!\n");
+        return;
+    }
+    PSTrainingInfo *info = network->training;
+    if (info != NULL) {
+        char *p = cmd + written;
+        written += snprintf(
+            p, CMD_MAX_LEN,
+            " --batch %d --element %d",
+            info->current_batch, info->current_element
+        );
+    }
+    if (written >= CMD_MAX_LEN) {
+        fprintf(stderr, "\nWARN: onBatchTrained command is too big!\n");
+        return;
+    }
+    int status = system(cmd);
+    if (status != 0) {
+        fprintf(
+            stderr, "\nWARN: onBatchTrained script exited with status %d\n",
+            status
+        );
+    }
+}
+
+void onBatchTrained(PSNeuralNetwork *network, int epoch, int epochs,
+                    PSFloat loss, PSFloat previous_loss, float accuracy,
+                    PSFloat *rate, PSFloat *training_data)
+{
+
+    UNUSED(training_data);
+    if (on_batch_trained == NULL) return;
+    PSTrainingInfo *info = network->training;
+    if (batch_script_every > 0 && info) {
+        if ((info->current_batch % batch_script_every) != 0) return;
+    }
+    onTrainEvent(
+        TRAIN_EVENT_BATCH, network, epoch, epochs, loss, previous_loss,
+        accuracy, rate
+    );
+}
+
+void onEpochTrained(PSNeuralNetwork *network, int epoch, int epochs,
+                    PSFloat loss, PSFloat previous_loss, float accuracy,
+                    PSFloat *rate, PSFloat *training_data)
+{
+    UNUSED(training_data);
+    if (on_epoch_trained == NULL) return;
+    onTrainEvent(
+        TRAIN_EVENT_EPOCH, network, epoch, epochs, loss, previous_loss,
+        accuracy, rate
+    );
+}
+
 int main(int argc, char **argv) {
     PSHandleSignals(NULL);
     network = PSCreateNetwork(NETWORK_NAME);
@@ -881,7 +1009,7 @@ int main(int argc, char **argv) {
         if (element_count < train_dataset_len) {
             fprintf(stderr, "Loaded dataset elements %d < %d\n", element_count,
                    train_dataset_len);
-            PSDeleteNetwork(network);
+            cleanup();
             return 1;
         } else {
             int remaining = element_count - train_dataset_len;
@@ -943,8 +1071,7 @@ int main(int argc, char **argv) {
             printf("Network saved to %s\n", outputFile);
         }
     }
-
-    PSDeleteNetwork(network);
+    cleanup();
     return 0;
 }
 
@@ -964,7 +1091,8 @@ PSLossFunction getLossFunctionByName(char *name) {
 
 void printHelp(const char* program_path) {
     printf("Usage: %s [OPTIONS]\n\n", program_path);
-    printf("OPTIONS:\n");
+    printf("OPTIONS:\n\n");
+    printf("    -c, --config FILE               Load options from FILE\n");
     printf("        --load PRETRAINED           Load a pretrained network\n");
     printf("        --save FILE                 Save network\n");
     printf("        --name NAME                 Network name\n");
@@ -1001,22 +1129,33 @@ void printHelp(const char* program_path) {
     printf("        --training-adjust-rate      Auto-adjust learn rate\n");
     printf("        --loss-function FUNC        Loss Function\n");
     printf("        --validate-every BATCH_NUM  Validate inside epochs\n");
+    printf("        --on-batch-trained SCRIPT   Execute script after every\n"
+           "                                    batch is trained.\n"
+           "                                    (See \"SCRIPTS\" section for\n"
+           "                                    more info)");
+    printf("        --on-epoch-trained SCRIPT   Execute script after every\n"
+           "                                    epoch is trained\n"
+           "                                    (See \"SCRIPTS\" section for\n"
+           "                                    more info)");
+    printf("        --batch-script-every NUM    Execute script specified by\n"
+           "                                    --on-batch-trained every\n"
+           "                                    NUM batches\n");
     printf("        --disable-avx               Disable AVX\n");
     printf("        --enable-colors             Colorized output\n");
     printf("    -v, --version                   Print version\n");
     printf("    -h, --help                      Print this help\n");
     printf("\n");
-    printf("LAYER TYPES:\n");
+    printf("LAYER TYPES:\n\n");
     int i;
     for (i = 0; i < LAYER_TYPES; i++) {
         PSLayerType type = (PSLayerType) i;
         printf("        %s\n", PSGetLabelForType(type));
     }
     printf("\n");
-    printf("LOSS FUNCTIONS:\n");
+    printf("LOSS FUNCTIONS:\n\n");
     PSIterateLossFunctions(printLossFunctionName);
     printf("\n");
-    printf("LAYER OPTIONS:\n");
+    printf("LAYER OPTIONS:\n\n");
     printf("        --feature-count COUNT     Convolutional features"
            " (def. %d)\n", CONV_FEATURE_COUNT);
     printf("        --region-size SIZE        Convolutional region size"
@@ -1028,7 +1167,7 @@ void printHelp(const char* program_path) {
     printf("        --use-relu                Use ReLU activation (for "
            "Convolutional Layers)\n");
     printf("\n");
-    printf("TRAIN|TEST OPTIONS:\n");
+    printf("TRAIN|TEST OPTIONS:\n\n");
     printf("        --mnist                   Dataset format is MNIST\n");
     printf("        --cifar [CLASSES]         Dataset format is CIFAR\n"
            "                                  (classes: 10 or 100, default\n"
@@ -1038,13 +1177,24 @@ void printHelp(const char* program_path) {
     printf("        --max-files               Max files to load (CIFAR)\n");
 #ifdef HAS_MAGICK
     printf("\n");
-    printf("IMAGE OPTIONS:\n");
+    printf("IMAGE OPTIONS:\n\n");
     printf("        --grayscale              Convert image to grayscale\n");
     printf("        --invert                 Invert image pixels\n");
-    printf("        --background-color COLOR Padding background color "
+    printf("        --background-color COLOR Padding background color\n"
            "                                 (ie. none, white, ...),\n"
-           "                                  default: white\n");
+           "                                 default: white\n");
     printf("        --dump-image FILE        Save image to file\n");
 #endif
+    printf("\n");
+    printf("SCRIPTS:\n\n");
+    printf(
+        "Using options such as `--on-batch-trained` and `--on-epoch-trained`\n"
+        "it's possible to execute an arbitrary external script when such\n"
+        "events happen.The scripts will eventually receive the following\n"
+        "arguments:\n"
+        "  --event TYPE, --name NETWORK_NAME --epoch CURRENT_EPOC\n"
+        "  --epochs TOT_EPOCHS --loss CURRENT_LOSS --previous-loss\n"
+        "  PREVIOUS_LOSS --accuracy CURRENT_ACCURACY --learning-rate RATE\n"
+    );
     printf("\n");
 }
