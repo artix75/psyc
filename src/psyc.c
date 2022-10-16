@@ -743,7 +743,7 @@ int PSLoadNetwork(PSNeuralNetwork *network, const char* filename) {
     FILE *f = fopen(filename, "r");
     printf("Loading network from %s\n", filename);
     if (f == NULL) {
-        fprintf(stderr, "Cannot open %s!\n", filename);
+        PSErr(NULL, "Cannot open %s!", filename);
         return 0;
     }
     int netsize, i, j, k;
@@ -756,6 +756,15 @@ int PSLoadNetwork(PSNeuralNetwork *network, const char* filename) {
     if (matched) {
         sprintf(vers, "%d.%d.%d", v0, v1, v2);
         printf("File version is %s (current: %s).\n", vers, PSYC_VERSION);
+        if (compareVersion(PSYC_VERSION, vers) < 0) {
+            PSErr(
+                NULL,
+                "File version is higher than current PsyC version: %s > %s\n"
+                "PsyC %s (or higher) is required to open %s",
+                vers, PSYC_VERSION, vers, filename
+            );
+            return 0;
+        }
         int idx = 0, val = 0;
         PSLossFunction loss = NULL;
         while ((matched = fscanf(f, ",%d", &val))) {
