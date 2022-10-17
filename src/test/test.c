@@ -17,7 +17,10 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
+#include <string.h>
 #include <unistd.h>
+#include <assert.h>
 #include <time.h>
 #include "../psyc.h"
 #include "../debug.h"
@@ -34,6 +37,8 @@
 #define DIM     "\x1b[2m"
 #define HIDDEN  "\x1b[8m"
 #define RESET   "\x1b[0m"
+
+#define MAX_ERROR_LEN   4096 * 10
 
 int stdout_fd = -999;
 
@@ -103,11 +108,11 @@ int performTests(TestCase *test_case) {
 #endif
         /* printf(RESET); */
         if (!test->status) {
-            printf(RED "\tFAILED");
+            printf(RED "    FAILED");
             if (test->error_message != NULL)
-                printf(YELLOW "\n      %s\n", test->error_message);
+                printf(YELLOW "\n    %s\n", test->error_message);
             errors++;
-        } else printf(GREEN "\tOK");
+        } else printf(GREEN "    OK");
         printf("\n" RESET);
     }
     if (test_case->teardown != NULL) {
@@ -138,4 +143,61 @@ void deleteTest(TestCase *test_case) {
         free(test_case->tests);
     }
     free(test_case);
+}
+
+void setTestErrorMessage(Test *test, char *fmt, ...) {
+    assert(test != NULL);
+    if (test->error_message != NULL) free(test->error_message);
+    test->error_message = malloc(MAX_ERROR_LEN);
+    if (test->error_message == NULL) {
+        fprintf(
+            stderr,"FATAL: could not allocate memory for test error message\n"
+        );
+        abort();
+    }
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(test->error_message, MAX_ERROR_LEN, fmt, ap);
+    va_end(ap);
+}
+
+void appendTestErrorMessage(Test *test, char *fmt, ...) {
+    assert(test != NULL);
+    int len = 0, maxlen;
+    if (test->error_message == NULL) {
+        test->error_message = malloc(MAX_ERROR_LEN);
+        if (test->error_message == NULL) {
+            fprintf(
+                stderr,
+                "FATAL: could not allocate memory for test error message\n"
+            );
+            abort();
+        }
+    } else len = strlen(test->error_message);
+    if (len >= MAX_ERROR_LEN) return;
+    char *msg = test->error_message + len;
+    maxlen = MAX_ERROR_LEN - len;
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(msg, maxlen, fmt, ap);
+    va_end(ap);
+}
+
+void buildAssertionMessage(Test *test, char *file, int line, const char *func,
+                           char *expr, char *msg, ...)
+{
+    appendTestErrorMessage(test,
+        "Test assertion failed for test \"%s\"\n", test->name);
+    appendTestErrorMessage(test,
+        "    In %s:%d (%s)\n", file, line, func);
+    appendTestErrorMessage(test, "    %s", expr);
+    if (msg != NULL) {
+        appendTestErrorMessage(test, "\n    ");
+        int len = strlen(test->error_message),
+            maxlen = MAX_ERROR_LEN - len - 1;
+        va_list ap;
+        va_start(ap, msg);
+        vsnprintf(test->error_message + len, maxlen, msg, ap);
+        va_end(ap);
+    }
 }

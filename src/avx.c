@@ -136,9 +136,9 @@ PSFloat AVXDotProduct(PSFloat *x, PSFloat *y, int size, int *count) {
         int templen = (num_vectors / 2);
         if (templen < 1) templen = 1;
         for (i = 0; i < templen; i++) {
+            assert(i < num_vectors);
             int idx1 = i * 2;
             int idx2 = idx1 + 1;
-            assert(i < num_vectors);
             AVX256 xy1 = xy[idx1], xy2;
             if (idx2 < num_vectors) xy2 = xy[idx2];
             else {

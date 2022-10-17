@@ -25,9 +25,12 @@
  n->weights_size)
 
 typedef struct {
+    /* Common data layout with PSRecurrentCell */
     int states_count;
     int weights_size;
     PSFloat *states;
+    int *dropped_out;
+    /* End common data layout */
     PSFloat *z_values;
     PSFloat *candidates;
     PSFloat *input_gates;

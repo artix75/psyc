@@ -250,7 +250,7 @@ static PSLayerType getLayerType(char *name, int *is_cifar) {
         *is_cifar = 1;
         return FullyConnected;
     } else {
-        fprintf(stderr, "Unkown layer type %s\n", name);
+        fprintf(stderr, "Unkown layer type '%s'\n", name);
         cleanup();
         exit(1);
     }
@@ -321,11 +321,12 @@ static int loadCIFARData(int data_type, int classes, int argc, char **argv,
 {
     assert(data_type == DATA_TYPE_TRAINING || data_type == DATA_TYPE_TEST);
     int i = *arg_idx;
-    int *len = NULL;
+    int *len = NULL, *dataset_len = NULL;
     PSFloat **data = NULL;
     if (data_type == DATA_TYPE_TRAINING) {
         len = &datalen;
         data = &training_data;
+        dataset_len = &train_dataset_len;
     } else {
         len = &testlen;
         data = &test_data;
@@ -392,6 +393,7 @@ static int loadCIFARData(int data_type, int classes, int argc, char **argv,
         fprintf(stderr, "Failed to load CIFAR data\n");
         return 0;
     }
+    if (dataset_len != NULL) *dataset_len = (*len / CIFAR_IMAGE_SIZE);
     return 1;
 }
 
@@ -497,13 +499,15 @@ void parseOptions(int argc, char **argv) {
             int is_cifar = 0;
             PSLayerType ltype = getLayerType(type, &is_cifar);
             if ((i + 1) >= argc) break;
+            PSLayer *layer = NULL;
+            j = i + 1;
             if (Convolutional == ltype) {
                 PSHyperParameters *params = NULL;
                 params = PSCreateConvolutionalParameters(CONV_FEATURE_COUNT,
                                                          CONV_REGION_SIZE,
                                                          1, 0, 0);
                 PSFloat *lparams = params->parameters;
-                for (j = i + 1; j < argc; j++) {
+                for (; j < argc; j++) {
                     char *carg = argv[j];
                     if (strcmp("--feature-count", carg) == 0 && ++j < argc) {
                         int fcount = 0;
@@ -552,14 +556,14 @@ void parseOptions(int argc, char **argv) {
                         lparams[PARAM_USE_RELU] = 1.0;
                     } else break;
                 }
-                PSAddConvolutionalLayer(network, params);
+                layer = PSAddConvolutionalLayer(network, params);
             } else if (Pooling == ltype) {
                 PSHyperParameters *params = NULL;
                 params = PSCreateConvolutionalParameters(0, POOL_REGION_SIZE,
                                                          POOL_REGION_SIZE,
                                                          0, 0);
                 PSFloat *lparams = params->parameters;
-                for (j = i + 1; j < argc; j++) {
+                for (; j < argc; j++) {
                     char *carg = argv[j];
                     if (strcmp("--region-size", carg) == 0 && ++j < argc) {
                         int rsize = 0;
@@ -573,9 +577,9 @@ void parseOptions(int argc, char **argv) {
                         i = j;
                     } else break;
                 }
-                PSAddPoolingLayer(network, params);
+                layer = PSAddPoolingLayer(network, params);
             } else if (is_cifar) {
-                PSAddCIFARInputLayer(network);
+                layer = PSAddCIFARInputLayer(network);
             } else {
                 int size = 0;
                 char *sizestr = argv[++i];
@@ -584,10 +588,11 @@ void parseOptions(int argc, char **argv) {
                     fprintf(stderr, "Invalid size %s\n", sizestr);
                     goto err;
                 }
+                j = i + 1;
                 PSHyperParameters *params = NULL;
                 if (FullyConnected == ltype && (i + 1) < argc) {
                     int feature_count = 0, output_w = 0, output_h = 0;
-                    for (j = i + 1; j < argc; j++) {
+                    for (; j < argc; j++) {
                         char *carg = argv[j];
                         if (strcmp("--feature-count",carg) == 0 && ++j < argc) {
                             char *fcstr = argv[j];
@@ -636,7 +641,25 @@ void parseOptions(int argc, char **argv) {
                             (PSFloat) output_h;
                     }
                 }
-                PSAddLayer(network, ltype, size, params);
+                layer = PSAddLayer(network, ltype, size, params);
+            }
+            if (layer != NULL) {
+                for (; j < argc; j++) {
+                    char *carg = argv[j];
+                    if (strcmp("--dropout", carg) == 0 && ++j < argc) {
+                        char *dropout = argv[j];
+                        int matched = sscanf(
+                            dropout, PSFLOAT_FORMAT, &layer->dropout
+                        );
+                        if (!matched) {
+                            fprintf(
+                                stderr, "Invalid dropout %s\n", dropout
+                            );
+                            goto err;
+                        }
+                        i = j;
+                    } else break;
+                }
             }
             continue;
         } else if (strcmp("--train", arg) == 0 && ++i < argc) {
@@ -861,8 +884,8 @@ int parseOptionsFromFile(const char *filename) {
                 goto cleanup;
             }
             char *configfile = tokens[1];
+            char relpath[PATH_MAX + 1];
             if (configfile[0] != '/') {
-                char relpath[PATH_MAX + 1];
                 relpath[0] = 0;
                 char *dir = dirname((char *) filename);
                 if (dir != NULL) {
@@ -887,14 +910,26 @@ int parseOptionsFromFile(const char *filename) {
             int yesno = 0;
             if (strcasecmp("yes", tokens[1]) == 0) {
                 argc += 1;
+                char **argvdup = argv;
                 argv = realloc(argv, argc * sizeof(char *));
+                if (argv == NULL) {
+                    free(argvdup);
+                    PSPrintMemoryErrorMsg();
+                    exit(1);
+                }
                 argv[from] = arg;
                 yesno = 1;
             } else if (strcasecmp("no", tokens[1]) == 0) yesno = 1;
             if (yesno) goto next_line;
         }
         argc += numtokens;
+        char **argvdup = argv;
         argv = realloc(argv, argc * sizeof(char *));
+        if (argv == NULL) {
+            free(argvdup);
+            PSPrintMemoryErrorMsg();
+            exit(1);
+        }
         argv[from] = arg;
         for (i = 1; i < numtokens; i++) {
             char *token = tokens[i];
@@ -1003,6 +1038,7 @@ int main(int argc, char **argv) {
     }
     outputFile[0] = 0;
     parseOptions(argc, argv);
+    PSPrintNetworkInfo(network);
     if (training_data != NULL) {
         int element_size = network->input_size + network->output_size;
         int element_count = datalen / element_size;
@@ -1132,11 +1168,11 @@ void printHelp(const char* program_path) {
     printf("        --on-batch-trained SCRIPT   Execute script after every\n"
            "                                    batch is trained.\n"
            "                                    (See \"SCRIPTS\" section for\n"
-           "                                    more info)");
+           "                                    more info)\n");
     printf("        --on-epoch-trained SCRIPT   Execute script after every\n"
            "                                    epoch is trained\n"
            "                                    (See \"SCRIPTS\" section for\n"
-           "                                    more info)");
+           "                                    more info)\n");
     printf("        --batch-script-every NUM    Execute script specified by\n"
            "                                    --on-batch-trained every\n"
            "                                    NUM batches\n");
@@ -1156,6 +1192,7 @@ void printHelp(const char* program_path) {
     PSIterateLossFunctions(printLossFunctionName);
     printf("\n");
     printf("LAYER OPTIONS:\n\n");
+    printf("        --dropout DROPOUT         Layer Dropout (float)\n");
     printf("        --feature-count COUNT     Convolutional features"
            " (def. %d)\n", CONV_FEATURE_COUNT);
     printf("        --region-size SIZE        Convolutional region size"

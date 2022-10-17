@@ -25,6 +25,7 @@
 #define DATA_TYPE_TEST       1
 #endif
 
+#define MNIST_INPUT_SIZE (28 * 28)
 
 int PSLoadMNISTData(int type, const char *images_file, const char *labels_file,
                     PSFloat **data);

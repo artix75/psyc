@@ -545,6 +545,7 @@ int main(int argc, char** argv) {
             return 1;
         }
     }
+    PSPrintNetworkInfo(network);
     if (datalen > 0) {
         /*signal(SIGINT, handler);*/
         if (dump_pretrained_fname != NULL)

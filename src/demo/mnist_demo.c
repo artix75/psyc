@@ -22,7 +22,6 @@
 #include "../mnist.h"
 #include "../debug.h"
 
-#define INPUT_SIZE (28 * 28)
 #define EPOCHS 30
 
 int main(int argc, char** argv) {
@@ -44,7 +43,7 @@ int main(int argc, char** argv) {
         fprintf(stderr, "Could not create network!\n");
         return 1;
     }
-    PSAddLayer(network, FullyConnected, INPUT_SIZE, NULL);
+    PSAddLayer(network, FullyConnected, MNIST_INPUT_SIZE, NULL);
     PSAddLayer(network, FullyConnected, 30, NULL);
     PSAddLayer(network, FullyConnected, 10, NULL);
 
@@ -79,6 +78,7 @@ int main(int argc, char** argv) {
     };
 
     printf("Data len: %d\n", datalen);
+    PSPrintNetworkInfo(network);
 
     if (!loaded) PSTrain(network, training_data, datalen, EPOCHS, 3, 10, NULL,
                          NULL, 0);

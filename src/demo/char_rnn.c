@@ -235,6 +235,7 @@ int main(int argc, char**argv){
             .l2_decay = l2_decay
         };
         printf("L2 Decay: %.2f\n", (float) l2_decay);
+        PSPrintNetworkInfo(network);
         PSTrain(network, training_data, TRAIN_DATALEN, epochs, learning_rate,
                 batch_size, &options, training_data, TRAIN_DATALEN);
 

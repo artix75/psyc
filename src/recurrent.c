@@ -31,11 +31,18 @@
 
 #define UNUSED(V) ((void) V)
 
+/* Forward declarations */
+
+PSFloat applyDropout(PSNeuron *neuron, PSFloat value);
+
+/* Recurrent network functions */
+
 PSRecurrentCell *PSCreateRecurrentCell(PSNeuron *neuron, int lsize) {
     PSRecurrentCell *cell = malloc(sizeof(PSRecurrentCell));
     if (cell == NULL) return NULL;
     cell->states_count = 0;
     cell->states = NULL;
+    cell->dropped_out = NULL;
     cell->weights_size = lsize;
     if (!lsize) cell->weights = NULL;
     else cell->weights = neuron->weights + (neuron->weights_size - lsize);
@@ -52,6 +59,8 @@ PSFloat *PSAddRecurrentState(PSNeuralNetwork *net, PSNeuron *neuron,
         if (cell == NULL) return NULL;
     }
     if (t == 0) {
+        /* If it's the first time, create states and dropped_out states
+         * in advance for all time steps. */
         cell->states_count = times;
         if (cell->states != NULL) free(cell->states);
         cell->states = malloc(times * sizeof(PSFloat));
@@ -60,7 +69,16 @@ PSFloat *PSAddRecurrentState(PSNeuralNetwork *net, PSNeuron *neuron,
             free(cell);
             return NULL;
         }
+        if (cell->dropped_out != NULL) free(cell->dropped_out);
+        cell->dropped_out = malloc(times * sizeof(int));
+        if (cell->dropped_out == NULL) {
+            neuron->extra = NULL;
+            free(cell->states);
+            free(cell);
+            return NULL;
+        }
     }
+    cell->dropped_out[t] = neuron->dropped_out;
     cell->states[t] = state;
 #ifdef USE_AVX
     if (!PSIsAVXDisabled(net)) {
@@ -112,6 +130,7 @@ int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
         }
         neuron->index = i;
         neuron->weights_size = ws;
+        neuron->dropped_out = 0;
         neuron->bias = PSGaussianRandom(0, 1);
         neuron->weights = malloc(sizeof(PSFloat) * ws);
         if (neuron->weights ==  NULL) {
@@ -172,6 +191,7 @@ int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
     int avx_disabled = PSIsAVXDisabled(net);
 #endif
     int onehot = previous->flags & FLAG_ONEHOT;
+    int apply_dropout = PSShouldApplyDropout(layer);
     PSHyperParameters *params = NULL;
     int vector_size = 0, vector_idx = 0;
     if (onehot) {
@@ -260,7 +280,9 @@ int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
 #endif
         }
         neuron->z_value = sum + bias;
-        neuron->activation = layer->activate(neuron->z_value);
+        PSFloat activation = layer->activate(neuron->z_value);
+        if (apply_dropout) activation = applyDropout(neuron, activation);
+        neuron->activation = activation;
         cell->states[t] = neuron->activation;
 #ifdef USE_AVX
         if (!avx_disabled)
@@ -273,7 +295,7 @@ int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
 /* Backpropagation Functions */
 
 int PSRecurrentBackprop(PSLayer *layer, PSLayer *previousLayer, int lowest_t,
-                             PSGradient *lgradients, int t)
+                        PSGradient *lgradients, int t)
 {
     PSNeuralNetwork *net = (PSNeuralNetwork *) layer->network;
 #ifdef USE_AVX

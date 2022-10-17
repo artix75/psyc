@@ -21,7 +21,7 @@
 #include <time.h>
 #include "types.h"
 
-#define PSYC_VERSION      "0.2.2"
+#define PSYC_VERSION      "0.2.3"
 
 #define LAYER_TYPES     6
 
@@ -37,6 +37,7 @@
 #define STATUS_ERROR        3
 #define STATUS_PAUSED       4
 #define STATUS_ABORTED      5
+#define STATUS_VALIDATING   6
 
 #define ACTION_NONE         0
 #define ACTION_PAUSE        4
@@ -51,20 +52,25 @@
 
 #define PS_NULL_VALUE -9999999.99
 
+/* Layer/Network Flags */
 #define FLAG_NONE 0
 #define FLAG_RECURRENT      (1 << 0)
 #define FLAG_ONEHOT         (1 << 1)
 #define FLAG_AVX_DISABLED   (1 << 2)
 
 /* Global Flags*/
-
 #define FLAG_LOG_COLORS (1 << 0)
 
+/* Training Flags */
 #define TRAINING_NO_SHUFFLE     (1 << 0)
 #define TRAINING_ADJUST_RATE    (1 << 1)
 #define TRAINING_WEIGHT_DECAY   (1 << 2)
 
 #define BPTT_TRUNCATE   4
+
+#define PSShouldApplyDropout(layer) (layer->dropout != 0.0 && layer->index < \
+    (layer->network->size - 1))
+#define PSIsRecurrentLayer(layer) (layer->flags & FLAG_RECURRENT)
 
 #ifdef USE_AVX
 #define PSIsAVXDisabled(network) (network->flags & FLAG_AVX_DISABLED)
@@ -155,6 +161,7 @@ typedef struct PSNeuron {
     PSFloat         *weights;
     PSFloat         activation;
     PSFloat         z_value;
+    int             dropped_out;
     void            *extra;
     struct PSLayer  *layer;
 } PSNeuron;
@@ -164,6 +171,7 @@ typedef struct PSLayer {
     int                     index;
     int                     size;
     PSHyperParameters       *hyper_parameters;
+    PSFloat                 dropout;
     PSActivationFunction    activate;
     PSActivationFunction    derivative;
     PSFeedforwardFunction   feedforward;

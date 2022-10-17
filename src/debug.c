@@ -112,6 +112,8 @@ static void *getEip(ucontext_t *uc) {
     return (void*) uc->uc_mcontext.arm_pc;
     #elif defined(__aarch64__) /* Linux AArch64 */
     return (void*) uc->uc_mcontext.pc;
+    #else
+    return NULL;
     #endif
 #elif defined(__FreeBSD__)
     /* FreeBSD */
@@ -119,6 +121,8 @@ static void *getEip(ucontext_t *uc) {
     return (void*) uc->uc_mcontext.mc_eip;
     #elif defined(__x86_64__)
     return (void*) uc->uc_mcontext.mc_rip;
+    #else
+    return NULL;
     #endif
 #elif defined(__OpenBSD__)
     /* OpenBSD */
@@ -126,6 +130,8 @@ static void *getEip(ucontext_t *uc) {
     return (void*) uc->sc_eip;
     #elif defined(__x86_64__)
     return (void*) uc->sc_rip;
+    #else
+    return NULL;
     #endif
 #elif defined(__DragonFly__)
     return (void*) uc->uc_mcontext.mc_rip;

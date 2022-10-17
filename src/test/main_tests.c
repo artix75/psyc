@@ -21,6 +21,7 @@
 #include <string.h>
 #include <signal.h>
 #include <strings.h>
+#include <assert.h>
 
 #include "test.h"
 #include "../psyc.h"
@@ -45,6 +46,8 @@
 #define BP_GRADIENTS_CHECKS 8
 #define BP_CONV_GRADIENTS_CHECKS 4
 #define CONV_L1F0_BIAS 0.02630446809718423
+
+#define PRETRAINED_MNIST_NETSIZE 3
 
 #define RNN_INPUT_SIZE  4
 #define RNN_HIDDEN_SIZE 2
@@ -125,6 +128,8 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
                                 PSGradient **aux_gradients, ...);
 
 int testlen = 0;
+
+int pretrained_mnist_layers_size[PRETRAINED_MNIST_NETSIZE] = {784,30,10};
 
 PSFloat fullNetworkFeedForwardResults[] = {
     0.000000,
@@ -537,10 +542,19 @@ int LSTMSetup (void* tc) {
 
 
 int testFullLoad(void* tc, void* t) {
-    UNUSED(t);
+    Test *test = (Test *) t;
     TestCase *test_case = (TestCase*) tc;
     PSNeuralNetwork *network = getNetwork(test_case);
-    return PSLoadNetwork(network, PRETRAINED_FULL_NETWORK);
+    int loaded = PSLoadNetwork(network, PRETRAINED_FULL_NETWORK);
+    testAssert(test, loaded);
+    testAssertEqual(test, network->size, 3);
+    testAssertEqual(test, network->layers[0]->size,
+        pretrained_mnist_layers_size[0]);
+    testAssertEqual(test, network->layers[1]->size,
+        pretrained_mnist_layers_size[1]);
+    testAssertEqual(test, network->layers[2]->size,
+        pretrained_mnist_layers_size[2]);
+    return 1;
 }
 
 int testFullFeedforward(void* tc, void* t) {
@@ -1096,6 +1110,9 @@ int testGenericSave(void* tc, void* t) {
     TestCase *test_case = (TestCase*) tc;
     Test *test = (Test*) t;
     PSNeuralNetwork *network = getNetwork(test_case);
+    assert(network->size > 0);
+    PSFloat old_dropout = network->layers[0]->dropout;
+    network->layers[0]->dropout = 0.5;
     char tmpfile[255];
     getTmpFileName("tests-save-nn", ".data", tmpfile);
     int ok = PSSaveNetwork(network, tmpfile);
@@ -1121,6 +1138,7 @@ int testGenericSave(void* tc, void* t) {
     }
 
     ok = compareNetworks(network, clone, test);
+    network->layers[0]->dropout = old_dropout;
 
     remove(tmpfile);
     PSDeleteNetwork(clone);
@@ -1165,8 +1183,28 @@ int compareNetworks(PSNeuralNetwork *network, PSNeuralNetwork *clone,
                     i, o_size, c_size);
             break;
         }
+        PSFloat o_dropout = orig_l->dropout;
+        PSFloat c_dropout = clone_l->dropout;
+        ok = (o_dropout == c_dropout);
+        if (!ok) {
+            char *msg = malloc(255 * sizeof(char));
+            test->error_message = msg;
+            sprintf(msg, "Layer[%d]: Source dropout %g != Clone dropout %g\n",
+                    i, o_dropout, c_dropout);
+            break;
+        }
         if (i == 0) continue;
         if (otype == Pooling) continue;
+        int o_flags = orig_l->flags;
+        int c_flags = clone_l->flags;
+        ok = (o_flags == c_flags);
+        if (!ok) {
+            char *msg = malloc(255 * sizeof(char));
+            test->error_message = msg;
+            sprintf(msg, "Layer[%d]: Source flags %d != Clone flags %d\n",
+                    i, o_flags, c_flags);
+            break;
+        }
         int conv_features_checked = 0;
         for (k = 0; k < o_size; k++) {
             PSNeuron *orig_n = orig_l->neurons[k];

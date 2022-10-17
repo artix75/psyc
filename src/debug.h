@@ -33,8 +33,7 @@
 #define PSAssertWithMessage(expr, fmt, ...) do {\
     if (!(expr)) {\
         printf("\n\n== ASSERTION FAILURE ==\n");\
-        if (fmt != NULL) \
-            fprintf(stderr, fmt, __VA_ARGS__);\
+        fprintf(stderr, fmt, __VA_ARGS__);\
         assert(expr);\
     }\
 } while (0);

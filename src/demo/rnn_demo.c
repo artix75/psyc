@@ -89,6 +89,7 @@ int main(int argc, char** argv) {
             return 1;
         }
     }
+    PSPrintNetworkInfo(network);
 
     PSTrainingOptions options = {
         .flags = TRAINING_NO_SHUFFLE | TRAINING_ADJUST_RATE,

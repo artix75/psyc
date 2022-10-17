@@ -44,6 +44,12 @@
 
 #define UNUSED(V) ((void) V)
 
+/* Forward declarations */
+
+PSFloat applyDropout(PSNeuron *neuron, PSFloat value);
+
+/* LSTM functions */
+
 PSFloat applyGradientOnParameter(
     int param_type, PSTrainingOptions *options, PSFloat grad, PSFloat param,
     PSGradient *mg, PSGradient *xg, PSFloat rate, int iteration,
@@ -154,6 +160,7 @@ static int LSTMCellFeedforward(PSLayer *layer, PSLayer *previous,
         if (cell->input_gates != NULL) free(cell->input_gates);
         if (cell->output_gates != NULL) free(cell->output_gates);
         if (cell->forget_gates != NULL) free(cell->forget_gates);
+        if (cell->dropped_out != NULL) free(cell->dropped_out);
         cell->states_count = times;
         cell->states = calloc(times, sizeof(PSFloat));
         cell->z_values = calloc(times, sizeof(PSFloat));
@@ -161,12 +168,14 @@ static int LSTMCellFeedforward(PSLayer *layer, PSLayer *previous,
         cell->input_gates = calloc(times, sizeof(PSFloat));
         cell->output_gates = calloc(times, sizeof(PSFloat));
         cell->forget_gates = calloc(times, sizeof(PSFloat));
+        cell->dropped_out = calloc(times, sizeof(int));
         if (cell->states == NULL) return 0;
         if (cell->z_values == NULL) return 0;
         if (cell->candidates == NULL) return 0;
         if (cell->input_gates == NULL) return 0;
         if (cell->output_gates == NULL) return 0;
         if (cell->forget_gates == NULL) return 0;
+        if (cell->dropped_out == NULL) return 0;
 #ifdef USE_AVX
         if (!avx_disabled && neuron->index == 0) {
             if (layer->avx_activation_cache != NULL)
@@ -195,8 +204,11 @@ static int LSTMCellFeedforward(PSLayer *layer, PSLayer *previous,
 
     PSFloat activation = neuron->z_value;
     if (layer->activate != NULL) activation = layer->activate(activation);
-    activation = output_gate *activation;
+    activation = output_gate * activation;
+    if (PSShouldApplyDropout(layer))
+        activation = applyDropout(neuron, activation);
     neuron->activation = activation;
+    cell->dropped_out[t] = neuron->dropped_out;
     cell->states[t] = activation;
 
     return 1;
@@ -226,6 +238,7 @@ PSLSTMCell *PSCreateLSTMCell(PSNeuron *neuron, int weight_size) {
                                               OUTPUT_IDX);
     cell->forget_weights = neuron->weights + (weight_size *
                                               FORGET_IDX);
+    cell->dropped_out = NULL;
     return cell;
 }
 
@@ -236,6 +249,7 @@ void PSDeleteLSTMCell(PSLSTMCell *cell) {
     if (cell->forget_gates != NULL) free(cell->forget_gates);
     if (cell->z_values != NULL) free(cell->z_values);
     if (cell->states != NULL) free(cell->states);
+    if (cell->dropped_out != NULL) free(cell->dropped_out);
     free(cell);
 }
 
@@ -288,6 +302,7 @@ int PSInitLSTMLayer(PSNeuralNetwork *network, PSLayer *layer,
         neuron->index = i;
         neuron->weights_size = tot_ws;
         neuron->bias = PSGaussianRandom(0, 1);
+        neuron->dropped_out = 0;
         neuron->weights = malloc(sizeof(PSFloat) * tot_ws);
         if (neuron->weights ==  NULL) {
             PSAbortLayer(network, layer);
