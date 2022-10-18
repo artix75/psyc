@@ -498,6 +498,31 @@ char *getOptimizationName(PSTrainingOptimization optimization) {
     return "UNKOWN";
 }
 
+int PSGetLayerParametersCount(PSLayer *layer) {
+    if (Pooling == layer->type || layer->index == 0 || layer->size == 0)
+        return 0;
+    if (Convolutional == layer->type) {
+        PSSharedParams *shared = PSGetConvSharedParams(layer);
+        if (shared == NULL) return 0;
+        return (shared->weights_size * shared->feature_count) +
+               shared->feature_count;
+    } else {
+        PSNeuron *neuron = layer->neurons[0];
+        if (neuron == NULL) return 0;
+        return (neuron->weights_size * layer->size) + layer->size;
+    }
+}
+
+int PSGetNetworkParametersCount(PSNeuralNetwork *network) {
+    int tot = 0, i;
+    if (network->layers == NULL || network->size == 0) return 0;
+    for (i = 1; i < network->size; i++) {
+        PSLayer *layer = network->layers[i];
+        tot += PSGetLayerParametersCount(layer);
+    }
+    return tot;
+}
+
 static void printLayerInfo(PSLayer *layer) {
     if (layer == NULL) return;
     PSLayerType ltype = layer->type;
@@ -550,10 +575,13 @@ void PSPrintNetworkInfo(PSNeuralNetwork *network) {
     int i;
     for (i = 0; i < network->size; i++) {
         PSLayer *layer = network->layers[i];
+        printf("  ");
         printLayerInfo(layer);
     }
+    printf("Total (trainable) parameters: %d\n",
+        PSGetNetworkParametersCount(network));
     char *loss_name = getLossFunctionName(network->loss);
-    printf("Loss Function: %s\n", loss_name);
+    if (loss_name != NULL) printf("Loss Function: %s\n", loss_name);
     printf("Status: %s\n", getNetworkStatusLabel(network));
     printf("AVX: %s\n", (PSIsAVXDisabled(network) ? "no" : "yes"));
 }
