@@ -1853,8 +1853,9 @@ PSGradient **createGradients(PSNeuralNetwork *network) {
 void PSDeleteLayerGradients(PSGradient *gradient, int size) {
     int i;
     for (i = 0; i < size; i++) {
-        PSGradient g = gradient[i];
-        free(g.weights);
+        PSGradient *g = &(gradient[i]);
+        if (g == NULL || g->weights == NULL) continue;
+        free(g->weights);
     }
     free(gradient);
 }
@@ -2169,38 +2170,6 @@ PSGradient **backpropThroughTime(PSNeuralNetwork *network, PSFloat *x,
                 PSFloat dv = sum *layer->derivative(cell->states[t]);
                 if (!is_lstm) delta[j] = dv;
                 else delta[j] += dv;
-
-                /* TODO: WARN: it never enters this code path!!! */
-                /*if (!is_recurrent && !is_lstm) {
-                    PSGradient *gradient = &(lgradients[i]);
-                    gradient->bias += dv;
-                    int wsize = neuron->weights_size;
-                    if (previousLayer->flags & FLAG_ONEHOT) {
-                        PSHyperParameters *params =
-                            previousLayer->hyper_parameters;
-                        if (params == NULL) {
-                            fprintf(stderr, "Layer %d params are NULL!\n",
-                                    previousLayer->index);
-                            return NULL;
-                        }
-                        int vector_size = (int) params->parameters[0];
-                        assert(vector_size > 0);
-                        PSNeuron *prev_n = previousLayer->neurons[0];
-                        PSRecurrentCell *prev_c = PSGetRecurrentCell(prev_n);
-                        PSFloat prev_a = prev_c->states[t];
-                        assert(prev_a < vector_size);
-                        w = (int) prev_a;
-                        gradient->weights[w] += dv;
-                    } else {
-                        for (w = 0; w < wsize; w++) {
-                            PSNeuron *prev_n = previousLayer->neurons[w];
-                            PSRecurrentCell *prev_c =
-                                PSGetRecurrentCell(prev_n);
-                            PSFloat prev_a = prev_c->states[t];
-                            gradient->weights[w] += (dv *prev_a);
-                        }
-                    }
-                }*/
             }
             int ok = 1;
             if (is_recurrent)
@@ -2690,7 +2659,7 @@ PSFloat gradientDescent(PSNeuralNetwork *network,
                        PSFloat *test_data,
                        int test_size) {
     int batches_count = elements_count / batch_size;
-    PSFloat **series = NULL;
+    PSFloat **series = NULL, **series_head = NULL;
     int flags = 0, do_validate = 0;
     if (options != NULL) flags = options->flags;
     if (network->flags & FLAG_RECURRENT) {
@@ -2747,6 +2716,7 @@ PSFloat gradientDescent(PSNeuralNetwork *network,
             do_validate = 1;
         }
     }
+    series_head = series;
     for (i = 0; i < batches_count; i++) {
         network->training->current_batch = i;
         int batch_num = i + 1;
@@ -2754,7 +2724,7 @@ PSFloat gradientDescent(PSNeuralNetwork *network,
         gettimeofday(&st, NULL);
         err += updateNetworkParameters(
             network, training_data, batch_size, elements_count, options,
-            learning_rate, momentum_gradients, aux_gradients, series
+            learning_rate, momentum_gradients, aux_gradients, series_head
         );
         gettimeofday(&et, NULL);
         elapsed_t = PSGetElapsedTimeUS(st, et);
@@ -2786,7 +2756,7 @@ PSFloat gradientDescent(PSNeuralNetwork *network,
             }
         } else PSLogTrainingProgress(network, epochs, batches_count, 1, NULL);
         if (network->status == STATUS_ERROR) {
-            if (series != NULL) free(series - (i * batches_count));
+            if (series != NULL) free(series);
             return STATUS_ERROR_LOSS;
         }
         if (network->onBatchTrained != NULL) {
@@ -2798,7 +2768,7 @@ PSFloat gradientDescent(PSNeuralNetwork *network,
         }
         previous_err = avg_err;
         if (series == NULL) training_data += offset;
-        else series += batch_size;
+        else series_head += batch_size;
         int action = network->training->requested_action;
         if (action == ACTION_ABORT) {
             network->status = action;
@@ -2810,7 +2780,7 @@ final:
         PSDeleteGradients(momentum_gradients, network);
     if (aux_gradients != NULL)
         PSDeleteGradients(aux_gradients, network);
-    if (series != NULL) free(series - (batch_size * batches_count));
+    if (series != NULL) free(series);
     return err / (PSFloat) batches_count;
 }
 
