@@ -129,10 +129,13 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
             input_w = PSSqrt(featsize);
             input_h = input_w;
         }
-        PSFloat prev_area = input_w *input_h * (PSFloat) prev_features;
+        PSFloat prev_area = input_w * input_h * (PSFloat) prev_features;
         if ((int) prev_area != previous_size) {
-            PSErr(__func__, "Previous size %d != %gx%g",
-                  previous_size, input_w, input_h);
+            PSErr(
+                __func__, "Previous size %d != %d (%gx%gx%g)",
+                 previous_size, (int) prev_area, input_w, input_h,
+                 (PSFloat) prev_features
+            );
             goto err;
         }
     }
@@ -218,37 +221,33 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
     layer->feedforward = PSConvolve;
     return 1;
 err:
-    PSAbortLayer(network, layer);
     return 0;
 }
 
 int PSInitPoolingLayer(PSNeuralNetwork *network, PSLayer *layer,
-                       PSHyperParameters *parameters) {
+                       PSHyperParameters *parameters)
+{
     int index = layer->index;
     PSLayer *previous = network->layers[index - 1];
     if (previous->type != Convolutional) {
         PSErr(
             __func__, "Pooling's previous layer must be a Convolutional layer!"
         );
-        PSAbortLayer(network, layer);
         return 0;
     }
     if (parameters == NULL) {
         PSErr(__func__, "Layer parameters is NULL!");
-        PSAbortLayer(network, layer);
         return 0;
     }
     if (parameters->count < CONV_PARAMETER_COUNT) {
         PSErr(__func__, "Convolutional Layer parameters count must be %d",
               CONV_PARAMETER_COUNT);
-        PSAbortLayer(network, layer);
         return 0;
     }
     PSFloat *params = parameters->parameters;
     PSHyperParameters *previous_parameters = previous->hyper_parameters;
     if (previous_parameters == NULL) {
         PSErr(__func__, "Previous layer parameters is NULL!");
-        PSAbortLayer(network, layer);
         return 0;
     }
     if (previous_parameters->count < CONV_PARAMETER_COUNT) {
@@ -392,7 +391,6 @@ int PSConvolve(PSNeuralNetwork *net, PSLayer *layer, ...) {
         PSFloat bias = shared->biases[i];
         PSFloat *weights = shared->weights[i];
         row = 0;
-        col = 0;
         for (j = 0; j < feature_size; j++) {
             int idx = (i * feature_size) + j;
             PSNeuron *neuron = layer->neurons[idx];
@@ -554,7 +552,6 @@ int PSPool(PSNeuralNetwork *net, PSLayer *layer, ...) {
     for (i = 0; i < feature_count; i++) {
         if (do_dump && i > 1) do_dump = 0;
         row = 0;
-        col = 0;
         for (j = 0; j < feature_size; j++) {
             int idx = (i * feature_size) + j;
             PSNeuron *neuron = layer->neurons[idx];
@@ -625,7 +622,6 @@ int PSPoolingBackprop(PSLayer *pooling_layer, PSLayer *convolutional_layer,
     for (i = 0; i < feature_count; i++) {
         if (do_dump && i > 1) do_dump = 0;
         row = 0;
-        col = 0;
         for (j = 0; j < feature_size; j++) {
             int idx = j + (i * feature_size);
             PSFloat d = delta[idx];
@@ -697,7 +693,6 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
         if (do_dump && i > 1) do_dump = 0;
         PSGradient *feature_gradient = &(lgradients[i]);
         row = 0;
-        col = 0;
         for (j = 0; j < feature_size; j++) {
             int idx = j + (i * feature_size);
             PSFloat d = delta[idx];

@@ -3,7 +3,7 @@ CC=gcc
 OPTIMIZATION?=-O2
 OPT=$(OPTIMIZATION)
 CSTD=gnu99 -pedantic
-CFLAGS=-std=$(CSTD) -Wall -W -Wno-missing-field-initializers -Wno-unknown-pragmas -Wno-string-compare -Wunreachable-code $(OPT)
+CFLAGS=-std=$(CSTD) -Wall -W -Wno-missing-field-initializers -Wno-unknown-pragmas -Wno-string-compare $(OPT)
 LDFLAGS=-lz -lm -ldl
 OBJS=psyc.o utils.o convolutional.o recurrent.o lstm.o mnist.o debug.o cifar.o
 PREFIX?=/usr/local

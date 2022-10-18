@@ -78,6 +78,8 @@ PSFloat *PSAddRecurrentState(PSNeuralNetwork *net, PSNeuron *neuron,
             return NULL;
         }
     }
+    assert(cell->dropped_out != NULL);
+    assert(cell->states != NULL);
     cell->dropped_out[t] = neuron->dropped_out;
     cell->states[t] = state;
 #ifdef USE_AVX
@@ -118,14 +120,12 @@ int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
      #endif*/
     if (layer->neurons == NULL) {
         PSErr(__func__, "Could not allocate layer neurons!");
-        PSAbortLayer(network, layer);
         return 0;
     }
     for (i = 0; i < size; i++) {
         PSNeuron *neuron = malloc(sizeof(PSNeuron));
         if (neuron == NULL) {
             PSErr(__func__, "Could not allocate neuron!");
-            PSAbortLayer(network, layer);
             return 0;
         }
         neuron->index = i;
@@ -134,7 +134,7 @@ int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
         neuron->bias = PSGaussianRandom(0, 1);
         neuron->weights = malloc(sizeof(PSFloat) * ws);
         if (neuron->weights ==  NULL) {
-            PSAbortLayer(network, layer);
+            PSDeleteNeuron(neuron, layer);
             PSErr(__func__, "Could not allocate neuron weights!");
             return 0;
         }
@@ -145,10 +145,7 @@ int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
         neuron->z_value = 0;
         layer->neurons[i] = neuron;
         neuron->extra = PSCreateRecurrentCell(neuron, size);
-        if (neuron->extra == NULL) {
-            PSAbortLayer(network, layer);
-            return 0;
-        }
+        if (neuron->extra == NULL) return 0;
         neuron->layer = layer;
     }
     layer->flags |= FLAG_RECURRENT;

@@ -36,6 +36,7 @@
 #include "lstm.h"
 #include "debug.h"
 
+#define DATA_LAYER_MIN_ARGC 3
 #define STATUS_ERROR_LOSS -999.00
 
 #define applyGradientOnBias(opts, grad, val, mg, xg, r, i) \
@@ -359,7 +360,7 @@ static void shuffleSeries(PSFloat **series, int size) {
 static PSFloat **getRecurrentSeries(PSFloat *array, int series_count,
                                     int x_size, int y_size)
 {
-    PSFloat **series = malloc(series_count *sizeof(PSFloat**));
+    PSFloat **series = malloc(sizeof(PSFloat *) * series_count);
     if (series == NULL) {
         PSErr(NULL, "Could not allocate memory for recurrent series!");
         return NULL;
@@ -886,7 +887,7 @@ int PSLoadNetwork(PSNeuralNetwork *network, const char* filename) {
     char sep[] = ",";
     char eol[] = "\n";
     int min_argc = 1;
-    if (compareVersion(vers, "0.2.2") == 1)  min_argc = 3;
+    if (compareVersion(vers, "0.2.2") == 1)  min_argc = DATA_LAYER_MIN_ARGC;
     else if (compareVersion(vers, "0.0.0") == 1)  min_argc = 2;
     PSLayer *layer = NULL;
     for (i = 0; i < netsize; i++) {
@@ -934,7 +935,8 @@ int PSLoadNetwork(PSNeuralNetwork *network, const char* filename) {
              * PSHyperParameters. */
             ltype = (PSLayerType) type;
             for (aidx = 0; aidx < argc; aidx++) {
-                if (min_argc == 3 && aidx == 2) fscanf(f, ",%g", &argf);
+                if (min_argc == 3 && aidx == 2)
+                    fscanf(f, "," PSFLOAT_FORMAT, &argf);
                 else matched = fscanf(f, ",%d", &arg);
                 if (!matched) {
                     PSErr(__func__, "Invalid header: l%d, arg. %d, col. %ld!",
@@ -1136,7 +1138,8 @@ int PSSaveNetwork(PSNeuralNetwork *network, const char* filename) {
         else if (params) {
             int argc = params->count;
             fprintf(
-                f, "[%d,%d,%d,%d,%g", (int) ltype, 3 + argc, layer->size,
+                f, "[%d,%d,%d,%d,%g",
+                (int) ltype, DATA_LAYER_MIN_ARGC + argc, layer->size,
                 layer->flags, dropout
             );
             for (j = 0; j < argc; j++) {
@@ -1145,8 +1148,8 @@ int PSSaveNetwork(PSNeuralNetwork *network, const char* filename) {
             fprintf(f, "]");
         } else {
             fprintf(
-                f, "[%d,3,%d,%d,%g]",
-                (int) ltype, layer->size, flags, dropout
+                f, "[%d,%d,%d,%d,%g]",
+                (int) ltype, DATA_LAYER_MIN_ARGC, layer->size, flags, dropout
             );
         }
     }
@@ -1285,16 +1288,7 @@ int PSDumpNetworkActivations(PSNeuralNetwork *network, const char* filename) {
     int i;
     for (i = 0; i < network->size; i++) {
         PSLayer *layer = network->layers[i];
-        PSLayerType ltype = layer->type;
-        PSHyperParameters *lparams = layer->hyper_parameters;
-        int fcount = 1, nidx = 0;
-        if ((ltype == Convolutional || ltype == Pooling ||
-            ltype == FullyConnected) && lparams != NULL)
-        {
-            PSFloat *params = lparams->parameters;
-            fcount = (int) (params[PARAM_FEATURE_COUNT]);
-        }
-        if (fcount < 0) fcount = 1;
+        int nidx = 0;
         DumpLayerInfo(layer, f, 0);
         fprintf(f, ",activations=(");
         for(; nidx < layer->size; nidx++) {
@@ -1322,16 +1316,7 @@ int PSDumpNetworkDeltas(PSNeuralNetwork *network, const char* filename) {
     int i;
     for (i = 0; i < network->size; i++) {
         PSLayer *layer = network->layers[i];
-        PSLayerType ltype = layer->type;
-        PSHyperParameters *lparams = layer->hyper_parameters;
-        int fcount = 1, nidx = 0;
-        if ((ltype == Convolutional || ltype == Pooling ||
-            ltype == FullyConnected) && lparams != NULL)
-        {
-            PSFloat *params = lparams->parameters;
-            fcount = (int) (params[PARAM_FEATURE_COUNT]);
-        }
-        if (fcount < 0) fcount = 1;
+        int nidx = 0;
         DumpLayerInfo(layer, f, 0);
         PSFloat *delta = layer->delta;
         if (delta == NULL) {
@@ -1426,13 +1411,14 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
         }
         network->input_size = size;
     } else {
-        network->layers = realloc(network->layers,
-                                  sizeof(PSLayer*) * network->size);
-        if (network->layers == NULL) {
+        PSLayer **layers = realloc(network->layers,
+                                   sizeof(PSLayer*) * network->size);
+        if (layers == NULL) {
             PSAbortLayer(network, layer);
             PSErr(__func__, "Could not reallocate network layers!");
             return NULL;
         }
+        network->layers = layers;
         previous = network->layers[layer->index - 1];
         if (previous == NULL) {
             PSAbortLayer(network, layer);
@@ -1488,7 +1474,7 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
             }
             neuron->index = i;
             neuron->extra = NULL;
-            if (layer->index > 0) {
+            if (layer->index > 0 && previous_size > 0) {
                 neuron->weights_size = previous_size;
                 neuron->bias = PSGaussianRandom(0, 1);
                 neuron->weights = malloc(sizeof(PSFloat) * previous_size);
@@ -1529,9 +1515,10 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
         initialized = PSInitLSTMLayer(network, layer, size, previous_size);
         if (initialized) network->loss = PSCrossEntropyLoss;
     }
+    int layer_idx = layer->index;
     if (!initialized) {
         PSAbortLayer(network, layer);
-        PSErr(__func__, "Could not initialize layer %d!", network->size + 1);
+        PSErr(__func__, "Could not initialize layer %d!", layer_idx);
         return NULL;
     }
     if (layer->index > 0) {
@@ -1543,7 +1530,7 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
             PSPrintMemoryErrorMsg();
             PSErr(
                 __func__, "Could not initialize layer %d!",
-                network->size + 1
+                layer_idx
             );
             return NULL;
         }
@@ -1568,14 +1555,13 @@ PSLayer *PSAddPoolingLayer(PSNeuralNetwork *network,
 void PSDeleteLayer(PSLayer* layer) {
     int size = layer->size;
     int i;
+    if (layer->neurons == NULL) size = 0;
     for (i = 0; i < size; i++) {
         PSNeuron* neuron = layer->neurons[i];
-        if (layer->type != Convolutional)
-            PSDeleteNeuron(neuron, layer);
-        else
-            free(neuron);
+        if (layer->type != Convolutional) PSDeleteNeuron(neuron, layer);
+        else free(neuron);
     }
-    free(layer->neurons);
+    if (layer->neurons != NULL) free(layer->neurons);
     PSHyperParameters *params = layer->hyper_parameters;
     if (params != NULL) PSDeleteHyperParamenters(params);
     void *extra = layer->extra;
@@ -1844,6 +1830,7 @@ int PSClassify(PSNeuralNetwork *network, PSFloat *values) {
 
 PSGradient **createGradients(PSNeuralNetwork *network) {
     if (network == NULL) return NULL;
+    if (network->size < 2) return NULL;
     PSGradient **gradients = malloc(sizeof(PSGradient*) * network->size - 1);
     if (gradients == NULL) {
         PSPrintMemoryErrorMsg();
@@ -2221,7 +2208,10 @@ PSGradient **backpropThroughTime(PSNeuralNetwork *network, PSFloat *x,
                                          lgradients, t);
             else if (is_lstm)
                 ok = PSLSTMBackprop(layer, previousLayer, lgradients, t);
-            if (!ok) return NULL;
+            if (!ok) {
+                if (gradients != NULL) PSDeleteGradients(gradients, network);
+                return NULL;
+            }
             last_delta = layer->delta;
         }
     }
@@ -2254,6 +2244,12 @@ PSFloat applyGradientOnParameter(
     } else if (param_type == PARAM_TYPE_WEIGHT) {
         if (mg != NULL) mptr = mg->weights + param_index;
         if (xg != NULL) xptr = xg->weights + param_index;
+    } else {
+        fprintf(
+            stderr,
+            "FATAL: invalid param type %d in %s\n", param_type, __func__
+        );
+        abort();
     }
     if (optimization == Adam) {
         assert(mg != NULL);
@@ -2670,6 +2666,7 @@ final:
             } else fetchRecurrentOutputState(out, outputs, i, 0);
         }
     }
+    if (opts == NULL) l1 = l2 = 0.0;
     if (l1 != 0.0) l1_loss *= (opts->l1_decay /batch_size);
     if (l2 != 0.0) l2_loss = (0.5 * (opts->l2_decay / batch_size) * l2_loss);
     int onehot_s = (onehot ? out->size : 0);
@@ -2813,7 +2810,7 @@ final:
         PSDeleteGradients(momentum_gradients, network);
     if (aux_gradients != NULL)
         PSDeleteGradients(aux_gradients, network);
-    if (series != NULL) free(series - (batch_size *batches_count));
+    if (series != NULL) free(series - (batch_size * batches_count));
     return err / (PSFloat) batches_count;
 }
 

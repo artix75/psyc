@@ -282,21 +282,22 @@ void PSUpdateLSTMBiases(PSNeuron *neuron, PSGradient *gradient,
 int PSInitLSTMLayer(PSNeuralNetwork *network, PSLayer *layer,
                     int size, int ws) {
     int i, j;
+    if (size == 0) {
+        PSErr(__func__, "Cannot initialize layer with size = 0");
+        return 0;
+    }
     ws += size;
     int tot_ws = ws * 4; /* Weights for candidate, input, output and
                             forget gates */
-    char *func = "PSInitLSTMLayer";
     layer->neurons = malloc(sizeof(PSNeuron*) * size);
     if (layer->neurons == NULL) {
-        PSErr(func, "Could not allocate layer neurons!");
-        PSAbortLayer(network, layer);
+        PSErr(__func__, "Could not allocate layer neurons!");
         return 0;
     }
     for (i = 0; i < size; i++) {
         PSNeuron *neuron = malloc(sizeof(PSNeuron));
         if (neuron == NULL) {
-            PSErr(func, "Could not allocate neuron!");
-            PSAbortLayer(network, layer);
+            PSErr(__func__, "Could not allocate neuron!");
             return 0;
         }
         neuron->index = i;
@@ -305,8 +306,8 @@ int PSInitLSTMLayer(PSNeuralNetwork *network, PSLayer *layer,
         neuron->dropped_out = 0;
         neuron->weights = malloc(sizeof(PSFloat) * tot_ws);
         if (neuron->weights ==  NULL) {
-            PSAbortLayer(network, layer);
-            PSErr(func, "Could not allocate neuron weights!");
+            PSDeleteNeuron(neuron, layer);
+            PSErr(__func__, "Could not allocate neuron weights!");
             return 0;
         }
         for (j = 0; j < tot_ws; j++) {
@@ -317,7 +318,6 @@ int PSInitLSTMLayer(PSNeuralNetwork *network, PSLayer *layer,
         layer->neurons[i] = neuron;
         neuron->extra = PSCreateLSTMCell(neuron, ws);
         if (neuron->extra == NULL) {
-            PSAbortLayer(network, layer);
             return 0;
         }
         neuron->layer = layer;
@@ -333,14 +333,13 @@ int PSInitLSTMLayer(PSNeuralNetwork *network, PSLayer *layer,
 /* Feedforward Functions */
 
 int PSLSTMFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
-    char *func = "PSLSTMFeedforward";
     va_list args;
     va_start(args, layer);
     int times = va_arg(args, int);
     int t = va_arg(args, int);
     va_end(args);
     if (times < 1) {
-        PSErr(func, "Layer[%d]: times must be >= 1 (found %d)",
+        PSErr(__func__, "Layer[%d]: times must be >= 1 (found %d)",
               layer->index, times);
         return 0;
     }

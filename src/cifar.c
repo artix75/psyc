@@ -39,7 +39,7 @@ int PSLoadCIFARData(int type, int classes, const char *dataset_path,
                     PSFloat **data, int max_files, int max_elements)
 {
     if (classes != 10 && classes != 100) {
-        fprintf(stderr, "Invalid classes %d: only 10 or 100 allowed.", classes);
+        PSErr(__func__, "Invalid classes %d: only 10 or 100 allowed.", classes);
         return 0;
     }
     int label_size = (classes == 100 ? 2 : 1);
@@ -53,7 +53,7 @@ int PSLoadCIFARData(int type, int classes, const char *dataset_path,
     struct dirent *finfo;
     dir = opendir(dataset_path);
     if (dir == NULL) {
-        fprintf(stderr, "Invalid path %s\n", dataset_path);
+        PSErr(__func__, "Invalid path %s", dataset_path);
         return 0;
     }
 
@@ -61,6 +61,10 @@ int PSLoadCIFARData(int type, int classes, const char *dataset_path,
     while ((finfo = readdir(dir))) {
         if (strstr(finfo->d_name, prfx) == NULL) continue;
         sprintf(datafiles[fcount++], "%s/%s", dataset_path, finfo->d_name);
+    }
+    if (fcount == 0) {
+        PSErr(__func__, "Empty directory: %s", dataset_path);
+        return 0;
     }
     qsort(datafiles, fcount, 255, compareFilenames);
     if (max_files > 0 && max_files < fcount) fcount = max_files;
@@ -75,7 +79,7 @@ int PSLoadCIFARData(int type, int classes, const char *dataset_path,
         printf("Reading %s\n", fname);
         FILE *f = fopen(fname, "r");
         if (f == NULL) {
-            fputs("Could not open file!", stderr);
+            PSErr(__func__, "Could not open file %s", fname);
             free(*data);
             data = NULL;
             return 0;
@@ -83,8 +87,10 @@ int PSLoadCIFARData(int type, int classes, const char *dataset_path,
         fseek(f, 0, SEEK_END);
         int pos = ftell(f);
         if (pos < expected_fsize) {
-            fprintf(stderr, "Invalid file size: %d != %d\n", pos,
-                    expected_fsize);
+            PSErr(
+                __func__, "Invalid file size: %d != %d (expected)", pos,
+                expected_fsize
+            );
             free(*data);
             data = NULL;
             fclose(f);

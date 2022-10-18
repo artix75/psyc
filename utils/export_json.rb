@@ -87,9 +87,21 @@ netsize.times.each{|i|
         lsize = lparams.shift
         layer[:size] = lsize
         argc -= 1
+        min_argc = 1
+        dropout = 0
         if version
+            min_argc = 2
             lflags = lparams.shift
             argc -= 1
+            vmajor,  vminor, vpatch = version.sub(/^[^\d]+/, '').
+                split('.').map{|n| n.to_i}
+            if vmajor > 0 || (vminor >= 2 && vpatch >= 3)
+                min_argc = 3
+            end
+            if min_argc > 2
+                dropout = lparams.shift
+                argc -= 1
+            end
         end
         if typename == 'convolutional' || typename == 'pooling'
             args = {}
@@ -106,12 +118,13 @@ netsize.times.each{|i|
             }
             lheader << args
         else
-            lheader << lsize 
+            lheader << lsize
             if version
                 args = {}
                 args[:flags] = lflags if lflags
+                args[:dropout] = dropout if dropout
                 argc.times.each{|aidx|
-                    arg = lparams[aidx] 
+                    arg = lparams[aidx]
                     if !arg
                         puts "Layer[#{i}]: argument #{aidx} not found!"
                         puts ldef

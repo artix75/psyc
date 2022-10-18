@@ -73,10 +73,10 @@ PSFloat PSTanhDerivative(PSFloat val) {
 /* Network Functions */
 
 void PSAbortLayer(PSNeuralNetwork *network, PSLayer *layer) {
-    if (!network->size) return;
+    if (network->size == 0) return;
     if (layer->index == (network->size - 1)) {
         network->size--;
-        if (!network->size) {
+        if (network->size == 0) {
             network->input_size = 0;
             network->output_size = 0;
         } else {

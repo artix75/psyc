@@ -881,7 +881,7 @@ int parseOptionsFromFile(const char *filename) {
                 fprintf(stderr, "Error in config file '%s', at line %d:\n"
                         "Mandatory FILENAME argument for "
                         "'include' directive\n", filename, linenum);
-                goto cleanup;
+                goto next_line;
             }
             char *configfile = tokens[1];
             char relpath[PATH_MAX + 1];
@@ -897,14 +897,14 @@ int parseOptionsFromFile(const char *filename) {
                 }
             }
             success = parseOptionsFromFile(configfile);
-            if (!success) goto cleanup;
+            if (!success) goto next_line;
             handled = 1;
         } else if (strcmp("help", tokens[0]) == 0) goto next_line;
         if (handled) goto next_line;
         int first_arg_len = 2 + first_token_len;
         size_t first_arg_size = (size_t) first_arg_len + 1;
         int from = argc;
-        char *arg = malloc(first_arg_size * sizeof(char));
+        char *arg = malloc(sizeof(char) * first_arg_size);
         snprintf(arg, first_arg_size, "--%s", tokens[0]);
         if (numtokens > 1) {
             int yesno = 0;
@@ -939,6 +939,7 @@ next_line:
         for (i = 0; i < numtokens; i++) {
             if (tokens[i] != NULL) free(tokens[i]);
         }
+        if (!success) goto cleanup;
     }
     if (argc > 1) parseOptions(argc, argv);
 cleanup:
