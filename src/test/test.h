@@ -18,16 +18,17 @@
 #ifndef __PS_TEST_H
 #define __PS_TEST_H
 
+#include "../types.h"
 #define NOT_PERFORMED -1
 
-#define testAssert(test, expr) do {\
+#define testAssert(expr, test) do {\
     if (!(expr)){\
         buildAssertionMessage(test, __FILE__, __LINE__, __func__, #expr,NULL);\
         return 0;\
     }\
 } while (0)
 
-#define testAssertWithMessage(test, expr, msg, ...) do {\
+#define testAssertWithMessage(expr, test, msg, ...) do {\
     if (!(expr)){\
         buildAssertionMessage(test, __FILE__, __LINE__, __func__, #expr,\
             msg, __VA_ARGS__);\
@@ -35,23 +36,38 @@
     }\
 } while (0)
 
-#define testAssertEqual(test, a, b) testAssert(test, (a == b))
-#define testAssertNotEqual(test, a, b) testAssert(test, (a != b))
-#define testAssertNull(test, o) testAssert(test, (o == NULL))
-#define testAssertNotNull(test, o) testAssert(test, (o != NULL))
+#define testAssertWithMessageOrGoto(expr, gotolabel, test, msg, ...) do {\
+    if (!(expr)){\
+        buildAssertionMessage(test, __FILE__, __LINE__, __func__, #expr,\
+            msg, __VA_ARGS__);\
+        goto gotolabel;\
+    }\
+} while (0)
 
-typedef int (* TestFunction) (void* test_case, void* test);
-typedef int (* SetupFunction) (void* test_case);
-typedef int (* TeardownFunction) (void* test_case);
+#define testAssertEqual(a, b, test) testAssert((a == b), test)
+#define testAssertEqualWithMsg(a, b, test, msg, ...) \
+    testAssertWithMessage((a == b), test, msg, __VA_ARGS__)
+#define testAssertNotEqual(a, b, test) testAssert((a != b), test)
+#define testAssertNotEqualWithMsg(a, b, test, msg, ...) \
+    testAssertWithMessage((a != b), test, msg, __VA_ARGS__)
+#define testAssertNull(o, test) testAssert((o == NULL), test)
+#define testAssertNotNull(o, test) testAssert((o != NULL), test)
 
-typedef struct {
+struct Test;
+struct TestCase;
+
+typedef int (* TestFunction) (struct TestCase *test_case, struct Test *test);
+typedef int (* SetupFunction) (struct TestCase *test_case);
+typedef int (* TeardownFunction) (struct TestCase *test_case);
+
+typedef struct Test {
     char *name;
     char *error_message;
     int status;
     TestFunction run;
 } Test;
 
-typedef struct {
+typedef struct TestCase {
     char *name;
     SetupFunction setup;
     TeardownFunction teardown;
@@ -61,13 +77,13 @@ typedef struct {
 } TestCase;
 
 TestCase *createTest(char *name);
-Test *addTest(TestCase *test_case, char *name, char *errmsg,
-               TestFunction func);
-int performTests(TestCase *test_case);
+Test *addTest(TestCase *test_case, char *name, char *errmsg, TestFunction func);
+int  performTests(TestCase *test_case);
 void deleteTest(TestCase *test_case);
 void setTestErrorMessage(Test *test, char *fmt, ...);
 void appendTestErrorMessage(Test *test, char *fmt, ...);
 void buildAssertionMessage(Test *test, char *file, int line, const char *func,
                            char *expr, char *msg, ...);
+PSFloat getRoundedFloatDec(PSFloat n, unsigned int decimals);
 
 #endif /*  __PS_TEST_H */

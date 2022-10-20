@@ -23,24 +23,18 @@
 #include <assert.h>
 #include <time.h>
 #include "../psyc.h"
+#include "../utils.h"
 #include "../debug.h"
 #include "test.h"
-
-#define RED     "\x1b[31m"
-#define GREEN   "\x1b[32m"
-#define YELLOW  "\x1b[33m"
-#define BLUE    "\x1b[34m"
-#define MAGENTA "\x1b[35m"
-#define CYAN    "\x1b[36m"
-#define WHITE   "\x1b[37m"
-#define BOLD    "\x1b[1m"
-#define DIM     "\x1b[2m"
-#define HIDDEN  "\x1b[8m"
-#define RESET   "\x1b[0m"
 
 #define MAX_ERROR_LEN   4096 * 10
 
 int stdout_fd = -999;
+
+PSFloat getRoundedFloatDec(PSFloat n, unsigned int decimals) {
+    PSFloat rounder = (PSFloat) PSPow(10.0, (PSFloat) decimals);
+    return (PSRound(n * rounder) / rounder);
+}
 
 TestCase *createTest(char *name) {
     TestCase *test_case = malloc(sizeof(TestCase));
@@ -187,12 +181,12 @@ void buildAssertionMessage(Test *test, char *file, int line, const char *func,
                            char *expr, char *msg, ...)
 {
     appendTestErrorMessage(test,
-        "Test assertion failed for test \"%s\"\n", test->name);
+        "Test assertion failed for test \"%s\":\n", test->name);
+    appendTestErrorMessage(test, "    %s\n", expr);
     appendTestErrorMessage(test,
         "    In %s:%d (%s)\n", file, line, func);
-    appendTestErrorMessage(test, "    %s", expr);
     if (msg != NULL) {
-        appendTestErrorMessage(test, "\n    ");
+        appendTestErrorMessage(test, "    ");
         int len = strlen(test->error_message),
             maxlen = MAX_ERROR_LEN - len - 1;
         va_list ap;
