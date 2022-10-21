@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 require 'csv'
 require 'optparse'
+require 'json'
 
 VOCABULARY_SIZE = 5000
 START_TOKEN = '__S_START__'
@@ -55,7 +56,34 @@ def max_idx(vec)
     vec.index(vec.max)
 end
 
-def do_verify(c)
+def dump_sentence_vec(vec, slen, sidx: nil)
+    print "Sentence"
+    if sidx
+        print " #{sidx}"
+    end
+    print ":\n"
+    if vec.length != (slen * 2)
+        STDERR.puts "Error (dump_sentence_vec): Invalid sentence length. " +
+                    "Vector length #{vec.length} != #{slen * 2} (#{slen} * 2)"
+        return
+    end
+    xvec = vec[0, slen]
+    yvec = vec[slen..-1]
+    xwords = xvec.map{|widx|
+        $indexed_words[widx].inspect
+    }
+    ywords = yvec.map{|widx|
+        $indexed_words[widx].inspect
+    }
+    puts "Feed sequence (X)"
+    puts "  Data:  [#{xvec.join(', ')}]"
+    puts "  Words: [#{xwords.join(', ')}]"
+    puts "Label sequence (Y)"
+    puts "  Data:  [#{yvec.join(', ')}]"
+    puts "  Words: [#{ywords.join(', ')}]"
+end
+
+def do_verify(c, dump_sentences: false)
     vars = {}
     var_names = %w(
         VOCABULARY_SIZE
@@ -75,6 +103,24 @@ def do_verify(c)
         end
         vars[var] = m[1].to_i
     }
+    if dump_sentences && !$indexed_words
+        wrd_match = c.match(
+            /char\s*\*\s*#{$options[:words_var]}\[\]\s*=\s*\{([^\{\}]+)\};/
+        )
+        if !wrd_match
+            STDERR.puts "Verify: Couldn't find #{$options[:words_var]}, " +
+                        "cannot dump sentences"
+            dump_sentences = false
+        end
+        begin
+            words_json = '[' + wrd_match[1] + ']'
+            $indexed_words = JSON.parse words_json
+        rescue Exception => e
+            STDERR.puts "ERROR: Failed to read words, cannot dump sentences"
+            STDERR.puts e.to_s
+            dump_sentences = false
+        end
+    end
     #words = c.match(/char \* #{$options[:words_var]}\[\] = \{(.*+?)\};/
     tr_data = c.match(
         /PSFloat #{$options[:train_data_var]}\[\] = \{([\d\.,\s]+)\};/
@@ -115,6 +161,9 @@ def do_verify(c)
     counted = 1
     while s_len = tr_data.shift
         s_len = s_len.to_i
+        if dump_sentences
+            dump_sentence_vec tr_data[0, s_len * 2], s_len, sidx: (counted - 1)
+        end
         counted += 1
         len = tr_data.length
         tr_data = tr_data[s_len * 2, -1] || []
@@ -408,6 +457,11 @@ optparse = OptionParser.new do |opts|
         $options[:verify] = file || true
     end
 
+    opts.on '', '--dump-sequences', 'Dump data sequences',
+            '(With --verify mode)' do
+        $options[:dump_sentences] = true
+    end
+
     opts.on( '-h', '--help', 'Display this screen' ) do
         puts opts
         exit
@@ -542,8 +596,9 @@ PSFloat #{$options[:test_data_var]}[] = {#{test_c_data}};
     File.open(output, 'w'){|f| f.write(c_code)}
     puts "\nWritten to #{output}"
     if $options[:verify]
-        do_verify c_code
+        do_verify c_code, dump_sentences: $options[:dump_sentences]
     end
 elsif $options[:verify]
-    do_verify File.read($options[:verify])
+    do_verify File.read($options[:verify]),
+              dump_sentences: $options[:dump_sentences]
 end
