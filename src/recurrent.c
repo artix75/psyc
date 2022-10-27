@@ -31,8 +31,9 @@
 
 #define UNUSED(V) ((void) V)
 
-/* Forward declarations */
+/* External functions */
 
+int isDroppedOut(PSNeuron *neuron, ...);
 PSFloat applyDropout(PSNeuron *neuron, PSFloat value);
 
 /* Recurrent network functions */
@@ -63,14 +64,14 @@ PSFloat *PSAddRecurrentState(PSNeuralNetwork *net, PSNeuron *neuron,
          * in advance for all time steps. */
         cell->states_count = times;
         if (cell->states != NULL) free(cell->states);
-        cell->states = malloc(times * sizeof(PSFloat));
+        cell->states = calloc(times, sizeof(PSFloat));
         if (cell->states == NULL) {
             neuron->extra = NULL;
             free(cell);
             return NULL;
         }
         if (cell->dropped_out != NULL) free(cell->dropped_out);
-        cell->dropped_out = malloc(times * sizeof(int));
+        cell->dropped_out = calloc(times, sizeof(int));
         if (cell->dropped_out == NULL) {
             neuron->extra = NULL;
             free(cell->states);
@@ -184,8 +185,9 @@ int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
         PSErr(NULL, "Layer[%d]: previous layer is NULL!", layer->index);
         return 0;
     }
-#ifdef USE_AVX
     int avx_disabled = PSIsAVXDisabled(net);
+#ifndef USE_AVX
+    UNUSED(avx_disabled);
 #endif
     int onehot = previous->flags & FLAG_ONEHOT;
     int apply_dropout = PSShouldApplyDropout(layer);
@@ -263,6 +265,7 @@ int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
             if (cell->states != NULL) free(cell->states);
             cell->states_count = times;
             cell->states = calloc(times, sizeof(PSFloat));
+            cell->dropped_out = calloc(times, sizeof(int));
 #ifdef USE_AVX
             if (!avx_disabled && neuron->index == 0) {
                 if (layer->avx_activation_cache != NULL)
@@ -294,16 +297,15 @@ int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
 int PSRecurrentBackprop(PSLayer *layer, PSLayer *previousLayer, int lowest_t,
                         PSGradient *lgradients, int t)
 {
-    PSNeuralNetwork *net = (PSNeuralNetwork *) layer->network;
-#ifdef USE_AVX
-    int avx_disabled = PSIsAVXDisabled(net);
-#else
-    UNUSED(net);
-#endif
+    int avx_disabled = PSIsAVXDisabled(layer->network);
     int lsize = layer->size, i, w, tt;
+    PSFloat *prev_delta = previousLayer->delta;
+    /* Cycle over previous time steps until lowest step (`lowest_t`) defined
+     * by the window of BPTT_TRUNCATE. */
     for (tt = t; tt >= lowest_t; tt--) {
         PSFloat *delta = layer->delta;
         PSFloat *new_delta = NULL;
+        int is_lowest = (tt == lowest_t);
         for (i = 0; i < lsize; i++) {
             PSNeuron *neuron = layer->neurons[i];
             PSRecurrentCell *cell = PSGetRecurrentCell(neuron);
@@ -311,7 +313,7 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previousLayer, int lowest_t,
             PSFloat dv = delta[i];
             gradient->bias += dv;
             int wsize = neuron->weights_size - cell->weights_size;
-
+            /* Update gradients and previous layer delta */
             if (previousLayer->flags & FLAG_ONEHOT) {
                 PSHyperParameters *params = previousLayer->hyper_parameters;
                 if (params == NULL) {
@@ -332,7 +334,7 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previousLayer, int lowest_t,
                     PSNeuron *prev_n = previousLayer->neurons[w];
                     PSRecurrentCell *prev_c = PSGetRecurrentCell(prev_n);
                     PSFloat prev_a = prev_c->states[tt];
-                    gradient->weights[w] += (dv *prev_a);
+                    gradient->weights[w] += (dv * prev_a);
                 }
             }
 
@@ -344,7 +346,8 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previousLayer, int lowest_t,
                         return 0;
                     }
                 }
-                PSFloat rsum = 0.0;
+                /* Update gradients and the new delta for layer with its own
+                 * hidden state */
                 w = 0;
 #ifdef USE_AVX
                 if (!avx_disabled) {
@@ -359,18 +362,35 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previousLayer, int lowest_t,
                     PSNeuron *rn = layer->neurons[w];
                     PSRecurrentCell *rc = PSGetRecurrentCell(rn);
                     PSFloat a = rc->states[tt - 1];
-                    gradient->weights[wsize + w] += (dv *a);
+                    gradient->weights[wsize + w] += (dv * a);
+                    if (avx_disabled && !isDroppedOut(rn, tt)) {
+                        PSFloat rw = rc->weights[neuron->index];
+                        new_delta[neuron->index] += (delta[rn->index] * rw);
+                    }
                 }
-                for (w = 0; w < cell->weights_size; w++) {
-                    PSNeuron *rn = layer->neurons[w];
-                    PSRecurrentCell *rc = PSGetRecurrentCell(rn);
-                    PSFloat rw = rc->weights[neuron->index];
-                    rsum += (delta[rn->index] * rw);
+                if (!avx_disabled) {
+                    for (w = 0; w < cell->weights_size; w++) {
+                        PSNeuron *rn = layer->neurons[w];
+                        if (isDroppedOut(rn, tt)) continue;
+                        PSRecurrentCell *rc = PSGetRecurrentCell(rn);
+                        PSFloat rw = rc->weights[neuron->index];
+                        new_delta[neuron->index] += (delta[rn->index] * rw);
+                    }
                 }
-                PSFloat prev_a = cell->states[tt - 1];
-                new_delta[neuron->index] = rsum *layer->derivative(prev_a);
+                if (layer->derivative != NULL) {
+                    PSFloat prev_a = cell->states[tt - 1];
+                    new_delta[neuron->index] *= layer->derivative(prev_a);
+                }
             }
-
+            if (is_lowest && prev_delta != NULL && !isDroppedOut(neuron, t)) {
+                PSFloat *final_delta = (
+                    new_delta != NULL ? new_delta : layer->delta
+                );
+                for (w = 0; w < wsize; w++) {
+                    PSFloat dv = final_delta[neuron->index];
+                    prev_delta[w] += (dv * neuron->weights[w]);
+                }
+            }
         }
         if (new_delta != NULL) {
             free(delta);

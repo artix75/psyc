@@ -118,7 +118,7 @@ int testLSTMTrain(TestCase *test_case, Test *test);
 
 PSGradient **backprop(PSNeuralNetwork *network, PSFloat *x, PSFloat *y);
 PSGradient **backpropThroughTime(PSNeuralNetwork *network, PSFloat *x,
-                                  PSFloat *y, int times);
+                                 PSFloat *y, int times);
 
 PSFloat updateNetworkParameters(PSNeuralNetwork *network,
                                 PSFloat *training_data,
@@ -882,7 +882,7 @@ int testLSTMTrain(TestCase *test_case, Test *test) {
             LSTM_BATCHES, &options, NULL, 0);
 
     PSLayer *layer = network->layers[1];
-    int i, t, w;
+    int i, t, w, precision = NORMAL_PRECISION_DEC - 1;
 
     for (i = 0; i < layer->size; i++) {
         PSNeuron *neuron = layer->neurons[i];
@@ -923,29 +923,31 @@ int testLSTMTrain(TestCase *test_case, Test *test) {
             i, bias, expected
         );
         for (w = 0; w < cell->weights_size; w++) {
-            PSFloat weight = getRoundedFloat(cell->candidate_weights[w]);
-            expected = getRoundedFloat(expected_wg[i][w]);
+            PSFloat weight =
+                getRoundedFloatDec(cell->candidate_weights[w], precision);
+            expected =
+                getRoundedFloatDec(expected_wg[i][w], precision);
             testAssertWithMessage(
                 (weight == expected), test,
                 "Neuron[%d]->candidate_weights[%d]: %g != %g",
                 i, w, weight, expected
             );
-            weight = getRoundedFloat(cell->input_weights[w]);
-            expected = getRoundedFloat(expected_wi[i][w]);
+            weight = getRoundedFloatDec(cell->input_weights[w], precision);
+            expected = getRoundedFloatDec(expected_wi[i][w], precision);
             testAssertWithMessage(
                 (weight == expected), test,
                 "Neuron[%d]->input_weights[%d]: %g != %g",
                 i, w, weight, expected
             );
-            weight = getRoundedFloat(cell->output_weights[w]);
-            expected = getRoundedFloat(expected_wo[i][w]);
+            weight = getRoundedFloatDec(cell->output_weights[w], precision);
+            expected = getRoundedFloatDec(expected_wo[i][w], precision);
             testAssertWithMessage(
                 (weight == expected), test,
                 "Neuron[%d]->output_weights[%d]: %g != %g",
                 i, w, weight, expected
             );
-            weight = getRoundedFloat(cell->forget_weights[w]);
-            expected = getRoundedFloat(expected_wf[i][w]);
+            weight = getRoundedFloatDec(cell->forget_weights[w], precision);
+            expected = getRoundedFloatDec(expected_wf[i][w], precision);
             testAssertWithMessage(
                 (weight == expected), test,
                 "Neuron[%d]->forget_weights[%d]: %g != %g",

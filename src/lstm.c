@@ -46,6 +46,7 @@
 
 /* Forward declarations */
 
+int isDroppedOut(PSNeuron *neuron, ...);
 PSFloat applyDropout(PSNeuron *neuron, PSFloat value);
 
 /* LSTM functions */
@@ -169,6 +170,7 @@ static int LSTMCellFeedforward(PSLayer *layer, PSLayer *previous,
         cell->output_gates = calloc(times, sizeof(PSFloat));
         cell->forget_gates = calloc(times, sizeof(PSFloat));
         cell->dropped_out = calloc(times, sizeof(int));
+        cell->last_step_delta = 0.0;
         if (cell->states == NULL) return 0;
         if (cell->z_values == NULL) return 0;
         if (cell->candidates == NULL) return 0;
@@ -225,6 +227,7 @@ PSLSTMCell *PSCreateLSTMCell(PSNeuron *neuron, int weight_size) {
     cell->forget_gates = NULL;
     cell->z_values = NULL;
     cell->states = NULL;
+    cell->last_step_delta = 0.0;
 
     cell->candidate_bias = PSGaussianRandom(0, 1);
     cell->input_bias = PSGaussianRandom(0, 1);
@@ -457,12 +460,12 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previousLayer,
             zz = z_multiplier;
             z_multiplier = layer->derivative(z_multiplier);
         }
-        PSFloat dout = zz *dv;
-        PSFloat dz = og *dv *z_multiplier + last_dz;
+        PSFloat dout = zz * dv;
+        PSFloat dz = og * dv * z_multiplier + last_dz;
         PSFloat di = c * dz;
-        PSFloat df = last_z *dz;
-        PSFloat dc = ig *dz;
-        delta_z[i] = dz *fg;
+        PSFloat df = last_z * dz;
+        PSFloat dc = ig * dz;
+        delta_z[i] = dz * fg;
 
         dout *= (og * (1 - og)); /*  PSSigmoidDerivative */
         di *= (ig * (1 - ig)); /*  PSSigmoidDerivative */
@@ -554,6 +557,7 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previousLayer,
             PSFloat d = 0.0;
             for (w = 0; w < lsize; w++) {
                 PSNeuron *rn = layer->neurons[w];
+                if (isDroppedOut(rn, t)) continue;
                 PSLSTMCell *rc = PSGetLSTMCell(rn);
                 int widx = neuron->index + wsize;
                 PSFloat cw = rc->candidate_weights[widx];
@@ -567,6 +571,30 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previousLayer,
                 d += delta_f[rn->index] * fw;
             }
             delta[neuron->index] = d;
+            cell->last_step_delta = d;
+        }
+    }
+
+    if (previousLayer->delta != NULL) {
+        for (i = 0; i < lsize; i++) {
+            PSNeuron *neuron = layer->neurons[i];
+            if (isDroppedOut(neuron, t)) continue;
+            PSLSTMCell *cell = PSGetLSTMCell(neuron);
+            PSFloat d = delta[neuron->index];
+            int cwsize = cell->weights_size;
+            int wsize = cwsize - layer->size;
+            for (w = 0; w < wsize; w++) {
+                PSFloat cw = cell->candidate_weights[w];
+                PSFloat iw = cell->input_weights[w];
+                PSFloat ow = cell->output_weights[w];
+                PSFloat fw = cell->forget_weights[w];
+                PSFloat prev_d = 0;
+                prev_d += d * cw;
+                prev_d += d * iw;
+                prev_d += d * ow;
+                prev_d += d * fw;
+                previousLayer->delta[w] += prev_d;
+            }
         }
     }
 

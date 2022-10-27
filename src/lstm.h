@@ -31,6 +31,7 @@ typedef struct {
     PSFloat *states;
     int *dropped_out;
     /* End common data layout */
+    PSFloat last_step_delta;
     PSFloat *z_values;
     PSFloat *candidates;
     PSFloat *input_gates;
