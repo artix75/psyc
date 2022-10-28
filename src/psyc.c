@@ -397,7 +397,7 @@ static int arrayMaxIndex(PSFloat *array, int len) {
 static void fetchRecurrentOutputState(PSLayer *out, PSFloat *outputs,
                                       int i, int onehot)
 {
-    int t = (onehot ? i : i % out->size), j;
+    int t = (onehot ? i : i / out->size), j;
     int max_idx = 0;
     PSFloat max = 0.0;
     for (j = 0; j < out->size; j++) {
@@ -410,7 +410,8 @@ static void fetchRecurrentOutputState(PSLayer *out, PSFloat *outputs,
                 max_idx = j;
             }
         } else {
-            outputs[i] = s;
+            int oidx = (t * out->size) + j;
+            outputs[oidx] = s;
         }
     }
     if (onehot) outputs[i] = max_idx;
@@ -2889,13 +2890,17 @@ float validate(PSNeuralNetwork *network, PSFloat *test_data, int data_size,
             if (!ok) goto err;
 
             int label_data_size = y_size * timesteps;
+            int last_label_idx = (label_data_size - 1);
             int correct_states = 0;
             PSFloat outputs[label_data_size];
             for (j = 0; j < label_data_size; j++) {
+                int is_last_label = (j == last_label_idx);
                 fetchRecurrentOutputState(output_layer, outputs, j, onehot);
                 if (onehot && (outputs[j] == expected[j])) correct_states++;
-                else if (!onehot && j > 0 && (j % y_size) == 0) {
-                    int t = (j / y_size) - 1;
+                else if (!onehot && j > 0 &&
+                         ((j % y_size) == 0 || is_last_label))
+                {
+                    int t = ((j + 1) / y_size) - 1;
                     int omax = arrayMaxIndex(outputs + (t * y_size), y_size);
                     int emax = arrayMaxIndex(expected + (t * y_size), y_size);
                     if (emax == omax) correct_states++;

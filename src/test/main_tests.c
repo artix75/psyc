@@ -110,6 +110,7 @@ int testRNNLoad(TestCase *test_case, Test *test);
 int testRNNFeedforward(TestCase *test_case, Test *test);
 int testRNNBackprop(TestCase *test_case, Test *test);
 int testRNNStep(TestCase *tc, Test *test);
+int testRNNOneHot(TestCase *tc, Test *test);
 
 int testLSTMLoad(TestCase *test_case, Test *test);
 int testLSTMTrain(TestCase *test_case, Test *test);
@@ -308,6 +309,20 @@ static void getTmpFileName(const char *prfx, const char *sfx, char *buffer) {
     fclose(urand);
 }
 
+static int arrayMaxIndex(PSFloat *array, int len) {
+    int i;
+    PSFloat max = 0;
+    int max_idx = 0;
+    for (i = 0; i < len; i++) {
+        PSFloat v = array[i];
+        if (v > max) {
+            max = v;
+            max_idx = i;
+        }
+    }
+    return max_idx;
+}
+
 int main(int argc, char** argv) {
 #ifdef CATCH_FPE
     PSCatchFloatingPointExceptions(FE_OVERFLOW | FE_DIVBYZERO);
@@ -315,12 +330,16 @@ int main(int argc, char** argv) {
     PSHandleSignals(NULL);
     UNUSED(argc);
     UNUSED(argv);
+    int tot_tests = 0, tot_failed = 0;
+    time_t start_t = time(NULL);
 #ifdef USE_AVX
     AVXTests = createTest("AVX");
     addTest(AVXTests, "Dot Product", NULL, testAVXDot);
     addTest(AVXTests, "Square", NULL, testAVXSquare);
     addTest(AVXTests, "Multiply Value", NULL, testAVXMultiplyVal);
     performTests(AVXTests);
+    tot_tests += AVXTests->count;
+    tot_failed += AVXTests->failed_count;
     deleteTest(AVXTests);
 #endif
 
@@ -334,6 +353,8 @@ int main(int argc, char** argv) {
     addTest(fullNetworkTests, "Clone", NULL, testGenericClone);
     addTest(fullNetworkTests, "Save", NULL, testGenericSave);
     performTests(fullNetworkTests);
+    tot_tests += fullNetworkTests->count;
+    tot_failed += fullNetworkTests->failed_count;
     deleteTest(fullNetworkTests);
 
     convNetworkTests = createTest("Convolutional Network");
@@ -346,6 +367,8 @@ int main(int argc, char** argv) {
     addTest(convNetworkTests, "Clone", NULL, testGenericClone);
     addTest(convNetworkTests, "Save", NULL, testGenericSave);
     performTests(convNetworkTests);
+    tot_tests += convNetworkTests->count;
+    tot_failed += convNetworkTests->failed_count;
     deleteTest(convNetworkTests);
 
     recurrentNetworkTests = createTest("Recurrent Network");
@@ -357,7 +380,10 @@ int main(int argc, char** argv) {
     addTest(recurrentNetworkTests, "Step", NULL, testRNNStep);
     addTest(recurrentNetworkTests, "Clone", NULL, testGenericClone);
     addTest(recurrentNetworkTests, "Save", NULL, testGenericSave);
+    addTest(recurrentNetworkTests, "OneHot", NULL, testRNNOneHot);
     performTests(recurrentNetworkTests);
+    tot_tests += recurrentNetworkTests->count;
+    tot_failed += recurrentNetworkTests->failed_count;
     deleteTest(recurrentNetworkTests);
 
     LSTMNetworkTests = createTest("LSTM Network");
@@ -368,9 +394,18 @@ int main(int argc, char** argv) {
     addTest(LSTMNetworkTests, "Clone", NULL, testGenericClone);
     addTest(LSTMNetworkTests, "Save", NULL, testGenericSave);
     performTests(LSTMNetworkTests);
+    tot_tests += LSTMNetworkTests->count;
+    tot_failed += LSTMNetworkTests->failed_count;
     deleteTest(LSTMNetworkTests);
+    time_t end_t = time(NULL);
+    printf(
+        "\n%d tests performed in %ld second(s)\n", tot_tests, (end_t - start_t)
+    );
+    int succeded = tot_tests - tot_failed;
+    if (succeded > 0) printf(GREEN "Succeeded: %d\n" RESET, succeded);
+    if (tot_failed > 0) printf(RED "Failed:    %d\n" RESET, tot_failed);
 
-    return 0;
+    return tot_failed;
 
 }
 
@@ -798,7 +833,7 @@ int testRNNBackprop(TestCase *test_case, Test *test) {
     int i, j, w;
 
     PSGradient **gradients = backpropThroughTime(network, rnn_inputs + 1,
-                                                  rnn_labels, RNN_TIMES);
+                                                 rnn_labels, RNN_TIMES);
     int dsize = network->size - 1;
     for (i = 0; i < dsize; i++) {
         PSGradient *lgradients = gradients[i];
@@ -866,6 +901,184 @@ int testRNNStep(TestCase *test_case, Test *test) {
     }
     /* free(series); */
     return 1;
+}
+
+int testRNNOneHot(TestCase *test_case, Test *test) {
+    UNUSED(test_case);
+    PSNeuralNetwork *onehot_network = PSCreateNetwork("Onehot RNN");
+    PSNeuralNetwork *standard_network = PSCreateNetwork("Standard RNN");
+    PSNeuralNetwork *dummy_network = PSCreateNetwork("Dummy");
+    PSFloat *onehot_data = NULL;
+    PSFloat *standard_data = NULL;
+    int loaded = PSLoadNetwork(onehot_network, RECURRENT_NETWORK);
+    testAssertWithMessage(
+        loaded, test, "Failed to load %s", RECURRENT_NETWORK
+    );
+    int ok = PSLoadNetwork(standard_network, RECURRENT_NETWORK);
+    testAssertWithMessageOrGoto(
+        loaded, final, test, "Failed to load %s", RECURRENT_NETWORK
+    );
+    ok = onehot_network->flags & FLAG_ONEHOT;
+    testAssertWithMessageOrGoto(
+        ok, final, test, "%s network is not OneHot!", onehot_network->name
+    );
+    ok = onehot_network->layers[0]->flags & FLAG_ONEHOT;
+    testAssertWithMessageOrGoto(
+        ok, final, test, "%s network layer[0] is not OneHot!",
+        onehot_network->name
+    );
+    int last_layer = onehot_network->size - 1;
+    ok = onehot_network->layers[last_layer]->flags & FLAG_ONEHOT;
+    testAssertWithMessageOrGoto(
+        ok, final, test, "%s network layer[%d] is not OneHot!",
+        onehot_network->name, last_layer
+    );
+    int no_recurrent = ~((unsigned) FLAG_ONEHOT);
+    standard_network->flags &= no_recurrent;
+    standard_network->layers[0]->flags &= no_recurrent;
+    standard_network->layers[last_layer]->flags &= no_recurrent;
+    ok = !(standard_network->flags & FLAG_ONEHOT);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "%s network is OneHot!", standard_network->name
+    );
+    ok = !(standard_network->layers[0]->flags & FLAG_ONEHOT);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "%s network layer[0] is OneHot!",
+        standard_network->name
+    );
+    ok = !(standard_network->layers[last_layer]->flags & FLAG_ONEHOT);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "%s network layer[%d] is OneHot!",
+        standard_network->name, last_layer
+    );
+    PSHyperParameters *hparams = onehot_network->layers[0]->hyper_parameters;
+    ok = (hparams != NULL);
+    testAssertWithMessageOrGoto(
+        hparams != NULL, final, test,
+        "%s network layer[0] hyper parameters are NULL", onehot_network->name
+    );
+    int vector_size = (int) hparams->parameters[0];
+    ok = (vector_size > 0);
+    testAssertWithMessageOrGoto(
+        vector_size > 0, final, test,
+        "%s network layer[0] vector size is %d", vector_size
+    );
+    PSLayer *standard_input_layer =
+        PSAddLayer(dummy_network, FullyConnected, vector_size, NULL);
+    ok = (standard_input_layer != NULL);
+    testAssertWithMessageOrGoto(
+        standard_input_layer != NULL, final, test,
+        "Failed to create standard input layer with size %d",
+        vector_size
+    );
+    PSLayer *curlayer = standard_network->layers[0];
+    standard_network->layers[0] = standard_input_layer;
+    standard_input_layer->network = standard_network;
+    standard_network->input_size = vector_size;
+    curlayer->network = NULL;
+    PSDeleteLayer(curlayer);
+    dummy_network->size = 0;
+    dummy_network->layers[0] = NULL;
+    PSDeleteNetwork(dummy_network);
+    dummy_network = NULL;
+    int onehot_datalen =
+        (int) ((sizeof(rnn_inputs) + sizeof(rnn_labels)) / sizeof(PSFloat));
+    int timesteps = (int) rnn_inputs[0];
+    ok = (timesteps > 0);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "timesteps should be > 0, got %d", timesteps
+    );
+    int standard_datalen = (1 + (timesteps * 2 * vector_size));
+    onehot_data = malloc((size_t) (1 + onehot_datalen) * sizeof(PSFloat));
+    ok = (onehot_data != NULL);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "Failed to allocate onehot data of size %d",
+        onehot_datalen
+    );
+    standard_data = malloc((size_t) (1 + standard_datalen) * sizeof(PSFloat));
+    ok = (standard_data != NULL);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "Failed to allocate standard data of size %d",
+        standard_datalen
+    );
+    onehot_data[0] = standard_data[0] = 1.0;
+    PSFloat *onehot_p = onehot_data + 1;
+    PSFloat *standard_p = standard_data + 1;
+    int inputs_len = (int) (sizeof(rnn_inputs) / sizeof(PSFloat)),
+        labels_len = (int) (sizeof(rnn_labels) / sizeof(PSFloat)), i;
+    memcpy(onehot_p, rnn_inputs, sizeof(rnn_inputs));
+    memcpy(
+        onehot_p + inputs_len, rnn_labels, sizeof(rnn_labels)
+    );
+    for (i = 0; i < inputs_len; i++) {
+        ok = (rnn_inputs[i] == onehot_p[i]);
+        testAssertWithMessageOrGoto(
+            ok, final, test, "rnn_inputs[%d] != onehot_data[%d] -> "
+            "%g != %g", i, i, rnn_inputs[i], onehot_p[i]
+        );
+    }
+    for (i = 0; i < labels_len; i++) {
+        int data_idx = inputs_len + i;
+        ok = (rnn_labels[i] == onehot_p[data_idx]);
+        testAssertWithMessageOrGoto(
+            ok, final, test, "rnn_labels[%d] != onehot_data[%d] -> "
+            "%g != %g", i, data_idx, rnn_labels[i], onehot_p[data_idx]
+        );
+    }
+    standard_p[0] = rnn_inputs[0];
+    for (i = 1; i < inputs_len; i++) {
+        int vecidx = (int) rnn_inputs[i], input_idx = i - 1, j;
+        for (j = 0; j < vector_size; j++) {
+            int data_idx = 1 + (input_idx * vector_size) + j;
+            standard_p[data_idx] = (j == vecidx ? 1.0 : 0.0);
+        }
+    }
+    int labels_offset = 1 + ((inputs_len - 1) * vector_size);
+    for (i = 0; i < labels_len; i++) {
+        int vecidx = (int) rnn_labels[i], j;
+        for (j = 0; j < vector_size; j++) {
+            int data_idx = labels_offset + (i * vector_size) + j;
+            standard_p[data_idx] = (j == vecidx ? 1.0 : 0.0);
+        }
+    }
+    for (i = 1; i < onehot_datalen; i++) {
+        int vecidx = (int) onehot_p[i], onehot_idx = i - 1;
+        PSFloat *vec = standard_p + (onehot_idx * vector_size) + 1;
+        int idx = arrayMaxIndex(vec, vector_size);
+        ok = (idx == vecidx);
+        testAssertWithMessageOrGoto(
+            ok, final, test, "Onehot[%d] index %d != Standard[%d,%d] %d",
+            i, vecidx, ((onehot_idx * vector_size) + 1), vector_size, idx
+        );
+    }
+    PSFloat onehot_accuracy = PSTest(
+        onehot_network, onehot_data, onehot_datalen
+    );
+    PSFloat std_accuracy = PSTest(
+        standard_network, standard_data, standard_datalen
+    );
+    ok = (onehot_network->status != STATUS_ERROR);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "Network %s: error during validation",
+        onehot_network->name
+    );
+    ok = (standard_network->status != STATUS_ERROR);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "Network %s: error during validation",
+        standard_network->name
+    );
+    ok = (onehot_accuracy == std_accuracy);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "Onehot accuracy != Non-onehot accuracy: %g != %g",
+        onehot_accuracy, std_accuracy
+    );
+final:
+    if (onehot_network != NULL) PSDeleteNetwork(onehot_network);
+    if (standard_network != NULL) PSDeleteNetwork(standard_network);
+    if (dummy_network != NULL) PSDeleteNetwork(dummy_network);
+    if (onehot_data != NULL) free(onehot_data);
+    if (standard_data != NULL) free(standard_data);
+    return ok;
 }
 
 int testLSTMTrain(TestCase *test_case, Test *test) {

@@ -72,6 +72,7 @@ typedef struct TestCase {
     SetupFunction setup;
     TeardownFunction teardown;
     int count;
+    int failed_count;
     Test *tests;
     void **data;
 } TestCase;

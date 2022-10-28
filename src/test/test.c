@@ -42,6 +42,7 @@ TestCase *createTest(char *name) {
     test_case->setup = NULL;
     test_case->teardown = NULL;
     test_case->count = 0;
+    test_case->failed_count = 0;
     test_case->tests = NULL;
     test_case->data = NULL;
     return test_case;
@@ -118,6 +119,7 @@ int performTests(TestCase *test_case) {
         }
     }
     time(&end_t);
+    test_case->failed_count = errors;
     printf("Tests performed in %d sec.\n", (int) (end_t - start_t));
     printf("Found ");
     if (errors > 0) printf(RED "%d errors.\n", errors);
