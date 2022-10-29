@@ -58,14 +58,4 @@ void PSUpdateLSTMBiases(PSNeuron *neuron, PSGradient *gradient,
 int PSInitLSTMLayer(PSNeuralNetwork *network, PSLayer *layer,
                     int size, int ws);
 
-/* Feedforward Functions */
-
-int PSLSTMFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...);
-
-/* Backpropagation Functions */
-
-int PSLSTMBackprop(PSLayer *layer, PSLayer *previousLayer,
-                   PSGradient *lgradients, int t);
-
-
 #endif /*  __PS_LSTM_H */

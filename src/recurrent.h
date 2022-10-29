@@ -37,18 +37,4 @@ PSRecurrentCell *PSCreateRecurrentCell(PSNeuron *neuron, int lsize);
 PSFloat *PSAddRecurrentState(PSNeuralNetwork *net, PSNeuron *neuron,
                              PSFloat state, int times, int t);
 
-/* Init Functions */
-
-int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
-                         int size, int ws);
-
-/* Feedforward Functions */
-
-int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...);
-
-/* Backpropagation Functions */
-
-int PSRecurrentBackprop(PSLayer *layer, PSLayer *previousLayer, int lowest_t,
-                        PSGradient *lgradients, int t);
-
 #endif /* __PS_RECURRENT_H */

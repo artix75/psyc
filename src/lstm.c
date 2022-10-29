@@ -48,6 +48,9 @@
 
 int isDroppedOut(PSNeuron *neuron, ...);
 PSFloat applyDropout(PSNeuron *neuron, PSFloat value);
+int PSLSTMBackprop(PSLayer *layer, PSLayer *previousLayer,
+                   PSGradient *lgradients, ...);
+int PSLSTMFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...);
 
 /* LSTM functions */
 
@@ -329,6 +332,7 @@ int PSInitLSTMLayer(PSNeuralNetwork *network, PSLayer *layer,
     layer->activate = PSTanhActivation;
     layer->derivative = PSTanhDerivative;
     layer->feedforward = PSLSTMFeedforward;
+    layer->backprop = PSLSTMBackprop;
     network->flags |= FLAG_RECURRENT;
     return 1;
 }
@@ -407,8 +411,12 @@ int PSLSTMFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
 /* Backpropagation Functions */
 
 int PSLSTMBackprop(PSLayer *layer, PSLayer *previousLayer,
-                   PSGradient *lgradients, int t)
+                   PSGradient *lgradients, ...)
 {
+    va_list args;
+    va_start(args, lgradients);
+    int t = va_arg(args, int);
+    va_end(args);
     PSNeuralNetwork *net = (PSNeuralNetwork *) layer->network;
 #ifdef USE_AVX
     int avx_disabled = PSIsAVXDisabled(net);

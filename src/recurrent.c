@@ -31,6 +31,12 @@
 
 #define UNUSED(V) ((void) V)
 
+/* Forward declaration. */
+
+int PSRecurrentBackprop(PSLayer *layer, PSLayer *previousLayer,
+                        PSGradient *lgradients, ...);
+int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...);
+
 /* External functions */
 
 int isDroppedOut(PSNeuron *neuron, ...);
@@ -153,6 +159,7 @@ int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
     layer->activate = PSTanhActivation;
     layer->derivative = PSTanhDerivative;
     layer->feedforward = PSRecurrentFeedforward;
+    layer->backprop = PSRecurrentBackprop;
     network->flags |= FLAG_RECURRENT;
     return 1;
 }
@@ -294,9 +301,14 @@ int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
 
 /* Backpropagation Functions */
 
-int PSRecurrentBackprop(PSLayer *layer, PSLayer *previousLayer, int lowest_t,
-                        PSGradient *lgradients, int t)
+int PSRecurrentBackprop(PSLayer *layer, PSLayer *previousLayer,
+                        PSGradient *lgradients, ...)
 {
+    va_list args;
+    va_start(args, lgradients);
+    int t = va_arg(args, int);
+    int lowest_t = va_arg(args, int);
+    va_end(args);
     int avx_disabled = PSIsAVXDisabled(layer->network);
     int lsize = layer->size, i, w, tt;
     PSFloat *prev_delta = previousLayer->delta;

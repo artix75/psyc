@@ -81,10 +81,16 @@
 
 struct PSNeuralNetwork;
 struct PSLayer;
+struct PSGradient;
 
 typedef PSFloat  (*PSActivationFunction) (PSFloat);
 typedef int      (*PSFeedforwardFunction) (struct PSNeuralNetwork *network,
                                            struct PSLayer *layer, ...);
+typedef int      (*PSBackpropFunction) (struct PSLayer *layer,
+                                        struct PSLayer *previousLayer,
+                                        struct PSGradient *layer_gradients,
+                                        ...);
+
 typedef PSFloat  (*PSLossFunction) (PSFloat* x, PSFloat* y, int size,
                                    int onehot_size);
 typedef void     (*PSTrainCallback) (struct PSNeuralNetwork *network,
@@ -94,7 +100,7 @@ typedef void     (*PSTrainCallback) (struct PSNeuralNetwork *network,
                                      PSFloat *training_data);
 typedef void     (*PSSignalHandler) (int);
 
-typedef struct {
+typedef struct PSGradient {
     PSFloat bias;
     PSFloat *weights;
 } PSGradient;
@@ -176,6 +182,7 @@ typedef struct PSLayer {
     PSActivationFunction    activate;
     PSActivationFunction    derivative;
     PSFeedforwardFunction   feedforward;
+    PSBackpropFunction      backprop;
     PSNeuron                **neurons;
     PSFloat                 *delta;
     int                     flags;

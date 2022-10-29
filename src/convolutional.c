@@ -32,6 +32,10 @@
 #include "recurrent.h"
 #include "debug.h"
 
+#define PSCalculateConvolutionalSide(s,rs,st,pad) \
+    PSFloor(((PSFloat)(s - rs + 2 * pad) / (PSFloat) st) + 1)
+#define PSCalculatePoolingSide(s, rs) PSFloor((s - rs) / rs + 1)
+
 #define DumpConvolveStep(net,l,n,x,y,rx,ry,rx2,ry2,prev,fidx,nidx,nx,ny,widx) \
  PSTrainingDebugDumpStep(net,TRAINING_PHASE_FEEDFORWARD, "PSConvolve",l,n,\
  "neuron_pos=(%d,%d),region=(%d,%d,%d,%d),previous_layer=%d,"\
@@ -67,9 +71,17 @@ w,steplen,step,rowlen) \
  "previous_neuron_pos=(%d,%d),weight_idx=%d,srcline=%d\n",\
  x, y, rx, ry, rx2, ry2, prv->index, fidx, nidx, nx, ny, widx, __LINE__)
 
+#define UNUSED(V) ((void) V)
+
 /* Forward declarations */
 
 PSFloat applyDropout(PSNeuron *neuron, PSFloat value);
+int PSConvolve(PSNeuralNetwork *net, PSLayer *layer, ...);
+int PSPool(PSNeuralNetwork *net, PSLayer *layer, ...);
+int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
+                            PSGradient *lgradients, ...);
+int PSPoolingBackprop(PSLayer *pooling_layer, PSLayer *convolutional_layer,
+                      PSGradient *layer_gradients, ...);
 
 /* Init Functions */
 
@@ -219,6 +231,7 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
         layer->derivative = PSReluDerivative;
     }
     layer->feedforward = PSConvolve;
+    layer->backprop = PSConvolutionalBackprop;
     return 1;
 err:
     return 0;
@@ -319,6 +332,7 @@ int PSInitPoolingLayer(PSNeuralNetwork *network, PSLayer *layer,
     layer->activate = NULL;
     layer->derivative = NULL;
     layer->feedforward = PSPool;
+    layer->backprop = PSPoolingBackprop;
     return 1;
 }
 
@@ -600,8 +614,10 @@ int PSPool(PSNeuralNetwork *net, PSLayer *layer, ...) {
 /* Backpropagation Functions */
 
 int PSPoolingBackprop(PSLayer *pooling_layer, PSLayer *convolutional_layer,
-                      PSFloat *delta)
+                      PSGradient *layer_gradients, ...)
 {
+    UNUSED(layer_gradients);
+    PSFloat *delta = pooling_layer->delta;
     PSFloat *conv_delta = convolutional_layer->delta;
     PSHyperParameters *pool_params = pooling_layer->hyper_parameters;
     PSHyperParameters *conv_params = convolutional_layer->hyper_parameters;
@@ -659,7 +675,7 @@ int PSPoolingBackprop(PSLayer *pooling_layer, PSLayer *convolutional_layer,
 }
 
 int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
-                            PSGradient *lgradients)
+                            PSGradient *lgradients, ...)
 {
     PSFloat *delta = convolutional_layer->delta;
     PSFloat *prev_delta = prev_layer->delta;
