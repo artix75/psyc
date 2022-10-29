@@ -70,7 +70,8 @@
 
 #define PSShouldApplyDropout(layer) (layer->dropout != 0.0 && layer->index < \
     (layer->network->size - 1))
-#define PSIsRecurrentLayer(layer) (layer->flags & FLAG_RECURRENT)
+#define PSIsRecurrent(o) (o->flags & FLAG_RECURRENT)
+#define PSSetRecurrent(o) (o->flags |= FLAG_RECURRENT)
 
 #ifdef USE_AVX
 #define PSIsAVXDisabled(network) (network->flags & FLAG_AVX_DISABLED)

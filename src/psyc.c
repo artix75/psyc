@@ -659,7 +659,7 @@ PSFloat applyDropout(PSNeuron *neuron, PSFloat value) {
 }
 
 int isDroppedOut(PSNeuron *neuron, ...) {
-    if (!PSIsRecurrentLayer(neuron->layer)) return neuron->dropped_out;
+    if (!PSIsRecurrent(neuron->layer)) return neuron->dropped_out;
     va_list ap;
     va_start(ap, neuron);
     int t = va_arg(ap, int);
@@ -1669,25 +1669,58 @@ void PSDeleteHyperParamenters(PSHyperParameters *params) {
     free(params);
 }
 
+int inputLayerFeedforward(PSNeuralNetwork *network, PSFloat *values, ...) {
+    PSLayer *first = network->layers[0];
+    int input_size = first->size, apply_dropout = PSShouldApplyDropout(first),
+        i, timesteps, t;
+
+    /* TODO: After implementing Recurrent network types
+     * (many-to-many,one-to-many, etc.), remove check for
+     * `PSIsRecurrent(network)` since check will be made only on
+     * layer itself. */
+    int is_recurrent = PSIsRecurrent(first) || PSIsRecurrent(network);
+    if (is_recurrent) {
+        va_list ap;
+        va_start(ap, values);
+        timesteps = va_arg(ap, int);
+        t = va_arg(ap, int);
+        va_end(ap);
+        assert(timesteps > 0);
+        assert(t >= 0);
+    }
+#ifdef USE_AVX
+    int avx_disabled = PSIsAVXDisabled(network);
+#endif
+    for (i = 0; i < input_size; i++) {
+        PSFloat val = values[i];
+        PSNeuron *neuron = first->neurons[i];
+        if (apply_dropout) val = applyDropout(neuron, val);
+        neuron->activation = val;
+#ifdef USE_AVX
+        /* TODO: use activation cache with recurrent layers too. */
+        if (!avx_disabled && !is_recurrent)
+            first->avx_activation_cache[i] = val;
+#endif
+        if (is_recurrent) {
+            PSAddRecurrentState(network, neuron, val, timesteps, t);
+            if (neuron->extra == NULL) {
+                PSErr(NULL, "Failed to allocate Recurrent Cell!");
+                return 0;
+            }
+        }
+    }
+    return 1;
+}
+
 int feedforwardThroughTime(PSNeuralNetwork *network, PSFloat *values,
                            int timesteps)
 {
     if (network == NULL) return 0;
     PSLayer *first = network->layers[0];
-    int input_size = first->size, apply_dropout = PSShouldApplyDropout(first),
-        i, t;
+    int input_size = first->size, i, t, ok;
     for (t = 0; t < timesteps; t++) {
-        for (i = 0; i < input_size; i++) {
-            PSNeuron *neuron = first->neurons[i];
-            PSFloat val = values[i];
-            if (apply_dropout) val = applyDropout(neuron, val);
-            neuron->activation = val;
-            PSAddRecurrentState(network, neuron, val, timesteps, t);
-            if (neuron->extra == NULL) {
-                PSErr(__func__, "Failed to allocate Recurrent Cell!");
-                return 0;
-            }
-        }
+        ok = inputLayerFeedforward(network, values, timesteps, t);
+        if (!ok) return 0;
         for (i = 1; i < network->size; i++) {
             PSLayer *layer = network->layers[i];
             if (layer == NULL) {
@@ -1698,7 +1731,7 @@ int feedforwardThroughTime(PSNeuralNetwork *network, PSFloat *values,
                 PSErr(__func__, "Layer %d feedforward function is NULL", i);
                 return 0;
             }
-            int ok = layer->feedforward(network, layer, timesteps, t);
+            ok = layer->feedforward(network, layer, timesteps, t);
             if (!ok) return 0;
         }
         values += input_size;
@@ -1729,21 +1762,9 @@ int PSFeedforward(PSNeuralNetwork *network, PSFloat *values) {
         }
         return feedforwardThroughTime(network, values + 1, timesteps);
     }
-    PSLayer *first = network->layers[0];
-    int input_size = first->size,
-        apply_dropout = PSShouldApplyDropout(first), i;
-#ifdef USE_AVX
-    int avx_disabled = PSIsAVXDisabled(network);
-#endif
-    for (i = 0; i < input_size; i++) {
-        PSFloat val = values[i];
-        PSNeuron *neuron = first->neurons[i];
-        if (apply_dropout) val = applyDropout(neuron, val);
-        neuron->activation = val;
-#ifdef USE_AVX
-        if (!avx_disabled) first->avx_activation_cache[i] = val;
-#endif
-    }
+    int i, ok;
+    ok = inputLayerFeedforward(network, values);
+    if (!ok) return 0;
     for (i = 1; i < network->size; i++) {
         PSLayer *layer = network->layers[i];
         if (layer == NULL) {
@@ -1754,8 +1775,8 @@ int PSFeedforward(PSNeuralNetwork *network, PSFloat *values) {
             PSErr(__func__, "Layer %d feedforward function is NULL", i);
             return 0;
         }
-        int success = layer->feedforward(network, layer);
-        if (!success) return 0;
+        ok = layer->feedforward(network, layer);
+        if (!ok) return 0;
     }
     return 1;
 }
