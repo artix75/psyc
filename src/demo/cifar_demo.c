@@ -359,6 +359,7 @@ int main(int argc, char** argv) {
 
     if (pretrained_file == NULL && dataset_path == NULL) {
         print_help(argv[0]);
+        fprintf(stderr, "FATAL: at least --data or --load needed!\n");
         return 1;
     }
 

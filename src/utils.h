@@ -26,7 +26,6 @@
 #define M_PI 3.141592653589793
 #endif
 
-#define PSShouldApplyDerivative(network) (network->loss != PSCrossEntropyLoss)
 /* Get elapsed time in milliseconds */
 #define PSGetElapsedTimeMS(st, et) ((((et.tv_sec - st.tv_sec) * 1000000) \
 /* Get elapsed time in microseconds */

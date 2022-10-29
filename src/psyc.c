@@ -44,6 +44,7 @@
 #define applyGradientOnWeight(opts, grad, val, mg, xg, r, i, widx) \
     applyGradientOnParameter(PARAM_TYPE_WEIGHT, opts, grad, val, mg, xg, r, \
     i, widx)
+#define outputDerivativeNeeded(network) (network->loss != PSCrossEntropyLoss)
 
 #ifdef BACKTRACE_AVAILABLE
 void segvHandler(int sig, siginfo_t *info, void *secret);
@@ -1932,42 +1933,47 @@ static void resetDeltas(PSNeuralNetwork *network) {
     }
 }
 
-PSGradient **backprop(PSNeuralNetwork *network, PSFloat *x, PSFloat *y) {
-    if (network == NULL) return NULL;
-    PSGradient **gradients = createGradients(network);
-    if (gradients == NULL) return NULL;
-    int netsize = network->size;
-    PSLayer *outputLayer = network->layers[netsize - 1];
-    int osize = outputLayer->size;
-    PSGradient *lgradients = gradients[netsize - 2]; /* No gradient for
-                                                        inputs */
-    PSLayer *previousLayer = network->layers[outputLayer->index - 1];
-    resetDeltas(network);
-    PSFloat *delta = outputLayer->delta;
-
-    int i, o, w, j, ok = 1;
+int outputLayerBackprop(PSLayer *layer, PSLayer *previousLayer,
+                        PSFloat *y, PSGradient *layer_gradients, ...)
+{
+    PSNeuralNetwork *network = layer->network;
     int avx_disabled = 1;
 #ifdef USE_AVX
     avx_disabled = PSIsAVXDisabled(network);
 #endif
-    if (x != NULL) {
-        ok = PSFeedforward(network, x);
-        if (!ok) {
-            PSDeleteGradients(gradients, network);
-            return NULL;
-        }
-    }
-    int apply_derivative = PSShouldApplyDerivative(network);
+    int apply_derivative = outputDerivativeNeeded(network);
+    int is_recurrent = PSIsRecurrent(layer) || PSIsRecurrent(network);
+    int prev_is_recurrent = PSIsRecurrent(previousLayer) ||
+                            PSIsRecurrent(network);
+    int onehot = (layer->flags & FLAG_ONEHOT);
+    int is_softmax = layer->type == SoftMax;
+    PSFloat *delta = layer->delta;
     PSFloat softmax_sum = 0.0;
-    for (o = 0; o < osize; o++) {
-        PSNeuron *neuron = outputLayer->neurons[o];
-        PSFloat o_val = neuron->activation;
-        PSFloat y_val = y[o];
-        PSFloat d = 0.0;
-        if (outputLayer->type != SoftMax) {
+    int o, w, t = 0;
+    if (is_recurrent) {
+        /* Get timestep `t` */
+        va_list args;
+        va_start(args, layer_gradients);
+        t = va_arg(args, int);
+        va_end(args);
+    }
+    /* Compute delta */
+    for (o = 0; o < layer->size; o++) {
+        PSNeuron *neuron = layer->neurons[o];
+        PSFloat o_val, y_val, d = 0.0;
+        if (!is_recurrent) {
+            o_val = neuron->activation;
+            y_val = y[o];
+        } else {
+            PSRecurrentCell *cell = PSGetRecurrentCell(neuron);
+            o_val = cell->states[t];
+            if (onehot) y_val = ((int) *y == o);
+            else y_val = y[o];
+        }
+        if (!is_softmax) {
             d = o_val - y_val;
-            if (apply_derivative)
-                d *= outputLayer->derivative(neuron->activation);
+            if (apply_derivative && layer->derivative != NULL)
+                d *= layer->derivative(neuron->activation);
         } else {
             y_val = (y_val < 1 ? 0 : 1);
             d = -(y_val - o_val);
@@ -1975,22 +1981,33 @@ PSGradient **backprop(PSNeuralNetwork *network, PSFloat *x, PSFloat *y) {
             softmax_sum += d;
         }
         delta[o] = d;
-        if (outputLayer->type != SoftMax) {
-            PSGradient *gradient = &(lgradients[o]);
-            gradient->bias = d;
+        if (!is_softmax) {
+            /* Update gradient (non Softmax layer) */
+            PSGradient *gradient = &(layer_gradients[o]);
+            if (!is_recurrent) gradient->bias = d;
+            else gradient->bias += d;
             int wsize = neuron->weights_size;
             w = 0;
 #ifdef USE_AVX
             if (!avx_disabled) {
+                int store_mode = (is_recurrent ? AVX_STORE_MODE_ADD : 0);
                 AVXIterativeMultiplyValue(
                     wsize, previousLayer->avx_activation_cache, d,
-                    gradient->weights, w, 0, 0, 0
+                    gradient->weights, w, is_recurrent, t, store_mode
                 );
             }
 #endif
             for (; w < wsize; w++) {
-                PSFloat prev_a = previousLayer->neurons[w]->activation;
-                gradient->weights[w] = d * prev_a;
+                PSNeuron *prev_neuron = previousLayer->neurons[w];
+                PSFloat prev_a;
+                if (!prev_is_recurrent) {
+                    prev_a = prev_neuron->activation;
+                    gradient->weights[w] = d * prev_a;
+                } else {
+                    PSRecurrentCell *prevcell = PSGetRecurrentCell(prev_neuron);
+                    prev_a = prevcell->states[t];
+                    gradient->weights[w] += (d * prev_a);
+                }
                 if (avx_disabled && previousLayer->delta != NULL)
                     previousLayer->delta[w] += (d * neuron->weights[w]);
             }
@@ -2001,37 +2018,77 @@ PSGradient **backprop(PSNeuralNetwork *network, PSFloat *x, PSFloat *y) {
             }
         }
     }
-    if (outputLayer->type == SoftMax) {
-        for (o = 0; o < osize; o++) {
-            PSNeuron *neuron = outputLayer->neurons[o];
-            PSFloat o_val = neuron->activation;
-            if (apply_derivative) delta[o] -= (o_val *softmax_sum);
+    if (is_softmax) {
+        /* Update gradient (Softmax layer) */
+        for (o = 0; o < layer->size; o++) {
+            PSNeuron *neuron = layer->neurons[o];
+            PSRecurrentCell *cell = PSGetRecurrentCell(neuron);
+            PSFloat o_val = (
+                !is_recurrent ? neuron->activation : cell->states[t]
+            );
+            if (apply_derivative) delta[o] -= (o_val * softmax_sum);
             PSFloat d = delta[o];
-            PSGradient *gradient = &(lgradients[o]);
-            gradient->bias = d;
+            PSGradient *gradient = &(layer_gradients[o]);
+            if (!is_recurrent) gradient->bias = d;
+            else gradient->bias += d;
             int wsize = neuron->weights_size;
             w = 0;
 #ifdef USE_AVX
             if (!avx_disabled) {
+                int store_mode = (is_recurrent ? AVX_STORE_MODE_ADD : 0);
                 AVXIterativeMultiplyValue(
                     wsize, previousLayer->avx_activation_cache,
-                    d, gradient->weights, w, 0, 0, 0
+                    d, gradient->weights, w, is_recurrent, t, store_mode
                 );
             }
 #endif
             for (; w < wsize; w++) {
-                PSFloat prev_a = previousLayer->neurons[w]->activation;
-                gradient->weights[w] = d * prev_a;
-                if (avx_disabled)
+                PSNeuron *prev_neuron = previousLayer->neurons[w];
+                PSFloat prev_a;
+                if (!prev_is_recurrent) {
+                    prev_a = prev_neuron->activation;
+                    gradient->weights[w] = d * prev_a;
+                } else {
+                    PSRecurrentCell *prevcell = PSGetRecurrentCell(prev_neuron);
+                    prev_a = prevcell->states[t];
+                    gradient->weights[w] += (d * prev_a);
+                }
+                if (avx_disabled && previousLayer->delta != NULL)
                     previousLayer->delta[w] += (d * neuron->weights[w]);
             }
-            if (!avx_disabled) {
+            if (!avx_disabled && previousLayer->delta != NULL) {
                 for (w = 0; w < wsize; w++) {
                     previousLayer->delta[w] += (d * neuron->weights[w]);
                 }
             }
         }
     }
+    return 1;
+}
+
+PSGradient **backprop(PSNeuralNetwork *network, PSFloat *x, PSFloat *y) {
+    if (network == NULL) return NULL;
+    PSGradient **gradients = createGradients(network);
+    if (gradients == NULL) return NULL;
+    int netsize = network->size;
+    PSLayer *outputLayer = network->layers[netsize - 1];
+    PSGradient *lgradients = gradients[netsize - 2]; /* No gradient for
+                                                        inputs */
+    PSLayer *previousLayer = network->layers[outputLayer->index - 1];
+    resetDeltas(network);
+    PSFloat *delta;
+
+    int i, w, j, ok = 1;
+    int avx_disabled = 1;
+#ifdef USE_AVX
+    avx_disabled = PSIsAVXDisabled(network);
+#endif
+    if (x != NULL) {
+        ok = PSFeedforward(network, x);
+        if (!ok) goto final;
+    }
+    ok = outputLayerBackprop(outputLayer, previousLayer, y, lgradients);
+    if (!ok) goto final;
     for (i = previousLayer->index; i > 0; i--) {
         PSLayer *layer = network->layers[i];
         previousLayer = network->layers[i - 1];
@@ -2088,6 +2145,11 @@ PSGradient **backprop(PSNeuralNetwork *network, PSFloat *x, PSFloat *y) {
             return NULL;
         }
     }
+final:
+    if (!ok) {
+        if (gradients != NULL) PSDeleteGradients(gradients, network);
+        return NULL;
+    }
     return gradients;
 }
 
@@ -2110,14 +2172,10 @@ PSGradient **backpropThroughTime(PSNeuralNetwork *network, PSFloat *x,
     int osize = outputLayer->size;
     int bptt_truncate = BPTT_TRUNCATE;
 
-    int i, o, w, j, t;
+    int i, j, t;
     int ok = feedforwardThroughTime(network, x, timesteps);
-    if (!ok) {
-        PSDeleteGradients(gradients, network);
-        return NULL;
-    }
+    if (!ok) goto final;
     int last_t = timesteps - 1;
-    int avx_disabled = PSIsAVXDisabled(network);
     resetDeltas(network);
     PSFloat *delta;
     for (t = last_t; t >= 0; t--) {
@@ -2131,58 +2189,12 @@ PSGradient **backpropThroughTime(PSNeuralNetwork *network, PSFloat *x,
         PSGradient *lgradients =
             gradients[netsize - 2];/* No gradients for inputs*/
         previousLayer = network->layers[outputLayer->index - 1];
-        delta = outputLayer->delta;
-
-        PSFloat softmax_sum = 0.0;
-        int apply_derivative = PSShouldApplyDerivative(network);
-        /*  Calculate output deltas, output layer must be Softmax */
-        for (o = 0; o < osize; o++) {
-            PSNeuron *neuron = outputLayer->neurons[o];
-            PSRecurrentCell *cell = PSGetRecurrentCell(neuron);
-            PSFloat o_val = cell->states[t];
-            PSFloat y_val;
-            if (onehot) y_val = ((int) *(timestep_y) == o);
-            else y_val = timestep_y[o];
-            PSFloat d = 0.0;
-            y_val = (y_val < 1 ? 0 : 1);
-            d = -(y_val - o_val);
-            if (apply_derivative) d *= o_val;
-            softmax_sum += d;
-            delta[o] = d;
-        }
-        /*  Update gradients for output layer */
         resetLayerDeltas(previousLayer, 0);
-        for (o = 0; o < osize; o++) {
-            PSNeuron *neuron = outputLayer->neurons[o];
-            PSRecurrentCell *cell = PSGetRecurrentCell(neuron);
-            PSFloat o_val = cell->states[t];
-            if (apply_derivative) delta[o] -= (o_val *softmax_sum);
-            PSFloat d = delta[o];
-            PSGradient *gradient = &(lgradients[o]);
-            gradient->bias = d;
-            w = 0;
-#ifdef USE_AVX
-            if (!avx_disabled) {
-                AVXIterativeMultiplyValue(neuron->weights_size,
-                    previousLayer->avx_activation_cache, d,
-                    gradient->weights, w, 1, t, AVX_STORE_MODE_ADD
-                );
-            }
-#endif
-            for (; w < neuron->weights_size; w++) {
-                PSNeuron *prev_neuron = previousLayer->neurons[w];
-                PSRecurrentCell *prev_cell = PSGetRecurrentCell(prev_neuron);
-                PSFloat prev_a = prev_cell->states[t];
-                gradient->weights[w] += (d * prev_a);
-                if (avx_disabled && previousLayer->delta != NULL)
-                    previousLayer->delta[w] += (d * neuron->weights[w]);
-            }
-            if (!avx_disabled && previousLayer->delta != NULL) {
-                for (w = 0; w < neuron->weights_size; w++) {
-                    previousLayer->delta[w] += (d * neuron->weights[w]);
-                }
-            }
-        }
+
+        ok = outputLayerBackprop(
+            outputLayer, previousLayer, timestep_y, lgradients, t
+        );
+        if (!ok) goto final;
 
         /*  Cycle through other layers */
         for (i = previousLayer->index; i > 0; i--) {
@@ -2227,6 +2239,11 @@ PSGradient **backpropThroughTime(PSNeuralNetwork *network, PSFloat *x,
                 return NULL;
             }
         }
+    }
+final:
+    if (!ok) {
+        if (gradients != NULL) PSDeleteGradients(gradients, network);
+        return NULL;
     }
     return gradients;
 }
