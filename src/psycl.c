@@ -496,7 +496,7 @@ void parseOptions(int argc, char **argv) {
             else network->layers[network->size - 1]->flags |= FLAG_ONEHOT;
         } else if (strcmp("--layer", arg) == 0 && !is_last) {
             char *type = argv[++i];
-            int is_cifar = 0;
+            int is_cifar = 0, lidx = network->size;
             PSLayerType ltype = getLayerType(type, &is_cifar);
             if ((i + 1) >= argc) break;
             PSLayer *layer = NULL;
@@ -658,8 +658,15 @@ void parseOptions(int argc, char **argv) {
                             goto err;
                         }
                         i = j;
+                    } else if (strcmp("--recurrent-layer", carg) == 0) {
+                        layer->flags |= FLAG_RECURRENT;
                     } else break;
                 }
+            } else {
+                fprintf(
+                    stderr, "FATAL: Failed to create layer %d\n", lidx
+                );
+                goto err;
             }
             continue;
         } else if (strcmp("--train", arg) == 0 && ++i < argc) {
@@ -1194,6 +1201,7 @@ void printHelp(const char* program_path) {
     printf("\n");
     printf("LAYER OPTIONS:\n\n");
     printf("        --dropout DROPOUT         Layer Dropout (float)\n");
+    printf("        --recurrent-layer         Recurrent layer mode\n");
     printf("        --feature-count COUNT     Convolutional features"
            " (def. %d)\n", CONV_FEATURE_COUNT);
     printf("        --region-size SIZE        Convolutional region size"
