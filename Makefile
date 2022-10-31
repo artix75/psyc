@@ -20,6 +20,7 @@ clean:
 	rm -f src/*.o
 	rm -f src/demo/*.o
 	rm -f src/test/*.o
+	rm -f src/test/main_tests
 	rm -f bin/*
 	rm -f lib/*
 	if [ -e tmp/README ]; then cp tmp/README bin/; fi
