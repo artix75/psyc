@@ -56,15 +56,16 @@ def max_idx(vec)
     vec.index(vec.max)
 end
 
-def dump_sentence_vec(vec, slen, sidx: nil)
+def dump_sentence_vec(vec, slen, ylen, sidx: nil, fixed_ylen: nil)
     print "Sentence"
     if sidx
         print " #{sidx}"
     end
     print ":\n"
-    if vec.length != (slen * 2)
+    if vec.length != (slen + ylen)
         STDERR.puts "Error (dump_sentence_vec): Invalid sentence length. " +
-                    "Vector length #{vec.length} != #{slen * 2} (#{slen} * 2)"
+                    "Vector length #{vec.length} != #{slen + ylen} " +
+                    "(#{slen} + #{ylen})"
         return
     end
     xvec = vec[0, slen]
@@ -80,7 +81,9 @@ def dump_sentence_vec(vec, slen, sidx: nil)
     puts "  Words: [#{xwords.join(', ')}]"
     puts "Label sequence (Y)"
     puts "  Data:  [#{yvec.join(', ')}]"
-    puts "  Words: [#{ywords.join(', ')}]"
+    if !fixed_ylen
+        puts "  Words: [#{ywords.join(', ')}]"
+    end
 end
 
 def do_verify(c, dump_sentences: false)
@@ -103,6 +106,13 @@ def do_verify(c, dump_sentences: false)
         end
         vars[var] = m[1].to_i
     }
+    # If label (y) sequence length is the same of inputs (x), fixed_ylen is nil
+    # or zero.
+    fixed_ylen = nil
+    if (m = c.match(/#define\s+Y_SEQUENCE_COUNT\s+(\d+)/))
+        fixed_ylen = m[1].to_i
+        fixed_ylen = nil if fixed_ylen <= 0
+    end
     if dump_sentences && !$indexed_words
         wrd_match = c.match(
             /char\s*\*\s*#{$options[:words_var]}\[\]\s*=\s*\{([^\{\}]+)\};/
@@ -159,14 +169,19 @@ def do_verify(c, dump_sentences: false)
         return false
     end
     counted = 1
+    sidx = 0
     while s_len = tr_data.shift
         s_len = s_len.to_i
+        y_len = fixed_ylen || s_len
+        seqlen = s_len + y_len
         if dump_sentences
-            dump_sentence_vec tr_data[0, s_len * 2], s_len, sidx: (counted - 1)
+            dump_sentence_vec tr_data[0, seqlen], s_len, y_len, sidx: sidx,
+                              fixed_ylen: fixed_ylen
         end
         counted += 1
         len = tr_data.length
-        tr_data = tr_data[s_len * 2, -1] || []
+        tr_data = tr_data[seqlen..-1] || []
+        sidx += 1
         counted += (len - tr_data.length)
     end
     if counted != vars['TRAIN_DATA_LEN']
@@ -186,9 +201,11 @@ def do_verify(c, dump_sentences: false)
     counted = 1
     while s_len = ev_data.shift
         s_len = s_len.to_i
+        y_len = fixed_ylen || s_len
+        seqlen = s_len + y_len
         counted += 1
         len = ev_data.length
-        ev_data = ev_data[s_len * 2, -1] || []
+        ev_data = ev_data[seqlen..-1] || []
         counted += (len - ev_data.length)
     end
     if counted != vars['EVAL_DATA_LEN']
@@ -208,9 +225,11 @@ def do_verify(c, dump_sentences: false)
     counted = 1
     while s_len = ts_data.shift
         s_len = s_len.to_i
+        y_len = fixed_ylen || s_len
+        seqlen = s_len + y_len
         counted += 1
         len = ts_data.length
-        ts_data = ts_data[s_len * 2, -1] || []
+        ts_data = ts_data[seqlen..-1] || []
         counted += (len - ts_data.length)
     end
     if counted != vars['TEST_DATA_LEN']
@@ -242,7 +261,7 @@ def load_data_from(filename, opts = {})
     $tokenized_sentences ||= []
     $words ||= {}
     sent_len = $sentences.length
-    puts "Parsing File..."
+    puts "Parsing File #{filename}..."
     data_len = data.length
     max_s = opts[:max_sentences] || $options[:max_sentences]
     data.each_with_index{|txt, idx|
@@ -469,7 +488,7 @@ optparse = OptionParser.new do |opts|
 
 end
 
-optparse.banner << " WORDS_FILE"
+optparse.banner << " WORDS_FILE[, WORDS_FILE]"
 optparse.parse!
 
 filenames = ARGV
@@ -485,7 +504,9 @@ if filenames.length > 0
     fidx = -1
     labels = $options[:labels] || []
     lbl_length = labels.length
+    has_labels = lbl_length > 0
 
+    last_label = nil
     all_files = filenames.map{|filename|
         filename = File.expand_path filename if filename[/^\~/]
         if filename['*']
@@ -507,6 +528,19 @@ if filenames.length > 0
             end
             lbl = lbl.split(',').map{|l| l.to_f} if lbl[',']
             lbl = lbl.to_f if !lbl.is_a? Array
+            if last_label.is_a?(Array)
+                if !lbl.is_a?(Array)
+                    STDERR.puts "ERROR: different label types"
+                    exit 1
+                elsif lbl.length != last_label.length
+                    STDERR.puts "ERROR: different label lengths"
+                    exit 1
+                end
+            elsif last_label.is_a? Array
+                STDERR.puts "ERROR: different label types"
+                exit 1
+            end
+            last_label = lbl
         end
         {files: files, label: lbl}
     }.compact
@@ -549,15 +583,30 @@ if filenames.length > 0
     eval_data = $training_data[eval_data_offset, eval_data_len]
     test_data = $training_data[eval_data_offset + eval_data_len, test_data_len]
 
+    ylen = nil
     train_c_data = train_data.map{|d|
         x, y = d
         len = x.length
+        if has_labels
+            if !ylen
+                ylen = y.length
+            elsif ylen != y.length
+                STDERR.puts "ERROR: y length != from previous one: " +
+                            "#{y.length} != #{ylen}"
+                exit 1
+            end
+        end
         ([len.to_f] + x + y)
     }.flatten
     train_c_data_len = train_c_data.length + 1
 
     eval_c_data = eval_data.map{|d|
         x, y = d
+        if ylen && y.length != ylen
+            STDERR.puts "ERROR: eval y length != train y length: " +
+                        "#{y.length} != #{ylen}"
+            exit 1
+        end
         len = x.length
         ([len.to_f] + x + y)
     }.flatten
@@ -565,6 +614,11 @@ if filenames.length > 0
 
     test_c_data = test_data.map{|d|
         x, y = d
+        if ylen && y.length != ylen
+            STDERR.puts "ERROR: test y length != train y length: " +
+                        "#{y.length} != #{ylen}"
+            exit 1
+        end
         len = x.length
         ([len.to_f] + x + y)
     }.flatten
@@ -587,6 +641,7 @@ if filenames.length > 0
 #define TRAIN_SENTENCES     #{train_data_len}
 #define EVAL_SENTENCES      #{eval_data_len}
 #define TEST_SENTENCES      #{test_data_len}
+#define Y_SEQUENCE_COUNT    #{ylen || 0}
 char * #{$options[:words_var]}[] = {#{$indexed_words.map{|w|w.inspect}.join(',')}};
 PSFloat #{$options[:train_data_var]}[] = {#{train_c_data}};
 PSFloat #{$options[:eval_data_var]}[] = {#{eval_c_data}};
