@@ -2326,12 +2326,6 @@ PSFloat applyGradientOnParameter(
         *xptr = *xptr *beta2 + (1- beta2) * grad *grad;
         correct1 = *mptr * (1 - PSPow(beta1, iteration));
         correct2 = *xptr * (1 - PSPow(beta2, iteration));
-        PSAssertWithMessage(
-            correct2 != 0, "Adam optimization at iteration %d, "
-            "param_type = %d, beta1=%g, beta2=%g, grad=%g, "
-            "*mptr=%g, *xptr=%g, param_index=%d\n", iteration,
-            param_type, beta1, beta2, grad, *mptr, *xptr, param_index
-        );
         dx =  - rate *correct1 / (PSSqrt(correct2) + eps);
         return param + dx;
     } else if (optimization == AdaGrad) {
