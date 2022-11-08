@@ -8,6 +8,8 @@ START_TOKEN = '__S_START__'
 END_TOKEN = '__S_END__'
 UNKNOWN_TOKEN = '__UNK__'
 MAX_SENTENCES = 0#nil
+TEST_DATALEN_PERC = 0.10
+EVAL_DATALEN_PERC = 0.10
 
 def print_progress(msg, idx, total)
     msg = "#{msg} #{idx + 1}/#{total}"
@@ -21,6 +23,7 @@ end
 
 def tokenize_sentence(s)
     s = s.gsub /[:;\.,\(\)\{\}\[\]]/, ''
+    #s = s.gsub /[\P{L}]+/u, ''
     s = s.gsub /(['\-\+\*\/\|])/, ' \1 '
     s.split /\s+/
 end
@@ -56,8 +59,9 @@ def max_idx(vec)
     vec.index(vec.max)
 end
 
-def dump_sentence_vec(vec, slen, ylen, sidx: nil, fixed_ylen: nil)
-    print "Sentence"
+def dump_sentence_vec(vec, slen, ylen, sidx: nil, fixed_ylen: nil, name: nil)
+    prfx = (name ? "#{name} " : '')
+    print "#{prfx}Sentence"
     if sidx
         print " #{sidx}"
     end
@@ -65,7 +69,7 @@ def dump_sentence_vec(vec, slen, ylen, sidx: nil, fixed_ylen: nil)
     if vec.length != (slen + ylen)
         STDERR.puts "Error (dump_sentence_vec): Invalid sentence length. " +
                     "Vector length #{vec.length} != #{slen + ylen} " +
-                    "(#{slen} + #{ylen})"
+                    "(#{slen} + #{ylen})" + (name ? " in #{name} data" : '')
         return
     end
     xvec = vec[0, slen]
@@ -76,10 +80,10 @@ def dump_sentence_vec(vec, slen, ylen, sidx: nil, fixed_ylen: nil)
     ywords = yvec.map{|widx|
         $indexed_words[widx].inspect
     }
-    puts "Feed sequence (X)"
+    puts "#{prfx}Feed sequence (X)"
     puts "  Data:  [#{xvec.join(', ')}]"
     puts "  Words: [#{xwords.join(', ')}]"
-    puts "Label sequence (Y)"
+    puts "#{prfx}Label sequence (Y)"
     puts "  Data:  [#{yvec.join(', ')}]"
     if !fixed_ylen
         puts "  Words: [#{ywords.join(', ')}]"
@@ -168,6 +172,12 @@ def do_verify(c, dump_sentences: false)
         STDERR.puts "Verify: #{tr_data_len} != TRAIN_SENTENCES"
         return false
     end
+    train_label_stats = {}
+    eval_label_stats = {}
+    test_label_stats = {}
+    train_sequences = 0
+    eval_sequences = 0
+    test_sequences = 0
     counted = 1
     sidx = 0
     while s_len = tr_data.shift
@@ -176,8 +186,13 @@ def do_verify(c, dump_sentences: false)
         seqlen = s_len + y_len
         if dump_sentences
             dump_sentence_vec tr_data[0, seqlen], s_len, y_len, sidx: sidx,
-                              fixed_ylen: fixed_ylen
+                              fixed_ylen: fixed_ylen, name: 'Train'
         end
+        yvec = tr_data[s_len, y_len]
+        lbl = yvec.length > 1 ? yvec : yvec[0]
+        train_label_stats[lbl] ||= 0
+        train_label_stats[lbl] += 1
+        train_sequences += 1
         counted += 1
         len = tr_data.length
         tr_data = tr_data[seqlen..-1] || []
@@ -186,6 +201,11 @@ def do_verify(c, dump_sentences: false)
     end
     if counted != vars['TRAIN_DATA_LEN']
         STDERR.puts "Verify: #{$options[:train_data_var]} is invalid"
+        return false
+    end
+    if train_sequences != vars['TRAIN_SENTENCES']
+        STDERR.puts "Verify: counted train sequences != TRAIN_SENTENCES " +
+                    "(#{train_sequences} != #{vars['TRAIN_SENTENCES']})"
         return false
     end
 
@@ -199,17 +219,33 @@ def do_verify(c, dump_sentences: false)
         return false
     end
     counted = 1
+    sidx = 0
     while s_len = ev_data.shift
         s_len = s_len.to_i
         y_len = fixed_ylen || s_len
         seqlen = s_len + y_len
+        if dump_sentences
+            dump_sentence_vec ev_data[0, seqlen], s_len, y_len, sidx: sidx,
+                              fixed_ylen: fixed_ylen, name: 'Eval'
+        end
+        yvec = ev_data[s_len, y_len]
+        lbl = yvec.length > 1 ? yvec : yvec[0]
+        eval_label_stats[lbl] ||= 0
+        eval_label_stats[lbl] += 1
+        eval_sequences += 1
         counted += 1
         len = ev_data.length
         ev_data = ev_data[seqlen..-1] || []
+        sidx += 1
         counted += (len - ev_data.length)
     end
     if counted != vars['EVAL_DATA_LEN']
         STDERR.puts "Verify: #{$options[:eval_data_var]} is invalid"
+        return false
+    end
+    if eval_sequences != vars['EVAL_SENTENCES']
+        STDERR.puts "Verify: counted eval sequences != EVAL_SENTENCES " +
+                    "(#{eval_sequences} != #{vars['EVAL_SENTENCES']})"
         return false
     end
 
@@ -223,28 +259,86 @@ def do_verify(c, dump_sentences: false)
         return false
     end
     counted = 1
+    sidx = 0
     while s_len = ts_data.shift
         s_len = s_len.to_i
         y_len = fixed_ylen || s_len
         seqlen = s_len + y_len
+        if dump_sentences
+            dump_sentence_vec ts_data[0, seqlen], s_len, y_len, sidx: sidx,
+                              fixed_ylen: fixed_ylen, name: 'Test'
+        end
+        yvec = ts_data[s_len, y_len]
+        lbl = yvec.length > 1 ? yvec : yvec[0]
+        test_label_stats[lbl] ||= 0
+        test_label_stats[lbl] += 1
+        test_sequences += 1
         counted += 1
         len = ts_data.length
         ts_data = ts_data[seqlen..-1] || []
+        sidx += 1
         counted += (len - ts_data.length)
     end
     if counted != vars['TEST_DATA_LEN']
         STDERR.puts "Verify: #{$options[:test_data_var]} is invalid"
         return false
     end
+    if test_sequences != vars['TEST_SENTENCES']
+        STDERR.puts "Verify: counted tes sequences != TEST_SENTENCES " +
+                    "(#{test_sequences} != #{vars['TEST_SENTENCES']})"
+        return false
+    end
+
+    puts "Training Labels:"
+    train_label_stats.each{|lbl, lcount|
+        perc = ((lcount.to_f / train_sequences) * 100).round
+        lbl = lbl.inspect
+        if lbl.length > 50
+            lbl = lbl[0, 47] + '...'
+        end
+        puts " - #{lcount} (#{perc}%) - #{lbl}"
+    }
+    puts "Evaluation Labels:"
+    eval_label_stats.each{|lbl, lcount|
+        perc = ((lcount.to_f / eval_sequences) * 100).round
+        lbl = lbl.inspect
+        if lbl.length > 50
+            lbl = lbl[0, 47] + '...'
+        end
+        puts " - #{lcount} (#{perc}%) - #{lbl}"
+    }
+    puts "Testing Labels:"
+    test_label_stats.each{|lbl, lcount|
+        perc = ((lcount.to_f / test_sequences) * 100).round
+        lbl = lbl.inspect
+        if lbl.length > 50
+            lbl = lbl[0, 47] + '...'
+        end
+        puts " - #{lcount} (#{perc}%) - #{lbl}"
+    }
     puts "File is valid!"
     true
 end
 
 def load_data_from(filename, opts = {})
-    puts "Reading #{filename}"
+    label = opts[:label]
+    lbldescr = ''
+    lbl_offset = nil
+    if label
+        if label.is_a?(Array)
+            lbldescr = " (label: #{label.join(',')[0,10].strip})"
+        else
+            lbldescr = " (label: #{label.to_s})"
+        end
+        $training_label_offsets ||= {}
+        $training_label_offsets[label] ||= []
+        lbl_offset = [$training_data ? $training_data.length : 0]
+    end
+    puts "Reading #{filename}#{lbldescr}"
     data = File.read(filename)
     whole_file = opts[:whole_file]
     char_mode = opts[:mode] == :characters
+    start_end_tokens = opts[:start_end_tokens] != false
     if filename[/\.csv$/i]
         data = CSV.parse(File.read(filename))
         data.shift
@@ -281,7 +375,7 @@ def load_data_from(filename, opts = {})
         sentences.each{|sent|
             #puts sent
             #puts '-'*30
-            if !char_mode
+            if !char_mode && start_end_tokens != false
                 $sentences << "#{START_TOKEN} #{sent} #{END_TOKEN}"
             else
                 $sentences << sent
@@ -298,15 +392,18 @@ def load_data_from(filename, opts = {})
     puts "\nTokenizing sentences..."
     _idx = 0
     _tot = $sentences.length
-    tokenized = $sentences[sent_len..-1].map{|s|
+    tokenized = []
+    $sentences[sent_len..-1].each_with_index{|s, _idx|
         print_progress "Sentence", _idx, _tot
-        _idx += 1
         if !char_mode
-            tokenize_sentence s
+            s = tokenize_sentence s
         else
-            s.chars
+            s = s.chars
         end
+        next if s.length == 0
+        tokenized << s
     }
+    puts ''
     #p $tokenized_sentences
     #$words = {}
     tokenized.flatten.each{|w|
@@ -343,11 +440,11 @@ def load_data_from(filename, opts = {})
             end
         }
     }
+    puts ''
     #p $tokenized_sentences[0,5]
     _idx = 0
     _len = $tokenized_sentences.length
     puts "\nCreating training data..."
-    label = opts[:label]
     $training_data_indexed ||= []
     $training_data ||= []
     $training_data += tokenized.map{|sent|
@@ -365,11 +462,19 @@ def load_data_from(filename, opts = {})
                 lengths = [y.length, label.length].sort
                 y = (label * (lengths[1] / lengths[0]))[0, y.length]
             end
+            $labels_stats ||= {}
+            $labels_stats[label] ||= 0
+            $labels_stats[label] += 1
         end
         pair = [x, y]
         $training_data_indexed << pair
         pair
     }
+    if lbl_offset && $training_data.length > 0
+        lbl_offset << ($training_data.length - 1)
+        $training_label_offsets[label] << lbl_offset
+    end
+    puts ''
 end
 
 $options = {
@@ -472,6 +577,11 @@ optparse = OptionParser.new do |opts|
         $options[:mode] = :"#{mode}"
     end
 
+    opts.on '', '--no-start-end-tokens',
+            "Don add #{START_TOKEN}/#{END_TOKEN} to sentences" do
+        $options[:start_end_tokens] = false
+    end
+
     opts.on '-v', '--verify [FILE]', 'Verify file integrity' do |file|
         $options[:verify] = file || true
     end
@@ -507,6 +617,7 @@ if filenames.length > 0
     has_labels = lbl_length > 0
 
     last_label = nil
+    file_count = 0
     all_files = filenames.map{|filename|
         filename = File.expand_path filename if filename[/^\~/]
         if filename['*']
@@ -542,46 +653,107 @@ if filenames.length > 0
             end
             last_label = lbl
         end
+        file_count += files.length
         {files: files, label: lbl}
     }.compact
+    if file_count == 0
+        STDERR.puts "ERROR: no files found!"
+        exit 1
+    end
 
+    processed_file_count = 0
     max_sentences = $options[:max_sentences] || MAX_SENTENCES
-    max_sentences /= all_files.length
-
+    puts "Max Sentences: #{max_sentences}"
+    max_sentences /= file_count
+    start_end_tokens  = $options[:start_end_tokens] != false
     all_files.each_with_index{|f, idx|
         files = f[:files]
         label = f[:label]
         files.each_with_index{|filename, fidx|
-            max_s = (max_sentences * (1 + idx))
+            max_s = (max_sentences * (1 + processed_file_count))
             load_data_from filename, label: label,
                                      max_sentences: max_s,
                                      whole_file: $options[:whole_file],
-                                     mode: $options[:mode]
-            break if $sentences.length >= max_s
+                                     mode: $options[:mode],
+                                     start_end_tokens: start_end_tokens
+            processed_file_count += 1
+            break if max_s > 0 && $sentences.length > max_s
         }
     }
+    processed_perc = ((processed_file_count / file_count) * 100).round
+    puts "File count: #{file_count}"
+    puts "Processed Files: #{processed_file_count} (#{processed_perc}%)"
+    puts "Sentences: #{$sentences.length}"
 
     #p $training_data[0]
     #p one_hot($training_data[0][0])
     $training_data ||= []
-    if $options[:shuffle]
-        puts "Shuffling..."
-        $training_data.shuffle!
-    end
     tot_data_len = $training_data.length
-    eval_data_len = (tot_data_len * 0.10).to_i
-    test_data_len = (tot_data_len * 0.10).to_i
-    if !$options[:same_dataset]
-        train_data_len = tot_data_len - eval_data_len - test_data_len
-        train_data = $training_data[0, train_data_len]
-        eval_data_offset = train_data_len
-    else
-        train_data_len = tot_data_len
+    train_data_len = 0
+    eval_data_len = 0
+    test_data_len = 0
+    train_data = []
+    eval_data = []
+    test_data = []
+    if $training_label_offsets
+        # equally distribute labels among different datasets
+        slices = []
+        $training_label_offsets.each{|lbl, offsets|
+            offsets.each{|from, to|
+                olen = (to + 1) - from
+                eval_chunk_len = (olen * EVAL_DATALEN_PERC).to_i
+                test_chunk_len = (olen * TEST_DATALEN_PERC).to_i
+                chunk_len = eval_chunk_len + test_chunk_len
+                if chunk_len > 0
+                    cidx = (to + 1) - chunk_len
+                    chunk = $training_data[cidx, chunk_len]
+                    slices << [cidx, chunk_len]
+                    eval_chunk = chunk.shift(eval_chunk_len)
+                    test_chunk = chunk
+                    eval_data += eval_chunk
+                    test_data += test_chunk
+                end
+            }
+        }
+        slices.each{|slice|
+            from, slen = slice
+            $training_data.slice! from, slen
+        }
         train_data = $training_data
-        eval_data_offset = tot_data_len - eval_data_len - test_data_len
+        if $options[:shuffle]
+            puts "Shuffling..."
+            train_data.shuffle!
+        end
+        train_data_len = train_data.length
+        eval_data_len = eval_data.length
+        test_data_len = test_data.length
+    else
+        if $options[:shuffle]
+            puts "Shuffling..."
+            $training_data.shuffle!
+        end
+        eval_data_len = (tot_data_len * EVAL_DATALEN_PERC).to_i
+        test_data_len = (tot_data_len * TEST_DATALEN_PERC).to_i
+        if !$options[:same_dataset]
+            train_data_len = tot_data_len - eval_data_len - test_data_len
+            train_data = $training_data[0, train_data_len]
+            eval_data_offset = train_data_len
+        else
+            train_data_len = tot_data_len
+            train_data = $training_data
+            eval_data_offset = tot_data_len - eval_data_len - test_data_len
+        end
+        eval_data = $training_data[eval_data_offset, eval_data_len]
+        test_data = $training_data[eval_data_offset + eval_data_len,
+                                   test_data_len]
     end
-    eval_data = $training_data[eval_data_offset, eval_data_len]
-    test_data = $training_data[eval_data_offset + eval_data_len, test_data_len]
+    if $labels_stats && $labels_stats.length > 0
+        puts "Labels:"
+        $labels_stats.each{|lbl, lblcount|
+            perc = ((lblcount.to_f / tot_data_len) * 100).round
+            puts " - #{lblcount} (#{perc}%) #{lbl.inspect}"
+        }
+    end
 
     ylen = nil
     train_c_data = train_data.map{|d|
@@ -627,6 +799,13 @@ if filenames.length > 0
     train_c_data = "#{train_data_len.to_f},#{train_c_data.join(',')}"
     eval_c_data = "#{eval_data_len.to_f},#{eval_c_data.join(',')}"
     test_c_data = "#{test_data_len.to_f},#{test_c_data.join(',')}"
+    words_c = $indexed_words.map{|w|
+        w = w.encode(
+            Encoding.find('ASCII'), invalid: :replace, undef: :replace,
+            replace: '', universal_newline: true
+        )
+        w.inspect
+    }
     output = $options[:output]
     output ||= '/tmp/w2v_training_data.h'
     h_name = "__#{File.basename(output).upcase.gsub(/[[:punct:]\s]+/, '_')}"
@@ -642,7 +821,7 @@ if filenames.length > 0
 #define EVAL_SENTENCES      #{eval_data_len}
 #define TEST_SENTENCES      #{test_data_len}
 #define Y_SEQUENCE_COUNT    #{ylen || 0}
-char * #{$options[:words_var]}[] = {#{$indexed_words.map{|w|w.inspect}.join(',')}};
+char * #{$options[:words_var]}[] = {#{words_c.join(',')}};
 PSFloat #{$options[:train_data_var]}[] = {#{train_c_data}};
 PSFloat #{$options[:eval_data_var]}[] = {#{eval_c_data}};
 PSFloat #{$options[:test_data_var]}[] = {#{test_c_data}};
