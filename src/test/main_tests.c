@@ -115,11 +115,9 @@ int testRNNOneHot(TestCase *tc, Test *test);
 int testLSTMLoad(TestCase *test_case, Test *test);
 int testLSTMTrain(TestCase *test_case, Test *test);
 
-/* psyc.c static function prototypes */
+/* psyc.c function prototypes */
 
 PSGradient **backprop(PSNeuralNetwork *network, PSFloat *x, PSFloat *y);
-PSGradient **backpropThroughTime(PSNeuralNetwork *network, PSFloat *x,
-                                 PSFloat *y, int times);
 
 PSFloat updateNetworkParameters(PSNeuralNetwork *network,
                                 PSFloat *training_data,
@@ -296,6 +294,9 @@ PSFloat expected_bo[2] = {0.00974497, 0.04311221};
 PSFloat expected_bf[2] = {0.00975461, 0.04307629};
 
 int compareNetworks(PSNeuralNetwork *net1, PSNeuralNetwork *net2, Test* test);
+
+static int testRecurrentNetworkMode(PSNeuralNetwork *network,
+                                    PSRecurrentNetworkMode mode, Test *test);
 
 static void getTmpFileName(const char *prfx, const char *sfx, char *buffer) {
     FILE *urand = fopen("/dev/urandom", "r");
@@ -476,6 +477,14 @@ int RNNSetup(TestCase *test_case) {
                 n->weights[w] = weights[w_idx];
             }
         }
+    }
+    PSRecurrentNetworkMode rnn_mode = PSGetRecurrentNetworkMode(network);
+    if (rnn_mode != ManyToMany) {
+        fprintf(
+            stderr, "\nInvalid Recurrent Network Mode: '%s'\n",
+            PSGetRecurrentModeLabel(rnn_mode)
+        );
+        return 0;
     }
 
     test_case->data = malloc(2 * sizeof(void*));
@@ -808,12 +817,13 @@ int testRNNLoad(TestCase *test_case, Test *test) {
 int testRNNFeedforward(TestCase *test_case, Test *test) {
     PSNeuralNetwork *network = getNetwork(test_case);
     PSFeedforward(network, rnn_inputs);
+    if (!testRecurrentNetworkMode(network, ManyToMany, test)) return 0;
 
     PSLayer *output = network->layers[network->size - 1];
     int i, j;
     for (i = 0; i < output->size; i++) {
         PSNeuron *n = output->neurons[i];
-        PSRecurrentCell* cell = (PSRecurrentCell*) n->extra;
+        PSRecurrentCell* cell = PSGetRecurrentCell(n);
         for (j = 0; j < cell->states_count; j++) {
             PSFloat s = getRoundedFloatDec(cell->states[j], HIGH_PRECISION_DEC);
             PSFloat expected = getRoundedFloatDec(
@@ -832,8 +842,8 @@ int testRNNBackprop(TestCase *test_case, Test *test) {
     PSNeuralNetwork *network = getNetwork(test_case);
     int i, j, w;
 
-    PSGradient **gradients = backpropThroughTime(network, rnn_inputs + 1,
-                                                 rnn_labels, RNN_TIMES);
+    if (!testRecurrentNetworkMode(network, ManyToMany, test)) return 0;
+    PSGradient **gradients = backprop(network, rnn_inputs, rnn_labels);
     int dsize = network->size - 1;
     for (i = 0; i < dsize; i++) {
         PSGradient *lgradients = gradients[i];
@@ -864,6 +874,7 @@ on_fail:
 int testRNNStep(TestCase *test_case, Test *test) {
     PSNeuralNetwork *network = getNetwork(test_case);
     /*int train_data_len = 1 + (RNN_TIMES * 2);*/
+    if (!testRecurrentNetworkMode(network, ManyToMany, test)) return 0;
     PSFloat *training_data = getTestData(test_case);
     PSFloat **series = &training_data;
     int elements_count = (int) *training_data;
@@ -918,6 +929,20 @@ int testRNNOneHot(TestCase *test_case, Test *test) {
     testAssertWithMessageOrGoto(
         loaded, final, test, "Failed to load %s", RECURRENT_NETWORK
     );
+    PSRecurrentNetworkMode onehot_rnn_mode =
+        PSGetRecurrentNetworkMode(onehot_network);
+    PSRecurrentNetworkMode std_rnn_mode =
+        PSGetRecurrentNetworkMode(standard_network);
+    ok = (onehot_rnn_mode == ManyToMany);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "OneHot recurrent network mode is: '%s'",
+        PSGetRecurrentModeLabel(onehot_rnn_mode)
+    );
+    ok = (std_rnn_mode == ManyToMany);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "Standard recurrent network mode is: '%s'",
+        PSGetRecurrentModeLabel(std_rnn_mode)
+    );
     ok = onehot_network->flags & FLAG_ONEHOT;
     testAssertWithMessageOrGoto(
         ok, final, test, "%s network is not OneHot!", onehot_network->name
@@ -933,10 +958,10 @@ int testRNNOneHot(TestCase *test_case, Test *test) {
         ok, final, test, "%s network layer[%d] is not OneHot!",
         onehot_network->name, last_layer
     );
-    int no_recurrent = ~((unsigned) FLAG_ONEHOT);
-    standard_network->flags &= no_recurrent;
-    standard_network->layers[0]->flags &= no_recurrent;
-    standard_network->layers[last_layer]->flags &= no_recurrent;
+    int no_onehot = ~((unsigned) FLAG_ONEHOT);
+    standard_network->flags &= no_onehot;
+    standard_network->layers[0]->flags &= no_onehot;
+    standard_network->layers[last_layer]->flags &= no_onehot;
     ok = !(standard_network->flags & FLAG_ONEHOT);
     testAssertWithMessageOrGoto(
         ok, final, test, "%s network is OneHot!", standard_network->name
@@ -975,6 +1000,7 @@ int testRNNOneHot(TestCase *test_case, Test *test) {
     standard_network->layers[0] = standard_input_layer;
     standard_input_layer->network = standard_network;
     standard_network->input_size = vector_size;
+    standard_input_layer->flags |= FLAG_RECURRENT;
     curlayer->network = NULL;
     PSDeleteLayer(curlayer);
     dummy_network->size = 0;
@@ -1089,7 +1115,8 @@ int testLSTMTrain(TestCase *test_case, Test *test) {
 
     PSTrainingOptions options = {
         .flags = TRAINING_NO_SHUFFLE,
-        .l2_decay = 0.0
+        .l2_decay = 0.0,
+        .bptt_truncate = 4
     };
     PSTrain(network, training_data, 8, LSTM_EPOCHS, LSTM_LEARNING_RATE,
             LSTM_BATCHES, &options, NULL, 0);
@@ -1229,6 +1256,82 @@ int compareNetworks(PSNeuralNetwork *network, PSNeuralNetwork *clone,
         "Source size %d != Clone size %d",
         network->size, clone->size
     );
+    int recurrent_source = PSIsRecurrent(network),
+        recurrent_clone = PSIsRecurrent(clone);
+    testAssertWithMessage(
+        (recurrent_source == recurrent_clone), test,
+        "Source recurrent: %d, Clone recurrent: %d",
+        recurrent_source, recurrent_clone
+    );
+    if (recurrent_source) {
+        PSLayer *src_first_recurrent_layer = PSGetFirstRecurrentLayer(network),
+                *src_last_recurrent_layer = PSGetLastRecurrentLayer(network),
+                *clone_first_recurrent_layer = PSGetFirstRecurrentLayer(clone),
+                *clone_last_recurrent_layer = PSGetLastRecurrentLayer(clone);
+        PSRecurrentNetworkMode srcmode = PSGetRecurrentNetworkMode(network),
+                               clonemode = PSGetRecurrentNetworkMode(clone);
+        PSRecurrentNetworkOptions *src_rnn_opts = network->rnn_options,
+                                  *clone_rnn_opts = clone->rnn_options;
+        int src_max_steps = 0, clone_max_steps = 0, src_eos = -1,
+            clone_eos = -1;
+        if (src_rnn_opts) {
+            src_max_steps = src_rnn_opts->sequence_stop_criterion.max_steps;
+            src_eos = src_rnn_opts->sequence_stop_criterion.eos;
+        }
+        if (clone_rnn_opts) {
+            clone_max_steps = clone_rnn_opts->sequence_stop_criterion.max_steps;
+            clone_eos = clone_rnn_opts->sequence_stop_criterion.eos;
+        }
+        testAssertWithMessage(
+            (srcmode == clonemode), test,
+            "Recurrent source mode: '%s', Recurrent clone mode: '%s'",
+            PSGetRecurrentModeLabel(srcmode),
+            PSGetRecurrentModeLabel(clonemode)
+        );
+        testAssertWithMessage(
+            (src_max_steps == clone_max_steps), test,
+             "network->rnn_options.sequence_stop_criterion.max_steps != "
+             "clone->rnn_options.sequence_stop_criterion.max_steps: %d != %d",
+             src_max_steps, clone_max_steps
+        );
+        testAssertWithMessage(
+            (src_eos == clone_eos), test,
+             "network->rnn_options.sequence_stop_criterion.eos != "
+             "clone->rnn_options.sequence_stop_criterion.eos: %d != %d ",
+             src_eos, clone_eos
+        );
+        if (src_first_recurrent_layer == NULL)
+            testAssertNull(clone_first_recurrent_layer, test);
+        else {
+            testAssertNotNull(clone_first_recurrent_layer, test);
+            int src_idx = src_first_recurrent_layer->index;
+            int cln_idx = clone_first_recurrent_layer->index;
+            testAssertWithMessage(
+                (src_idx == cln_idx), test,
+                "network first recurrent layer index != "
+                "clone first recurrent layer index: %d != %d",
+                src_idx, cln_idx
+            );
+        }
+        if (src_last_recurrent_layer == NULL)
+            testAssertNull(clone_last_recurrent_layer, test);
+        else {
+            testAssertNotNull(clone_last_recurrent_layer, test);
+            int src_idx = src_last_recurrent_layer->index;
+            int cln_idx = clone_last_recurrent_layer->index;
+            testAssertWithMessage(
+                (src_idx == cln_idx), test,
+                "network last recurrent layer index != "
+                "clone last recurrent layer index: %d != %d",
+                src_idx, cln_idx
+            );
+        }
+    }
+    testAssertWithMessage(
+        network->flags == clone->flags, test,
+        "Source flags %d != Clone flags %d",
+        network->flags, clone->flags
+    );
     for (i = 0; i < network->size; i++) {
         PSLayer *orig_l = network->layers[i];
         PSLayer *clone_l = clone->layers[i];
@@ -1341,6 +1444,111 @@ int compareNetworks(PSNeuralNetwork *network, PSNeuralNetwork *clone,
         if (!ok) break;
     }
     return ok;
+}
+
+static int testRecurrentNetworkMode(PSNeuralNetwork *network,
+                                    PSRecurrentNetworkMode mode,
+                                    Test *test)
+{
+    testAssertNotNull(network, test);
+    if (network->size == 0) return 1;
+    PSRecurrentNetworkMode network_rnn_mode =
+        PSGetRecurrentNetworkMode(network);
+    testAssertWithMessage(
+        network_rnn_mode == mode, test,
+        "Recurrent network mode %s != expected %s",
+        PSGetRecurrentModeLabel(network_rnn_mode),
+        PSGetRecurrentModeLabel(mode)
+    );
+    PSLayer *first_recurrent = PSGetFirstRecurrentLayer(network),
+            *last_recurrent = PSGetLastRecurrentLayer(network),
+            *input_layer = network->layers[0],
+            *output_layer = network->layers[network->size - 1];
+    if (mode == NonRecurrent) {
+        testAssertWithMessage(
+            !PSIsRecurrent(network), test,
+            "Network is recurrent despite mode is %s",
+            PSGetRecurrentModeLabel(mode)
+        );
+    } else {
+        testAssertWithMessage(
+            PSIsRecurrent(network), test,
+            "Network is not recurrent despite mode is %s",
+            PSGetRecurrentModeLabel(mode)
+        );
+        testAssertNotNull(first_recurrent, test);
+        testAssertNotNull(last_recurrent, test);
+        if (mode == ManyToMany) {
+            testAssertWithMessage(
+                first_recurrent == input_layer, test,
+                "first_recurrent_layer is not the input layer for mode %s",
+                PSGetRecurrentModeLabel(mode)
+            );
+            testAssertWithMessage(
+                last_recurrent == output_layer, test,
+                "last_recurrent_layer is not the output layer for mode %s",
+                PSGetRecurrentModeLabel(mode)
+            );
+        } else if (mode == ManyToOne) {
+            testAssertWithMessage(
+                first_recurrent == input_layer, test,
+                "first_recurrent_layer is not the input layer for mode %s",
+                PSGetRecurrentModeLabel(mode)
+            );
+            testAssertWithMessage(
+                last_recurrent != output_layer, test,
+                "last_recurrent_layer is the output layer for mode %s",
+                PSGetRecurrentModeLabel(mode)
+            );
+        } else if (mode == OneToMany) {
+            testAssertWithMessage(
+                first_recurrent != input_layer, test,
+                "first_recurrent_layer is the input layer for mode %s",
+                PSGetRecurrentModeLabel(mode)
+            );
+            testAssertWithMessage(
+                last_recurrent == output_layer, test,
+                "last_recurrent_layer is not the output layer for mode %s",
+                PSGetRecurrentModeLabel(mode)
+            );
+        }
+    }
+    for (int i = 0; i < network->size; i++) {
+        PSLayer *layer = network->layers[i];
+        if (mode == NonRecurrent) {
+            testAssertWithMessage(
+                !PSIsRecurrent(layer), test,
+                "Layer[%d] is recurrent despite mode is NonRecurrent", i
+            );
+        } else if (mode == ManyToMany) {
+            testAssertWithMessage(
+                PSIsRecurrent(layer), test,
+                "Layer[%d] is not recurrent despite mode is %s", i,
+                PSGetRecurrentModeLabel(mode)
+            );
+        } else {
+            if (layer->index >= first_recurrent->index &&
+                layer->index <= last_recurrent->index)
+            {
+                testAssertWithMessage(
+                    PSIsRecurrent(layer), test,
+                    "Layer[%d] is not recurrent (mode %s): first recurrent "
+                    "layer is %d, last recurrent layer is %d", i,
+                    first_recurrent->index, last_recurrent->index,
+                    PSGetRecurrentModeLabel(mode)
+                );
+            } else {
+                testAssertWithMessage(
+                    !PSIsRecurrent(layer), test,
+                    "Layer[%d] is recurrent (mode %s): first recurrent "
+                    "layer is %d, last recurrent layer is %d", i,
+                    first_recurrent->index, last_recurrent->index,
+                    PSGetRecurrentModeLabel(mode)
+                );
+            }
+        }
+    }
+    return 1;
 }
 
 #ifdef USE_AVX

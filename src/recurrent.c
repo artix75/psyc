@@ -192,6 +192,7 @@ int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
         PSErr(NULL, "Layer[%d]: previous layer is NULL!", layer->index);
         return 0;
     }
+    PSLayer *first_recurrent = PSGetFirstRecurrentLayer(net);
     int avx_disabled = PSIsAVXDisabled(net);
 #ifndef USE_AVX
     UNUSED(avx_disabled);
@@ -221,7 +222,10 @@ int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
             return 0;
         }
     }
-    int i, j, w, previous_size = previous->size;
+    int i, j, w, previous_size = previous->size,
+        ignore_previous_activations = 0;
+    if (!PSIsRecurrent(previous) && layer == first_recurrent)
+        ignore_previous_activations = (t > 0);
     for (i = 0; i < size; i++) {
         PSNeuron *neuron = layer->neurons[i];
         PSRecurrentCell *cell = PSGetRecurrentCell(neuron);
@@ -231,6 +235,7 @@ int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
             return 0;
         }
         PSFloat sum = 0, bias = 0;
+        if (ignore_previous_activations) goto forward_previous_step;
         if (onehot) sum = neuron->weights[vector_idx];
         else {
             j = 0;
@@ -249,6 +254,7 @@ int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
                 sum += (a * neuron->weights[j]);
             }
         }
+forward_previous_step:
         if (t > 0) {
             int last_t = t - 1;
             w = 0;
@@ -266,7 +272,8 @@ int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
                 if (rc == NULL) return 0;
                 PSFloat weight = cell->weights[w];
                 PSFloat last_state = rc->states[last_t];
-                bias += (weight *last_state);
+                /* TODO: whiy it's added to bias and not to sum? */
+                bias += (weight * last_state);
             }
         } else {
             if (cell->states != NULL) free(cell->states);
@@ -312,6 +319,7 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previousLayer,
     int avx_disabled = PSIsAVXDisabled(layer->network);
     int lsize = layer->size, i, w, tt;
     PSFloat *prev_delta = previousLayer->delta;
+    int do_truncate = (t - lowest_t) > 0;
     /* Cycle over previous time steps until lowest step (`lowest_t`) defined
      * by the window of BPTT_TRUNCATE. */
     for (tt = t; tt >= lowest_t; tt--) {
@@ -391,7 +399,13 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previousLayer,
                 }
                 if (layer->derivative != NULL) {
                     PSFloat prev_a = cell->states[tt - 1];
-                    new_delta[neuron->index] *= layer->derivative(prev_a);
+                    /* If BPTT is truncated, new_delta won't be cumulated to
+                     * delta calculated from next layer in next `t` iteration,
+                     * while it's used to update gradients during truncated
+                     * timesteps tieration.
+                     * So, derivative must be applied here. */
+                    if (do_truncate)
+                        new_delta[neuron->index] *= layer->derivative(prev_a);
                 }
             }
             if (is_lowest && prev_delta != NULL && !isDroppedOut(neuron, t)) {

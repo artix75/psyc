@@ -366,7 +366,7 @@ int PSConvolve(PSNeuralNetwork *net, PSLayer *layer, ...) {
         PSErr(NULL, "Layer[%d]: parameters are invalid!", layer->index);
         return 0;
     }
-    int is_recurrent = (net->flags & FLAG_RECURRENT), times = 0, t = 0;
+    int is_recurrent = PSIsRecurrent(layer), times = 0, t = 0;
     if (is_recurrent) {
         va_list args;
         va_start(args, layer);
@@ -547,7 +547,7 @@ int PSPool(PSNeuralNetwork *net, PSLayer *layer, ...) {
     }
     int do_dump =
         (net->training != NULL && net->training->debug_dump_to != NULL);
-    int is_recurrent = (net->flags & FLAG_RECURRENT), times = 0, t = 0;
+    int is_recurrent = PSIsRecurrent(layer), times = 0, t = 0;
     if (is_recurrent) {
         va_list args;
         va_start(args, layer);

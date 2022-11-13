@@ -64,7 +64,7 @@ static int LSTMCellFeedforward(PSLayer *layer, PSLayer *previous,
                                PSNeuron *neuron, int onehot_idx,
                                int times, int t)
 {
-    PSNeuralNetwork *net = (PSNeuralNetwork *) layer->network;
+    PSNeuralNetwork *net = layer->network;
     PSLSTMCell *cell = PSGetLSTMCell(neuron);
     if (cell == NULL) {
         PSErr(NULL, "Layer[%d]: neuron[%d] cell is NULL!",
@@ -78,6 +78,9 @@ static int LSTMCellFeedforward(PSLayer *layer, PSLayer *previous,
 #endif
     int wsize = cell->weights_size;
     int prev_size = wsize - layer->size;
+    int ignore_previous_activations = 0;
+    if (!PSIsRecurrent(previous) && layer == PSGetFirstRecurrentLayer(net))
+        ignore_previous_activations = (t > 0);
 
     PSFloat candidate = 0.0;
     PSFloat input_gate = 0.0;
@@ -85,6 +88,8 @@ static int LSTMCellFeedforward(PSLayer *layer, PSLayer *previous,
     PSFloat forget_gate = 0.0;
 
     PSFloat last_z = 0.0;
+
+    if (ignore_previous_activations) goto forward_previous_step;
 
     if (onehot_idx >= 0) {
         candidate = cell->candidate_weights[onehot_idx];
@@ -125,6 +130,7 @@ static int LSTMCellFeedforward(PSLayer *layer, PSLayer *previous,
         }
     }
 
+forward_previous_step:
     if (t > 0) {
         int last_t = t - 1;
         last_z = cell->z_values[last_t];
@@ -204,7 +210,7 @@ static int LSTMCellFeedforward(PSLayer *layer, PSLayer *previous,
     cell->output_gates[t] = output_gate;
     cell->forget_gates[t] = forget_gate;
 
-    neuron->z_value = candidate *input_gate + last_z *forget_gate;
+    neuron->z_value = candidate * input_gate + last_z * forget_gate;
     cell->z_values[t] = neuron->z_value;
 
     PSFloat activation = neuron->z_value;
@@ -476,8 +482,8 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previousLayer,
         delta_z[i] = dz * fg;
 
         dout *= (og * (1 - og)); /*  PSSigmoidDerivative */
-        di *= (ig * (1 - ig)); /*  PSSigmoidDerivative */
-        df *= (fg * (1 - fg)); /*  PSSigmoidDerivative */
+        di *= (ig * (1 - ig));   /*  PSSigmoidDerivative */
+        df *= (fg * (1 - fg));   /*  PSSigmoidDerivative */
         dc *= PSTanhDerivative(c);
 
         delta_c[i] = dc;
@@ -485,7 +491,7 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previousLayer,
         delta_o[i] = dout;
         delta_f[i] = df;
 
-        gradient_biases[0] += dc;
+        gradient_biases[CANDIDATE_IDX] += dc;
         gradient_biases[INPUT_IDX] += di;
         gradient_biases[OUTPUT_IDX] += dout;
         gradient_biases[FORGET_IDX] += df;

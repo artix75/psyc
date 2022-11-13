@@ -30,6 +30,9 @@
 #define DEFAULT_BETA1   0.9
 #define DEFAULT_BETA2   0.999
 
+#define DEFAULT_RECURRENT_MODE ManyToMany
+#define MAX_RECURRENT_OUTPUT_STEPS 10
+#define DEFAULT_EOS_INDEX   -1
 
 #define STATUS_UNTRAINED    0
 #define STATUS_TRAINED      1
@@ -65,8 +68,6 @@
 #define TRAINING_NO_SHUFFLE     (1 << 0)
 #define TRAINING_ADJUST_RATE    (1 << 1)
 #define TRAINING_WEIGHT_DECAY   (1 << 2)
-
-#define BPTT_TRUNCATE   4
 
 #define PSShouldApplyDropout(layer) (layer->dropout != 0.0 && layer->index < \
     (layer->network->size - 1))
@@ -115,6 +116,23 @@ typedef enum {
 } PSLayerType;
 
 typedef enum {
+    NonRecurrent,
+    ManyToMany,
+    ManyToOne,
+    OneToMany
+} PSRecurrentNetworkMode;
+
+typedef struct {
+    int max_steps;
+    int eos;
+} PSSequenceStopCriterion;
+
+typedef struct {
+    PSRecurrentNetworkMode  mode;
+    PSSequenceStopCriterion sequence_stop_criterion;
+} PSRecurrentNetworkOptions;
+
+typedef enum {
     NoTrainingOptimization,
     Adam,
     AdaGrad,
@@ -145,6 +163,7 @@ typedef struct {
     PSFloat                 beta1;
     PSFloat                 beta2;
     PSTrainingOptimization  optimization;
+    int                     bptt_truncate;
     int                     validate_every_batches;
     int                     max_validation_elements;
     FILE                    *debug_dump_to;
@@ -194,17 +213,19 @@ typedef struct PSLayer {
 } PSLayer;
 
 typedef struct PSNeuralNetwork {
-    const char      *name;
-    int             size;
-    PSLayer         **layers;
-    PSLossFunction  loss;
-    int             flags;
-    unsigned char   status;
-    int             input_size;
-    int             output_size;
-    PSTrainingInfo  *training;
-    PSTrainCallback onEpochTrained;
-    PSTrainCallback onBatchTrained;
+    const char                  *name;
+    int                         size;
+    PSLayer                     **layers;
+    PSLossFunction              loss;
+    int                         flags;
+    unsigned char               status;
+    int                         input_size;
+    int                         output_size;
+    PSRecurrentNetworkOptions   *rnn_options;
+    PSTrainingInfo              *training;
+    PSTrainCallback             onEpochTrained;
+    PSTrainCallback             onBatchTrained;
+    void                        *context;
 } PSNeuralNetwork;
 
 extern int PSGlobalFlags;
@@ -219,6 +240,8 @@ PSLayer *PSAddConvolutionalLayer(PSNeuralNetwork *network,
                                  PSHyperParameters* params);
 PSLayer *PSAddPoolingLayer(PSNeuralNetwork *network,
                            PSHyperParameters* params);
+PSLayer *PSGetFirstRecurrentLayer(PSNeuralNetwork *network);
+PSLayer *PSGetLastRecurrentLayer(PSNeuralNetwork *network);
 PSHyperParameters *PSCreateHyperParamenters(int count, ...);
 int PSSetHyperParameter(PSHyperParameters *params, int param, PSFloat value);
 int PSAddHyperParameter(PSHyperParameters *params, PSFloat val);
@@ -228,8 +251,11 @@ PSHyperParameters *PSCreateConvolutionalParameters(PSFloat feature_count,
                                                    int padding,
                                                    int use_relu);
 void PSDeleteHyperParamenters(PSHyperParameters *params);
+int PSGetRecurrentHiddenStateCount(PSLayer *layer, PSNeuralNetwork *net);
+int PSCheckNetwork(PSNeuralNetwork *network);
 int PSFeedforward(PSNeuralNetwork *network, PSFloat *values);
 int PSClassify(PSNeuralNetwork *network, PSFloat *values);
+int PSFindLayerMaxActivation(PSLayer *layer, PSFloat *max_p, int *index_p,...);
 
 void PSDeleteNetwork(PSNeuralNetwork *network);
 void PSDeleteLayer(PSLayer *layer);
@@ -248,14 +274,23 @@ void PSTrain(PSNeuralNetwork *network,
 void PSPauseTraining(PSNeuralNetwork *network);
 void PSAbortTraining(PSNeuralNetwork *network);
 float PSTest(PSNeuralNetwork *network, PSFloat *test_data, int data_size);
-int PSVerifyNetwork(PSNeuralNetwork *network);
+int PSCheckNetwork(PSNeuralNetwork *network);
 /* int arrayMaxIndex(PSFloat *array, int len); */
 char *PSGetLabelForType(PSLayerType type);
 char *PSGetLayerTypeLabel(PSLayer *layer);
+int PSIsNetworkBuilt(PSNeuralNetwork *network);
+char *PSGetRecurrentModeLabel(PSRecurrentNetworkMode mode);
 void PSPrintNetworkInfo(PSNeuralNetwork *network);
 int PSDumpNetworkActivations(PSNeuralNetwork *network, const char* filename);
 int PSDumpNetworkDeltas(PSNeuralNetwork *network, const char* filename);
+void PSSetDefaultRNNOptions(PSRecurrentNetworkOptions *opts);
 void PSSetDefaultTrainingOptions(PSTrainingOptions *options);
+PSRecurrentNetworkMode PSGetRecurrentNetworkMode(PSNeuralNetwork *network);
+int PSSetRecurrentNetworkMode(
+    PSNeuralNetwork *network, PSRecurrentNetworkMode mode
+);
+PSLayer *PSGetFirstRecurrentLayer(PSNeuralNetwork *network);
+PSLayer *PSGetLastRecurrentLayer(PSNeuralNetwork *network);
 
 /*  Loss functions */
 

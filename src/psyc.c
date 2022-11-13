@@ -38,6 +38,7 @@
 
 #define DATA_LAYER_MIN_ARGC 3
 #define STATUS_ERROR_LOSS -999.00
+#define BPTT_TRUNCATE   4
 
 #define applyGradientOnBias(opts, grad, val, mg, xg, r, i) \
     applyGradientOnParameter(PARAM_TYPE_BIAS, opts, grad, val, mg, xg, r, i, 0)
@@ -45,6 +46,9 @@
     applyGradientOnParameter(PARAM_TYPE_WEIGHT, opts, grad, val, mg, xg, r, \
     i, widx)
 #define outputDerivativeNeeded(network) (network->loss != PSCrossEntropyLoss)
+#define getNetworkContext(network) ((PSNetworkContext *) network->context)
+#define setNetworkContext(network, member, val) (\
+    ((PSNetworkContext *) network->context)->member = val)
 
 #ifdef BACKTRACE_AVAILABLE
 void segvHandler(int sig, siginfo_t *info, void *secret);
@@ -54,6 +58,11 @@ void segvHandler(int sig, siginfo_t *info, void *secret);
 
 int PSGlobalFlags = 0;
 
+typedef struct {
+    int             built;
+    PSLayer         *first_recurrent_layer;
+    PSLayer         *last_recurrent_layer;
+} PSNetworkContext;
 typedef PSFloat (*PSGetDeltaFunction)(PSNeuron* n, PSLayer* l, PSLayer* next,
                                      PSFloat *last_d);
 
@@ -80,8 +89,8 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
                              PSHyperParameters *parameters);
 int PSInitPoolingLayer(PSNeuralNetwork *network, PSLayer *layer,
                        PSHyperParameters *parameters);
-int fullBackprop(PSLayer *layer, PSLayer *previousLayer,
-                 PSGradient *layerGradients, ...);
+int fullBackprop(PSLayer *layer, PSLayer *previous_layer,
+                 PSGradient *layer_gradients, ...);
 int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
                          int size,int ws);
 int PSInitLSTMLayer(PSNeuralNetwork *network, PSLayer *layer,
@@ -167,7 +176,7 @@ static int fullFeedforward(PSNeuralNetwork *network, PSLayer *layer, ...) {
     }
     int do_dump = PSShouldDebugDump(network);
     int i, j, previous_size = previous->size;
-    int is_recurrent = (network->flags & FLAG_RECURRENT), tsteps = 0, t = 0;
+    int is_recurrent = PSIsRecurrent(layer), tsteps = 0, t = 0;
     int apply_dropout = PSShouldApplyDropout(layer);
 #ifdef USE_AVX
     int avx_disabled = PSIsAVXDisabled(network);
@@ -250,7 +259,7 @@ static int softmaxFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
         return 0;
     }
     int i, j, previous_size = previous->size;
-    int is_recurrent = (net->flags & FLAG_RECURRENT), tsteps = 0, t = 0;
+    int is_recurrent = PSIsRecurrent(layer), tsteps = 0, t = 0;
 #ifdef USE_AVX
     int avx_disabled = PSIsAVXDisabled(net);
 #endif
@@ -368,25 +377,36 @@ static void shuffleSeries(PSFloat **series, int size) {
     }
 }
 
-static PSFloat **getRecurrentSeries(PSFloat *array, int series_count,
-                                    int x_size, int y_size)
+static PSFloat **getRecurrentSeries(PSNeuralNetwork *network, PSFloat *data,
+                                    int series_count, int xsize, int ysize)
 {
+    int recurrent_input = PSIsRecurrent(network->layers[0]),
+        recurrent_output = PSIsRecurrent(network->layers[network->size-1]), i;
+    if (!recurrent_input && !recurrent_output) {
+        PSErr(NULL, "Netowork has no recurrent input nor recurrent output");
+        return NULL;
+    }
     PSFloat **series = malloc(sizeof(PSFloat *) * series_count);
     if (series == NULL) {
         PSErr(NULL, "Could not allocate memory for recurrent series!");
         return NULL;
     }
-    int i;
-    PSFloat *p = array;
+    PSFloat *p = data;
     for (i = 0; i < series_count; i++) {
-        int series_size = (int) *p;
-        if (!series_size) {
-            PSErr(NULL, "Invalid series size 0 at %d", (int) (p - array));
+        PSFloat *size_p = (recurrent_input ? p : p + xsize);
+        int series_size = (int) *size_p;
+        if (series_size <= 0) {
+            PSErr(
+                NULL, "Sequence[%d] Invalid length %d at data offset %d",
+                i, series_size, (int) (size_p - data)
+            );
             free(series);
             return NULL;
         }
+        int xmul = (recurrent_input ? series_size : 1),
+            ymul = (recurrent_output ? series_size : 1);
         series[i] = p++;
-        p += ((series_size *x_size) + (series_size *y_size));
+        p += ((xmul * xsize) + (ymul * ysize));
     }
     return series;
 }
@@ -403,6 +423,98 @@ static int arrayMaxIndex(PSFloat *array, int len) {
         }
     }
     return max_idx;
+}
+
+int PSGetRecurrentHiddenStateCount(PSLayer *layer, PSNeuralNetwork *net) {
+    if (layer == NULL) {
+        if (net == NULL || !PSIsRecurrent(net)) return 0;
+        layer = PSGetFirstRecurrentLayer(net);
+        if (layer == NULL) {
+            int i;
+            for (i = 0; i < net->size; i++) {
+                PSLayer *l = net->layers[i];
+                if (PSIsRecurrent(l)) {
+                    layer = l;
+                    break;
+                }
+            }
+        }
+        if (layer == NULL) return 0;
+    }
+    if (!PSIsRecurrent(layer) || layer->size == 0) return 0;
+    PSNeuron *first = layer->neurons[0];
+    if (first == NULL) return 0;
+    PSRecurrentCell *cell = PSGetRecurrentCell(first);
+    if (cell == NULL) return 0;
+    return cell->states_count;
+}
+
+/* Find max activation value and the relative neuron index for layer `layer`,
+ * and store them into `max_p` pointer (max activation) and `index_p` pointer
+ * (index of neuron having maximum activation value).
+ * At least `max_p` or `index_p` must be provided.
+ * If layer is recurrent, an extra argument for timestep must be provided
+ * as a variadic argument (as int).
+ * If timestep is negative, it will be used to read activations in a reverse
+ * order (ie. -1 is last timestep, -2 is last timestep - 1, etc.).
+ * Timestep must be always in range of processed timesteps (hidden states),
+ * otherwise the function will fail.
+ * Return value: 1 in case of success, 0 in case of error. */
+int PSFindLayerMaxActivation(PSLayer *layer, PSFloat *max_p, int *index_p, ...)
+{
+    if (max_p == NULL && index_p == NULL) return 0;
+    int tstep = 0, i;
+    int is_recurrent = PSIsRecurrent(layer);
+    if (is_recurrent) {
+        va_list args;
+        va_start(args, index_p);
+        tstep = va_arg(args, int);
+        va_end(args);
+    }
+    PSFloat max = 0.0;
+    int max_idx = -1;
+    for (i = 0; i < layer->size; i++) {
+        PSNeuron *neuron = layer->neurons[i];
+        PSFloat activation = neuron->activation;
+        if (is_recurrent) {
+            PSRecurrentCell *cell = PSGetRecurrentCell(neuron);
+            if (cell == NULL) {
+                PSErr(
+                    __func__, "Recurrent Neuron %d belonging to layer %d "
+                    "has NULL recurrent cell", i, layer->index
+                );
+                return 0;
+            }
+            if (tstep >= 0 && tstep >= cell->states_count) {
+                PSErr(
+                    __func__, "Invalid timestep %d: layer %d, only has %d "
+                    "hidden states", tstep, i, layer->index, cell->states_count
+                );
+                return 0;
+            }
+            if (tstep < 0) {
+                int t = cell->states_count - tstep;
+                if (t < 0) {
+                    PSErr(
+                        __func__, "Invalid timestep %d: layer %d , has %d "
+                        "hidden states", tstep, i, layer->index,
+                        cell->states_count
+                    );
+                    return 0;
+                }
+                tstep = t;
+            }
+            activation = cell->states[tstep];
+        }
+        if (activation > max) {
+            max = activation;
+            max_idx = i;
+        }
+    }
+    if (max_idx < 0) return 0;
+    if (max_p != NULL) *max_p = max;
+    if (index_p != NULL) *index_p = max_idx;
+    return 1;
 }
 
 static void fetchRecurrentOutputState(PSLayer *out, PSFloat *outputs,
@@ -592,6 +704,32 @@ void PSPrintNetworkInfo(PSNeuralNetwork *network) {
         printf("  ");
         printLayerInfo(layer);
     }
+    int is_recurrent = PSIsRecurrent(network);
+    PSRecurrentNetworkMode mode = PSGetRecurrentNetworkMode(network);
+    PSNetworkContext *ctx = network->context;
+    assert(ctx != NULL);
+    PSLayer *first_recurrent_layer = NULL, *last_recurrent_layer = NULL;
+    if (is_recurrent || mode != NonRecurrent) {
+        first_recurrent_layer = PSGetFirstRecurrentLayer(network);
+        last_recurrent_layer = PSGetLastRecurrentLayer(network);
+        printf(
+            "Recurrent Network Mode: %s\n",
+            PSGetRecurrentModeLabel(mode)
+        );
+        if (ManyToOne == mode) {
+            if (last_recurrent_layer != NULL) {
+                printf(
+                    "Last Recurrent Layer: %d\n", last_recurrent_layer->index
+                );
+            }
+        } else if (OneToMany == mode) {
+            if (first_recurrent_layer != NULL) {
+                printf(
+                    "First Recurrent Layer: %d\n", first_recurrent_layer->index
+                );
+            }
+        }
+    }
     printf("Total (trainable) parameters: %d\n",
         PSGetNetworkParametersCount(network));
     char *loss_name = getLossFunctionName(network->loss);
@@ -645,12 +783,45 @@ PSFloat PSCrossEntropyLoss(PSFloat *outputs, PSFloat *desired, int size,
         }
     }
     loss *= -1;
-    if (onehot_size)
-        loss = (loss / (PSFloat) size);/*  / log((PSFloat) onehot_size); */
     return loss;
 }
 
 /* Neural Network Functions */
+
+PSLayer *PSGetFirstRecurrentLayer(PSNeuralNetwork *network) {
+    PSNetworkContext *ctx = getNetworkContext(network);
+    if (ctx == NULL) return NULL;
+    return ctx->first_recurrent_layer;
+}
+
+PSLayer *PSGetLastRecurrentLayer(PSNeuralNetwork *network) {
+    PSNetworkContext *ctx = getNetworkContext(network);
+    if (ctx == NULL) return NULL;
+    return ctx->last_recurrent_layer;
+}
+
+int PSIsNetworkBuilt(PSNeuralNetwork *network) {
+    PSNetworkContext *ctx = getNetworkContext(network);
+    if (ctx == NULL) return 0;
+    return ctx->built;
+}
+
+static PSRecurrentNetworkOptions *createDefaultRNNOptions(PSNeuralNetwork *net)
+{
+    if (net->rnn_options != NULL) return net->rnn_options;
+    net->rnn_options = calloc(1, sizeof(PSRecurrentNetworkOptions));
+    if (net->rnn_options == NULL) {
+        PSPrintMemoryErrorMsg();
+        return NULL;
+    }
+    PSSetDefaultRNNOptions(net->rnn_options);
+    return net->rnn_options;
+}
+
+void PSSetDefaultRNNOptions(PSRecurrentNetworkOptions *opts) {
+    opts->sequence_stop_criterion.max_steps = MAX_RECURRENT_OUTPUT_STEPS;
+    opts->sequence_stop_criterion.eos = -1;
+}
 
 PSFloat applyDropout(PSNeuron *neuron, PSFloat value) {
     if (neuron->layer->dropout <= 0) return value;
@@ -690,12 +861,149 @@ int isDroppedOut(PSNeuron *neuron, ...) {
     return dropped_states[t];
 }
 
+static void updateNetworkForRecurrentMode(PSNeuralNetwork *network,
+                                          PSRecurrentNetworkMode mode)
+{
+    PSNetworkContext *ctx = getNetworkContext(network);
+    assert(ctx != NULL);
+    if (mode == ManyToOne || mode == OneToMany) {
+        ctx->first_recurrent_layer = NULL;
+        ctx->last_recurrent_layer = NULL;
+    }
+    int recurrent_input = (mode == ManyToMany || mode == ManyToOne),
+        recurrent_output = (mode == ManyToMany || mode == OneToMany),
+        last_layer_idx = (network->size - 1), i, j;
+    for (i = 0; i < network->size; i++) {
+        PSLayer *layer = network->layers[i];
+        PSLayerType type = layer->type;
+        if (i == 0 && recurrent_input) {
+            layer->flags |= FLAG_RECURRENT;
+            ctx->first_recurrent_layer = layer;
+        } else if (i == last_layer_idx && recurrent_output) {
+            layer->flags |= FLAG_RECURRENT;
+            ctx->last_recurrent_layer = layer;
+        } else if (ManyToMany == mode) {
+            layer->flags |= FLAG_RECURRENT;
+        } else if (ManyToOne == mode) {
+            if (i < last_layer_idx) {
+                if (PSIsRecurrent(layer)) {
+                    ctx->last_recurrent_layer = layer;
+                    for (j = 1; j < layer->index; j++)
+                        network->layers[j]->flags |= FLAG_RECURRENT;
+                }
+            } else if (Recurrent != type && LSTM != type) {
+                network->layers[i]->flags &= (unsigned) (~FLAG_RECURRENT);
+            }
+        } else if (OneToMany == mode) {
+            if (PSIsRecurrent(layer)) ctx->first_recurrent_layer = layer;
+            else if (ctx->first_recurrent_layer != NULL) {
+                if (layer->index > ctx->first_recurrent_layer->index)
+                    layer->flags |= FLAG_RECURRENT;
+            }
+        }
+    }
+}
+
+int PSBuildNetwork(PSNeuralNetwork *network) {
+    if (network == NULL) {
+        PSErr(__func__, "Network is null!");
+        return 0;
+    }
+    if (network->size == 0) {
+        PSErr(__func__, "Network is empty!");
+        return 0;
+    }
+    PSNetworkContext *ctx = getNetworkContext(network);
+    if (ctx == NULL) {
+        ctx = network->context = calloc(1, sizeof(PSNetworkContext));
+        if (ctx == NULL) {
+            PSPrintMemoryErrorMsg();
+            PSErr(__func__, "Cannot build network");
+            return 0;
+        }
+    } else if (ctx->built) return 1;
+    int is_recurrent = PSIsRecurrent(network);
+    PSRecurrentNetworkMode mode = PSGetRecurrentNetworkMode(network);
+    PSLayer *input_layer = network->layers[0],
+            *output_layer = network->layers[network->size - 1];
+    if (is_recurrent) {
+        if (mode != NonRecurrent) updateNetworkForRecurrentMode(network, mode);
+        else {
+            int recurrent_input = PSIsRecurrent(input_layer),
+                recurrent_output = PSIsRecurrent(output_layer);
+            if (recurrent_input && recurrent_output)
+                mode = ManyToMany;
+            else if (recurrent_input && !recurrent_output)
+                mode = ManyToOne;
+            else if (!recurrent_input && recurrent_output)
+                mode = OneToMany;
+            else {
+                PSErr(
+                    __func__, "Recurrent network must have at least recurrent "
+                    "input or output"
+                );
+                return 0;
+            }
+            updateNetworkForRecurrentMode(network, mode);
+        }
+    }
+    if (network->loss == NULL) {
+        if (output_layer->type == SoftMax) network->loss = PSCrossEntropyLoss;
+        else network->loss = PSQuadraticLoss;
+    }
+    ctx->built = 1;
+    return 1;
+}
+
+char *PSGetRecurrentModeLabel(PSRecurrentNetworkMode mode) {
+    switch (mode) {
+        case NonRecurrent: return "Non-Recurrent";
+        case ManyToMany: return "Many-to-Many";
+        case ManyToOne: return "Many-to-One";
+        case OneToMany: return "One-to-Many";
+    }
+    return "UNKOWN";
+}
+
+PSRecurrentNetworkMode PSGetRecurrentNetworkMode(PSNeuralNetwork *network) {
+    PSRecurrentNetworkOptions *opts = network->rnn_options;
+    if (opts == NULL) return NonRecurrent;
+    return opts->mode;
+}
+
+int PSSetRecurrentNetworkMode(PSNeuralNetwork *network,
+                              PSRecurrentNetworkMode mode)
+{
+    if (network == NULL) {
+        PSErr(__func__, "Network is null!");
+        return 0;
+    }
+    if (network->size == 0) goto final;
+    if (mode == NonRecurrent && PSIsRecurrent(network)) {
+        PSErr(
+            __func__, "Invalid mode NonRecurrent: network is already "
+            "recurrent"
+        );
+        return 0;
+    }
+    if (network->rnn_options == NULL)
+        if (createDefaultRNNOptions(network) == NULL) return 0;
+    updateNetworkForRecurrentMode(network, mode);
+final:
+    if (network->rnn_options == NULL)
+        if (createDefaultRNNOptions(network) == NULL) return 0;
+    network->rnn_options->mode = mode;
+    if (mode != NonRecurrent) network->flags |= FLAG_RECURRENT;
+    return 1;
+}
+
 PSNeuralNetwork *PSCreateNetwork(const char* name) {
     PSNeuralNetwork *network = (malloc(sizeof(PSNeuralNetwork)));
     if (network == NULL) {
-        PSErr("PSCreateNetwork", "Could not allocate memory for Network!");
         return NULL;
     }
+    network->context = calloc(1, sizeof(PSNetworkContext));
+    if (network->context == NULL) goto memory_err;
     network->name = name;
     network->size = 0;
     network->layers = NULL;
@@ -707,7 +1015,12 @@ PSNeuralNetwork *PSCreateNetwork(const char* name) {
     network->training = NULL;
     network->onEpochTrained = NULL;
     network->onBatchTrained = NULL;
+    network->rnn_options = NULL;
     return network;
+memory_err:
+    if (network != NULL) PSDeleteNetwork(network);
+    PSErr(__func__, "Could not allocate memory for Network!");
+    return NULL;
 }
 
 PSNeuralNetwork *PSCloneNetwork(PSNeuralNetwork *network, int layout_only) {
@@ -718,6 +1031,7 @@ PSNeuralNetwork *PSCloneNetwork(PSNeuralNetwork *network, int layout_only) {
         clone->status = network->status;
         if (network->training != NULL) {
             clone->training = malloc(sizeof(PSTrainingInfo));
+            if (clone->training == NULL) goto err;
             clone->training->current_epoch = network->training->current_epoch;
             clone->training->current_batch = network->training->current_batch;
             clone->training->current_element =
@@ -730,6 +1044,14 @@ PSNeuralNetwork *PSCloneNetwork(PSNeuralNetwork *network, int layout_only) {
     }
     clone->flags = network->flags;
     clone->loss = network->loss;
+    if (network->rnn_options != NULL) {
+        clone->rnn_options = malloc(sizeof(PSRecurrentNetworkOptions));
+        if (clone->rnn_options == NULL) goto err;
+        memcpy(
+            clone->rnn_options, network->rnn_options,
+            sizeof(PSRecurrentNetworkOptions)
+        );
+    }
 
     int i, j, k, w;
     for (i = 0; i < network->size; i++) {
@@ -792,20 +1114,34 @@ PSNeuralNetwork *PSCloneNetwork(PSNeuralNetwork *network, int layout_only) {
                     for (w = 0; w < orig_n->weights_size; w++)
                         cweights[w] = oweights[w];
                 }
-                if (layer->flags & FLAG_RECURRENT) {
+                if (PSIsRecurrent(layer)) {
                     PSRecurrentCell *ocell = PSGetRecurrentCell(orig_n);
-                    PSRecurrentCell *ccell = PSGetRecurrentCell(clone_n);
-                    int sc = ocell->states_count;
-                    ccell->states_count = sc;
-                    if (sc > 0) {
-                        ccell->states = malloc(sc * sizeof(PSFloat));
-                        if (ccell->states == NULL) {
-                            PSPrintMemoryErrorMsg();
-                            PSDeleteNetwork(clone);
-                            return NULL;
+                    if (ocell != NULL) {
+                        PSRecurrentCell *ccell = PSGetRecurrentCell(clone_n);
+                        if (ccell == NULL) {
+                            if (LSTM == type || Recurrent == type) {
+                                PSDeleteNetwork(clone);
+                                return  NULL;
+                            }
+                            ccell = PSCreateRecurrentCell(clone_n, 0);
+                            if (ccell == NULL) {
+                                PSDeleteNetwork(clone);
+                                PSPrintMemoryErrorMsg();
+                                return NULL;
+                            }
                         }
-                        for (k = 0; k < sc; k++)
-                            ccell->states[k] = ocell->states[k];
+                        int sc = ocell->states_count;
+                        ccell->states_count = sc;
+                        if (sc > 0) {
+                            ccell->states = malloc(sc * sizeof(PSFloat));
+                            if (ccell->states == NULL) {
+                                PSPrintMemoryErrorMsg();
+                                PSDeleteNetwork(clone);
+                                return NULL;
+                            }
+                            for (k = 0; k < sc; k++)
+                                ccell->states[k] = ocell->states[k];
+                        }
                     }
                 }
                 if (layer->type == LSTM) {
@@ -819,7 +1155,27 @@ PSNeuralNetwork *PSCloneNetwork(PSNeuralNetwork *network, int layout_only) {
             }
         }
     }
+    memcpy(clone->context, network->context, sizeof(PSNetworkContext));
+    if (clone->layers == NULL) {
+        if (network->layers == NULL) return clone;
+        else goto err;
+    }
+    PSLayer *first_recurrent = PSGetFirstRecurrentLayer(network);
+    PSLayer *last_recurrent = PSGetLastRecurrentLayer(network);
+    if (first_recurrent != NULL) {
+        setNetworkContext(
+            clone, first_recurrent_layer, clone->layers[first_recurrent->index]
+        );
+    } else setNetworkContext(clone, first_recurrent_layer, NULL);
+    if (last_recurrent != NULL) {
+        setNetworkContext(
+            clone, last_recurrent_layer, clone->layers[last_recurrent->index]
+        );
+    } else setNetworkContext(clone, last_recurrent_layer, NULL);
     return clone;
+err:
+    if (clone != NULL) PSDeleteNetwork(clone);
+    return NULL;
 }
 
 int PSLoadNetwork(PSNeuralNetwork *network, const char* filename) {
@@ -835,7 +1191,9 @@ int PSLoadNetwork(PSNeuralNetwork *network, const char* filename) {
     char vers[20] = "0.0.0";
     int v0 = 0, v1 = 0, v2 = 0;
     int epochs = 0, batch_count = 0, elements = 0, status = STATUS_UNTRAINED,
-        batch_size = 0;
+        batch_size = 0, is_built = 0, rnn_mode = NonRecurrent,
+        max_recurrent_output_steps = MAX_RECURRENT_OUTPUT_STEPS,
+        eos_recurrent_output_index = -1;
     int matched = fscanf(f, "--v%d.%d.%d", &v0, &v1, &v2);
     if (matched) {
         sprintf(vers, "%d.%d.%d", v0, v1, v2);
@@ -863,16 +1221,36 @@ int PSLoadNetwork(PSNeuralNetwork *network, const char* filename) {
                         printf("Loss Function: %s\n",getLossFunctionName(loss));
                     }
                     break;
-                case 2: epochs = val; break;
-                case 3: batch_count = val; break;
-                case 4: status = val; break;
-                case 5: elements = val; break;
-                case 6: batch_size = val; break;
+                case 2:  epochs = val; break;
+                case 3:  batch_count = val; break;
+                case 4:  status = val; break;
+                case 5:  elements = val; break;
+                case 6:  batch_size = val; break;
+                case 7:  rnn_mode = (PSRecurrentNetworkMode) val; break;
+                case 8:  max_recurrent_output_steps = val; break;
+                case 9:  eos_recurrent_output_index = val; break;
+                case 10: is_built = val; break;
                 default:
                     break;
             }
         }
         fscanf(f, "\n");
+        if (rnn_mode != NonRecurrent)
+            PSSetRecurrentNetworkMode(network, rnn_mode);
+        if (max_recurrent_output_steps > 0 || eos_recurrent_output_index >= 0) {
+            if (network->rnn_options == NULL) {
+                network->rnn_options =
+                    calloc(1, sizeof(PSRecurrentNetworkOptions));
+                if (network->rnn_options == NULL) {
+                    PSPrintMemoryErrorMsg();
+                    return 0;
+                }
+            }
+            network->rnn_options->sequence_stop_criterion.max_steps =
+                max_recurrent_output_steps;
+            network->rnn_options->sequence_stop_criterion.eos =
+                eos_recurrent_output_index;
+        }
         network->status = status;
         if (status != STATUS_UNTRAINED) {
             if (network->training == NULL) {
@@ -900,8 +1278,8 @@ int PSLoadNetwork(PSNeuralNetwork *network, const char* filename) {
     char sep[] = ",";
     char eol[] = "\n";
     int min_argc = 1;
-    if (compareVersion(vers, "0.2.2") == 1)  min_argc = DATA_LAYER_MIN_ARGC;
-    else if (compareVersion(vers, "0.0.0") == 1)  min_argc = 2;
+    if (compareVersion(vers, "0.2.2") == 1) min_argc = DATA_LAYER_MIN_ARGC;
+    else if (compareVersion(vers, "0.0.0") == 1) min_argc = 2;
     PSLayer *layer = NULL;
     for (i = 0; i < netsize; i++) {
         int lsize = 0;
@@ -1108,6 +1486,7 @@ int PSLoadNetwork(PSNeuralNetwork *network, const char* filename) {
         printf("\n");
         printLayerInfo(layer);
     }
+    setNetworkContext(network, built, is_built);
     printf("\n");
     fclose(f);
     return 1;
@@ -1141,9 +1520,17 @@ int PSSaveNetwork(PSNeuralNetwork *network, const char* filename) {
         current_element = network->training->current_element;
         batch_size = network->training->batch_size;
     }
-    fprintf(f, ",%d,%d,%d,%d,%d,%d,%d\n", network->flags, loss_function,
-            current_epoch, current_batch, network->status, current_element,
-            batch_size);
+    PSRecurrentNetworkMode rnn_mode = PSGetRecurrentNetworkMode(network);
+    int max_steps = 0, eos = -1;
+    if (network->rnn_options != NULL) {
+        max_steps = network->rnn_options->sequence_stop_criterion.max_steps;
+        eos = network->rnn_options->sequence_stop_criterion.eos;
+    }
+    PSNetworkContext *ctx = getNetworkContext(network);
+    fprintf(f, ",%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n", network->flags,
+            loss_function, current_epoch, current_batch, network->status,
+            current_element, batch_size, (int) rnn_mode,
+            max_steps, eos, ctx->built);
     fprintf(f, "%d:", network->size);
     for (i = 0; i < network->size; i++) {
         PSLayer *layer = network->layers[i];
@@ -1256,11 +1643,14 @@ static void DumpLayerInfo(PSLayer *layer, FILE *dump_file, int add_new_line) {
     PSHyperParameters *lparams = layer->hyper_parameters;
     fprintf(dump_file, "layer:index=%d,type=%s,size=%d", layer->index,
         type_name, layer->size);
-    if (layer->index == 0 && layer->flags & FLAG_ONEHOT) {
+    int onehot_input = (layer->index == 0 && layer->flags & FLAG_ONEHOT);
+    if (onehot_input) {
         PSHyperParameters *params = layer->hyper_parameters;
         int onehot_sz = (int) (params->parameters[0]);
         fprintf(dump_file, ",vector_size=%d", onehot_sz);
     }
+    if (PSIsRecurrent(layer) && PSIsRecurrent(layer->network))
+        fprintf(dump_file, ",recurrent=1");
     int fcount = 1;
     if ((ltype == Convolutional || ltype == Pooling) && lparams != NULL) {
         PSFloat *params = lparams->parameters;
@@ -1285,7 +1675,7 @@ static void DumpLayerInfo(PSLayer *layer, FILE *dump_file, int add_new_line) {
             if (padding < 0) padding = 0;
             fprintf(dump_file, ",padding=%d,activation=%s", padding, actv);
         }
-    } else if (lparams != NULL && ltype == FullyConnected) {
+    } else if (!onehot_input && lparams != NULL && ltype == FullyConnected) {
         PSFloat *params = lparams->parameters;
         fcount = (int) (params[PARAM_FEATURE_COUNT]);
         if (fcount > 1) fprintf(dump_file, ",features=%d", fcount);
@@ -1300,20 +1690,48 @@ int PSDumpNetworkActivations(PSNeuralNetwork *network, const char* filename) {
     }
     FILE *f = fopen(filename, "w");
     if (f == NULL) {
-        fprintf(stderr, "Cannot open %s for writing!\n", filename);
+        PSErr(__func__, "Cannot open %s for writing!", filename);
         return 0;
     }
     DumpNetworkHeader(network, f);
     int i;
     for (i = 0; i < network->size; i++) {
         PSLayer *layer = network->layers[i];
-        int nidx = 0;
+        int is_recurrent = PSIsRecurrent(layer), timesteps = 0;
+        int nidx = 0, t = 0;
         DumpLayerInfo(layer, f, 0);
+        if (is_recurrent) {
+            timesteps = PSGetRecurrentHiddenStateCount(layer, network);
+            fprintf(f, ",timesteps=%d", timesteps);
+        }
         fprintf(f, ",activations=(");
         for(; nidx < layer->size; nidx++) {
-            char *fmt = (nidx > 0 ? ",%.15e": "%.15e");
             PSNeuron *n = layer->neurons[nidx];
-            fprintf(f, fmt, n->activation);
+            if (n == NULL) {
+                PSErr(__func__, "Layer[%d] Neuron[%s] is null", i, nidx);
+                return 0;
+            }
+            if (!is_recurrent) {
+                char *fmt = (nidx > 0 ? ",%.15e": "%.15e");
+                fprintf(f, fmt, n->activation);
+            } else {
+                PSRecurrentCell *cell = PSGetRecurrentCell(n);
+                if (cell == NULL || cell->states_count != timesteps ||
+                    cell->states == NULL)
+                {
+                    PSErr(
+                        __func__, "Invalid cell in layer %d, neuron %d",
+                        i, nidx
+                    );
+                    fclose(f);
+                    return 0;
+                }
+                for (t = 0; t < timesteps; t++) {
+                    char *fmt = (nidx > 0 || t > 0 ? ",%.15e": "%.15e");
+                    PSFloat s = cell->states[t];
+                    fprintf(f, fmt, s);
+                }
+            }
         }
         fprintf(f, ")\n");
     }
@@ -1358,12 +1776,16 @@ void PSDeleteNetwork(PSNeuralNetwork *network) {
     int size = network->size;
     int i, is_recurrent = (network->flags & FLAG_RECURRENT);
     for (i = 0; i < size; i++) {
-        PSLayer *layer = network->layers[i];
+        PSLayer *layer = NULL;
+        if (network->layers != NULL) layer = network->layers[i];
+        if (layer == NULL) continue;
         if (is_recurrent) layer->flags |= FLAG_RECURRENT;
         PSDeleteLayer(layer);
     }
     free(network->layers);
     if (network->training != NULL) free(network->training);
+    if (network->rnn_options != NULL) free(network->rnn_options);
+    if (network->context != NULL) free(network->context);
     free(network);
 }
 
@@ -1385,7 +1807,8 @@ void PSDeleteNeuron(PSNeuron *neuron, PSLayer *layer) {
 }
 
 PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
-                     PSHyperParameters* params) {
+                     PSHyperParameters* params)
+{
     if (network == NULL) return NULL;
     if (network->size == 0 && type != FullyConnected) {
         PSErr(__func__, "First layer type must be FullyConnected");
@@ -1522,7 +1945,7 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
             layer->feedforward = softmaxFeedforward;
             layer->backprop = NULL; /* Softmax layer should always be output
                                      * layer. */
-            /* network->loss = PSCrossEntropyLoss; */
+            network->loss = PSCrossEntropyLoss;
         }
         initialized = 1;
     } else if (type == Convolutional) {
@@ -1532,10 +1955,8 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
         initialized = PSInitPoolingLayer(network, layer, params);
     } else if (type == Recurrent) {
         initialized = PSInitRecurrentLayer(network, layer, size, previous_size);
-        if (initialized) network->loss = PSCrossEntropyLoss;
     } else if (type == LSTM) {
         initialized = PSInitLSTMLayer(network, layer, size, previous_size);
-        if (initialized) network->loss = PSCrossEntropyLoss;
     }
     int layer_idx = layer->index;
     if (!initialized) {
@@ -1558,6 +1979,21 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
         }
     }
     network->layers[layer->index] = layer;
+    if (PSIsRecurrent(network) || PSIsRecurrent(layer)) {
+        int ok = 1;
+        PSRecurrentNetworkMode rnn_mode = PSGetRecurrentNetworkMode(network);
+        if (rnn_mode == NonRecurrent)
+            ok = PSSetRecurrentNetworkMode(network, DEFAULT_RECURRENT_MODE);
+        else updateNetworkForRecurrentMode(network, rnn_mode);
+        if (!ok) {
+            PSAbortLayer(network, layer);
+            PSErr(
+                __func__, "Could not set default recurrent mode for  layer %d!",
+                layer_idx
+            );
+            return NULL;
+        }
+    }
     /*printLayerInfo(layer);*/ /*TODO:Enable it after implementing log-levels*/
     return layer;
 }
@@ -1692,7 +2128,7 @@ int inputLayerFeedforward(PSNeuralNetwork *network, PSFloat *values, ...) {
      * (many-to-many,one-to-many, etc.), remove check for
      * `PSIsRecurrent(network)` since check will be made only on
      * layer itself. */
-    int is_recurrent = PSIsRecurrent(first) || PSIsRecurrent(network);
+    int is_recurrent = PSIsRecurrent(first);
     if (is_recurrent) {
         va_list ap;
         va_start(ap, values);
@@ -1730,12 +2166,48 @@ int feedforwardThroughTime(PSNeuralNetwork *network, PSFloat *values,
                            int timesteps)
 {
     if (network == NULL) return 0;
-    PSLayer *first = network->layers[0];
-    int input_size = first->size, i, t, ok;
+    PSRecurrentNetworkOptions *rnn_options = network->rnn_options;
+    PSLayer *first = PSGetFirstRecurrentLayer(network);
+    if (first == NULL) first = network->layers[0];
+    int input_size = first->size, first_layer_idx = first->index,
+        output_idx = network->size - 1, last_layer_idx = output_idx,
+        start_idx = first_layer_idx, i, t, ok = 1;
+    PSLayer *first_recurrent = PSGetFirstRecurrentLayer(network);
+    PSLayer *last_recurrent = PSGetLastRecurrentLayer(network);
+    if (last_recurrent != NULL)
+        last_layer_idx = last_recurrent->index;
+    while (!PSIsRecurrent(first)) {
+        if (first->index >= output_idx) return 0;
+        first = network->layers[first->index + 1];
+        if (PSIsRecurrent(first) && first_recurrent == NULL)
+            setNetworkContext(network, first_recurrent_layer, first);
+    }
+    int variable_timesteps = 0, eos = -1;
+    /* Values can only be NULL if first recurrent layer is not the
+     * input layer. */
+    if (values == NULL) {
+        if (first->index == 0) {
+            PSErr(NULL, "Recurrent network with sequence input cannot have"
+                  " receive NULL values");
+            return 0;
+        }
+        if ((variable_timesteps = (timesteps == 0))) {
+            if (rnn_options != NULL) {
+                timesteps = rnn_options->sequence_stop_criterion.max_steps;
+                eos = rnn_options->sequence_stop_criterion.eos;
+            }
+            if (timesteps <= 0) timesteps = MAX_RECURRENT_OUTPUT_STEPS;
+        }
+    }
+    PSLayer *last_layer = NULL;
+    int recurrent_input = (first_layer_idx == 0);
+    if (recurrent_input) start_idx++;
     for (t = 0; t < timesteps; t++) {
-        ok = inputLayerFeedforward(network, values, timesteps, t);
-        if (!ok) return 0;
-        for (i = 1; i < network->size; i++) {
+        if (recurrent_input) {
+            ok = inputLayerFeedforward(network, values, timesteps, t);
+            if (!ok) return 0;
+        }
+        for (i = start_idx; i <= last_layer_idx; i++) {
             PSLayer *layer = network->layers[i];
             if (layer == NULL) {
                 PSErr(__func__, "Layer %d is NULL", i);
@@ -1745,10 +2217,95 @@ int feedforwardThroughTime(PSNeuralNetwork *network, PSFloat *values,
                 PSErr(__func__, "Layer %d feedforward function is NULL", i);
                 return 0;
             }
+            if (!PSIsRecurrent(layer)) break;
+            else last_layer = layer;
             ok = layer->feedforward(network, layer, timesteps, t);
             if (!ok) return 0;
         }
-        values += input_size;
+        if (last_recurrent == NULL && last_layer != NULL)
+            setNetworkContext(network, last_recurrent_layer, last_layer);
+        if (values != NULL) values += input_size;
+        if (variable_timesteps && eos >= 0 && last_layer != NULL) {
+            int max_idx = -1;
+            if (!PSFindLayerMaxActivation(last_layer, NULL, &max_idx, t))
+                return 0;
+            if (max_idx == eos) break;
+        }
+    }
+    return 1;
+}
+
+int feedforward(PSNeuralNetwork *network, PSFloat *values, int backprop) {
+    if (network == NULL) return 0;
+    if (network->size == 0) {
+        PSErr(__func__, "Empty network!");
+        return 0;
+    }
+    if (!PSIsNetworkBuilt(network)) {
+        PSErr(__func__, "Network is not built!");
+        return 0;
+    }
+    if (values == NULL) {
+        PSErr(__func__, "Null values");
+        return 0;
+    }
+    int is_recurrent = PSIsRecurrent(network), recurrent_input = 0, i,
+        ok = 1, timesteps = 0, first_idx = 0, output_idx = network->size - 1;
+    PSLayer *input_layer = network->layers[0],
+            *output_layer = network->layers[output_idx],
+            *first_recurrent = NULL,
+            *last_recurrent = NULL;
+    if (is_recurrent) {
+        first_recurrent = PSGetFirstRecurrentLayer(network);
+        last_recurrent = PSGetLastRecurrentLayer(network);
+        if ((recurrent_input = PSIsRecurrent(input_layer))) {
+            /* Read timesteps from first element in `values`. */
+            timesteps = (int) values[0];
+        } else if (backprop && PSIsRecurrent(output_layer)) {
+            /* If feedforward is called from backprop and network has
+             * recurrent output but non-recurrent input (OneToMany),
+             * we should read the timesteps that are the first element
+             * of labels (y) that follows values. */
+            PSFloat *y = values + network->input_size;
+            timesteps = y[0];
+        }
+    }
+    if (recurrent_input) {
+        if (timesteps <= 0) {
+            PSErr(
+                __func__, "Recurrent timesteps must be > 0 (found %d)",
+                timesteps
+            );
+            return 0;
+        }
+        ok = feedforwardThroughTime(network, values + 1, timesteps);
+        if (!ok) return 0;
+        if (last_recurrent == NULL && PSIsRecurrent(output_layer)){
+            setNetworkContext(network, last_recurrent_layer, output_layer);
+            return ok;
+        } else if (last_recurrent != NULL) {
+            int last_recurrent_idx = last_recurrent->index;
+            if (last_recurrent_idx >= output_idx) return ok;
+            else first_idx = last_recurrent_idx;
+        }
+    } else {
+        ok = inputLayerFeedforward(network, values);
+        if (!ok) return 0;
+    }
+    for (i = (first_idx + 1); i < network->size; i++) {
+        PSLayer *layer = network->layers[i];
+        if (layer == NULL) {
+            PSErr(__func__, "Layer %d is NULL!", i);
+            return 0;
+        }
+        if (is_recurrent && layer == first_recurrent)
+            return feedforwardThroughTime(network, NULL, timesteps);
+        if (layer->feedforward == NULL) {
+            PSErr(__func__, "Layer %d feedforward function is NULL", i);
+            return 0;
+        }
+        ok = layer->feedforward(network, layer);
+        if (!ok) return 0;
     }
     return 1;
 }
@@ -1759,40 +2316,7 @@ int feedforwardThroughTime(PSNeuralNetwork *network, PSFloat *values,
  * In recurrent networks, `values` length should be input layer size + 1, and
  * the first value indicates the number of iterations (timesteps). */
 int PSFeedforward(PSNeuralNetwork *network, PSFloat *values) {
-    if (network == NULL) return 0;
-    if (network->size == 0) {
-        PSErr(__func__, "Empty network!");
-        return 0;
-    }
-    if (network->flags & FLAG_RECURRENT) {
-        /* Read number of iterations from first element in `values`. */
-        int timesteps = (int) values[0];
-        if (timesteps <= 0) {
-            PSErr(
-                __func__, "Recurrent timesteps must be > 0 (found %d)",
-                timesteps
-            );
-            return 0;
-        }
-        return feedforwardThroughTime(network, values + 1, timesteps);
-    }
-    int i, ok;
-    ok = inputLayerFeedforward(network, values);
-    if (!ok) return 0;
-    for (i = 1; i < network->size; i++) {
-        PSLayer *layer = network->layers[i];
-        if (layer == NULL) {
-            PSErr(__func__, "Layer %d is NULL!", i);
-            return 0;
-        }
-        if (layer->feedforward == NULL) {
-            PSErr(__func__, "Layer %d feedforward function is NULL", i);
-            return 0;
-        }
-        ok = layer->feedforward(network, layer);
-        if (!ok) return 0;
-    }
-    return 1;
+    return feedforward(network, values, 0);
 }
 
 PSGradient *createLayerGradients(PSLayer *layer) {
@@ -1946,7 +2470,7 @@ static void resetDeltas(PSNeuralNetwork *network) {
     }
 }
 
-int outputLayerBackprop(PSLayer *layer, PSLayer *previousLayer,
+int outputLayerBackprop(PSLayer *layer, PSLayer *previous_layer,
                         PSFloat *y, PSGradient *layer_gradients, ...)
 {
     PSNeuralNetwork *network = layer->network;
@@ -1955,9 +2479,8 @@ int outputLayerBackprop(PSLayer *layer, PSLayer *previousLayer,
     avx_disabled = PSIsAVXDisabled(network);
 #endif
     int apply_derivative = outputDerivativeNeeded(network);
-    int is_recurrent = PSIsRecurrent(layer) || PSIsRecurrent(network);
-    int prev_is_recurrent = PSIsRecurrent(previousLayer) ||
-                            PSIsRecurrent(network);
+    int is_recurrent = PSIsRecurrent(layer);
+    int prev_is_recurrent = PSIsRecurrent(previous_layer);
     int onehot = (layer->flags & FLAG_ONEHOT);
     int is_softmax = layer->type == SoftMax;
     PSFloat *delta = layer->delta;
@@ -1969,6 +2492,17 @@ int outputLayerBackprop(PSLayer *layer, PSLayer *previousLayer,
         va_start(args, layer_gradients);
         t = va_arg(args, int);
         va_end(args);
+    } else if (prev_is_recurrent) {
+        /* If output layer is not recurrent, but previous layer is recurrent,
+         * t is the last hidden state (state count - 1). */
+        t = PSGetRecurrentHiddenStateCount(previous_layer, network) - 1;
+        if (t < 0) {
+            PSErr(
+                NULL, "Recurrent layer %d has no hidden states",
+                previous_layer->index
+            );
+            return 0;
+        }
     }
     /* Compute delta */
     for (o = 0; o < layer->size; o++) {
@@ -2005,13 +2539,13 @@ int outputLayerBackprop(PSLayer *layer, PSLayer *previousLayer,
             if (!avx_disabled) {
                 int store_mode = (is_recurrent ? AVX_STORE_MODE_ADD : 0);
                 AVXIterativeMultiplyValue(
-                    wsize, previousLayer->avx_activation_cache, d,
+                    wsize, previous_layer->avx_activation_cache, d,
                     gradient->weights, w, is_recurrent, t, store_mode
                 );
             }
 #endif
             for (; w < wsize; w++) {
-                PSNeuron *prev_neuron = previousLayer->neurons[w];
+                PSNeuron *prev_neuron = previous_layer->neurons[w];
                 PSFloat prev_a;
                 if (!prev_is_recurrent) {
                     prev_a = prev_neuron->activation;
@@ -2021,12 +2555,12 @@ int outputLayerBackprop(PSLayer *layer, PSLayer *previousLayer,
                     prev_a = prevcell->states[t];
                     gradient->weights[w] += (d * prev_a);
                 }
-                if (avx_disabled && previousLayer->delta != NULL)
-                    previousLayer->delta[w] += (d * neuron->weights[w]);
+                if (avx_disabled && previous_layer->delta != NULL)
+                    previous_layer->delta[w] += (d * neuron->weights[w]);
             }
-            if (!avx_disabled && previousLayer->delta != NULL) {
+            if (!avx_disabled && previous_layer->delta != NULL) {
                 for (w = 0; w < wsize; w++) {
-                    previousLayer->delta[w] += (d * neuron->weights[w]);
+                    previous_layer->delta[w] += (d * neuron->weights[w]);
                 }
             }
         }
@@ -2050,13 +2584,13 @@ int outputLayerBackprop(PSLayer *layer, PSLayer *previousLayer,
             if (!avx_disabled) {
                 int store_mode = (is_recurrent ? AVX_STORE_MODE_ADD : 0);
                 AVXIterativeMultiplyValue(
-                    wsize, previousLayer->avx_activation_cache,
+                    wsize, previous_layer->avx_activation_cache,
                     d, gradient->weights, w, is_recurrent, t, store_mode
                 );
             }
 #endif
             for (; w < wsize; w++) {
-                PSNeuron *prev_neuron = previousLayer->neurons[w];
+                PSNeuron *prev_neuron = previous_layer->neurons[w];
                 PSFloat prev_a;
                 if (!prev_is_recurrent) {
                     prev_a = prev_neuron->activation;
@@ -2066,12 +2600,12 @@ int outputLayerBackprop(PSLayer *layer, PSLayer *previousLayer,
                     prev_a = prevcell->states[t];
                     gradient->weights[w] += (d * prev_a);
                 }
-                if (avx_disabled && previousLayer->delta != NULL)
-                    previousLayer->delta[w] += (d * neuron->weights[w]);
+                if (avx_disabled && previous_layer->delta != NULL)
+                    previous_layer->delta[w] += (d * neuron->weights[w]);
             }
-            if (!avx_disabled && previousLayer->delta != NULL) {
+            if (!avx_disabled && previous_layer->delta != NULL) {
                 for (w = 0; w < wsize; w++) {
-                    previousLayer->delta[w] += (d * neuron->weights[w]);
+                    previous_layer->delta[w] += (d * neuron->weights[w]);
                 }
             }
         }
@@ -2079,8 +2613,8 @@ int outputLayerBackprop(PSLayer *layer, PSLayer *previousLayer,
     return 1;
 }
 
-int fullBackprop(PSLayer *layer, PSLayer *previousLayer,
-                 PSGradient *layerGradients, ...)
+int fullBackprop(PSLayer *layer, PSLayer *previous_layer,
+                 PSGradient *layer_gradients, ...)
 {
     PSNeuralNetwork *network = layer->network;
     PSFloat *delta = layer->delta;
@@ -2091,11 +2625,11 @@ int fullBackprop(PSLayer *layer, PSLayer *previousLayer,
     UNUSED(network);
 #endif
     int is_recurrent = PSIsRecurrent(layer),
-        prev_is_recurrent = PSIsRecurrent(previousLayer),
+        prev_is_recurrent = PSIsRecurrent(previous_layer),
         t = 0;
     if (is_recurrent) {
         va_list args;
-        va_start(args, layerGradients);
+        va_start(args, layer_gradients);
         t = va_arg(args, int);
         va_end(args);
     }
@@ -2106,7 +2640,7 @@ int fullBackprop(PSLayer *layer, PSLayer *previousLayer,
             d *= layer->derivative(neuron->activation);
             delta[i] = d;
         }
-        PSGradient *gradient = &(layerGradients[i]);
+        PSGradient *gradient = &(layer_gradients[i]);
         if (!is_recurrent) gradient->bias = d;
         else gradient->bias += d;
         int wsize = neuron->weights_size, w = 0;
@@ -2114,13 +2648,13 @@ int fullBackprop(PSLayer *layer, PSLayer *previousLayer,
         if (!avx_disabled) {
             int store_mode = (is_recurrent ? AVX_STORE_MODE_ADD : 0);
             AVXIterativeMultiplyValue(
-                wsize, previousLayer->avx_activation_cache,
+                wsize, previous_layer->avx_activation_cache,
                 d, gradient->weights, w, is_recurrent, t, store_mode
             );
         }
 #endif
         for (; w < wsize; w++) {
-            PSNeuron *prev_neuron = previousLayer->neurons[w];
+            PSNeuron *prev_neuron = previous_layer->neurons[w];
             PSFloat prev_a;
             if (!prev_is_recurrent) {
                 prev_a = prev_neuron->activation;
@@ -2130,129 +2664,138 @@ int fullBackprop(PSLayer *layer, PSLayer *previousLayer,
                 prev_a = cell->states[t];
                 gradient->weights[w] += d * prev_a;
             }
-            if (avx_disabled && previousLayer->delta != NULL) {
-                if (!previousLayer->neurons[w]->dropped_out)
-                    previousLayer->delta[w] += (d * neuron->weights[w]);
+            if (avx_disabled && previous_layer->delta != NULL) {
+                if (!previous_layer->neurons[w]->dropped_out)
+                    previous_layer->delta[w] += (d * neuron->weights[w]);
             }
         }
-        if (!avx_disabled && previousLayer->delta != NULL) {
+        if (!avx_disabled && previous_layer->delta != NULL) {
             for (w = 0; w < wsize; w++) {
-                if (previousLayer->neurons[w]->dropped_out) continue;
-                previousLayer->delta[w] += (d * neuron->weights[w]);
+                if (previous_layer->neurons[w]->dropped_out) continue;
+                previous_layer->delta[w] += (d * neuron->weights[w]);
             }
         }
     }
     return 1;
 }
 
-PSGradient **backprop(PSNeuralNetwork *network, PSFloat *x, PSFloat *y) {
-    if (network == NULL) return NULL;
-    PSGradient **gradients = createGradients(network);
-    if (gradients == NULL) return NULL;
-    int netsize = network->size;
-    PSLayer *outputLayer = network->layers[netsize - 1];
-    PSGradient *lgradients = gradients[netsize - 2]; /* No gradient for
-                                                        inputs */
-    PSLayer *previousLayer = network->layers[outputLayer->index - 1];
-    resetDeltas(network);
-
-    int i, ok = 1;
-    if (x != NULL) {
-        ok = PSFeedforward(network, x);
-        if (!ok) goto final;
-    }
-    ok = outputLayerBackprop(outputLayer, previousLayer, y, lgradients);
-    if (!ok) goto final;
-    for (i = previousLayer->index; i > 0; i--) {
-        PSLayer *layer = network->layers[i];
-        previousLayer = network->layers[i - 1];
-        lgradients = gradients[i - 1];
-        PSLayerType ltype = layer->type;
-        PSLayerType prev_ltype = previousLayer->type;
-        ok = (
-            FullyConnected == ltype ||
-            (Pooling == ltype && Convolutional == prev_ltype) ||
-            Convolutional == ltype
-        );
-        if (!ok) {
-            PSErr(NULL, "Backprop from %s to %s not suported!\n",
-                  PSGetLayerTypeLabel(layer),
-                  PSGetLayerTypeLabel(previousLayer));
-            goto final;
-        }
-        ok = layer->backprop != NULL;
-        if (!ok) {
-            PSErr(
-                NULL, "Missing backprop function in %d layer %d",
-                PSGetLayerTypeLabel(layer), i
-            );
-            goto final;
-        }
-        ok = layer->backprop(layer, previousLayer, lgradients);
-        if (!ok) goto final;
-    }
-final:
-    if (!ok) {
-        if (gradients != NULL) PSDeleteGradients(gradients, network);
-        return NULL;
-    }
-    return gradients;
-}
-
-PSGradient **backpropThroughTime(PSNeuralNetwork *network, PSFloat *x,
-                                 PSFloat *y, int timesteps)
+int backpropThroughTime(PSNeuralNetwork *network, PSFloat *y,
+                        PSGradient **gradients, PSTrainingOptions *opts,
+                        int timesteps)
 {
-    if (network == NULL) return NULL;
-    PSGradient **gradients = createGradients(network);
-    if (gradients == NULL) return NULL;
+    if (network == NULL) return 0;
+    if (gradients == NULL) return 0;
     int netsize = network->size;
-    PSLayer *outputLayer = network->layers[netsize - 1];
-    if (outputLayer->type != SoftMax) {
-        PSErr("backpropThroughTime",
-              "Recurrent networks require a Softmax output layer, "
-              "current one is of type %s.", PSGetLayerTypeLabel(outputLayer));
-        PSDeleteGradients(gradients, network);
-        return NULL;
+    PSLayer *output_layer = network->layers[netsize - 1],
+            *last_recurrent = PSGetLastRecurrentLayer(network),
+            *network_last_recurrent = last_recurrent;
+    if (last_recurrent == NULL) last_recurrent = output_layer;
+    while (!PSIsRecurrent(last_recurrent)) {
+        if (last_recurrent->index <= 1) {
+            PSErr(NULL, "Failed to find last recurrent layer");
+            return 0;
+        }
+        last_recurrent = network->layers[last_recurrent->index - 1];
     }
-    int onehot = (outputLayer->flags & FLAG_ONEHOT);
-    int osize = outputLayer->size;
-    int bptt_truncate = BPTT_TRUNCATE;
-
-    int i, j, t;
-    int ok = feedforwardThroughTime(network, x, timesteps);
-    if (!ok) goto final;
+    if (network_last_recurrent == NULL && PSIsRecurrent(last_recurrent))
+        setNetworkContext(network, last_recurrent_layer, last_recurrent);
     int last_t = timesteps - 1;
-    resetDeltas(network);
+    int recurrent_output = (last_recurrent == output_layer);
+    int bptt_truncate = (opts != NULL ? opts->bptt_truncate : BPTT_TRUNCATE);
+    if (bptt_truncate < 0) bptt_truncate = 0;
+    int onehot, osize, ysize, i, j, t, ok = 1;
+    PSFloat *eos_labels = NULL;
+    if (recurrent_output) {
+        PSRecurrentNetworkOptions *rnn_options = network->rnn_options;
+        ok = (y != NULL);
+        if (!ok) {
+            PSErr(NULL, "Label values for recurrent output layer are NULL");
+            goto final;
+        }
+        onehot = (output_layer->flags & FLAG_ONEHOT);
+        osize = output_layer->size;
+        ysize = (onehot ? 1 : osize);
+        int hidden_state_count = PSGetRecurrentHiddenStateCount(
+            output_layer, network
+        );
+        ok = (hidden_state_count > 0);
+        if (!ok) {
+            PSErr(NULL, "Cannot backpropagate on recurrent network with "
+                  "zero hidden states");
+            return 0;
+        }
+        int max_timesteps = (
+            hidden_state_count > timesteps ? hidden_state_count : timesteps
+        );
+        if (timesteps < max_timesteps) {
+            /* Feedforward produced more hidden states than sequences provided
+             * by `y` (timesteps). In this case, results produced by the
+             * recurrent feedforward that exceed training timesteps must be
+             * compared to a virtual EOS (end-of-sequence) output.
+             * EOS output must be generated depending on the
+             * network->rnn_options->sequence_stop_criterion.eos` value, that
+             * in a OneHot index of the output vector (ie. 0).
+             * In this case, `eos` is mandatory. */
+            int eos = -1;
+            if (rnn_options != NULL)
+                eos = rnn_options->sequence_stop_criterion.eos;
+            if (eos < 0 || eos >= osize) {
+                PSErr(NULL, "Invalid eos_recurrent_output_index: %d", eos);
+                ok = 0;
+                goto final;
+            }
+            eos_labels = calloc(ysize, sizeof(PSFloat));
+            ok = (eos_labels != NULL);
+            if (!ok) {
+                PSPrintMemoryErrorMsg();
+                goto final;
+            }
+            if (!onehot) eos_labels[eos] = 1.0;
+            else eos_labels[0] = (PSFloat) eos;
+        }
+        last_t = max_timesteps - 1;
+    }
+    int do_truncate = bptt_truncate > 0;
+    if (recurrent_output) resetDeltas(network);
     PSFloat *delta;
     for (t = last_t; t >= 0; t--) {
         int lowest_t = t - bptt_truncate;
         if (lowest_t < 0) lowest_t = 0;
-        PSLayer *previousLayer = NULL;
-        int ysize = (onehot ? 1 : osize);
-        int timestep_offset = t * ysize;
-        PSFloat *timestep_y = y + timestep_offset;
-
-        PSGradient *lgradients =
-            gradients[netsize - 2];/* No gradients for inputs*/
-        previousLayer = network->layers[outputLayer->index - 1];
-        resetLayerDeltas(previousLayer, 0);
-
-        ok = outputLayerBackprop(
-            outputLayer, previousLayer, timestep_y, lgradients, t
-        );
-        if (!ok) goto final;
+        PSLayer *previous_layer = NULL;
+        if (recurrent_output) {
+            /* Backpropagate starting from output layer. */
+            PSFloat *timestep_y = NULL;
+            if (t < timesteps) {
+                int timestep_offset = t * ysize;
+                timestep_y = y + timestep_offset;
+            } else timestep_y = eos_labels;
+            PSGradient *lgradients =
+                gradients[netsize - 2];/* No gradients for inputs*/
+            previous_layer = network->layers[output_layer->index - 1];
+            /* If BPTT is truncated, delta value from previous iteration
+             * is not cumulated since it has been already backpropagated
+             * to previous timesteps during previous iteration.
+             * So, reset previous layer deltas. */
+            if (do_truncate)
+                resetLayerDeltas(previous_layer, 0);
+            ok = outputLayerBackprop(
+                output_layer, previous_layer, timestep_y, lgradients, t
+            );
+            if (!ok) goto final;
+        } else previous_layer = last_recurrent;
 
         /*  Cycle through other layers */
-        for (i = previousLayer->index; i > 0; i--) {
+        for (i = previous_layer->index; i > 0; i--) {
             PSLayer *layer = network->layers[i];
-            previousLayer = network->layers[i - 1];
-            lgradients = gradients[i - 1];
+            previous_layer = network->layers[i - 1];
+            PSGradient *lgradients = gradients[i - 1];
+            if (!PSIsRecurrent(layer)) break;
             int lsize = layer->size;
             PSLayerType ltype = layer->type;
             int is_recurrent = (Recurrent == ltype);
             int is_lstm = (LSTM == ltype);
             if (!is_recurrent && !is_lstm) continue;
-            /* PSLayerType prev_ltype = previousLayer->type; */
+            /* PSLayerType prev_ltype = previous_layer->type; */
 
             delta = layer->delta;
             /*  Calculate layer deltas */
@@ -2270,10 +2813,124 @@ PSGradient **backpropThroughTime(PSNeuralNetwork *network, PSFloat *x,
                 } else delta[j] = dv;
             }
             int ok = 1;
-            resetLayerDeltas(previousLayer, 0);
-            ok = layer->backprop(layer, previousLayer, lgradients, t, lowest_t);
+            if (do_truncate) resetLayerDeltas(previous_layer, 0);
+            ok = layer->backprop(
+                layer, previous_layer, lgradients, t, lowest_t
+            );
             if (!ok) goto final;
         }
+    }
+final:
+    if (eos_labels != NULL) free(eos_labels);
+    return ok;
+}
+
+PSGradient **backprop(PSNeuralNetwork *network, PSFloat *x, PSFloat *y,
+                      PSTrainingOptions *opts)
+{
+    if (network == NULL) return NULL;
+    if (x == NULL) {
+        PSErr(NULL, "Backpropagating NULL `x`");
+        return NULL;
+    }
+    if (y == NULL) {
+        PSErr(NULL, "Backpropagating NULL `y`");
+        return NULL;
+    }
+    PSGradient **gradients = createGradients(network);
+    if (gradients == NULL) return NULL;
+    int netsize = network->size, is_recurrent = PSIsRecurrent(network);
+    PSLayer *output_layer = network->layers[netsize - 1];
+    PSGradient *lgradients = gradients[netsize - 2]; /* No gradient for
+                                                        inputs */
+    PSLayer *previous_layer = NULL;
+    resetDeltas(network);
+
+    int i, ok = 1;
+    ok = feedforward(network, x, 1);
+    if (!ok) goto final;
+    if (is_recurrent && PSIsRecurrent(output_layer)) {
+        PSLayer *input_layer = network->layers[0];
+        PSLayer *first_recurrent = PSGetFirstRecurrentLayer(network);
+        int timesteps = 0;
+        if (PSIsRecurrent(input_layer)) timesteps = (int) *x;
+        else timesteps = (int) *(y++);
+        if (timesteps == 0) {
+            PSErr(
+                NULL, "Recurrent timesteps must be > 0 (found %d)",
+                timesteps
+            );
+            ok = 0;
+            goto final;
+        }
+        ok = backpropThroughTime(network, y, gradients, opts, timesteps);
+        if (!ok) goto final;
+        /* If first recurrent layer is the input layer, backpropThroughTime
+         * has already backpropagated the error to the whole network,
+         * so finish here. */
+        if (first_recurrent == NULL && PSIsRecurrent(input_layer)) {
+            /* First recurrent layer was not set but first layer is recurrent.
+             * Update context and finish backpropagation. */
+            setNetworkContext(network, first_recurrent_layer, input_layer);
+            goto final;
+        } else if (first_recurrent != NULL) {
+            int first_recurrent_idx = first_recurrent->index;
+            if (first_recurrent_idx == 0) goto final;
+            else previous_layer = network->layers[first_recurrent_idx - 1];
+        } else {
+            PSErr(
+                NULL, "First recurrent layer was not found, cannot "
+                "continue backpropagation"
+            );
+            ok = 0;
+            goto final;
+        }
+    } else {
+        previous_layer = network->layers[output_layer->index - 1];
+        ok = outputLayerBackprop(output_layer, previous_layer, y, lgradients);
+        if (!ok) goto final;
+    }
+    for (i = previous_layer->index; i > 0; i--) {
+        PSLayer *layer = network->layers[i];
+        previous_layer = network->layers[i - 1];
+        lgradients = gradients[i - 1];
+        if (PSIsRecurrent(layer)) {
+            int timesteps = PSGetRecurrentHiddenStateCount(layer, NULL);
+            ok = (timesteps > 0);
+            if (!ok) {
+                PSErr(
+                    __func__, "Could not get hidden state count for "
+                    "recurrent layer %d is NULL", i
+                );
+                goto final;
+            }
+            ok = backpropThroughTime(network, NULL, gradients, opts, timesteps);
+            if (!ok) goto final;
+            break;
+        }
+        PSLayerType ltype = layer->type;
+        PSLayerType prev_ltype = previous_layer->type;
+        ok = (
+            FullyConnected == ltype ||
+            (Pooling == ltype && Convolutional == prev_ltype) ||
+            Convolutional == ltype
+        );
+        if (!ok) {
+            PSErr(NULL, "Backprop from %s to %s not suported!\n",
+                  PSGetLayerTypeLabel(layer),
+                  PSGetLayerTypeLabel(previous_layer));
+            goto final;
+        }
+        ok = layer->backprop != NULL;
+        if (!ok) {
+            PSErr(
+                NULL, "Missing backprop function in %d layer %d",
+                PSGetLayerTypeLabel(layer), i
+            );
+            goto final;
+        }
+        ok = layer->backprop(layer, previous_layer, lgradients);
+        if (!ok) goto final;
     }
 final:
     if (!ok) {
@@ -2397,7 +3054,8 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
     }
     PSGradient **bp_gradients = NULL;
     PSFloat **series = NULL;
-    int is_recurrent = network->flags & FLAG_RECURRENT;
+    int is_recurrent = PSIsRecurrent(network),
+        recurrent_input = 0, recurrent_output = 0;
     if (is_recurrent) {
         va_list args;
         va_start(args, aux_gradients);
@@ -2408,6 +3066,8 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
             network->status = STATUS_ERROR;
             goto final;
         }
+        recurrent_input = PSIsRecurrent(network->layers[0]);
+        recurrent_output = PSIsRecurrent(network->layers[network->size - 1]);
     }
     int do_dump = (
         network->training != NULL &&
@@ -2421,7 +3081,7 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
     for (i = 0; i < batch_size; i++) {
         if (network->training != NULL) {
             network->training->current_element =
-                (network->training->current_batch *batch_size) + i;
+                (network->training->current_batch * batch_size) + i;
             iteration = network->training->current_element + 1;
         }
         /* Backpropagate the error through the network layers and get
@@ -2432,21 +3092,20 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
             x = training_data;
             y = training_data + training_data_size;
             training_data += element_size;
-            bp_gradients = backprop(network, x, y);
         } else {
             /* Recurrent network */
             x = series[i];
-            timesteps = (int) *(x++);
-            if (timesteps == 0) {
-                PSErr(__func__, "Series len must b > 0. (batch = %d)", i);
-                /*PSDeleteGradients(gradients, network);
-                return STATUS_ERROR_LOSS;*/
-                network->status = STATUS_ERROR;
-                goto final;
-            }
-            y = x + (timesteps * training_data_size);
-            bp_gradients = backpropThroughTime(network, x, y, timesteps);
+            if (recurrent_input) {
+                timesteps = (int) *x;
+                if (timesteps == 0) {
+                    PSErr(__func__, "Series len must b > 0. (batch = %d)", i);
+                    network->status = STATUS_ERROR;
+                    goto final;
+                }
+                y = x + 1 + (timesteps * training_data_size);
+            } else y = x + training_data_size;
         }
+        bp_gradients = backprop(network, x, y, opts);
         if (bp_gradients == NULL) {
             network->status = STATUS_ERROR;
             goto final;
@@ -2711,26 +3370,28 @@ final:
     PSLayer *out = network->layers[netsize - 1];
     int onehot = out->flags & FLAG_ONEHOT;
     if (onehot) label_data_size = 1;
-    if (is_recurrent) label_data_size *= timesteps;
+    if (recurrent_output) label_data_size *= timesteps;
     PSFloat outputs[label_data_size];
     for (i = 0; i < label_data_size; i++) {
-        if (!is_recurrent)
-            outputs[i] = out->neurons[i]->activation;
-        else {
-            if (onehot) {
-                int idx = (int) *(y + i);
-                PSNeuron *n = out->neurons[idx];
+        if (onehot) {
+            int idx = (int) *(y + i);
+            PSNeuron *n = out->neurons[idx];
+            if (recurrent_output) {
                 PSRecurrentCell *cell = PSGetRecurrentCell(n);
                 outputs[i] = cell->states[i];
-            } else fetchRecurrentOutputState(out, outputs, i, 0);
+            } else outputs[i] = n->activation;
+        } else {
+            if (!recurrent_output) outputs[i] = out->neurons[i]->activation;
+            else fetchRecurrentOutputState(out, outputs, i, 0);
         }
     }
     if (opts == NULL) l1 = l2 = 0.0;
-    if (l1 != 0.0) l1_loss *= (opts->l1_decay /batch_size);
+    if (l1 != 0.0) l1_loss *= (opts->l1_decay / batch_size);
     if (l2 != 0.0) l2_loss = (0.5 * (opts->l2_decay / batch_size) * l2_loss);
-    int onehot_s = (onehot ? out->size : 0);
-    return network->loss(outputs, y, label_data_size, onehot_s) +
-           l1_loss + l2_loss;
+    int onehot_size = (onehot ? out->size : 0);
+    PSFloat loss =  network->loss(outputs, y, label_data_size, onehot_size);
+    if (recurrent_output && timesteps > 0) loss /= timesteps;
+    return loss + l1_loss + l2_loss;
 }
 
 /* Iterate training data for the entire epoch. Unless the training flag
@@ -2752,18 +3413,15 @@ PSFloat gradientDescent(PSNeuralNetwork *network,
     PSFloat **series = NULL, **series_head = NULL;
     int flags = 0, do_validate = 0;
     if (options != NULL) flags = options->flags;
-    if (network->flags & FLAG_RECURRENT) {
+    if (PSIsRecurrent(network)) {
+        PSLayer *out = network->layers[network->size - 1];
+        int o_size = (out->flags & FLAG_ONEHOT ? 1 : network->output_size);
+        series = getRecurrentSeries(
+            network, training_data, elements_count, network->input_size, o_size
+        );
         if (series == NULL) {
-            PSLayer *out = network->layers[network->size - 1];
-            int o_size = (out->flags & FLAG_ONEHOT ? 1 : network->output_size);
-            series = getRecurrentSeries(training_data,
-                                        elements_count,
-                                        network->input_size,
-                                        o_size);
-            if (series == NULL) {
-                network->status = STATUS_ERROR;
-                return STATUS_ERROR_LOSS;
-            }
+            network->status = STATUS_ERROR;
+            return STATUS_ERROR_LOSS;
         }
         if (!(flags & TRAINING_NO_SHUFFLE))
             shuffleSeries(series, elements_count);
@@ -2774,7 +3432,7 @@ PSFloat gradientDescent(PSNeuralNetwork *network,
     PSFloat err = 0.0, previous_err = 0.0, avg_err = 0.0,
            acc = 0.0, tot_acc = 0.0, avg_acc = 0.0;
     long tot_t = 0, avg_t, elapsed_t, test_data_size, validations = 0;
-    int offset = (element_size *batch_size), validate_every = 0, i;
+    int offset = (element_size * batch_size), validate_every = 0, i;
     PSGradient **momentum_gradients = NULL, **aux_gradients = NULL;
     if (options != NULL) {
         PSTrainingOptimization optimization = options->optimization;
@@ -2886,21 +3544,22 @@ float validate(PSNeuralNetwork *network, PSFloat *test_data, int data_size,
     PSLayer *output_layer = network->layers[network->size - 1];
     int input_size = network->input_size;
     int output_size = network->output_size;
-    int y_size = output_size;
     int onehot = output_layer->flags & FLAG_ONEHOT;
+    int y_size = (onehot ? 1 : output_size);
     int element_size = input_size + output_size;
     int elements_count;
+    int recurrent_input = 0, recurrent_output = 0;
     PSFloat **series = NULL;
-    if (network->flags & FLAG_RECURRENT) {
+    if (PSIsRecurrent(network)) {
         /*  First training data number for Recurrent networks must indicate */
         /*  the data elements count */
         elements_count = (int) *(test_data++);
         data_size--;
-        if (onehot) y_size = 1;
-        series = getRecurrentSeries(test_data,
-                                    elements_count,
-                                    input_size,
-                                    y_size);
+        recurrent_input = PSIsRecurrent(network->layers[0]);
+        recurrent_output = PSIsRecurrent(output_layer);
+        series = getRecurrentSeries(
+            network, test_data, elements_count, input_size, y_size
+        );
         if (series == NULL) goto err;
     } else elements_count = data_size / element_size;
     /* PSFloat outputs[output_size]; */
@@ -2931,6 +3590,7 @@ float validate(PSNeuralNetwork *network, PSFloat *test_data, int data_size,
             PSFloat max = 0.0;
             int omax = 0; /* Output index with max value */
             int emax = 0; /* Expected index with max value */
+            /* TODO: use PSFindLayerMaxActivation */
             for (j = 0; j < output_size; j++) {
                 PSNeuron *neuron = output_layer->neurons[j];
                 if (neuron->activation > max) {
@@ -2939,41 +3599,79 @@ float validate(PSNeuralNetwork *network, PSFloat *test_data, int data_size,
                 }
             }
             if (!onehot) emax = arrayMaxIndex(expected, output_size);
-            /*else emax = *(expected + (timesteps - 1));*/
-            else {
-                errmsg = "Onehot is not supported in non-recurrent networks";
-                goto err;
-            }
+            else emax = (int) *(expected);
             if (omax == emax) correct_results++;
             test_data += output_size;
         } else {
             /*  Recurrent */
             inputs = series[i];
-            timesteps = (int) (*inputs);
-            if (timesteps == 0) goto err;
-            expected = inputs + 1 + (timesteps * input_size);
-
+            if (recurrent_input) {
+                timesteps = (int) *inputs;
+                expected = inputs + 1 + (timesteps * input_size);
+            } else {
+                timesteps = (int) *(inputs + network->input_size);
+                expected = inputs + network->input_size + 1;
+            }
+            if (timesteps == 0) {
+                errmsg = "recurrent data with zero timesteps";
+                goto err;
+            }
             int ok = PSFeedforward(network, inputs);
             if (!ok) goto err;
 
-            int label_data_size = y_size * timesteps;
-            int last_label_idx = (label_data_size - 1);
             int correct_states = 0;
-            PSFloat outputs[label_data_size];
-            for (j = 0; j < label_data_size; j++) {
-                int is_last_label = (j == last_label_idx);
-                fetchRecurrentOutputState(output_layer, outputs, j, onehot);
-                if (onehot && (outputs[j] == expected[j])) correct_states++;
-                else if (!onehot && j > 0 &&
-                         ((j % y_size) == 0 || is_last_label))
-                {
-                    int t = ((j + 1) / y_size) - 1;
-                    int omax = arrayMaxIndex(outputs + (t * y_size), y_size);
-                    int emax = arrayMaxIndex(expected + (t * y_size), y_size);
-                    if (emax == omax) correct_states++;
+            if (recurrent_output) {
+                int hidden_state_count = PSGetRecurrentHiddenStateCount(
+                    output_layer, network
+                );
+                int steps_to_check = timesteps, max_timesteps = timesteps;
+                if (hidden_state_count < timesteps) {
+                    steps_to_check = hidden_state_count;
+                } else if (hidden_state_count > timesteps)
+                    max_timesteps = hidden_state_count;
+                int label_data_size = y_size * steps_to_check;
+                int last_label_idx = (label_data_size - 1);
+                PSFloat outputs[label_data_size];
+                for (j = 0; j < label_data_size; j++) {
+                    int is_last_label = (j == last_label_idx);
+                    fetchRecurrentOutputState(
+                        output_layer, outputs, j, onehot
+                    );
+                    if (onehot && (outputs[j] == expected[j]))
+                        correct_states++;
+                    else if (
+                        !onehot && j > 0 &&
+                        ((j % y_size) == 0 || is_last_label)
+                    ) {
+                        int t = ((j + 1) / y_size) - 1;
+                        int omax = arrayMaxIndex(
+                            outputs + (t * y_size), y_size
+                        );
+                        int emax = arrayMaxIndex(
+                            expected + (t * y_size), y_size
+                        );
+                        if (emax == omax) correct_states++;
+                    }
                 }
+                correct_amount += (
+                    (float) correct_states / (float) max_timesteps
+                );
+            } else {
+                PSFloat max = 0.0;
+                int omax = 0; /* Output index with max value */
+                int emax = 0; /* Expected index with max value */
+                /* TODO: use PSFindLayerMaxActivation */
+                for (j = 0; j < output_size; j++) {
+                    PSNeuron *neuron = output_layer->neurons[j];
+                    if (neuron->activation > max) {
+                        max = neuron->activation;
+                        omax = j;
+                    }
+                }
+                if (!onehot) emax = arrayMaxIndex(expected, output_size);
+                else emax = (int) *expected;
+                if (omax == emax) correct_results++;
             }
-            correct_amount += (float) correct_states / (float) timesteps;
         }
     }
     if (log) {
@@ -2982,7 +3680,7 @@ float validate(PSNeuralNetwork *network, PSFloat *test_data, int data_size,
     }
     time(&end_t);
     if (log) printf("\nCompleted in %ld sec.\n", end_t - start_t);
-    if (series == NULL) {
+    if (!recurrent_output) {
         accuracy = (float) correct_results / (float) elements_count;
         if (log) printf("Accuracy (%d/%d): %.2f\n",
                         correct_results, elements_count,accuracy);
@@ -3001,7 +3699,8 @@ err:
             errmsg = "Failed to validate network!";
     }
     network->status = STATUS_ERROR;
-    fprintf(stderr, "\n%s\n", errmsg);
+    fprintf(stderr, "\n");
+    PSErr(NULL, "%s", errmsg);
     return STATUS_ERROR_LOSS;
 }
 
@@ -3019,6 +3718,7 @@ void PSSetDefaultTrainingOptions(PSTrainingOptions *options) {
     options->eps = DEFAULT_EPS;
     options->beta1 = DEFAULT_BETA1;
     options->beta2 = DEFAULT_BETA2;
+    options->bptt_truncate = BPTT_TRUNCATE;
 }
 
 void PSTrain(PSNeuralNetwork *network,
@@ -3029,15 +3729,23 @@ void PSTrain(PSNeuralNetwork *network,
              int batch_size,
              PSTrainingOptions *options,
              PSFloat *test_data,
-             int test_size) {
+             int test_size)
+{
     int i, elements_count;
     int element_size = network->input_size + network->output_size;
-    int valid = PSVerifyNetwork(network);
+    if (!PSIsNetworkBuilt(network)) {
+        if (!PSBuildNetwork(network)) {
+            network->status = STATUS_ERROR;
+            return;
+        }
+    }
+    int valid = PSCheckNetwork(network);
     if (!valid) {
         network->status = STATUS_ERROR;
         return;
     }
-    if (network->flags & FLAG_RECURRENT) {
+    int is_recurrent = PSIsRecurrent(network);
+    if (is_recurrent) {
         /*  First training data number for Recurrent networks must indicate */
         /*  the data elements count */
         elements_count = (int) *(training_data++);
@@ -3050,6 +3758,7 @@ void PSTrain(PSNeuralNetwork *network,
     printf("Training data elements: %d\n", elements_count);
     printf("Batch Size: %d\n", batch_size);
     printf("Learning Rate: %g\n", learning_rate);
+    int bptt_truncate = BPTT_TRUNCATE;
     if (options != NULL) {
         checkTrainingOptions(options);
         if (options->validate_every_batches > 0) {
@@ -3060,6 +3769,7 @@ void PSTrain(PSNeuralNetwork *network,
             (options->l1_decay != 0 || options->l2_decay != 0) &&
             (options->flags & TRAINING_WEIGHT_DECAY)
         );
+        bptt_truncate = options->bptt_truncate;
         printf("L1 Decay: %g\n", options->l1_decay);
         printf("L2 Decay: %g\n", options->l2_decay);
         printf("Weight Decay: %s\n", (use_weight_decay ? "yes" : "no"));
@@ -3067,6 +3777,7 @@ void PSTrain(PSNeuralNetwork *network,
         printf("Optimization: %s\n",
             getOptimizationName(options->optimization));
     }
+    if (is_recurrent) printf("BPTT Truncate: %d\n", bptt_truncate);
     char *loss_func_name = NULL;
     if (network->loss != NULL) {
         loss_func_name = getLossFunctionName(network->loss);
@@ -3169,14 +3880,27 @@ void PSAbortTraining(PSNeuralNetwork *network) {
     }
 }
 
-int PSVerifyNetwork(PSNeuralNetwork *network) {
+int PSCheckNetwork(PSNeuralNetwork *network) {
     if (network == NULL) {
         PSErr(__func__, "Network is NULL");
         return 0;
     }
     int size = network->size, i;
+    if (size == 0) {
+        PSErr(__func__, "Empty network!");
+        return 0;
+    }
+    int is_recurrent = PSIsRecurrent(network);
     PSLayer *previous = NULL;
     int onehot_input = 0;
+    int recurrent_type_layers = 0, recurrent_layers = 0,
+        recurrent_input = 0, recurrent_output = 0;
+    PSLayer *actual_first_recurrent_layer = NULL,
+            *actual_last_recurrent_layer = NULL,
+            *first_recurrent_layer = PSGetFirstRecurrentLayer(network),
+            *last_recurrent_layer = PSGetLastRecurrentLayer(network);
+    PSLayer *output_layer = network->layers[size - 1];
+    recurrent_output = PSIsRecurrent(output_layer);
     for (i = 0; i < size; i++) {
         PSLayer *layer = network->layers[i];
         if (layer == NULL) {
@@ -3184,6 +3908,14 @@ int PSVerifyNetwork(PSNeuralNetwork *network) {
             return 0;
         }
         int ltype = layer->type;
+        if (Recurrent == ltype || LSTM == ltype) recurrent_type_layers++;
+        int is_recurrent_layer = PSIsRecurrent(layer);
+        if (is_recurrent_layer) {
+            recurrent_layers++;
+            if (actual_first_recurrent_layer == NULL)
+                actual_first_recurrent_layer = layer;
+            actual_last_recurrent_layer = layer;
+        }
         if (i == 0) {
             if (ltype != FullyConnected) {
                 PSErr(__func__, "Layer[%d] type must be '%s'",
@@ -3197,7 +3929,7 @@ int PSVerifyNetwork(PSNeuralNetwork *network) {
                     PSErr(
                         __func__,
                         "Layer[%d] uses a onehot vector index as input, "
-                        "but it has no parameters", i
+                        "but it has no hyper parameters", i
                     );
                     return 0;
                 }
@@ -3205,11 +3937,16 @@ int PSVerifyNetwork(PSNeuralNetwork *network) {
                     PSErr(
                         __func__,
                         "Layer[%d] uses a onehot vector index as input, "
-                        "but parameters count is < 1", i
+                        "but hyper parameters count is < 1", i
                     );
                     return 0;
                 }
             }
+            recurrent_input = is_recurrent_layer;
+        }
+        if (ltype == SoftMax && layer != output_layer) {
+            PSErr(__func__, "SoftMax layer can only be used as output layer");
+            return 0;
         }
         if (ltype == Convolutional) {
             if (onehot_input) {
@@ -3217,6 +3954,7 @@ int PSVerifyNetwork(PSNeuralNetwork *network) {
                       "Convolutional netowrks");
                 return 0;
             }
+            /* TODO: remove this contraint */
             if (network->flags & FLAG_RECURRENT) {
                 PSErr(
                     __func__,
@@ -3226,12 +3964,14 @@ int PSVerifyNetwork(PSNeuralNetwork *network) {
                 return 0;
             }
         }
+        /* TODO: remove this contraint */
         if (ltype == Pooling && previous && previous->type != Convolutional) {
             PSErr(__func__, "Layer[%d] type is Pooling, "
                   "but previous type is not Convolutional", i);
             return 0;
         }
-        if (ltype != Pooling && previous &&  previous->type == Convolutional) {
+        /* TODO: remove this contraint */
+        if (ltype != Pooling && previous && previous->type == Convolutional) {
             PSErr(__func__, "Layer[%d] previous type is "
                   "Convolutional, but type is not Pooling", i);
             return 0;
@@ -3259,15 +3999,119 @@ int PSVerifyNetwork(PSNeuralNetwork *network) {
                   "but derivative function is not PSTanhDerivative", i);
             return 0;
         }
+        if (layer == output_layer && (layer->flags & FLAG_ONEHOT)) {
+            if (SoftMax != ltype) {
+                PSErr(
+                    __func__, "output layer with flag FLAG_ONEHOT must "
+                    "be a SoftMax layer"
+                );
+                return 0;
+            }
+        }
         previous = layer;
     }
-    if (network->flags & FLAG_RECURRENT) {
-        PSLayer *output = network->layers[size - 1];
-        if (output->type != SoftMax) {
+    if (is_recurrent) {
+        PSRecurrentNetworkMode rnn_mode = PSGetRecurrentNetworkMode(network);
+        if (rnn_mode == NonRecurrent) {
+            PSErr(__func__, "Recurrent network mode is NonRecurrent");
+            return 0;
+        }
+        if (recurrent_layers == 0) {
             PSErr(__func__,
-                  "Recurrent networks require a Softmax output layer, "
-                  "current one is of type %s.",
-                  PSGetLabelForType(output->type));
+                "Network is recurrent but has no recurrent layers"
+            );
+            return 0;
+        }
+        if (recurrent_type_layers == 0) {
+            PSErr(__func__,
+                "Network is recurrent but has no Recurrent or LSTM layers"
+            );
+            return 0;
+        }
+        if (first_recurrent_layer == NULL) {
+            PSErr(__func__,
+                "Recurrent network is missing first recurrent layer"
+            );
+            return 0;
+        }
+        if (last_recurrent_layer == NULL) {
+            PSErr(__func__,
+                "Recurrent network is missing last recurrent layer"
+            );
+            return 0;
+        }
+        if (first_recurrent_layer != actual_first_recurrent_layer) {
+            PSErr(__func__,
+                "Recurrent network first recurrent layer should be layer %d, "
+                "but network is not updated", actual_first_recurrent_layer
+            );
+            return 0;
+        }
+        if (last_recurrent_layer != actual_last_recurrent_layer) {
+            PSErr(__func__,
+                "Recurrent network last recurrent layer should be layer %d, "
+                "but network is not updated", actual_last_recurrent_layer
+            );
+            return 0;
+        }
+        if (ManyToMany == rnn_mode) {
+            if (!recurrent_input && !recurrent_output) {
+                PSErr(__func__,
+                    "Recurrent network with mode \"%s\" has no recurrent "
+                    "input nor recurrent output",
+                    PSGetRecurrentModeLabel(rnn_mode)
+                );
+                return 0;
+            }
+        } else if (ManyToOne == rnn_mode) {
+            if (!recurrent_input) {
+                PSErr(__func__,
+                    "Recurrent network with mode \"%s\" has no recurrent "
+                    "input", PSGetRecurrentModeLabel(rnn_mode)
+                );
+                return 0;
+            }
+            if (recurrent_output) {
+                PSErr(__func__,
+                    "Recurrent network with mode \"%s\" has recurrent "
+                    "output", PSGetRecurrentModeLabel(rnn_mode)
+                );
+                return 0;
+            }
+        } else if (OneToMany == rnn_mode) {
+            if (recurrent_input) {
+                PSErr(__func__,
+                    "Recurrent network with mode \"%s\" has recurrent "
+                    "input", PSGetRecurrentModeLabel(rnn_mode)
+                );
+                return 0;
+            }
+            if (!recurrent_output) {
+                PSErr(__func__,
+                    "Recurrent network with mode \"%s\" has no recurrent "
+                    "output", PSGetRecurrentModeLabel(rnn_mode)
+                );
+                return 0;
+            }
+        }
+    } else {
+        if (recurrent_type_layers > 0) {
+            PSErr(__func__,
+                "Network is not recurrent but has Recurrent or LSTM layers"
+            );
+            return 0;
+        }
+    }
+    int softmax_output = (output_layer->type == SoftMax);
+    if (network->loss == NULL) {
+        PSErr(__func__, "Missing loss function");
+        return 0;
+    } else {
+        if (softmax_output && network->loss != PSCrossEntropyLoss) {
+            PSErr(__func__, "SoftMax output requires PSCrossEntropyLoss");
+            return 0;
+        } else if (!softmax_output && network->loss == PSCrossEntropyLoss) {
+            PSErr(__func__, "PSCrossEntropyLoss require PSCrossEntropyLoss");
             return 0;
         }
     }
