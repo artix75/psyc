@@ -2519,7 +2519,7 @@ int outputLayerBackprop(PSLayer *layer, PSLayer *previous_layer,
         if (!is_softmax) {
             d = o_val - y_val;
             if (apply_derivative && layer->derivative != NULL)
-                d *= layer->derivative(neuron->activation);
+                d *= layer->derivative(o_val);
         } else {
             y_val = (y_val < 1 ? 0 : 1);
             d = -(y_val - o_val);
