@@ -1,6 +1,11 @@
 SHELL=/bin/bash
 CC=gcc
 
+DEFAULT_BUILD_TARGETS=neural_cli demo
+ifeq ($(DEMO),off)
+	DEFAULT_BUILD_TARGETS=neural_cli
+endif
+
 default: all
 
 .PHONY: clean
@@ -30,7 +35,8 @@ install:
 	@cd src && $(MAKE) install
 uninstall:
 	@cd src && $(MAKE) uninstall
-all: neural_cli demo
+
+all: $(DEFAULT_BUILD_TARGETS)
 
 valgrind:
 	$(MAKE) OPTIMIZATION="-O0"

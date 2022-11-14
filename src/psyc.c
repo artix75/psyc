@@ -2510,13 +2510,12 @@ int outputLayerBackprop(PSLayer *layer, PSLayer *previous_layer,
         PSFloat o_val, y_val, d = 0.0;
         if (!is_recurrent) {
             o_val = neuron->activation;
-            y_val = y[o];
         } else {
             PSRecurrentCell *cell = PSGetRecurrentCell(neuron);
             o_val = cell->states[t];
-            if (onehot) y_val = ((int) *y == o);
-            else y_val = y[o];
         }
+        if (onehot) y_val = ((int) *y == o);
+        else y_val = y[o];
         if (!is_softmax) {
             d = o_val - y_val;
             if (apply_derivative && layer->derivative != NULL)
