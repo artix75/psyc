@@ -117,7 +117,8 @@ int testLSTMTrain(TestCase *test_case, Test *test);
 
 /* psyc.c function prototypes */
 
-PSGradient **backprop(PSNeuralNetwork *network, PSFloat *x, PSFloat *y);
+PSGradient **backprop(PSNeuralNetwork *network, PSFloat *x, PSFloat *y,
+                      PSTrainingOptions *opts);
 
 PSFloat updateNetworkParameters(PSNeuralNetwork *network,
                                 PSFloat *training_data,
@@ -478,6 +479,12 @@ int RNNSetup(TestCase *test_case) {
             }
         }
     }
+    if (!PSIsNetworkBuilt(network)) {
+        if (!PSBuildNetwork(network)) {
+            fprintf(stderr, "\nFailed to build network!\n");
+            return 0;
+        }
+    }
     PSRecurrentNetworkMode rnn_mode = PSGetRecurrentNetworkMode(network);
     if (rnn_mode != ManyToMany) {
         fprintf(
@@ -535,6 +542,12 @@ int LSTMSetup(TestCase *test_case) {
     PSLayer *out = network->layers[network->size - 1];
     out->flags |= FLAG_ONEHOT;
     PSLayer *layer = network->layers[1];
+    if (!PSIsNetworkBuilt(network)) {
+        if (!PSBuildNetwork(network)) {
+            fprintf(stderr, "\nFailed to build network!\n");
+            return 0;
+        }
+    }
 
     int i, w;
     for (i = 0; i < layer->size; i++) {
@@ -597,6 +610,12 @@ int testFullLoad(TestCase *test_case, Test *test) {
 
 int testFullFeedforward(TestCase *test_case, Test *test) {
     PSNeuralNetwork *network = getNetwork(test_case);
+    if (!PSIsNetworkBuilt(network)) {
+        if (!PSBuildNetwork(network)) {
+            fprintf(stderr, "\nFailed to build network!\n");
+            return 0;
+        }
+    }
     PSFloat *test_data = getTestData(test_case);
     PSFeedforward(network, test_data);
 
@@ -618,6 +637,12 @@ int testFullFeedforward(TestCase *test_case, Test *test) {
 int testFullAccuracy(TestCase *test_case, Test *test) {
     PSNeuralNetwork *network = getNetwork(test_case);
     PSFloat *test_data = getTestData(test_case);
+    if (!PSIsNetworkBuilt(network)) {
+        if (!PSBuildNetwork(network)) {
+            fprintf(stderr, "\nFailed to build network!\n");
+            return 0;
+        }
+    }
     PSFloat accuracy = PSTest(network, test_data, testlen), expected = 95.0;
     accuracy = PSRound(accuracy * 100.0);
     testAssertWithMessage(
@@ -633,7 +658,8 @@ int testFullBackprop(TestCase *test_case, Test *test) {
     int input_size = network->layers[0]->size;
     PSFloat *x = test_data;
     PSFloat *y = test_data + input_size;
-    PSGradient **gradients = backprop(network, x, y);
+    PSGradient **gradients = backprop(network, x, y, NULL);
+    testAssertNotNull(gradients, test);
     int i;
     for (i = 0; i < BP_GRADIENTS_CHECKS; i++) {
         int lidx = (int) (backpropGradients[i][0]);
@@ -680,6 +706,12 @@ int testConvLoad(TestCase *test_case, Test *test) {
     testAssertWithMessage(
         loaded, test, "Failed to load %s", CONVOLUTIONAL_NETWORK
     );
+    if (!PSIsNetworkBuilt(network)) {
+        if (!PSBuildNetwork(network)) {
+            fprintf(stderr, "\nFailed to build network!\n");
+            return 0;
+        }
+    }
     PSLayer *layer = network->layers[1];
     PSSharedParams *shared;
     shared = (PSSharedParams *) layer->extra;
@@ -722,7 +754,8 @@ int testConvBackprop(TestCase *test_case, Test *test) {
     int input_size = network->layers[0]->size;
     PSFloat *x = test_data;
     PSFloat *y = test_data + input_size;
-    PSGradient **gradients = backprop(network, x, y);
+    PSGradient **gradients = backprop(network, x, y, NULL);
+    testAssertNotNull(gradients, test);
     int i;
     for (i = 0; i < BP_CONV_GRADIENTS_CHECKS; i++) {
         int lidx = (int) (backpropConvGradients[i][0]);
@@ -771,6 +804,12 @@ int testConvAccuracy(TestCase *test_case, Test *test) {
     testAssertWithMessage(
         loaded, test, "Failed to load %s", CONVOLUTIONAL_TRAINED_NETWORK
     );
+    if (!PSIsNetworkBuilt(network)) {
+        if (!PSBuildNetwork(network)) {
+            fprintf(stderr, "\nFailed to build network!\n");
+            return 0;
+        }
+    }
     PSFeedforward(network, test_data);
     PSFloat accuracy = PSTest(network, test_data, testlen), expected = 98.0;
     PSDeleteNetwork(network);
@@ -816,6 +855,12 @@ int testRNNLoad(TestCase *test_case, Test *test) {
 
 int testRNNFeedforward(TestCase *test_case, Test *test) {
     PSNeuralNetwork *network = getNetwork(test_case);
+    if (!PSIsNetworkBuilt(network)) {
+        if (!PSBuildNetwork(network)) {
+            fprintf(stderr, "\nFailed to build network!\n");
+            return 0;
+        }
+    }
     PSFeedforward(network, rnn_inputs);
     if (!testRecurrentNetworkMode(network, ManyToMany, test)) return 0;
 
@@ -824,6 +869,7 @@ int testRNNFeedforward(TestCase *test_case, Test *test) {
     for (i = 0; i < output->size; i++) {
         PSNeuron *n = output->neurons[i];
         PSRecurrentCell* cell = PSGetRecurrentCell(n);
+        testAssertNotNull(cell, test);
         for (j = 0; j < cell->states_count; j++) {
             PSFloat s = getRoundedFloatDec(cell->states[j], HIGH_PRECISION_DEC);
             PSFloat expected = getRoundedFloatDec(
@@ -840,10 +886,20 @@ int testRNNFeedforward(TestCase *test_case, Test *test) {
 
 int testRNNBackprop(TestCase *test_case, Test *test) {
     PSNeuralNetwork *network = getNetwork(test_case);
+    if (!PSIsNetworkBuilt(network)) {
+        if (!PSBuildNetwork(network)) {
+            fprintf(stderr, "\nFailed to build network!\n");
+            return 0;
+        }
+    }
     int i, j, w;
 
     if (!testRecurrentNetworkMode(network, ManyToMany, test)) return 0;
-    PSGradient **gradients = backprop(network, rnn_inputs, rnn_labels);
+    PSTrainingOptions opts = {
+        .bptt_truncate = 4
+    };
+    PSGradient **gradients = backprop(network, rnn_inputs, rnn_labels, &opts);
+    testAssertNotNull(gradients, test);
     int dsize = network->size - 1;
     for (i = 0; i < dsize; i++) {
         PSGradient *lgradients = gradients[i];
@@ -929,6 +985,18 @@ int testRNNOneHot(TestCase *test_case, Test *test) {
     testAssertWithMessageOrGoto(
         loaded, final, test, "Failed to load %s", RECURRENT_NETWORK
     );
+    if (!PSIsNetworkBuilt(onehot_network)) {
+        if (!PSBuildNetwork(onehot_network)) {
+            fprintf(stderr, "\nFailed to build onehot network!\n");
+            return 0;
+        }
+    }
+    if (!PSIsNetworkBuilt(standard_network)) {
+        if (!PSBuildNetwork(standard_network)) {
+            fprintf(stderr, "\nFailed to build standard network!\n");
+            return 0;
+        }
+    }
     PSRecurrentNetworkMode onehot_rnn_mode =
         PSGetRecurrentNetworkMode(onehot_network);
     PSRecurrentNetworkMode std_rnn_mode =

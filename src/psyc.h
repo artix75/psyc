@@ -279,6 +279,7 @@ int PSCheckNetwork(PSNeuralNetwork *network);
 char *PSGetLabelForType(PSLayerType type);
 char *PSGetLayerTypeLabel(PSLayer *layer);
 int PSIsNetworkBuilt(PSNeuralNetwork *network);
+int PSBuildNetwork(PSNeuralNetwork *network);
 char *PSGetRecurrentModeLabel(PSRecurrentNetworkMode mode);
 void PSPrintNetworkInfo(PSNeuralNetwork *network);
 int PSDumpNetworkActivations(PSNeuralNetwork *network, const char* filename);
