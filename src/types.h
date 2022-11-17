@@ -15,6 +15,8 @@
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
+#include <stdint.h>
+
 #ifndef __PS_TYPES_H__
 #define __PS_TYPES_H__
 

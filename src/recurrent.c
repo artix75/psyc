@@ -40,78 +40,16 @@ int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...);
 /* External functions */
 
 int isDroppedOut(PSNeuron *neuron, ...);
-PSFloat applyDropout(PSNeuron *neuron, PSFloat value);
 
 /* Recurrent network functions */
 
 PSRecurrentCell *PSCreateRecurrentCell(PSNeuron *neuron, int lsize) {
     PSRecurrentCell *cell = malloc(sizeof(PSRecurrentCell));
     if (cell == NULL) return NULL;
-    cell->states_count = 0;
-    cell->states = NULL;
-    cell->dropped_out = NULL;
     cell->weights_size = lsize;
     if (!lsize) cell->weights = NULL;
     else cell->weights = neuron->weights + (neuron->weights_size - lsize);
     return cell;
-}
-
-PSFloat *PSAddRecurrentState(PSNeuralNetwork *net, PSNeuron *neuron,
-                             PSFloat state, int times, int t)
-{
-    PSRecurrentCell *cell = PSGetRecurrentCell(neuron);
-    if (cell == NULL) {
-        cell = PSCreateRecurrentCell(neuron, 0);
-        neuron->extra = cell;
-        if (cell == NULL) return NULL;
-    }
-    if (t == 0) {
-        /* If it's the first time, create states and dropped_out states
-         * in advance for all time steps. */
-        cell->states_count = times;
-        if (cell->states != NULL) free(cell->states);
-        cell->states = calloc(times, sizeof(PSFloat));
-        if (cell->states == NULL) {
-            neuron->extra = NULL;
-            free(cell);
-            return NULL;
-        }
-        if (cell->dropped_out != NULL) free(cell->dropped_out);
-        cell->dropped_out = calloc(times, sizeof(int));
-        if (cell->dropped_out == NULL) {
-            neuron->extra = NULL;
-            free(cell->states);
-            free(cell);
-            return NULL;
-        }
-    }
-    assert(cell->dropped_out != NULL);
-    assert(cell->states != NULL);
-    cell->dropped_out[t] = neuron->dropped_out;
-    cell->states[t] = state;
-#ifdef USE_AVX
-    if (!PSIsAVXDisabled(net)) {
-        PSLayer *layer = neuron->layer;
-        assert(layer != NULL);
-        int lsize = layer->size;
-        if (t == 0 && neuron->index == 0) {
-            if (layer->avx_activation_cache != NULL)
-                free(layer->avx_activation_cache);
-            layer->avx_activation_cache = calloc(lsize *times, sizeof(PSFloat));
-        }
-        if (layer->avx_activation_cache == NULL) {
-            PSPrintMemoryErrorMsg();
-            neuron->extra = NULL;
-            if (cell->states != NULL) free(cell->states);
-            free(cell);
-            return NULL;
-        }
-        layer->avx_activation_cache[(t * lsize) + neuron->index] = state;
-    }
-#else
-    UNUSED(net);
-#endif
-    return cell->states;
 }
 
 /* Init Functions */
@@ -122,11 +60,13 @@ int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
     int i, j;
     ws += size;
     layer->neurons = malloc(sizeof(PSNeuron*) * size);
-    /*#ifdef USE_AVX
-     layer->avx_activation_cache = calloc(size, sizeof(PSFloat));
-     #endif*/
     if (layer->neurons == NULL) {
-        PSErr(__func__, "Could not allocate layer neurons!");
+        PSPrintMemoryErrorMsg();
+        return 0;
+    }
+    layer->activations = calloc(size, sizeof(PSFloat));
+    if (layer->activations == NULL) {
+        PSPrintMemoryErrorMsg();
         return 0;
     }
     for (i = 0; i < size; i++) {
@@ -137,7 +77,6 @@ int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
         }
         neuron->index = i;
         neuron->weights_size = ws;
-        neuron->dropped_out = 0;
         neuron->bias = PSGaussianRandom(0, 1);
         neuron->weights = malloc(sizeof(PSFloat) * ws);
         if (neuron->weights ==  NULL) {
@@ -148,7 +87,6 @@ int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
         for (j = 0; j < ws; j++) {
             neuron->weights[j] = PSGaussianRandom(0, 1);
         }
-        neuron->activation = 0;
         neuron->z_value = 0;
         layer->neurons[i] = neuron;
         neuron->extra = PSCreateRecurrentCell(neuron, size);
@@ -198,7 +136,6 @@ int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
     UNUSED(avx_disabled);
 #endif
     int onehot = previous->flags & FLAG_ONEHOT;
-    int apply_dropout = PSShouldApplyDropout(layer);
     PSHyperParameters *params = NULL;
     int vector_size = 0, vector_idx = 0;
     if (onehot) {
@@ -213,9 +150,13 @@ int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
                   layer->index);
             return 0;
         }
+        if (params->parameters == NULL) {
+            PSErr(NULL, "Layer[%d]: prev. onehot layer "
+                  "hyper_parameters->parameters are NULL!", layer->index);
+            return 0;
+        }
         vector_size = (int) (params->parameters[0]);
-        PSNeuron *prev_neuron = previous->neurons[0];
-        vector_idx = (int) (prev_neuron->activation);
+        vector_idx = (int) PSGetActivation(previous, 0, t);
         if (vector_size == 0 && vector_idx >= vector_size) {
             PSErr(NULL, "Layer[%d]: invalid vector index %d (max. %d)!",
                   previous->index, vector_idx, vector_size - 1);
@@ -234,7 +175,7 @@ int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
                   layer->index, i);
             return 0;
         }
-        PSFloat sum = 0, bias = 0;
+        PSFloat sum = 0, prev_sum = 0;
         if (ignore_previous_activations) goto forward_previous_step;
         if (onehot) sum = neuron->weights[vector_idx];
         else {
@@ -242,7 +183,7 @@ int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
 #ifdef USE_AVX
             if (!avx_disabled) {
                 AVXIterativeDotProduct(
-                    previous_size, previous->avx_activation_cache,
+                    previous_size, previous->activations,
                     neuron->weights, sum, j, 1, t
                 );
             }
@@ -250,19 +191,24 @@ int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
             for (; j < previous_size; j++) {
                 PSNeuron *prev_neuron = previous->neurons[j];
                 if (prev_neuron == NULL) return 0;
-                PSFloat a = prev_neuron->activation;
+                PSFloat a = PSGetActivation(previous, j, t);
                 sum += (a * neuron->weights[j]);
             }
         }
 forward_previous_step:
-        if (t > 0) {
-            int last_t = t - 1;
+        if (t > 0 || layer->previous_activations != NULL) {
+            int prev_t = t - 1;
             w = 0;
 #ifdef USE_AVX
             if (!avx_disabled) {
+                PSFloat *act = layer->activations;
+                int avx_t = prev_t;
+                if (avx_t < 0) {
+                    act = layer->previous_activations;
+                    avx_t = 0;
+                }
                 AVXIterativeDotProduct(
-                    size, layer->avx_activation_cache, cell->weights,
-                    bias, w, 1, last_t
+                    size, act, cell->weights, prev_sum, w, 1, avx_t
                 );
             }
 #endif
@@ -271,37 +217,17 @@ forward_previous_step:
                 PSRecurrentCell *rc = PSGetRecurrentCell(n);
                 if (rc == NULL) return 0;
                 PSFloat weight = cell->weights[w];
-                PSFloat last_state = rc->states[last_t];
-                /* TODO: whiy it's added to bias and not to sum? */
-                bias += (weight * last_state);
+                PSFloat prev_state = PSGetActivation(layer, w, prev_t);
+                prev_sum += (weight * prev_state);
             }
-        } else {
-            if (cell->states != NULL) free(cell->states);
-            cell->states_count = times;
-            cell->states = calloc(times, sizeof(PSFloat));
-            cell->dropped_out = calloc(times, sizeof(int));
-#ifdef USE_AVX
-            if (!avx_disabled && neuron->index == 0) {
-                if (layer->avx_activation_cache != NULL)
-                    free(layer->avx_activation_cache);
-                layer->avx_activation_cache = calloc(times *size,
-                                                     sizeof(PSFloat));
-                if (layer->avx_activation_cache == NULL) {
-                    PSPrintMemoryErrorMsg();
-                    return 0;
-                }
-            }
-#endif
         }
-        neuron->z_value = sum + bias;
+        neuron->z_value = sum + prev_sum;
         PSFloat activation = layer->activate(neuron->z_value);
-        if (apply_dropout) activation = applyDropout(neuron, activation);
-        neuron->activation = activation;
-        cell->states[t] = neuron->activation;
-#ifdef USE_AVX
-        if (!avx_disabled)
-            layer->avx_activation_cache[(t * size) + i] = neuron->activation;
-#endif
+        int ok = PSSetActivation(layer, activation, i, t);
+        if (!ok) {
+            layer->network->status = STATUS_ERROR;
+            return 0;
+        }
     }
     return 1;
 }
@@ -343,22 +269,18 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previousLayer,
                 }
                 int vector_size = (int) params->parameters[0];
                 assert(vector_size > 0);
-                PSNeuron *prev_n = previousLayer->neurons[0];
-                PSRecurrentCell *prev_c = PSGetRecurrentCell(prev_n);
-                PSFloat prev_a = prev_c->states[tt];
+                PSFloat prev_a = PSGetActivation(previousLayer, 0, tt);
                 assert(prev_a < vector_size);
                 w = (int) prev_a;
                 gradient->weights[w] += dv;
             } else {
                 for (w = 0; w < wsize; w++) {
-                    PSNeuron *prev_n = previousLayer->neurons[w];
-                    PSRecurrentCell *prev_c = PSGetRecurrentCell(prev_n);
-                    PSFloat prev_a = prev_c->states[tt];
+                    PSFloat prev_a = PSGetActivation(previousLayer, w, tt);
                     gradient->weights[w] += (dv * prev_a);
                 }
             }
 
-            if (tt > 0) {
+            if (tt > 0 || layer->previous_activations != NULL) {
                 if (new_delta == NULL) {
                     new_delta = calloc(lsize, sizeof(PSFloat));
                     if (new_delta == NULL) {
@@ -371,17 +293,22 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previousLayer,
                 w = 0;
 #ifdef USE_AVX
                 if (!avx_disabled) {
+                    PSFloat *act = layer->activations;
+                    int avx_t = (tt - 1);
+                    if (avx_t < 0) {
+                        act = layer->previous_activations;
+                        avx_t = 0;
+                    }
                     AVXIterativeMultiplyValue(
-                        cell->weights_size, layer->avx_activation_cache, dv,
-                        gradient->weights + wsize, w, 1, (tt - 1),
-                        AVX_STORE_MODE_ADD
+                        cell->weights_size, act, dv, gradient->weights + wsize,
+                        w, 1, avx_t, AVX_STORE_MODE_ADD
                     );
                 }
 #endif
                 for (; w < cell->weights_size; w++) {
                     PSNeuron *rn = layer->neurons[w];
                     PSRecurrentCell *rc = PSGetRecurrentCell(rn);
-                    PSFloat a = rc->states[tt - 1];
+                    PSFloat a = PSGetActivation(layer, w, tt - 1);
                     gradient->weights[wsize + w] += (dv * a);
                     if (avx_disabled && !isDroppedOut(rn, tt)) {
                         PSFloat rw = rc->weights[neuron->index];
@@ -398,7 +325,7 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previousLayer,
                     }
                 }
                 if (layer->derivative != NULL) {
-                    PSFloat prev_a = cell->states[tt - 1];
+                    PSFloat prev_a = PSGetActivation(layer, i, tt - 1);
                     /* If BPTT is truncated, new_delta won't be cumulated to
                      * delta calculated from next layer in next `t` iteration,
                      * while it's used to update gradients during truncated

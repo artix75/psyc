@@ -83,6 +83,7 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
 int PSPoolingBackprop(PSLayer *pooling_layer, PSLayer *convolutional_layer,
                       PSGradient *layer_gradients, ...);
 
+uint8_t isDroppedOut(PSNeuron *neuron, ...);
 /* Init Functions */
 
 int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
@@ -119,9 +120,6 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
     PSHyperParameters *previous_params = previous->hyper_parameters;
     PSFloat input_w, input_h, output_w, output_h;
     int use_relu = (int) (params[PARAM_USE_RELU]);
-#ifdef USE_AVX
-    int avx_disabled = PSIsAVXDisabled(network);
-#endif
     if (previous_params == NULL) {
         PSFloat w = PSSqrt(previous_size);
         input_w = w; input_h = w;
@@ -170,15 +168,11 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
         PSErr(__func__, "Layer[%d]: Could not allocate neurons!", index);
         goto err;
     }
-#ifdef USE_AVX
-    if (!avx_disabled) {
-        layer->avx_activation_cache = calloc(size, sizeof(PSFloat));
-        if (layer->avx_activation_cache == NULL) {
-            PSPrintMemoryErrorMsg();
-            goto err;
-        }
+    layer->activations = calloc(size, sizeof(PSFloat));
+    if (layer->activations == NULL) {
+        PSPrintMemoryErrorMsg();
+        goto err;
     }
-#endif
     shared = malloc(sizeof(PSSharedParams));
     if (shared == NULL) {
         PSErr(__func__, "Layer[%d]: Couldn't allocate shared params!", index);
@@ -218,7 +212,6 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
             neuron->weights_size = shared->weights_size;
             neuron->bias = shared->biases[i];
             neuron->weights = shared->weights[i];
-            neuron->dropped_out = 0;
             neuron->layer = layer;
             layer->neurons[idx] = neuron;
         }
@@ -287,11 +280,8 @@ int PSInitPoolingLayer(PSNeuralNetwork *network, PSLayer *layer,
     output_h = PSCalculatePoolingSide(input_h, region_size);
     params[PARAM_OUTPUT_WIDTH] = output_w;
     params[PARAM_OUTPUT_HEIGHT] = output_h;
-#ifdef USE_AVX
-    int avx_disabled = PSIsAVXDisabled(network);
-#endif
-    int area = (int)(output_w *output_h);
-    int size = area *feature_count;
+    int area = (int)(output_w * output_h);
+    int size = area * feature_count;
     layer->size = size;
     layer->neurons = malloc(sizeof(PSNeuron*) * size);
     if (layer->neurons == NULL) {
@@ -299,16 +289,12 @@ int PSInitPoolingLayer(PSNeuralNetwork *network, PSLayer *layer,
         PSAbortLayer(network, layer);
         return 0;
     }
-#ifdef USE_AVX
-    if (!avx_disabled) {
-        layer->avx_activation_cache = calloc(size, sizeof(PSFloat));
-        if (layer->avx_activation_cache == NULL) {
-            PSPrintMemoryErrorMsg();
-            PSAbortLayer(network, layer);
-            return 0;
-        }
+    layer->activations = calloc(size, sizeof(PSFloat));
+    if (layer->activations == NULL) {
+        PSPrintMemoryErrorMsg();
+        PSAbortLayer(network, layer);
+        return 0;
     }
-#endif
     int i, j;
     for (i = 0; i < feature_count; i++) {
         for (j = 0; j < area; j++) {
@@ -324,7 +310,6 @@ int PSInitPoolingLayer(PSNeuralNetwork *network, PSLayer *layer,
             neuron->weights_size = 0;
             neuron->bias = PS_NULL_VALUE;
             neuron->weights = NULL;
-            neuron->dropped_out = 0;
             neuron->layer = layer;
             layer->neurons[idx] = neuron;
         }
@@ -373,6 +358,7 @@ int PSConvolve(PSNeuralNetwork *net, PSLayer *layer, ...) {
         times = va_arg(args, int);
         t = va_arg(args, int);
         va_end(args);
+        UNUSED(times);
     }
     PSFloat *params = parameters->parameters;
     PSFloat *previous_params = previous_parameters->parameters;
@@ -452,11 +438,14 @@ int PSConvolve(PSNeuralNetwork *net, PSLayer *layer, ...) {
                         int avx_steps = 0, avx_step;
                         if (avx_step_len > 0)
                             avx_steps = rowlen / avx_step_len;
+                        PSFloat *prev_activations = previous->activations;
+                        assert(prev_activations != NULL);
+                        if (PSIsRecurrent(previous))
+                            prev_activations += (t * previous->size);
                         for (avx_step = 0; avx_step < avx_steps; avx_step++) {
                             int nidx = feature_offset + (y * input_w) + x;
                             PSFloat *x_vector =
-                                previous->avx_activation_cache + nidx;
-                            if (is_recurrent) x_vector += (t * previous->size);
+                                prev_activations + nidx;
                             PSFloat *y_vector = weights + widx;
                             if (do_dump) DumpConvolveAVXStep(
                                 net, layer, neuron, col, row, r_col, r_row,
@@ -484,8 +473,7 @@ int PSConvolve(PSNeuralNetwork *net, PSLayer *layer, ...) {
                             if (skip_w > 0) widx += skip_w;
                             break;
                         }
-                        PSNeuron *prev_neuron = previous->neurons[nidx];
-                        PSFloat a = prev_neuron->activation;
+                        PSFloat a = PSGetActivation(previous, nidx, t);
                         if (do_dump) DumpConvolveStep(net, layer, neuron,
                             col, row, r_col, r_row, max_x, max_y,previous,
                             k, nidx, x, y, widx
@@ -498,17 +486,14 @@ int PSConvolve(PSNeuralNetwork *net, PSLayer *layer, ...) {
             neuron->z_value = sum + bias;
             PSFloat activation = layer->activate(neuron->z_value);
             if (apply_dropout) activation = applyDropout(neuron, activation);
-            neuron->activation = activation;
-#ifdef USE_AVX
-            if (!is_recurrent && !avx_disabled)
-                layer->avx_activation_cache[idx] = neuron->activation;
-#endif
-            if (is_recurrent) {
-                PSAddRecurrentState(net, neuron, neuron->activation, times, t);
-                if (neuron->extra == NULL) {
-                    PSErr("convolve", "Failed to allocate Recurrent Cell!");
-                    return 0;
-                }
+            int ok = PSSetActivation(layer, activation, idx, t);
+            if (!ok) {
+                PSErr(
+                    NULL, "Failed to set activation on layer %d, neuron %d",
+                    layer->index, idx
+                );
+                if (layer->network) layer->network->status = STATUS_ERROR;
+                return 0;
             }
         }
     }
@@ -530,11 +515,7 @@ int PSPool(PSNeuralNetwork *net, PSLayer *layer, ...) {
         PSErr(NULL, "Layer[%d]: previous layer is NULL!", layer->index);
         return 0;
     }
-    int apply_dropout = PSShouldApplyDropout(layer);
     int i, j, x, y, row, col;
-#ifdef USE_AVX
-    int avx_disabled = PSIsAVXDisabled(net);
-#endif
     PSHyperParameters *parameters = layer->hyper_parameters;
     if (parameters == NULL) {
         PSErr(NULL, "Layer[%d]: parameters are NULL!", layer->index);
@@ -554,6 +535,7 @@ int PSPool(PSNeuralNetwork *net, PSLayer *layer, ...) {
         times = va_arg(args, int);
         t = va_arg(args, int);
         va_end(args);
+        UNUSED(times);
     }
     PSFloat *params = parameters->parameters;
     PSFloat *previous_params = previous_parameters->parameters;
@@ -580,7 +562,7 @@ int PSPool(PSNeuralNetwork *net, PSLayer *layer, ...) {
                 for (x = r_col; x < max_x; x++) {
                     int nidx = ((y * input_w) + x) + (prev_size *i);
                     PSNeuron *prev_neuron = previous->neurons[nidx];
-                    PSFloat a = prev_neuron->activation;
+                    PSFloat a = PSGetActivation(previous, nidx, t);
                     PSFloat z = prev_neuron->z_value;
                     if (a > max) {
                         max = a;
@@ -592,19 +574,14 @@ int PSPool(PSNeuralNetwork *net, PSLayer *layer, ...) {
                 }
             }
             neuron->z_value = max_z;
-            neuron->activation = max;
-            if (apply_dropout)
-                neuron->activation = applyDropout(neuron, neuron->activation);
-#ifdef USE_AVX
-            if (!is_recurrent && !avx_disabled)
-                layer->avx_activation_cache[idx] = neuron->activation;
-#endif
-            if (is_recurrent) {
-                PSAddRecurrentState(net, neuron, neuron->activation, times, t);
-                if (neuron->extra == NULL) {
-                    PSErr("pool", "Failed to allocate Recurrent Cell!");
-                    return 0;
-                }
+            int ok = PSSetActivation(layer, max, idx, t);
+            if (!ok) {
+                PSErr(
+                    NULL, "Failed to set activation on layer %d, neuron %d",
+                    layer->index, idx
+                );
+                if (layer->network) layer->network->status = STATUS_ERROR;
+                return 0;
             }
         }
     }
@@ -634,6 +611,13 @@ int PSPoolingBackprop(PSLayer *pooling_layer, PSLayer *convolutional_layer,
             net->training != NULL && net->training->debug_dump_to != NULL
         );
     }
+    int is_recurrent = PSIsRecurrent(pooling_layer), t = 0;
+    if (is_recurrent) {
+        va_list args;
+        va_start(args, layer_gradients);
+        t = va_arg(args, int);
+        va_end(args);
+    }
     int i, j, row, col, x, y;
     for (i = 0; i < feature_count; i++) {
         if (do_dump && i > 1) do_dump = 0;
@@ -641,7 +625,7 @@ int PSPoolingBackprop(PSLayer *pooling_layer, PSLayer *convolutional_layer,
         for (j = 0; j < feature_size; j++) {
             int idx = j + (i * feature_size);
             PSFloat d = delta[idx];
-            PSNeuron *neuron = pooling_layer->neurons[idx];
+            PSFloat pool_activation = PSGetActivation(pooling_layer, idx, t);
             col = idx % (int) output_w;
             if (col == 0 && j > 0) row++;
             int r_row = row *pool_size;
@@ -658,14 +642,11 @@ int PSPoolingBackprop(PSLayer *pooling_layer, PSLayer *convolutional_layer,
                         col, row, r_col, r_row, max_x, max_y,
                         convolutional_layer, i, nidx, x, y
                     );
-                    if (prev_neuron->dropped_out) continue;
-                    PSFloat a = prev_neuron->activation;
-                    PSFloat dv = (a < neuron->activation ? 0 : d);
-                    if (dv != 0 && convolutional_layer->derivative != NULL) {
-                        dv *= convolutional_layer->derivative(
-                            neuron->activation
-                        );
-                    }
+                    if (isDroppedOut(prev_neuron, t)) continue;
+                    PSFloat a = PSGetActivation(convolutional_layer, nidx, t);
+                    PSFloat dv = (a < pool_activation ? 0 : d);
+                    if (dv != 0 && convolutional_layer->derivative != NULL)
+                        dv *= convolutional_layer->derivative(pool_activation);
                     conv_delta[nidx] = dv;
                 }
             }
@@ -703,6 +684,13 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
         do_dump = (
             net->training != NULL && net->training->debug_dump_to != NULL
         );
+    }
+    int is_recurrent = PSIsRecurrent(convolutional_layer), t = 0;
+    if (is_recurrent) {
+        va_list args;
+        va_start(args, lgradients);
+        t = va_arg(args, int);
+        va_end(args);
     }
     int i, j, k, row, col, x, y;
     for (i = 0; i < feature_count; i++) {
@@ -749,7 +737,7 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
                             break;
                         }
                         PSNeuron *prev_neuron = prev_layer->neurons[nidx];
-                        PSFloat a = prev_neuron->activation;
+                        PSFloat a = PSGetActivation(prev_layer, nidx, t);
                         assert(widx >= 0);
                         if (widx >= shared->weights_size) {
                             /* Ensure that weight index (widx) never exceeds
@@ -770,7 +758,7 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
                             prev_layer, k, nidx, x, y, widx
                         );
                         feature_gradient->weights[widx] += (a * d);
-                        if (prev_delta != NULL && !prev_neuron->dropped_out) {
+                        if (prev_delta != NULL && !isDroppedOut(prev_neuron,t)){
                             PSNeuron *neuron =
                                 convolutional_layer->neurons[idx];
                             prev_delta[nidx] += (d * neuron->weights[widx]);

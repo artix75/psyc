@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
+#include <strings.h>
 #include <signal.h>
 #include <strings.h>
 #include <assert.h>
@@ -325,80 +326,179 @@ static int arrayMaxIndex(PSFloat *array, int len) {
     return max_idx;
 }
 
+/* Enabled tests */
+static int avx_tests = 1, fullnet_tests = 1, convnet_tests = 1, rnn_tests = 1,
+           lstm_tests = 1;
+
+static int *test_ptrs[] = {
+    &avx_tests, &fullnet_tests, &convnet_tests, &rnn_tests, &lstm_tests
+};
+
+static char*test_ids[] = {
+    "avx", "fully-connected", "convolutional", "rnn", "lstm"
+};
+
+static void printTestList(void) {
+    size_t i;
+    for (i = 0; i < (sizeof(test_ids) / sizeof(char*)); i++) {
+        char *test_id = test_ids[i];
+        printf("%s\n", test_id);
+    }
+}
+
+static int *testEnabledPointerByID(char *id) {
+    int *ptr = NULL;
+    size_t i;
+    for (i = 0; i < (sizeof(test_ids) / sizeof(char*)); i++) {
+        char *test_id = test_ids[i];
+        if (strcasecmp(test_id, id) == 0) {
+            ptr = test_ptrs[i];
+            break;
+        }
+    }
+    return ptr;
+}
+
+static int setTestEnabledStatus(char *test_id, int enabled) {
+    int *ptr = testEnabledPointerByID(test_id);
+    if (ptr == NULL) {
+        fprintf(stderr, "ERROR: invalid test ID: '%s'\n", test_id);
+        return 0;
+    }
+    *ptr = enabled;
+    return 1;
+}
+
+static void disableAllTests(void) {
+    size_t i;
+    for (i = 0; i < (sizeof(test_ptrs) / sizeof(int*)); i++) {
+        int *ptr = test_ptrs[i];
+        *ptr = 0;
+    }
+}
+
+void printHelp(char *executable) {
+    fprintf(stderr, "Usage: %s [OPTIONS] [TEST_ID, ...]\n", executable);
+    fprintf(stderr, "\nOPTIONS:\n\n");
+    fprintf(stderr, "   --skip TEST_ID          Skip test (can be used "
+        "multiple times\n");
+    fprintf(stderr, "   --list-tests            List all test IDS\n");
+    fprintf(stderr, "   -h, --help              Print this help\n");
+}
+
+int parseOptions(int argc, char **argv) {
+    int i, is_last = 0, last_arg_idx = argc - 1;
+    for (i = 1; i < argc; i++) {
+        is_last = (last_arg_idx == i);
+        char *arg = argv[i];
+        if (strcmp("--skip", arg) == 0 && !is_last) {
+            char *test_id = argv[++i];
+            if (!setTestEnabledStatus(test_id, 0)) exit(1);
+        } else if (strcmp("--list-tests", arg) == 0) {
+            printTestList();
+            exit(1);
+        } else if ((strcmp("-h", arg) == 0) || (strcmp("--help", arg) == 0)) {
+            printHelp(argv[0]);
+            exit(1);
+        } else if (arg[0] == '-') {
+            fprintf(
+                stderr, "ERROR: invalid option '%s'. Use '-h' to see all "
+                "available options\n", arg
+            );
+            exit(1);
+        } else break;
+    }
+    return i;
+}
+
 int main(int argc, char** argv) {
 #ifdef CATCH_FPE
     PSCatchFloatingPointExceptions(FE_OVERFLOW | FE_DIVBYZERO);
 #endif
     PSHandleSignals(NULL);
-    UNUSED(argc);
-    UNUSED(argv);
+    int argidx = parseOptions(argc, argv), all_disabled = 0;
+    while (argidx < argc) {
+        if (!all_disabled) disableAllTests();
+        char *test_id = argv[argidx++];
+        if (!setTestEnabledStatus(test_id, 1)) return 1;
+    }
     int tot_tests = 0, tot_failed = 0;
     time_t start_t = time(NULL);
 #ifdef USE_AVX
-    AVXTests = createTest("AVX");
-    addTest(AVXTests, "Dot Product", NULL, testAVXDot);
-    addTest(AVXTests, "Square", NULL, testAVXSquare);
-    addTest(AVXTests, "Multiply Value", NULL, testAVXMultiplyVal);
-    performTests(AVXTests);
-    tot_tests += AVXTests->count;
-    tot_failed += AVXTests->failed_count;
-    deleteTest(AVXTests);
+    if (avx_tests) {
+        AVXTests = createTest("AVX");
+        addTest(AVXTests, "Dot Product", NULL, testAVXDot);
+        addTest(AVXTests, "Square", NULL, testAVXSquare);
+        addTest(AVXTests, "Multiply Value", NULL, testAVXMultiplyVal);
+        performTests(AVXTests);
+        tot_tests += AVXTests->count;
+        tot_failed += AVXTests->failed_count;
+        deleteTest(AVXTests);
+    }
 #endif
 
-    fullNetworkTests = createTest("Fully Connected Network");
-    fullNetworkTests->setup = genericSetup;
-    fullNetworkTests->teardown = genericTeardown;
-    addTest(fullNetworkTests, "Load", NULL, testFullLoad);
-    addTest(fullNetworkTests, "Feedforward", NULL, testFullFeedforward);
-    addTest(fullNetworkTests, "Accuracy", NULL, testFullAccuracy);
-    addTest(fullNetworkTests, "Backprop", NULL, testFullBackprop);
-    addTest(fullNetworkTests, "Clone", NULL, testGenericClone);
-    addTest(fullNetworkTests, "Save", NULL, testGenericSave);
-    performTests(fullNetworkTests);
-    tot_tests += fullNetworkTests->count;
-    tot_failed += fullNetworkTests->failed_count;
-    deleteTest(fullNetworkTests);
+    if (fullnet_tests) {
+        fullNetworkTests = createTest("Fully Connected Network");
+        fullNetworkTests->setup = genericSetup;
+        fullNetworkTests->teardown = genericTeardown;
+        addTest(fullNetworkTests, "Load", NULL, testFullLoad);
+        addTest(fullNetworkTests, "Feedforward", NULL, testFullFeedforward);
+        addTest(fullNetworkTests, "Accuracy", NULL, testFullAccuracy);
+        addTest(fullNetworkTests, "Backprop", NULL, testFullBackprop);
+        addTest(fullNetworkTests, "Clone", NULL, testGenericClone);
+        addTest(fullNetworkTests, "Save", NULL, testGenericSave);
+        performTests(fullNetworkTests);
+        tot_tests += fullNetworkTests->count;
+        tot_failed += fullNetworkTests->failed_count;
+        deleteTest(fullNetworkTests);
+    }
 
-    convNetworkTests = createTest("Convolutional Network");
-    convNetworkTests->setup = genericSetup;
-    convNetworkTests->teardown = genericTeardown;
-    addTest(convNetworkTests, "Load", NULL, testConvLoad);
-    addTest(convNetworkTests, "Feedforward", NULL, testConvFeedforward);
-    addTest(convNetworkTests, "Backprop", NULL, testConvBackprop);
-    addTest(convNetworkTests, "Accuracy", NULL, testConvAccuracy);
-    addTest(convNetworkTests, "Clone", NULL, testGenericClone);
-    addTest(convNetworkTests, "Save", NULL, testGenericSave);
-    performTests(convNetworkTests);
-    tot_tests += convNetworkTests->count;
-    tot_failed += convNetworkTests->failed_count;
-    deleteTest(convNetworkTests);
+    if (convnet_tests) {
+        convNetworkTests = createTest("Convolutional Network");
+        convNetworkTests->setup = genericSetup;
+        convNetworkTests->teardown = genericTeardown;
+        addTest(convNetworkTests, "Load", NULL, testConvLoad);
+        addTest(convNetworkTests, "Feedforward", NULL, testConvFeedforward);
+        addTest(convNetworkTests, "Backprop", NULL, testConvBackprop);
+        addTest(convNetworkTests, "Accuracy", NULL, testConvAccuracy);
+        addTest(convNetworkTests, "Clone", NULL, testGenericClone);
+        addTest(convNetworkTests, "Save", NULL, testGenericSave);
+        performTests(convNetworkTests);
+        tot_tests += convNetworkTests->count;
+        tot_failed += convNetworkTests->failed_count;
+        deleteTest(convNetworkTests);
+    }
 
-    recurrentNetworkTests = createTest("Recurrent Network");
-    recurrentNetworkTests->setup = RNNSetup;
-    recurrentNetworkTests->teardown = RNNTeardown;
-    addTest(recurrentNetworkTests, "Load", NULL, testRNNLoad);
-    addTest(recurrentNetworkTests, "Feedforward", NULL, testRNNFeedforward);
-    addTest(recurrentNetworkTests, "Backprop", NULL, testRNNBackprop);
-    addTest(recurrentNetworkTests, "Step", NULL, testRNNStep);
-    addTest(recurrentNetworkTests, "Clone", NULL, testGenericClone);
-    addTest(recurrentNetworkTests, "Save", NULL, testGenericSave);
-    addTest(recurrentNetworkTests, "OneHot", NULL, testRNNOneHot);
-    performTests(recurrentNetworkTests);
-    tot_tests += recurrentNetworkTests->count;
-    tot_failed += recurrentNetworkTests->failed_count;
-    deleteTest(recurrentNetworkTests);
+    if (rnn_tests) {
+        recurrentNetworkTests = createTest("Recurrent Network");
+        recurrentNetworkTests->setup = RNNSetup;
+        recurrentNetworkTests->teardown = RNNTeardown;
+        addTest(recurrentNetworkTests, "Load", NULL, testRNNLoad);
+        addTest(recurrentNetworkTests, "Feedforward", NULL, testRNNFeedforward);
+        addTest(recurrentNetworkTests, "Backprop", NULL, testRNNBackprop);
+        addTest(recurrentNetworkTests, "Step", NULL, testRNNStep);
+        addTest(recurrentNetworkTests, "Clone", NULL, testGenericClone);
+        addTest(recurrentNetworkTests, "Save", NULL, testGenericSave);
+        addTest(recurrentNetworkTests, "OneHot", NULL, testRNNOneHot);
+        performTests(recurrentNetworkTests);
+        tot_tests += recurrentNetworkTests->count;
+        tot_failed += recurrentNetworkTests->failed_count;
+        deleteTest(recurrentNetworkTests);
+    }
 
-    LSTMNetworkTests = createTest("LSTM Network");
-    LSTMNetworkTests->setup = LSTMSetup;
-    LSTMNetworkTests->teardown = RNNTeardown;
-    /* addTest(LSTMNetworkTests, "Load", NULL, testLSTMLoad); */
-    addTest(LSTMNetworkTests, "Train", NULL, testLSTMTrain);
-    addTest(LSTMNetworkTests, "Clone", NULL, testGenericClone);
-    addTest(LSTMNetworkTests, "Save", NULL, testGenericSave);
-    performTests(LSTMNetworkTests);
-    tot_tests += LSTMNetworkTests->count;
-    tot_failed += LSTMNetworkTests->failed_count;
-    deleteTest(LSTMNetworkTests);
+    if (lstm_tests) {
+        LSTMNetworkTests = createTest("LSTM Network");
+        LSTMNetworkTests->setup = LSTMSetup;
+        LSTMNetworkTests->teardown = RNNTeardown;
+        /* addTest(LSTMNetworkTests, "Load", NULL, testLSTMLoad); */
+        addTest(LSTMNetworkTests, "Train", NULL, testLSTMTrain);
+        addTest(LSTMNetworkTests, "Clone", NULL, testGenericClone);
+        addTest(LSTMNetworkTests, "Save", NULL, testGenericSave);
+        performTests(LSTMNetworkTests);
+        tot_tests += LSTMNetworkTests->count;
+        tot_failed += LSTMNetworkTests->failed_count;
+        deleteTest(LSTMNetworkTests);
+    }
     time_t end_t = time(NULL);
     printf(
         "\n%d tests performed in %ld second(s)\n", tot_tests, (end_t - start_t)
@@ -622,8 +722,7 @@ int testFullFeedforward(TestCase *test_case, Test *test) {
     PSLayer *output = network->layers[network->size - 1];
     int i, res = 1;
     for (i = 0; i < output->size; i++) {
-        PSNeuron *n = output->neurons[i];
-        PSFloat a = n->activation;
+        PSFloat a = PSGetActivation(output, i);
         PSFloat expected = fullNetworkFeedForwardResults[i];
         a = getRoundedFloat(a);
         expected = getRoundedFloat(expected);
@@ -735,8 +834,7 @@ int testConvFeedforward(TestCase *test_case, Test *test) {
     PSLayer *output = network->layers[network->size - 1];
     int i;
     for (i = 0; i < output->size; i++) {
-        PSNeuron *n = output->neurons[i];
-        PSFloat a = n->activation;
+        PSFloat a = PSGetActivation(output, i);
         PSFloat expected = convNetworkFeedForwardResults[i];
         a = getRoundedFloat(a);
         expected = getRoundedFloat(expected);
@@ -867,11 +965,9 @@ int testRNNFeedforward(TestCase *test_case, Test *test) {
     PSLayer *output = network->layers[network->size - 1];
     int i, j;
     for (i = 0; i < output->size; i++) {
-        PSNeuron *n = output->neurons[i];
-        PSRecurrentCell* cell = PSGetRecurrentCell(n);
-        testAssertNotNull(cell, test);
-        for (j = 0; j < cell->states_count; j++) {
-            PSFloat s = getRoundedFloatDec(cell->states[j], HIGH_PRECISION_DEC);
+        for (j = 0; j < (int) output->recurrent_states_count; j++) {
+            PSFloat s = PSGetActivation(output, i, j);
+            s = getRoundedFloatDec(s, HIGH_PRECISION_DEC);
             PSFloat expected = getRoundedFloatDec(
                 rnn_expected_output[j][i], HIGH_PRECISION_DEC
             );
@@ -931,6 +1027,7 @@ int testRNNStep(TestCase *test_case, Test *test) {
     PSNeuralNetwork *network = getNetwork(test_case);
     /*int train_data_len = 1 + (RNN_TIMES * 2);*/
     if (!testRecurrentNetworkMode(network, ManyToMany, test)) return 0;
+    PSResetNetworkRecurrentStates(network, 0, 0);
     PSFloat *training_data = getTestData(test_case);
     PSFloat **series = &training_data;
     int elements_count = (int) *training_data;
@@ -1145,6 +1242,10 @@ int testRNNOneHot(TestCase *test_case, Test *test) {
             i, vecidx, ((onehot_idx * vector_size) + 1), vector_size, idx
         );
     }
+    if (!PSRebuildNetwork(standard_network)) {
+        fprintf(stderr, "\nFailed to re-build standard network!\n");
+        return 0;
+    }
     PSFloat onehot_accuracy = PSTest(
         onehot_network, onehot_data, onehot_datalen
     );
@@ -1195,13 +1296,16 @@ int testLSTMTrain(TestCase *test_case, Test *test) {
     for (i = 0; i < layer->size; i++) {
         PSNeuron *neuron = layer->neurons[i];
         PSLSTMCell *cell = PSGetLSTMCell(neuron);
-        int times = cell->states_count;
+        testAssertNotNull(cell, test);
+        int times = (int) layer->recurrent_states_count;
         for (t = 0; t < times; t++) {
-            PSFloat h = getRoundedFloat(cell->states[t]);
+            PSFloat h = PSGetActivation(layer, i, t);
+            h = getRoundedFloat(h);
             PSFloat expected = getRoundedFloat(lstm_expected_states[i][t]);
             testAssertWithMessage(
-                (h == expected), test, "Neuron[%d]->state[%d]: %g != %g",
-                i, t, h, expected
+                (h == expected), test,
+                "Layer[%d] Neuron[%d]->state[%d]: %g != %g",
+                layer->index, i, t, h, expected
             );
             /*ok = (h == expected);
              printf("H[%d][%d] = %g (%s)\n", t, i, h, (ok ? "OK" : "FAIL"));*/
@@ -1209,26 +1313,30 @@ int testLSTMTrain(TestCase *test_case, Test *test) {
         PSFloat bias = getRoundedFloat(cell->candidate_bias);
         PSFloat expected = getRoundedFloat(expected_bg[i]);
         testAssertWithMessage(
-            (bias == expected), test, "Neuron[%d]->candidate_bias: %g != %g",
-            i, bias, expected
+            (bias == expected), test,
+            "Layer[%d] Neuron[%d]->candidate_bias: %g != %g",
+            layer->index, i, bias, expected
         );
         bias = getRoundedFloat(cell->input_bias);
         expected = getRoundedFloat(expected_bi[i]);
         testAssertWithMessage(
-            (bias == expected), test, "Neuron[%d]->input_bias: %g != %g",
-            i, bias, expected
+            (bias == expected), test,
+            "Layer[%d] Neuron[%d]->input_bias: %g != %g",
+            layer->index, i, bias, expected
         );
         bias = getRoundedFloat(cell->output_bias);
         expected = getRoundedFloat(expected_bo[i]);
         testAssertWithMessage(
-            (bias == expected), test, "Neuron[%d]->output_bias: %g != %g",
-            i, bias, expected
+            (bias == expected), test,
+            "Layer[%d] Neuron[%d]->output_bias: %g != %g",
+            layer->index, i, bias, expected
         );
         bias = getRoundedFloat(cell->forget_bias);
         expected = getRoundedFloat(expected_bf[i]);
         testAssertWithMessage(
-            (bias == expected), test, "Neuron[%d]->forget_bias: %g != %g",
-            i, bias, expected
+            (bias == expected), test,
+            "Layer[%d] Neuron[%d]->forget_bias: %g != %g",
+            layer->index, i, bias, expected
         );
         for (w = 0; w < cell->weights_size; w++) {
             PSFloat weight =
@@ -1237,40 +1345,38 @@ int testLSTMTrain(TestCase *test_case, Test *test) {
                 getRoundedFloatDec(expected_wg[i][w], precision);
             testAssertWithMessage(
                 (weight == expected), test,
-                "Neuron[%d]->candidate_weights[%d]: %g != %g",
-                i, w, weight, expected
+                "Layer[%d] Neuron[%d]->candidate_weights[%d]: %g != %g",
+                layer->index, i, w, weight, expected
             );
             weight = getRoundedFloatDec(cell->input_weights[w], precision);
             expected = getRoundedFloatDec(expected_wi[i][w], precision);
             testAssertWithMessage(
                 (weight == expected), test,
-                "Neuron[%d]->input_weights[%d]: %g != %g",
-                i, w, weight, expected
+                "Layer[%d] Neuron[%d]->input_weights[%d]: %g != %g",
+                layer->index, i, w, weight, expected
             );
             weight = getRoundedFloatDec(cell->output_weights[w], precision);
             expected = getRoundedFloatDec(expected_wo[i][w], precision);
             testAssertWithMessage(
                 (weight == expected), test,
-                "Neuron[%d]->output_weights[%d]: %g != %g",
-                i, w, weight, expected
+                "Layer[%d] Neuron[%d]->output_weights[%d]: %g != %g",
+                layer->index, i, w, weight, expected
             );
             weight = getRoundedFloatDec(cell->forget_weights[w], precision);
             expected = getRoundedFloatDec(expected_wf[i][w], precision);
             testAssertWithMessage(
                 (weight == expected), test,
-                "Neuron[%d]->forget_weights[%d]: %g != %g",
-                i, w, weight, expected
+                "Layer[%d] Neuron[%d]->forget_weights[%d]: %g != %g",
+                layer->index, i, w, weight, expected
             );
         }
     }
     PSLayer *out = network->layers[network->size - 1];
 
     for (i = 0; i < out->size; i++) {
-        PSNeuron *neuron = out->neurons[i];
-        PSRecurrentCell *cell = PSGetRecurrentCell(neuron);
-        int times = cell->states_count;
+        int times = out->recurrent_states_count;
         for (t = 0; t < times; t++) {
-            PSFloat h = getRoundedFloat(cell->states[t]);
+            PSFloat h = getRoundedFloat(PSGetActivation(out, i, t));
             PSFloat e = getRoundedFloat(lstm_expected_outputs[t][i]);
             testAssertWithMessage(
                 (h == e), test, "Output->Neuron[%d]->output[%d]: %g != %g",

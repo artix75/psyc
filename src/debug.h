@@ -38,8 +38,8 @@
     }\
 } while (0);
 
-#define PSAddContextualDebug(net,layer,neuron1,neuron2,prop,v) PSAddDebugInfo(\
-    network, __FILE__, __func__, __LINE__, layer, neuron1, neuron2, prop, v)
+#define PSAddContextualDebug(net,l,n1,n2,prop,v,...) PSAddDebugInfo(\
+    net, __FILE__, __func__, __LINE__, l, n1, n2, prop, v, __VA_ARGS__)
 
 typedef struct PSDebugInfo {
     char *file;
@@ -55,6 +55,7 @@ typedef struct PSDebugInfo {
     int neuron2_index;
     int layer2_index;
     int convolutional_feature;
+    int timestep;
     PSFloat activation;
     PSFloat activation2;
     PSFloat z_value;
@@ -100,7 +101,7 @@ void PSTrainingDebugDumpGradient(PSNeuralNetwork *network,
 void PSResetDebugInfo(void);
 void PSAddDebugInfo(PSNeuralNetwork *network, char *file, const char *func,
                     int line, PSLayer *layer, void *neuron1, void *neuron2,
-                    char *prop, PSFloat val);
+                    char *prop, double val, ...);
 
 extern int PSOriginalStdOutFD;
 #endif /*  __DEBUG_H */

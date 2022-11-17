@@ -557,6 +557,7 @@ void PSTrainingDebugDumpHeader(PSNeuralNetwork *network,
 
 void PSResetDebugInfo(void) {
     memset(&last_debug_info, 0, sizeof(last_debug_info));
+    last_debug_info.timestep = -1;
     last_debug_info.layer_index = -1;
     last_debug_info.layer2_index = -1;
     last_debug_info.neuron_index = -1;
@@ -566,19 +567,22 @@ void PSResetDebugInfo(void) {
 
 void PSAddDebugInfo(PSNeuralNetwork *network, char *file, const char *func,
                     int line, PSLayer *layer, void *neuron1, void *neuron2,
-                    char *prop, PSFloat val)
+                    char *prop, double val_d, ...)
 {
+    PSFloat val = (PSFloat) val_d;
     memset(&last_debug_info, 0, sizeof(last_debug_info));
     last_debug_info.has_info = 1;
     last_debug_info.time = time(NULL);
     last_debug_info.file = file;
     last_debug_info.func = func;
     last_debug_info.line = line;
+    last_debug_info.timestep = -1;
     last_debug_info.layer_index = -1;
     last_debug_info.layer2_index = -1;
     last_debug_info.neuron_index = -1;
     last_debug_info.neuron2_index = -1;
     last_debug_info.weight = -99999;
+    int is_recurrent = 0, t = 0;
     if (network != NULL) {
         PSNeuralNetwork *net = (PSNeuralNetwork *) network;
         last_debug_info.status = net->status;
@@ -593,6 +597,13 @@ void PSAddDebugInfo(PSNeuralNetwork *network, char *file, const char *func,
         PSLayer *l = layer;
         last_debug_info.layer_index = l->index;
         last_debug_info.layer_type = l->type;
+        if ((is_recurrent = PSIsRecurrent(layer))) {
+            va_list args;
+            va_start(args, val_d);
+            t = va_arg(args, int);
+            va_end(args);
+            last_debug_info.timestep = t;
+        }
     }
     if (neuron1 != NULL) {
         PSNeuron *n = neuron1;
@@ -602,7 +613,7 @@ void PSAddDebugInfo(PSNeuralNetwork *network, char *file, const char *func,
             last_debug_info.layer_index = l->index;
             last_debug_info.layer_type = l->type;
         }
-        last_debug_info.activation = n->activation;
+        last_debug_info.activation = PSGetNeuronActivation(n, t);
         last_debug_info.z_value = n->z_value;
         last_debug_info.bias = n->bias;
         if (l->delta != NULL) last_debug_info.delta = l->delta[n->index];
@@ -612,7 +623,7 @@ void PSAddDebugInfo(PSNeuralNetwork *network, char *file, const char *func,
         last_debug_info.neuron2_index = n2->index;
         PSLayer *l2 = (PSLayer *) n2->layer;
         last_debug_info.layer2_index = l2->index;
-        last_debug_info.activation2 = n2->activation;
+        last_debug_info.activation2 = PSGetNeuronActivation(n2, t);
         if (l2->delta != NULL) last_debug_info.delta2 = l2->delta[n2->index];
         if (neuron1 != NULL) {
             PSNeuron *n = neuron1;

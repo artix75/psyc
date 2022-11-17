@@ -24,13 +24,9 @@
 
 typedef struct {
     /* Common data layout used by recurrent cells (ie. PSLSTMCell) */
-    int states_count;
     int weights_size;
-    PSFloat *states;
-    int *dropped_out;
     /* End common data layout */
     PSFloat *weights;
-
 } PSRecurrentCell;
 
 PSRecurrentCell *PSCreateRecurrentCell(PSNeuron *neuron, int lsize);

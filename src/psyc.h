@@ -65,9 +65,10 @@
 #define FLAG_LOG_COLORS (1 << 0)
 
 /* Training Flags */
-#define TRAINING_NO_SHUFFLE     (1 << 0)
-#define TRAINING_ADJUST_RATE    (1 << 1)
-#define TRAINING_WEIGHT_DECAY   (1 << 2)
+#define TRAINING_NO_SHUFFLE         (1 << 0)
+#define TRAINING_ADJUST_RATE        (1 << 1)
+#define TRAINING_WEIGHT_DECAY       (1 << 2)
+#define TRAINING_EPOCH_AS_SEQUENCE  (1 << 3)
 
 #define PSShouldApplyDropout(layer) (layer->dropout != 0.0 && layer->index < \
     (layer->network->size - 1))
@@ -185,9 +186,7 @@ typedef struct PSNeuron {
     int             weights_size;
     PSFloat         bias;
     PSFloat         *weights;
-    PSFloat         activation;
     PSFloat         z_value;
-    int             dropped_out;
     void            *extra;
     struct PSLayer  *layer;
 } PSNeuron;
@@ -203,12 +202,13 @@ typedef struct PSLayer {
     PSFeedforwardFunction   feedforward;
     PSBackpropFunction      backprop;
     PSNeuron                **neurons;
+    PSFloat                 *activations;
     PSFloat                 *delta;
-    int                     flags;
+    PSFloat                 *previous_activations;
+    uint8_t                 *dropped_out;
+    uint32_t                flags;
+    uint32_t                recurrent_states_count;
     void                    *extra;
-#ifdef USE_AVX
-    PSFloat                 *avx_activation_cache;
-#endif
     struct PSNeuralNetwork  *network;
 } PSLayer;
 
@@ -217,10 +217,10 @@ typedef struct PSNeuralNetwork {
     int                         size;
     PSLayer                     **layers;
     PSLossFunction              loss;
-    int                         flags;
-    unsigned char               status;
-    int                         input_size;
-    int                         output_size;
+    uint32_t                    flags;
+    uint8_t                     status;
+    uint32_t                    input_size;
+    uint32_t                    output_size;
     PSRecurrentNetworkOptions   *rnn_options;
     PSTrainingInfo              *training;
     PSTrainCallback             onEpochTrained;
@@ -251,7 +251,14 @@ PSHyperParameters *PSCreateConvolutionalParameters(PSFloat feature_count,
                                                    int padding,
                                                    int use_relu);
 void PSDeleteHyperParamenters(PSHyperParameters *params);
-int PSGetRecurrentHiddenStateCount(PSLayer *layer, PSNeuralNetwork *net);
+int PSResetLayerRecurrentStates(PSLayer *layer, uint32_t steps,
+                                int retain_previous);
+int PSResetNetworkRecurrentStates(PSNeuralNetwork *network, uint32_t steps,
+                                int retain_previous);
+PSFloat PSGetActivation(PSLayer *layer, int index, ...);
+PSFloat PSGetNeuronActivation(PSNeuron *neuron, ...);
+int PSSetActivation(PSLayer *layer, PSFloat activation, int index, ...);
+int PSSetNeuronActivation(PSNeuron *neuron, double activation, ...);
 int PSCheckNetwork(PSNeuralNetwork *network);
 int PSFeedforward(PSNeuralNetwork *network, PSFloat *values);
 int PSClassify(PSNeuralNetwork *network, PSFloat *values);
@@ -280,6 +287,7 @@ char *PSGetLabelForType(PSLayerType type);
 char *PSGetLayerTypeLabel(PSLayer *layer);
 int PSIsNetworkBuilt(PSNeuralNetwork *network);
 int PSBuildNetwork(PSNeuralNetwork *network);
+int PSRebuildNetwork(PSNeuralNetwork *network);
 char *PSGetRecurrentModeLabel(PSRecurrentNetworkMode mode);
 void PSPrintNetworkInfo(PSNeuralNetwork *network);
 int PSDumpNetworkActivations(PSNeuralNetwork *network, const char* filename);

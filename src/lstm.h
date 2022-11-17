@@ -20,23 +20,16 @@
 
 #include "psyc.h"
 
-#define PSGetLSTMCell(neuron) ((PSLSTMCell*) neuron->extra)
+#define PSGetLSTMCell(neuron) ((PSLSTMCell *) neuron->extra)
 #define PSGetLSTMGradientBiases(n, gradient) (gradient->weights +\
  n->weights_size)
+#define PSGetLSTMStates(layer) ((PSLSTMStates *) layer->extra)
 
 typedef struct {
     /* Common data layout with PSRecurrentCell */
-    int states_count;
     int weights_size;
-    PSFloat *states;
-    int *dropped_out;
     /* End common data layout */
     PSFloat last_step_delta;
-    PSFloat *z_values;
-    PSFloat *candidates;
-    PSFloat *input_gates;
-    PSFloat *output_gates;
-    PSFloat *forget_gates;
     PSFloat candidate_bias;
     PSFloat input_bias;
     PSFloat output_bias;
@@ -46,6 +39,19 @@ typedef struct {
     PSFloat *output_weights;
     PSFloat *forget_weights;
 } PSLSTMCell;
+
+typedef struct {
+    PSFloat *z_values;
+    PSFloat *candidates;
+    PSFloat *input_gates;
+    PSFloat *output_gates;
+    PSFloat *forget_gates;
+    PSFloat *previous_z_values;
+    PSFloat *previous_candidates;   /* TODO: Probabily not needed */
+    PSFloat *previous_input_gates;  /* TODO: Probabily not needed */
+    PSFloat *previous_output_gates; /* TODO: Probabily not needed */
+    PSFloat *previous_forget_gates; /* TODO: Probabily not needed */
+} PSLSTMStates;
 
 PSLSTMCell *PSCreateLSTMCell(PSNeuron *neuron, int lsize);
 void PSDeleteLSTMCell(PSLSTMCell *cell);
