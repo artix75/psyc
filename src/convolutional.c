@@ -372,6 +372,7 @@ int PSConvolve(PSNeuralNetwork *net, PSLayer *layer, ...) {
     PSFloat output_w = params[PARAM_OUTPUT_WIDTH];
     int feature_size = size / feature_count;
     int apply_dropout = PSShouldApplyDropout(layer);
+    int use_bias = !(layer->flags & FLAG_NO_BIAS);
 #ifdef USE_AVX
     int avx_disabled = PSIsAVXDisabled(net);
     /* AVX doesn't offer performance increase if not applied on big vectors */
@@ -388,7 +389,7 @@ int PSConvolve(PSNeuralNetwork *net, PSLayer *layer, ...) {
     previous_feature_size = previous->size / prev_features;
     for (i = 0; i < feature_count; i++) {
         if (do_dump && i > 1) do_dump = 0;
-        PSFloat bias = shared->biases[i];
+        PSFloat bias = (use_bias ? shared->biases[i] : 0.0);
         PSFloat *weights = shared->weights[i];
         row = 0;
         for (j = 0; j < feature_size; j++) {
@@ -686,6 +687,7 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
         );
     }
     int is_recurrent = PSIsRecurrent(convolutional_layer), t = 0;
+    int use_bias = !(convolutional_layer->flags & FLAG_NO_BIAS);
     if (is_recurrent) {
         va_list args;
         va_start(args, lgradients);
@@ -700,7 +702,7 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
         for (j = 0; j < feature_size; j++) {
             int idx = j + (i * feature_size);
             PSFloat d = delta[idx];
-            feature_gradient->bias += d;
+            if (use_bias) feature_gradient->bias += d;
             col = idx % (int) output_w;
             if (col == 0 && j > 0) row++;
             int r_row = (row *stride) - padding;

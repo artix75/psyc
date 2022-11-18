@@ -557,6 +557,7 @@ int RNNSetup(TestCase *test_case) {
         fprintf(stderr, "\nCould not add all layers!\n");
         return 0;
     }
+    network->layers[1]->flags |= FLAG_NO_BIAS;
     network->layers[network->size - 1]->flags |= FLAG_ONEHOT;
 
     int i, j, w;

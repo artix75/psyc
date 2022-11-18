@@ -104,7 +104,7 @@ PSFloat PSNormalizedRandom() {
 }
 
 PSFloat PSGaussianRandom(PSFloat mean, PSFloat stddev) {
-    PSFloat theta = 2 * M_PI *PSNormalizedRandom();
+    PSFloat theta = 2 * M_PI * PSNormalizedRandom();
     PSFloat rho = PSSqrt(-2 * PSMathLog(1 - PSNormalizedRandom()));
     PSFloat scale = stddev *rho;
     PSFloat x = mean + scale *cos(theta);

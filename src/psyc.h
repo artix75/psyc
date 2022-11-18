@@ -60,6 +60,7 @@
 #define FLAG_RECURRENT      (1 << 0)
 #define FLAG_ONEHOT         (1 << 1)
 #define FLAG_AVX_DISABLED   (1 << 2)
+#define FLAG_NO_BIAS        (1 << 3)
 
 /* Global Flags*/
 #define FLAG_LOG_COLORS (1 << 0)

@@ -136,6 +136,7 @@ int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
     UNUSED(avx_disabled);
 #endif
     int onehot = previous->flags & FLAG_ONEHOT;
+    int use_bias = !(layer->flags & FLAG_NO_BIAS);
     PSHyperParameters *params = NULL;
     int vector_size = 0, vector_idx = 0;
     if (onehot) {
@@ -222,6 +223,7 @@ forward_previous_step:
             }
         }
         neuron->z_value = sum + prev_sum;
+        if (use_bias) neuron->z_value += neuron->bias;
         PSFloat activation = layer->activate(neuron->z_value);
         int ok = PSSetActivation(layer, activation, i, t);
         if (!ok) {
@@ -243,6 +245,7 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previousLayer,
     int lowest_t = va_arg(args, int);
     va_end(args);
     int avx_disabled = PSIsAVXDisabled(layer->network);
+    int use_bias = !(layer->flags & FLAG_NO_BIAS);
     int lsize = layer->size, i, w, tt;
     PSFloat *prev_delta = previousLayer->delta;
     int do_truncate = (t - lowest_t) > 0;
@@ -257,7 +260,7 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previousLayer,
             PSRecurrentCell *cell = PSGetRecurrentCell(neuron);
             PSGradient *gradient = &(lgradients[i]);
             PSFloat dv = delta[i];
-            gradient->bias += dv;
+            if (use_bias) gradient->bias += dv;
             int wsize = neuron->weights_size - cell->weights_size;
             /* Update gradients and previous layer delta */
             if (previousLayer->flags & FLAG_ONEHOT) {

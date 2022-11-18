@@ -180,6 +180,7 @@ static int fullFeedforward(PSNeuralNetwork *network, PSLayer *layer, ...) {
     int do_dump = PSShouldDebugDump(network);
     int i, j, previous_size = previous->size;
     int is_recurrent = PSIsRecurrent(layer), tsteps = 0, t = 0;
+    int use_bias = !(layer->flags & FLAG_NO_BIAS);
 #ifdef USE_AVX
     int avx_disabled = PSIsAVXDisabled(network);
 #endif
@@ -224,7 +225,8 @@ static int fullFeedforward(PSNeuralNetwork *network, PSLayer *layer, ...) {
 #ifdef PS_DEBUG_MODE
         PSAddContextualDebug(network, layer, neuron, NULL, "Sum", sum);
 #endif
-        neuron->z_value = sum + neuron->bias;
+        neuron->z_value = sum;
+        if (use_bias) neuron->z_value += neuron->bias;
         PSFloat activation = layer->activate(neuron->z_value);
         if (!PSSetActivation(layer, activation, i, t)) return 0;
 #ifdef PS_DEBUG_MODE
@@ -251,6 +253,7 @@ static int softmaxFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
     }
     int i, j, previous_size = previous->size;
     int is_recurrent = PSIsRecurrent(layer), tsteps = 0, t = 0;
+    int use_bias = !(layer->flags & FLAG_NO_BIAS);
 #ifdef USE_AVX
     int avx_disabled = PSIsAVXDisabled(net);
 #endif
@@ -285,7 +288,8 @@ static int softmaxFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
             PSFloat a = PSGetActivation(previous, j, t);
             sum += (a * neuron->weights[j]);
         }
-        neuron->z_value = sum + neuron->bias;
+        neuron->z_value = sum;
+        if (use_bias) neuron->z_value += neuron->bias;
         if (i == 0)
             max = neuron->z_value;
         else if (neuron->z_value > max)
@@ -2785,6 +2789,7 @@ int outputLayerBackprop(PSLayer *layer, PSLayer *previous_layer,
     int prev_is_recurrent = PSIsRecurrent(previous_layer);
     int onehot = (layer->flags & FLAG_ONEHOT);
     int is_softmax = layer->type == SoftMax;
+    int use_bias = !(layer->flags & FLAG_NO_BIAS);
     PSFloat *delta = layer->delta;
     PSFloat softmax_sum = 0.0;
     int o, w, t = 0;
@@ -2827,8 +2832,10 @@ int outputLayerBackprop(PSLayer *layer, PSLayer *previous_layer,
         if (!is_softmax) {
             /* Update gradient (non Softmax layer) */
             PSGradient *gradient = &(layer_gradients[o]);
-            if (!is_recurrent) gradient->bias = d;
-            else gradient->bias += d;
+            if (use_bias) {
+                if (!is_recurrent) gradient->bias = d;
+                else gradient->bias += d;
+            }
             int wsize = neuron->weights_size;
             w = 0;
 #ifdef USE_AVX
@@ -2864,8 +2871,10 @@ int outputLayerBackprop(PSLayer *layer, PSLayer *previous_layer,
             }
             PSFloat d = delta[o];
             PSGradient *gradient = &(layer_gradients[o]);
-            if (!is_recurrent) gradient->bias = d;
-            else gradient->bias += d;
+            if (use_bias) {
+                if (!is_recurrent) gradient->bias = d;
+                else gradient->bias += d;
+            }
             int wsize = neuron->weights_size;
             w = 0;
 #ifdef USE_AVX
@@ -2908,6 +2917,7 @@ int fullBackprop(PSLayer *layer, PSLayer *previous_layer,
 #endif
     int is_recurrent = PSIsRecurrent(layer),
         prev_is_recurrent = PSIsRecurrent(previous_layer),
+        use_bias = !(layer->flags & FLAG_NO_BIAS),
         t = 0;
     if (is_recurrent) {
         va_list args;
@@ -2924,8 +2934,10 @@ int fullBackprop(PSLayer *layer, PSLayer *previous_layer,
             delta[i] = d;
         }
         PSGradient *gradient = &(layer_gradients[i]);
-        if (!is_recurrent) gradient->bias = d;
-        else gradient->bias += d;
+        if (use_bias) {
+            if (!is_recurrent) gradient->bias = d;
+            else gradient->bias += d;
+        }
         int wsize = neuron->weights_size, w = 0;
 #ifdef USE_AVX
         if (!avx_disabled) {
@@ -3395,6 +3407,7 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
             if (lgradients == NULL) continue;
             int lsize = layer->size;
             int wsize = 0;
+            int use_bias = !(layer->flags & FLAG_NO_BIAS);
             if (layer->type == Convolutional) {
                 /* Number of gradients for Convolutional layers is determined
                  * on the number of their feature maps/filters and not on
@@ -3420,7 +3433,7 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
                 }
                 PSGradient *gradient_bp = &(lgradients_bp[k]);
                 PSGradient *gradient = &(lgradients[k]);
-                gradient->bias += gradient_bp->bias;
+                if (use_bias) gradient->bias += gradient_bp->bias;
                 w = 0;
 #ifdef USE_AVX
                 if (!avx_disabled) {
@@ -3471,7 +3484,7 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
                 l1 = opts->l1_decay / batch_size;
                 l1 = (1 - (rate *l1));
             } else l1 = opts->l1_decay;
-            /* For the momenti, disable AVX if L1 is used since it would add
+            /* For the moment, disable AVX if L1 is used since it would add
              * more complexity in AVX computations.
              * TODO: allow L1 and AVX in the futuer. */
             avx_disabled = 1;
@@ -3517,6 +3530,7 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
             shared = PSGetConvSharedParams(layer);
         } else l_size = layer->size;
         int is_lstm = ltype == LSTM;
+        int use_bias = !(layer->flags & FLAG_NO_BIAS);
         /* Iterate over layer gradients. */
         for (j = 0; j < l_size; j++) {
             PSGradient *g = &(lgradients[j]), *mg = NULL, *xg = NULL;
@@ -3541,14 +3555,16 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
             }
 
             /* Update Bias */
-            PSFloat gbias = g->bias / (PSFloat) batch_size;
-            *bias_ptr = applyGradientOnBias(
-                opts, gbias, bias,
-                mg, xg, rate, iteration
-            );
-            if (is_lstm) PSUpdateLSTMBiases(
-                neuron, g, mg, xg, rate, opts, iteration
-            );
+            if (use_bias) {
+                PSFloat gbias = g->bias / (PSFloat) batch_size;
+                *bias_ptr = applyGradientOnBias(
+                    opts, gbias, bias,
+                    mg, xg, rate, iteration
+                );
+                if (is_lstm) PSUpdateLSTMBiases(
+                    neuron, g, mg, xg, rate, opts, iteration
+                );
+            }
 
             /* Update Weights */
 

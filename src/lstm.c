@@ -346,6 +346,7 @@ static int LSTMCellFeedforward(PSLayer *layer, PSLayer *previous,
     int wsize = cell->weights_size;
     int prev_size = wsize - layer->size;
     int ignore_previous_activations = 0;
+    int use_bias = !(layer->flags & FLAG_NO_BIAS);
     if (!PSIsRecurrent(previous) && layer == PSGetFirstRecurrentLayer(net))
         ignore_previous_activations = (t > 0);
 
@@ -441,10 +442,18 @@ forward_previous_step:
             forget_gate += (cell->forget_weights[w] * prev_state);
         }
     }
-    candidate = PSTanhActivation(candidate + cell->candidate_bias);
-    input_gate = PSSigmoid(input_gate + cell->input_bias);
-    output_gate = PSSigmoid(output_gate + cell->output_bias);
-    forget_gate = PSSigmoid(forget_gate + cell->forget_bias);
+    PSFloat candidate_bias = 0.0, input_bias = 0.0, output_bias = 0.0,
+            forget_bias = 0.0;
+    if (use_bias) {
+        candidate_bias = cell->candidate_bias;
+        input_bias = cell->input_bias;
+        output_bias = cell->output_bias;
+        forget_bias = cell->forget_bias;
+    }
+    candidate = PSTanhActivation(candidate + candidate_bias);
+    input_gate = PSSigmoid(input_gate + input_bias);
+    output_gate = PSSigmoid(output_gate + output_bias);
+    forget_gate = PSSigmoid(forget_gate + forget_bias);
 
     if (!setCandidate(layer, neuron->index, candidate, t)) goto err;
     if (!setInputGate(layer, neuron->index, input_gate, t)) goto err;
@@ -646,6 +655,7 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previousLayer,
     int onehot = previousLayer->flags & FLAG_ONEHOT;
     int lsize = layer->size, i, w, prev_t = t - 1;
     int previous_size = previousLayer->size;
+    int use_bias = !(layer->flags & FLAG_NO_BIAS);
     if (onehot) {
         PSHyperParameters *params = previousLayer->hyper_parameters;
         if (params == NULL) {
@@ -705,10 +715,12 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previousLayer,
         delta_o[i] = dout;
         delta_f[i] = df;
 
-        gradient_biases[CANDIDATE_IDX] += dc;
-        gradient_biases[INPUT_IDX] += di;
-        gradient_biases[OUTPUT_IDX] += dout;
-        gradient_biases[FORGET_IDX] += df;
+        if (use_bias) {
+            gradient_biases[CANDIDATE_IDX] += dc;
+            gradient_biases[INPUT_IDX] += di;
+            gradient_biases[OUTPUT_IDX] += dout;
+            gradient_biases[FORGET_IDX] += df;
+        }
 
         if (onehot) {
             PSFloat prev_a = PSGetActivation(previousLayer, 0, t);
