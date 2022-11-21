@@ -775,12 +775,10 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previousLayer,
             for (; w < layer->size; w++) {
                 PSFloat a = PSGetActivation(layer, w, prev_t);
                 int widx = wsize + w;
-                gradient->weights[widx] += (dc *a);
-                gradient->weights[widx + cwsize] += (di *a);
-                gradient->weights[widx + (cwsize *OUTPUT_IDX)] +=
-                    (dout *a);
-                gradient->weights[widx + (cwsize *FORGET_IDX)] +=
-                    (df *a);
+                gradient->weights[widx] += (dc * a);
+                gradient->weights[widx + cwsize] += (di * a);
+                gradient->weights[widx + (cwsize *OUTPUT_IDX)] += (dout * a);
+                gradient->weights[widx + (cwsize *FORGET_IDX)] += (df * a);
             }
 
         }

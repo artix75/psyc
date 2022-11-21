@@ -33,7 +33,7 @@
 
 /* Forward declaration. */
 
-int PSRecurrentBackprop(PSLayer *layer, PSLayer *previousLayer,
+int PSRecurrentBackprop(PSLayer *layer, PSLayer *previous_layer,
                         PSGradient *lgradients, ...);
 int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...);
 
@@ -236,7 +236,7 @@ forward_previous_step:
 
 /* Backpropagation Functions */
 
-int PSRecurrentBackprop(PSLayer *layer, PSLayer *previousLayer,
+int PSRecurrentBackprop(PSLayer *layer, PSLayer *previous_layer,
                         PSGradient *lgradients, ...)
 {
     va_list args;
@@ -247,8 +247,9 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previousLayer,
     int avx_disabled = PSIsAVXDisabled(layer->network);
     int use_bias = !(layer->flags & FLAG_NO_BIAS);
     int lsize = layer->size, i, w, tt;
-    PSFloat *prev_delta = previousLayer->delta;
+    PSFloat *prev_delta = previous_layer->delta;
     int do_truncate = (t - lowest_t) > 0;
+    int has_prev_activations = (layer->previous_activations != NULL);
     /* Cycle over previous time steps until lowest step (`lowest_t`) defined
      * by the window of BPTT_TRUNCATE. */
     for (tt = t; tt >= lowest_t; tt--) {
@@ -263,28 +264,33 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previousLayer,
             if (use_bias) gradient->bias += dv;
             int wsize = neuron->weights_size - cell->weights_size;
             /* Update gradients and previous layer delta */
-            if (previousLayer->flags & FLAG_ONEHOT) {
-                PSHyperParameters *params = previousLayer->hyper_parameters;
+            if (previous_layer->flags & FLAG_ONEHOT) {
+                PSHyperParameters *params = previous_layer->hyper_parameters;
                 if (params == NULL) {
-                    fprintf(stderr, "Layer %d params are NULL!\n",
-                            previousLayer->index);
+                    fprintf(
+                        stderr, "Layer %d params are NULL!\n",
+                        previous_layer->index
+                    );
+                    if (new_delta != NULL) free(new_delta);
                     return 0;
                 }
                 int vector_size = (int) params->parameters[0];
                 assert(vector_size > 0);
-                PSFloat prev_a = PSGetActivation(previousLayer, 0, tt);
+                PSFloat prev_a = PSGetActivation(previous_layer, 0, tt);
                 assert(prev_a < vector_size);
                 w = (int) prev_a;
                 gradient->weights[w] += dv;
             } else {
                 for (w = 0; w < wsize; w++) {
-                    PSFloat prev_a = PSGetActivation(previousLayer, w, tt);
+                    PSFloat prev_a = PSGetActivation(previous_layer, w, tt);
                     gradient->weights[w] += (dv * prev_a);
                 }
             }
 
-            if (tt > 0 || layer->previous_activations != NULL) {
-                if (new_delta == NULL) {
+            int prev_t = (tt - 1), is_first_t = (tt == 0),
+                update_delta = !is_first_t;
+            if (!is_first_t || has_prev_activations) {
+                if (update_delta && new_delta == NULL) {
                     new_delta = calloc(lsize, sizeof(PSFloat));
                     if (new_delta == NULL) {
                         PSPrintMemoryErrorMsg();
@@ -297,7 +303,7 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previousLayer,
 #ifdef USE_AVX
                 if (!avx_disabled) {
                     PSFloat *act = layer->activations;
-                    int avx_t = (tt - 1);
+                    int avx_t = prev_t;
                     if (avx_t < 0) {
                         act = layer->previous_activations;
                         avx_t = 0;
@@ -311,14 +317,14 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previousLayer,
                 for (; w < cell->weights_size; w++) {
                     PSNeuron *rn = layer->neurons[w];
                     PSRecurrentCell *rc = PSGetRecurrentCell(rn);
-                    PSFloat a = PSGetActivation(layer, w, tt - 1);
+                    PSFloat a = PSGetActivation(layer, w, prev_t);
                     gradient->weights[wsize + w] += (dv * a);
-                    if (avx_disabled && !isDroppedOut(rn, tt)) {
+                    if (update_delta && avx_disabled && !isDroppedOut(rn, tt)){
                         PSFloat rw = rc->weights[neuron->index];
                         new_delta[neuron->index] += (delta[rn->index] * rw);
                     }
                 }
-                if (!avx_disabled) {
+                if (update_delta && !avx_disabled) {
                     for (w = 0; w < cell->weights_size; w++) {
                         PSNeuron *rn = layer->neurons[w];
                         if (isDroppedOut(rn, tt)) continue;
@@ -327,15 +333,14 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previousLayer,
                         new_delta[neuron->index] += (delta[rn->index] * rw);
                     }
                 }
-                if (layer->derivative != NULL) {
-                    PSFloat prev_a = PSGetActivation(layer, i, tt - 1);
+                if (do_truncate && update_delta && layer->derivative != NULL) {
                     /* If BPTT is truncated, new_delta won't be cumulated to
                      * delta calculated from next layer in next `t` iteration,
                      * while it's used to update gradients during truncated
                      * timesteps tieration.
                      * So, derivative must be applied here. */
-                    if (do_truncate)
-                        new_delta[neuron->index] *= layer->derivative(prev_a);
+                    PSFloat prev_a = PSGetActivation(layer, i, prev_t);
+                    new_delta[neuron->index] *= layer->derivative(prev_a);
                 }
             }
             if (is_lowest && prev_delta != NULL && !isDroppedOut(neuron, t)) {
@@ -351,6 +356,7 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previousLayer,
         if (new_delta != NULL) {
             free(delta);
             layer->delta = new_delta;
+            new_delta = NULL;
         }
     }
     return 1;

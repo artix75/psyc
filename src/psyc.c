@@ -770,6 +770,7 @@ int PSInitRecurrentHiddenStates(PSLayer *layer, uint32_t steps,
                                 int retain_previous)
 {
     PSFloat *activations = layer->activations;
+    PSFloat *states = NULL;
     if (layer->recurrent_states_count <= 0 || activations == NULL)
         retain_previous = 0;
     if (steps == 0 && !retain_previous) {
@@ -778,9 +779,13 @@ int PSInitRecurrentHiddenStates(PSLayer *layer, uint32_t steps,
         free(activations);
         if (layer->dropped_out != NULL) free(layer->dropped_out);
         layer->dropped_out = NULL;
+        layer->previous_activations = NULL;
+        if (LSTM == layer->type) {
+            if (!PSInitLSTMStates(layer, 0, 0)) goto err;
+        }
         return 1;
     }
-    PSFloat *states = initRecurrentStates(
+    states = initRecurrentStates(
         layer, steps, retain_previous, activations,
         &layer->previous_activations
     );
@@ -2034,11 +2039,11 @@ int PSDumpNetworkActivations(PSNeuralNetwork *network, const char* filename) {
                 return 0;
             }
             if (!is_recurrent) {
-                char *fmt = (nidx > 0 ? ",%.15e": "%.15e");
+                char *fmt = (nidx > 0 ? ",%.17g": "%.17g");
                 fprintf(f, fmt, PSGetActivation(layer, nidx));
             } else {
                 for (t = 0; t < timesteps; t++) {
-                    char *fmt = (nidx > 0 || t > 0 ? ",%.15e": "%.15e");
+                    char *fmt = (nidx > 0 || t > 0 ? ",%.17g": "%.17g");
                     fprintf(f, fmt, PSGetActivation(layer, nidx, t));
                 }
             }
@@ -2072,7 +2077,7 @@ int PSDumpNetworkDeltas(PSNeuralNetwork *network, const char* filename) {
         }
         fprintf(f, ",deltas=(");
         for(; nidx < layer->size; nidx++) {
-            char *fmt = (nidx > 0 ? ",%.15e": "%.15e");
+            char *fmt = (nidx > 0 ? ",%.17g": "%.17g");
             PSFloat d = delta[nidx];
             fprintf(f, fmt, d);
         }
@@ -2555,6 +2560,8 @@ int feedforward(PSNeuralNetwork *network, PSFloat *values, int backprop, ...) {
             retain_previous = (
                 opts != NULL && (opts->flags & TRAINING_EPOCH_AS_SEQUENCE)
             );
+            if (retain_previous && network->training != NULL)
+                retain_previous = (network->training->current_batch > 0);
         }
         /* TODO: WARN: In non-backprop mode retain_previous will be always 0! */
         first_recurrent = PSGetFirstRecurrentLayer(network);
@@ -3324,9 +3331,12 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
 {
     int i, j, k, w, netsize = network->size, gsize = netsize - 1,
         timesteps = 0, iteration = 0, avx_disabled = 1;
+    assert(batch_size > 0);
     PSFloat *x = NULL; /* Training element */
     PSFloat *y = NULL; /* Labels */
-    PSFloat l1 = 0.0, l2 = 0.0, l1_loss = 0.0, l2_loss = 0.0, momentum = 0.0;
+    PSFloat l1 = 0.0, l2 = 0.0, l1_loss = 0.0, l2_loss = 0.0, momentum = 0.0,
+            clip_high = 0.0, clip_low = 0.0;
+    int apply_clip = 0;
 #ifdef USE_AVX
     avx_disabled = PSIsAVXDisabled(network);
 #else
@@ -3363,6 +3373,61 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
         network->training->current_batch == 0 &&
         network->training->current_epoch == 0
     );
+    UNUSED(elements_count); /* TODO: remove elements_count arg if not needed */
+    PSTrainingOptimization optimization = NoTrainingOptimization;
+    int use_weight_decay = 0;
+    if (opts != NULL) {
+        /* If weight decay is enabled (TRAINING_WEIGHT_DECAY flag), l2_decay
+         * will be used to directly update weights and not gradients.
+         * Furthermore, l1_loss and l2_loss won't be computed nor used in
+         * loss calculation.
+         * If disabled (default), L1/L2 regularization will be used so l2_decay
+         * and l1_decaywill be applied on gradients and L1/L2 loss will be
+         * computed and taken into account by final loss. */
+        if (opts->l2_decay != 0.0) {
+            use_weight_decay = (opts->flags & TRAINING_WEIGHT_DECAY);
+            if (use_weight_decay) {
+                l2 = opts->l2_decay / batch_size;
+                l2 = (1 - (rate *l2));
+            } else l2 = opts->l2_decay;
+        }
+        if (opts->l1_decay != 0.0) {
+            if (opts->l2_decay == 0.0)
+                use_weight_decay = (opts->flags & TRAINING_WEIGHT_DECAY);
+            if (use_weight_decay) {
+                l1 = opts->l1_decay / batch_size;
+                l1 = (1 - (rate *l1));
+            } else l1 = opts->l1_decay;
+            /* For the moment, disable AVX if L1 is used since it would add
+             * more complexity in AVX computations.
+             * TODO: allow L1 and AVX in the futuer. */
+            avx_disabled = 1;
+        }
+        momentum = opts->momentum;
+        optimization = opts->optimization;
+        apply_clip = (opts->clip != 0.0);
+        if (apply_clip) {
+            clip_high = PSAbs(opts->clip);
+            clip_low = clip_high * -1;
+            avx_disabled = 1;
+        }
+    }
+    int apply_momentum = (momentum > 0.0);
+    int use_optimization = (optimization != NoTrainingOptimization);
+    if (apply_momentum || use_optimization) {
+        if (momentum_gradients == NULL) {
+            network->status = STATUS_ERROR;
+            goto final;
+        }
+        if (optimization == AdaDelta || optimization == Adam) {
+            if (aux_gradients == NULL) {
+                network->status = STATUS_ERROR;
+                goto final;
+            }
+        }
+        avx_disabled = 1;
+    }
+
     /* Iterate elements of the batch and, for each element, get gradients
      * from the backpropagation of the error. Then, sum the backpropagation
      * gradients to the batch's gradients. */
@@ -3433,7 +3498,12 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
                 }
                 PSGradient *gradient_bp = &(lgradients_bp[k]);
                 PSGradient *gradient = &(lgradients[k]);
-                if (use_bias) gradient->bias += gradient_bp->bias;
+                if (use_bias) {
+                    PSFloat gbias = gradient_bp->bias;
+                    if (apply_clip)
+                        gbias = PSClipValue(gbias, clip_high, clip_low);
+                    gradient->bias += gbias;
+                }
                 w = 0;
 #ifdef USE_AVX
                 if (!avx_disabled) {
@@ -3451,61 +3521,15 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
                     network, DEBUG_PHASE_UPDATE_GRADS, __func__,
                     layer, k, wsize, w, 0, 0
                 );
-                for (; w < wsize; w++)
-                    gradient->weights[w] += gradient_bp->weights[w];
+                for (; w < wsize; w++) {
+                    PSFloat gw = gradient_bp->weights[w];
+                    if (apply_clip) gw = PSClipValue(gw, clip_high, clip_low);
+                    gradient->weights[w] += gw;
+                }
             }
         }
         PSDeleteGradients(bp_gradients, network);
         if (network->status == STATUS_PAUSED) break;
-    }
-
-    UNUSED(elements_count); /* TODO: remove elements_count arg if not needed */
-    PSTrainingOptimization optimization = NoTrainingOptimization;
-    int use_weight_decay = 0;
-    if (opts != NULL) {
-        /* If weight decay is enabled (TRAINING_WEIGHT_DECAY flag), l2_decay
-         * will be used to directly update weights and not gradients.
-         * Furthermore, l1_loss and l2_loss won't be computed nor used in
-         * loss calculation.
-         * If disabled (default), L1/L2 regularization will be used so l2_decay
-         * and l1_decaywill be applied on gradients and L1/L2 loss will be
-         * computed and taken into account by final loss. */
-        if (opts->l2_decay != 0.0) {
-            use_weight_decay = (opts->flags & TRAINING_WEIGHT_DECAY);
-            if (use_weight_decay) {
-                l2 = opts->l2_decay / batch_size;
-                l2 = (1 - (rate *l2));
-            } else l2 = opts->l2_decay;
-        }
-        if (opts->l1_decay != 0.0) {
-            if (opts->l2_decay == 0.0)
-                use_weight_decay = (opts->flags & TRAINING_WEIGHT_DECAY);
-            if (use_weight_decay) {
-                l1 = opts->l1_decay / batch_size;
-                l1 = (1 - (rate *l1));
-            } else l1 = opts->l1_decay;
-            /* For the moment, disable AVX if L1 is used since it would add
-             * more complexity in AVX computations.
-             * TODO: allow L1 and AVX in the futuer. */
-            avx_disabled = 1;
-        }
-        momentum = opts->momentum;
-        optimization = opts->optimization;
-    }
-    int apply_momentum = (momentum > 0.0);
-    int use_optimization = (optimization != NoTrainingOptimization);
-    if (apply_momentum || use_optimization) {
-        if (momentum_gradients == NULL) {
-            network->status = STATUS_ERROR;
-            goto final;
-        }
-        if (optimization == AdaDelta || optimization == Adam) {
-            if (aux_gradients == NULL) {
-                network->status = STATUS_ERROR;
-                goto final;
-            }
-        }
-        avx_disabled = 1;
     }
 
     /* Update network paramenters (biases, weights, etc.) by apply
@@ -4010,6 +4034,10 @@ void PSTrain(PSNeuralNetwork *network,
              int test_size)
 {
     int i, elements_count;
+    if (batch_size <= 0) {
+        PSErr(__func__, "Invalid batch_size\n");
+        return;
+    }
     int element_size = network->input_size + network->output_size;
     if (!PSIsNetworkBuilt(network)) {
         if (!PSBuildNetwork(network)) {
@@ -4051,6 +4079,7 @@ void PSTrain(PSNeuralNetwork *network,
         printf("L1 Decay: %g\n", options->l1_decay);
         printf("L2 Decay: %g\n", options->l2_decay);
         printf("Weight Decay: %s\n", (use_weight_decay ? "yes" : "no"));
+        printf("Clip: %g\n", PSAbs(options->clip));
         printf("Momentum: %g\n", options->momentum);
         printf("Optimization: %s\n",
             getOptimizationName(options->optimization));
@@ -4110,6 +4139,13 @@ void PSTrain(PSNeuralNetwork *network,
     network->training->requested_action = ACTION_NONE;
     for (i = first_epoch; i < epochs; i++) {
         network->training->current_epoch = i;
+        if (is_recurrent) {
+            if (!PSResetNetworkRecurrentStates(network, 0, 0)) {
+                network->status = STATUS_ERROR;
+                PSErr(NULL, "Failed to reset network recurrent states");
+                return;
+            }
+        }
         PSFloat err = gradientDescent(network, training_data, element_size,
                                      elements_count, learning_rate,
                                      batch_size, options, epochs,

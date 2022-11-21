@@ -164,6 +164,7 @@ typedef struct {
     PSFloat                 eps;
     PSFloat                 beta1;
     PSFloat                 beta2;
+    PSFloat                 clip;
     PSTrainingOptimization  optimization;
     int                     bptt_truncate;
     int                     validate_every_batches;

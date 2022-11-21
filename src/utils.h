@@ -67,6 +67,8 @@
 #define PSPow(a,b) powf(a, b)
 #endif
 
+#define PSClipValue(v, max, min) (v > max ? max : (v < min ? min : v))
+
 
 void PSErr(const char* tag, char* fmt, ...);
 
