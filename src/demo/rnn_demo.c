@@ -37,7 +37,7 @@
 #define L1              0.0
 #define L2              0.0
 
-#define DEFAULT_OUTPUT_FILE "/tmp/pretrained.rnn.data"
+#define DEFAULT_OUTPUT_FILE "/tmp/pretrained.rnn.psmodel"
 
 #define UNUSED(V) ((void) V)
 

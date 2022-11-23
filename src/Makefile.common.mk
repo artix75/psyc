@@ -11,6 +11,7 @@ LIBDIR=$(PREFIX)/lib
 BINDIR=$(PREFIX)/bin
 INCLUDEDIR=$(PREFIX)/include
 SHAREDIR=$(PREFIX)/share/psyc
+build_info_h := $(shell sh -c './genbuildinfo.sh')
 PLATFORM := $(shell sh -c 'uname -s 2>/dev/null || echo not_found')
 HARDWARE := $(shell sh -c 'uname -m 2>/dev/null || echo not_found')
 WAND_CONFIG=Wand-config

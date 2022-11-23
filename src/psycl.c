@@ -87,10 +87,10 @@ int valdlen = 0;
 int train_dataset_len = 0;
 int eval_dataset_len = 0;
 int epochs = EPOCHS;
-float learning_rate = LEARNING_RATE;
-float l1_decay = 0.0;
-float l2_decay = 0.0;
-float momentum = 0.0;
+PSFloat learning_rate = LEARNING_RATE;
+PSFloat l1_decay = 0.0;
+PSFloat l2_decay = 0.0;
+PSFloat momentum = 0.0;
 PSTrainingOptimization optimization = NoTrainingOptimization;
 int validate_every = 0;
 int batch_size = BATCH_SIZE;
@@ -722,21 +722,21 @@ void parseOptions(int argc, char **argv) {
             }
         } else if (strcmp("--learning-rate", arg) == 0 && ++i < argc) {
             char *lr = argv[i];
-            int matched = sscanf(lr, "%f", &learning_rate);
+            int matched = sscanf(lr, PSFLOAT_FORMAT, &learning_rate);
             if (!matched) {
                 fprintf(stderr, "Invalid learning rate %s\n", lr);
                 goto err;
             }
         } else if (strcmp("--l1-decay", arg) == 0 && ++i < argc) {
             char *l1d = argv[i];
-            int matched = sscanf(l1d, "%f", &l1_decay);
+            int matched = sscanf(l1d, PSFLOAT_FORMAT, &l1_decay);
             if (!matched) {
                 fprintf(stderr, "Invalid l1 decay %s\n", l1d);
                 goto err;
             }
         } else if (strcmp("--l2-decay", arg) == 0 && ++i < argc) {
             char *l2d = argv[i];
-            int matched = sscanf(l2d, "%f", &l2_decay);
+            int matched = sscanf(l2d, PSFLOAT_FORMAT, &l2_decay);
             if (!matched) {
                 fprintf(stderr, "Invalid l2 decay %s\n", l2d);
                 goto err;
@@ -745,7 +745,7 @@ void parseOptions(int argc, char **argv) {
             training_flags |= TRAINING_WEIGHT_DECAY;
         } else if (strcmp("--momentum", arg) == 0 && ++i < argc) {
             char *momentumstr = argv[i];
-            int matched = sscanf(momentumstr, "%f", &momentum);
+            int matched = sscanf(momentumstr, PSFLOAT_FORMAT, &momentum);
             if (!matched) {
                 fprintf(stderr, "Invalid momentum %s\n", momentumstr);
                 goto err;

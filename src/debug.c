@@ -49,6 +49,7 @@
 #endif
 
 #include "platform.h"
+#include "buildinfo.h"
 #include "psyc.h"
 #include "debug.h"
 #include "convolutional.h"
@@ -234,7 +235,31 @@ void segvHandler(int sig, siginfo_t *info, void *secret) {
     if (sig == SIGSEGV || sig == SIGBUS)
         printf("Accessing address: %p\n", (void*)info->si_addr);
 
+    struct utsname sysinfo;
+    uname(&sysinfo);
+    printf("\n\n------ MISC. INFO -------\n");
+    printf("Git SHA:        %s\n", PSYC_GIT_SHA);
+    printf("Git Dirty:      %s\n", PSYC_GIT_DIRTY);
+    printf("Git Branch:     %s\n", PSYC_GIT_BRANCH);
+    printf("OS:             %s %s %s\n",
+        sysinfo.sysname, sysinfo.release, sysinfo.machine);
+    printf("Arch.:          %dbit\n", (sizeof(long) == 8 ? 64 : 32));
+    printf("AVX:            ");
+#if USE_AVX
+    printf("yes\n");
+#else
+    printf("no\n");
+#endif
+    printf("GCC:            %d.%d.%d\n",
+#ifdef __GNUC__
+            __GNUC__,__GNUC_MINOR__,__GNUC_PATCHLEVEL__);
+#else
+            0,0,0);
+#endif
+    printf("Global Flags:   %d\n", PSGlobalFlags);
+    printf("Unixtime:       %lu\n", time(NULL));
     if (last_debug_info.has_info) printLastDebugInfo();
+
     printf("\n\n------ STACK TRACE ------\n");
     logStackTrace(uc);
 

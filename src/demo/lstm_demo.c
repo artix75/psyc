@@ -37,7 +37,7 @@
 #define L1              0.0
 #define L2              0.0
 
-#define DEFAULT_OUTPUT_FILE "/tmp/pretrained.rnn.data"
+#define DEFAULT_OUTPUT_FILE "/tmp/pretrained.rnn.psmodel"
 
 #define UNUSED(V) ((void) V)
 
@@ -236,7 +236,7 @@ int main(int argc, char** argv) {
         PSTest(network, test_data, TEST_DATA_LEN);
     }
     if (pretrained_file == NULL)
-        PSSaveNetwork(network, "/tmp/pretrained.lstm.data");
+        PSSaveNetwork(network, "/tmp/pretrained.lstm.psmodel");
     PSDeleteNetwork(network);
     /* free(training_data); */
     /* if (TEST_DATA_LEN) free(test_data); */

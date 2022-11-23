@@ -48,7 +48,7 @@
 #define L1  0.0
 #define L2  0.0001
 #define DUMP_ACTIVATIONS_EVERY 4
-#define DEFAULT_OUTPUT_FILE "/tmp/pretrained.cnn.data"
+#define DEFAULT_OUTPUT_FILE "/tmp/pretrained.cnn.psmodel"
 
 #define UNUSED(V) ((void) V)
 
@@ -127,7 +127,7 @@ void handler(int sig) {
             pause_requested = 1;
         } else PSAbortTraining(network);
         /*printf("\n");
-        PSSaveNetwork(network, "/tmp/pretrained.cnn.data");
+        PSSaveNetwork(network, "/tmp/pretrained.cnn.psmodel");
         printf("Deleting network...\n");
         PSDeleteNetwork(network);
         printf("Exiting...\n");*/
@@ -575,7 +575,7 @@ int main(int argc, char** argv) {
     }
     /* if (pretrained_file == NULL) */
     PSSaveNetwork(network, output_path);
-    /* printf("Network saved to: /tmp/pretrained.cnn.data\n"); */
+    /* printf("Network saved to: /tmp/pretrained.cnn.psmodel\n"); */
     PSDeleteNetwork(network);
     if (training_data != NULL) free(training_data);
     if (test_data != NULL) free(test_data);

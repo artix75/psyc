@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <float.h>
 #include <assert.h>
 #include <signal.h>
 #include <sys/time.h>
@@ -29,6 +30,7 @@
 #endif
 
 #include "platform.h"
+#include "buildinfo.h"
 #include "psyc.h"
 #include "utils.h"
 #include "convolutional.h"
@@ -37,8 +39,10 @@
 #include "debug.h"
 
 #define DATA_LAYER_MIN_ARGC 3
-#define STATUS_ERROR_LOSS -999.00
+#define STATUS_ERROR_LOSS ((PSFloat) FLT_MIN)
 #define BPTT_TRUNCATE   4
+#define OPT_FLOAT_FORMAT_HEX (1 << 0)
+#define OPT_FLOAT_FORMAT_DBL (1 << 1)
 
 #define applyGradientOnBias(opts, grad, val, mg, xg, r, i) \
     applyGradientOnParameter(PARAM_TYPE_BIAS, opts, grad, val, mg, xg, r, i, 0)
@@ -158,6 +162,26 @@ int PSLogTrainingProgress(PSNeuralNetwork *network, int epochs, int batches,
     fflush(stdout);
     if (do_clear) PSFillWithBlank(llen);
     return llen;
+}
+
+int writeSerializedFloat(FILE *out, PSFloat fnum, int opts) {
+    if (opts & OPT_FLOAT_FORMAT_DBL)
+        return fprintf(out, "%.*g", DBL_DECIMAL_DIG, (double) fnum);
+    else if (opts & OPT_FLOAT_FORMAT_HEX) return fprintf(out, "%a", fnum);
+    else return fprintf(out, "%.*g", PSFLOAT_DIG, fnum);
+}
+
+int writeSerializedFloats(FILE *out, int count, char *sep, int opts, ...) {
+    int has_sep = (sep != NULL), len = 0, i;
+    va_list args;
+    va_start(args, opts);
+    for (i = 0; i < count; i++) {
+        if (has_sep && i > 0) len += fprintf(out, "%s", sep);
+        PSFloat fnum = (PSFloat) va_arg(args, double);
+        len += writeSerializedFloat(out, fnum, opts);
+    }
+    va_end(args);
+    return len;
 }
 
 /* Feedforward Functions */
@@ -1766,7 +1790,7 @@ int PSLoadNetwork(PSNeuralNetwork *network, const char* filename) {
             PSFloat cb = 0.0, ib = 0.0, ob = 0.0, fb = 0.0;
             if (!is_lstm) matched = fscanf(f, PSFLOAT_FORMAT "|", &bias);
             else matched = fscanf(f, lstm_fmt, &cb, &ib, &ob, &fb);
-            if (!matched) {
+            if (!matched || (is_lstm && matched < 4)) {
                 printf("\n");
                 PSErr(__func__, "Layer %d, neuron %d: invalid bias!", i, j);
                 fclose(f);
@@ -1830,8 +1854,27 @@ int PSSaveNetwork(PSNeuralNetwork *network, const char* filename) {
         fprintf(stderr, "Cannot open %s for writing!\n", filename);
         return 0;
     }
-    int i, j, k, loss_function = 0;
+    int i, j, k, loss_function = 0, opts = 0;
     /*  Header */
+    /*static struct utsname sysinfo;
+    static int sysinfo_read = 0;
+    if (!sysinfo_read) {
+       uname(&sysinfo);
+       sysinfo_read = 1;
+    }
+#ifdef USE_AVX
+    int avx_available = 1;
+#else
+    int avx_available = 0;
+#endif
+    fprintf(
+        f, "--v%s(git=%s/%s-%s;float_size=%zu;arch=%dbit;avx=%d;"
+        "sys=%s,%s,%s;global_flags=%d;t=%ld)",
+        PSYC_VERSION, PSYC_GIT_SHA, PSYC_GIT_DIRTY, PSYC_GIT_BRANCH,
+        sizeof(PSFloat), ((sizeof(long) == 8) ? 64 : 32), avx_available,
+        sysinfo.sysname, sysinfo.release, sysinfo.machine, PSGlobalFlags,
+        time(NULL)
+    );*/
     fprintf(f, "--v%s", PSYC_VERSION);
     for (i = 0; i < (int) loss_functions_count; i++) {
         if (network->loss == loss_functions[i]) {
@@ -1907,11 +1950,12 @@ int PSSaveNetwork(PSNeuralNetwork *network, const char* filename) {
             for (j = 0; j < feature_count; j++) {
                 PSFloat bias = shared->biases[j];
                 PSFloat *weights = shared->weights[j];
-                fprintf(f, "%.15e|", bias);
+                writeSerializedFloat(f, bias, opts);
+                fprintf(f, "|");
                 for (k = 0; k < shared->weights_size; k++) {
                     if (k > 0) fprintf(f, ",");
                     PSFloat w = weights[k];
-                    fprintf(f, "%.15e", w);
+                    writeSerializedFloat(f, w, opts);
                 }
                 fprintf(f, "\n");
             }
@@ -1921,21 +1965,24 @@ int PSSaveNetwork(PSNeuralNetwork *network, const char* filename) {
             int is_lstm = (LSTM == ltype);
             for (j = 0; j < lsize; j++) {
                 PSNeuron *neuron = layer->neurons[j];
-                if (!is_lstm)
-                    fprintf(f, "%.15e|", neuron->bias);
-                else {
+                if (!is_lstm) {
+                    writeSerializedFloat(f, neuron->bias, opts);
+                    fprintf(f, "|");
+                } else {
                     PSLSTMCell *cell = PSGetLSTMCell(neuron);
                     assert(cell != NULL);
-                    fprintf(f, "%.15e,%.15e,%.15e,%.15e|",
-                            cell->candidate_bias,
-                            cell->input_bias,
-                            cell->output_bias,
-                            cell->forget_bias);
+                    writeSerializedFloats(
+                        f, 4, ",", opts,
+                        cell->candidate_bias,
+                        cell->input_bias,
+                        cell->output_bias,
+                        cell->forget_bias
+                    );
                 }
                 for (k = 0; k < neuron->weights_size; k++) {
                     if (k > 0) fprintf(f, ",");
                     PSFloat w = neuron->weights[k];
-                    fprintf(f, "%.15e", w);
+                    writeSerializedFloat(f, w, opts);
                 }
                 fprintf(f, "\n");
             }
@@ -2020,6 +2067,7 @@ int PSDumpNetworkActivations(PSNeuralNetwork *network, const char* filename) {
         PSErr(__func__, "Cannot open %s for writing!", filename);
         return 0;
     }
+    int opts = 0;
     DumpNetworkHeader(network, f);
     int i;
     for (i = 0; i < network->size; i++) {
@@ -2039,12 +2087,14 @@ int PSDumpNetworkActivations(PSNeuralNetwork *network, const char* filename) {
                 return 0;
             }
             if (!is_recurrent) {
-                char *fmt = (nidx > 0 ? ",%.17g": "%.17g");
-                fprintf(f, fmt, PSGetActivation(layer, nidx));
+                if (nidx > 0) fprintf(f, ",");
+                writeSerializedFloat(f, PSGetActivation(layer, nidx), opts);
             } else {
                 for (t = 0; t < timesteps; t++) {
-                    char *fmt = (nidx > 0 || t > 0 ? ",%.17g": "%.17g");
-                    fprintf(f, fmt, PSGetActivation(layer, nidx, t));
+                    if (nidx > 0 || t > 0) fprintf(f, ",");
+                    writeSerializedFloat(
+                        f, PSGetActivation(layer, nidx, t), opts
+                    );
                 }
             }
         }
@@ -2064,6 +2114,7 @@ int PSDumpNetworkDeltas(PSNeuralNetwork *network, const char* filename) {
         fprintf(stderr, "Cannot open %s for writing!\n", filename);
         return 0;
     }
+    int opts = 0;
     DumpNetworkHeader(network, f);
     int i;
     for (i = 0; i < network->size; i++) {
@@ -2077,9 +2128,9 @@ int PSDumpNetworkDeltas(PSNeuralNetwork *network, const char* filename) {
         }
         fprintf(f, ",deltas=(");
         for(; nidx < layer->size; nidx++) {
-            char *fmt = (nidx > 0 ? ",%.17g": "%.17g");
+            if (nidx > 0) fprintf(f, ",");
             PSFloat d = delta[nidx];
-            fprintf(f, fmt, d);
+            writeSerializedFloat(f, d, opts);
         }
         fprintf(f, ")\n");
     }

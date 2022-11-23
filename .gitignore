@@ -13,3 +13,4 @@ src/debug/profile
 src/demo/cifar-10-batches-bin/
 resources/cifar-10-batches-bin/
 src/magick_conf.h
+src/buildinfo.h

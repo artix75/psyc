@@ -16,15 +16,26 @@
  */
 
 #include <stdint.h>
+#include <float.h>
 
 #ifndef __PS_TYPES_H__
 #define __PS_TYPES_H__
 
+#ifndef FLT_DECIMAL_DIG
+#define FLT_DECIMAL_DIG (FLT_DIG + 2)
+#endif
+
+#ifndef DBL_DECIMAL_DIG
+#define DBL_DECIMAL_DIG (DBL_DIG + 2)
+#endif
+
 #ifdef PS_DOUBLE_PRECISION
 #define PSFLOAT_FORMAT "%lg"
+#define PSFLOAT_DIG DBL_DECIMAL_DIG
 typedef double PSFloat;
 #else
 #define PSFLOAT_FORMAT "%g"
+#define PSFLOAT_DIG FLT_DECIMAL_DIG
 typedef float PSFloat;
 #endif
 

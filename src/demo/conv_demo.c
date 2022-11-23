@@ -159,7 +159,7 @@ int main(int argc, char** argv) {
         PSTest(network, test_data, testlen);
     }
     if (pretrained_file == NULL)
-        PSSaveNetwork(network, "/tmp/pretrained.cnn.data");
+        PSSaveNetwork(network, "/tmp/pretrained.cnn.psmodel");
     PSDeleteNetwork(network);
     if (training_data != NULL) free(training_data);
     if (test_data != NULL) free(test_data);
