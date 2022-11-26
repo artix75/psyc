@@ -500,24 +500,39 @@ void PSDeleteLSTMCell(PSLSTMCell *cell) {
 
 void PSUpdateLSTMBiases(PSNeuron *neuron, PSGradient *gradient,
                         PSGradient *mg, PSGradient *xg, PSFloat rate,
-                        PSTrainingOptions *opts, int iteration)
+                        PSTrainingOptions *opts, int iteration,
+                        int batch_size, PSFloat clip)
 {
+    PSFloat clip_min = 0.0;
+    int apply_clip = (clip > 0.0);
+    if (apply_clip) clip_min = clip * -1;
     PSFloat *biases = PSGetLSTMGradientBiases(neuron, gradient);
     PSLSTMCell *cell = PSGetLSTMCell(neuron);
+    PSFloat batches = (PSFloat) batch_size;
+    PSFloat candidate_g = biases[CANDIDATE_IDX] / batches,
+            input_g = biases[INPUT_IDX] / batches,
+            output_g = biases[OUTPUT_IDX] / batches,
+            forget_g = biases[FORGET_IDX] / batches;
+    if (apply_clip) {
+        candidate_g = PSClipValue(candidate_g, clip, clip_min);
+        input_g = PSClipValue(input_g, clip, clip_min);
+        output_g = PSClipValue(output_g, clip, clip_min);
+        forget_g = PSClipValue(forget_g, clip, clip_min);
+    }
     cell->candidate_bias = applyGradientOnParameter(
-        PARAM_TYPE_BIAS, opts, biases[CANDIDATE_IDX], cell->candidate_bias,
+        PARAM_TYPE_BIAS, opts, candidate_g, cell->candidate_bias,
         mg, xg, rate, iteration, 0
     );
     cell->input_bias = applyGradientOnParameter(
-        PARAM_TYPE_BIAS, opts, biases[INPUT_IDX], cell->input_bias,
+        PARAM_TYPE_BIAS, opts, input_g, cell->input_bias,
         mg, xg, rate, iteration, 0
     );
     cell->output_bias = applyGradientOnParameter(
-        PARAM_TYPE_BIAS, opts, biases[OUTPUT_IDX], cell->output_bias,
+        PARAM_TYPE_BIAS, opts, output_g, cell->output_bias,
         mg, xg, rate, iteration, 0
     );
     cell->forget_bias = applyGradientOnParameter(
-        PARAM_TYPE_BIAS, opts, biases[FORGET_IDX], cell->forget_bias,
+        PARAM_TYPE_BIAS, opts, forget_g, cell->forget_bias,
         mg, xg, rate, iteration, 0
     );
 }
@@ -547,7 +562,7 @@ int PSInitLSTMLayer(PSNeuralNetwork *network, PSLayer *layer,
         }
         neuron->index = i;
         neuron->weights_size = tot_ws;
-        neuron->bias = PSGaussianRandom(0, 1);
+        neuron->bias = 0; /*PSGaussianRandom(0, 1);*/
         neuron->weights = malloc(sizeof(PSFloat) * tot_ws);
         if (neuron->weights ==  NULL) {
             PSDeleteNeuron(neuron, layer);

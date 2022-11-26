@@ -104,4 +104,5 @@ void PSAddDebugInfo(PSNeuralNetwork *network, char *file, const char *func,
                     char *prop, double val, ...);
 
 extern int PSOriginalStdOutFD;
+extern char *PSDumpGradientsPath;
 #endif /*  __DEBUG_H */

@@ -109,9 +109,11 @@ int PSInitLSTMLayer(PSNeuralNetwork *network, PSLayer *layer,
 int PSInitLSTMStates(PSLayer *layer, uint32_t steps, int retain_previous);
 int PSResizeLSTMStates(PSLayer *layer, uint32_t steps);
 void PSDeleteLSTMStates(PSLSTMStates *states);
+int PSDumpGradients(PSNeuralNetwork *network, PSGradient **gradients,
+                    const char* filename, PSTrainingOptions *opts);
 PSGradient **cloneGradients(PSGradient **gradients, PSNeuralNetwork *network);
 static void deleteTrainingContext(PSTrainingContext *training_ctx,
-                                  PSNeuralNetwork * network);
+                                  PSNeuralNetwork *network);
 static void deleteNetworkContext(PSNetworkContext *ctx,
                                  PSNeuralNetwork *network);
 
@@ -1548,6 +1550,7 @@ PSNeuralNetwork *PSCloneNetwork(PSNeuralNetwork *network, int layout_only) {
             }
             PSTrainingContext *clone_training_ctx=clone_ctx->training_context;
             clone_training_ctx->options = training_ctx->options;
+            clone_training_ctx->options.debug_dump_to = NULL;
             PSGradient **mgradients = training_ctx->momentum_gradients;
             PSGradient **xgradients = training_ctx->aux_gradients;
             if (mgradients != NULL) {
@@ -2072,7 +2075,7 @@ static void DumpNetworkHeader(PSNeuralNetwork *network, FILE *dump_file) {
     }
 }
 
-static void DumpLayerInfo(PSLayer *layer, FILE *dump_file, int add_new_line) {
+void DumpLayerInfo(PSLayer *layer, FILE *dump_file, int add_new_line) {
     PSLayerType ltype = layer->type;
     char *type_name = PSGetLayerTypeLabel(layer);
     PSHyperParameters *lparams = layer->hyper_parameters;
@@ -2200,7 +2203,7 @@ int PSDumpNetworkDeltas(PSNeuralNetwork *network, const char* filename) {
 }
 
 static void deleteTrainingContext(PSTrainingContext *training_ctx,
-                                  PSNeuralNetwork * network)
+                                  PSNeuralNetwork *network)
 {
     if (training_ctx->momentum_gradients != NULL)
         PSDeleteGradients(training_ctx->momentum_gradients, network);
@@ -3025,10 +3028,7 @@ int outputLayerBackprop(PSLayer *layer, PSLayer *previous_layer,
         if (!is_softmax) {
             /* Update gradient (non Softmax layer) */
             PSGradient *gradient = &(layer_gradients[o]);
-            if (use_bias) {
-                if (!is_recurrent) gradient->bias = d;
-                else gradient->bias += d;
-            }
+            if (use_bias) gradient->bias += d;
             int wsize = neuron->weights_size;
             w = 0;
 #ifdef USE_AVX
@@ -3042,8 +3042,7 @@ int outputLayerBackprop(PSLayer *layer, PSLayer *previous_layer,
 #endif
             for (; w < wsize; w++) {
                 PSFloat prev_a = PSGetActivation(previous_layer, w, t);
-                if (!prev_is_recurrent) gradient->weights[w] = d * prev_a;
-                else gradient->weights[w] += (d * prev_a);
+                gradient->weights[w] += (d * prev_a);
                 if (avx_disabled && previous_layer->delta != NULL)
                     previous_layer->delta[w] += (d * neuron->weights[w]);
             }
@@ -3064,10 +3063,7 @@ int outputLayerBackprop(PSLayer *layer, PSLayer *previous_layer,
             }
             PSFloat d = delta[o];
             PSGradient *gradient = &(layer_gradients[o]);
-            if (use_bias) {
-                if (!is_recurrent) gradient->bias = d;
-                else gradient->bias += d;
-            }
+            if (use_bias) gradient->bias += d;
             int wsize = neuron->weights_size;
             w = 0;
 #ifdef USE_AVX
@@ -3081,9 +3077,7 @@ int outputLayerBackprop(PSLayer *layer, PSLayer *previous_layer,
 #endif
             for (; w < wsize; w++) {
                 PSFloat prev_a = PSGetActivation(previous_layer, w, t);
-                /* TODO: why gradients are added only if prprev_is_recurrent?*/
-                if (!prev_is_recurrent) gradient->weights[w] = d * prev_a;
-                else gradient->weights[w] += (d * prev_a);
+                gradient->weights[w] += (d * prev_a);
                 if (avx_disabled && previous_layer->delta != NULL)
                     previous_layer->delta[w] += (d * neuron->weights[w]);
             }
@@ -3109,7 +3103,6 @@ int fullBackprop(PSLayer *layer, PSLayer *previous_layer,
     UNUSED(network);
 #endif
     int is_recurrent = PSIsRecurrent(layer),
-        prev_is_recurrent = PSIsRecurrent(previous_layer),
         use_bias = !(layer->flags & FLAG_NO_BIAS),
         t = 0;
     if (is_recurrent) {
@@ -3127,10 +3120,7 @@ int fullBackprop(PSLayer *layer, PSLayer *previous_layer,
             delta[i] = d;
         }
         PSGradient *gradient = &(layer_gradients[i]);
-        if (use_bias) {
-            if (!is_recurrent) gradient->bias = d;
-            else gradient->bias += d;
-        }
+        if (use_bias) gradient->bias += d;
         int wsize = neuron->weights_size, w = 0;
 #ifdef USE_AVX
         if (!avx_disabled) {
@@ -3144,8 +3134,7 @@ int fullBackprop(PSLayer *layer, PSLayer *previous_layer,
         for (; w < wsize; w++) {
             PSNeuron *prev_neuron = previous_layer->neurons[w];
             PSFloat prev_a = PSGetActivation(previous_layer, w, t);
-            if (!prev_is_recurrent) gradient->weights[w] = d * prev_a;
-            else gradient->weights[w] += d * prev_a;
+            gradient->weights[w] += (d * prev_a);
             if (avx_disabled && previous_layer->delta != NULL) {
                 if (!isDroppedOut(prev_neuron))
                     previous_layer->delta[w] += (d * neuron->weights[w]);
@@ -3307,7 +3296,7 @@ final:
 }
 
 PSGradient **backprop(PSNeuralNetwork *network, PSFloat *x, PSFloat *y,
-                      PSTrainingOptions *opts)
+                      PSTrainingOptions *opts, PSGradient **gradients)
 {
     if (network == NULL) return NULL;
     if (x == NULL) {
@@ -3318,7 +3307,11 @@ PSGradient **backprop(PSNeuralNetwork *network, PSFloat *x, PSFloat *y,
         PSErr(NULL, "Backpropagating NULL `y`");
         return NULL;
     }
-    PSGradient **gradients = createGradients(network);
+    PSGradient **new_gradients = NULL;
+    if (gradients == NULL) {
+        gradients = createGradients(network);
+        new_gradients = gradients;
+    }
     if (gradients == NULL) return NULL;
     int netsize = network->size, is_recurrent = PSIsRecurrent(network);
     PSLayer *output_layer = network->layers[netsize - 1];
@@ -3415,7 +3408,7 @@ PSGradient **backprop(PSNeuralNetwork *network, PSFloat *x, PSFloat *y,
     }
 final:
     if (!ok) {
-        if (gradients != NULL) PSDeleteGradients(gradients, network);
+        if (new_gradients != NULL) PSDeleteGradients(new_gradients, network);
         return NULL;
     }
     return gradients;
@@ -3468,7 +3461,7 @@ PSFloat applyGradientOnParameter(
         return param + dx;
     } else if (optimization == AdaGrad) {
         assert(mg != NULL);
-        *mptr = *mptr + grad *grad;
+        *mptr = *mptr + grad * grad;
         dx = - rate / PSSqrt(*mptr + eps) * grad;
         return param + dx;
     } else if (optimization == WindowGrad) {
@@ -3515,14 +3508,13 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
                                 PSGradient **momentum_gradients,
                                 PSGradient **aux_gradients, ...)
 {
-    int i, j, k, w, netsize = network->size, gsize = netsize - 1,
-        timesteps = 0, iteration = 0, avx_disabled = 1;
+    int i, j, k, netsize = network->size, gsize = netsize - 1,
+        timesteps = 0, iteration = 0, avx_disabled = 1, apply_clip = 0;
     assert(batch_size > 0);
     PSFloat *x = NULL; /* Training element */
     PSFloat *y = NULL; /* Labels */
     PSFloat l1 = 0.0, l2 = 0.0, l1_loss = 0.0, l2_loss = 0.0, momentum = 0.0,
-            clip_high = 0.0, clip_low = 0.0;
-    int apply_clip = 0;
+            clip_max = 0.0, clip_min = 0.0;
 #ifdef USE_AVX
     avx_disabled = PSIsAVXDisabled(network);
 #else
@@ -3591,10 +3583,9 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
         }
         momentum = opts->momentum;
         optimization = opts->optimization;
-        apply_clip = (opts->clip != 0.0);
-        if (apply_clip) {
-            clip_high = PSAbs(opts->clip);
-            clip_low = clip_high * -1;
+        if ((apply_clip = (opts->clip != 0.0))) {
+            clip_max = PSAbs(opts->clip);
+            clip_min = clip_max * -1;
             avx_disabled = 1;
         }
     }
@@ -3644,79 +3635,13 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
                 y = x + 1 + (timesteps * training_data_size);
             } else y = x + training_data_size;
         }
-        bp_gradients = backprop(network, x, y, opts);
+        bp_gradients = backprop(network, x, y, opts, gradients);
         if (bp_gradients == NULL) {
             network->status = STATUS_ERROR;
             goto final;
         }
-        /* Add current element's gradients obtained through the
-         * backpropagation to the batch's gradients. */
-        for (j = 0; j < gsize; j++) {
-            PSLayer *layer = network->layers[j + 1];
-            PSGradient *lgradients_bp = bp_gradients[j];
-            PSGradient *lgradients = gradients[j];
-            if (lgradients == NULL) continue;
-            int lsize = layer->size;
-            int wsize = 0;
-            int use_bias = !(layer->flags & FLAG_NO_BIAS);
-            if (layer->type == Convolutional) {
-                /* TODO: Why not to use shared parameters weights_size,
-                 * that should be already set?. */
-                /* Number of gradients for Convolutional layers is determined
-                 * on the number of their feature maps/filters and not on
-                 * the number of their nodes (neurons). */
-                PSHyperParameters *params = layer->hyper_parameters;
-                lsize = (int) (params->parameters[PARAM_FEATURE_COUNT]);
-                int rsize = (int) (params->parameters[PARAM_REGION_SIZE]);
-                wsize = rsize * rsize;
-                PSLayer *prev_layer = network->layers[j];
-                PSHyperParameters *prev_params = prev_layer->hyper_parameters;
-                if (prev_params != NULL) {
-                    int prev_feat_count = (int) (
-                        prev_params->parameters[PARAM_FEATURE_COUNT]
-                    );
-                    if (prev_feat_count > 1) wsize *= prev_feat_count;
-                }
-            }
-            for (k = 0; k < lsize; k++) {
-                if (wsize == 0) {
-                    PSNeuron *neuron = layer->neurons[k];
-                    wsize = neuron->weights_size;
-                    if (layer->type == LSTM) wsize += 4; /*  LSTM biases */
-                }
-                PSGradient *gradient_bp = &(lgradients_bp[k]);
-                PSGradient *gradient = &(lgradients[k]);
-                if (use_bias) {
-                    PSFloat gbias = gradient_bp->bias;
-                    if (apply_clip)
-                        gbias = PSClipValue(gbias, clip_high, clip_low);
-                    gradient->bias += gbias;
-                }
-                w = 0;
-#ifdef USE_AVX
-                if (!avx_disabled) {
-                    if (do_dump) PSTrainingDebugDumpGradient(
-                        network, DEBUG_PHASE_UPDATE_GRADS, __func__,
-                        layer, k, wsize, w, 1, AVXGetStepLen(wsize)
-                    );
-                    AVXIterativeSum(
-                        wsize, gradient->weights, gradient_bp->weights,
-                        gradient->weights, w, 0
-                    );
-                }
-#endif
-                if (do_dump && w < wsize) PSTrainingDebugDumpGradient(
-                    network, DEBUG_PHASE_UPDATE_GRADS, __func__,
-                    layer, k, wsize, w, 0, 0
-                );
-                for (; w < wsize; w++) {
-                    PSFloat gw = gradient_bp->weights[w];
-                    if (apply_clip) gw = PSClipValue(gw, clip_high, clip_low);
-                    gradient->weights[w] += gw;
-                }
-            }
-        }
-        PSDeleteGradients(bp_gradients, network);
+        if (PSDumpGradientsPath != NULL)
+            PSDumpGradients(network, gradients, NULL, opts);
         if (network->status == STATUS_PAUSED) break;
     }
 
@@ -3769,12 +3694,14 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
             /* Update Bias */
             if (use_bias) {
                 PSFloat gbias = g->bias / (PSFloat) batch_size;
+                if (apply_clip) gbias = PSClipValue(gbias, clip_max, clip_min);
                 *bias_ptr = applyGradientOnBias(
                     opts, gbias, bias,
                     mg, xg, rate, iteration
                 );
                 if (is_lstm) PSUpdateLSTMBiases(
-                    neuron, g, mg, xg, rate, opts, iteration
+                    neuron, g, mg, xg, rate, opts, iteration, batch_size,
+                    clip_max
                 );
             }
 
@@ -3860,8 +3787,14 @@ end_avx_weights:
                         l2_loss += (w * w);
                     }
                 }
+                /*if (do_dump && w < wsize) PSTrainingDebugDumpGradient(
+                    network, DEBUG_PHASE_UPDATE_GRADS, __func__,
+                    layer, k, wsize, w, 0, 0
+                );*/ /* TODO: restore gradient step dumping? */
                 grad_w = (l1_grad + l2_grad + g->weights[k]) /
                          (PSFloat) batch_size;
+                if (apply_clip)
+                    grad_w = PSClipValue(grad_w, clip_max, clip_min);
                 weights[k] = applyGradientOnWeight(
                     opts, grad_w, w, mg, xg, rate, iteration, k
                 );

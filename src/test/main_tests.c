@@ -119,7 +119,7 @@ int testLSTMTrain(TestCase *test_case, Test *test);
 /* psyc.c function prototypes */
 
 PSGradient **backprop(PSNeuralNetwork *network, PSFloat *x, PSFloat *y,
-                      PSTrainingOptions *opts);
+                      PSTrainingOptions *opts, PSGradient **gradients);
 
 PSFloat updateNetworkParameters(PSNeuralNetwork *network,
                                 PSFloat *training_data,
@@ -758,7 +758,7 @@ int testFullBackprop(TestCase *test_case, Test *test) {
     int input_size = network->layers[0]->size;
     PSFloat *x = test_data;
     PSFloat *y = test_data + input_size;
-    PSGradient **gradients = backprop(network, x, y, NULL);
+    PSGradient **gradients = backprop(network, x, y, NULL, NULL);
     testAssertNotNull(gradients, test);
     int i;
     for (i = 0; i < BP_GRADIENTS_CHECKS; i++) {
@@ -853,7 +853,7 @@ int testConvBackprop(TestCase *test_case, Test *test) {
     int input_size = network->layers[0]->size;
     PSFloat *x = test_data;
     PSFloat *y = test_data + input_size;
-    PSGradient **gradients = backprop(network, x, y, NULL);
+    PSGradient **gradients = backprop(network, x, y, NULL, NULL);
     testAssertNotNull(gradients, test);
     int i;
     for (i = 0; i < BP_CONV_GRADIENTS_CHECKS; i++) {
@@ -995,7 +995,8 @@ int testRNNBackprop(TestCase *test_case, Test *test) {
     PSTrainingOptions opts = {
         .bptt_truncate = 4
     };
-    PSGradient **gradients = backprop(network, rnn_inputs, rnn_labels, &opts);
+    PSGradient **gradients =
+        backprop(network, rnn_inputs, rnn_labels, &opts, NULL);
     testAssertNotNull(gradients, test);
     int dsize = network->size - 1;
     for (i = 0; i < dsize; i++) {

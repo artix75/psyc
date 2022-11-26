@@ -26,9 +26,13 @@
 #define LAYER_TYPES     6
 
 #define DEFAULT_RHO     0.95
-#define DEFAULT_EPS     1e-8
 #define DEFAULT_BETA1   0.9
 #define DEFAULT_BETA2   0.999
+#ifdef PS_DOUBLE_PRECISION
+#define DEFAULT_EPS     1e-8
+#else
+#define DEFAULT_EPS     1e-7
+#endif
 
 #define DEFAULT_RECURRENT_MODE ManyToMany
 #define MAX_RECURRENT_OUTPUT_STEPS 10

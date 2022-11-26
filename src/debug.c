@@ -37,12 +37,15 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <inttypes.h>
+#include <limits.h>
+#include <assert.h>
 #include <sys/stat.h>
 #include <sys/utsname.h>
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
+#include <ctype.h>
 
 #ifdef USE_AVX
 #include "avx.h"
@@ -53,6 +56,7 @@
 #include "psyc.h"
 #include "debug.h"
 #include "convolutional.h"
+#include "lstm.h"
 
 #ifdef BACKTRACE_AVAILABLE
 #include <execinfo.h>
@@ -79,7 +83,10 @@ typedef ucontext_t sigcontext_t;
 
 int PSOriginalStdOutFD = -999;
 PSDebugInfo last_debug_info = {0};
+char *PSDumpGradientsPath = NULL;
 static void printLastDebugInfo(void);
+int writeSerializedFloat(FILE *out, PSFloat fnum, int opts);
+void DumpLayerInfo(PSLayer *layer, FILE *dump_file, int add_new_line);
 
 #ifdef BACKTRACE_AVAILABLE
 static void *getEip(ucontext_t *uc) {
@@ -578,6 +585,146 @@ void PSTrainingDebugDumpHeader(PSNeuralNetwork *network,
         "epochs=%d,learning_rate=%.3f\n",
         time(NULL), data_size, test_size, batch_size, epochs, learning_rate
     );
+}
+
+int PSDumpGradients(PSNeuralNetwork *network, PSGradient **gradients,
+                    const char* filename, PSTrainingOptions *opts)
+{
+    assert(network != NULL);
+    if (network->size == 0) {
+        PSErr(NULL, "Empty network!\n");
+        return 0;
+    }
+    char default_filename[PATH_MAX];
+    if (filename == NULL) {
+        if (PSDumpGradientsPath == NULL) {
+            PSErr(NULL, "Cannot dump gradients: missing filename or "
+                  "PSDumpGradientsPath");
+            return 0;
+        }
+        char *p = default_filename;
+        int maxlen = PATH_MAX - 1;
+        int len = snprintf(p, maxlen, "%s", PSDumpGradientsPath);
+        if (len >= maxlen) {
+            PSErr(NULL, "PSDumpGradientsPath too long!");
+            return 0;
+        }
+        if (p[len - 1] != '/') {
+            p[len] = '/';
+            if (++len >= maxlen) {
+                PSErr(NULL, "PSDumpGradientsPath too long!");
+                return 0;
+            }
+        }
+        p += len;
+        maxlen -= len;
+        char *name = (char *) network->name;
+        if (name == NULL || strlen(name) == 0) name = "unnamed";
+        name = strdup(name);
+        int namelen = strlen(name);
+        for (int i = 0; i < namelen; i++) {
+            char c = name[i];
+            int valid = (isalnum(c) || c == '_' || c == '-');
+            if (!valid) name[i] = '-';
+            else name[i] = tolower(name[i]);
+        }
+        if (network->training != NULL) {
+            int epoch = network->training->current_epoch,
+                batch = network->training->current_batch;
+            len += snprintf(
+                p, maxlen, "psyc-gradients-%s-%d-%d.dump", name, epoch, batch
+            );
+        } else len += snprintf(p, maxlen, "psyc-gradients-%s.dump", name);
+        filename = default_filename;
+        free(name);
+    }
+    FILE *f = fopen(filename, "w");
+    if (f == NULL) {
+        fprintf(stderr, "Cannot open %s for writing!\n", filename);
+        return 0;
+    }
+    PSFloat clip_h = 0.0, clip_l = 0.0;
+    int i, j, k, size, apply_clip = 0;
+    if (opts != NULL) {
+        if ((apply_clip = (opts->clip != 0.0))) {
+            clip_h = PSAbs(opts->clip);
+            clip_l = clip_h * -1;
+        }
+    }
+    for (i = 0; i < network->size; i++) {
+        PSLayer *layer = network->layers[i];
+        PSLayerType ltype = layer->type;
+        PSHyperParameters *lparams = layer->hyper_parameters;
+        int fcount = 1, weights_size = 0;
+        if ((ltype == Convolutional || ltype == Pooling ||
+            ltype == FullyConnected) && lparams != NULL)
+        {
+            PSFloat *params = lparams->parameters;
+            fcount = (int) (params[PARAM_FEATURE_COUNT]);
+        }
+        if (fcount < 0) fcount = 1;
+        DumpLayerInfo(layer, f, 0);
+        if (i == 0) {
+            fprintf(f, ",weight_gradients=(),bias_gradients=()\n");
+            continue;
+        }
+        PSGradient *lgradients = gradients[i - 1];
+        if (lgradients == NULL) {
+            fprintf(f, ",weight_gradients=(),bias_gradients=()\n");
+            continue;
+        }
+        if (ltype == Convolutional || ltype == Pooling) size = fcount;
+        else size = layer->size;
+        PSSharedParams *shared = NULL;
+        if (ltype == Convolutional) {
+            shared = PSGetConvSharedParams(layer);
+            if (!shared) {
+                fprintf(stderr, "Shared params for Convolutional layer %d "
+                        "are NULL!\n", i);
+                exit(1);
+            }
+            weights_size = shared->weights_size;
+        } else {
+            PSNeuron *n = layer->neurons[0];
+            assert(n != NULL);
+            weights_size = n->weights_size;
+            /*if (LSTM == ltype) weights_size += 4;*/
+        }
+        fprintf(f, ",weight_gradients=(");
+        for(j = 0; j < size; j++) {
+            PSGradient *gradient = &(lgradients[j]);
+            assert(gradient != NULL);
+            assert(gradient->weights != NULL);
+            for (k = 0; k < weights_size; k++) {
+                PSFloat wg = gradient->weights[k];
+                if (apply_clip) wg = PSClipValue(wg, clip_h, clip_l);
+                if (k > 0 || j > 0) fprintf(f, ",");
+                writeSerializedFloat(f, wg, 0);
+            }
+        }
+        int is_lstm = (LSTM == ltype);
+        fprintf(f, "),bias_gradients=(");
+        for(j = 0; j < size; j++) {
+            if (j > 0) fprintf(f, ",");
+            PSGradient *gradient = &(lgradients[j]);
+            if (!is_lstm) {
+                PSFloat bg = gradient->bias;
+                if (apply_clip) bg = PSClipValue(bg, clip_h, clip_l);
+                writeSerializedFloat(f, bg, 0);
+            } else {
+                PSNeuron *neuron = layer->neurons[j];
+                PSFloat *gbiases = PSGetLSTMGradientBiases(neuron, gradient);
+                for(k = 0; k < 4; k++) {
+                    PSFloat bg = gbiases[k];
+                    if (apply_clip) bg = PSClipValue(bg, clip_h, clip_l);
+                    writeSerializedFloat(f, bg, 0);
+                }
+            }
+        }
+        fprintf(f, ")\n");
+    }
+    fclose(f);
+    return 1;
 }
 
 void PSResetDebugInfo(void) {

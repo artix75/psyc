@@ -298,7 +298,7 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previous_layer,
                     }
                 }
                 /* Update gradients and the new delta for layer with its own
-                 * hidden state */
+                 * (previous) hidden state */
                 w = 0;
 #ifdef USE_AVX
                 if (!avx_disabled) {

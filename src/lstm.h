@@ -57,7 +57,8 @@ PSLSTMCell *PSCreateLSTMCell(PSNeuron *neuron, int lsize);
 void PSDeleteLSTMCell(PSLSTMCell *cell);
 void PSUpdateLSTMBiases(PSNeuron *neuron, PSGradient *gradient,
                         PSGradient *mg, PSGradient *xg, PSFloat rate,
-                        PSTrainingOptions *opts, int iteration);
+                        PSTrainingOptions *opts, int iteration,
+                        int batch_size, PSFloat clip);
 
 /* Init Functions */
 

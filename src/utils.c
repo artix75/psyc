@@ -67,7 +67,7 @@ PSFloat PSReluDerivative(PSFloat val) {
 }
 
 PSFloat PSTanhDerivative(PSFloat val) {
-    return (1 - (val *val));
+    return (1 - (val * val));
 }
 
 /* Network Functions */
