@@ -87,6 +87,7 @@ char *PSDumpGradientsPath = NULL;
 static void printLastDebugInfo(void);
 int writeSerializedFloat(FILE *out, PSFloat fnum, int opts);
 void DumpLayerInfo(PSLayer *layer, FILE *dump_file, int add_new_line);
+int (*PSShouldDumpGradientsCallback) (PSNeuralNetwork *network) = NULL;
 
 #ifdef BACKTRACE_AVAILABLE
 static void *getEip(ucontext_t *uc) {
@@ -594,6 +595,9 @@ int PSDumpGradients(PSNeuralNetwork *network, PSGradient **gradients,
     if (network->size == 0) {
         PSErr(NULL, "Empty network!\n");
         return 0;
+    }
+    if (PSShouldDumpGradientsCallback != NULL) {
+        if (!PSShouldDumpGradientsCallback(network)) return 0;
     }
     char default_filename[PATH_MAX];
     if (filename == NULL) {
