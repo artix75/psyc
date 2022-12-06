@@ -135,13 +135,13 @@ void handler(int sig) {
 }
 
 void onBatchTrained(PSNeuralNetwork *network, int epoch, int epochs,
-                    PSFloat loss, PSFloat previous_loss, float accuracy,
+                    PSFloat loss, PSFloat batch_loss, float accuracy,
                     PSFloat *rate, PSFloat *training_data)
 {
     UNUSED(epoch);
     UNUSED(epochs);
     UNUSED(loss);
-    UNUSED(previous_loss);
+    UNUSED(batch_loss);
     UNUSED(accuracy);
     UNUSED(rate);
     if (dump_activations_str == NULL && max_batches <= 0) return;

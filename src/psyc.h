@@ -102,7 +102,8 @@ typedef PSFloat  (*PSLossFunction) (PSFloat* x, PSFloat* y, int size,
                                    int onehot_size);
 typedef void     (*PSTrainCallback) (struct PSNeuralNetwork *network,
                                      int epoch, int epochs,
-                                     PSFloat loss, PSFloat previous_loss,
+                                     PSFloat average_loss,
+                                     PSFloat current_loss,
                                      float accuracy, PSFloat *rate,
                                      PSFloat *training_data);
 typedef void     (*PSSignalHandler) (int);

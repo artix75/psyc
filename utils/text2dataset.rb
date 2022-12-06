@@ -119,15 +119,19 @@ def do_verify(c, dump_sentences: false)
     end
     if dump_sentences && !$indexed_words
         wrd_match = c.match(
-            /char\s*\*\s*#{$options[:words_var]}\[\]\s*=\s*\{([^\{\}]+)\};/
+            /char\s*\*?\s*#{$options[:words_var]}\[\]\s*=\s*\{([^\{\}]+)\};/
         )
         if !wrd_match
             STDERR.puts "Verify: Couldn't find #{$options[:words_var]}, " +
                         "cannot dump sentences"
             dump_sentences = false
         end
+        matched_words = wrd_match[1]
+        if $options[:mode] == :characters
+            matched_words = matched_words.gsub "'", '"'
+        end
         begin
-            words_json = '[' + wrd_match[1] + ']'
+            words_json = '[' + matched_words + ']'
             $indexed_words = JSON.parse words_json
         rescue Exception => e
             STDERR.puts "ERROR: Failed to read words, cannot dump sentences"

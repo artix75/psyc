@@ -113,10 +113,10 @@ void printHelp(const char* program_path);
 int parseOptionsFromFile(const char *filename);
 PSLossFunction getLossFunctionByName(char *name);
 void onBatchTrained(PSNeuralNetwork *network, int epoch, int epochs,
-                    PSFloat loss, PSFloat previous_loss, float accuracy,
+                    PSFloat loss, PSFloat current_loss, float accuracy,
                     PSFloat *rate, PSFloat *training_data);
 void onEpochTrained(PSNeuralNetwork *network, int epoch, int epochs,
-                    PSFloat loss, PSFloat previous_loss, float accuracy,
+                    PSFloat loss, PSFloat current_loss, float accuracy,
                     PSFloat *rate, PSFloat *training_data);
 static void cleanup(void);
 
@@ -961,7 +961,7 @@ cleanup:
 /* Event functions */
 
 void onTrainEvent(int event_type, PSNeuralNetwork *network, int epoch,
-                  int epochs, PSFloat loss, PSFloat previous_loss,
+                  int epochs, PSFloat avg_loss, PSFloat current_loss,
                   float accuracy, PSFloat *rate)
 {
     char *script = NULL, *event = NULL;
@@ -978,9 +978,9 @@ void onTrainEvent(int event_type, PSNeuralNetwork *network, int epoch,
     int written = snprintf(
         cmd, CMD_MAX_LEN,
         "%s --event %s-trained --name '%s' --epoch %d --epochs %d "
-        "--loss %g --previous-loss %g --accuracy %g --learning-rate %g",
-        on_batch_trained, event, network->name, epoch, epochs, loss,
-        previous_loss, accuracy, *rate
+        "--average-loss %g --current-loss %g --accuracy %g --learning-rate %g",
+        on_batch_trained, event, network->name, epoch, epochs, avg_loss,
+        current_loss, accuracy, *rate
     );
     if (written >= CMD_MAX_LEN) {
         fprintf(stderr, "\nWARN: onBatchTrained command is too big!\n");
@@ -1009,7 +1009,7 @@ void onTrainEvent(int event_type, PSNeuralNetwork *network, int epoch,
 }
 
 void onBatchTrained(PSNeuralNetwork *network, int epoch, int epochs,
-                    PSFloat loss, PSFloat previous_loss, float accuracy,
+                    PSFloat avg_loss, PSFloat current_loss, float accuracy,
                     PSFloat *rate, PSFloat *training_data)
 {
 
@@ -1020,19 +1020,19 @@ void onBatchTrained(PSNeuralNetwork *network, int epoch, int epochs,
         if ((info->current_batch % batch_script_every) != 0) return;
     }
     onTrainEvent(
-        TRAIN_EVENT_BATCH, network, epoch, epochs, loss, previous_loss,
+        TRAIN_EVENT_BATCH, network, epoch, epochs, avg_loss, current_loss,
         accuracy, rate
     );
 }
 
 void onEpochTrained(PSNeuralNetwork *network, int epoch, int epochs,
-                    PSFloat loss, PSFloat previous_loss, float accuracy,
+                    PSFloat avg_loss, PSFloat current_loss, float accuracy,
                     PSFloat *rate, PSFloat *training_data)
 {
     UNUSED(training_data);
     if (on_epoch_trained == NULL) return;
     onTrainEvent(
-        TRAIN_EVENT_EPOCH, network, epoch, epochs, loss, previous_loss,
+        TRAIN_EVENT_EPOCH, network, epoch, epochs, avg_loss, current_loss,
         accuracy, rate
     );
 }
@@ -1239,8 +1239,8 @@ void printHelp(const char* program_path) {
         "events happen.The scripts will eventually receive the following\n"
         "arguments:\n"
         "  --event TYPE, --name NETWORK_NAME --epoch CURRENT_EPOC\n"
-        "  --epochs TOT_EPOCHS --loss CURRENT_LOSS --previous-loss\n"
-        "  PREVIOUS_LOSS --accuracy CURRENT_ACCURACY --learning-rate RATE\n"
+        "  --epochs TOT_EPOCHS --average-loss AVERAGE_LOSS --current-loss\n"
+        "  CURRENT_LOSS --accuracy CURRENT_ACCURACY --learning-rate RATE\n"
     );
     printf("\n");
 }

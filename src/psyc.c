@@ -3868,8 +3868,7 @@ PSFloat gradientDescent(PSNeuralNetwork *network,
         if (!(flags & TRAINING_NO_SHUFFLE))
             shuffle(training_data, elements_count, element_size);
     }
-    PSFloat err = 0.0, previous_err = 0.0, avg_err = 0.0,
-           acc = 0.0, tot_acc = 0.0, avg_acc = 0.0;
+    PSFloat err = 0.0, avg_err = 0.0, acc = 0.0, tot_acc = 0.0, avg_acc = 0.0;
     long tot_t = 0, avg_t, elapsed_t, test_data_size, validations = 0;
     int offset = (element_size * batch_size), validate_every = 0, i;
     PSGradient **momentum_gradients = training_ctx->momentum_gradients,
@@ -3916,10 +3915,11 @@ PSFloat gradientDescent(PSNeuralNetwork *network,
         int batch_num = i + 1;
         struct timeval st, et;
         gettimeofday(&st, NULL);
-        err += updateNetworkParameters(
+        PSFloat batch_err = updateNetworkParameters(
             network, training_data, batch_size, elements_count, options,
             learning_rate, momentum_gradients, aux_gradients, series_head
         );
+        err += batch_err;
         gettimeofday(&et, NULL);
         elapsed_t = PSGetElapsedTimeUS(st, et);
         tot_t += elapsed_t;
@@ -3956,11 +3956,10 @@ PSFloat gradientDescent(PSNeuralNetwork *network,
         if (network->onBatchTrained != NULL) {
             network->onBatchTrained(
                 network, network->training->current_epoch,
-                epochs, avg_err, previous_err, 0, &learning_rate,
-                training_data
+                epochs, avg_err, batch_err, avg_acc, &learning_rate,
+                (series != NULL ? *series_head : training_data)
             );
         }
-        previous_err = avg_err;
         if (series == NULL) training_data += offset;
         else series_head += batch_size;
         int action = network->training->requested_action;
@@ -4319,7 +4318,7 @@ void PSTrain(PSNeuralNetwork *network,
         if (i > 0 && err > prev_err && adjust_rate)
             learning_rate *= 0.5;
         if (network->onEpochTrained != NULL)
-            network->onEpochTrained(network, i, epochs, err, prev_err,
+            network->onEpochTrained(network, i, epochs, err, err,
                                     acc, &learning_rate, NULL);
         prev_err = err;
         PSLogTrainingProgress(network, epochs, batches_count, 1,
