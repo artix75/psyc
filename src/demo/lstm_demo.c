@@ -96,7 +96,9 @@ int main(int argc, char** argv) {
     /*signal(SIGSEGV, handler);
     signal(8, handler);*/
     PSHandleSignals(handler);
+#if defined(__x86_64__) || defined(__i386__)
     _MM_SET_EXCEPTION_MASK(_MM_GET_EXCEPTION_MASK() & ~_MM_MASK_INVALID);
+#endif
 
     const char *pretrained_file = NULL;
     int i;

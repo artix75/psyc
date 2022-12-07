@@ -180,6 +180,7 @@ void onBatchTrained(PSNeuralNetwork *network, int epoch, int epochs,
 }
 
 int main(int argc, char** argv) {
+#if defined(__x86_64__) || defined(__i386__)
     _MM_SET_EXCEPTION_MASK( _MM_GET_EXCEPTION_MASK()
            & ~( _MM_EXCEPT_INVALID |
                 _MM_EXCEPT_DENORM |
@@ -187,6 +188,7 @@ int main(int argc, char** argv) {
                 _MM_EXCEPT_OVERFLOW |
                 _MM_EXCEPT_UNDERFLOW |
                 _MM_EXCEPT_INEXACT ) );
+#endif
 #ifdef CATCH_FPE
     PSCatchFloatingPointExceptions(/*FE_INVALID | */FE_OVERFLOW | FE_DIVBYZERO);
 #endif

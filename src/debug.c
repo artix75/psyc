@@ -31,6 +31,7 @@
 #define _DEFAULT_SOURCE
 #endif
 
+#include <stdlib.h>
 #include <arpa/inet.h>
 #include <signal.h>
 #include <dlfcn.h>
@@ -57,6 +58,7 @@
 #include "debug.h"
 #include "convolutional.h"
 #include "lstm.h"
+#define UNUSED(V) ((void) V)
 
 #ifdef BACKTRACE_AVAILABLE
 #include <execinfo.h>
@@ -349,9 +351,10 @@ int feenableexcept(unsigned int excepts)
         return -1;
     }
 #if (IS_ARM == 1)
-    old_excepts = env.__fpcr;
+    UNUSED(new_excepts);
+    old_excepts = fenv.__fpcr;
     /*  unmask */
-    env.__fpcr = env.__fpcr | (excepts << FE_EXCEPT_SHIFT);
+    fenv.__fpcr = fenv.__fpcr | (excepts << FE_EXCEPT_SHIFT);
 #else
     old_excepts = fenv.__control & FE_ALL_EXCEPT;
     /*  unmask */
@@ -372,11 +375,16 @@ int fedisableexcept(unsigned int excepts)
     if (fegetenv(&fenv)) {
         return -1;
     }
+#if (IS_ARM == 1)
+    UNUSED(new_excepts);
+    old_excepts = fenv.__fpcr;
+    fenv.__fpcr &= ~(excepts << FE_EXCEPT_SHIFT);
+#else
     old_excepts = fenv.__control & FE_ALL_EXCEPT;
-
     /*  mask */
     fenv.__control |= new_excepts;
     fenv.__mxcsr   |= new_excepts << 7;
+#endif
 
     return fesetenv(&fenv) ? -1 : old_excepts;
 }
