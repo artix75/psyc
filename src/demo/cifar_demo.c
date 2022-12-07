@@ -23,7 +23,9 @@
 
 #include <execinfo.h>
 #include <fenv.h>
+#if defined(__x86_64__) || defined(__i386__)
 #include <xmmintrin.h>
+#endif
 
 #include "../psyc.h"
 #include "../convolutional.h"

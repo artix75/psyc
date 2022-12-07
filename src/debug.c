@@ -68,7 +68,9 @@ typedef ucontext_t sigcontext_t;
 #include <fcntl.h>
 #include <unistd.h>
 #include <fenv.h>
+#if defined(__x86_64__) || defined(__i386__)
 #include <xmmintrin.h>
+#endif
 #endif /* BACKTRACE_AVAILABLE */
 
 #ifdef __CYGWIN__
