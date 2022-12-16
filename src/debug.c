@@ -92,6 +92,7 @@ static void printLastDebugInfo(void);
 int writeSerializedFloat(FILE *out, PSFloat fnum, int opts);
 void DumpLayerInfo(PSLayer *layer, FILE *dump_file, int add_new_line);
 int (*PSShouldDumpGradientsCallback) (PSNeuralNetwork *network) = NULL;
+int writeSerializedFloat(FILE *out, PSFloat fnum, int opts);
 
 #ifdef BACKTRACE_AVAILABLE
 static void *getEip(ucontext_t *uc) {

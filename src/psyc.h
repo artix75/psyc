@@ -21,7 +21,7 @@
 #include <time.h>
 #include "types.h"
 
-#define PSYC_VERSION      "0.2.3"
+#define PSYC_VERSION      "0.3.0"
 
 #define LAYER_TYPES     6
 

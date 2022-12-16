@@ -7,6 +7,8 @@ test -f buildinfo.h || touch buildinfo.h
 (cat buildinfo.h | grep SHA | grep $GIT_SHA) && \
 (cat buildinfo.h | grep BRANCH | grep $GIT_BRANCH) && \
 (cat buildinfo.h | grep DIRTY | grep $GIT_DIRTY) && exit 0 # Up-to-date
-echo "#define PSYC_GIT_SHA \"$GIT_SHA\"" > buildinfo.h
+DATE=`date -R`
+echo "/* Generated on: $DATE */" > buildinfo.h
+echo "#define PSYC_GIT_SHA \"$GIT_SHA\"" >> buildinfo.h
 echo "#define PSYC_GIT_DIRTY \"$GIT_DIRTY\"" >> buildinfo.h
 echo "#define PSYC_GIT_BRANCH \"$GIT_BRANCH\"" >> buildinfo.h

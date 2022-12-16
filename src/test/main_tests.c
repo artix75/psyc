@@ -1404,7 +1404,7 @@ int testGenericSave(TestCase *test_case, Test *test) {
     PSFloat old_dropout = network->layers[0]->dropout;
     network->layers[0]->dropout = 0.5;
     char tmpfile[255];
-    getTmpFileName("tests-save-nn", ".data", tmpfile);
+    getTmpFileName("tests-save-nn", ".psmodel", tmpfile);
     int ok = PSSaveNetwork(network, tmpfile);
     testAssertWithMessage(ok, test, "Could not save network %s", network->name);
     PSNeuralNetwork *clone = PSCreateNetwork("Clone Test Network");

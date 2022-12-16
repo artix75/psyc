@@ -38,11 +38,8 @@
 #include "lstm.h"
 #include "debug.h"
 
-#define DATA_LAYER_MIN_ARGC 3
 #define STATUS_ERROR_LOSS ((PSFloat) FLT_MIN)
 #define BPTT_TRUNCATE   4
-#define OPT_FLOAT_FORMAT_HEX (1 << 0)
-#define OPT_FLOAT_FORMAT_DBL (1 << 1)
 
 #define applyGradientOnBias(opts, grad, val, mg, xg, r, i) \
     applyGradientOnParameter(PARAM_TYPE_BIAS, opts, grad, val, mg, xg, r, i, 0)
@@ -116,6 +113,7 @@ static void deleteTrainingContext(PSTrainingContext *training_ctx,
                                   PSNeuralNetwork *network);
 static void deleteNetworkContext(PSNetworkContext *ctx,
                                  PSNeuralNetwork *network);
+int writeSerializedFloat(FILE *out, PSFloat fnum, int opts);
 
 /* Miscellaneous functions */
 
@@ -176,26 +174,6 @@ int PSLogTrainingProgress(PSNeuralNetwork *network, int epochs, int batches,
     fflush(stdout);
     if (do_clear) PSFillWithBlank(llen);
     return llen;
-}
-
-int writeSerializedFloat(FILE *out, PSFloat fnum, int opts) {
-    if (opts & OPT_FLOAT_FORMAT_DBL)
-        return fprintf(out, "%.*g", DBL_DECIMAL_DIG, (double) fnum);
-    else if (opts & OPT_FLOAT_FORMAT_HEX) return fprintf(out, "%a", fnum);
-    else return fprintf(out, "%.*g", PSFLOAT_DIG, fnum);
-}
-
-int writeSerializedFloats(FILE *out, int count, char *sep, int opts, ...) {
-    int has_sep = (sep != NULL), len = 0, i;
-    va_list args;
-    va_start(args, opts);
-    for (i = 0; i < count; i++) {
-        if (has_sep && i > 0) len += fprintf(out, "%s", sep);
-        PSFloat fnum = (PSFloat) va_arg(args, double);
-        len += writeSerializedFloat(out, fnum, opts);
-    }
-    va_end(args);
-    return len;
 }
 
 /* Feedforward Functions */
@@ -511,20 +489,6 @@ static int fetchRecurrentOutputState(PSLayer *out, PSFloat *outputs,
     return oidx;
 }
 
-static int compareVersion(const char* vers1, const char* vers2) {
-    int major1 = 0, minor1 = 0, patch1 = 0;
-    int major2 = 0, minor2 = 0, patch2 = 0;
-    sscanf(vers1, "%d.%d.%d", &major1, &minor1, &patch1);
-    sscanf(vers2, "%d.%d.%d", &major2, &minor2, &patch2);
-    if (major1 < major2) return -1;
-    if (major1 > major2) return 1;
-    if (minor1 < minor2) return -1;
-    if (minor1 > minor2) return 1;
-    if (patch1 < patch2) return -1;
-    if (patch1 > patch2) return 1;
-    return 0;
-}
-
 char *PSGetLabelForType(PSLayerType type) {
     switch (type) {
         case FullyConnected:
@@ -552,6 +516,21 @@ char *getLossFunctionName(PSLossFunction function) {
     if (function == PSQuadraticLoss) return "quadratic";
     else if (function == PSCrossEntropyLoss) return "cross-entropy";
     return "UNKOWN";
+}
+
+int getLossFunctionIndex(PSLossFunction function) {
+    if (function == NULL) return 0;
+    int i;
+    for (i = 1; i < (int) loss_functions_count; i++) {
+        PSLossFunction func = loss_functions[i];
+        if (func == function) return i;
+    }
+    return 0;
+}
+
+PSLossFunction getLossFunctionAtIndex(int index) {
+    if (index >= (int) loss_functions_count) return NULL;
+    return loss_functions[index];
 }
 
 char *getNetworkStatusLabel(PSNeuralNetwork *network) {
@@ -619,7 +598,7 @@ int PSGetNetworkParametersCount(PSNeuralNetwork *network) {
     return tot;
 }
 
-static void printLayerInfo(PSLayer *layer) {
+void PSPrintLayerInfo(PSLayer *layer) {
     if (layer == NULL) return;
     PSLayerType ltype = layer->type;
     char *type_name = PSGetLayerTypeLabel(layer);
@@ -673,7 +652,7 @@ void PSPrintNetworkInfo(PSNeuralNetwork *network) {
     for (i = 0; i < network->size; i++) {
         PSLayer *layer = network->layers[i];
         printf("  ");
-        printLayerInfo(layer);
+        PSPrintLayerInfo(layer);
     }
     int is_recurrent = PSIsRecurrent(network);
     PSRecurrentNetworkMode mode = PSGetRecurrentNetworkMode(network);
@@ -1593,469 +1572,6 @@ err:
     return NULL;
 }
 
-int PSLoadNetwork(PSNeuralNetwork *network, const char* filename) {
-    if (network == NULL) return 0;
-    FILE *f = fopen(filename, "r");
-    printf("Loading network from %s\n", filename);
-    if (f == NULL) {
-        PSErr(NULL, "Cannot open %s!", filename);
-        return 0;
-    }
-    int netsize, i, j, k;
-    int empty = (network->size == 0);
-    char vers[20] = "0.0.0";
-    int v0 = 0, v1 = 0, v2 = 0;
-    int epochs = 0, batch_count = 0, elements = 0, status = STATUS_UNTRAINED,
-        batch_size = 0, is_built = 0, rnn_mode = NonRecurrent,
-        max_recurrent_output_steps = MAX_RECURRENT_OUTPUT_STEPS,
-        eos_recurrent_output_index = -1;
-    int matched = fscanf(f, "--v%d.%d.%d", &v0, &v1, &v2);
-    if (matched) {
-        sprintf(vers, "%d.%d.%d", v0, v1, v2);
-        printf("File version is %s (current: %s).\n", vers, PSYC_VERSION);
-        if (compareVersion(PSYC_VERSION, vers) < 0) {
-            PSErr(
-                NULL,
-                "File version is higher than current PsyC version: %s > %s\n"
-                "PsyC %s (or higher) is required to open %s",
-                vers, PSYC_VERSION, vers, filename
-            );
-            fclose(f);
-            return 0;
-        }
-        int idx = 0, val = 0;
-        PSLossFunction loss = NULL;
-        while ((matched = fscanf(f, ",%d", &val))) {
-            switch (idx++) {
-                case 0:
-                    network->flags |= val; break;
-                case 1:
-                    if ((size_t) val < loss_functions_count) {
-                        loss = loss_functions[val];
-                        network->loss = loss;
-                        printf("Loss Function: %s\n",getLossFunctionName(loss));
-                    }
-                    break;
-                case 2:  epochs = val; break;
-                case 3:  batch_count = val; break;
-                case 4:  status = val; break;
-                case 5:  elements = val; break;
-                case 6:  batch_size = val; break;
-                case 7:  rnn_mode = (PSRecurrentNetworkMode) val; break;
-                case 8:  max_recurrent_output_steps = val; break;
-                case 9:  eos_recurrent_output_index = val; break;
-                case 10: is_built = val; break;
-                default:
-                    break;
-            }
-        }
-        fscanf(f, "\n");
-        if (rnn_mode != NonRecurrent)
-            PSSetRecurrentNetworkMode(network, rnn_mode);
-        if (max_recurrent_output_steps > 0 || eos_recurrent_output_index >= 0) {
-            if (network->rnn_options == NULL) {
-                network->rnn_options =
-                    calloc(1, sizeof(PSRecurrentNetworkOptions));
-                if (network->rnn_options == NULL) {
-                    PSPrintMemoryErrorMsg();
-                    return 0;
-                }
-            }
-            network->rnn_options->sequence_stop_criterion.max_steps =
-                max_recurrent_output_steps;
-            network->rnn_options->sequence_stop_criterion.eos =
-                eos_recurrent_output_index;
-        }
-        network->status = status;
-        if (status != STATUS_UNTRAINED) {
-            if (network->training == NULL) {
-                network->training = malloc(sizeof(PSTrainingInfo));
-                network->training->requested_action = ACTION_NONE;
-                network->training->debug_dump_to = NULL;
-            }
-            network->training->current_epoch = epochs;
-            network->training->current_batch = batch_count;
-            network->training->current_element = elements;
-            network->training->batch_size = batch_size;
-        }
-    }
-    matched = fscanf(f, "%d:", &netsize);
-    if (!matched) {
-        PSErr(__func__, "Invalid file %s!", filename);
-        fclose(f);
-        return 0;
-    }
-    if (!empty && network->size != netsize) {
-        PSErr(__func__, "Network size differs!");
-        fclose(f);
-        return 0;
-    }
-    char sep[] = ",";
-    char eol[] = "\n";
-    int min_argc = 1;
-    if (compareVersion(vers, "0.2.2") == 1) min_argc = DATA_LAYER_MIN_ARGC;
-    else if (compareVersion(vers, "0.0.0") == 1) min_argc = 2;
-    PSLayer *layer = NULL;
-    for (i = 0; i < netsize; i++) {
-        int lsize = 0;
-        int lflags = 0;
-        PSFloat dropout = 0.0;
-        PSLayerType ltype = FullyConnected;
-        int args[20];
-        int argc = 0, aidx = 0;
-        char *last = (i == (netsize - 1) ? eol : sep);
-        char fmt[50];
-        char buff[255];
-        /* Simple FullyConnected layers with no flags, no dropout and no
-         * hyper-parameters are only saved as a single integer (layer->size) */
-        sprintf(fmt, "%%d%s", last);
-        /* fputs(fmt, stderr); */
-        matched = fscanf(f, fmt, &lsize);
-        if (!matched) {
-            /* Try to parse more complex layer definitions declared as an
-             * array of numeric values: [type, argc, args...]. */
-            int type = 0, arg = 0;
-            PSFloat argf = 0.0;
-            argc = 0;
-            matched = fscanf(f, "[%d,%d", &type, &argc);
-            if (!matched) {
-                PSErr(__func__, "Invalid header: layer[%d], col. %ld!",
-                      i, ftell(f));
-                fclose(f);
-                return 0;
-            }
-            if (argc == 0) {
-                PSErr(
-                    __func__,
-                    "Layer %d must have at least 1 argument (size)", i
-                );
-                fclose(f);
-                return 0;
-            }
-            /* For backward compatibility, data here can be parsed in different
-             * ways, and `min_argc` is used to indicate the minumum number of
-             * fixed arguments, that can be:
-             * - flags (min_argc == 2)
-             * - flags, dropout (min_argc == 3)
-             * The rest of the arguments is used in case of  eventual
-             * PSHyperParameters. */
-            ltype = (PSLayerType) type;
-            for (aidx = 0; aidx < argc; aidx++) {
-                if (min_argc == 3 && aidx == 2)
-                    fscanf(f, "," PSFLOAT_FORMAT, &argf);
-                else matched = fscanf(f, ",%d", &arg);
-                if (!matched) {
-                    PSErr(__func__, "Invalid header: l%d, arg. %d, col. %ld!",
-                          i, aidx, ftell(f));
-                    fclose(f);
-                    return 0;
-                }
-                if (aidx == 0) lsize = arg;
-                else if (min_argc > 1 && aidx == 1) lflags = arg;
-                else if (min_argc > 2 && aidx == 2) dropout = argf;
-                else args[aidx - min_argc] = arg;
-            }
-            argc -= min_argc;
-            sprintf(fmt, "]%s", last);
-            fscanf(f, fmt, buff);
-        }
-        if (!empty) {
-            layer = network->layers[i];
-            if (layer->size != lsize) {
-                PSErr(__func__, "Layer %d size %d differs from %d!", i,
-                      layer->size, lsize);
-                fclose(f);
-                return 0;
-            }
-            if (ltype != layer->type) {
-                PSErr(__func__, "Layer %d type %d differs from %d!", i,
-                      (int) (layer->type), (int) ltype);
-                fclose(f);
-                return 0;
-            }
-            if (ltype == Convolutional || ltype == Pooling) {
-                PSHyperParameters *params = layer->hyper_parameters;
-                if (params == NULL) {
-                    PSErr(__func__, "Layer %d params are NULL!", i);
-                    fclose(f);
-                    return 0;
-                }
-                for (aidx = 0; aidx < argc; aidx++) {
-                    if (aidx >= params->count) break;
-                    int arg = args[aidx];
-                    PSFloat val = params->parameters[aidx];
-                    if (arg != (int) val) {
-                        PSErr(__func__, "Layer %d arg[%d] %d diff. from %d!",
-                              i, aidx,(int) val, arg);
-                        fclose(f);
-                        return 0;
-                    }
-                }
-            }
-            layer->dropout = dropout;
-        } else {
-            layer = NULL;
-            PSHyperParameters *params = NULL;
-            if (ltype == Convolutional || ltype == Pooling) {
-                int param_c = CONV_PARAMETER_COUNT;
-                params = PSCreateHyperParamenters(param_c);
-                for (aidx = 0; aidx < argc; aidx++) {
-                    if (aidx >= param_c) break;
-                    int arg = args[aidx];
-                    params->parameters[aidx] = (PSFloat) arg;
-                }
-                layer = PSAddLayer(network, ltype, lsize, params);
-            } else {
-                if (network->size == 0 && (lflags & FLAG_ONEHOT) && argc > 0) {
-                    lsize = args[0];
-                    network->flags |= FLAG_ONEHOT;
-                } else if (argc > 0) {
-                    params = PSCreateHyperParamenters(argc);
-                    for (aidx = 0; aidx < argc; aidx++) {
-                        int arg = args[aidx];
-                        params->parameters[aidx] = (PSFloat) arg;
-                    }
-                }
-                layer = PSAddLayer(network, ltype, lsize, params);
-            }
-            if (layer == NULL) {
-                PSErr(__func__, "Could not create layer %d", i);
-                fclose(f);
-                return 0;
-            }
-            layer->flags |= lflags;
-            layer->dropout = dropout;
-        }
-    }
-    for (i = 1; i < network->size; i++) {
-        layer = network->layers[i];
-        int lsize = 0;
-        PSSharedParams *shared = NULL;
-        if (layer->type == Convolutional) {
-            shared = PSGetConvSharedParams(layer);
-            if (shared == NULL) {
-                PSErr(__func__, "Layer %d, missing shared params!", i);
-                fclose(f);
-                return 0;
-            }
-            lsize = shared->feature_count;
-        } else if (layer->type == Pooling) {
-            continue;
-        } else lsize = layer->size;
-        int is_lstm = (LSTM == layer->type);
-        char *lstm_fmt = PSFLOAT_FORMAT "," PSFLOAT_FORMAT "," PSFLOAT_FORMAT
-            "," PSFLOAT_FORMAT "|";
-        int llen = 0;
-        for (j = 0; j < lsize; j++) {
-            PSFloat bias = 0;
-            int wsize = 0;
-            PSFloat *weights = NULL;
-            /* LSTM biases */
-            PSFloat cb = 0.0, ib = 0.0, ob = 0.0, fb = 0.0;
-            if (!is_lstm) matched = fscanf(f, PSFLOAT_FORMAT "|", &bias);
-            else matched = fscanf(f, lstm_fmt, &cb, &ib, &ob, &fb);
-            if (!matched || (is_lstm && matched < 4)) {
-                printf("\n");
-                PSErr(__func__, "Layer %d, neuron %d: invalid bias!", i, j);
-                fclose(f);
-                return 0;
-            }
-            if (shared == NULL) {
-                PSNeuron *neuron = layer->neurons[j];
-                wsize = neuron->weights_size;
-                neuron->bias = bias;
-                weights = neuron->weights;
-                if (is_lstm) {
-                    PSLSTMCell *cell = PSGetLSTMCell(neuron);
-                    assert(cell != NULL);
-                    cell->candidate_bias = cb;
-                    cell->input_bias = ib;
-                    cell->output_bias = ob;
-                    cell->forget_bias = fb;
-                }
-            } else {
-                shared->biases[j] = bias;
-                wsize = shared->weights_size;
-                weights = shared->weights[j];
-            }
-            for (k = 0; k < wsize; k++) {
-                PSFloat w = 0;
-                char *last = (k == (wsize - 1) ? eol : sep);
-                char fmt[5];
-                sprintf(fmt, "%s%s", PSFLOAT_FORMAT, last);
-                matched = fscanf(f, fmt, &w);
-                if (!matched) {
-                    printf("\n");
-                    PSErr(__func__,"Layer %d neuron %d: invalid weight[%d]",
-                          i, j, k);
-                    fclose(f);
-                    return 0;
-                }
-                weights[k] = w;
-                llen = printf("\rLoading layer %d, neuron %d", i, j);
-                PSFillWithBlank(llen - 1);
-            }
-        }
-        llen = printf("\rLayer[%d]: Loaded %d neurons", i, lsize);
-        PSFillWithBlank(llen - 1);
-        printf("\n");
-        printLayerInfo(layer);
-    }
-    setNetworkContext(network, built, is_built);
-    printf("\n");
-    fclose(f);
-    return 1;
-}
-
-int PSSaveNetwork(PSNeuralNetwork *network, const char* filename) {
-    if (network->size == 0) {
-        PSErr(__func__, "Empty network!");
-        return 0;
-    }
-    FILE *f = fopen(filename, "w");
-    printf("Saving network to %s\n", filename);
-    if (f == NULL) {
-        fprintf(stderr, "Cannot open %s for writing!\n", filename);
-        return 0;
-    }
-    int i, j, k, loss_function = 0, opts = 0;
-    /*  Header */
-    /*static struct utsname sysinfo;
-    static int sysinfo_read = 0;
-    if (!sysinfo_read) {
-       uname(&sysinfo);
-       sysinfo_read = 1;
-    }
-#ifdef USE_AVX
-    int avx_available = 1;
-#else
-    int avx_available = 0;
-#endif
-    fprintf(
-        f, "--v%s(git=%s/%s-%s;float_size=%zu;arch=%dbit;avx=%d;"
-        "sys=%s,%s,%s;global_flags=%d;t=%ld)",
-        PSYC_VERSION, PSYC_GIT_SHA, PSYC_GIT_DIRTY, PSYC_GIT_BRANCH,
-        sizeof(PSFloat), ((sizeof(long) == 8) ? 64 : 32), avx_available,
-        sysinfo.sysname, sysinfo.release, sysinfo.machine, PSGlobalFlags,
-        time(NULL)
-    );*/
-    fprintf(f, "--v%s", PSYC_VERSION);
-    for (i = 0; i < (int) loss_functions_count; i++) {
-        if (network->loss == loss_functions[i]) {
-            loss_function = i;
-            break;
-        }
-    }
-    int current_epoch = 0, current_batch = 0, current_element = 0,
-        batch_size = 0;
-    if (network->training != NULL) {
-        current_epoch = network->training->current_epoch;
-        current_batch = network->training->current_batch;
-        current_element = network->training->current_element;
-        batch_size = network->training->batch_size;
-    }
-    PSRecurrentNetworkMode rnn_mode = PSGetRecurrentNetworkMode(network);
-    int max_steps = 0, eos = -1;
-    if (network->rnn_options != NULL) {
-        max_steps = network->rnn_options->sequence_stop_criterion.max_steps;
-        eos = network->rnn_options->sequence_stop_criterion.eos;
-    }
-    PSNetworkContext *ctx = getNetworkContext(network);
-    fprintf(f, ",%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n", network->flags,
-            loss_function, current_epoch, current_batch, network->status,
-            current_element, batch_size, (int) rnn_mode,
-            max_steps, eos, ctx->built);
-    fprintf(f, "%d:", network->size);
-    for (i = 0; i < network->size; i++) {
-        PSLayer *layer = network->layers[i];
-        PSLayerType ltype = layer->type;
-        if (i > 0) fprintf(f, ",");
-        int flags = layer->flags;
-        PSFloat dropout = layer->dropout;
-        PSHyperParameters *params = layer->hyper_parameters;
-        if (FullyConnected == ltype && !flags && !params && dropout <= 0.0)
-            fprintf(f, "%d", layer->size);
-        else if (params) {
-            int argc = params->count;
-            fprintf(
-                f, "[%d,%d,%d,%d,%g",
-                (int) ltype, DATA_LAYER_MIN_ARGC + argc, layer->size,
-                layer->flags, dropout
-            );
-            for (j = 0; j < argc; j++) {
-                fprintf(f, ",%d", (int) (params->parameters[j]));
-            }
-            fprintf(f, "]");
-        } else {
-            fprintf(
-                f, "[%d,%d,%d,%d,%g]",
-                (int) ltype, DATA_LAYER_MIN_ARGC, layer->size, flags, dropout
-            );
-        }
-    }
-    fprintf(f, "\n");
-    for (i = 1; i < network->size; i++) {
-        PSLayer *layer = network->layers[i];
-        PSLayerType ltype = layer->type;
-        int lsize = layer->size;
-        if (Convolutional == ltype) {
-            PSSharedParams *shared = PSGetConvSharedParams(layer);
-            if (shared == NULL) {
-                PSErr(__func__, "Layer[%d]: shared params are NULL!", i);
-                fclose(f);
-                return 0;
-            }
-            int feature_count = shared->feature_count;
-            if (feature_count < 1) {
-                PSErr(__func__, "Layer[%d]: feature count must be >= 1!", i);
-                fclose(f);
-                return 0;
-            }
-            for (j = 0; j < feature_count; j++) {
-                PSFloat bias = shared->biases[j];
-                PSFloat *weights = shared->weights[j];
-                writeSerializedFloat(f, bias, opts);
-                fprintf(f, "|");
-                for (k = 0; k < shared->weights_size; k++) {
-                    if (k > 0) fprintf(f, ",");
-                    PSFloat w = weights[k];
-                    writeSerializedFloat(f, w, opts);
-                }
-                fprintf(f, "\n");
-            }
-        }
-        else if (Pooling == ltype) continue;
-        else {
-            int is_lstm = (LSTM == ltype);
-            for (j = 0; j < lsize; j++) {
-                PSNeuron *neuron = layer->neurons[j];
-                if (!is_lstm) {
-                    writeSerializedFloat(f, neuron->bias, opts);
-                    fprintf(f, "|");
-                } else {
-                    PSLSTMCell *cell = PSGetLSTMCell(neuron);
-                    assert(cell != NULL);
-                    writeSerializedFloats(
-                        f, 4, ",", opts,
-                        cell->candidate_bias,
-                        cell->input_bias,
-                        cell->output_bias,
-                        cell->forget_bias
-                    );
-                }
-                for (k = 0; k < neuron->weights_size; k++) {
-                    if (k > 0) fprintf(f, ",");
-                    PSFloat w = neuron->weights[k];
-                    writeSerializedFloat(f, w, opts);
-                }
-                fprintf(f, "\n");
-            }
-        }
-    }
-    fclose(f);
-    return 1;
-}
-
 static void DumpNetworkHeader(PSNeuralNetwork *network, FILE *dump_file) {
     fprintf(dump_file, "psyc:version=%s\n", PSYC_VERSION);
     const char *name = network->name;
@@ -2435,7 +1951,7 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
             return NULL;
         }
     }
-    /*printLayerInfo(layer);*/ /*TODO:Enable it after implementing log-levels*/
+    /*PSPrintLayerInfo(layer);*/ /*TODO:Enable it after implementing log-levels*/
     return layer;
 }
 
@@ -2970,6 +2486,65 @@ static PSTrainingContext *getTrainingContext(PSNeuralNetwork *network) {
     PSNetworkContext *ctx = getNetworkContext(network);
     if (ctx == NULL) return NULL;
     return ctx->training_context;
+}
+
+PSTrainingOptions *PSGetNetworkTrainingOptions(PSNeuralNetwork *network) {
+    PSTrainingContext *tctx = getTrainingContext(network);
+    if (tctx == NULL) return NULL;
+    return &(tctx->options);
+}
+
+int PSGetTrainingMemoryGradients(PSNeuralNetwork *network,
+                                 PSGradient ***mg1, PSGradient ***mg2)
+{
+    PSTrainingContext *tctx = getTrainingContext(network);
+    int count = 0;
+    if (mg1 != NULL) *mg1 = NULL;
+    if (mg2 != NULL) *mg2 = NULL;
+    if (tctx == NULL) return 0;
+    if (tctx->momentum_gradients != NULL) {
+        count++;
+        if (mg1 != NULL) *mg1 = tctx->momentum_gradients;
+    }
+    if (tctx->aux_gradients != NULL) {
+        count++;
+        if (mg2 != NULL) *mg2 = tctx->aux_gradients;
+    }
+    return count;
+}
+
+int initTrainingContext(PSNeuralNetwork *network, int mem_gradients_count) {
+    PSNetworkContext *ctx = getNetworkContext(network);
+    if (ctx == NULL) {
+        ctx = network->context = calloc(1, sizeof(PSNetworkContext));
+        if (ctx == NULL) {
+            PSPrintMemoryErrorMsg();
+            return 0;
+        }
+    }
+    if (ctx->training_context == NULL) {
+        ctx->training_context = calloc(1, sizeof(PSTrainingContext));
+        if (ctx->training_context == NULL) {
+            PSPrintMemoryErrorMsg();
+            return 0;
+        }
+    }
+    PSSetDefaultTrainingOptions(&(ctx->training_context->options));
+    if (mem_gradients_count > 0) {
+        ctx->training_context->momentum_gradients = createGradients(network);
+        if (ctx->training_context->momentum_gradients == NULL) {
+            PSPrintMemoryErrorMsg();
+            return 0;
+        }
+        if (mem_gradients_count < 2) goto final;
+        ctx->training_context->aux_gradients = createGradients(network);
+        if (ctx->training_context->aux_gradients == NULL) {
+            PSPrintMemoryErrorMsg();
+            return 0;
+        }
+    }
+final:
+    return 1;
 }
 
 int outputLayerBackprop(PSLayer *layer, PSLayer *previous_layer,

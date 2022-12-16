@@ -143,3 +143,23 @@ PSFloat *PSCopyFloats(PSFloat *src, size_t length) {
     memcpy(dup, src, size);
     return dup;
 }
+
+/* Compare version string `vers1` with `vers2`.
+ * Returns:
+ *  -1 if `vers1` < `vers2`
+ *  1 if `vers1` > `vers2`
+ *  0 if both versions are equal. */
+int PSCompareVersion(const char* vers1, const char* vers2) {
+    int major1 = 0, minor1 = 0, patch1 = 0;
+    int major2 = 0, minor2 = 0, patch2 = 0;
+    sscanf(vers1, "%d.%d.%d", &major1, &minor1, &patch1);
+    sscanf(vers2, "%d.%d.%d", &major2, &minor2, &patch2);
+    if (major1 < major2) return -1;
+    if (major1 > major2) return 1;
+    if (minor1 < minor2) return -1;
+    if (minor1 > minor2) return 1;
+    if (patch1 < patch2) return -1;
+    if (patch1 > patch2) return 1;
+    return 0;
+}
+
