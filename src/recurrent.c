@@ -28,6 +28,7 @@
 
 #include "recurrent.h"
 #include "utils.h"
+#include "log.h"
 
 #define UNUSED(V) ((void) V)
 

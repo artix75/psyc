@@ -20,6 +20,7 @@
 #include <assert.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <time.h>
 #include <sys/utsname.h>
 
@@ -27,6 +28,7 @@
 #include "convolutional.h"
 #include "recurrent.h"
 #include "lstm.h"
+#include "log.h"
 #include "buildinfo.h"
 
 #define DATA_LAYER_MIN_ARGC 3
@@ -73,6 +75,30 @@ int string2int(char *str, int *valid) {
     int num = (int) strtol(str, &endptr, 10);
     if (valid != NULL) *valid = (endptr != str);
     return num;
+}
+
+void printModelHeaderInfo(PSModelFileHeader *hdr) {
+    printf(
+        "Git: %s/%d (branch: '%s')\n",
+        hdr->git_sha1, hdr->git_dirty, hdr->git_branch
+    );
+    printf("Host: %s %s %s\n", hdr->sysname, hdr->sysvers, hdr->sysmachine);
+    printf("Arch. Bits: %d\n", hdr->archbits);
+    printf("Double Precision: %s\n", (hdr->float_size == 8 ? "yes" : "no"));
+    printf("AVX: %s\n", (hdr->avx ? "yes" : "no"));
+    printf("Saved on: %s\n", ctime(&hdr->time));
+}
+
+static void loadErr(const char *fname, FILE *f, const char *fmt, ...) {
+    PSLog(PSLOGLEVEL_ERROR, "ERROR: ");
+    PSLog(PSLOGLEVEL_ERROR, "ERROR: while loading file '%s'", fname);
+    if (f != NULL) PSLog(PSLOGLEVEL_ERROR, " (offset: %ld):\n", ftello(f));
+    else PSLog(PSLOGLEVEL_ERROR, "\n");
+    va_list args;
+    va_start(args, fmt);
+    PSVLog(PSLOGLEVEL_ERROR, fmt, args);
+    va_end(args);
+    PSLog(PSLOGLEVEL_ERROR, "\n");
 }
 
 static char *getFormatStringEnd(char *fmt, int *invalid) {
@@ -253,14 +279,17 @@ static int scanModelFileHeader(FILE *f, PSModelFileHeader *header,
             header->time = (time_t) strtol(val, NULL, 10);
             if (header->time == 0) goto fail;
         } else {
-            fprintf(stderr, "WARN: unknown header property `%s`\n", propname);
+            PSWarn(
+                "unknown header property `%s` in file '%s'",
+                propname, fname
+            );
         }
     }
     if (!ok && sep[0] == '\n') ok = 1;
     return ok;
 fail:
     PSErr(
-        __func__, "Invalid value for property '%s' in file '%s': '%s'",
+        NULL, "Invalid value for property '%s' in file '%s': '%s'",
         propname, fname, val
     );
     return 0;
@@ -328,14 +357,14 @@ static int scanTrainingOptions(FILE *f, PSTrainingOptions *opts,
             if (!ok) goto fail;
             opts->clip = clip;
         } else {
-            fprintf(stderr, "WARN: unknown header property `%s`\n", propname);
+            PSWarn("unknown header property `%s` in file '%s'",propname,fname);
         }
     }
     if (!ok && sep[0] == '\n') ok = 1;
     return ok;
 fail:
     PSErr(
-        __func__, "Invalid value for training option '%s' in file '%s': '%s'",
+        NULL, "Invalid value for training option '%s' in file '%s': '%s'",
         propname, fname, val
     );
     return 0;
@@ -439,7 +468,7 @@ int writeGradients(PSNeuralNetwork *network, PSGradient **gradients,
 int PSLoadNetwork(PSNeuralNetwork *network, const char* filename) {
     if (network == NULL) return 0;
     FILE *f = fopen(filename, "r");
-    printf("Loading network from %s\n", filename);
+    PSInfo("Loading network from %s", filename);
     if (f == NULL) {
         PSErr(__func__, "Could not open '%s'", filename);
         return 0;
@@ -448,6 +477,7 @@ int PSLoadNetwork(PSNeuralNetwork *network, const char* filename) {
         "," PSFLOAT_FORMAT "|";
     int netsize, i, j, k;
     int empty = (network->size == 0);
+    int verbose = PSLogLevel == PSLOGLEVEL_DEBUG;
     char vers[20] = "0.0.0";
     int v0 = 0, v1 = 0, v2 = 0;
     int epochs = 0, batch_count = 0, elements = 0, status = STATUS_UNTRAINED,
@@ -460,13 +490,13 @@ int PSLoadNetwork(PSNeuralNetwork *network, const char* filename) {
     /* Search for header */
     if (scanFile(f, "--v%d.%d.%d", 3, NULL, &v0, &v1, &v2)) {
         sprintf(vers, "%d.%d.%d", v0, v1, v2);
-        printf("Model PsyC version is %s (current: %s).\n", vers, PSYC_VERSION);
+        PSInfo("Model PsyC version is %s (current: %s).", vers, PSYC_VERSION);
         ok = (PSCompareVersion(vers, PSYC_VERSION) <= 0);
         if (!ok) {
             PSErr(
                 __func__,
                 "File version is higher than current PsyC version: %s > %s\n"
-                "PsyC %s (or higher) is required to open %s",
+                "PsyC %s (or higher) is required to open '%s'",
                 vers, PSYC_VERSION, vers, filename
             );
             goto final;
@@ -479,13 +509,17 @@ int PSLoadNetwork(PSNeuralNetwork *network, const char* filename) {
             PSModelFileHeader header = {0};
             ok = scanModelFileHeader(f, &header, filename);
             if (!ok) {
-                PSErr(__func__, "Invalid file header");
+                loadErr(filename, NULL, "Invalid file header");
                 goto final;
             }
             ok = scanFileNoMatch(f, "model:");
             if (!ok) {
-                PSErr(__func__, "Missing `model:` definition");
+                loadErr(filename, f, "Missing `model:` definition");
                 goto final;
+            }
+            if (verbose) {
+                PSInfo("Info for file '%s':", filename);
+                printModelHeaderInfo(&header);
             }
             has_model_def = 1;
         }
@@ -544,16 +578,16 @@ scan_model_def:
     }
     ok = scanFile(f, "%d:", 1, NULL, &netsize);
     if (!ok) {
-        PSErr(__func__, "Missing network size definition");
+        loadErr(filename, f, "Missing network size definition");
         goto final;
     }
     if (netsize == 0) {
-        PSErr(__func__, "Empty network model!");
+        loadErr(filename, NULL, "Empty network model!");
         ok = 0;
         goto final;
     }
     if (!empty && network->size != netsize) {
-        PSErr(__func__, "Network size differs!");
+        loadErr(filename, NULL, "Network size differs!");
         ok = 0;
         goto final;
     }
@@ -580,13 +614,12 @@ scan_model_def:
             argc = 0;
             ok = scanFile(f, "[%d,%d", 2, NULL, &type, &argc);
             if (!ok) {
-                PSErr(__func__, "Invalid layer def: layer[%d], col. %ld!",
-                      i, ftell(f));
+                loadErr(filename, f, "Invalid layer def: layer[%d]", i);
                 goto final;
             }
             if (argc == 0) {
-                PSErr(
-                    __func__,
+                loadErr(
+                    filename, NULL,
                     "Layer %d must have at least 1 argument (size)", i
                 );
                 ok = 0;
@@ -605,8 +638,11 @@ scan_model_def:
                     ok = scanFile(f, "," PSFLOAT_FORMAT, 1, NULL, &argf);
                 else ok = scanFile(f, ",%d", 1, NULL, &arg);
                 if (!ok) {
-                    PSErr(__func__, "Invalid layer def: l%d, arg. %d, col. "
-                          "%ld!", i, aidx, ftell(f));
+                    loadErr(
+                        filename, f,
+                        "Invalid layer def: l%d, arg. %d",
+                        i, aidx
+                    );
                     goto final;
                 }
                 if (aidx == 0) lsize = arg;
@@ -621,13 +657,13 @@ scan_model_def:
         if (!empty) {
             layer = network->layers[i];
             if (layer->size != lsize) {
-                PSErr(__func__, "Layer %d size %d differs from %d!", i,
-                      layer->size, lsize);
+                loadErr(filename, NULL, "Layer %d size %d differs from %d!",
+                    i, layer->size, lsize);
                 ok = 0; goto final;
             }
             if (ltype != layer->type) {
-                PSErr(__func__, "Layer %d type %d differs from %d!", i,
-                      (int) (layer->type), (int) ltype);
+                loadErr(filename, NULL, "Layer %d type %d differs from %d!",
+                        i, (int) (layer->type), (int) ltype);
                 ok = 0; goto final;
             }
             if (ltype == Convolutional || ltype == Pooling) {
@@ -641,8 +677,11 @@ scan_model_def:
                     int arg = args[aidx];
                     PSFloat val = params->parameters[aidx];
                     if (arg != (int) val) {
-                        PSErr(__func__, "Layer %d arg[%d] %d diff. from %d!",
-                              i, aidx,(int) val, arg);
+                        loadErr(
+                            filename, NULL,
+                            "Layer %d arg[%d] %d diff. from %d!",
+                            i, aidx,(int) val, arg
+                        );
                         ok = 0; goto final;
                     }
                 }
@@ -688,7 +727,7 @@ scan_model_def:
         if (layer->type == Convolutional) {
             shared = PSGetConvSharedParams(layer);
             if (shared == NULL) {
-                PSErr(__func__, "Layer %d, missing shared params!", i);
+                loadErr(filename, NULL, "Layer %d, missing shared params!",i);
                 ok = 0; goto final;
             }
             lsize = shared->feature_count;
@@ -707,8 +746,10 @@ scan_model_def:
             if (!is_lstm) ok = scanFile(f, PSFLOAT_FORMAT "|", 1, NULL, &bias);
             else ok = scanFile(f, lstm_fmt, 4, &matched, &cb, &ib, &ob, &fb);
             if (!ok || (is_lstm && matched < 4)) {
-                printf("\n");
-                PSErr(__func__, "Layer %d, neuron %d: invalid bias!", i, j);
+                if (verbose) printf("\n");
+                loadErr(
+                    filename, f, "Layer %d, neuron %d: invalid bias!", i, j
+                );
                 ok = 0; goto final;
             }
             if (shared == NULL) {
@@ -733,28 +774,34 @@ scan_model_def:
                 PSFloat w = 0;
                 ok = scanFile(f, PSFLOAT_FORMAT "%*[,\n]", 1, NULL, &w);
                 if (!ok) {
-                    printf("\n");
-                    PSErr(__func__,"Layer %d neuron %d: invalid weight[%d]",
-                          i, j, k);
+                    if (verbose) printf("\n");
+                    loadErr(
+                        filename, f,"Layer %d neuron %d: invalid weight[%d]",
+                        i, j, k
+                    );
                     goto final;
                 }
                 weights[k] = w;
-                llen = printf("\rLoading layer %d, neuron %d", i, j);
-                PSFillWithBlank(llen - 1);
+                if (verbose) {
+                    llen = printf("\rLoading layer %d, neuron %d", i, j);
+                    PSFillWithBlank(llen - 1);
+                }
             }
         }
-        llen = printf("\rLayer[%d]: Loaded %d neurons", i, lsize);
-        PSFillWithBlank(llen - 1);
-        printf("\n");
-        PSPrintLayerInfo(layer);
+        if (verbose) {
+            llen = printf("\rLayer[%d]: Loaded %d neurons", i, lsize);
+            PSFillWithBlank(llen - 1);
+            printf("\n");
+            PSPrintLayerInfo(layer);
+        }
     }
-    printf("\n");
+    if (verbose) printf("\n");
     if (scanFileNoMatch(f, MODEL_TRAINING_DATA_SEP)) {
         /* Model file has training data */
         int numgradients = 0;
         ok = scanFile(f, "memory_gradients:%d\n", 1, NULL, &numgradients);
         if (!ok) {
-            PSErr(__func__, "Invalid or missing 'memory_gradients'");
+            loadErr(filename, f, "Invalid or missing 'memory_gradients'");
             goto final;
         }
         ok = initTrainingContext(network, numgradients);
@@ -778,14 +825,16 @@ scan_model_def:
                 if (ok && numgradients >= 2) ok = memg2 != NULL;
             }
             if (!ok) {
-                PSErr(__func__, "Invalid network training data (missing "
-                      "gradients)");
+                loadErr(
+                    filename, NULL, "Invalid network training data (missing "
+                    "gradients)"
+                );
                 goto final;
             }
         }
         ok = scanFileNoMatch(f, "training_options:");
         if (!ok) {
-            PSErr(__func__, "Missing 'training_options'");
+            loadErr(filename, f, "Missing 'training_options'");
             goto final;
         }
         ok = scanTrainingOptions(f, topts, filename);
@@ -799,7 +848,7 @@ scan_model_def:
             ok = scanFile(f, "memory_gradients[%d]:\n", 1, NULL, &gidx);
             if (ok && gidx != i) ok = 0;
             if (!ok) {
-                PSErr(__func__, "Invalid memory gradient header");
+                loadErr(filename, f, "Invalid memory gradient header");
                 goto final;
             }
             for (j = 1; j < netsize; j++) {
@@ -838,7 +887,8 @@ scan_model_def:
                     }
                     if (!ok || (is_lstm && matched < 4)) {
                         printf("\n");
-                        PSErr(__func__,
+                        loadErr(
+                            filename, f,
                             "Memory gradients %d, Layer %d, Gradient %d: "
                             "invalid bias!", i, j, k
                         );
@@ -850,8 +900,9 @@ scan_model_def:
                             f, PSFLOAT_FORMAT "%[,\n]", 2, NULL, gw, sep
                         );
                         if (!ok) {
-                            PSErr(
-                                __func__, "Memory gradients %d, Layer %d, "
+                            loadErr(
+                                filename, f,
+                                "Memory gradients %d, Layer %d, "
                                 "Gradient %d: invalid weight %d",
                                 i, j, k, w
                             );
@@ -874,9 +925,9 @@ int PSSaveNetwork(PSNeuralNetwork *network, const char* filename) {
         return 0;
     }
     FILE *f = fopen(filename, "w");
-    printf("Saving network to %s\n", filename);
+    PSInfo("Saving network to %s", filename);
     if (f == NULL) {
-        fprintf(stderr, "Cannot open %s for writing!\n", filename);
+        PSErr(__func__, "Cannot open %s for writing!", filename);
         return 0;
     }
     int i, j, k, opts = 0, ok = 1;

@@ -31,6 +31,7 @@
 #include "convolutional.h"
 #include "recurrent.h"
 #include "debug.h"
+#include "log.h"
 
 #define PSCalculateConvolutionalSide(s,rs,st,pad) \
     PSFloor(((PSFloat)(s - rs + 2 * pad) / (PSFloat) st) + 1)

@@ -31,23 +31,6 @@
 
 static unsigned char randomSeeded = 0;
 
-void PSErr(const char* tag, char* fmt, ...) {
-    va_list args;
-
-    fflush (stdout);
-    if (PSGlobalFlags & FLAG_LOG_COLORS) fprintf(stderr, RED);
-    fprintf(stderr, "ERROR");
-    if (tag != NULL) fprintf(stderr, " [%s]: ", tag);
-    else fprintf(stderr, ": ");
-
-    va_start(args, fmt);
-    vfprintf(stderr, fmt, args);
-    va_end(args);
-
-    fprintf(stderr, "\n");
-    if (PSGlobalFlags & FLAG_LOG_COLORS) fprintf(stderr, WHITE);
-}
-
 /* Activation Functions */
 
 PSFloat PSSigmoid(PSFloat val) {
@@ -163,3 +146,45 @@ int PSCompareVersion(const char* vers1, const char* vers2) {
     return 0;
 }
 
+char *PSGetElapsedTimeString(time_t elapsed_us, int opts) {
+    static char elapsed_str[256];
+    static const char *time_units_short[] = {"us", "ms", "s", "m", "h"};
+    static const char *time_units_long[] = {
+        "usec.", "msec.", "sec.", "min.", "hour(s)"
+    };
+    static const char *time_units_full[] = {
+        "microsecond(s)", "millisecond(s)", "second(s)", "minute(s)", "hour(s)"
+    };
+    static const size_t numunits = sizeof(time_units_short) / sizeof(char *);
+    int long_format = (opts & OPT_TIME_LONG),
+        full_format = (opts & OPT_TIME_FULL),
+        human = (opts & OPT_TIME_HUMAN), i = 0;
+    const char **units = NULL;
+    char *sep = " ";
+    if (full_format) units = time_units_full;
+    else if (long_format) units = time_units_long;
+    else {
+        units = time_units_short;
+        sep = "";
+    }
+    double elapsed = (double) elapsed_us, div = 1000, mod = 0;
+    while (elapsed >= div) {
+        if (++i >= (int) numunits) break;
+        mod = fmod(elapsed, div);
+        elapsed /= div;
+        if (i > 1) div = 60;
+    }
+    elapsed_str[0] = '\0';
+    const char *unit = units[i];
+    int round = ((mod > 0) ? 1 : 0);
+    if (human) {
+        if (mod > 0 && i > 0) {
+            const char *lower_unit = units[i - 1];
+            snprintf(
+                elapsed_str, 255, "%ld%s%s and %ld%s%s",
+                (long) elapsed, sep, unit, (long) mod, sep, lower_unit
+            );
+        } else snprintf(elapsed_str, 255, "%ld%s%s", (long)elapsed, sep, unit);
+    } else snprintf(elapsed_str, 255, "%.*f%s%s", round, elapsed, sep, unit);
+    return elapsed_str;
+}

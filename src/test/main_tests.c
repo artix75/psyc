@@ -23,6 +23,7 @@
 #include <signal.h>
 #include <strings.h>
 #include <assert.h>
+#include <sys/time.h>
 
 #include "test.h"
 #include "../psyc.h"
@@ -32,6 +33,7 @@
 #include "../mnist.h"
 #include "../utils.h"
 #include "../debug.h"
+#include "../log.h"
 #ifdef USE_AVX
 #include "../avx.h"
 #endif
@@ -423,7 +425,8 @@ int main(int argc, char** argv) {
         if (!setTestEnabledStatus(test_id, 1)) return 1;
     }
     int tot_tests = 0, tot_failed = 0;
-    time_t start_t = time(NULL);
+    struct timeval start_t, end_t;
+    gettimeofday(&start_t, NULL);
 #ifdef USE_AVX
     if (avx_tests) {
         AVXTests = createTest("AVX");
@@ -499,13 +502,17 @@ int main(int argc, char** argv) {
         tot_failed += LSTMNetworkTests->failed_count;
         deleteTest(LSTMNetworkTests);
     }
-    time_t end_t = time(NULL);
+    gettimeofday(&end_t, NULL);
+    time_t elapsed = PSGetElapsedTimeUS(start_t, end_t);
+    char *elapsed_str = PSGetElapsedTimeString(elapsed, OPT_TIME_FULL);
     printf(
-        "\n%d tests performed in %ld second(s)\n", tot_tests, (end_t - start_t)
+        "\n%d tests performed in %s\n", tot_tests, elapsed_str
     );
     int succeded = tot_tests - tot_failed;
-    if (succeded > 0) printf(GREEN "Succeeded: %d\n" RESET, succeded);
-    if (tot_failed > 0) printf(RED "Failed:    %d\n" RESET, tot_failed);
+    if (succeded > 0)
+        printf(PSCOLOR_GREEN "Succeeded: %d\n" PSCOLOR_RESET, succeded);
+    if (tot_failed > 0)
+        printf(PSCOLOR_RED "Failed:    %d\n" PSCOLOR_RESET, tot_failed);
 
     return tot_failed;
 

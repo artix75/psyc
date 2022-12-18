@@ -26,6 +26,7 @@
 #include "cifar.h"
 #include "convolutional.h"
 #include "utils.h"
+#include "log.h"
 
 #define CIFAR_FILE_IMG_COUNT 10000
 #define CIFAR_IMAGE_BYTESIZE 3072

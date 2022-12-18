@@ -33,6 +33,7 @@
 #include "buildinfo.h"
 #include "psyc.h"
 #include "utils.h"
+#include "log.h"
 #include "convolutional.h"
 #include "recurrent.h"
 #include "lstm.h"
@@ -155,6 +156,7 @@ void PSHandleSignals(PSSignalHandler shutdown_handler) {
 int PSLogTrainingProgress(PSNeuralNetwork *network, int epochs, int batches,
                           int do_clear, char *msg, ...)
 {
+    if (PSLogLevel > PSLOGLEVEL_INFO) return 0;
     if (network->training == NULL) return 0;
     int batch_num = network->training->current_batch + 1;
     int percent =
@@ -3500,12 +3502,8 @@ PSFloat gradientDescent(PSNeuralNetwork *network,
         tot_t += elapsed_t;
         avg_t = (tot_t / batch_num);
         if (batch_num < batches_count) {
-            char *time_unit = "us";
-            if (avg_t >= 1000) {
-                avg_t /= 1000;
-                time_unit = "ms";
-            }
             avg_err = err / (PSFloat) batch_num;
+            char *elapsed_str = PSGetElapsedTimeString(avg_t, 0);
             if (do_validate) {
                 if (i > 0 && (batch_num % validate_every) == 0) {
                     PSLogTrainingProgress(network, epochs, batches_count, 1,
@@ -3516,12 +3514,12 @@ PSFloat gradientDescent(PSNeuralNetwork *network,
                     avg_acc = tot_acc / (PSFloat) ++validations;
                 }
                 PSLogTrainingProgress(network, epochs, batches_count, 1,
-                    "loss = %.2lf, acc. = %.2lf, avg. time = %ld%s",
-                    avg_err, avg_acc, avg_t, time_unit);
+                    "loss = %.2lf, acc. = %.2lf, avg. time = %s",
+                    avg_err, avg_acc, elapsed_str);
             } else {
                 PSLogTrainingProgress(network, epochs, batches_count, 1,
-                    "loss = %.2lf, avg. time = %ld%s",
-                    avg_err, avg_t, time_unit);
+                    "loss = %.2lf, avg. time = %s",
+                    avg_err, elapsed_str);
             }
         } else PSLogTrainingProgress(network, epochs, batches_count, 1, NULL);
         if (network->status == STATUS_ERROR) {
@@ -3587,7 +3585,7 @@ float validate(PSNeuralNetwork *network, PSFloat *test_data, int data_size,
     time(&start_t);
     tminfo = localtime(&start_t);
     strftime(timestr, 80, "%H:%M:%S", tminfo);
-    if (log) printf("Testing started at %s\n", timestr);
+    if (log) PSInfo("Testing started at %s", timestr);
     for (i = 0; i < elements_count; i++) {
         if (log) printf("\rTesting %d/%d", i + 1, elements_count);
         fflush(stdout);
@@ -3782,12 +3780,10 @@ void PSTrain(PSNeuralNetwork *network,
         data_size--;
     } else elements_count = data_size / element_size;
     const char *name = network->name != NULL ? network->name : "UNNAMED";
-    if (PSGlobalFlags & FLAG_LOG_COLORS) printf(BOLD);
-    printf("Training network \"%s\"\n", name);
-    if (PSGlobalFlags & FLAG_LOG_COLORS) printf(RESET);
-    printf("Training data elements: %d\n", elements_count);
-    printf("Batch Size: %d\n", batch_size);
-    printf("Learning Rate: %g\n", learning_rate);
+    PSLog(PSLOGLEVEL_NOTICE, "Training network \"%s\"\n", name);
+    PSInfo("Training data elements: %d", elements_count);
+    PSInfo("Batch Size: %d", batch_size);
+    PSInfo("Learning Rate: %g", learning_rate);
     int bptt_truncate = BPTT_TRUNCATE;
     if (options != NULL) {
         checkTrainingOptions(options);
@@ -3800,48 +3796,45 @@ void PSTrain(PSNeuralNetwork *network,
             (options->flags & TRAINING_WEIGHT_DECAY)
         );
         bptt_truncate = options->bptt_truncate;
-        printf("L1 Decay: %g\n", options->l1_decay);
-        printf("L2 Decay: %g\n", options->l2_decay);
-        printf("Weight Decay: %s\n", (use_weight_decay ? "yes" : "no"));
-        printf("Clip: %g\n", PSAbs(options->clip));
-        printf("Momentum: %g\n", options->momentum);
-        printf("Optimization: %s\n",
+        PSInfo("L1 Decay: %g", options->l1_decay);
+        PSInfo("L2 Decay: %g", options->l2_decay);
+        PSInfo("Weight Decay: %s", (use_weight_decay ? "yes" : "no"));
+        PSInfo("Clip: %g", PSAbs(options->clip));
+        PSInfo("Momentum: %g", options->momentum);
+        PSInfo("Optimization: %s",
             getOptimizationName(options->optimization));
         int single_seq = (options->flags & TRAINING_EPOCH_AS_SEQUENCE),
             no_shuffle = (options->flags & TRAINING_NO_SHUFFLE);
         if (single_seq && !no_shuffle) {
-            fprintf(
-                stderr, "WARN: flag TRAINING_EPOCH_AS_SEQUENCE requires "
+            PSWarn(
+                "flag TRAINING_EPOCH_AS_SEQUENCE requires "
                 "TRAINING_NO_SHUFFLE. "
-                "Automatically enabling TRAINING_NO_SHUFFLE.\n"
+                "Automatically enabling TRAINING_NO_SHUFFLE."
             );
             options->flags |= TRAINING_NO_SHUFFLE;
         }
-        if (single_seq) printf("Single sequence: yes\n");
-        printf("Data shuffle (SGD): %s\n", (!no_shuffle ? "yes" : "no"));
+        if (single_seq) PSInfo("Single sequence: yes");
+        PSInfo("Data shuffle (SGD): %s", (!no_shuffle ? "yes" : "no"));
         training_ctx->options = *options;
     } else PSSetDefaultTrainingOptions(&training_ctx->options);
-    if (is_recurrent) printf("BPTT Truncate: %d\n", bptt_truncate);
+    if (is_recurrent) PSInfo("BPTT Truncate: %d", bptt_truncate);
     if (network->layers[network->size - 1]->flags & FLAG_ONEHOT)
-        printf("Onehot Labels: yes\n");
+        PSInfo("Onehot Labels: yes");
     char *loss_func_name = NULL;
     if (network->loss != NULL) {
         loss_func_name = getLossFunctionName(network->loss);
-        printf("Loss Function: %s\n", loss_func_name);
+        PSInfo("Loss Function: %s", loss_func_name);
     }
     int was_paused = (network->status == STATUS_PAUSED);
     network->status = STATUS_TRAINING;
-    time_t start_t, end_t, epoch_t;
+    time_t start_t, end_t;
     char timestr[80];
     struct tm *tminfo;
+    struct timeval epoch_st, epoch_et;
     time(&start_t);
     tminfo = localtime(&start_t);
     strftime(timestr, 80, "%H:%M:%S", tminfo);
-    if (PSGlobalFlags & FLAG_LOG_COLORS) printf(CYAN);
-    printf("Training started at %s\n", timestr);
-    if (PSGlobalFlags & FLAG_LOG_COLORS) printf(WHITE);
-    epoch_t = start_t;
-    time_t e_t = epoch_t;
+    PSLog(PSLOGLEVEL_NOTICE, "Training started at %s\n", timestr);
     PSFloat prev_err = 0.0;
     float acc = -999.99f;
     int adjust_rate = 0;
@@ -3867,16 +3860,20 @@ void PSTrain(PSNeuralNetwork *network,
         if (is_recurrent) {
             if (!PSResetNetworkRecurrentStates(network, 0, 0)) {
                 network->status = STATUS_ERROR;
-                PSErr(NULL, "Failed to reset network recurrent states");
+                PSErr(__func__, "Failed to reset network recurrent states");
                 return;
             }
         }
+        gettimeofday(&epoch_st, NULL);
         PSFloat err = gradientDescent(network, training_data, element_size,
                                      elements_count, learning_rate,
                                      batch_size, options, epochs,
                                      test_data, test_size);
         if (network->status == STATUS_ERROR) {
-            fprintf(stderr, "\nAn error occurred while training, aborting!\n");
+            PSLog(
+                PSLOGLEVEL_ERROR, "\nAn error occurred while training, "
+                "aborting!\n"
+            );
             return;
         }
         char accuracy_msg[255] = "";
@@ -3887,9 +3884,9 @@ void PSTrain(PSNeuralNetwork *network,
             acc = validate(network, test_data, test_size, 0);
             sprintf(accuracy_msg, ", acc = %.2f,", acc);
         }
-        time(&epoch_t);
-        time_t elapsed_t = epoch_t - e_t;
-        e_t = epoch_t;
+        gettimeofday(&epoch_et, NULL);
+        time_t elapsed_t = PSGetElapsedTimeUS(epoch_st, epoch_et);
+        char * elapsed_str = PSGetElapsedTimeString(elapsed_t, 0);
         if (i > 0 && err > prev_err && adjust_rate)
             learning_rate *= 0.5;
         if (network->onEpochTrained != NULL)
@@ -3897,7 +3894,7 @@ void PSTrain(PSNeuralNetwork *network,
                                     acc, &learning_rate, NULL);
         prev_err = err;
         PSLogTrainingProgress(network, epochs, batches_count, 1,
-            "loss = %.2lf%s (%ld sec.)\n", err, accuracy_msg, elapsed_t
+            "loss = %.2lf%s (%s)\n", err, accuracy_msg, elapsed_str
         );
         fflush(stdout);
         int action = network->training->requested_action;
@@ -3907,15 +3904,14 @@ void PSTrain(PSNeuralNetwork *network,
         }
     }
     time(&end_t);
-    if (PSGlobalFlags & FLAG_LOG_COLORS) printf(GREEN);
-    printf("Completed in %ld sec.\n", end_t - start_t);
-    if (PSGlobalFlags & FLAG_LOG_COLORS) printf(WHITE);
+    PSLog(PSLOGLEVEL_SUCCESS, "Completed in %ld sec.\n", end_t - start_t);
     network->training->ended_at = end_t;
     if (network->status == STATUS_TRAINING) network->status = STATUS_TRAINED;
 }
 
 float PSTest(PSNeuralNetwork *network, PSFloat *test_data, int data_size) {
-    return validate(network, test_data, data_size, 1);
+    int do_log = (PSLogLevel <= PSLOGLEVEL_INFO);
+    return validate(network, test_data, data_size, do_log);
 }
 
 void PSPauseTraining(PSNeuralNetwork *network) {

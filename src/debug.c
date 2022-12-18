@@ -58,6 +58,7 @@
 #include "debug.h"
 #include "convolutional.h"
 #include "lstm.h"
+#include "log.h"
 #define UNUSED(V) ((void) V)
 
 #ifdef BACKTRACE_AVAILABLE

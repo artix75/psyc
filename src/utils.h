@@ -20,6 +20,7 @@
 
 #include <string.h>
 #include <math.h>
+#include <time.h>
 #include "types.h"
 
 #ifndef M_PI
@@ -32,20 +33,9 @@
 #define PSGetElapsedTimeUS(st, et) (((et.tv_sec - st.tv_sec) * 1000000) \
     + (et.tv_usec - st.tv_usec))
 
-#define RED     "\x1b[31m"
-#define GREEN   "\x1b[32m"
-#define YELLOW  "\x1b[33m"
-#define BLUE    "\x1b[34m"
-#define MAGENTA "\x1b[35m"
-#define CYAN    "\x1b[36m"
-#define WHITE   "\x1b[97m"
-#define BOLD    "\x1b[1m"
-#define DIM     "\x1b[2m"
-#define HIDDEN  "\x1b[8m"
-#define RESET   "\x1b[0m"
-#define RESET_BOLD "\x1b[21m"
-
-#define PSPrintMemoryErrorMsg() PSErr(NULL, "Could not allocate memory!")
+#define OPT_TIME_LONG        (1 << 0)
+#define OPT_TIME_FULL        (1 << 1)
+#define OPT_TIME_HUMAN       (1 << 2)
 
 #ifdef PS_DOUBLE_PRECISION
 #define PSTanhActivation tanh
@@ -68,9 +58,6 @@
 #endif
 
 #define PSClipValue(v, max, min) (v > max ? max : (v < min ? min : v))
-
-
-void PSErr(const char* tag, char* fmt, ...);
 
 /* Activation Functions */
 
@@ -99,5 +86,7 @@ int PSGetTerminalColumns();
 void PSFillWithBlank(int line_length);
 
 PSFloat *PSCopyFloats(PSFloat *src, size_t size);
+
+char *PSGetElapsedTimeString(time_t elapsed_us, int long_format);
 
 #endif /* __PS_UTILS_H */

@@ -32,6 +32,7 @@
 #include "recurrent.h"
 #include "mnist.h"
 #include "cifar.h"
+#include "log.h"
 #include "debug.h"
 
 #ifdef HAS_MAGICK
@@ -453,6 +454,18 @@ static void cleanup(void) {
     }
 }
 
+static void printLogLevels(FILE *out) {
+    if (out == NULL) out = stdout;
+    int count = PSGetMaxLogLevel(), i;
+    for (i = 0; i < count; i++) {
+        char *lvlname = strdup(PSLogLevelName(i));
+        toLowerCase(lvlname);
+        if (i > 0) fprintf(out, ", ");
+        fprintf(out, "%s", lvlname);
+        free(lvlname);
+    }
+}
+
 void parseOptions(int argc, char **argv) {
     int i, j;
     for (i = 1; i < argc; i++) {
@@ -790,6 +803,21 @@ void parseOptions(int argc, char **argv) {
             network->flags |= FLAG_AVX_DISABLED;
         } else if (strcmp("--enable-colors", arg) == 0) {
             PSGlobalFlags |= FLAG_LOG_COLORS;
+        } else if (strcmp("--quiet", arg) == 0) {
+            PSLogLevel = PSLOGLEVEL_ERROR;
+        } else if (strcmp("--verbose", arg) == 0) {
+            PSLogLevel = PSLOGLEVEL_DEBUG;
+        } else if (strcmp("--loglevel", arg) == 0 && !is_last) {
+            char *lvlname = argv[++i];
+            int level = PSLogLevelByName(lvlname);
+            if (level < 0) {
+                fprintf(stderr, "Invalid level: '%s'\n", lvlname);
+                fprintf(stderr, "Available levels: ");
+                printLogLevels(stderr);
+                fprintf(stderr, "\n");
+                goto err;
+            }
+            PSLogLevel = level;
         } else if (strcmp("--on-batch-trained", arg) == 0 && !is_last) {
             on_batch_trained = strdup(argv[++i]);
             if (strlen(on_batch_trained) > 0)
@@ -1046,7 +1074,7 @@ int main(int argc, char **argv) {
     }
     outputFile[0] = 0;
     parseOptions(argc, argv);
-    PSPrintNetworkInfo(network);
+    if (PSLogLevel <= PSLOGLEVEL_INFO) PSPrintNetworkInfo(network);
     if (training_data != NULL) {
         int element_size = network->input_size + network->output_size;
         int element_count = datalen / element_size;
@@ -1185,6 +1213,12 @@ void printHelp(const char* program_path) {
            "                                    --on-batch-trained every\n"
            "                                    NUM batches\n");
     printf("        --disable-avx               Disable AVX\n");
+    printf("        --loglevel LEVEL            Set log level "
+           "(see \"LOG LEVELS\" section)\n");
+    printf("        --quiet                     Quiet output (loglevel ERROR)"
+           "\n");
+    printf("        --verbose                   Verbose output (loglevel DEBUG)"
+           "\n");
     printf("        --enable-colors             Colorized output\n");
     printf("    -v, --version                   Print version\n");
     printf("    -h, --help                      Print this help\n");
@@ -1213,6 +1247,8 @@ void printHelp(const char* program_path) {
     printf("        --use-relu                Use ReLU activation (for "
            "Convolutional Layers)\n");
     printf("\n");
+    printf("LOG LEVELS:\n\n");
+    printLogLevels(stdout); printf("\n\n");
     printf("TRAIN|TEST OPTIONS:\n\n");
     printf("        --mnist                   Dataset format is MNIST\n");
     printf("        --cifar [CLASSES]         Dataset format is CIFAR\n"

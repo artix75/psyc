@@ -22,6 +22,7 @@
 #include <stdint.h>
 #include <zlib.h>
 #include "mnist.h"
+#include "log.h"
 
 #define CHUNK 16384
 #define IMAGES_MAGIC_NUM 2051
@@ -65,7 +66,8 @@ int decompressGZip(FILE *source, FILE *dest) {
             assert(ret != Z_STREAM_ERROR);  /* state not clobbered */
             switch (ret) {
                 case Z_NEED_DICT:
-                    ret = Z_DATA_ERROR;     /* and fall through */
+                    ret = Z_DATA_ERROR;
+                /* fall through */
                 case Z_DATA_ERROR:
                 case Z_MEM_ERROR:
                     (void)inflateEnd(&strm);
@@ -131,12 +133,13 @@ int PSLoadMNISTData(int type, const char *images_file, const char *labels_file,
     char *prefixImg;
     char *prefixLbl;
     int data_len = 0, err;
+    int do_log = (PSLogLevel <= PSLOGLEVEL_INFO);
     if (type == DATA_TYPE_TRAINING) {
-        printf("Loading MNIST Data for training...\n");
+        if (do_log) printf("Loading MNIST Data for training...\n");
         prefixImg = "train-images";
         prefixLbl = "train-labels";
     } else {
-        printf("Loading MNIST Data for testing...\n");
+        if (do_log) printf("Loading MNIST Data for testing...\n");
         prefixImg = "test-images";
         prefixLbl = "test-labels";
     }
@@ -144,23 +147,23 @@ int PSLoadMNISTData(int type, const char *images_file, const char *labels_file,
     getTempFileName(prefixLbl, tmpLabelsFileName);
     FILE *images = fopen(images_file, "r");
     if (images == NULL) {
-        fprintf(stderr, "Cannot open %s\n", images_file);
+        PSErr(__func__, "Cannot open %s", images_file);
         data = NULL;
         return 0;
     }
     FILE *labels = fopen(labels_file, "r");
     if (labels == NULL) {
-        fprintf(stderr, "Cannot open %s\n", labels_file);
+        PSErr(__func__, "Cannot open %s", labels_file);
         data = NULL;
         fclose(images);
         return 0;
     }
     FILE *tmpimages = fopen(tmpImagesFileName, "w");
     FILE *tmplabels = fopen(tmpLabelsFileName, "w");
-    printf("Loading images...\n");
+    if (do_log) printf("Loading images...\n");
     err = decompressGZip(images, tmpimages);
     if (err) {zerr(err); data = NULL; goto final;}
-    printf("Loading labels...\n");
+    if (do_log) printf("Loading labels...\n");
     err = decompressGZip(labels, tmplabels);
     if (err) {zerr(err); data = NULL; goto final;}
     fclose(tmpimages);
@@ -174,35 +177,35 @@ int PSLoadMNISTData(int type, const char *images_file, const char *labels_file,
     fread(&magic_num, 1, 4, tmpimages);
     magic_num = le2be(magic_num);
     if (magic_num != IMAGES_MAGIC_NUM) {
-        fprintf(stderr, "Invalid magic number for image file: %d\n", magic_num);
+        PSErr(__func__, "Invalid magic number for image file: %d", magic_num);
         data = NULL;
         goto final;
     }
     fread(&image_count, 1, 4, tmpimages);
     image_count = le2be(image_count);
     if (image_count == 0) {
-        fputs("Image count is 0!\n", stderr);
+        PSErr(__func__, "Image count is 0!");
         data = NULL;
         goto final;
     }
-    printf("Found %d images.\n", image_count);
+    if (do_log) printf("Found %d images.\n", image_count);
     fread(&magic_num, 1, 4, tmplabels);
     magic_num = le2be(magic_num);
     if (magic_num != LABELS_MAGIC_NUM) {
-        fprintf(stderr, "Invalid magic number for labels file: %d\n",magic_num);
+        PSErr(__func__, "Invalid magic number for labels file: %d",magic_num);
         data = NULL;
         goto final;
     }
     fread(&label_count, 1, 4, tmplabels);
     label_count = le2be(label_count);
     if (label_count == 0) {
-        fputs("Label count is 0!\n", stderr);
+        PSErr(__func__, "Label count is 0!");
         data = NULL;
         goto final;
     }
-    printf("Found %d labels.\n", label_count);
+    if (do_log) printf("Found %d labels.\n", label_count);
     if (label_count != image_count) {
-        fputs("Image count and label count do not match!\n", stderr);
+        PSErr(__func__, "Image count and label count do not match!");
         data = NULL;
         goto final;
     }
@@ -211,10 +214,10 @@ int PSLoadMNISTData(int type, const char *images_file, const char *labels_file,
     fread(&cols, 1, 4, tmpimages);
     rows = le2be(rows);
     cols = le2be(cols);
-    printf("Image size: %dx%d\n", rows, cols);
+    if (do_log) printf("Image size: %dx%d\n", rows, cols);
     int img_area = rows *cols;
     if (img_area == 0) {
-        fputs("Invalid image size!\n", stderr);
+        PSErr(__func__, "Invalid image size!");
         data = NULL;
         goto final;
     }
@@ -222,7 +225,7 @@ int PSLoadMNISTData(int type, const char *images_file, const char *labels_file,
     *data = malloc(data_len * sizeof(PSFloat));
     PSFloat *data_p = *data;
     for (i = 0; i < (int) image_count; i++) {
-        printf("\rLoading image %d/%d", i + 1, image_count);
+        if (do_log) printf("\rLoading image %d/%d", i + 1, image_count);
         for (j = 0; j < img_area; j++) {
             int pixel = fgetc(tmpimages);
             PSFloat d = (PSFloat) pixel / (PSFloat) 255;

@@ -22,9 +22,11 @@
 #include <unistd.h>
 #include <assert.h>
 #include <time.h>
+#include <sys/time.h>
 #include "../psyc.h"
 #include "../utils.h"
 #include "../debug.h"
+#include "../log.h"
 #include "test.h"
 
 #define MAX_ERROR_LEN   4096 * 10
@@ -68,63 +70,62 @@ Test *addTest(TestCase *test_case, char *name, char *errmsg,
 
 
 int performTests(TestCase *test_case) {
+    int old_log_level = PSLogLevel;
+    int colors_enabled = PSLogColorEnabled();
+#ifndef PS_VERBOSE_TESTS
+    PSLogLevel = PSLOGLEVEL_NOTICE;
+#else
+    PSLogLevel = PSLOGLEVEL_DEBUG;
+#endif
+    PSLogEnableColor();
     printf("\n");
-    printf(BOLD "Performing tests on %s\n", test_case->name);
-    printf(RESET);
+    PSLog(PSLOGLEVEL_NOTICE, "Performing tests on %s\n", test_case->name);
     if (test_case->setup != NULL) {
         printf(" -> setup\n");
-        printf(DIM);
+        printf(PSCOLOR_DIM);
         int ok = test_case->setup(test_case);
-        printf(RESET);
+        printf(PSCOLOR_RESET);
         if (!ok) {
-            printf(RED "Setup failed!\n" RESET);
+            PSLog(PSLOGLEVEL_ERROR, "Setup failed!\n");
             return 1;
         }
     }
     int i, errors = 0, count = test_case->count;
-    time_t start_t, end_t;
-    time(&start_t);
+    struct timeval st, et;
+    gettimeofday(&st, NULL);
     for (i = 0; i < count; i++) {
         Test *test = &(test_case->tests[i]);
         printf(" -> [%d] ", i);
-        printf(CYAN "%s", test->name); printf(":");
-        printf(RESET);
-        /* printf(HIDDEN); */
-#ifndef PS_VERBOSE_TESTS
-        stdout_fd = dup(fileno(stdout));
-        PSOriginalStdOutFD = stdout_fd;
-        freopen("/dev/null", "w", stdout);
-#endif
+        printf(PSCOLOR_CYAN "%s", test->name); printf(":");
+        printf(PSCOLOR_RESET);
         test->status = test->run(test_case, test);
-#ifndef PS_VERBOSE_TESTS
-        fflush(stdout);
-        fclose(stdout);
-        stdout = fdopen(stdout_fd, "w");
-#endif
-        /* printf(RESET); */
         if (!test->status) {
-            printf(RED "    FAILED");
+            printf(PSCOLOR_RED "    FAILED");
             if (test->error_message != NULL)
-                printf(YELLOW "\n    %s\n", test->error_message);
+                printf(PSCOLOR_YELLOW "\n    %s\n", test->error_message);
             errors++;
-        } else printf(GREEN "    OK");
-        printf("\n" RESET);
+        } else printf(PSCOLOR_GREEN "    OK");
+        printf("\n" PSCOLOR_RESET);
     }
     if (test_case->teardown != NULL) {
         printf(" -> teardown\n");
         int ok = test_case->teardown(test_case);
         if (!ok) {
-            printf(RED "Teardown failed!\n" RESET);
+            printf(PSCOLOR_RED "Teardown failed!\n" PSCOLOR_RESET);
             return 1;
         }
     }
-    time(&end_t);
+    gettimeofday(&et, NULL);
+    long elapsed_t = PSGetElapsedTimeUS(st, et);
+    char *elapsed_str = PSGetElapsedTimeString(elapsed_t, 0);
     test_case->failed_count = errors;
-    printf("Tests performed in %d sec.\n", (int) (end_t - start_t));
+    printf("Tests performed in %s.\n", elapsed_str);
     printf("Found ");
-    if (errors > 0) printf(RED "%d errors.\n", errors);
-    else printf(GREEN "no errors.\n");
-    printf(RESET);
+    if (errors > 0) printf(PSCOLOR_RED "%d errors.\n", errors);
+    else printf(PSCOLOR_GREEN "no errors.\n");
+    printf(PSCOLOR_RESET);
+    PSLogLevel = old_log_level;
+    if (!colors_enabled) PSLogDisableColor();
     return errors;
 }
 

@@ -28,6 +28,7 @@
 
 #include "lstm.h"
 #include "utils.h"
+#include "log.h"
 
 #define CANDIDATE_IDX   0
 #define INPUT_IDX       1
