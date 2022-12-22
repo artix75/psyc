@@ -102,11 +102,12 @@ int AVXComputeStepLength(int size, int allow_multiple_vectors, int *bits) {
 PSFloat AVXDotProduct(PSFloat *x, PSFloat *y, int size, int *count) {
     if (size < AVX_MIN_VECTOR_SIZE) return 0;
     if (size > AVX_MAX_VECTOR_SIZE) size = AVX_MAX_VECTOR_SIZE;
+    PSFloat res = 0;
     int regbits = (size < AVX256_VECTOR_SIZE ? 128 : 256);
     int reglen = regbits / (8 * sizeof(PSFloat));
     int num_vectors = size / reglen;
     assert(num_vectors <= MAX_AVX_VECTORS);
-    size = num_vectors *reglen; /* Ensure vector_len is multiple of reglen */
+    size = num_vectors * reglen; /* Ensure vector_len is multiple of reglen */
     if (count != NULL) *count = size;
     int sumv_len = reglen, count_divisor = 1, i;
     void *sumv = NULL;
@@ -121,6 +122,9 @@ PSFloat AVXDotProduct(PSFloat *x, PSFloat *y, int size, int *count) {
         count_divisor = 2;
         sumv = &dp128;
     } else {
+        /* Use native _mm256_dp_ps if PSFloat is single precision,
+         * since _mm256_dp_ps is only available for 32bit float. */
+        int use_instrinsic = (sizeof(PSFloat) == 4);
         AVX256 xv[MAX_AVX_VECTORS];
         AVX256 yv[MAX_AVX_VECTORS];
         AVX256 xy[MAX_AVX_VECTORS];
@@ -131,8 +135,12 @@ PSFloat AVXDotProduct(PSFloat *x, PSFloat *y, int size, int *count) {
             int idx = i * AVX256_VECTOR_SIZE;
             xv[i] = AVX256LoadUnalign(x + idx);
             yv[i] = AVX256LoadUnalign(y + idx);
-            xy[i] = AVX256Multiply(xv[i], yv[i]);
+            if (use_instrinsic) {
+                xy[i] = _mm256_dp_ps(xv[i], yv[i], 0xFF);
+                res += (xy[i][0] + xy[i][4]);
+            } else xy[i] = AVX256Multiply(xv[i], yv[i]);
         }
+        if (use_instrinsic) return res;
         int templen = (num_vectors / 2);
         if (templen < 1) templen = 1;
         for (i = 0; i < templen; i++) {
@@ -177,7 +185,6 @@ PSFloat AVXDotProduct(PSFloat *x, PSFloat *y, int size, int *count) {
     assert(numbers_to_sum > 0);
     if (numbers_to_sum == 1) return *((PSFloat *) sumv);
     int vidx = 0;
-    PSFloat res = 0;
     while (numbers_to_sum > 0) {
         PSFloat n = ((PSFloat *) sumv)[vidx];
         res += n;
