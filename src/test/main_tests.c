@@ -31,6 +31,7 @@
 #include "../recurrent.h"
 #include "../lstm.h"
 #include "../mnist.h"
+#include "../maths.h"
 #include "../utils.h"
 #include "../debug.h"
 #include "../log.h"

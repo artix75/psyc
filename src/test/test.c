@@ -24,6 +24,7 @@
 #include <time.h>
 #include <sys/time.h>
 #include "../psyc.h"
+#include "../maths.h"
 #include "../utils.h"
 #include "../debug.h"
 #include "../log.h"

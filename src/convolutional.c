@@ -164,7 +164,7 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
     int area = (int)(output_w *output_h);
     int size = area *feature_count;
     layer->size = size;
-    layer->neurons = malloc(sizeof(PSNeuron*) * size);
+    layer->neurons = calloc(size, sizeof(PSNeuron*));
     if (layer->neurons == NULL) {
         PSErr(__func__, "Layer[%d]: Could not allocate neurons!", index);
         goto err;
@@ -181,25 +181,24 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
     }
     layer->extra = shared;
     shared->feature_count = feature_count;
-    shared->weights_size = (int)(region_size *region_size) * prev_features;
+    shared->weights_size = (int)(region_size * region_size) * prev_features;
     shared->biases = malloc(feature_count * sizeof(PSFloat));
-    shared->weights = malloc(feature_count * sizeof(PSFloat*));
+    shared->weights = malloc(feature_count * sizeof(PSMatrix*));
     if (shared->biases == NULL || shared->weights == NULL) {
         PSErr(__func__, "Layer[%d]: Could not allocate memory!", index);
         goto err;
     }
-    int i, j, w;
+    int i, j;
     PSFloat wscale = PSSqrt(1.0 / shared->weights_size);
     for (i = 0; i < feature_count; i++) {
         shared->biases[i] = (use_relu ? 0.1 : 0.0);
         /* shared->biases[i] = PSGaussianRandom(0, 1);*/
-        shared->weights[i] = malloc(shared->weights_size * sizeof(PSFloat));
+        shared->weights[i] = PSMatrixWithGaussianRandom(
+            wscale, 3, prev_features, (int) region_size, (int) region_size
+        );
         if (shared->weights[i] == NULL) {
             PSErr(__func__, "Layer[%d]: Could not allocate weights!", index);
             goto err;
-        }
-        for (w = 0; w < shared->weights_size; w++) {
-            shared->weights[i][w] = PSGaussianRandom(0, wscale);
         }
         for (j = 0; j < area; j++) {
             int idx = (i * area) + j;
@@ -235,6 +234,7 @@ int PSInitPoolingLayer(PSNeuralNetwork *network, PSLayer *layer,
                        PSHyperParameters *parameters)
 {
     int index = layer->index;
+    layer->weights = NULL;
     PSLayer *previous = network->layers[index - 1];
     if (previous->type != Convolutional) {
         PSErr(

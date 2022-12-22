@@ -20,6 +20,7 @@
 
 #include <time.h>
 #include "types.h"
+#include "maths.h"
 
 #define PSYC_VERSION      "0.3.0"
 
@@ -157,7 +158,7 @@ typedef struct {
     int feature_count;
     int weights_size;
     PSFloat *biases;
-    PSFloat **weights;
+    PSMatrix *weights;
 } PSSharedParams;
 
 typedef struct {
@@ -203,6 +204,7 @@ typedef struct PSLayer {
     int                     index;
     int                     size;
     PSHyperParameters       *hyper_parameters;
+    PSMatrix                weights;
     PSFloat                 dropout;
     PSActivationFunction    activate;
     PSActivationFunction    derivative;

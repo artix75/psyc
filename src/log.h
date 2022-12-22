@@ -18,6 +18,7 @@
 #ifndef __LOG_H__
 #define __LOG_H__
 #include <stdlib.h>
+#include <stdio.h>
 
 #define PSLOGLEVEL_DEBUG     0
 #define PSLOGLEVEL_INFO      1

@@ -31,6 +31,7 @@
 #endif
 
 #include "image_data.h"
+#include "maths.h"
 #include "utils.h"
 #include "log.h"
 

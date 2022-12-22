@@ -5,7 +5,7 @@ OPT=$(OPTIMIZATION)
 CSTD=gnu99 -pedantic
 CFLAGS=-std=$(CSTD) -Wall -W -Wno-missing-field-initializers -Wno-unknown-pragmas -Wno-string-compare $(OPT)
 LDFLAGS=-lz -lm -ldl
-OBJS=psyc.o io.o utils.o log.o convolutional.o recurrent.o lstm.o mnist.o debug.o cifar.o
+OBJS=psyc.o io.o utils.o log.o maths.o convolutional.o recurrent.o lstm.o mnist.o debug.o cifar.o
 PREFIX?=/usr/local
 LIBDIR=$(PREFIX)/lib
 BINDIR=$(PREFIX)/bin

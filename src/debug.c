@@ -55,6 +55,7 @@
 #include "platform.h"
 #include "buildinfo.h"
 #include "psyc.h"
+#include "maths.h"
 #include "debug.h"
 #include "convolutional.h"
 #include "lstm.h"

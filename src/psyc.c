@@ -32,6 +32,7 @@
 #include "platform.h"
 #include "buildinfo.h"
 #include "psyc.h"
+#include "maths.h"
 #include "utils.h"
 #include "log.h"
 #include "convolutional.h"
@@ -1757,7 +1758,7 @@ void PSDeleteNetwork(PSNeuralNetwork *network) {
 }
 
 void PSDeleteNeuron(PSNeuron *neuron, PSLayer *layer) {
-    if (neuron->weights != NULL) free(neuron->weights);
+    if (neuron == NULL) return;
     if (neuron->extra != NULL) {
         if (layer->flags & FLAG_RECURRENT) {
             if (layer->type == LSTM)
@@ -1794,6 +1795,8 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
     layer->flags = FLAG_NONE;
     layer->delta = NULL;
     layer->activations = NULL;
+    layer->weights = NULL;
+    layer->delta = NULL;
     layer->previous_activations = NULL;
     layer->dropout = 0.0;
     layer->dropped_out = NULL;
@@ -1853,38 +1856,26 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
         return NULL;
     }
     if (type == FullyConnected || type == SoftMax) {
-        layer->neurons = malloc(sizeof(PSNeuron*) * size);
-        if (layer->neurons == NULL) {
-            PSErr(
-                __func__, "Layer[%d]: could not allocate neurons!",
-                layer->index
-            );
-            PSAbortLayer(network, layer);
-            return NULL;
-        }
+        layer->neurons = calloc(size, sizeof(PSNeuron*));
+        if (layer->neurons == NULL) goto memerr;
         layer->activations = calloc(size, sizeof(PSFloat));
-        if (layer->activations == NULL) {
-            PSPrintMemoryErrorMsg();
-            PSAbortLayer(network, layer);
-            return NULL;
+        if (layer->activations == NULL) goto memerr;
+        if (layer->index > 0  && previous_size > 0) {
+            layer->weights = PSMatrixWithGaussianRandom(
+                1.0, 2, size, previous_size
+            );
+            if (layer->weights == NULL) goto fail;
         }
-        int i, j;
+        int i;
         for (i = 0; i < size; i++) {
             PSNeuron *neuron = malloc(sizeof(PSNeuron));
-            if (neuron == NULL) {
-                PSAbortLayer(network, layer);
-                PSErr(__func__, "Could not allocate neuron!");
-                return NULL;
-            }
+            if (neuron == NULL) goto memerr;
             neuron->index = i;
             neuron->extra = NULL;
             if (layer->index > 0 && previous_size > 0) {
                 neuron->weights_size = previous_size;
                 neuron->bias = PSGaussianRandom(0, 1);
-                neuron->weights = malloc(sizeof(PSFloat) * previous_size);
-                for (j = 0; j < previous_size; j++) {
-                    neuron->weights[j] = PSGaussianRandom(0, 1);
-                }
+                neuron->weights = layer->weights + (i * previous_size);
             } else {
                 neuron->bias = 0;
                 neuron->weights_size = 0;
@@ -1919,24 +1910,12 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
         initialized = PSInitLSTMLayer(network, layer, size, previous_size);
     }
     int layer_idx = layer->index;
-    if (!initialized) {
-        PSAbortLayer(network, layer);
-        PSErr(__func__, "Could not initialize layer %d!", layer_idx);
-        return NULL;
-    }
+    if (!initialized) goto fail;
     if (layer->index > 0) {
         int dsize = layer->size;
         if (type == LSTM) dsize *= 2;
-        layer->delta = calloc(dsize, sizeof(PSFloat));
-        if (layer->delta == NULL) {
-            PSAbortLayer(network, layer);
-            PSPrintMemoryErrorMsg();
-            PSErr(
-                __func__, "Could not initialize layer %d!",
-                layer_idx
-            );
-            return NULL;
-        }
+        layer->delta = PSMatrixZeros(1, dsize);
+        if (layer->delta == NULL) goto fail;
     }
     network->layers[layer->index] = layer;
     if (PSIsRecurrent(network) || PSIsRecurrent(layer)) {
@@ -1948,7 +1927,7 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
         if (!ok) {
             PSAbortLayer(network, layer);
             PSErr(
-                __func__, "Could not set default recurrent mode for  layer %d!",
+                __func__, "Could not set default recurrent mode for layer %d",
                 layer_idx
             );
             return NULL;
@@ -1956,6 +1935,17 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
     }
     if (verbose) PSPrintLayerInfo(layer);
     return layer;
+memerr:
+    PSPrintMemoryErrorMsg();
+fail:
+    if (layer != NULL) {
+        PSErr(
+            __func__, "Could not initialize layer %d on network '%s'",
+            layer->index, network->name
+        );
+        PSAbortLayer(network, layer);
+    }
+    return NULL;
 }
 
 PSLayer *PSAddConvolutionalLayer(PSNeuralNetwork *network,
@@ -1976,10 +1966,13 @@ void PSDeleteLayer(PSLayer* layer) {
     if (layer->neurons == NULL) size = 0;
     for (i = 0; i < size; i++) {
         PSNeuron* neuron = layer->neurons[i];
+        if (neuron == NULL) continue;
         if (layer->type != Convolutional) PSDeleteNeuron(neuron, layer);
-        else free(neuron);
+        else free(neuron); /* TODO: Why? */
+        layer->neurons[i] = NULL;
     }
     if (layer->neurons != NULL) free(layer->neurons);
+    if (layer->weights != NULL) PSMatrixDelete(layer->weights);
     PSHyperParameters *params = layer->hyper_parameters;
     if (params != NULL) PSDeleteHyperParamenters(params);
     void *extra = layer->extra;
@@ -1991,7 +1984,7 @@ void PSDeleteLayer(PSLayer* layer) {
             if (shared->biases != NULL) free(shared->biases);
             if (shared->weights != NULL) {
                 int i;
-                for (i = 0; i < fc; i++) free(shared->weights[i]);
+                for (i = 0; i < fc; i++) PSMatrixDelete(shared->weights[i]);
                 free(shared->weights);
             }
             free(extra);
@@ -2000,7 +1993,7 @@ void PSDeleteLayer(PSLayer* layer) {
             PSDeleteLSTMStates(states);
         } else free(extra);
     }
-    if (layer->delta != NULL) free(layer->delta);
+    if (layer->delta != NULL) PSMatrixDelete(layer->delta);
     if (layer->activations != NULL) free(layer->activations);
     if (layer->dropped_out != NULL) free(layer->dropped_out);
     free(layer);

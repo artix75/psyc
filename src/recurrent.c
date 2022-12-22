@@ -27,6 +27,7 @@
 #endif
 
 #include "recurrent.h"
+#include "maths.h"
 #include "utils.h"
 #include "log.h"
 
@@ -58,15 +59,20 @@ PSRecurrentCell *PSCreateRecurrentCell(PSNeuron *neuron, int lsize) {
 int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
                          int size,int ws)
 {
-    int i, j;
+    int i;
     ws += size;
-    layer->neurons = malloc(sizeof(PSNeuron*) * size);
+    layer->neurons = calloc(size, sizeof(PSNeuron*));
     if (layer->neurons == NULL) {
         PSPrintMemoryErrorMsg();
         return 0;
     }
     layer->activations = calloc(size, sizeof(PSFloat));
     if (layer->activations == NULL) {
+        PSPrintMemoryErrorMsg();
+        return 0;
+    }
+    layer->weights = PSMatrixWithGaussianRandom(1, 2, size, ws);
+    if (layer->weights == NULL) {
         PSPrintMemoryErrorMsg();
         return 0;
     }
@@ -79,15 +85,7 @@ int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
         neuron->index = i;
         neuron->weights_size = ws;
         neuron->bias = PSGaussianRandom(0, 1);
-        neuron->weights = malloc(sizeof(PSFloat) * ws);
-        if (neuron->weights ==  NULL) {
-            PSDeleteNeuron(neuron, layer);
-            PSErr(__func__, "Could not allocate neuron weights!");
-            return 0;
-        }
-        for (j = 0; j < ws; j++) {
-            neuron->weights[j] = PSGaussianRandom(0, 1);
-        }
+        neuron->weights = layer->weights + (i * ws);
         neuron->z_value = 0;
         layer->neurons[i] = neuron;
         neuron->extra = PSCreateRecurrentCell(neuron, size);
@@ -292,7 +290,7 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previous_layer,
                 update_delta = !is_first_t;
             if (!is_first_t || has_prev_activations) {
                 if (update_delta && new_delta == NULL) {
-                    new_delta = calloc(lsize, sizeof(PSFloat));
+                    new_delta = PSMatrixZeros(1, lsize);
                     if (new_delta == NULL) {
                         PSPrintMemoryErrorMsg();
                         return 0;
@@ -355,7 +353,7 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previous_layer,
             }
         }
         if (new_delta != NULL) {
-            free(delta);
+            PSMatrixDelete(delta);
             layer->delta = new_delta;
             new_delta = NULL;
         }

@@ -37,26 +37,6 @@
 #define OPT_TIME_FULL        (1 << 1)
 #define OPT_TIME_HUMAN       (1 << 2)
 
-#ifdef PS_DOUBLE_PRECISION
-#define PSTanhActivation tanh
-#define PSSqrt(v) sqrt(v)
-#define PSFloor(v) floor(v)
-#define PSExp(v) exp(v)
-#define PSRound(v) round(v)
-#define PSMathLog(v) log(v)
-#define PSAbs(v) fabs(v)
-#define PSPow(a,b) pow(a, b)
-#else
-#define PSTanhActivation tanhf
-#define PSSqrt(v) sqrtf(v)
-#define PSFloor(v) floorf(v)
-#define PSExp(v) expf(v)
-#define PSRound(v) roundf(v)
-#define PSMathLog(v) logf(v)
-#define PSAbs(v) fabsf(v)
-#define PSPow(a,b) powf(a, b)
-#endif
-
 #define PSClipValue(v, max, min) (v > max ? max : (v < min ? min : v))
 
 /* Activation Functions */
@@ -76,10 +56,6 @@ PSFloat PSTanhDerivative(PSFloat val);
 void PSAbortLayer(PSNeuralNetwork *network, PSLayer *layer);
 
 /* Misc */
-
-PSFloat PSNormalizedRandom();
-
-PSFloat PSGaussianRandom(PSFloat mean, PSFloat stddev);
 
 int PSGetTerminalColumns();
 

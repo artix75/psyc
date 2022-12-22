@@ -23,13 +23,12 @@
 #include "psyc.h"
 #include "platform.h"
 #include "utils.h"
+#include "maths.h"
 
 #if IS_UNIX
 #include <sys/ioctl.h>
 #include <unistd.h>
 #endif
-
-static unsigned char randomSeeded = 0;
 
 /* Activation Functions */
 
@@ -75,26 +74,6 @@ void PSAbortLayer(PSNeuralNetwork *network, PSLayer *layer) {
 }
 
 /* Misc */
-
-
-PSFloat PSNormalizedRandom() {
-    if (!randomSeeded) {
-        randomSeeded = 1;
-        srand(time(NULL));
-    }
-    int r = rand();
-    return ((PSFloat) r / (PSFloat) RAND_MAX);
-}
-
-PSFloat PSGaussianRandom(PSFloat mean, PSFloat stddev) {
-    PSFloat theta = 2 * M_PI * PSNormalizedRandom();
-    PSFloat rho = PSSqrt(-2 * PSMathLog(1 - PSNormalizedRandom()));
-    PSFloat scale = stddev *rho;
-    PSFloat x = mean + scale *cos(theta);
-    PSFloat y = mean + scale *sin(theta);
-    PSFloat r = PSNormalizedRandom();
-    return (r > 0.5 ? y : x);
-}
 
 int PSGetTerminalColumns() {
     static int __term_columns = -1;

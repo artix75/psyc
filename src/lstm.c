@@ -27,6 +27,7 @@
 #endif
 
 #include "lstm.h"
+#include "maths.h"
 #include "utils.h"
 #include "log.h"
 
@@ -542,7 +543,7 @@ void PSUpdateLSTMBiases(PSNeuron *neuron, PSGradient *gradient,
 
 int PSInitLSTMLayer(PSNeuralNetwork *network, PSLayer *layer,
                     int size, int ws) {
-    int i, j;
+    int i;
     if (size == 0) {
         PSErr(__func__, "Cannot initialize layer with size = 0");
         return 0;
@@ -550,29 +551,26 @@ int PSInitLSTMLayer(PSNeuralNetwork *network, PSLayer *layer,
     ws += size;
     int tot_ws = ws * 4; /* Weights for candidate, input, output and
                             forget gates */
-    layer->neurons = malloc(sizeof(PSNeuron*) * size);
+    layer->neurons = calloc(size, sizeof(PSNeuron*));
     if (layer->neurons == NULL) {
         PSErr(__func__, "Could not allocate layer neurons!");
+        return 0;
+    }
+    layer->weights = PSMatrixWithGaussianRandom(1, 2, size, tot_ws);
+    if (layer->weights == NULL) {
+        PSPrintMemoryErrorMsg();
         return 0;
     }
     for (i = 0; i < size; i++) {
         PSNeuron *neuron = malloc(sizeof(PSNeuron));
         if (neuron == NULL) {
-            PSErr(__func__, "Could not allocate neuron!");
+            PSPrintMemoryErrorMsg();
             return 0;
         }
         neuron->index = i;
         neuron->weights_size = tot_ws;
         neuron->bias = 0; /*PSGaussianRandom(0, 1);*/
-        neuron->weights = malloc(sizeof(PSFloat) * tot_ws);
-        if (neuron->weights ==  NULL) {
-            PSDeleteNeuron(neuron, layer);
-            PSErr(__func__, "Could not allocate neuron weights!");
-            return 0;
-        }
-        for (j = 0; j < tot_ws; j++) {
-            neuron->weights[j] = PSGaussianRandom(0, 1);
-        }
+        neuron->weights = layer->weights + (i * tot_ws);
         neuron->z_value = 0;
         layer->neurons[i] = neuron;
         neuron->extra = PSCreateLSTMCell(neuron, ws);
