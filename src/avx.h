@@ -18,6 +18,7 @@
 #ifndef __PS_AVX_H
 #define __PS_AVX_H
 
+#include <assert.h>
 #include "types.h"
 
 #ifdef USE_AVX
