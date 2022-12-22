@@ -1953,7 +1953,7 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
             return NULL;
         }
     }
-    /*PSPrintLayerInfo(layer);*/ /*TODO:Enable it after implementing log-levels*/
+    if (PSLogLevel == PSLOGLEVEL_DEBUG) PSPrintLayerInfo(layer);
     return layer;
 }
 
