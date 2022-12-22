@@ -24,6 +24,9 @@
 
 #include "maths.h"
 #include "log.h"
+#ifdef USE_AVX
+#include "avx.h"
+#endif
 
 #define MAX_DIMENSIONS 3
 
