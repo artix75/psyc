@@ -340,8 +340,10 @@ static int LSTMCellFeedforward(PSLayer *layer, PSLayer *previous,
               layer->index, neuron->index);
         return 0;
     }
+    PSDotOpts dpopt = {0};
 #ifdef USE_AVX
     int avx_disabled = PSIsAVXDisabled(net);
+    if (!avx_disabled) dpopt.acceleration = PS_ACCELERATION_AVX;
 #else
     UNUSED(net);
 #endif
@@ -360,89 +362,51 @@ static int LSTMCellFeedforward(PSLayer *layer, PSLayer *previous,
     PSFloat prev_z = 0.0;
 
     if (ignore_previous_activations) goto forward_previous_step;
-
+    PSFloat *inputs = NULL;
     if (onehot_idx >= 0) {
         candidate = cell->candidate_weights[onehot_idx];
         input_gate = cell->input_weights[onehot_idx];
         output_gate = cell->output_weights[onehot_idx];
         forget_gate = cell->forget_weights[onehot_idx];
     } else {
-        int i = 0;
-#ifdef USE_AVX
-        int j = 0, o = 0, f = 0;
-        if (!avx_disabled) {
-            AVXIterativeDotProduct(
-                previous->size, previous->activations,
-                cell->candidate_weights, candidate, i, 1, t
-            );
-            AVXIterativeDotProduct(
-                previous->size, previous->activations,
-                cell->input_weights, input_gate, j, 1, t
-            );
-            AVXIterativeDotProduct(
-                previous->size, previous->activations,
-                cell->output_weights, output_gate, o, 1, t
-            );
-            AVXIterativeDotProduct(
-                previous->size, previous->activations,
-                cell->forget_weights, forget_gate, f, 1, t
-            );
+        if (inputs == NULL) inputs = PSGetActivations(previous, t);
+        if (inputs == NULL) {
+            PSErr(NULL, "Layer[%d]: previous layer[%d] has NULL activations",
+                  layer->index, previous->index);
+            return 0;
         }
-#endif
-        for (; i < previous->size; i++) {
-            PSNeuron *prev_neuron = previous->neurons[i];
-            if (prev_neuron == NULL) return 0;
-            PSFloat a = PSGetActivation(previous, i, t);
-            candidate += (a * cell->candidate_weights[i]);
-            input_gate += (a * cell->input_weights[i]);
-            output_gate += (a * cell->output_weights[i]);
-            forget_gate += (a * cell->forget_weights[i]);
-        }
+        int input_size = previous->size;
+        candidate = PSDotProduct(
+            inputs, cell->candidate_weights, input_size, &dpopt
+        );
+        input_gate = PSDotProduct(
+            inputs, cell->input_weights, input_size, &dpopt
+        );
+        output_gate = PSDotProduct(
+            inputs, cell->output_weights, input_size, &dpopt
+        );
+        forget_gate = PSDotProduct(
+            inputs, cell->forget_weights, input_size, &dpopt
+        );
     }
 
 forward_previous_step:
     if (t > 0 || layer->previous_activations != NULL) {
         int prev_t = t - 1;
+        PSFloat *prev_act = PSGetActivations(layer, prev_t);
         prev_z = getZValue(layer, neuron->index, prev_t);
-        int i = 0;
-#ifdef USE_AVX
-        int j = 0, o = 0, f = 0;
-        if (!avx_disabled) {
-            PSFloat *act = layer->activations;
-            int avx_t = prev_t;
-            if (avx_t < 0) {
-                act = layer->previous_activations;
-                avx_t = 0;
-            }
-            AVXIterativeDotProduct(
-                layer->size, act, cell->candidate_weights + prev_size,
-                candidate, i, 1, avx_t
-            );
-            AVXIterativeDotProduct(
-                layer->size, act, cell->input_weights + prev_size,
-                input_gate, j, 1, avx_t
-            );
-            AVXIterativeDotProduct(
-                layer->size, act, cell->output_weights + prev_size,
-                output_gate, o, 1, avx_t
-            );
-            AVXIterativeDotProduct(
-                layer->size, act, cell->forget_weights + prev_size,
-                forget_gate, f, 1, avx_t
-            );
-        }
-#endif
-        for (; i < layer->size; i++) {
-            int w = i + prev_size;
-            PSNeuron *n = layer->neurons[i];
-            PSLSTMCell *c = PSGetLSTMCell(n);
-            if (c == NULL) return 0;
-            PSFloat prev_state = PSGetActivation(layer, i, prev_t);
-            candidate += (cell->candidate_weights[w] * prev_state);
-            input_gate += (cell->input_weights[w] * prev_state);
-            output_gate += (cell->output_weights[w] * prev_state);
-            forget_gate += (cell->forget_weights[w] * prev_state);
-        }
+        candidate += PSDotProduct(
+            prev_act, cell->candidate_weights + prev_size, layer->size, &dpopt
+        );
+        input_gate += PSDotProduct(
+            prev_act, cell->input_weights + prev_size, layer->size, &dpopt
+        );
+        output_gate += PSDotProduct(
+            prev_act, cell->output_weights + prev_size, layer->size, &dpopt
+        );
+        forget_gate += PSDotProduct(
+            prev_act, cell->forget_weights + prev_size, layer->size, &dpopt
+        );
     }
     PSFloat candidate_bias = 0.0, input_bias = 0.0, output_bias = 0.0,
             forget_bias = 0.0;

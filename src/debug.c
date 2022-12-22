@@ -438,18 +438,15 @@ void PSTrainingDebugDump(PSNeuralNetwork *network, char *format, ...) {
     va_end(ap);
 }
 
-void PSTrainingDebugDumpStep(PSNeuralNetwork *network,
-                             int training_phase,
-                             const char *func,
-                             PSLayer *layer,
-                             PSNeuron *neuron,
-                             char *format, ...)
-{
+void PSTrainingDebugDumpStep(PSDebugStepInfo *info, char *format, ...) {
+    if (info == NULL) return;
+    PSNeuralNetwork *network = info->network;
     if (network->training == NULL) return;
     if (network->training->debug_dump_to == NULL) return;
     if (network->training->current_element > 0) return;
     if (network->training->current_batch > 0) return;
     if (network->training->current_epoch > 0) return;
+    int training_phase = info->training_phase;
     char *phase_name = NULL;
     if (training_phase == TRAINING_PHASE_FEEDFORWARD)
         phase_name = "feedforward";
@@ -458,14 +455,15 @@ void PSTrainingDebugDumpStep(PSNeuralNetwork *network,
     fprintf(
         network->training->debug_dump_to,
         "step:phase=%s,func=%s",
-        phase_name, func
+        phase_name, info->func
     );
-    if (layer != NULL) {
-        char *type_name = PSGetLayerTypeLabel(layer);
+    if (info->layer != NULL) {
+        char *type_name = PSGetLayerTypeLabel(info->layer);
         fprintf(network->training->debug_dump_to,
-            ",layer=%d,type=%s",layer->index, type_name);
-        if (neuron != NULL) {
-            char *neuron_id = PSGetNeuronDebugID(neuron, layer);
+            ",layer=%d,type=%s", info->layer->index, type_name);
+        if (info->neuron != NULL) {
+            char *neuron_id =
+                PSGetNeuronDebugID(info->neuron, info->layer);
             fprintf(network->training->debug_dump_to,",neuron=%s",neuron_id);
         }
     }

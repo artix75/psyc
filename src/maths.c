@@ -217,3 +217,24 @@ void PSMatrixDelete(PSMatrix matrix) {
     void *ptr = (void *) getMatrixHeadPointer(matrix);
     free(ptr);
 }
+
+/**** Operations ****/
+
+PSFloat PSDotProduct(PSFloat *a, PSFloat *b, uint64_t length, PSDotOpts *opts)
+{
+    PSDotProductDebug debug_step = NULL;
+    if (opts != NULL) debug_step = opts->debug_step;
+    uint64_t i = 0;
+    PSFloat result = 0.0;
+#ifdef USE_AVX
+    if (opts != NULL && (opts->acceleration & PS_ACCELERATION_AVX)) {
+        AVXIterativeDotProduct(length, a, b, result, i, 0, 0);
+        if (debug_step) debug_step(i, a[i], b[i], result, 1, opts);
+    }
+#endif
+    for (; i < length; i++) {
+        if (debug_step) debug_step(i, a[i], b[i], result, 0, opts);
+        result += a[i] * b[i];
+    }
+    return result;
+}

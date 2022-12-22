@@ -131,9 +131,6 @@ int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
     }
     PSLayer *first_recurrent = PSGetFirstRecurrentLayer(net);
     int avx_disabled = PSIsAVXDisabled(net);
-#ifndef USE_AVX
-    UNUSED(avx_disabled);
-#endif
     int onehot = previous->flags & FLAG_ONEHOT;
     int use_bias = !(layer->flags & FLAG_NO_BIAS);
     PSHyperParameters *params = NULL;
@@ -163,10 +160,14 @@ int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
             return 0;
         }
     }
-    int i, j, w, previous_size = previous->size,
-        ignore_previous_activations = 0;
+    int i, input_size = previous->size, ignore_previous_activations = 0;
     if (!PSIsRecurrent(previous) && layer == first_recurrent)
         ignore_previous_activations = (t > 0);
+    PSDotOpts dpopt = {0};
+    if (!avx_disabled) dpopt.acceleration = PS_ACCELERATION_AVX;
+    int prev_t = t - 1;
+    PSFloat *inputs = NULL;
+    PSFloat *prev_act = NULL;
     for (i = 0; i < size; i++) {
         PSNeuron *neuron = layer->neurons[i];
         PSRecurrentCell *cell = PSGetRecurrentCell(neuron);
@@ -179,47 +180,20 @@ int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
         if (ignore_previous_activations) goto forward_previous_step;
         if (onehot) sum = neuron->weights[vector_idx];
         else {
-            j = 0;
-#ifdef USE_AVX
-            if (!avx_disabled) {
-                AVXIterativeDotProduct(
-                    previous_size, previous->activations,
-                    neuron->weights, sum, j, 1, t
-                );
+            if (inputs == NULL) inputs = PSGetActivations(previous, t);
+            if (inputs == NULL) {
+                PSErr(NULL, "Layer[%d]: previous layer[%d] has NULL "
+                      "activations", layer->index, previous->index);
+                return 0;
             }
-#endif
-            for (; j < previous_size; j++) {
-                PSNeuron *prev_neuron = previous->neurons[j];
-                if (prev_neuron == NULL) return 0;
-                PSFloat a = PSGetActivation(previous, j, t);
-                sum += (a * neuron->weights[j]);
-            }
+            sum = PSDotProduct(inputs, neuron->weights, input_size, &dpopt);
         }
 forward_previous_step:
+        prev_act = PSGetActivations(layer, prev_t);
         if (t > 0 || layer->previous_activations != NULL) {
-            int prev_t = t - 1;
-            w = 0;
-#ifdef USE_AVX
-            if (!avx_disabled) {
-                PSFloat *act = layer->activations;
-                int avx_t = prev_t;
-                if (avx_t < 0) {
-                    act = layer->previous_activations;
-                    avx_t = 0;
-                }
-                AVXIterativeDotProduct(
-                    size, act, cell->weights, prev_sum, w, 1, avx_t
-                );
-            }
-#endif
-            for (; w < size; w++) {
-                PSNeuron *n = layer->neurons[w];
-                PSRecurrentCell *rc = PSGetRecurrentCell(n);
-                if (rc == NULL) return 0;
-                PSFloat weight = cell->weights[w];
-                PSFloat prev_state = PSGetActivation(layer, w, prev_t);
-                prev_sum += (weight * prev_state);
-            }
+            prev_sum = PSDotProduct(
+                prev_act, cell->weights, layer->size, &dpopt
+            );
         }
         neuron->z_value = sum + prev_sum;
         if (use_bias) neuron->z_value += neuron->bias;

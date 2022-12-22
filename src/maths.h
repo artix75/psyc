@@ -40,6 +40,20 @@
 #define PSPow(a,b) powf(a, b)
 #endif
 
+#define PS_ACCELERATION_NONE    0
+#define PS_ACCELERATION_AVX     (1 << 0)
+
+struct PSDotOpts;
+typedef void (*PSDotProductDebug)(int i, PSFloat a, PSFloat b, PSFloat sum,
+                                  int using_acceleration,
+                                  struct PSDotOpts *opts);
+
+typedef struct PSDotOpts {
+    int acceleration;
+    PSDotProductDebug debug_step;
+    void *data;
+} PSDotOpts;
+
 /****** Utils *****/
 
 PSFloat PSNormalizedRandom();
@@ -63,6 +77,10 @@ size_t PSMatrixLength(PSMatrix matrix);
 int PSMatrixStride(PSMatrix matrix, int dim);
 PSFloat *PSMatrixValues(PSMatrix matrix, uint32_t *len, int argc, ...);
 void PSMatrixDelete(PSMatrix matrix);
+
+/**** Operations ***/
+
+PSFloat PSDotProduct(PSFloat *a, PSFloat *b, uint64_t length, PSDotOpts *opts);
 
 #endif /* __PS_MATHS_H__ */
 

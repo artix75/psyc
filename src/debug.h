@@ -69,17 +69,20 @@ typedef struct PSDebugInfo {
     int has_info;
 } PSDebugInfo;
 
+typedef struct {
+    PSNeuralNetwork *network;
+    int training_phase;
+    const char *func;
+    PSLayer *layer;
+    PSNeuron *neuron;
+} PSDebugStepInfo;
+
 int PSIsFunctionAvailable(const char *func);
 int PSCatchFloatingPointExceptions(int except);
 
 char *PSGetNeuronDebugID(PSNeuron *neuron, PSLayer *layer);
 void PSTrainingDebugDump(PSNeuralNetwork *network, char *fmt, ...);
-void PSTrainingDebugDumpStep(PSNeuralNetwork *network,
-                             int training_phase,
-                             const char *func,
-                             PSLayer *layer,
-                             PSNeuron *neuron,
-                             char *format, ...);
+void PSTrainingDebugDumpStep(PSDebugStepInfo *info, char *format, ...);
 
 void PSTrainingDebugDumpHeader(PSNeuralNetwork *network,
                               int data_size,

@@ -265,6 +265,7 @@ int PSResetLayerRecurrentStates(PSLayer *layer, uint32_t steps,
 int PSResetNetworkRecurrentStates(PSNeuralNetwork *network, uint32_t steps,
                                 int retain_previous);
 PSFloat PSGetActivation(PSLayer *layer, int index, ...);
+PSFloat *PSGetActivations(PSLayer *layer, ...);
 PSFloat PSGetNeuronActivation(PSNeuron *neuron, ...);
 int PSSetActivation(PSLayer *layer, PSFloat activation, int index, ...);
 int PSSetNeuronActivation(PSNeuron *neuron, double activation, ...);

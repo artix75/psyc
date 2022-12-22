@@ -37,38 +37,38 @@
     PSFloor(((PSFloat)(s - rs + 2 * pad) / (PSFloat) st) + 1)
 #define PSCalculatePoolingSide(s, rs) PSFloor((s - rs) / rs + 1)
 
-#define DumpConvolveStep(net,l,n,x,y,rx,ry,rx2,ry2,prev,fidx,nidx,nx,ny,widx) \
- PSTrainingDebugDumpStep(net,TRAINING_PHASE_FEEDFORWARD, "PSConvolve",l,n,\
+#define DumpConvolveStep(x,y,rx,ry,rx2,ry2,prev,fidx,nidx,nx,ny,widx) \
+ PSTrainingDebugDumpStep(&dbginfo,\
  "neuron_pos=(%d,%d),region=(%d,%d,%d,%d),previous_layer=%d,"\
  "previous_neuron=%d-%d-%d,previous_neuron_pos=(%d,%d),weight_idx=%d,"\
  "srcline=%d\n",\
  x, y, rx, ry, rx2, ry2,prev->index, prev->index, fidx, nidx, nx, ny, widx,\
  __LINE__)
 
-#define DumpConvolveAVXStep(net,l,n,x,y,rx,ry,rx2,ry2,prv,fidx,nidx,nx,ny,\
+#define DumpConvolveAVXStep(x,y,rx,ry,rx2,ry2,prv,fidx,nidx,nx,ny,\
 w,steplen,step,rowlen) \
- PSTrainingDebugDumpStep(net,TRAINING_PHASE_FEEDFORWARD, "PSConvolve",l,n,\
+ PSTrainingDebugDumpStep(&dbginfo,\
  "neuron_pos=(%d,%d),region=(%d,%d,%d,%d),previous_layer=%d,"\
  "previous_neuron=%d-%d-%d,previous_neuron_pos=(%d,%d),weight_idx=%d,"\
  "avx=1,avx_step_len=%d,avx_step=%d,rowlen=%d,srcline=%d\n",\
  x, y, rx, ry, rx2, ry2, prv->index,prv->index, fidx, nidx, nx, ny, widx,\
  steplen, step, rowlen, __LINE__)
 
-#define DumpPoolStep(net,l,n,x,y,rx,ry,rx2,ry2,prv,fidx,nidx,nx,ny) \
- PSTrainingDebugDumpStep(net, TRAINING_PHASE_FEEDFORWARD, "PSPool", l, n,\
+#define DumpPoolStep(x,y,rx,ry,rx2,ry2,prv,fidx,nidx,nx,ny) \
+ PSTrainingDebugDumpStep(&dbginfo,\
  "neuron_pos=(%d,%d),region=(%d,%d,%d,%d),previous_layer=%d,"\
  "previous_neuron=%d-%d-%d,previous_neuron_pos=(%d,%d),srcline=%d\n",\
  x, y, rx, ry, rx2, ry2, prv->index,prv->index, fidx, nidx, nx, ny, __LINE__)
 
-#define DumpPoolBackpropStep(net,l,n,x,y,rx,ry,rx2,ry2,prv,fidx,nidx,nx,ny) \
- PSTrainingDebugDumpStep(net, TRAINING_PHASE_BACKPROP, "PSPoolingBackprop",\
- l, n, "neuron_pos=(%d,%d),region=(%d,%d,%d,%d),previous_neuron=%d-%d-%d,"\
+#define DumpPoolBackpropStep(x,y,rx,ry,rx2,ry2,prv,fidx,nidx,nx,ny) \
+ PSTrainingDebugDumpStep(&dbginfo, \
+ "neuron_pos=(%d,%d),region=(%d,%d,%d,%d),previous_neuron=%d-%d-%d,"\
  "previous_neuron_pos=(%d,%d),srcline=%d\n", x, y, rx, ry, rx2, ry2,\
  prv->index, fidx, nidx, nx, ny, __LINE__)
 
-#define DumpConvBackpropStep(net,l,n,x,y,rx,ry,rx2,ry2,prv,fidx,nidx,nx,ny,w) \
- PSTrainingDebugDumpStep(net,TRAINING_PHASE_BACKPROP,"PSConvolutionalBackprop",\
- l, n, "neuron_pos=(%d,%d),region=(%d,%d,%d,%d),previous_neuron=%d-%d-%d,"\
+#define DumpConvBackpropStep(x,y,rx,ry,rx2,ry2,prv,fidx,nidx,nx,ny,w) \
+ PSTrainingDebugDumpStep(&dbginfo,\
+ "neuron_pos=(%d,%d),region=(%d,%d,%d,%d),previous_neuron=%d-%d-%d,"\
  "previous_neuron_pos=(%d,%d),weight_idx=%d,srcline=%d\n",\
  x, y, rx, ry, rx2, ry2, prv->index, fidx, nidx, nx, ny, widx, __LINE__)
 
@@ -341,6 +341,12 @@ int PSConvolve(PSNeuralNetwork *net, PSLayer *layer, ...) {
     }
     int do_dump =
         (net->training != NULL && net->training->debug_dump_to != NULL);
+    PSDebugStepInfo dbginfo = {
+        .network = net,
+        .layer = layer,
+        .func = __func__,
+        .training_phase = TRAINING_PHASE_FEEDFORWARD
+    };
     int i, j, k, x, y, row, col;
     PSHyperParameters *parameters = layer->hyper_parameters;
     if (parameters == NULL) {
@@ -396,6 +402,7 @@ int PSConvolve(PSNeuralNetwork *net, PSLayer *layer, ...) {
         for (j = 0; j < feature_size; j++) {
             int idx = (i * feature_size) + j;
             PSNeuron *neuron = layer->neurons[idx];
+            dbginfo.neuron = neuron;
             col = idx % (int) output_w;
             if (col == 0 && j > 0) row++;
             int r_row = (row *stride) - padding;
@@ -450,7 +457,7 @@ int PSConvolve(PSNeuralNetwork *net, PSLayer *layer, ...) {
                                 prev_activations + nidx;
                             PSFloat *y_vector = weights + widx;
                             if (do_dump) DumpConvolveAVXStep(
-                                net, layer, neuron, col, row, r_col, r_row,
+                                col, row, r_col, r_row,
                                 max_x, max_y, previous, k, nidx, x, y, widx,
                                 avx_step_len, avx_step, rowlen
                             );
@@ -476,7 +483,7 @@ int PSConvolve(PSNeuralNetwork *net, PSLayer *layer, ...) {
                             break;
                         }
                         PSFloat a = PSGetActivation(previous, nidx, t);
-                        if (do_dump) DumpConvolveStep(net, layer, neuron,
+                        if (do_dump) DumpConvolveStep(
                             col, row, r_col, r_row, max_x, max_y,previous,
                             k, nidx, x, y, widx
                         );
@@ -530,6 +537,12 @@ int PSPool(PSNeuralNetwork *net, PSLayer *layer, ...) {
     }
     int do_dump =
         (net->training != NULL && net->training->debug_dump_to != NULL);
+    PSDebugStepInfo dbginfo = {
+        .network = net,
+        .layer = layer,
+        .func = __func__,
+        .training_phase = TRAINING_PHASE_FEEDFORWARD
+    };
     int is_recurrent = PSIsRecurrent(layer), times = 0, t = 0;
     if (is_recurrent) {
         va_list args;
@@ -553,6 +566,7 @@ int PSPool(PSNeuralNetwork *net, PSLayer *layer, ...) {
         for (j = 0; j < feature_size; j++) {
             int idx = (i * feature_size) + j;
             PSNeuron *neuron = layer->neurons[idx];
+            dbginfo.neuron = neuron;
             col = idx % (int) output_w;
             if (col == 0 && j > 0) row++;
             int r_row = row *region_size;
@@ -570,8 +584,9 @@ int PSPool(PSNeuralNetwork *net, PSLayer *layer, ...) {
                         max = a;
                         max_z = z;
                     }
-                    if (do_dump) DumpPoolStep(net, layer, neuron, col, row,
-                        r_col, r_row, max_x, max_y, previous, i, nidx, x, y
+                    if (do_dump) DumpPoolStep(
+                        col, row, r_col, r_row, max_x, max_y, previous,
+                        i, nidx, x, y
                     );
                 }
             }
@@ -613,6 +628,12 @@ int PSPoolingBackprop(PSLayer *pooling_layer, PSLayer *convolutional_layer,
             net->training != NULL && net->training->debug_dump_to != NULL
         );
     }
+    PSDebugStepInfo dbginfo = {
+        .network = net,
+        .layer = pooling_layer,
+        .func = __func__,
+        .training_phase = TRAINING_PHASE_BACKPROP
+    };
     int is_recurrent = PSIsRecurrent(pooling_layer), t = 0;
     if (is_recurrent) {
         va_list args;
@@ -626,6 +647,7 @@ int PSPoolingBackprop(PSLayer *pooling_layer, PSLayer *convolutional_layer,
         row = 0;
         for (j = 0; j < feature_size; j++) {
             int idx = j + (i * feature_size);
+            dbginfo.neuron = pooling_layer->neurons[idx];
             PSFloat d = delta[idx];
             PSFloat pool_activation = PSGetActivation(pooling_layer, idx, t);
             col = idx % (int) output_w;
@@ -640,7 +662,6 @@ int PSPoolingBackprop(PSLayer *pooling_layer, PSLayer *convolutional_layer,
                     int nidx = ((y * input_w) + x) + (prev_feat_size *i);
                     PSNeuron *prev_neuron = convolutional_layer->neurons[nidx];
                     if (do_dump) DumpPoolBackpropStep(
-                        net, pooling_layer, pooling_layer->neurons[idx],
                         col, row, r_col, r_row, max_x, max_y,
                         convolutional_layer, i, nidx, x, y
                     );
@@ -687,6 +708,12 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
             net->training != NULL && net->training->debug_dump_to != NULL
         );
     }
+    PSDebugStepInfo dbginfo = {
+        .network = net,
+        .layer = convolutional_layer,
+        .func = __func__,
+        .training_phase = TRAINING_PHASE_BACKPROP
+    };
     int is_recurrent = PSIsRecurrent(convolutional_layer), t = 0;
     int use_bias = !(convolutional_layer->flags & FLAG_NO_BIAS);
     if (is_recurrent) {
@@ -702,6 +729,7 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
         row = 0;
         for (j = 0; j < feature_size; j++) {
             int idx = j + (i * feature_size);
+            dbginfo.neuron = convolutional_layer->neurons[idx];
             PSFloat d = delta[idx];
             if (use_bias) feature_gradient->bias += d;
             col = idx % (int) output_w;
@@ -755,8 +783,6 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
                             assert(widx < shared->weights_size);
                         }
                         if (do_dump) DumpConvBackpropStep(
-                            net, convolutional_layer,
-                            convolutional_layer->neurons[idx],
                             col, row, r_col, r_row, max_x, max_y,
                             prev_layer, k, nidx, x, y, widx
                         );

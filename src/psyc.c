@@ -179,6 +179,23 @@ int PSLogTrainingProgress(PSNeuralNetwork *network, int epochs, int batches,
     return llen;
 }
 
+void dumpFeedforwardStep(int i, PSFloat a, PSFloat b, PSFloat sum,
+                         int using_acceleration, PSDotOpts *opts)
+{
+    UNUSED(a);
+    UNUSED(b);
+    UNUSED(sum);
+    UNUSED(using_acceleration);
+    if (opts == NULL) return;
+    PSDebugStepInfo *info = (PSDebugStepInfo *) opts->data;
+    if (info == NULL || info->layer == NULL || info->network == NULL) return;
+    info->training_phase = TRAINING_PHASE_FEEDFORWARD;
+    int prev_idx = info->layer->index - 1;
+    PSTrainingDebugDumpStep(
+        info, "previous_neuron=%d-%d,weight_index=%d\n", prev_idx, i, i
+    );
+}
+
 /* Feedforward Functions */
 
 static int fullFeedforward(PSNeuralNetwork *network, PSLayer *layer, ...) {
@@ -196,13 +213,18 @@ static int fullFeedforward(PSNeuralNetwork *network, PSLayer *layer, ...) {
         PSErr(NULL, "Layer[%d]: previous layer is NULL!", layer->index);
         return 0;
     }
-    int do_dump = PSShouldDebugDump(network);
-    int i, j, previous_size = previous->size;
+    int avx_disabled = PSIsAVXDisabled(network);
+    PSDotOpts dpopt = {0};
+    PSDebugStepInfo dbginfo =
+        {.network = network, .layer = layer, .func = __func__};
+    if (PSShouldDebugDump(network)) {
+        dpopt.data = &dbginfo;
+        dpopt.debug_step = dumpFeedforwardStep;
+    }
+    if (!avx_disabled) dpopt.acceleration = PS_ACCELERATION_AVX;
+    int i, input_size = previous->size;
     int is_recurrent = PSIsRecurrent(layer), tsteps = 0, t = 0;
     int use_bias = !(layer->flags & FLAG_NO_BIAS);
-#ifdef USE_AVX
-    int avx_disabled = PSIsAVXDisabled(network);
-#endif
     if (is_recurrent) {
         va_list args;
         va_start(args, layer);
@@ -211,36 +233,18 @@ static int fullFeedforward(PSNeuralNetwork *network, PSLayer *layer, ...) {
         va_end(args);
         UNUSED(tsteps);
     }
+    PSFloat *inputs = PSGetActivations(previous, t);
+    if (inputs == NULL) {
+        PSErr(NULL, "Layer[%d]: previous layer[%d] has NULL activations",
+              layer->index, previous->index);
+        return 0;
+    }
     for (i = 0; i < size; i++) {
         PSNeuron *neuron = layer->neurons[i];
-        PSFloat sum = 0.0;
-        j = 0;
-#ifdef USE_AVX
-        if (!avx_disabled) {
-            AVXIterativeDotProduct(
-                previous_size, previous->activations,
-                neuron->weights, sum, j, is_recurrent, t
-            );
-        }
-#endif
-        for (; j < previous_size; j++) {
-            PSNeuron *prev_neuron = previous->neurons[j];
-            if (prev_neuron == NULL) {
-                PSErr(NULL, "Layer[%d]: previous layer's neuron[%d] is NULL!",
-                      layer->index, j);
-                return 0;
-            }
-            if (do_dump) PSTrainingDebugDumpStep(
-                network, TRAINING_PHASE_FEEDFORWARD, "fullFeedforward",
-                layer, neuron, "previous_neuron=%d-%d,weight_index=%d\n",
-                previous->index, i, j
-            );
-#ifdef PS_DEBUG_MODE
-            PSAddContextualDebug(network, layer, neuron, prev_neuron, NULL, 0);
-#endif
-            PSFloat a = PSGetActivation(previous, j, t);
-            sum += (a * neuron->weights[j]);
-        }
+        dbginfo.neuron = neuron;
+        PSFloat sum = PSDotProduct(
+            inputs, neuron->weights, input_size, &dpopt
+        );
 #ifdef PS_DEBUG_MODE
         PSAddContextualDebug(network, layer, neuron, NULL, "Sum", sum);
 #endif
@@ -270,12 +274,18 @@ static int softmaxFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
         PSErr(NULL, "Layer[%d]: previous layer is NULL!", layer->index);
         return 0;
     }
-    int i, j, previous_size = previous->size;
+    int i, previous_size = previous->size;
     int is_recurrent = PSIsRecurrent(layer), tsteps = 0, t = 0;
     int use_bias = !(layer->flags & FLAG_NO_BIAS);
-#ifdef USE_AVX
     int avx_disabled = PSIsAVXDisabled(net);
-#endif
+    PSDotOpts dpopt = {0};
+    PSDebugStepInfo dbginfo =
+        {.network = net, .layer = layer, .func = __func__};
+    if (PSShouldDebugDump(net)) {
+        dpopt.data = &dbginfo;
+        dpopt.debug_step = dumpFeedforwardStep;
+    }
+    if (!avx_disabled) dpopt.acceleration = PS_ACCELERATION_AVX;
     if (is_recurrent) {
         va_list args;
         va_start(args, layer);
@@ -285,34 +295,22 @@ static int softmaxFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
         UNUSED(tsteps);
     }
     PSFloat max = 0.0, esum = 0.0;
+    PSFloat *inputs = PSGetActivations(previous, t);
+    if (inputs == NULL) {
+        PSErr(NULL, "Layer[%d]: previous layer[%d] has NULL activations",
+              layer->index, previous->index);
+        return 0;
+    }
     for (i = 0; i < size; i++) {
         PSNeuron *neuron = layer->neurons[i];
-        PSFloat sum = 0;
-        j = 0;
-#ifdef USE_AVX
-        if (!avx_disabled) {
-            AVXIterativeDotProduct(
-                previous_size, previous->activations,
-                neuron->weights, sum, j, is_recurrent, t
-            );
-        }
-#endif
-        for (; j < previous_size; j++) {
-            PSNeuron *prev_neuron = previous->neurons[j];
-            if (prev_neuron == NULL) {
-                PSErr(NULL, "Layer[%d]: previous layer's neuron[%d] is NULL!",
-                      layer->index, j);
-                return 0;
-            }
-            PSFloat a = PSGetActivation(previous, j, t);
-            sum += (a * neuron->weights[j]);
-        }
+        dbginfo.neuron = neuron;
+        PSFloat sum = PSDotProduct(
+            inputs, neuron->weights, previous_size, &dpopt
+        );
         neuron->z_value = sum;
         if (use_bias) neuron->z_value += neuron->bias;
-        if (i == 0)
-            max = neuron->z_value;
-        else if (neuron->z_value > max)
-            max = neuron->z_value;
+        if (i == 0) max = neuron->z_value;
+        else if (neuron->z_value > max) max = neuron->z_value;
     }
     PSFloat exponentials[size];
     for (i = 0; i < size; i++) {
@@ -1016,6 +1014,31 @@ PSFloat PSGetActivation(PSLayer *layer, int index, ...) {
         }
     }
     return layer->activations[index];
+}
+
+PSFloat *PSGetActivations(PSLayer *layer, ...) {
+    if (layer->activations == NULL) return NULL;
+    if (PSIsRecurrent(layer)) {
+        va_list args;
+        va_start(args, layer);
+        int t = va_arg(args, int);
+        va_end(args);
+        /* If t < 0, retrieve previous activation, if any. */
+        if (t < 0) return layer->previous_activations;
+        else {
+            if (t >= (int) layer->recurrent_states_count) {
+                PSErr(
+                    __func__, "State %d is out-of-range: layer %d only "
+                    "has %d recurrent hidden states",
+                    "of size %d", t, layer->index,
+                    layer->recurrent_states_count
+                );
+                return NULL;
+            }
+            return layer->activations + (t * layer->size);
+        }
+    }
+    return layer->activations;
 }
 
 PSFloat PSGetNeuronActivation(PSNeuron *neuron, ...) {
