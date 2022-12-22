@@ -73,13 +73,14 @@ int performTests(TestCase *test_case) {
     int old_log_level = PSLogLevel;
     int colors_enabled = PSLogColorEnabled();
 #ifndef PS_VERBOSE_TESTS
-    PSLogLevel = PSLOGLEVEL_NOTICE;
+    PSLogLevel = PSLOGLEVEL_WARN;
 #else
     PSLogLevel = PSLOGLEVEL_DEBUG;
 #endif
     PSLogEnableColor();
     printf("\n");
-    PSLog(PSLOGLEVEL_NOTICE, "Performing tests on %s\n", test_case->name);
+    printf(PSCOLOR_BOLD "Performing tests on %s\n" PSCOLOR_RESET,
+        test_case->name);
     if (test_case->setup != NULL) {
         printf(" -> setup\n");
         printf(PSCOLOR_DIM);
