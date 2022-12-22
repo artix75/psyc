@@ -1784,6 +1784,7 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
         PSErr(__func__, "Could not allocate layer %d!", network->size);
         return NULL;
     }
+    int verbose = (PSLogLevel == PSLOGLEVEL_DEBUG);
     layer->network = network;
     layer->index = network->size++;
     layer->type = type;
@@ -1800,7 +1801,7 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
     PSLayer *previous = NULL;
     int previous_size = 0;
     int initialized = 0;
-    /* printf("Adding layer %d\n", layer->index); */
+    if (verbose) printf("Adding layer %d\n", layer->index);
     if (network->layers == NULL) {
         network->layers = malloc(sizeof(PSLayer*));
         if (network->layers == NULL) {
@@ -1953,7 +1954,7 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
             return NULL;
         }
     }
-    if (PSLogLevel == PSLOGLEVEL_DEBUG) PSPrintLayerInfo(layer);
+    if (verbose) PSPrintLayerInfo(layer);
     return layer;
 }
 
