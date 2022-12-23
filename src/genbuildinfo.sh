@@ -1,4 +1,8 @@
 #!/bin/sh
+dir=$(basename `pwd`)
+if ! [ "$dir" = "src" ]; then
+    exit
+fi
 GIT_SHA=`(git show-ref --head --hash=8 2> /dev/null || echo 00000000) | head -n1`
 GIT_DIRTY=`git diff --no-ext-diff 2> /dev/null | wc -l`
 GIT_DIRTY=`echo $GIT_DIRTY | xargs`

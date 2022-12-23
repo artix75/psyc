@@ -1,5 +1,6 @@
 SHELL=/bin/bash
 CC=gcc
+gen_conf_mk := $(shell sh -c './conf.sh')
 
 DEFAULT_BUILD_TARGETS=neural_cli demo
 ifeq ($(DEMO),off)

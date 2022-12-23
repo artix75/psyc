@@ -2,6 +2,9 @@
 *.bck
 *.o
 *.tmp
+psyc-testcompile-*
+.c_headers
+config.mk
 bin/*
 !bin/README
 lib/*

@@ -3,9 +3,8 @@ CC=gcc
 OPTIMIZATION?=-O2
 OPT=$(OPTIMIZATION)
 CSTD=gnu99 -pedantic
-CFLAGS=-std=$(CSTD) -Wall -W -Wno-missing-field-initializers -Wno-unknown-pragmas -Wno-string-compare $(OPT)
+CFLAGS=-std=$(CSTD) -Wall -W -Wno-missing-field-initializers -Wno-unknown-pragmas -Wno-string-compare -Wno-unused-command-line-argument $(OPT)
 LDFLAGS=-lz -lm -ldl
-OBJS=psyc.o io.o utils.o log.o maths.o convolutional.o recurrent.o lstm.o mnist.o debug.o cifar.o
 PREFIX?=/usr/local
 LIBDIR=$(PREFIX)/lib
 BINDIR=$(PREFIX)/bin
@@ -13,12 +12,37 @@ INCLUDEDIR=$(PREFIX)/include
 SHAREDIR=$(PREFIX)/share/psyc
 PLATFORM := $(shell sh -c 'uname -s 2>/dev/null || echo not_found')
 HARDWARE := $(shell sh -c 'uname -m 2>/dev/null || echo not_found')
-SRCPATH := $(shell sh -c 'pwd')
-build_info_h := $(shell sh -c '$(SRCPATH)/genbuildinfo.sh')
+SRCPATH := $(strip $(dir $(lastword $(MAKEFILE_LIST))))
+PSYCPATH := $(SRCPATH)../
+build_info_h := $(shell sh -c '$(SRCPATH)genbuildinfo.sh')
 WAND_CONFIG=Wand-config
 HAS_MAGICK=false
 MAGICK_VERSION=none
 MAGICK_VERSION_MAJOR=none
+CONFIGMK=$(SRCPATH)config.mk
+ifeq (,$(wildcard $(CONFIGMK)))
+        $(error "Could not find $(CONFIGMK): try to manually run ./conf.sh")
+endif
+
+include $(CONFIGMK)
+ifeq (off,$(ACCELERATE))
+ifeq (true, $(BLAS_NEEDS_ACCELERATE))
+        BLAS=off
+endif
+else
+ifeq (true,$(HAS_ACCELERATE_FRAMEWORK))
+        CFLAGS+=$(ACCELERATE_CFLAGS)
+        LDFLAGS+=$(ACCELERATE_LDFLAGS)
+endif
+endif
+
+ifneq (off,$(BLAS))
+ifeq (true,$(HAS_BLAS))
+        CFLAGS+=$(BLAS_CFLAGS)
+        LDFLAGS+=$(BLAS_LDFLAGS)
+endif
+endif
+OBJS=$(SRCPATH)psyc.o $(SRCPATH)io.o $(SRCPATH)utils.o $(SRCPATH)log.o $(SRCPATH)maths.o $(SRCPATH)convolutional.o $(SRCPATH)recurrent.o $(SRCPATH)lstm.o $(SRCPATH)mnist.o $(SRCPATH)debug.o $(SRCPATH)cifar.o
 
 ifeq ($(PLATFORM), Linux)
         CFLAGS+=-fdiagnostics-color -Wno-unused-result -Wno-maybe-uninitialized
