@@ -1,7 +1,7 @@
 include ../Makefile.common.mk
 include ../avx.mk
 
-#OBJS=../psyc.o ../io.o ../utils.o ../maths.o ../log.o ../convolutional.o ../recurrent.o ../lstm.o ../mnist.o ../debug.o test.o
+OBJS+=test.o
 ifeq ($(AVX),on)
 	CFLAGS+=-DUSE_AVX -mavx2 -mfma
         OBJS+=../avx.o
