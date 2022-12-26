@@ -839,7 +839,6 @@ int testConvFeedforward(TestCase *test_case, Test *test) {
     PSNeuralNetwork *network = getNetwork(test_case);
     PSFloat *test_data = getTestData(test_case);
     PSFeedforward(network, test_data);
-
     PSLayer *output = network->layers[network->size - 1];
     int i;
     for (i = 0; i < output->size; i++) {
@@ -875,22 +874,22 @@ int testConvBackprop(TestCase *test_case, Test *test) {
         PSGradient *dl = gradients[lidx - 1];
         if (dl == NULL) continue;
         PSGradient *d = &(dl[nidx]);
-        PSFloat val = getRoundedFloat(d->bias);
-        bias = getRoundedFloat(bias);
+        PSFloat val = getRoundedFloatDec(d->bias, 4);
+        bias = getRoundedFloatDec(bias, 4);
         testAssertWithMessageOrGoto(
             (val == bias), on_fail, test,
             "Gradient[%d][%d] bias %g != from expected (%g)",
             lidx - 1, nidx, val, bias
         );
-        val = getRoundedFloat(d->weights[widx1]);
-        w1 = getRoundedFloat(w1);
+        val = getRoundedFloatDec(d->weights[widx1], 4);
+        w1 = getRoundedFloatDec(w1, 4);
         testAssertWithMessageOrGoto(
             (val == w1), on_fail, test,
             "Gradient[%d][%d] weight[%d] %g != from expect. (%g)",
             lidx - 1, nidx, widx1, val, w1
         );
-        val = getRoundedFloat(d->weights[widx2]);
-        w2 = getRoundedFloat(w2);
+        val = getRoundedFloatDec(d->weights[widx2], 4);
+        w2 = getRoundedFloatDec(w2, 4);
         testAssertWithMessageOrGoto(
             (val == w2), on_fail, test,
             "Gradient[%d][%d] weight[%d] %g != from expect. (%g)",

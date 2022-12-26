@@ -381,7 +381,7 @@ int PSConvolve(PSNeuralNetwork *net, PSLayer *layer, ...) {
     int apply_dropout = PSShouldApplyDropout(layer);
     int use_bias = !(layer->flags & FLAG_NO_BIAS);
 #ifdef USE_AVX
-    int avx_disabled = PSIsAVXDisabled(net);
+    int avx_disabled = !PSAVXEnabled(net->acceleration);
     /* AVX doesn't offer performance increase if not applied on big vectors */
     int avx_min_size = AVX_MIN_VECTOR_SIZE * 2;
 #endif

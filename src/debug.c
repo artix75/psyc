@@ -53,6 +53,7 @@
 #endif
 
 #include "platform.h"
+#include "config.h"
 #include "buildinfo.h"
 #include "psyc.h"
 #include "maths.h"
@@ -253,14 +254,32 @@ void segvHandler(int sig, siginfo_t *info, void *secret) {
     struct utsname sysinfo;
     uname(&sysinfo);
     printf("\n\n------ MISC. INFO -------\n");
-    printf("Git SHA:        %s\n", PSYC_GIT_SHA);
-    printf("Git Dirty:      %s\n", PSYC_GIT_DIRTY);
-    printf("Git Branch:     %s\n", PSYC_GIT_BRANCH);
-    printf("OS:             %s %s %s\n",
+    printf("Git SHA:            %s\n", PSYC_GIT_SHA);
+    printf("Git Dirty:          %s\n", PSYC_GIT_DIRTY);
+    printf("Git Branch:         %s\n", PSYC_GIT_BRANCH);
+    printf("OS:                 %s %s %s\n",
         sysinfo.sysname, sysinfo.release, sysinfo.machine);
-    printf("Arch.:          %dbit\n", (sizeof(long) == 8 ? 64 : 32));
-    printf("AVX:            ");
+    printf("Arch.:              %dbit\n", (sizeof(long) == 8 ? 64 : 32));
+    printf("AVX:                ");
 #if USE_AVX
+    printf("yes\n");
+#else
+    printf("no\n");
+#endif
+    printf("Apple Accelerate:   ");
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    printf("yes\n");
+#else
+    printf("no\n");
+#endif
+    printf("BLAS:               ");
+#ifdef HAS_BLAS
+    printf("yes\n");
+#else
+    printf("no\n");
+#endif
+    printf("CBLAS:              ");
+#ifdef HAS_CBLAS
     printf("yes\n");
 #else
     printf("no\n");
@@ -537,7 +556,7 @@ void PSTrainingDebugDumpHeader(PSNeuralNetwork *network,
     const char *name = network->name;
     if (name == NULL || !strlen(name)) name = "UNNAMED NETWORK";
     char *loss_name = getLossFunctionName(network->loss);
-    int avx_enabled = !PSIsAVXDisabled(network);
+    int avx_enabled = !PSAVXEnabled(network->acceleration);
     PSTrainingDebugDump(network,
         "network:name=%s,size=%d,loss_function=%s,status=%s,avx=%d\n",
         name, network->size, loss_name, getNetworkStatusLabel(network),

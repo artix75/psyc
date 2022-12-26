@@ -3,7 +3,7 @@ CC=gcc
 OPTIMIZATION?=-O2
 OPT=$(OPTIMIZATION)
 CSTD=gnu99 -pedantic
-CFLAGS=-std=$(CSTD) -Wall -W -Wno-missing-field-initializers -Wno-unknown-pragmas -Wno-string-compare -Wno-unused-command-line-argument $(OPT)
+CFLAGS=-std=$(CSTD) -Wall -W -Wno-missing-field-initializers -Wno-unknown-pragmas -Wno-string-compare -Wno-unused-command-line-argument -ffast-math $(OPT)
 LDFLAGS=-lz -lm -ldl
 PREFIX?=/usr/local
 LIBDIR=$(PREFIX)/lib
@@ -27,7 +27,7 @@ endif
 include $(CONFIGMK)
 ifeq (off,$(ACCELERATE))
 ifeq (true, $(BLAS_NEEDS_ACCELERATE))
-        BLAS=off
+        BLAS_CFLAGS=-DHAS_BLAS
 endif
 else
 ifeq (true,$(HAS_ACCELERATE_FRAMEWORK))
@@ -42,7 +42,7 @@ ifeq (true,$(HAS_BLAS))
         LDFLAGS+=$(BLAS_LDFLAGS)
 endif
 endif
-OBJS=$(SRCPATH)psyc.o $(SRCPATH)io.o $(SRCPATH)utils.o $(SRCPATH)log.o $(SRCPATH)maths.o $(SRCPATH)convolutional.o $(SRCPATH)recurrent.o $(SRCPATH)lstm.o $(SRCPATH)mnist.o $(SRCPATH)debug.o $(SRCPATH)cifar.o
+OBJS=$(SRCPATH)psyc.o $(SRCPATH)config.o $(SRCPATH)io.o $(SRCPATH)utils.o $(SRCPATH)log.o $(SRCPATH)maths.o $(SRCPATH)blas.o $(SRCPATH)convolutional.o $(SRCPATH)recurrent.o $(SRCPATH)lstm.o $(SRCPATH)mnist.o $(SRCPATH)debug.o $(SRCPATH)cifar.o
 
 ifeq ($(PLATFORM), Linux)
         CFLAGS+=-fdiagnostics-color -Wno-unused-result -Wno-maybe-uninitialized
@@ -59,6 +59,10 @@ endif
 ifneq ($(MAGICK_VERSION), none)
         HAS_MAGICK=true
 endif
+endif
+
+ifeq (on, $(USE_PSYC_BLAS))
+	CFLAGS+=-DUSE_PSYC_BLAS
 endif
 
 ifeq ($(DOUBLE_PRECISION),on)

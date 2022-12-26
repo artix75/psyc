@@ -27,6 +27,7 @@
 #include <limits.h>
 #include <assert.h>
 #include "psyc.h"
+#include "config.h"
 #include "utils.h"
 #include "convolutional.h"
 #include "recurrent.h"
@@ -800,7 +801,11 @@ void parseOptions(int argc, char **argv) {
         } else if (strcmp("--training-adjust-rate", arg) == 0) {
             training_flags |= TRAINING_ADJUST_RATE;
         } else if (strcmp("--disable-avx", arg) == 0) {
-            network->flags |= FLAG_AVX_DISABLED;
+            PSDisableAcceleration(&network->acceleration, PSAcceleration_AVX);
+        } else if (strcmp("--disable-vdsp", arg) == 0) {
+            PSDisableAcceleration(&network->acceleration, PSAcceleration_vDSP);
+        } else if (strcmp("--disable-blas", arg) == 0) {
+            PSDisableAcceleration(&network->acceleration, PSAcceleration_BLAS);
         } else if (strcmp("--enable-colors", arg) == 0) {
             PSGlobalFlags |= FLAG_LOG_COLORS;
         } else if (strcmp("--quiet", arg) == 0) {
@@ -839,6 +844,12 @@ void parseOptions(int argc, char **argv) {
         } else if (strcmp("-v", arg) == 0 || strcmp("--version", arg) == 0) {
             printf("%s v%s (AVX=", PROGRAM_NAME, PSYC_VERSION);
 #ifdef USE_AVX
+            printf("on");
+#else
+            printf("off");
+#endif
+            printf(",AccelerateFramework=");
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
             printf("on");
 #else
             printf("off");
@@ -1213,6 +1224,8 @@ void printHelp(const char* program_path) {
            "                                    --on-batch-trained every\n"
            "                                    NUM batches\n");
     printf("        --disable-avx               Disable AVX\n");
+    printf("        --disable-vdsp              Disable vDSP\n");
+    printf("        --disable-blas              Disable BLAS\n");
     printf("        --loglevel LEVEL            Set log level "
            "(see \"LOG LEVELS\" section)\n");
     printf("        --quiet                     Quiet output (loglevel ERROR)"

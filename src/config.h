@@ -1,0 +1,63 @@
+/*
+ * Copyright (C) 2016-2022 Fabio Nicotra <artix2 at gmail dot com>.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms are permitted
+ * provided that the above copyright notice and this paragraph are
+ * duplicated in all such forms and that any documentation,
+ * advertising materials, and other materials related to such
+ * distribution and use acknowledge that the software was developed
+ * by the copyright holder. The name of the
+ * copyright holder may not be used to endorse or promote products derived
+ * from this software without specific prior written permission.
+ * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+ */
+
+#ifndef __PS_CONFIG_H__
+#define __PS_CONFIG_H__
+
+#include <stdint.h>
+
+/* Global Flags*/
+#ifndef FLAG_LOG_COLORS
+#define FLAG_LOG_COLORS (1 << 0)
+#endif
+
+/* Acceleration Flags */
+
+#define PSHasFlag(flags, flag) (flags & flag)
+#define PSSetFlag(flags, flag) (flags != flag)
+#define PSRemoveFlag(flags, flag) (flags &= ~((unsigned) flags))
+
+#define PSAVXEnabled(acceleration) (PSIsAccelerationEnabled(acceleration,\
+    PSAcceleration_AVX))
+#define PSDSPEnabled(acceleration) (PSIsAccelerationEnabled(acceleration,\
+    PSAcceleration_vDSP))
+#define PSBLASEnabled(acceleration) (PSIsAccelerationEnabled(acceleration,\
+    PSAcceleration_BLAS))
+
+#define PSGlobalEnableAcceleration(acceleration) PSEnableAcceleration(\
+    &PSGlobalAcceleration, acceleration)
+#define PSGlobalDisableAcceleration(acceleration) PSDisableAcceleration(\
+    &PSGlobalAcceleration, acceleration)
+
+typedef enum PSAcceleration {
+    PSAcceleration_None = 0,
+    PSAcceleration_AVX  = (1 << 0),
+    PSAcceleration_vDSP = (1 << 1),
+    PSAcceleration_BLAS = (1 << 2),
+    PSAcceleration_All  = 0xFF
+} PSAcceleration;
+
+int PSIsAccelerationAvailable(PSAcceleration acceleration);
+int PSIsAccelerationEnabled(uint8_t config, PSAcceleration acceleration);
+int PSEnableAcceleration(uint8_t *config, PSAcceleration acceleration);
+void PSDisableAcceleration(uint8_t *config, PSAcceleration acceleration);
+const char *PSGetAccelerationName(PSAcceleration acceleration);
+
+extern int PSGlobalFlags;
+extern uint8_t PSGlobalAcceleration;
+
+#endif /* __PS_CONFIG_H__ */

@@ -59,8 +59,6 @@ void segvHandler(int sig, siginfo_t *info, void *secret);
 
 #define UNUSED(V) ((void) V)
 
-int PSGlobalFlags = 0;
-
 typedef struct {
     PSTrainingOptions options;
     PSGradient **momentum_gradients;
@@ -213,7 +211,6 @@ static int fullFeedforward(PSNeuralNetwork *network, PSLayer *layer, ...) {
         PSErr(NULL, "Layer[%d]: previous layer is NULL!", layer->index);
         return 0;
     }
-    int avx_disabled = PSIsAVXDisabled(network);
     PSDotOpts dpopt = {0};
     PSDebugStepInfo dbginfo =
         {.network = network, .layer = layer, .func = __func__};
@@ -221,7 +218,7 @@ static int fullFeedforward(PSNeuralNetwork *network, PSLayer *layer, ...) {
         dpopt.data = &dbginfo;
         dpopt.debug_step = dumpFeedforwardStep;
     }
-    if (!avx_disabled) dpopt.acceleration = PS_ACCELERATION_AVX;
+    dpopt.acceleration = network->acceleration;
     int i, input_size = previous->size;
     int is_recurrent = PSIsRecurrent(layer), tsteps = 0, t = 0;
     int use_bias = !(layer->flags & FLAG_NO_BIAS);
@@ -277,7 +274,6 @@ static int softmaxFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
     int i, previous_size = previous->size;
     int is_recurrent = PSIsRecurrent(layer), tsteps = 0, t = 0;
     int use_bias = !(layer->flags & FLAG_NO_BIAS);
-    int avx_disabled = PSIsAVXDisabled(net);
     PSDotOpts dpopt = {0};
     PSDebugStepInfo dbginfo =
         {.network = net, .layer = layer, .func = __func__};
@@ -285,7 +281,7 @@ static int softmaxFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
         dpopt.data = &dbginfo;
         dpopt.debug_step = dumpFeedforwardStep;
     }
-    if (!avx_disabled) dpopt.acceleration = PS_ACCELERATION_AVX;
+    dpopt.acceleration = net->acceleration;
     if (is_recurrent) {
         va_list args;
         va_start(args, layer);
@@ -686,7 +682,9 @@ void PSPrintNetworkInfo(PSNeuralNetwork *network) {
     char *loss_name = getLossFunctionName(network->loss);
     if (loss_name != NULL) printf("Loss Function: %s\n", loss_name);
     printf("Status: %s\n", getNetworkStatusLabel(network));
-    printf("AVX: %s\n", (PSIsAVXDisabled(network) ? "no" : "yes"));
+    printf("AVX: %s\n", (PSAVXEnabled(network->acceleration) ? "yes" : "no"));
+    printf("DSP: %s\n", (PSDSPEnabled(network->acceleration) ? "yes" : "no"));
+    printf("BLAS: %s\n", (PSBLASEnabled(network->acceleration) ? "yes" : "no"));
 }
 
 /* Loss Functions */
@@ -1281,6 +1279,7 @@ PSNeuralNetwork *PSCreateNetwork(const char* name) {
     network->output_size = 0;
     network->status = STATUS_UNTRAINED;
     network->flags = FLAG_NONE;
+    network->acceleration = PSGlobalAcceleration;
     network->loss = PSQuadraticLoss;
     network->training = NULL;
     network->onEpochTrained = NULL;
@@ -1313,6 +1312,7 @@ PSNeuralNetwork *PSCloneNetwork(PSNeuralNetwork *network, int layout_only) {
         }
     }
     clone->flags = network->flags;
+    clone->acceleration = network->acceleration;
     clone->loss = network->loss;
     if (network->rnn_options != NULL) {
         clone->rnn_options = malloc(sizeof(PSRecurrentNetworkOptions));
@@ -2031,7 +2031,7 @@ PSHyperParameters *PSCreateHyperParamenters(int count, ...) {
     params->count = count;
     if (count == 0) params->parameters = NULL;
     else {
-        params->parameters = malloc(sizeof(PSFloat) *count);
+        params->parameters = calloc(count, sizeof(PSFloat));
         if (params->parameters == NULL) {
             PSErr(NULL, "Could not allocate Layer Parameters!");
             free(params);
@@ -2572,7 +2572,7 @@ int outputLayerBackprop(PSLayer *layer, PSLayer *previous_layer,
     PSNeuralNetwork *network = layer->network;
     int avx_disabled = 1;
 #ifdef USE_AVX
-    avx_disabled = PSIsAVXDisabled(network);
+    avx_disabled = !PSAVXEnabled(network->acceleration);
 #endif
     int apply_derivative = outputDerivativeNeeded(network);
     int is_recurrent = PSIsRecurrent(layer);
@@ -2692,7 +2692,7 @@ int fullBackprop(PSLayer *layer, PSLayer *previous_layer,
     PSFloat *delta = layer->delta;
     int avx_disabled = 1, i;
 #ifdef USE_AVX
-    avx_disabled = PSIsAVXDisabled(network);
+    avx_disabled = !PSAVXEnabled(network->acceleration);
 #else
     UNUSED(network);
 #endif
@@ -3110,7 +3110,7 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
     PSFloat l1 = 0.0, l2 = 0.0, l1_loss = 0.0, l2_loss = 0.0, momentum = 0.0,
             clip_max = 0.0, clip_min = 0.0;
 #ifdef USE_AVX
-    avx_disabled = PSIsAVXDisabled(network);
+    avx_disabled = !PSAVXEnabled(network->acceleration);
 #else
     UNUSED(avx_disabled);
 #endif

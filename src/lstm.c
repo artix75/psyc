@@ -340,13 +340,7 @@ static int LSTMCellFeedforward(PSLayer *layer, PSLayer *previous,
               layer->index, neuron->index);
         return 0;
     }
-    PSDotOpts dpopt = {0};
-#ifdef USE_AVX
-    int avx_disabled = PSIsAVXDisabled(net);
-    if (!avx_disabled) dpopt.acceleration = PS_ACCELERATION_AVX;
-#else
-    UNUSED(net);
-#endif
+    PSDotOpts dpopt = {.acceleration = net->acceleration};
     int wsize = cell->weights_size;
     int prev_size = wsize - layer->size;
     int ignore_previous_activations = 0;
@@ -626,7 +620,7 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previousLayer,
     va_end(args);
     PSNeuralNetwork *net = (PSNeuralNetwork *) layer->network;
 #ifdef USE_AVX
-    int avx_disabled = PSIsAVXDisabled(net);
+    int avx_disabled = !PSAVXEnabled(net->acceleration);
 #else
     UNUSED(net);
 #endif
@@ -711,8 +705,8 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previousLayer,
         } else {
             for (w = 0; w < wsize; w++) {
                 PSFloat prev_a = PSGetActivation(previousLayer, w, t);
-                gradient->weights[w] += (dc *prev_a);
-                gradient->weights[w + cwsize] += (di *prev_a);
+                gradient->weights[w] += (dc * prev_a);
+                gradient->weights[w + cwsize] += (di * prev_a);
                 gradient->weights[w + (cwsize *OUTPUT_IDX)] +=
                     (dout *prev_a);
                 gradient->weights[w + (cwsize *FORGET_IDX)] +=

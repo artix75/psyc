@@ -18,6 +18,7 @@
 #ifndef __PS_MATHS_H__
 #define __PS_MATHS_H__
 
+#include <math.h>
 #include "types.h"
 
 #ifdef PS_DOUBLE_PRECISION
@@ -39,9 +40,6 @@
 #define PSAbs(v) fabsf(v)
 #define PSPow(a,b) powf(a, b)
 #endif
-
-#define PS_ACCELERATION_NONE    0
-#define PS_ACCELERATION_AVX     (1 << 0)
 
 struct PSDotOpts;
 typedef void (*PSDotProductDebug)(int i, PSFloat a, PSFloat b, PSFloat sum,
@@ -70,12 +68,16 @@ typedef PSFloat (*PSMatrixInitializer)(PSMatrix matrix, int idx, PSFloat n);
 PSMatrix PSMatrixCreate(PSFloat init_value, PSMatrixInitializer initializer,
                         int ndims, ...);
 PSMatrix PSMatrixZeros(int ndims, ...);
+PSMatrix PSMatrixRandom(int ndims, ...);
 PSMatrix PSMatrixWithGaussianRandom(PSFloat stddev, int ndims, ...);
 int PSMatrixNumDims(PSMatrix matrix);
 int PSMatrixDim(PSMatrix matrix, int dim);
 size_t PSMatrixLength(PSMatrix matrix);
 int PSMatrixStride(PSMatrix matrix, int dim);
 PSFloat *PSMatrixValues(PSMatrix matrix, uint32_t *len, int argc, ...);
+int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result);
+int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSMatrix *result);
+int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result);
 void PSMatrixDelete(PSMatrix matrix);
 
 /**** Operations ***/

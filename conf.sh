@@ -128,14 +128,14 @@ if ! [ -z "$CBLAS_H" ]; then
 elif [ "$HAS_ACCELERATE_FRAMEWORK" = 'true' ]; then
     HAS_BLAS=true
     HAS_CBLAS=true
-    ACCELERATE_CFLAGS="-DUSE_ACCELERATE_FRAMEWORK"
+    ACCELERATE_CFLAGS="-DHAS_ACCELERATE_FRAMEWORK"
 fi
 if [ "$HAS_BLAS" == 'true' ]; then
     VARS="HAS_BLAS=true$NL$VARS"
     BLAS_CFLAGS="-DHAS_BLAS $BLAS_CFLAGS"
     if [ "$HAS_CBLAS" == 'true' ]; then
         VARS="HAS_CBLAS=true$NL$VARS"
-        BLAS_CFLAGS="-DUSE_CBLAS $BLAS_CFLAGS"
+        BLAS_CFLAGS="-DHAS_CBLAS $BLAS_CFLAGS"
     fi
 fi
 if [ "$HAS_ACCELERATE_FRAMEWORK" = 'true' ]; then

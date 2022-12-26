@@ -130,7 +130,6 @@ int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
         return 0;
     }
     PSLayer *first_recurrent = PSGetFirstRecurrentLayer(net);
-    int avx_disabled = PSIsAVXDisabled(net);
     int onehot = previous->flags & FLAG_ONEHOT;
     int use_bias = !(layer->flags & FLAG_NO_BIAS);
     PSHyperParameters *params = NULL;
@@ -164,7 +163,7 @@ int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
     if (!PSIsRecurrent(previous) && layer == first_recurrent)
         ignore_previous_activations = (t > 0);
     PSDotOpts dpopt = {0};
-    if (!avx_disabled) dpopt.acceleration = PS_ACCELERATION_AVX;
+    dpopt.acceleration = net->acceleration;
     int prev_t = t - 1;
     PSFloat *inputs = NULL;
     PSFloat *prev_act = NULL;
@@ -217,7 +216,7 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previous_layer,
     int t = va_arg(args, int);
     int lowest_t = va_arg(args, int);
     va_end(args);
-    int avx_disabled = PSIsAVXDisabled(layer->network);
+    int avx_disabled = !PSAVXEnabled(layer->network->acceleration);
     int use_bias = !(layer->flags & FLAG_NO_BIAS);
     int lsize = layer->size, i, w, tt;
     PSFloat *prev_delta = previous_layer->delta;

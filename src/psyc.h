@@ -20,9 +20,10 @@
 
 #include <time.h>
 #include "types.h"
+#include "config.h"
 #include "maths.h"
 
-#define PSYC_VERSION      "0.3.0"
+#define PSYC_VERSION      "0.4.0"
 
 #define LAYER_TYPES     6
 
@@ -64,11 +65,11 @@
 #define FLAG_NONE 0
 #define FLAG_RECURRENT      (1 << 0)
 #define FLAG_ONEHOT         (1 << 1)
-#define FLAG_AVX_DISABLED   (1 << 2)
+#define FLAG_ACCEL_DISABLED (1 << 2) /* Formerly FLAG_AVX_DISABLED (< v0.4):
+                                      * not used anymore, but disables any
+                                      * acceleration when loading models
+                                      * generated with versiob < 0.4 */
 #define FLAG_NO_BIAS        (1 << 3)
-
-/* Global Flags*/
-#define FLAG_LOG_COLORS (1 << 0)
 
 /* Training Flags */
 #define TRAINING_NO_SHUFFLE         (1 << 0)
@@ -80,12 +81,6 @@
     (layer->network->size - 1))
 #define PSIsRecurrent(o) (o->flags & FLAG_RECURRENT)
 #define PSSetRecurrent(o) (o->flags |= FLAG_RECURRENT)
-
-#ifdef USE_AVX
-#define PSIsAVXDisabled(network) (network->flags & FLAG_AVX_DISABLED)
-#else
-#define PSIsAVXDisabled(network) (1)
-#endif
 
 struct PSNeuralNetwork;
 struct PSLayer;
@@ -227,6 +222,7 @@ typedef struct PSNeuralNetwork {
     PSLayer                     **layers;
     PSLossFunction              loss;
     uint32_t                    flags;
+    uint8_t                     acceleration;
     uint8_t                     status;
     uint32_t                    input_size;
     uint32_t                    output_size;
@@ -236,8 +232,6 @@ typedef struct PSNeuralNetwork {
     PSTrainCallback             onBatchTrained;
     void                        *context;
 } PSNeuralNetwork;
-
-extern int PSGlobalFlags;
 
 PSNeuralNetwork *PSCreateNetwork(const char* name);
 PSNeuralNetwork *PSCloneNetwork(PSNeuralNetwork *network, int layout_only);

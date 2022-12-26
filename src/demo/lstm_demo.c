@@ -215,8 +215,9 @@ int main(int argc, char** argv) {
     }
     PSPrintNetworkInfo(network);
 #ifdef USE_AVX
-    if (disable_avx) network->flags |= FLAG_AVX_DISABLED;
-    if (!PSIsAVXDisabled(network)) printf("on\n");
+    if (disable_avx)
+        PSDisableAcceleration(&network->acceleration, PSAcceleration_AVX);
+    if (PSAVXEnabled(network->acceleration)) printf("on\n");
     else printf("off\n");
 #else
     printf("off\n");

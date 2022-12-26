@@ -25,6 +25,7 @@
 #include <sys/utsname.h>
 
 #include "psyc.h"
+#include "config.h"
 #include "convolutional.h"
 #include "recurrent.h"
 #include "lstm.h"
@@ -43,11 +44,13 @@ typedef struct PSModelFileHeader {
     size_t  float_size;
     int     archbits;
     int     avx;
+    int     vdsp;
     int     global_flags;
     time_t  time;
     char    sysname[256];
     char    sysvers[12];
     char    sysmachine[12];
+    int     acceleration;
 } PSModelFileHeader;
 
 PSTrainingOptions *PSGetNetworkTrainingOptions(PSNeuralNetwork *network);
@@ -266,6 +269,12 @@ static int scanModelFileHeader(FILE *f, PSModelFileHeader *header,
         } else if (strcmp("avx", propname) == 0) {
             header->avx = atoi(val);
             if (header->avx < 0 || header->avx > 1) goto fail;
+        } else if (strcmp("vdsp", propname) == 0) {
+            header->vdsp = atoi(val);
+            if (header->vdsp < 0 || header->vdsp > 1) goto fail;
+        } else if (strcmp("acceleration", propname) == 0) {
+            header->acceleration = atoi(val);
+            if (header->acceleration < 0) goto fail;
         } else if (strcmp("sys", propname) == 0) {
             int matched = sscanf(
                 val, "%256[^,],%12[^,],%12s", header->sysname,
@@ -483,7 +492,8 @@ int PSLoadNetwork(PSNeuralNetwork *network, const char* filename) {
     int epochs = 0, batch_count = 0, elements = 0, status = STATUS_UNTRAINED,
         batch_size = 0, rnn_mode = NonRecurrent,
         max_recurrent_output_steps = MAX_RECURRENT_OUTPUT_STEPS,
-        eos_recurrent_output_index = -1, is_built = 0;
+        eos_recurrent_output_index = -1, is_built = 0,
+        acceleration = PSGlobalAcceleration;
     int matched = 0, ok = 1, has_model_def = 0;
     char sep[2];
     sep[0] = '\0';
@@ -543,6 +553,7 @@ scan_model_def:
                 case 8:  max_recurrent_output_steps = val; break;
                 case 9:  eos_recurrent_output_index = val; break;
                 case 10: is_built = val; break;
+                case 11: acceleration = val; break;
                 default:
                     break;
             }
@@ -575,6 +586,12 @@ scan_model_def:
             network->training->current_element = elements;
             network->training->batch_size = batch_size;
         }
+        if (PSCompareVersion(vers, "0.4.0") >= 0) {
+            PSEnableAcceleration(&(network->acceleration), acceleration);
+            if (acceleration != network->acceleration)
+                PSWarn("Could not enable all saved accelerations");
+        } else if (network->flags & FLAG_ACCEL_DISABLED)
+            network->acceleration = 0;
     }
     ok = scanFile(f, "%d:", 1, NULL, &netsize);
     if (!ok) {
@@ -697,6 +714,10 @@ scan_model_def:
                     if (aidx >= param_c) break;
                     int arg = args[aidx];
                     params->parameters[aidx] = (PSFloat) arg;
+                }
+                if (aidx < (param_c - 1)) {
+                    for (; aidx < (param_c - 1); aidx++)
+                        params->parameters[aidx] = 0.0;
                 }
                 layer = PSAddLayer(network, ltype, lsize, params);
             } else {
@@ -939,18 +960,19 @@ int PSSaveNetwork(PSNeuralNetwork *network, const char* filename) {
        uname(&sysinfo);
        sysinfo_read = 1;
     }
-#ifdef USE_AVX
-    int avx_available = 1;
-#else
-    int avx_available = 0;
-#endif
+    int avx_available = (
+        PSIsAccelerationAvailable(PSAcceleration_AVX) ? 1 : 0
+    );
+    int vdsp_available = (
+        PSIsAccelerationAvailable(PSAcceleration_vDSP) ? 1 : 0
+    );
     fprintf(
         f, "--v%s:git=%s/%s-%s;float_size=%zu;archbits=%d;avx=%d;"
-        "sys=%s,%s,%s;global_flags=%d;savetime=%ld\n",
+        "vdsp=%d,sys=%s,%s,%s;global_flags=%d;acceleration=%d;savetime=%ld\n",
         PSYC_VERSION, PSYC_GIT_SHA, PSYC_GIT_DIRTY, PSYC_GIT_BRANCH,
         sizeof(PSFloat), ((sizeof(long) == 8) ? 64 : 32), avx_available,
-        sysinfo.sysname, sysinfo.release, sysinfo.machine, PSGlobalFlags,
-        time(NULL)
+        vdsp_available, sysinfo.sysname, sysinfo.release, sysinfo.machine,
+        PSGlobalFlags, PSGlobalAcceleration, time(NULL)
     );
     int current_epoch = 0, current_batch = 0, current_element = 0,
         batch_size = 0;

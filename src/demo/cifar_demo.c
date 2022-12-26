@@ -101,6 +101,10 @@ void print_help(char *progname) {
 #ifdef USE_AVX
     printf("        --disable-avx                   Disable AVX\n");
 #endif
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    printf("        --disable-vdsp                  Disable vDSP\n");
+#endif
+    printf("        --disable-blas                  Disable BLAS\n");
     printf("        --debug-dump-to FILE            Debug training to FILE\n"
            "                                        "
            "(pass 'stdout' for STDOUT)\n");
@@ -214,6 +218,8 @@ int main(int argc, char** argv) {
     int fc_preoutput_size = FC_PREOUTPUT_SIZE;
     int softmax_output = SOFTMAX_OUTPUT;
     int disable_avx = 0;
+    int disable_vdsp = 0;
+    int disable_blas = 0;
     int max_images = 0;
     int no_shuffle = 0;
     PSTrainingOptimization optimization = NoTrainingOptimization;
@@ -334,6 +340,10 @@ int main(int argc, char** argv) {
         } else if (strcmp("--disable-avx", arg) == 0) {
             disable_avx = 1;
 #endif
+        } else if (strcmp("--disable-vdsp", arg) == 0) {
+            disable_vdsp = 1;
+        } else if (strcmp("--disable-blas", arg) == 0) {
+            disable_blas = 1;
         } else if (strcmp("--no-shuffle", arg) == 0) {
             no_shuffle = 1;
         } else if (strcmp("--optimization", arg) == 0 && !is_last) {
@@ -420,14 +430,26 @@ int main(int argc, char** argv) {
     }
     if (dump_activations_str != NULL || max_batches > 0)
         network->onBatchTrained = onBatchTrained;
-    printf("Network created, AVX: ");
+    printf("Network created!\n");
+    printf("AVX: ");
 #ifdef USE_AVX
-    if (disable_avx) network->flags |= FLAG_AVX_DISABLED;
-    if (!PSIsAVXDisabled(network)) printf("on\n");
+    if (disable_avx)
+        PSDisableAcceleration(&network->acceleration, PSAcceleration_AVX);
+    if (PSAVXEnabled(network->acceleration)) printf("on\n");
     else printf("off\n");
 #else
     printf("off\n");
 #endif
+    if (disable_vdsp)
+        PSDisableAcceleration(&(network->acceleration), PSAcceleration_vDSP);
+    if (disable_blas)
+        PSDisableAcceleration(&(network->acceleration), PSAcceleration_BLAS);
+    printf("vDSP: ");
+    if (PSDSPEnabled(network->acceleration)) printf("on\n");
+    else printf("off\n");
+    printf("BLAS: ");
+    if (PSBLASEnabled(network->acceleration)) printf("on\n");
+    else printf("off\n");
     printf("Size of PSFloat: %d\n", (int) sizeof(PSFloat));
 
     if (pretrained_file == NULL) {
