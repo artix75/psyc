@@ -40,6 +40,8 @@
 #define AVX128Sqrt(a)               _mm_sqrt_pd(a)
 #define AVX128Exp(a)                _mm_exp_pd(a)
 #define AVX128Neg(a)                _mm_xor_pd(a, _mm_set1_pd(-0.0))
+#define AVX128Min(a,b)              _mm_min_pd(a,b)
+#define AVX128Max(a,b)              _mm_max_pd(a,b)
 
 #define AVX256LoadUnalign(v)        _mm256_loadu_pd(v)
 #define AVX256Multiply(a, b)        _mm256_mul_pd(a, b)
@@ -56,6 +58,8 @@
 #define AVX256Sqrt(a)               _mm256_sqrt_pd(a)
 #define AVX256Exp(a)                _mm256_exp_pd(a)
 #define AVX256Neg(a)                _mm256_xor_pd(a, _mm256_set1_pd(-0.0))
+#define AVX256Min(a,b)              _mm256_min_pd(a,b)
+#define AVX256Max(a,b)              _mm256_max_pd(a,b)
 #define AVX256_BLEND_MASK           0x0C /* 0b1100 */
 typedef __m128d AVX128;
 typedef __m256d AVX256;
@@ -72,6 +76,8 @@ typedef __m256d AVX256;
 #define AVX128Sqrt(a)               _mm_sqrt_ps(a)
 #define AVX128Exp(a)                _mm_exp_ps(a)
 #define AVX128Neg(a)                _mm_xor_ps(a, _mm_set1_ps(-0.0))
+#define AVX128Min(a,b)              _mm_min_ps(a,b)
+#define AVX128Max(a,b)              _mm_max_ps(a,b)
 
 #define AVX256LoadUnalign(v)        _mm256_loadu_ps(v)
 #define AVX256Multiply(a, b)        _mm256_mul_ps(a, b)
@@ -89,6 +95,8 @@ typedef __m256d AVX256;
 #define AVX256Sqrt(a)               _mm256_sqrt_ps(a)
 #define AVX256Exp(a)                _mm256_exp_ps(a)
 #define AVX256Neg(a)                _mm256_xor_ps(a, _mm256_set1_ps(-0.0))
+#define AVX256Min(a,b)              _mm256_min_ps(a,b)
+#define AVX256Max(a,b)              _mm256_max_ps(a,b)
 #define AVX256_BLEND_MASK           0xF0 /* 0b11110000 */
 typedef __m128 AVX128;
 typedef __m256 AVX256;
@@ -292,6 +300,38 @@ int AVXAddValue(PSFloat *x, PSFloat value, int size, PSFloat *dest, int mode) {
         AVX256 xv = AVX256LoadUnalign(x);
         AVX256 yv = AVX256SetVal(value);
         AVX256 xy = AVX256Add(xv, yv);
+        AVX256StoreWithMode(dest, xy, mode);
+    }
+    return size;
+}
+
+/* Simulatenously divide elements in array `x` by `value` using AVX.
+ * Argument `size` is the size of the array. Since only multiple of AVX
+ * vectors will be computed, only a part of the array could be used for
+ * computation.
+ * The results of the operation will be stored into array `dest`.
+ * The argument `mode` can be used to specify how the result should be
+ * stored:
+ *  - AVX_STORE_MODE_ADD: the result will be added to values of `dest`.
+ *  - AVX_STORE_MODE_SUB: the result will be subtracted from values of `dest`.
+ *  - AVX_STORE_MODE_NORM: the result will directly stored into `dest`.
+ * Return value: count of elements in `x` that were multiplied. */
+int AVXDivideValue(PSFloat *x, PSFloat value, int size, PSFloat *dest,
+                   int mode)
+{
+    int regbits = 0;
+    size = AVXComputeStepLength(size, 0, &regbits);
+    if (size == 0) return 0;
+    assert(regbits != 0);
+    if (regbits == 128) {
+        AVX128 xv = AVX128LoadUnalign(x);
+        AVX128 yv = AVX128SetVal(value);
+        AVX128 xy = AVX128Divide(xv, yv);
+        AVX128StoreWithMode(dest, xy, mode);
+    } else {
+        AVX256 xv = AVX256LoadUnalign(x);
+        AVX256 yv = AVX256SetVal(value);
+        AVX256 xy = AVX256Divide(xv, yv);
         AVX256StoreWithMode(dest, xy, mode);
     }
     return size;
@@ -547,6 +587,36 @@ int AVXNegate(PSFloat *x, PSFloat *dest, int size, int mode) {
     } else {
         AVX256 xv = AVX256LoadUnalign(x);
         AVX256 res = AVX256Neg(xv);
+        AVX256StoreWithMode(dest, res, mode);
+    }
+    return size;
+}
+
+/* Simulatenously clip elements of  array `x` of size `size`
+ * within `min` and `max` and store results into array `dest`.
+ * The argument `mode` can be used to specify how the result should be
+ * stored:
+ *  - AVX_STORE_MODE_ADD: the result will be added to values of `dest`.
+ *  - AVX_STORE_MODE_SUB: the result will be subtracted from values of `dest`.
+ *  - mode: the result will directly stored into `dest`.
+ * Return value: count of processed elements. */
+int AVXClip(PSFloat *x, PSFloat min, PSFloat max, PSFloatPSFloat *dest,
+            int size, int mode) {
+    int regbits = 0;
+    size = AVXComputeStepLength(size, 0, &regbits);
+    if (size == 0) return 0;
+    assert(regbits != 0);
+    if (regbits == 128) {
+        AVX128 xv = AVX128LoadUnalign(x);
+        AVX128 minv = AVX128SetVal(min);
+        AVX128 maxv = AVX128SetVal(max);
+        AVX128 res = AVX128Max(AVX128Min(xv, minv), maxv);
+        AVX128StoreWithMode(dest, res, mode);
+    } else {
+        AVX256 xv = AVX256LoadUnalign(x);
+        AVX256 minv = AVX256SetVal(min);
+        AVX256 maxv = AVX256SetVal(max);
+        AVX256 res = AVX256Max(AVX256Min(xv, minv), maxv);
         AVX256StoreWithMode(dest, res, mode);
     }
     return size;

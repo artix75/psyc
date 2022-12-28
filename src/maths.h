@@ -18,6 +18,8 @@
 #ifndef __PS_MATHS_H__
 #define __PS_MATHS_H__
 
+#include <stdlib.h>
+#include <stdint.h>
 #include <math.h>
 #include "types.h"
 
@@ -42,6 +44,8 @@
 #define PSAbs(v) fabsf(v)
 #define PSPow(a,b) powf(a, b)
 #endif
+
+#define PSClipValue(v, min, max) (v > max ? max : (v < min ? min : v))
 
 #define MATHS_STORE_MODE_NORM 0
 #define MATHS_STORE_MODE_ADD  1
@@ -99,8 +103,12 @@ void PSDivideVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
                      PSMathOpts *opts);
 void PSMultiplyVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
                             uint64_t length, PSMathOpts *opts);
-void PSAddVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
+void PSSumVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
                        uint64_t length, PSMathOpts *opts);
+void PSSubtractScalarVector(PSFloat b, PSFloat *a, PSFloat *dest,
+                            uint64_t length, PSMathOpts *opts);
+void PSDivideVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
+                          uint64_t length, PSMathOpts *opts);
 void PSDivideScalarVector(PSFloat b, PSFloat *a, PSFloat *dest,
                           uint64_t length, PSMathOpts *opts);
 void PSVectorTanh(PSFloat *a, PSFloat *dest, uint64_t length,
@@ -109,6 +117,10 @@ void PSVectorSqrt(PSFloat *a, PSFloat *dest, uint64_t length,
                   PSMathOpts *opts);
 void PSVectorExp(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts);
 void PSVectorNeg(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts);
+void PSVectorClip(PSFloat *a, PSFloat min, PSFloat max, PSFloat *dest,
+                  uint64_t length, PSMathOpts *opts);
+void PSVectorThreshold(PSFloat *a, PSFloat min, PSFloat *dest,
+                       uint64_t length, PSMathOpts *opts);
 PSFloat PSDotProduct(PSFloat *a, PSFloat *b, uint64_t length, PSMathOpts *opts);
 PSFloat PSDotSquare(PSFloat *a, uint64_t length, PSMathOpts *opts);
 

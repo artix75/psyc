@@ -731,7 +731,7 @@ int PSDumpGradients(PSNeuralNetwork *network, PSGradient **gradients,
             assert(gradient->weights != NULL);
             for (k = 0; k < weights_size; k++) {
                 PSFloat wg = gradient->weights[k];
-                if (apply_clip) wg = PSClipValue(wg, clip_h, clip_l);
+                if (apply_clip) wg = PSClipValue(wg, clip_l, clip_h);
                 if (k > 0 || j > 0) fprintf(f, ",");
                 writeSerializedFloat(f, wg, 0);
             }
@@ -743,14 +743,14 @@ int PSDumpGradients(PSNeuralNetwork *network, PSGradient **gradients,
             PSGradient *gradient = &(lgradients[j]);
             if (!is_lstm) {
                 PSFloat bg = gradient->bias;
-                if (apply_clip) bg = PSClipValue(bg, clip_h, clip_l);
+                if (apply_clip) bg = PSClipValue(bg, clip_l, clip_h);
                 writeSerializedFloat(f, bg, 0);
             } else {
                 PSNeuron *neuron = layer->neurons[j];
                 PSFloat *gbiases = PSGetLSTMGradientBiases(neuron, gradient);
                 for(k = 0; k < 4; k++) {
                     PSFloat bg = gbiases[k];
-                    if (apply_clip) bg = PSClipValue(bg, clip_h, clip_l);
+                    if (apply_clip) bg = PSClipValue(bg, clip_l, clip_h);
                     writeSerializedFloat(f, bg, 0);
                 }
             }

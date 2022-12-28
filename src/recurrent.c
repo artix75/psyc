@@ -28,6 +28,7 @@
 
 #include "recurrent.h"
 #include "maths.h"
+#include "activation.h"
 #include "utils.h"
 #include "log.h"
 

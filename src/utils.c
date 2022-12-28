@@ -30,28 +30,6 @@
 #include <unistd.h>
 #endif
 
-/* Activation Functions */
-
-PSFloat PSSigmoid(PSFloat val) {
-    return 1.0 / (1.0 + PSExp(-val));
-}
-
-PSFloat PSSigmoidDerivative(PSFloat val) {
-    return val * (1 - val);
-}
-
-PSFloat PSRelu(PSFloat val) {
-    return (val >= 0.0 ? val : 0.0);
-}
-
-PSFloat PSReluDerivative(PSFloat val) {
-    return (PSFloat)(val > 0.0);
-}
-
-PSFloat PSTanhDerivative(PSFloat val) {
-    return (1 - (val * val));
-}
-
 /* Network Functions */
 
 void PSAbortLayer(PSNeuralNetwork *network, PSLayer *layer) {

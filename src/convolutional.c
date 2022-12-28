@@ -27,6 +27,7 @@
 #endif
 
 #include "psyc.h"
+#include "activation.h"
 #include "utils.h"
 #include "convolutional.h"
 #include "recurrent.h"

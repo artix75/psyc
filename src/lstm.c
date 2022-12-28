@@ -28,6 +28,7 @@
 
 #include "lstm.h"
 #include "maths.h"
+#include "activation.h"
 #include "utils.h"
 #include "log.h"
 
@@ -474,10 +475,10 @@ void PSUpdateLSTMBiases(PSNeuron *neuron, PSGradient *gradient,
             output_g = biases[OUTPUT_IDX] / batches,
             forget_g = biases[FORGET_IDX] / batches;
     if (apply_clip) {
-        candidate_g = PSClipValue(candidate_g, clip, clip_min);
-        input_g = PSClipValue(input_g, clip, clip_min);
-        output_g = PSClipValue(output_g, clip, clip_min);
-        forget_g = PSClipValue(forget_g, clip, clip_min);
+        candidate_g = PSClipValue(candidate_g, clip_min, clip);
+        input_g = PSClipValue(input_g, clip_min, clip);
+        output_g = PSClipValue(output_g, clip_min, clip);
+        forget_g = PSClipValue(forget_g, clip_min, clip);
     }
     cell->candidate_bias = applyGradientOnParameter(
         PARAM_TYPE_BIAS, opts, candidate_g, cell->candidate_bias,

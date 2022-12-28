@@ -33,6 +33,7 @@
 #include "buildinfo.h"
 #include "psyc.h"
 #include "maths.h"
+#include "activation.h"
 #include "utils.h"
 #include "log.h"
 #include "convolutional.h"
@@ -3288,7 +3289,7 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
             /* Update Bias */
             if (use_bias) {
                 PSFloat gbias = g->bias / (PSFloat) batch_size;
-                if (apply_clip) gbias = PSClipValue(gbias, clip_max, clip_min);
+                if (apply_clip) gbias = PSClipValue(gbias, clip_min, clip_max);
                 *bias_ptr = applyGradientOnBias(
                     opts, gbias, bias,
                     mg, xg, rate, iteration
@@ -3388,7 +3389,7 @@ end_avx_weights:
                 grad_w = (l1_grad + l2_grad + g->weights[k]) /
                          (PSFloat) batch_size;
                 if (apply_clip)
-                    grad_w = PSClipValue(grad_w, clip_max, clip_min);
+                    grad_w = PSClipValue(grad_w, clip_min, clip_max);
                 weights[k] = applyGradientOnWeight(
                     opts, grad_w, w, mg, xg, rate, iteration, k
                 );

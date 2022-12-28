@@ -37,20 +37,6 @@
 #define OPT_TIME_FULL        (1 << 1)
 #define OPT_TIME_HUMAN       (1 << 2)
 
-#define PSClipValue(v, max, min) (v > max ? max : (v < min ? min : v))
-
-/* Activation Functions */
-
-PSFloat PSSigmoid(PSFloat val);
-
-PSFloat PSSigmoidDerivative(PSFloat val);
-
-PSFloat PSRelu(PSFloat val);
-
-PSFloat PSReluDerivative(PSFloat val);
-
-PSFloat PSTanhDerivative(PSFloat val);
-
 /* Network Functions */
 
 void PSAbortLayer(PSNeuralNetwork *network, PSLayer *layer);

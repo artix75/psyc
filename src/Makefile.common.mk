@@ -42,7 +42,7 @@ ifeq (true,$(HAS_BLAS))
         LDFLAGS+=$(BLAS_LDFLAGS)
 endif
 endif
-OBJS=$(SRCPATH)psyc.o $(SRCPATH)config.o $(SRCPATH)io.o $(SRCPATH)utils.o $(SRCPATH)log.o $(SRCPATH)maths.o $(SRCPATH)blas.o $(SRCPATH)convolutional.o $(SRCPATH)recurrent.o $(SRCPATH)lstm.o $(SRCPATH)mnist.o $(SRCPATH)debug.o $(SRCPATH)cifar.o
+OBJS=$(SRCPATH)psyc.o $(SRCPATH)config.o $(SRCPATH)io.o $(SRCPATH)utils.o $(SRCPATH)log.o $(SRCPATH)maths.o $(SRCPATH)activation.o $(SRCPATH)blas.o $(SRCPATH)convolutional.o $(SRCPATH)recurrent.o $(SRCPATH)lstm.o $(SRCPATH)mnist.o $(SRCPATH)debug.o $(SRCPATH)cifar.o
 
 ifeq ($(PLATFORM), Linux)
         CFLAGS+=-fdiagnostics-color -Wno-unused-result -Wno-maybe-uninitialized
