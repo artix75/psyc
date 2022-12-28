@@ -802,8 +802,10 @@ void parseOptions(int argc, char **argv) {
             training_flags |= TRAINING_ADJUST_RATE;
         } else if (strcmp("--disable-avx", arg) == 0) {
             PSDisableAcceleration(&network->acceleration, PSAcceleration_AVX);
-        } else if (strcmp("--disable-vdsp", arg) == 0) {
-            PSDisableAcceleration(&network->acceleration, PSAcceleration_vDSP);
+        } else if (strcmp("--disable-accelerate", arg) == 0 ||
+                   strcmp("--disable-acf", arg) == 0)
+        {
+            PSDisableAcceleration(&network->acceleration, PSAcceleration_ACF);
         } else if (strcmp("--disable-blas", arg) == 0) {
             PSDisableAcceleration(&network->acceleration, PSAcceleration_BLAS);
         } else if (strcmp("--enable-colors", arg) == 0) {
@@ -1224,7 +1226,9 @@ void printHelp(const char* program_path) {
            "                                    --on-batch-trained every\n"
            "                                    NUM batches\n");
     printf("        --disable-avx               Disable AVX\n");
-    printf("        --disable-vdsp              Disable vDSP\n");
+    printf("        --disable-accelerate,\n"
+           "        --disable-acf               Disable Accelerate "
+           "Framework\n");
     printf("        --disable-blas              Disable BLAS\n");
     printf("        --loglevel LEVEL            Set log level "
            "(see \"LOG LEVELS\" section)\n");

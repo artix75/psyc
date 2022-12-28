@@ -91,7 +91,7 @@
 } while (0)
 
 /* Iteratively multply via AVX up to N elements of the the array `x1` of size
- * `size` by value `v1` and elements of array `x2` with value `v2` and then
+ * `size` by value `v1` and elements of array `x2` by value `v2` and then
  * store results in array `dest`.
  * Note that the function will multiply elements divided in steps until
  * every step fills the AVX registers, so the array could not be completely
@@ -122,6 +122,52 @@
     }\
 } while (0)
 
+/* Iteratively divide value via AVX by (up to N) elements of the the
+ * array `x` of size `size` by value `val` and store results in array `dest`.
+ * Note that the function will multiply elements divided in steps until
+ * every step fills the AVX registers, so the array could not be completely
+ * multiplied. The argument `i` will keep count of the processed elements,
+ * so that you can manually complete the operation.
+ * Results are stored in `dest` using the AVX operator `mode` (NORM, SUB,
+ * etc.).
+ * If `is_recurrent`, use `t` for recurrent network values. */
+
+#define AVXIterativeValueDiv(size, x, val, dest, i, is_recurrent,\
+ t, mode) do { \
+    int avx_step_len = AVXGetStepLen(size);\
+    int avx_steps = (avx_step_len > 0 ? size / avx_step_len : 0), avx_step;\
+    for (avx_step = 0; avx_step < avx_steps; avx_step++) {\
+        PSFloat *x_vector = x + i;\
+        if (is_recurrent) x_vector += (t * size);\
+        int c = AVXValueDivide(val, x_vector, avx_step_len, dest + i, mode);\
+        assert(c == avx_step_len);\
+        i += avx_step_len;\
+    } \
+} while (0)
+
+/* Iteratively add `value` via AVX to (up to N) elements of the the
+ * array `x` of size `size` by value `val` and store results in array `dest`.
+ * Note that the function will multiply elements divided in steps until
+ * every step fills the AVX registers, so the array could not be completely
+ * multiplied. The argument `i` will keep count of the processed elements,
+ * so that you can manually complete the operation.
+ * Results are stored in `dest` using the AVX operator `mode` (NORM, SUB,
+ * etc.).
+ * If `is_recurrent`, use `t` for recurrent network values. */
+
+#define AVXIterativeAddValue(size, x, val, dest, i, is_recurrent,\
+ t, mode) do { \
+    int avx_step_len = AVXGetStepLen(size);\
+    int avx_steps = (avx_step_len > 0 ? size / avx_step_len : 0), avx_step;\
+    for (avx_step = 0; avx_step < avx_steps; avx_step++) {\
+        PSFloat *x_vector = x + i;\
+        if (is_recurrent) x_vector += (t * size);\
+        int c = AVXAddValue(x_vector, val, avx_step_len, dest + i, mode);\
+        assert(c == avx_step_len);\
+        i += avx_step_len;\
+    } \
+} while (0)
+
 /* Iteratively sum via AVX up to N elements of the the array `x` with array
  * `y` and store results into array `dest` using operator `mode`. */
 #define AVXIterativeSum(size, x, y, dest, i, mode) do {\
@@ -137,7 +183,7 @@
 } while (0)
 
 /* Iteratively subtract via AVX up to N elements of the the array `y` from
- *array `x` and store results into array `dest` using operator `mode`. */
+ * array `x` and store results into array `dest` using operator `mode`. */
 #define AVXIterativeDiff(size, x, y, dest, i, mode) do {\
     int avx_step_len = AVXGetStepLen(size);i\
     int avx_steps = (avx_step_len > 0 ? size / avx_step_len : 0), avx_step;\
@@ -150,6 +196,62 @@
     }\
 } while (0)
 
+/* Iteratively calculate Tanh on elements of array `x` and store results into
+ * array `dest`. */
+#define AVXIterativeTanh(size, x, dest, mode) {\
+    int avx_step_len = AVXGetStepLen(size);i\
+    int avx_steps = (avx_step_len > 0 ? size / avx_step_len : 0), avx_step;\
+    int x_is_dest = (x == dest);\
+    for (avx_step = 0; avx_step < avx_steps; avx_step++) {\
+        int doffs = (x_is_dest ? i : 0);\
+        int c = AVXTanh(x + i, y + i, avx_step_len, dest + doffs, mode);\
+        assert(c == avx_step_len);\
+        i += avx_step_len;\
+    }\
+}
+
+/* Iteratively calculate Sqrt on elements of array `x` and store results into
+ * array `dest`. */
+#define AVXIterativeSqrt(size, x, dest, mode) {\
+    int avx_step_len = AVXGetStepLen(size);i\
+    int avx_steps = (avx_step_len > 0 ? size / avx_step_len : 0), avx_step;\
+    int x_is_dest = (x == dest);\
+    for (avx_step = 0; avx_step < avx_steps; avx_step++) {\
+        int doffs = (x_is_dest ? i : 0);\
+        int c = AVXSqrt(x + i, y + i, avx_step_len, dest + doffs, mode);\
+        assert(c == avx_step_len);\
+        i += avx_step_len;\
+    }\
+}
+
+/* Iteratively calculate Exp on elements of array `x` and store results into
+ * array `dest`. */
+#define AVXIterativeExp(size, x, dest, mode) {\
+    int avx_step_len = AVXGetStepLen(size);i\
+    int avx_steps = (avx_step_len > 0 ? size / avx_step_len : 0), avx_step;\
+    int x_is_dest = (x == dest);\
+    for (avx_step = 0; avx_step < avx_steps; avx_step++) {\
+        int doffs = (x_is_dest ? i : 0);\
+        int c = AVXExp(x + i, y + i, avx_step_len, dest + doffs, mode);\
+        assert(c == avx_step_len);\
+        i += avx_step_len;\
+    }\
+}
+
+/* Iteratively invert sign of elements of array `x` and store results into
+ * array `dest`. */
+#define AVXIterativeNeg(size, x, dest, mode) {\
+    int avx_step_len = AVXGetStepLen(size);i\
+    int avx_steps = (avx_step_len > 0 ? size / avx_step_len : 0), avx_step;\
+    int x_is_dest = (x == dest);\
+    for (avx_step = 0; avx_step < avx_steps; avx_step++) {\
+        int doffs = (x_is_dest ? i : 0);\
+        int c = AVXNegate(x + i, y + i, avx_step_len, dest + doffs, mode);\
+        assert(c == avx_step_len);\
+        i += avx_step_len;\
+    }\
+}
+
 extern const int AVX_VECTOR_SIZE;
 extern const int AVX128_VECTOR_SIZE;
 extern const int AVX256_VECTOR_SIZE;
@@ -160,9 +262,17 @@ int AVXComputeStepLength(int size, int allow_multiple_vectors, int *bits);
 PSFloat AVXDotProduct(PSFloat *x, PSFloat *y, int size, int *count);
 int AVXMultiplyValue(PSFloat *x, PSFloat value, int size, PSFloat *dest,
                      int mode);
+int AVXAddValue(PSFloat *x, PSFloat value, int size, PSFloat *dest, int mode);
+int AVXValueDivide(PSFloat value, PSFloat *x, int size, PSFloat *dest,
+                   int mode);
 int AVXMultiply(PSFloat *x, PSFloat *y, int size, PSFloat *dest, int mode);
+int AVXDivide(PSFloat *x, PSFloat *y, int size, PSFloat *dest, int mode);
 int AVXSum(PSFloat *x, PSFloat *y, int size, PSFloat *dest, int mode);
 int AVXDiff(PSFloat *x, PSFloat *y, int size, PSFloat *dest, int mode);
+int AVXTanh(PSFloat *x, PSFloat *dest, int , int mode);
+int AVXSqrt(PSFloat *x, PSFloat *dest, int , int mode);
+int AVXExp(PSFloat *x, PSFloat *dest, int , int mode);
+int AVXNegate(PSFloat *x, PSFloat *dest, int size, int mode);
 
 #endif /* USE_AVX*/
 #endif /*__PS_AVX_H*/

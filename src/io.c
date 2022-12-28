@@ -44,7 +44,7 @@ typedef struct PSModelFileHeader {
     size_t  float_size;
     int     archbits;
     int     avx;
-    int     vdsp;
+    int     accelerate;
     int     global_flags;
     time_t  time;
     char    sysname[256];
@@ -269,9 +269,9 @@ static int scanModelFileHeader(FILE *f, PSModelFileHeader *header,
         } else if (strcmp("avx", propname) == 0) {
             header->avx = atoi(val);
             if (header->avx < 0 || header->avx > 1) goto fail;
-        } else if (strcmp("vdsp", propname) == 0) {
-            header->vdsp = atoi(val);
-            if (header->vdsp < 0 || header->vdsp > 1) goto fail;
+        } else if (strcmp("accelerate", propname) == 0) {
+            header->accelerate = atoi(val);
+            if (header->accelerate < 0 || header->accelerate > 1) goto fail;
         } else if (strcmp("acceleration", propname) == 0) {
             header->acceleration = atoi(val);
             if (header->acceleration < 0) goto fail;
@@ -963,15 +963,16 @@ int PSSaveNetwork(PSNeuralNetwork *network, const char* filename) {
     int avx_available = (
         PSIsAccelerationAvailable(PSAcceleration_AVX) ? 1 : 0
     );
-    int vdsp_available = (
-        PSIsAccelerationAvailable(PSAcceleration_vDSP) ? 1 : 0
+    int acf_available = (
+        PSIsAccelerationAvailable(PSAcceleration_ACF) ? 1 : 0
     );
     fprintf(
         f, "--v%s:git=%s/%s-%s;float_size=%zu;archbits=%d;avx=%d;"
-        "vdsp=%d,sys=%s,%s,%s;global_flags=%d;acceleration=%d;savetime=%ld\n",
+        "accelerate=%d,sys=%s,%s,%s;global_flags=%d;acceleration=%d;"
+        "savetime=%ld\n",
         PSYC_VERSION, PSYC_GIT_SHA, PSYC_GIT_DIRTY, PSYC_GIT_BRANCH,
         sizeof(PSFloat), ((sizeof(long) == 8) ? 64 : 32), avx_available,
-        vdsp_available, sysinfo.sysname, sysinfo.release, sysinfo.machine,
+        acf_available, sysinfo.sysname, sysinfo.release, sysinfo.machine,
         PSGlobalFlags, PSGlobalAcceleration, time(NULL)
     );
     int current_epoch = 0, current_batch = 0, current_element = 0,

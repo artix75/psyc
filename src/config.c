@@ -24,10 +24,10 @@ int PSGlobalFlags = 0;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
 #define PS_UNAVAILABLE_ACCEL PSAcceleration_AVX
 #else
-#define PS_UNAVAILABLE_ACCEL (PSAcceleration_AVX | PSAcceleration_vDSP)
+#define PS_UNAVAILABLE_ACCEL (PSAcceleration_AVX | PSAcceleration_ACF)
 #endif
 #elif !defined(__APPLE__) || !defined(HAS_ACCELERATE_FRAMEWORK)
-#define PS_UNAVAILABLE_ACCEL PSAcceleration_vDSP
+#define PS_UNAVAILABLE_ACCEL PSAcceleration_ACF
 #else
 #define PS_UNAVAILABLE_ACCEL 0
 #endif
@@ -57,7 +57,7 @@ const char *PSGetAccelerationName(PSAcceleration acceleration) {
     switch (acceleration) {
         case PSAcceleration_None: return "None";
         case PSAcceleration_AVX: return "AVX";
-        case PSAcceleration_vDSP: return "vDSP";
+        case PSAcceleration_ACF: return "Accelerate Framework";
         case PSAcceleration_BLAS: return "BLAS";
         case PSAcceleration_All: return "All";
     }

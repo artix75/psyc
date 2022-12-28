@@ -102,7 +102,8 @@ void print_help(char *progname) {
     printf("        --disable-avx                   Disable AVX\n");
 #endif
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    printf("        --disable-vdsp                  Disable vDSP\n");
+    printf("        --disable-acf                   Disable Accelerate "
+           "Framework\n");
 #endif
     printf("        --disable-blas                  Disable BLAS\n");
     printf("        --debug-dump-to FILE            Debug training to FILE\n"
@@ -218,7 +219,7 @@ int main(int argc, char** argv) {
     int fc_preoutput_size = FC_PREOUTPUT_SIZE;
     int softmax_output = SOFTMAX_OUTPUT;
     int disable_avx = 0;
-    int disable_vdsp = 0;
+    int disable_acf = 0;
     int disable_blas = 0;
     int max_images = 0;
     int no_shuffle = 0;
@@ -340,8 +341,8 @@ int main(int argc, char** argv) {
         } else if (strcmp("--disable-avx", arg) == 0) {
             disable_avx = 1;
 #endif
-        } else if (strcmp("--disable-vdsp", arg) == 0) {
-            disable_vdsp = 1;
+        } else if (strcmp("--disable-acf", arg) == 0) {
+            disable_acf = 1;
         } else if (strcmp("--disable-blas", arg) == 0) {
             disable_blas = 1;
         } else if (strcmp("--no-shuffle", arg) == 0) {
@@ -440,12 +441,12 @@ int main(int argc, char** argv) {
 #else
     printf("off\n");
 #endif
-    if (disable_vdsp)
-        PSDisableAcceleration(&(network->acceleration), PSAcceleration_vDSP);
+    if (disable_acf)
+        PSDisableAcceleration(&(network->acceleration), PSAcceleration_ACF);
     if (disable_blas)
         PSDisableAcceleration(&(network->acceleration), PSAcceleration_BLAS);
-    printf("vDSP: ");
-    if (PSDSPEnabled(network->acceleration)) printf("on\n");
+    printf("Accelerate Framework: ");
+    if (PSACFEnabled(network->acceleration)) printf("on\n");
     else printf("off\n");
     printf("BLAS: ");
     if (PSBLASEnabled(network->acceleration)) printf("on\n");

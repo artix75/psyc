@@ -178,7 +178,7 @@ int PSLogTrainingProgress(PSNeuralNetwork *network, int epochs, int batches,
 }
 
 void dumpFeedforwardStep(int i, PSFloat a, PSFloat b, PSFloat sum,
-                         int using_acceleration, PSDotOpts *opts)
+                         int using_acceleration, PSMathOpts *opts)
 {
     UNUSED(a);
     UNUSED(b);
@@ -211,7 +211,7 @@ static int fullFeedforward(PSNeuralNetwork *network, PSLayer *layer, ...) {
         PSErr(NULL, "Layer[%d]: previous layer is NULL!", layer->index);
         return 0;
     }
-    PSDotOpts dpopt = {0};
+    PSMathOpts dpopt = {0};
     PSDebugStepInfo dbginfo =
         {.network = network, .layer = layer, .func = __func__};
     if (PSShouldDebugDump(network)) {
@@ -274,7 +274,7 @@ static int softmaxFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
     int i, previous_size = previous->size;
     int is_recurrent = PSIsRecurrent(layer), tsteps = 0, t = 0;
     int use_bias = !(layer->flags & FLAG_NO_BIAS);
-    PSDotOpts dpopt = {0};
+    PSMathOpts dpopt = {0};
     PSDebugStepInfo dbginfo =
         {.network = net, .layer = layer, .func = __func__};
     if (PSShouldDebugDump(net)) {
@@ -683,7 +683,7 @@ void PSPrintNetworkInfo(PSNeuralNetwork *network) {
     if (loss_name != NULL) printf("Loss Function: %s\n", loss_name);
     printf("Status: %s\n", getNetworkStatusLabel(network));
     printf("AVX: %s\n", (PSAVXEnabled(network->acceleration) ? "yes" : "no"));
-    printf("DSP: %s\n", (PSDSPEnabled(network->acceleration) ? "yes" : "no"));
+    printf("DSP: %s\n", (PSACFEnabled(network->acceleration) ? "yes" : "no"));
     printf("BLAS: %s\n", (PSBLASEnabled(network->acceleration) ? "yes" : "no"));
 }
 

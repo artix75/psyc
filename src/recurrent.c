@@ -162,7 +162,7 @@ int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
     int i, input_size = previous->size, ignore_previous_activations = 0;
     if (!PSIsRecurrent(previous) && layer == first_recurrent)
         ignore_previous_activations = (t > 0);
-    PSDotOpts dpopt = {0};
+    PSMathOpts dpopt = {0};
     dpopt.acceleration = net->acceleration;
     int prev_t = t - 1;
     PSFloat *inputs = NULL;

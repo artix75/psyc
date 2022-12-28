@@ -21,6 +21,7 @@
 #include <math.h>
 #include <time.h>
 #include <errno.h>
+#include <assert.h>
 
 #include "config.h"
 #include "maths.h"
@@ -31,7 +32,54 @@
 #endif
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
 #include <Accelerate/Accelerate.h>
+
+#ifdef PS_DOUBLE_PRECISION
+#define VDSPAddV(a,b,dest,len) vDSP_vaddD(a, 1, b, 1, dest, 1, len)
+#define VDSPSubV(a,b,dest,len) vDSP_vsubD(a, 1, b, 1, dest, 1, len)
+#define VDSPMulV(a,b,dest,len) vDSP_vmulD(a, 1, b, 1, dest, 1, len)
+#define VDSPMulAddV(a,b,c,d,len) vDSP_vmaD(a, 1, b, 1, c, 1, d, 1, len)
+#define VDSPDivV(a,b,dest,len) vDSP_vdivD(b, 1, a, 1, dest, 1, len)
+#define VDSPMulVS(a,b,dest,len) vDSP_vsmulD(a, 1, &b, dest, 1, len)
+#define VDSPAddVS(a,b,dest,len) vDSP_vsaddD(a, 1, &b, dest, 1, len)
+#define VDSPDivSV(a,b,dest,len) vDSP_svdivD(&a, b, 1, dest, 1, len)
+#define VDSPNeg(a,dest,len) vDSP_vnegD(a, 1, dest, 1, len)
+#define VDSPDotProd(a,b,dest,len) vDSP_dotprD(a, 1, b, 1, &dest, len)
+#define VDSPSumVecSqr(a,dest,len) vDSP_svesqD(a, 1, &dest, len)
+#define VVSqrt(a,dest,len) vvsqrt(dest, a, (int *)&len)
+#define VVTanh(a,dest,len) vvtanh(dest, a, (int *)&len)
+#define VVExp(a,dest,len)  vvexp(dest, a, (int *)&len)
+#else
+#define VDSPAddV(a,b,dest,len) vDSP_vadd(a, 1, b, 1, dest, 1, len)
+#define VDSPSubV(a,b,dest,len) vDSP_vsub(a, 1, b, 1, dest, 1, len)
+#define VDSPMulV(a,b,dest,len) vDSP_vmul(a, 1, b, 1, dest, 1, len)
+#define VDSPMulAddV(a,b,c,d,len) vDSP_vma(a, 1, b, 1, c, 1, d, 1, len)
+#define VDSPDivV(a,b,dest,len) vDSP_vdiv(b, 1, a, 1, dest, 1, len)
+#define VDSPMulVS(a,b,dest,len) vDSP_vsmul(a, 1, &b, dest, 1, len)
+#define VDSPAddVS(a,b,dest,len) vDSP_vsadd(a, 1, &b, dest, 1, len)
+#define VDSPDivSV(a,b,dest,len) vDSP_svdiv(&a, b, 1, dest, 1, len)
+#define VDSPNeg(a,dest,len) vDSP_vneg(a, 1, dest, 1, len)
+#define VDSPDotProd(a,b,dest,len) vDSP_dotpr(a, 1, b, 1, &dest, len)
+#define VDSPSumVecSqr(a,dest,len) vDSP_svesq(a, 1, &dest, len)
+#define VVSqrt(a,dest,len) vvsqrtf(dest, a, (int *)&len)
+#define VVTanh(a,dest,len) vvtanhf(dest, a, (int *)&len)
+#define VVExp(a,dest,len)  vvexpf(dest, a, (int *)&len)
 #endif
+
+#endif
+
+#define UNUSED(V) ((void) V)
+#define MATHS_OPERATION_PREAMBLE() \
+    if (dest == NULL) dest = a;\
+    PSDotProductDebug debug_step = NULL;\
+    uint64_t i = 0;\
+    int acceleration = PSGlobalAcceleration, mode = MATHS_STORE_MODE_NORM;\
+    if (opts != NULL) {\
+        acceleration = opts->acceleration;\
+        mode = opts->store_mode;\
+        debug_step = opts->debug_step;\
+        assert(mode >= 0 && mode <= MATHS_STORE_MODE_SUB);\
+    }\
+    UNUSED(debug_step);
 
 #define MAX_DIMENSIONS 3
 
@@ -61,7 +109,6 @@ PSFloat PSGaussianRandom(PSFloat mean, PSFloat stddev) {
 
 #define PSMatrixGetHeader(matrix) \
     ((PSMatrixHeader *) getMatrixHeadPointer(matrix))
-#define UNUSED(V) ((void) V)
 
 typedef struct PSMatrixHeader {
     int ndims;
@@ -471,21 +518,407 @@ void PSMatrixDelete(PSMatrix matrix) {
 
 /**** Operations ****/
 
-PSFloat PSDotProduct(PSFloat *a, PSFloat *b, uint64_t length, PSDotOpts *opts)
+void PSSumVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
+                  PSMathOpts *opts)
+{
+    MATHS_OPERATION_PREAMBLE()
+    UNUSED(debug_step);
+#ifdef HAS_ACCELERATE_FRAMEWORK
+    if (PSACFEnabled(acceleration) && mode == MATHS_STORE_MODE_NORM) {
+        VDSPAddV(a, b, dest, length);
+        if (debug_step) {
+            uint64_t last = length - 1;
+            debug_step(last, a[last], b[last], dest[last], 1, opts);
+        }
+        return;
+    }
+#endif
+#if defined(USE_AVX)
+    if (PSAVXEnabled(acceleration)) {
+        AVXIterativeSum(length, a, b, dest, i, mode);
+        if (debug_step) debug_step(i, a[i], b[i], result, 1, opts);
+    }
+#else
+    UNUSED(acceleration);
+#endif
+    /* No Acceleration */
+    switch (mode) {
+        case MATHS_STORE_MODE_NORM:
+            for (; i < length; i++) dest[i] = a[i] + b[i];
+            break;
+        case MATHS_STORE_MODE_ADD:
+            for (; i < length; i++) dest[i] += a[i] + b[i];
+            break;
+        case MATHS_STORE_MODE_SUB:
+            for (; i < length; i++) dest[i] -= a[i] + b[i];
+            break;
+    }
+}
+
+void PSSubtractVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
+                       PSMathOpts *opts)
+{
+    MATHS_OPERATION_PREAMBLE()
+#ifdef HAS_ACCELERATE_FRAMEWORK
+    if (PSACFEnabled(acceleration) && mode == MATHS_STORE_MODE_NORM) {
+        VDSPSubV(a, b, dest, length);
+        if (debug_step) {
+            uint64_t last = length - 1;
+            debug_step(last, a[last], b[last], dest[last], 1, opts);
+        }
+        return;
+    }
+#elif defined(USE_AVX)
+    if (PSAVXEnabled(acceleration)) {
+        AVXIterativeDiff(length, a, b, dest, i, mode);
+        if (debug_step) debug_step(i, a[i], b[i], result, 1, opts);
+    }
+#else
+    UNUSED(acceleration);
+#endif
+    /* No Acceleration */
+    switch (mode) {
+        case MATHS_STORE_MODE_NORM:
+            for (; i < length; i++) dest[i] = a[i] - b[i];
+            break;
+        case MATHS_STORE_MODE_ADD:
+            for (; i < length; i++) dest[i] += a[i] - b[i];
+            break;
+        case MATHS_STORE_MODE_SUB:
+            for (; i < length; i++) dest[i] -= a[i] - b[i];
+            break;
+    }
+}
+
+void PSMultiplyVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
+                       PSMathOpts *opts)
+{
+    MATHS_OPERATION_PREAMBLE();
+#if defined(HAS_ACCELERATE_FRAMEWORK)
+    if (PSACFEnabled(acceleration) && mode != MATHS_STORE_MODE_SUB) {
+        if (mode == MATHS_STORE_MODE_NORM)
+            VDSPMulV(a, b, dest, length);
+        else if (mode == MATHS_STORE_MODE_ADD)
+            VDSPMulAddV(a, b, dest, dest, length);
+        if (debug_step) {
+            uint64_t last = length - 1;
+            debug_step(last, a[last], b[last], dest[last], 1, opts);
+        }
+        return;
+    }
+#endif
+#if defined(USE_AVX)
+    if (PSAVXEnabled(acceleration)) {
+        uint64_t avx_step_len = AVXGetStepLen((int));
+        uint64_t avx_steps = (
+            avx_step_len > 0 ? length / avx_step_len : 0
+        ), avx_step;
+        for (avx_step = 0; avx_step < avx_steps; avx_step++) {
+            PSFloat *x_vector = a + i;
+            int c = AVXMultiply(x, y, length, dest, mode);
+            assert(c == avx_step_len);
+            i += avx_step_len;
+        }
+        if (debug_step) debug_step(i, a[i], b[i], dest[i], 1, opts);
+    }
+#else
+    UNUSED(acceleration);
+#endif
+    /* No Acceleration */
+    switch (mode) {
+        case MATHS_STORE_MODE_NORM:
+            for (; i < length; i++) dest[i] = a[i] * b[i];
+            break;
+        case MATHS_STORE_MODE_ADD:
+            for (; i < length; i++) dest[i] += a[i] * b[i];
+            break;
+        case MATHS_STORE_MODE_SUB:
+            for (; i < length; i++) dest[i] -= a[i] * b[i];
+            break;
+    }
+}
+
+void PSDivideVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
+                     PSMathOpts *opts)
+{
+    MATHS_OPERATION_PREAMBLE();
+#if defined(HAS_ACCELERATE_FRAMEWORK)
+    if (PSACFEnabled(acceleration) && mode == MATHS_STORE_MODE_NORM) {
+        VDSPDivV(a, b, dest, length);
+        if (debug_step) {
+            uint64_t last = length - 1;
+            debug_step(last, a[last], b[last], dest[last], 1, opts);
+        }
+        return;
+    }
+#endif
+#if defined(USE_AVX)
+    if (PSAVXEnabled(acceleration)) {
+        uint64_t avx_step_len = AVXGetStepLen((int));
+        uint64_t avx_steps = (
+            avx_step_len > 0 ? length / avx_step_len : 0
+        ), avx_step;
+        for (avx_step = 0; avx_step < avx_steps; avx_step++) {
+            PSFloat *x_vector = a + i;
+            int c = AVXDivide(x, y, length, dest, mode);
+            assert(c == avx_step_len);
+            i += avx_step_len;
+        }
+        if (debug_step) debug_step(i, a[i], b[i], dest[i], 1, opts);
+    }
+#else
+    UNUSED(acceleration);
+#endif
+    /* No Acceleration */
+    switch (mode) {
+        case MATHS_STORE_MODE_NORM:
+            for (; i < length; i++) dest[i] = a[i] / b[i];
+            break;
+        case MATHS_STORE_MODE_ADD:
+            for (; i < length; i++) dest[i] += a[i] / b[i];
+            break;
+        case MATHS_STORE_MODE_SUB:
+            for (; i < length; i++) dest[i] -= a[i] / b[i];
+            break;
+    }
+}
+
+void PSMultiplyVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
+                            uint64_t length, PSMathOpts *opts)
+{
+    MATHS_OPERATION_PREAMBLE();
+#if defined(HAS_ACCELERATE_FRAMEWORK)
+    if (PSACFEnabled(acceleration) && mode == MATHS_STORE_MODE_NORM) {
+        VDSPMulVS(a, b, dest, length);
+        if (debug_step) {
+            uint64_t last = length - 1;
+            debug_step(last, a[last], b, dest[last], 1, opts);
+        }
+        return;
+    }
+#endif
+#if defined(USE_AVX)
+    if (PSAVXEnabled(acceleration)) {
+        AVXIterativeMultiplyValue(length, a, vb, dest, i, 0, 0, mode);
+        if (debug_step) debug_step(i, a[i], b, dest[i], 1, opts);
+    }
+#else
+    UNUSED(acceleration);
+#endif
+    /* No Acceleration */
+    switch (mode) {
+        case MATHS_STORE_MODE_NORM:
+            for (; i < length; i++) dest[i] = a[i] * b;
+            break;
+        case MATHS_STORE_MODE_ADD:
+            for (; i < length; i++) dest[i] += a[i] * b;
+            break;
+        case MATHS_STORE_MODE_SUB:
+            for (; i < length; i++) dest[i] -= a[i] * b;
+            break;
+    }
+}
+
+void PSAddVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
+                       uint64_t length, PSMathOpts *opts)
+{
+    MATHS_OPERATION_PREAMBLE();
+#if defined(HAS_ACCELERATE_FRAMEWORK)
+    if (PSACFEnabled(acceleration) && mode == MATHS_STORE_MODE_NORM) {
+        VDSPAddVS(a, b, dest, length);
+        if (debug_step) {
+            uint64_t last = length - 1;
+            debug_step(last, a[last], b, dest[last], 1, opts);
+        }
+        return;
+    }
+#endif
+#if defined(USE_AVX)
+    if (PSAVXEnabled(acceleration)) {
+        AVXIterativeAddValue(length, a, b, dest, i, 0, 0, mode);
+        if (debug_step) debug_step(i, a[i], b, dest[i], 1, opts);
+    }
+#else
+    UNUSED(acceleration);
+#endif
+    /* No Acceleration */
+    switch (mode) {
+        case MATHS_STORE_MODE_NORM:
+            for (; i < length; i++) dest[i] = a[i] * b;
+            break;
+        case MATHS_STORE_MODE_ADD:
+            for (; i < length; i++) dest[i] += a[i] * b;
+            break;
+        case MATHS_STORE_MODE_SUB:
+            for (; i < length; i++) dest[i] -= a[i] * b;
+            break;
+    }
+}
+
+void PSDivideScalarVector(PSFloat b, PSFloat *a, PSFloat *dest,
+                          uint64_t length, PSMathOpts *opts)
+{
+    MATHS_OPERATION_PREAMBLE();
+#if defined(HAS_ACCELERATE_FRAMEWORK)
+    if (PSACFEnabled(acceleration) && mode == MATHS_STORE_MODE_NORM) {
+        VDSPDivSV(b, a, dest, length);
+        return;
+    }
+#endif
+#if defined(USE_AVX)
+    if (PSAVXEnabled(acceleration)) {
+        AVXIterativeValueDiv(length, b, a, dest, i, 0, 0, mode);
+    }
+#else
+    UNUSED(acceleration);
+#endif
+    /* No Acceleration */
+    switch (mode) {
+        case MATHS_STORE_MODE_NORM:
+            for (; i < length; i++) dest[i] = a[i] * b;
+            break;
+        case MATHS_STORE_MODE_ADD:
+            for (; i < length; i++) dest[i] += a[i] * b;
+            break;
+        case MATHS_STORE_MODE_SUB:
+            for (; i < length; i++) dest[i] -= a[i] * b;
+            break;
+    }
+}
+
+void PSVectorTanh(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+{
+    MATHS_OPERATION_PREAMBLE();
+#if defined(HAS_ACCELERATE_FRAMEWORK)
+    if (PSACFEnabled(acceleration) && mode == MATHS_STORE_MODE_NORM) {
+        VVTanh(a, dest, length);
+        return;
+    }
+#endif
+#if defined(USE_AVX)
+    if (PSAVXEnabled(acceleration)) {
+        AVXIterativeTanh(length, a, dest, i, mode);
+    }
+#else
+    UNUSED(acceleration);
+#endif
+    /* No Acceleration */
+    switch (mode) {
+        case MATHS_STORE_MODE_NORM:
+            for (; i < length; i++) dest[i] = PSTanh(a[i]);
+            break;
+        case MATHS_STORE_MODE_ADD:
+            for (; i < length; i++) dest[i] += PSTanh(a[i]);
+            break;
+        case MATHS_STORE_MODE_SUB:
+            for (; i < length; i++) dest[i] -= PSTanh(a[i]);
+            break;
+    }
+}
+
+void PSVectorExp(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+{
+    MATHS_OPERATION_PREAMBLE();
+#if defined(HAS_ACCELERATE_FRAMEWORK)
+    if (PSACFEnabled(acceleration) && mode == MATHS_STORE_MODE_NORM) {
+        VVExp(a, dest, length);
+        return;
+    }
+#endif
+#if defined(USE_AVX)
+    if (PSAVXEnabled(acceleration)) {
+        AVXIterativeExp(length, a, dest, i, mode);
+    }
+#else
+    UNUSED(acceleration);
+#endif
+    /* No Acceleration */
+    switch (mode) {
+        case MATHS_STORE_MODE_NORM:
+            for (; i < length; i++) dest[i] = PSExp(a[i]);
+            break;
+        case MATHS_STORE_MODE_ADD:
+            for (; i < length; i++) dest[i] += PSExp(a[i]);
+            break;
+        case MATHS_STORE_MODE_SUB:
+            for (; i < length; i++) dest[i] -= PSExp(a[i]);
+            break;
+    }
+}
+
+void PSVectorSqrt(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+{
+    MATHS_OPERATION_PREAMBLE();
+#if defined(HAS_ACCELERATE_FRAMEWORK)
+    if (PSACFEnabled(acceleration) && mode == MATHS_STORE_MODE_NORM) {
+        VVSqrt(a, dest, length);
+        return;
+    }
+#endif
+#if defined(USE_AVX)
+    if (PSAVXEnabled(acceleration)) {
+        AVXIterativeSqrt(length, a, dest, i, mode);
+    }
+#else
+    UNUSED(acceleration);
+#endif
+    /* No Acceleration */
+    switch (mode) {
+        case MATHS_STORE_MODE_NORM:
+            for (; i < length; i++) dest[i] = PSSqrt(a[i]);
+            break;
+        case MATHS_STORE_MODE_ADD:
+            for (; i < length; i++) dest[i] += PSSqrt(a[i]);
+            break;
+        case MATHS_STORE_MODE_SUB:
+            for (; i < length; i++) dest[i] -= PSSqrt(a[i]);
+            break;
+    }
+}
+
+void PSVectorNeg(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+{
+    MATHS_OPERATION_PREAMBLE();
+#if defined(HAS_ACCELERATE_FRAMEWORK)
+    if (PSACFEnabled(acceleration) && mode == MATHS_STORE_MODE_NORM) {
+        VDSPNeg(a, dest, length);
+        return;
+    }
+#endif
+#if defined(USE_AVX)
+    if (PSAVXEnabled(acceleration)) {
+        AVXIterativeNeg(length, a, dest, i, mode);
+    }
+#else
+    UNUSED(acceleration);
+#endif
+    /* No Acceleration */
+    switch (mode) {
+        case MATHS_STORE_MODE_NORM:
+            for (; i < length; i++) dest[i] = -(a[i]);
+            break;
+        case MATHS_STORE_MODE_ADD:
+            for (; i < length; i++) dest[i] += -(a[i]);
+            break;
+        case MATHS_STORE_MODE_SUB:
+            for (; i < length; i++) dest[i] -= -(a[i]);
+            break;
+    }
+}
+
+PSFloat PSDotProduct(PSFloat *a, PSFloat *b, uint64_t length, PSMathOpts *opts)
 {
     PSDotProductDebug debug_step = NULL;
-    if (opts != NULL) debug_step = opts->debug_step;
     uint64_t i = 0;
     PSFloat result = 0.0;
-    int acceleration =
-        (opts != NULL ? opts->acceleration : PSGlobalAcceleration);
+    int acceleration = PSGlobalAcceleration;
+    if (opts != NULL) {
+        acceleration = opts->acceleration;
+        debug_step = opts->debug_step;
+    }
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSDSPEnabled(acceleration)) {
-#ifndef PS_DOUBLE_PRECISION
-        vDSP_dotpr(a, 1, b, 1, &result, length);
-#else
-        vDSP_dotprD(a, 1, b, 1, &result, length);
-#endif
+    if (PSACFEnabled(acceleration)) {
+        VDSPDotProd(a, b, result, length);
         if (debug_step)
             debug_step(length - 1, a[length-1], b[length-1], result, 1, opts);
         return result;
@@ -498,9 +931,42 @@ PSFloat PSDotProduct(PSFloat *a, PSFloat *b, uint64_t length, PSDotOpts *opts)
 #else
     UNUSED(acceleration);
 #endif
+    /* No Acceleration */
     for (; i < length; i++) {
         if (debug_step) debug_step(i, a[i], b[i], result, 0, opts);
         result += a[i] * b[i];
+    }
+    return result;
+}
+
+PSFloat PSDotSquare(PSFloat *a, uint64_t length, PSMathOpts *opts) {
+    PSDotProductDebug debug_step = NULL;
+    uint64_t i = 0;
+    PSFloat result = 0.0;
+    int acceleration = PSGlobalAcceleration;
+    if (opts != NULL) {
+        acceleration = opts->acceleration;
+        debug_step = opts->debug_step;
+    }
+#if defined(HAS_ACCELERATE_FRAMEWORK)
+    if (PSACFEnabled(acceleration)) {
+        VDSPSumVecSqr(a, result, length);
+        if (debug_step)
+            debug_step(length - 1, a[length-1], a[length-1], result, 1, opts);
+        return result;
+    }
+#elif defined(USE_AVX)
+    if (PSAVXEnabled(acceleration)) {
+        AVXIterativeDotSquare(length, a, result, i, 0, 0);
+        if (debug_step) debug_step(i, a[i], a[i], result, 1, opts);
+    }
+#else
+    UNUSED(acceleration);
+#endif
+    /* No Acceleration */
+    for (; i < length; i++) {
+        if (debug_step) debug_step(i, a[i], a[i], result, 0, opts);
+        result += a[i] * a[i];
     }
     return result;
 }

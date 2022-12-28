@@ -22,6 +22,7 @@
 #include "types.h"
 
 #ifdef PS_DOUBLE_PRECISION
+#define PSTanh(v) tanh(v)
 #define PSTanhActivation tanh
 #define PSSqrt(v) sqrt(v)
 #define PSFloor(v) floor(v)
@@ -31,6 +32,7 @@
 #define PSAbs(v) fabs(v)
 #define PSPow(a,b) pow(a, b)
 #else
+#define PSTanh(v) tanhf(v)
 #define PSTanhActivation tanhf
 #define PSSqrt(v) sqrtf(v)
 #define PSFloor(v) floorf(v)
@@ -41,16 +43,21 @@
 #define PSPow(a,b) powf(a, b)
 #endif
 
-struct PSDotOpts;
+#define MATHS_STORE_MODE_NORM 0
+#define MATHS_STORE_MODE_ADD  1
+#define MATHS_STORE_MODE_SUB  2
+
+struct PSMathOpts;
 typedef void (*PSDotProductDebug)(int i, PSFloat a, PSFloat b, PSFloat sum,
                                   int using_acceleration,
-                                  struct PSDotOpts *opts);
+                                  struct PSMathOpts *opts);
 
-typedef struct PSDotOpts {
+typedef struct PSMathOpts {
     int acceleration;
+    int store_mode;
     PSDotProductDebug debug_step;
     void *data;
-} PSDotOpts;
+} PSMathOpts;
 
 /****** Utils *****/
 
@@ -82,7 +89,28 @@ void PSMatrixDelete(PSMatrix matrix);
 
 /**** Operations ***/
 
-PSFloat PSDotProduct(PSFloat *a, PSFloat *b, uint64_t length, PSDotOpts *opts);
+void PSSumVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
+                  PSMathOpts *opts);
+void PSSubtractVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
+                       PSMathOpts *opts);
+void PSMultiplyVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
+                       PSMathOpts *opts);
+void PSDivideVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
+                     PSMathOpts *opts);
+void PSMultiplyVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
+                            uint64_t length, PSMathOpts *opts);
+void PSAddVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
+                       uint64_t length, PSMathOpts *opts);
+void PSDivideScalarVector(PSFloat b, PSFloat *a, PSFloat *dest,
+                          uint64_t length, PSMathOpts *opts);
+void PSVectorTanh(PSFloat *a, PSFloat *dest, uint64_t length,
+                  PSMathOpts *opts);
+void PSVectorSqrt(PSFloat *a, PSFloat *dest, uint64_t length,
+                  PSMathOpts *opts);
+void PSVectorExp(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts);
+void PSVectorNeg(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts);
+PSFloat PSDotProduct(PSFloat *a, PSFloat *b, uint64_t length, PSMathOpts *opts);
+PSFloat PSDotSquare(PSFloat *a, uint64_t length, PSMathOpts *opts);
 
 #endif /* __PS_MATHS_H__ */
 

@@ -340,7 +340,7 @@ static int LSTMCellFeedforward(PSLayer *layer, PSLayer *previous,
               layer->index, neuron->index);
         return 0;
     }
-    PSDotOpts dpopt = {.acceleration = net->acceleration};
+    PSMathOpts dpopt = {.acceleration = net->acceleration};
     int wsize = cell->weights_size;
     int prev_size = wsize - layer->size;
     int ignore_previous_activations = 0;
