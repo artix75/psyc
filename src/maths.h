@@ -87,7 +87,7 @@ size_t PSMatrixLength(PSMatrix matrix);
 int PSMatrixStride(PSMatrix matrix, int dim);
 PSFloat *PSMatrixValues(PSMatrix matrix, uint32_t *len, int argc, ...);
 int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result);
-int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSMatrix *result);
+int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result);
 int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result);
 void PSMatrixDelete(PSMatrix matrix);
 
@@ -123,6 +123,7 @@ void PSVectorThreshold(PSFloat *a, PSFloat min, PSFloat *dest,
                        uint64_t length, PSMathOpts *opts);
 PSFloat PSDotProduct(PSFloat *a, PSFloat *b, uint64_t length, PSMathOpts *opts);
 PSFloat PSDotSquare(PSFloat *a, uint64_t length, PSMathOpts *opts);
+int PSDot(PSMatrix matrix, PSFloat *vector, PSFloat *dest, PSMathOpts *opts);
 
 #endif /* __PS_MATHS_H__ */
 

@@ -32,6 +32,7 @@
 #include "../lstm.h"
 #include "../mnist.h"
 #include "../maths.h"
+#include "../activation.h"
 #include "../utils.h"
 #include "../debug.h"
 #include "../log.h"
@@ -85,6 +86,9 @@ TestCase *LSTMNetworkTests;
 TestCase *AVXTests;
 #endif
 
+TestCase *mathsTests;
+TestCase *activationTests;
+
 int genericSetup (TestCase *test_case);
 int genericTeardown (TestCase *test_case);
 int RNNSetup (TestCase *test_case);
@@ -99,6 +103,31 @@ int testAVXDot(TestCase *test_case, Test *test);
 int testAVXSquare(TestCase *test_case, Test *test);
 int testAVXMultiplyVal(TestCase *tc, Test *test);
 #endif
+
+int testMathsDotProduct(TestCase *tc, Test *test);
+int testMathsDot(TestCase *tc, Test *test);
+int testMathsSumV(TestCase *tc, Test *test);
+int testMathsSubV(TestCase *tc, Test *test);
+int testMathsMulV(TestCase *tc, Test *test);
+int testMathsDivV(TestCase *tc, Test *test);
+int testMathsSumVS(TestCase *tc, Test *test);
+int testMathsSubSV(TestCase *tc, Test *test);
+int testMathsMulVS(TestCase *tc, Test *test);
+int testMathsDivVS(TestCase *tc, Test *test);
+int testMathsDivSV(TestCase *tc, Test *test);
+int testMathsClip(TestCase *tc, Test *test);
+int testMathsThres(TestCase *tc, Test *test);
+int testMathsExp(TestCase *tc, Test *test);
+int testMathsTanh(TestCase *tc, Test *test);
+int testMathsSqrt(TestCase *tc, Test *test);
+int testMathsNeg(TestCase *tc, Test *test);
+
+int testActSigmoid(TestCase *tc, Test *test);
+int testActSigmoidDeriv(TestCase *tc, Test *test);
+int testActTanh(TestCase *tc, Test *test);
+int testActTanhDeriv(TestCase *tc, Test *test);
+int testActRelu(TestCase *tc, Test *test);
+int testActReluDeriv(TestCase *tc, Test *test);
 
 int testFullLoad(TestCase *test_case, Test *test);
 int testFullFeedforward(TestCase *test_case, Test *test);
@@ -330,15 +359,18 @@ static int arrayMaxIndex(PSFloat *array, int len) {
 }
 
 /* Enabled tests */
-static int avx_tests = 1, fullnet_tests = 1, convnet_tests = 1, rnn_tests = 1,
+static int avx_tests = 1, maths_tests = 1, activation_tests = 1,
+           fullnet_tests = 1, convnet_tests = 1, rnn_tests = 1,
            lstm_tests = 1;
 
 static int *test_ptrs[] = {
-    &avx_tests, &fullnet_tests, &convnet_tests, &rnn_tests, &lstm_tests
+    &avx_tests, &maths_tests, &activation_tests, &fullnet_tests,
+    &convnet_tests, &rnn_tests, &lstm_tests
 };
 
 static char*test_ids[] = {
-    "avx", "fully-connected", "convolutional", "rnn", "lstm"
+    "avx", "maths", "activation", "fully-connected", "convolutional",
+    "rnn", "lstm"
 };
 
 static void printTestList(void) {
@@ -440,6 +472,45 @@ int main(int argc, char** argv) {
         deleteTest(AVXTests);
     }
 #endif
+
+    if (maths_tests) {
+        mathsTests = createTest("Maths");
+        addTest(mathsTests, "Dot Product", NULL, testMathsDotProduct);
+        addTest(mathsTests, "Dot (Matrix-Vec.)", NULL, testMathsDot);
+        addTest(mathsTests, "Sum vectors", NULL, testMathsSumV);
+        addTest(mathsTests, "Sub vectors", NULL, testMathsSubV);
+        addTest(mathsTests, "Mul. vectors", NULL, testMathsMulV);
+        addTest(mathsTests, "Div. vectors", NULL, testMathsDivV);
+        addTest(mathsTests, "Sum scalar to vec.", NULL, testMathsSumVS);
+        addTest(mathsTests, "Sub. vec. from scalar", NULL, testMathsSubSV);
+        addTest(mathsTests, "Mul. vec. by scalar", NULL, testMathsMulVS);
+        addTest(mathsTests, "Div vec. by scalar", NULL, testMathsDivVS);
+        addTest(mathsTests, "Div scalar by vec.", NULL, testMathsDivSV);
+        addTest(mathsTests, "Clip", NULL, testMathsClip);
+        addTest(mathsTests, "Threshold", NULL, testMathsThres);
+        addTest(mathsTests, "Exp", NULL, testMathsExp);
+        addTest(mathsTests, "Tanh", NULL, testMathsTanh);
+        addTest(mathsTests, "Sqrt", NULL, testMathsSqrt);
+        addTest(mathsTests, "Negate", NULL, testMathsNeg);
+        performTests(mathsTests);
+        tot_tests += mathsTests->count;
+        tot_failed += mathsTests->failed_count;
+        deleteTest(mathsTests);
+    }
+
+    if (activation_tests) {
+        activationTests = createTest("Activation Functions");
+        addTest(activationTests, "Sigmoid", NULL, testActSigmoid);
+        addTest(activationTests, "Sigmoid der.", NULL, testActSigmoidDeriv);
+        addTest(activationTests, "Tanh", NULL, testActTanh);
+        addTest(activationTests, "Tanh der.", NULL, testActTanhDeriv);
+        addTest(activationTests, "ReLU", NULL, testActRelu);
+        addTest(activationTests, "ReLU der.", NULL, testActReluDeriv);
+        performTests(activationTests);
+        tot_tests += activationTests->count;
+        tot_failed += activationTests->failed_count;
+        deleteTest(activationTests);
+    }
 
     if (fullnet_tests) {
         fullNetworkTests = createTest("Fully Connected Network");
@@ -1734,8 +1805,6 @@ static int testRecurrentNetworkMode(PSNeuralNetwork *network,
     return 1;
 }
 
-#ifdef USE_AVX
-
 PSFloat test_dot(PSFloat *x, PSFloat *y, int size) {
     int i;
     PSFloat dot = 0.0;
@@ -1744,6 +1813,699 @@ PSFloat test_dot(PSFloat *x, PSFloat *y, int size) {
     }
     return dot;
 }
+
+static int compareArrays(PSFloat *arr, PSFloat *exp, int len, Test* test,
+                         char *descr, int rounding)
+{
+    for (int i = 0; i < len; i++) {
+        PSFloat value = arr[i];
+        PSFloat expected = exp[i];
+        if (rounding > 0) {
+            value = getRoundedFloatDec(value, rounding);
+            expected = getRoundedFloatDec(expected, rounding);
+        }
+        testAssertWithMessage(
+            (value == expected), test,
+            "%s: value[%d] != expected[%d] -> %g != %g",
+            descr, i, i, value, expected
+        );
+    }
+    return 1;
+}
+
+int testMathsDotProduct(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat x[16] = {1.0, 1.0, 2.0, 2.0, 3.0, 2.0, 1.0, 1.0,
+                     0.5, 1.0, 0.0, 1.0, 3.0, 2.0, 1.0, 1.0};
+    PSFloat y[16] = {0.5, 0.5, 1.0, 0.5, 0.0, 1.0, 2.0, 1.0,
+                     1.0, 2.0, 1.0, 0.0, 0.5, 1.0, 0.5, 0.5};
+    PSFloat cmp_res = test_dot(x, y, 16), res;
+    PSMathOpts opts = {0};
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    opts.acceleration = PSAcceleration_ACF;
+    res = PSDotProduct(x, y, 16, &opts);
+    testAssertWithMessage(
+        (res == cmp_res), test, "Accelerate Framework: Expected %g != %g",
+        cmp_res, res
+    );
+#endif
+#ifdef USE_AVX
+    opts.acceleration = PSAcceleration_AVX;
+    res = PSDotProduct(x, y, 16, &opts);
+    testAssertWithMessage(
+        (res == cmp_res), test, "AVX: Expected %g != %g",
+        cmp_res, res
+    );
+#endif
+    opts.acceleration = PSAcceleration_None;
+    res = PSDotProduct(x, y, 16, &opts);
+    testAssertWithMessage(
+        (res == cmp_res), test, "No Acceleration: Expected %g != %g",
+        cmp_res, res
+    );
+    return 1;
+}
+
+int testMathsDot(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat x[32] = {1.0, 1.0, 2.0, 2.0, 3.0, 2.0, 1.0, 1.0,
+                     0.5, 1.0, 0.0, 1.0, 3.0, 2.0, 1.0, 1.0,
+                     -2.0, -0.2, 3.0, 0.0, 0.5, 1.0, 1.0, 0.1,
+                     -0.05, 0.0, 2.5, 1.25, 0.0, -2.0, 3.2, -0.25};
+    PSFloat y[16] = {0.5, 0.5, 1.0, 0.5, 0.0, 1.0, 2.0, 1.0,
+                     1.0, 2.0, 1.0, 0.0, 0.5, 1.0, 0.5, 0.5};
+    PSFloat res[2] = {0, 0};
+    PSFloat cmp_res[2] = {0, 0};
+    PSMatrix matrix = PSMatrixZeros(2, 2, 16);
+    testAssertNotNull(matrix, test);
+    memcpy(matrix, x, 32 * sizeof(PSFloat));
+    PSMathOpts opts = {0};
+    int r, c, ok = 1, failed = 0;
+    ok = compareArrays(matrix, x, 32, test, "Matrix data", 0);
+    if (!ok) return 0;
+    for (r = 0; r < 2; r++) {
+        PSFloat *row = x + (r * 16);
+        PSFloat sum = 0.0;
+        for (c = 0; c < 16; c++) sum += row[c] * y[c];
+        cmp_res[r] = sum;
+    }
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    opts.acceleration = PSAcceleration_ACF;
+    ok = PSDot(matrix, y, res, &opts);
+    testAssert(ok, test);
+    ok = compareArrays(res, cmp_res, 2, test, "Accelerate Framework", 3);
+    if (!ok) {
+        failed++;
+        appendTestErrorMessage(test, "\n%*s", 4, "");
+    }
+#endif
+#ifdef USE_AVX
+    ok = PSDot(matrix, y, res, &opts);
+    testAssert(ok, test);
+    ok = compareArrays(res, cmp_res, 2, test, "AVX", 3);
+    if (!ok) {
+        failed++;
+        appendTestErrorMessage(test, "\n%*s", 4, "");
+    }
+#endif
+    opts.acceleration = PSAcceleration_BLAS;
+    ok = PSDot(matrix, y, res, &opts);
+    testAssert(ok, test);
+    ok = compareArrays(res, cmp_res, 2, test, "BLAS", 3);
+    if (!ok) {
+        failed++;
+        appendTestErrorMessage(test, "\n%*s", 4, "");
+    }
+    opts.acceleration = PSAcceleration_None;
+    ok = PSDot(matrix, y, res, &opts);
+    testAssert(ok, test);
+    ok = compareArrays(res, cmp_res, 2, test, "No Acceleration", 0);
+    if (!ok) {
+        failed++;
+        appendTestErrorMessage(test, "\n%*s", 4, "");
+    }
+    return (failed == 0);
+}
+
+int testMathsSumV(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat x[6] = {1.0, 8.3, 2.0, -1.5, 3.0, 0.2};
+    PSFloat y[6] = {0.5, -0.35, 1.0, -0.1, 0.0, 4.0};
+    PSFloat cmp_res[6] = {0};
+    PSFloat res[6] = {0};
+    for (int i = 0; i < 6; i++) cmp_res[i] = x[i] + y[i];
+    int ok = 1;
+    PSMathOpts opts = {0};
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    opts.acceleration = PSAcceleration_ACF;
+    PSSumVectors(x, y, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    opts.acceleration = PSAcceleration_AVX;
+    PSSumVectors(x, y, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "AVX", 0);
+    if (!ok) return 0;
+#endif
+    opts.acceleration = PSAcceleration_None;
+    PSSumVectors(x, y, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "No Acceleration:", 0);
+    if (!ok) return 0;
+    return ok;
+}
+int testMathsSubV(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat x[6] = {1.0, 8.3, 2.0, -1.5, 3.0, 0.2};
+    PSFloat y[6] = {0.5, -0.35, 1.0, -0.1, 0.0, 4.0};
+    PSFloat cmp_res[6] = {0};
+    PSFloat res[6] = {0};
+    for (int i = 0; i < 6; i++) cmp_res[i] = x[i] - y[i];
+    int ok = 1;
+    PSMathOpts opts = {0};
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    opts.acceleration = PSAcceleration_ACF;
+    PSSubtractVectors(x, y, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    opts.acceleration = PSAcceleration_AVX;
+    PSSubtractVectors(x, y, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "AVX", 0);
+    if (!ok) return 0;
+#endif
+    opts.acceleration = PSAcceleration_None;
+    PSSubtractVectors(x, y, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "No Acceleration:", 0);
+    if (!ok) return 0;
+    return ok;
+}
+
+int testMathsMulV(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat x[6] = {1.0, 8.3, 2.0, -1.5, 3.0, 0.2};
+    PSFloat y[6] = {0.5, -0.35, 1.0, -0.1, 0.0, 4.0};
+    PSFloat cmp_res[6] = {0};
+    PSFloat res[6] = {0};
+    for (int i = 0; i < 6; i++) cmp_res[i] = x[i] * y[i];
+    int ok = 1;
+    PSMathOpts opts = {0};
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    opts.acceleration = PSAcceleration_ACF;
+    PSMultiplyVectors(x, y, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    opts.acceleration = PSAcceleration_AVX;
+    PSMultiplyVectors(x, y, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "AVX", 0);
+    if (!ok) return 0;
+#endif
+    opts.acceleration = PSAcceleration_None;
+    PSMultiplyVectors(x, y, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "No Acceleration:", 0);
+    if (!ok) return 0;
+    return ok;
+}
+
+int testMathsDivV(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat x[6] = {1.0, 8.3, 2.0, -1.5, 0.0, 18.5};
+    PSFloat y[6] = {0.5, 2.0, 1.0, -0.5, 3.0, 4.0};
+    PSFloat cmp_res[6] = {0};
+    PSFloat res[6] = {0};
+    for (int i = 0; i < 6; i++) cmp_res[i] = x[i] / y[i];
+    int ok = 1;
+    PSMathOpts opts = {0};
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    opts.acceleration = PSAcceleration_ACF;
+    PSDivideVectors(x, y, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    opts.acceleration = PSAcceleration_AVX;
+    PSDivideVectors(x, y, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "AVX", 0);
+    if (!ok) return 0;
+#endif
+    opts.acceleration = PSAcceleration_None;
+    PSDivideVectors(x, y, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "No Acceleration:", 0);
+    if (!ok) return 0;
+    return ok;
+}
+
+int testMathsSumVS(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat x[6] = {1.0, 8.3, 2.0, -1.5, 0.0, 18.5};
+    PSFloat y = -1.5;
+    PSFloat cmp_res[6] = {0};
+    PSFloat res[6] = {0};
+    for (int i = 0; i < 6; i++) cmp_res[i] = x[i] + y;
+    int ok = 1;
+    PSMathOpts opts = {0};
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    opts.acceleration = PSAcceleration_ACF;
+    PSSumVectorScalar(x, y, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    opts.acceleration = PSAcceleration_AVX;
+    PSSumVectorScalar(x, y, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "AVX", 0);
+    if (!ok) return 0;
+#endif
+    opts.acceleration = PSAcceleration_None;
+    PSSumVectorScalar(x, y, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "No Acceleration:", 0);
+    if (!ok) return 0;
+    return ok;
+}
+
+int testMathsSubSV(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat x = -1.5;
+    PSFloat y[6] = {1.0, 8.3, 2.0, -1.5, 0.0, 18.5};
+    PSFloat cmp_res[6] = {0};
+    PSFloat res[6] = {0};
+    for (int i = 0; i < 6; i++) cmp_res[i] = x - y[i];
+    int ok = 1;
+    PSMathOpts opts = {0};
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    opts.acceleration = PSAcceleration_ACF;
+    PSSubtractScalarVector(x, y, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    opts.acceleration = PSAcceleration_AVX;
+    PSSubtractScalarVector(x, y, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "AVX", 0);
+    if (!ok) return 0;
+#endif
+    opts.acceleration = PSAcceleration_None;
+    PSSubtractScalarVector(x, y, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "No Acceleration:", 0);
+    if (!ok) return 0;
+    return ok;
+}
+
+int testMathsMulVS(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat x[6] = {1.0, 8.3, 2.0, -1.5, 0.0, 18.5};
+    PSFloat y = -1.5;
+    PSFloat cmp_res[6] = {0};
+    PSFloat res[6] = {0};
+    for (int i = 0; i < 6; i++) cmp_res[i] = x[i] * y;
+    int ok = 1;
+    PSMathOpts opts = {0};
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    opts.acceleration = PSAcceleration_ACF;
+    PSMultiplyVectorScalar(x, y, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    opts.acceleration = PSAcceleration_AVX;
+    PSMultiplyVectorScalar(x, y, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "AVX", 0);
+    if (!ok) return 0;
+#endif
+    opts.acceleration = PSAcceleration_None;
+    PSMultiplyVectorScalar(x, y, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "No Acceleration:", 0);
+    if (!ok) return 0;
+    return ok;
+}
+
+int testMathsDivVS(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat x[6] = {1.0, 8.3, 2.0, -1.5, 0.0, 18.5};
+    PSFloat y = 2.0;
+    PSFloat cmp_res[6] = {0};
+    PSFloat res[6] = {0};
+    for (int i = 0; i < 6; i++) cmp_res[i] = x[i] / y;
+    int ok = 1;
+    PSMathOpts opts = {0};
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    opts.acceleration = PSAcceleration_ACF;
+    PSDivideVectorScalar(x, y, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    opts.acceleration = PSAcceleration_AVX;
+    PSDivideVectorScalar(x, y, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "AVX", 0);
+    if (!ok) return 0;
+#endif
+    opts.acceleration = PSAcceleration_None;
+    PSDivideVectorScalar(x, y, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "No Acceleration:", 0);
+    if (!ok) return 0;
+    return ok;
+}
+
+int testMathsDivSV(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat x = 8.0;
+    PSFloat y[6] = {0.5, 2.0, 1.0, -0.5, 3.0, 4.0};
+    PSFloat cmp_res[6] = {0};
+    PSFloat res[6] = {0};
+    for (int i = 0; i < 6; i++) cmp_res[i] = x / y[i];
+    int ok = 1;
+    PSMathOpts opts = {0};
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    opts.acceleration = PSAcceleration_ACF;
+    PSDivideScalarVector(x, y, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    opts.acceleration = PSAcceleration_AVX;
+    PSDivideScalarVector(x, y, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "AVX", 0);
+    if (!ok) return 0;
+#endif
+    opts.acceleration = PSAcceleration_None;
+    PSDivideScalarVector(x, y, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "No Acceleration:", 0);
+    if (!ok) return 0;
+    return ok;
+}
+
+int testMathsClip(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat x[6] = {1.0, 8.3, -2.0, -1.0, 0.0, 18.5};
+    PSFloat min = -1.0, max = 2.0;
+    PSFloat cmp_res[6] = {0};
+    PSFloat res[6] = {0};
+    for (int i = 0; i < 6; i++) cmp_res[i] = PSClipValue(x[i], min, max);
+    int ok = 1;
+    PSMathOpts opts = {0};
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    opts.acceleration = PSAcceleration_ACF;
+    PSVectorClip(x, min, max, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    opts.acceleration = PSAcceleration_AVX;
+    PSVectorClip(x, min, max, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "AVX", 0);
+    if (!ok) return 0;
+#endif
+    opts.acceleration = PSAcceleration_None;
+    PSVectorClip(x, min, max, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "No Acceleration:", 0);
+    if (!ok) return 0;
+    return ok;
+}
+
+int testMathsThres(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat x[6] = {1.0, 8.3, -2.0, -1.0, 0.0, 18.5};
+    PSFloat min = 0.0;
+    PSFloat cmp_res[6] = {0};
+    PSFloat res[6] = {0};
+    for (int i = 0; i < 6; i++)
+        cmp_res[i] = PSClipValue(x[i], min, PSFLOAT_MAX);
+    int ok = 1;
+    PSMathOpts opts = {0};
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    opts.acceleration = PSAcceleration_ACF;
+    PSVectorThreshold(x, min, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    opts.acceleration = PSAcceleration_AVX;
+    PSVectorThreshold(x, min, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "AVX", 0);
+    if (!ok) return 0;
+#endif
+    opts.acceleration = PSAcceleration_None;
+    PSVectorThreshold(x, min, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "No Acceleration:", 0);
+    if (!ok) return 0;
+    return ok;
+}
+
+int testMathsExp(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat x[6] = {1.0, 8.3, -2.0, -1.0, 0.0, 18.5};
+    PSFloat cmp_res[6] = {0};
+    PSFloat res[6] = {0};
+    for (int i = 0; i < 6; i++) cmp_res[i] = PSExp(x[i]);
+    int ok = 1;
+    PSMathOpts opts = {0};
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    opts.acceleration = PSAcceleration_ACF;
+    PSVectorExp(x, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    opts.acceleration = PSAcceleration_AVX;
+    PSVectorExp(x, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "AVX", 0);
+    if (!ok) return 0;
+#endif
+    opts.acceleration = PSAcceleration_None;
+    PSVectorExp(x, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "No Acceleration:", 0);
+    if (!ok) return 0;
+    return ok;
+}
+
+int testMathsTanh(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat x[6] = {1.0, 8.3, -2.0, -1.0, 0.0, 18.5};
+    PSFloat cmp_res[6] = {0};
+    PSFloat res[6] = {0};
+    for (int i = 0; i < 6; i++) cmp_res[i] = PSTanh(x[i]);
+    int ok = 1;
+    PSMathOpts opts = {0};
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    opts.acceleration = PSAcceleration_ACF;
+    PSVectorTanh(x, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    opts.acceleration = PSAcceleration_AVX;
+    PSVectorTanh(x, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "AVX", 0);
+    if (!ok) return 0;
+#endif
+    opts.acceleration = PSAcceleration_None;
+    PSVectorTanh(x, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "No Acceleration:", 0);
+    if (!ok) return 0;
+    return ok;
+}
+
+int testMathsSqrt(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat x[6] = {0.1, 8.3, 1.2, 1.0, 0.5, 28.5};
+    PSFloat cmp_res[6] = {0};
+    PSFloat res[6] = {0};
+    for (int i = 0; i < 6; i++) cmp_res[i] = PSSqrt(x[i]);
+    int ok = 1;
+    PSMathOpts opts = {0};
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    opts.acceleration = PSAcceleration_ACF;
+    PSVectorSqrt(x, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    opts.acceleration = PSAcceleration_AVX;
+    PSVectorSqrt(x, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "AVX", 0);
+    if (!ok) return 0;
+#endif
+    opts.acceleration = PSAcceleration_None;
+    PSVectorSqrt(x, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "No Acceleration:", 0);
+    if (!ok) return 0;
+    return ok;
+}
+
+int testMathsNeg(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat x[6] = {1.0, 8.3, -2.0, -1.0, 0.0, 18.5};
+    PSFloat cmp_res[6] = {0};
+    PSFloat res[6] = {0};
+    for (int i = 0; i < 6; i++) cmp_res[i] = -(x[i]);
+    int ok = 1;
+    PSMathOpts opts = {0};
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    opts.acceleration = PSAcceleration_ACF;
+    PSVectorNeg(x, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    opts.acceleration = PSAcceleration_AVX;
+    PSVectorNeg(x, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "AVX", 0);
+    if (!ok) return 0;
+#endif
+    opts.acceleration = PSAcceleration_None;
+    PSVectorNeg(x, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "No Acceleration:", 0);
+    if (!ok) return 0;
+    return ok;
+}
+
+int testActSigmoid(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat x[6] = {1.0, 8.3, -2.0, -1.0, 0.0, 18.5};
+    PSFloat cmp_res[6] = {0};
+    PSFloat res[6] = {0};
+    for (int i = 0; i < 6; i++) cmp_res[i] = PSSigmoid(x[i]);
+    int ok = 1;
+    PSMathOpts opts = {0};
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    opts.acceleration = PSAcceleration_ACF;
+    PSSigmoidV(x, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 4);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    opts.acceleration = PSAcceleration_AVX;
+    PSSigmoidV(x, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "AVX", 4);
+    if (!ok) return 0;
+#endif
+    opts.acceleration = PSAcceleration_None;
+    PSSigmoidV(x, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "No Acceleration:", 4);
+    if (!ok) return 0;
+    return ok;
+}
+
+int testActSigmoidDeriv(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat x[6] = {1.0, 8.3, -2.0, -1.0, 0.0, 18.5};
+    PSFloat cmp_res[6] = {0};
+    PSFloat res[6] = {0};
+    for (int i = 0; i < 6; i++) cmp_res[i] = PSSigmoidDerivative(x[i]);
+    int ok = 1;
+    PSMathOpts opts = {0};
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    opts.acceleration = PSAcceleration_ACF;
+    PSSigmoidDerivativeV(x, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    opts.acceleration = PSAcceleration_AVX;
+    PSSigmoidDerivativeV(x, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "AVX", 0);
+    if (!ok) return 0;
+#endif
+    opts.acceleration = PSAcceleration_None;
+    PSSigmoidDerivativeV(x, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "No Acceleration:", 0);
+    if (!ok) return 0;
+    return ok;
+}
+
+int testActTanh(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat x[6] = {1.0, 8.3, -2.0, -1.0, 0.0, 18.5};
+    PSFloat cmp_res[6] = {0};
+    PSFloat res[6] = {0};
+    for (int i = 0; i < 6; i++) cmp_res[i] = PSTanh(x[i]);
+    int ok = 1;
+    PSMathOpts opts = {0};
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    opts.acceleration = PSAcceleration_ACF;
+    PSTanhV(x, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    opts.acceleration = PSAcceleration_AVX;
+    PSTanhV(x, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "AVX", 0);
+    if (!ok) return 0;
+#endif
+    opts.acceleration = PSAcceleration_None;
+    PSTanhV(x, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "No Acceleration:", 0);
+    if (!ok) return 0;
+    return ok;
+}
+
+int testActTanhDeriv(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat x[6] = {1.0, 8.3, -2.0, -1.0, 0.0, 18.5};
+    PSFloat cmp_res[6] = {0};
+    PSFloat res[6] = {0};
+    for (int i = 0; i < 6; i++) cmp_res[i] = PSTanhDerivative(x[i]);
+    int ok = 1;
+    PSMathOpts opts = {0};
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    opts.acceleration = PSAcceleration_ACF;
+    PSTanhDerivativeV(x, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    opts.acceleration = PSAcceleration_AVX;
+    PSTanhDerivativeV(x, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "AVX", 0);
+    if (!ok) return 0;
+#endif
+    opts.acceleration = PSAcceleration_None;
+    PSTanhDerivativeV(x, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "No Acceleration:", 0);
+    if (!ok) return 0;
+    return ok;
+}
+
+int testActRelu(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat x[6] = {1.0, 8.3, -2.0, -1.0, 0.0, 18.5};
+    PSFloat cmp_res[6] = {0};
+    PSFloat res[6] = {0};
+    for (int i = 0; i < 6; i++) cmp_res[i] = PSRelu(x[i]);
+    int ok = 1;
+    PSMathOpts opts = {0};
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    opts.acceleration = PSAcceleration_ACF;
+    PSReluV(x, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    opts.acceleration = PSAcceleration_AVX;
+    PSReluV(x, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "AVX", 0);
+    if (!ok) return 0;
+#endif
+    opts.acceleration = PSAcceleration_None;
+    PSReluV(x, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "No Acceleration:", 0);
+    if (!ok) return 0;
+    return ok;
+}
+
+int testActReluDeriv(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat x[6] = {1.0, 8.3, -2.0, -1.0, 0.0, 18.5};
+    PSFloat cmp_res[6] = {0};
+    PSFloat res[6] = {0};
+    for (int i = 0; i < 6; i++) cmp_res[i] = PSReluDerivative(x[i]);
+    int ok = 1;
+    PSMathOpts opts = {0};
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    opts.acceleration = PSAcceleration_ACF;
+    PSReluDerivativeV(x, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    opts.acceleration = PSAcceleration_AVX;
+    PSReluDerivativeV(x, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "AVX", 0);
+    if (!ok) return 0;
+#endif
+    opts.acceleration = PSAcceleration_None;
+    PSReluDerivativeV(x, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "No Acceleration:", 0);
+    if (!ok) return 0;
+    return ok;
+}
+
+#ifdef USE_AVX
 
 int testAVXDot(TestCase *tc, Test *test) {
     UNUSED(tc);

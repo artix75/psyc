@@ -35,7 +35,7 @@
 
 #ifdef PS_DOUBLE_PRECISION
 #define VDSPAddV(a,b,dest,len) vDSP_vaddD(a, 1, b, 1, dest, 1, len)
-#define VDSPSubV(a,b,dest,len) vDSP_vsubD(a, 1, b, 1, dest, 1, len)
+#define VDSPSubV(a,b,dest,len) vDSP_vsubD(b, 1, a, 1, dest, 1, len)
 #define VDSPMulV(a,b,dest,len) vDSP_vmulD(a, 1, b, 1, dest, 1, len)
 #define VDSPMulAddV(a,b,c,d,len) vDSP_vmaD(a, 1, b, 1, c, 1, d, 1, len)
 #define VDSPDivV(a,b,dest,len) vDSP_vdivD(b, 1, a, 1, dest, 1, len)
@@ -53,7 +53,7 @@
 #define VVExp(a,dest,len)  vvexp(dest, a, (int *)&len)
 #else
 #define VDSPAddV(a,b,dest,len) vDSP_vadd(a, 1, b, 1, dest, 1, len)
-#define VDSPSubV(a,b,dest,len) vDSP_vsub(a, 1, b, 1, dest, 1, len)
+#define VDSPSubV(a,b,dest,len) vDSP_vsub(b, 1, a, 1, dest, 1, len)
 #define VDSPMulV(a,b,dest,len) vDSP_vmul(a, 1, b, 1, dest, 1, len)
 #define VDSPMulAddV(a,b,c,d,len) vDSP_vma(a, 1, b, 1, c, 1, d, 1, len)
 #define VDSPDivV(a,b,dest,len) vDSP_vdiv(b, 1, a, 1, dest, 1, len)
@@ -313,7 +313,11 @@ PSFloat *PSMatrixValues(PSMatrix matrix, uint32_t *len, int argc, ...) {
     return values;
 }
 
-int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSMatrix *result) {
+int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result) {
+    if (result == NULL) {
+        PSErr(__func__, "argument result cannot be null");
+        return 0;
+    }
     PSBlasOrder order = PSBlasRowMajor;
     int dims_a[MAX_DIMENSIONS];
     int ndims = PSMatrixDimensions(a, dims_a);
@@ -321,43 +325,22 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSMatrix *result) {
         PSErr(__func__, "Invalid matrix");
         return 0;
     }
-    int dimensions[MAX_DIMENSIONS] = {0};
     int l = dims_a[ndims - 1];
     if (len != l) {
         PSErr(__func__, "Aligment error: vector len != a dim[%d] -> "
               "%d != %d", len, l);
         return 0;
     }
-    int nd = ndims - 1;
-    if (nd == 1) dimensions[0] = (ndims == 2 ? dims_a[0] : len);
-    else if (nd == 2) {
-        dimensions[0] = dims_a[0];
-        dimensions[1] = len;
-    } else {
+    int nd = ndims - 1, outlen;
+    if (nd == 1) outlen = (ndims == 2 ? dims_a[0] : len);
+    else if (nd == 2) outlen = dims_a[0] * len;
+    else {
         PSErr(__func__, "Invalid output dimensions: %d", nd);
         return 0;
     }
-    PSMatrix out = NULL;
-    if (result != NULL) {
-        out = *result;
-        PSMatrixHeader *hdr = PSMatrixGetHeader(out);
-        if (hdr->ndims != nd) {
-            PSErr(
-                __func__, "`result` matrix has %d dimension(s), but "
-                "%d dimension(s) needed", hdr->ndims, nd
-            );
-            return 0;
-        }
-        for (int i = 0; i < nd; i++) {
-            int odim = PSMatrixDim(out, i);
-            if (odim != dimensions[i]) {
-                PSErr(__func__, "`result` matrix dimension [%d] is %d, "
-                      "but it should be %d", i, odim, dimensions[i]);
-                return 0;
-            }
-        }
-    } else {
-        out = PSMatrixCreateWithDims(0, NULL, nd, dimensions);
+    PSFloat *out = *result;
+    if (out == NULL) {
+        out = *result = calloc(outlen, sizeof(PSFloat));
         if (out == NULL) return 0;
     }
     int lda = (dims_a[1] > 1 ? dims_a[1] : 1);
@@ -367,6 +350,10 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSMatrix *result) {
 }
 
 int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result) {
+    if (result == NULL) {
+        PSErr(__func__, "argument result cannot be null");
+        return 0;
+    }
     PSBlasOrder order = PSBlasRowMajor;
     int dims_b[MAX_DIMENSIONS];
     int ndims = PSMatrixDimensions(b, dims_b);
@@ -389,9 +376,8 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result) {
         PSErr(__func__, "Invalid output dimensions: %d", nd);
         return 0;
     }
-    PSMatrix out = NULL;
-    if (result != NULL) {
-        out = *result;
+    PSMatrix out = *result;
+    if (out != NULL) {
         PSMatrixHeader *hdr = PSMatrixGetHeader(out);
         if (hdr->ndims != nd) {
             PSErr(
@@ -410,6 +396,7 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result) {
         }
     } else {
         out = PSMatrixCreateWithDims(0, NULL, nd, dimensions);
+        *result = out;
         if (out == NULL) return 0;
     }
     int lda = (dims_b[1] > 1 ? dims_b[1] : 1);
@@ -419,6 +406,10 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result) {
 }
 
 int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result) {
+    if (result == NULL) {
+        PSErr(__func__, "argument result cannot be null");
+        return 0;
+    }
     int dims_a[MAX_DIMENSIONS];
     int dims_b[MAX_DIMENSIONS];
     int ndims_a = PSMatrixDimensions(a, dims_a);
@@ -448,9 +439,8 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result) {
         PSErr(__func__, "Invalid output dimensions: %d", nd);
         return 0;
     }
-    PSMatrix out = NULL;
-    if (result != NULL) {
-        out = *result;
+    PSMatrix out = *result;
+    if (out != NULL) {
         PSMatrixHeader *hdr = PSMatrixGetHeader(out);
         if (hdr->ndims != nd) {
             PSErr(
@@ -469,6 +459,7 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result) {
         }
     } else {
         out = PSMatrixCreateWithDims(0, NULL, nd, dimensions);
+        *result = out;
         if (out == NULL) return 0;
     }
     int a_vector_like = (ndims_a == 1),
@@ -1069,4 +1060,32 @@ PSFloat PSDotSquare(PSFloat *a, uint64_t length, PSMathOpts *opts) {
         result += a[i] * a[i];
     }
     return result;
+}
+
+int PSDot(PSMatrix matrix, PSFloat *vector, PSFloat *dest, PSMathOpts *opts) {
+    if (matrix == NULL || vector == NULL || dest == NULL) {
+        PSErr(__func__, "`matrix`, `vector` and `dest` cannot be null");
+        return 0;
+    }
+    int dims[MAX_DIMENSIONS];
+    int ndims = PSMatrixDimensions(matrix, dims);
+    if (ndims != 2) {
+        PSErr(__func__, "Invalid matrix: only 2D matrix allowed");
+        return 0;
+    }
+    int rows = dims[0], len = dims[1], i;
+    int acceleration = PSGlobalAcceleration;
+    if (opts != NULL) acceleration = opts->acceleration;
+    /* TODO: implement "auto" acceleration type selection */
+    /* TODO: disable BLAS by default on Apple with Accelrate framework? */
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    if (PSBLASEnabled(acceleration))
+        return PSMatrixProductMV(matrix, vector, len, &dest);
+#endif
+    PSFloat *mptr = matrix;
+    for (i = 0; i < rows; i++) {
+        dest[i] = PSDotProduct(mptr, vector, len, opts);
+        mptr += len;
+    }
+    return 1;
 }

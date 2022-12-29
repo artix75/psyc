@@ -22,6 +22,7 @@
 #include <unistd.h>
 #include <assert.h>
 #include <time.h>
+#include <math.h>
 #include <sys/time.h>
 #include "../psyc.h"
 #include "../maths.h"
@@ -97,9 +98,15 @@ int performTests(TestCase *test_case) {
     gettimeofday(&st, NULL);
     for (i = 0; i < count; i++) {
         Test *test = &(test_case->tests[i]);
-        printf(" -> [%d] ", i);
-        printf(PSCOLOR_CYAN "%s", test->name); printf(":");
+        int digits = (i > 0 ? ((int)log10(i) + 1) : 1);
+        int spaces = 3 - digits, nwritten = 0;
+        if (spaces < 0) spaces = 0;
+        nwritten = printf(" -> [%d] %*s", i, spaces, "");
+        nwritten += printf(PSCOLOR_CYAN "%s", test->name); printf(":");
         printf(PSCOLOR_RESET);
+        spaces = 40 - nwritten;
+        if (spaces < 0) spaces = 0;
+        printf("%*s", spaces, "");
         test->status = test->run(test_case, test);
         if (!test->status) {
             printf(PSCOLOR_RED "    FAILED");
@@ -198,5 +205,6 @@ void buildAssertionMessage(Test *test, char *file, int line, const char *func,
         va_start(ap, msg);
         vsnprintf(test->error_message + len, maxlen, msg, ap);
         va_end(ap);
+        appendTestErrorMessage(test, "\n");
     }
 }
