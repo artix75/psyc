@@ -48,6 +48,11 @@
 #define VDSPSumVecSqr(a,dest,len) vDSP_svesqD(a, 1, &dest, len)
 #define VDSPClip(a,min,max,dest,len) vDSP_vclipD(a,1,&min,&max,dest,1,len)
 #define VDSPThres(a, min, dest, len) vDSP_vthresD(a,1,&min,dest,1,len)
+#define VDSPMax(a, res, len) vDSP_maxvD(a, 1, &res, len)
+#define VDSPMin(a, res, len) vDSP_minvD(a, 1, &res, len)
+#define VDSPMaxIdx(a, res, idx, len) vDSP_maxviD(a, 1, &res, idx, len)
+#define VDSPMinIdx(a, res, idx, len) vDSP_minviD(a, 1, &res, idx, len)
+#define VDSPSumElems(a, res, len) vDSP_sveD(a, 1, &res, len)
 #define VVSqrt(a,dest,len) vvsqrt(dest, a, (int *)&len)
 #define VVTanh(a,dest,len) vvtanh(dest, a, (int *)&len)
 #define VVExp(a,dest,len)  vvexp(dest, a, (int *)&len)
@@ -66,6 +71,11 @@
 #define VDSPNeg(a,dest,len) vDSP_vneg(a, 1, dest, 1, len)
 #define VDSPDotProd(a,b,dest,len) vDSP_dotpr(a, 1, b, 1, &dest, len)
 #define VDSPSumVecSqr(a,dest,len) vDSP_svesq(a, 1, &dest, len)
+#define VDSPMax(a, res, len) vDSP_maxv(a, 1, &res, len)
+#define VDSPMin(a, res, len) vDSP_minv(a, 1, &res, len)
+#define VDSPMaxIdx(a, res, idx, len) vDSP_maxvi(a, 1, &res, idx, len)
+#define VDSPMinIdx(a, res, idx, len) vDSP_minvi(a, 1, &res, idx, len)
+#define VDSPSumElems(a, res, len) vDSP_sve(a, 1, &res, len)
 #define VVSqrt(a,dest,len) vvsqrtf(dest, a, (int *)&len)
 #define VVTanh(a,dest,len) vvtanhf(dest, a, (int *)&len)
 #define VVExp(a,dest,len)  vvexpf(dest, a, (int *)&len)
@@ -995,6 +1005,46 @@ void PSVectorThreshold(PSFloat *a, PSFloat min, PSFloat *dest,
             for (; i < length; i++) dest[i]-=PSClipValue(a[i],min,PSFLOAT_MAX);
             break;
     }
+}
+
+PSFloat PSVectorMax(PSFloat *a, uint64_t *index, uint64_t length,
+                    PSMathOpts *opts)
+{
+    PSFloat max = PSFLOAT_MIN;
+    int acceleration = PSGlobalAcceleration;
+    if (opts != NULL) acceleration = opts->acceleration;
+#if defined(HAS_ACCELERATE_FRAMEWORK)
+    if (PSACFEnabled(acceleration)) {
+        if (index == NULL) VDSPMax(a, max, length);
+        else VDSPMaxIdx(a, max, (unsigned long*) index, length);
+        return max;
+    }
+#endif
+    uint64_t i;
+    if (index != NULL) *index = 0;
+    for (i = 0; i < length; i++) {
+        PSFloat n = a[i];
+        if (n > max) {
+            max = n;
+            if (index != NULL) *index = i;
+        }
+    }
+    return max;
+}
+
+PSFloat PSSumVectorElements(PSFloat *a, uint64_t length, PSMathOpts *opts) {
+    PSFloat sum = 0.0;
+    int acceleration = PSGlobalAcceleration;
+    if (opts != NULL) acceleration = opts->acceleration;
+#if defined(HAS_ACCELERATE_FRAMEWORK)
+    if (PSACFEnabled(acceleration)) {
+        VDSPSumElems(a, sum, length);
+        return sum;
+    }
+#endif
+    uint64_t i;
+    for (i = 0; i < length; i++) sum += a[i];
+    return sum;
 }
 
 PSFloat PSDotProduct(PSFloat *a, PSFloat *b, uint64_t length, PSMathOpts *opts)

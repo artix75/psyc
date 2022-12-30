@@ -121,6 +121,9 @@ void PSVectorClip(PSFloat *a, PSFloat min, PSFloat max, PSFloat *dest,
                   uint64_t length, PSMathOpts *opts);
 void PSVectorThreshold(PSFloat *a, PSFloat min, PSFloat *dest,
                        uint64_t length, PSMathOpts *opts);
+PSFloat PSVectorMax(PSFloat *a, uint64_t *index, uint64_t length,
+                    PSMathOpts *opts);
+PSFloat PSSumVectorElements(PSFloat *a, uint64_t length, PSMathOpts *opts);
 PSFloat PSDotProduct(PSFloat *a, PSFloat *b, uint64_t length, PSMathOpts *opts);
 PSFloat PSDotSquare(PSFloat *a, uint64_t length, PSMathOpts *opts);
 int PSDot(PSMatrix matrix, PSFloat *vector, PSFloat *dest, PSMathOpts *opts);
