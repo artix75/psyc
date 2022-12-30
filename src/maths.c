@@ -732,6 +732,36 @@ void PSSumVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
     }
 }
 
+void PSSubtractVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
+                            uint64_t length, PSMathOpts *opts)
+{
+    MATHS_OPERATION_PREAMBLE();
+#if defined(HAS_ACCELERATE_FRAMEWORK)
+    if (PSACFEnabled(acceleration) && mode == MATHS_STORE_MODE_NORM) {
+        PSFloat invb = b * -1;
+        VDSPAddVS(a, invb, dest, length);
+        return;
+    }
+#endif
+#if defined(USE_AVX)
+    /* NOTE: Currently noy supported! */
+#else
+    UNUSED(acceleration);
+#endif
+    /* No Acceleration */
+    switch (mode) {
+        case MATHS_STORE_MODE_NORM:
+            for (; i < length; i++) dest[i] = a[i]- b;
+            break;
+        case MATHS_STORE_MODE_ADD:
+            for (; i < length; i++) dest[i] += a[i] - b;
+            break;
+        case MATHS_STORE_MODE_SUB:
+            for (; i < length; i++) dest[i] -= a[i] - b;
+            break;
+    }
+}
+
 void PSSubtractScalarVector(PSFloat b, PSFloat *a, PSFloat *dest,
                             uint64_t length, PSMathOpts *opts)
 {

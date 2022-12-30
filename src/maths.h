@@ -105,6 +105,8 @@ void PSMultiplyVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
                             uint64_t length, PSMathOpts *opts);
 void PSSumVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
                        uint64_t length, PSMathOpts *opts);
+void PSSubtractVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
+                            uint64_t length, PSMathOpts *opts);
 void PSSubtractScalarVector(PSFloat b, PSFloat *a, PSFloat *dest,
                             uint64_t length, PSMathOpts *opts);
 void PSDivideVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
