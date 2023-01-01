@@ -312,7 +312,7 @@ int AVXTanh(PSFloat *x, PSFloat *dest, int , int mode);
 int AVXSqrt(PSFloat *x, PSFloat *dest, int , int mode);
 int AVXExp(PSFloat *x, PSFloat *dest, int , int mode);
 int AVXNegate(PSFloat *x, PSFloat *dest, int size, int mode);
-int AVXClip(PSFloat *x, PSFloat min, PSFloat max, PSFloatPSFloat *dest,
+int AVXClip(PSFloat *x, PSFloat min, PSFloat max, PSFloat *dest,
             int size, int mode);
 
 #endif /* USE_AVX*/

@@ -600,7 +600,7 @@ int AVXNegate(PSFloat *x, PSFloat *dest, int size, int mode) {
  *  - AVX_STORE_MODE_SUB: the result will be subtracted from values of `dest`.
  *  - mode: the result will directly stored into `dest`.
  * Return value: count of processed elements. */
-int AVXClip(PSFloat *x, PSFloat min, PSFloat max, PSFloatPSFloat *dest,
+int AVXClip(PSFloat *x, PSFloat min, PSFloat max, PSFloat *dest,
             int size, int mode) {
     int regbits = 0;
     size = AVXComputeStepLength(size, 0, &regbits);
