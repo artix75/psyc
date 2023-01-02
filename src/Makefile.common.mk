@@ -25,6 +25,8 @@ ifeq (,$(wildcard $(CONFIGMK)))
 endif
 
 include $(CONFIGMK)
+include $(SRCPATH)avx.mk
+
 ifeq (off,$(ACCELERATE))
 ifeq (true, $(BLAS_NEEDS_ACCELERATE))
         BLAS_CFLAGS=-DHAS_BLAS
@@ -42,7 +44,16 @@ ifeq (true,$(HAS_BLAS))
         LDFLAGS+=$(BLAS_LDFLAGS)
 endif
 endif
+
 OBJS=$(SRCPATH)psyc.o $(SRCPATH)config.o $(SRCPATH)io.o $(SRCPATH)utils.o $(SRCPATH)log.o $(SRCPATH)maths.o $(SRCPATH)activation.o $(SRCPATH)blas.o $(SRCPATH)convolutional.o $(SRCPATH)recurrent.o $(SRCPATH)lstm.o $(SRCPATH)mnist.o $(SRCPATH)debug.o $(SRCPATH)cifar.o
+
+ifeq ($(AVX),on)
+	CFLAGS+=-DUSE_AVX -mavx2 -mfma
+        OBJS+=$(SRCPATH)avx.o
+ifeq ($(HAS_AVX512),true)
+	CFLAGS+=-DHAS_AVX512 -mavx512f
+endif
+endif
 
 ifeq ($(PLATFORM), Linux)
         CFLAGS+=-fdiagnostics-color -Wno-unused-result -Wno-maybe-uninitialized

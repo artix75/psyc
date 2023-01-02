@@ -1,14 +1,7 @@
 include ../Makefile.common.mk
-include ../avx.mk
 
 OBJS+=test.o
-ifeq ($(AVX),on)
-	CFLAGS+=-DUSE_AVX -mavx2 -mfma
-        OBJS+=../avx.o
-ifeq ($(HAS_AVX512),true)
-	CFLAGS+=-DHAS_AVX512 -mavx512f
-endif
-endif
+
 ifeq ($(VERBOSE_TESTS),on)
 	CFLAGS+=-DPS_VERBOSE_TESTS
 endif
