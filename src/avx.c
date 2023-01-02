@@ -131,18 +131,22 @@ PSFloat AVXDotProduct(PSFloat *x, PSFloat *y, int size, int *count) {
     void *sumv = NULL;
     AVX128 dp128;
     AVX256 dp256;
+    /* Use native _mm_dp_ps/_mm256_dp_ps if PSFloat is single precision,
+     * since _mm256_dp_ps is only available for 32bit float. */
+    int use_instrinsic = (sizeof(PSFloat) == 4);
     if (regbits == 128) {
         AVX128 xv = AVX128LoadUnalign(x);
         AVX128 yv = AVX128LoadUnalign(y);
+        if (use_instrinsic) {
+            AVX128 xy = _mm_dp_ps(xv, yv, 0xFF);
+            return xy[0];
+        }
         AVX128 xy = AVX128Multiply(xv, yv);
         AVX128 zeros = AVX128SetVal(0);
         dp128 = AVX128HorizontalAdd(xy, zeros);
         count_divisor = 2;
         sumv = &dp128;
     } else {
-        /* Use native _mm256_dp_ps if PSFloat is single precision,
-         * since _mm256_dp_ps is only available for 32bit float. */
-        int use_instrinsic = (sizeof(PSFloat) == 4);
         AVX256 xv[MAX_AVX_VECTORS];
         AVX256 yv[MAX_AVX_VECTORS];
         AVX256 xy[MAX_AVX_VECTORS];
