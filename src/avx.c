@@ -36,9 +36,6 @@
 #define AVX128Sub(a, b)             _mm_sub_pd(a, b)
 #define AVX128SetVal(v)             _mm_set_pd(v, v)
 #define AVX128StoreUnalign(dst,src) _mm_storeu_pd(dst, src)
-#define AVX128Tanh(a)               _mm_tanh_pd(a)
-#define AVX128Sqrt(a)               _mm_sqrt_pd(a)
-#define AVX128Exp(a)                _mm_exp_pd(a)
 #define AVX128Neg(a)                _mm_xor_pd(a, _mm_set1_pd(-0.0))
 #define AVX128Min(a,b)              _mm_min_pd(a,b)
 #define AVX128Max(a,b)              _mm_max_pd(a,b)
@@ -54,9 +51,6 @@
 #define AVX256Blend(a, b, mask)     _mm256_blend_pd(a, b, mask)
 #define AVX256SetVal(v)             _mm256_set_pd(v, v, v, v)
 #define AVX256StoreUnalign(dst,src) _mm256_storeu_pd(dst, src)
-#define AVX256Tanh(a)               _mm256_tanh_pd(a)
-#define AVX256Sqrt(a)               _mm256_sqrt_pd(a)
-#define AVX256Exp(a)                _mm256_exp_pd(a)
 #define AVX256Neg(a)                _mm256_xor_pd(a, _mm256_set1_pd(-0.0))
 #define AVX256Min(a,b)              _mm256_min_pd(a,b)
 #define AVX256Max(a,b)              _mm256_max_pd(a,b)
@@ -72,9 +66,6 @@ typedef __m256d AVX256;
 #define AVX128Sub(a, b)             _mm_sub_ps(a, b)
 #define AVX128SetVal(v)             _mm_set_ps(v, v, v, v)
 #define AVX128StoreUnalign(dst,src) _mm_storeu_ps(dst, src)
-#define AVX128Tanh(a)               _mm_tanh_ps(a)
-#define AVX128Sqrt(a)               _mm_sqrt_ps(a)
-#define AVX128Exp(a)                _mm_exp_ps(a)
 #define AVX128Neg(a)                _mm_xor_ps(a, _mm_set1_ps(-0.0))
 #define AVX128Min(a,b)              _mm_min_ps(a,b)
 #define AVX128Max(a,b)              _mm_max_ps(a,b)
@@ -90,10 +81,6 @@ typedef __m256d AVX256;
 #define AVX256Blend(a, b, mask)     _mm256_blend_ps(a, b, mask)
 #define AVX256SetVal(v)             _mm256_set_ps(v, v, v, v, v, v, v, v)
 #define AVX256StoreUnalign(dst,src) _mm256_storeu_ps(dst, src)
-#define AVX256Tanh(a)               _mm256_tanh_ps(a)
-#define AVX258Sqrt(a)               _mm256_sqrt_ps(a)
-#define AVX256Sqrt(a)               _mm256_sqrt_ps(a)
-#define AVX256Exp(a)                _mm256_exp_ps(a)
 #define AVX256Neg(a)                _mm256_xor_ps(a, _mm256_set1_ps(-0.0))
 #define AVX256Min(a,b)              _mm256_min_ps(a,b)
 #define AVX256Max(a,b)              _mm256_max_ps(a,b)
@@ -488,81 +475,6 @@ int AVXDiff(PSFloat *x, PSFloat *y, int size, PSFloat *dest, int mode) {
         AVX256 yv = AVX256LoadUnalign(y);
         AVX256 xy = AVX256Sub(xv, yv);
         AVX256StoreWithMode(dest, xy, mode);
-    }
-    return size;
-}
-
-/* Simulatenously calculate Tanh over array `x` of size `size` and store
- * results into array `dest`.
- * The argument `mode` can be used to specify how the result should be
- * stored:
- *  - AVX_STORE_MODE_ADD: the result will be added to values of `dest`.
- *  - AVX_STORE_MODE_SUB: the result will be subtracted from values of `dest`.
- *  - AVX_STORE_MODE_NORM: the result will directly stored into `dest`.
- * Return value: count of elements calculated. */
-int AVXTanh(PSFloat *x, PSFloat *dest, int size, int mode) {
-    int regbits = 0;
-    size = AVXComputeStepLength(size, 0, &regbits);
-    if (size == 0) return 0;
-    assert(regbits != 0);
-    if (regbits == 128) {
-        AVX128 xv = AVX128LoadUnalign(x);
-        AVX128 res = AVX128Tanh(xv);
-        AVX128StoreWithMode(dest, res, mode);
-    } else {
-        AVX256 xv = AVX256LoadUnalign(x);
-        AVX256 res = AVX256Tanh(xv);
-        AVX256StoreWithMode(dest, res, mode);
-    }
-    return size;
-}
-
-/* Simulatenously calculate exponential of array `x` of size `size` and store
- * results into array `dest`.
- * The argument `mode` can be used to specify how the result should be
- * stored:
- *  - AVX_STORE_MODE_ADD: the result will be added to values of `dest`.
- *  - AVX_STORE_MODE_SUB: the result will be subtracted from values of `dest`.
- *  - mode: the result will directly stored into `dest`.
- * Return value: count of elements calculated. */
-int AVXExp(PSFloat *x, PSFloat *dest, int size, int mode) {
-    int regbits = 0;
-    size = AVXComputeStepLength(size, 0, &regbits);
-    if (size == 0) return 0;
-    assert(regbits != 0);
-    if (regbits == 128) {
-        AVX128 xv = AVX128LoadUnalign(x);
-        AVX128 res = AVX128Exp(xv);
-        AVX128StoreWithMode(dest, res, mode);
-    } else {
-        AVX256 xv = AVX256LoadUnalign(x);
-        AVX256 res = AVX256Exp(xv);
-        AVX256StoreWithMode(dest, res, mode);
-    }
-    return size;
-}
-
-/* Simulatenously calculate Sqrt over array `x` of size `size` and store
- * results into array `dest`.
- * The argument `mode` can be used to specify how the result should be
- * stored:
- *  - AVX_STORE_MODE_ADD: the result will be added to values of `dest`.
- *  - AVX_STORE_MODE_SUB: the result will be subtracted from values of `dest`.
- *  - mode: the result will directly stored into `dest`.
- * Return value: count of elements calculated. */
-int AVXSqrt(PSFloat *x, PSFloat *dest, int size, int mode) {
-    int regbits = 0;
-    size = AVXComputeStepLength(size, 0, &regbits);
-    if (size == 0) return 0;
-    assert(regbits != 0);
-    if (regbits == 128) {
-        AVX128 xv = AVX128LoadUnalign(x);
-        AVX128 res = AVX128Sqrt(xv);
-        AVX128StoreWithMode(dest, res, mode);
-    } else {
-        AVX256 xv = AVX256LoadUnalign(x);
-        AVX256 res = AVX256Sqrt(xv);
-        AVX256StoreWithMode(dest, res, mode);
     }
     return size;
 }

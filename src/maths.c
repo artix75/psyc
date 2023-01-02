@@ -602,14 +602,14 @@ void PSMultiplyVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
 #endif
 #if defined(USE_AVX)
     if (PSAVXEnabled(acceleration)) {
-        uint64_t avx_step_len = AVXGetStepLen((int));
+        uint64_t avx_step_len = AVXGetStepLen(length);
         uint64_t avx_steps = (
             avx_step_len > 0 ? length / avx_step_len : 0
         ), avx_step;
         for (avx_step = 0; avx_step < avx_steps; avx_step++) {
-            PSFloat *x_vector = a + i;
+            PSFloat *x = a + i, *y = b + i;
             int c = AVXMultiply(x, y, length, dest, mode);
-            assert(c == avx_step_len);
+            assert((uint64_t) c == avx_step_len);
             i += avx_step_len;
         }
     }
@@ -642,14 +642,14 @@ void PSDivideVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
 #endif
 #if defined(USE_AVX)
     if (PSAVXEnabled(acceleration)) {
-        uint64_t avx_step_len = AVXGetStepLen((int));
+        uint64_t avx_step_len = AVXGetStepLen(length);
         uint64_t avx_steps = (
             avx_step_len > 0 ? length / avx_step_len : 0
         ), avx_step;
         for (avx_step = 0; avx_step < avx_steps; avx_step++) {
-            PSFloat *x_vector = a + i;
+            PSFloat *x = a + i, *y = b + i;
             int c = AVXDivide(x, y, length, dest, mode);
-            assert(c == avx_step_len);
+            assert((uint64_t) c == avx_step_len);
             i += avx_step_len;
         }
     }
@@ -682,7 +682,7 @@ void PSMultiplyVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
 #endif
 #if defined(USE_AVX)
     if (PSAVXEnabled(acceleration)) {
-        AVXIterativeMultiplyValue(length, a, vb, dest, i, 0, 0, mode);
+        AVXIterativeMultiplyValue(length, a, b, dest, i, 0, 0, mode);
     }
 #else
     UNUSED(acceleration);
@@ -805,7 +805,7 @@ void PSDivideVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
 #endif
 #if defined(USE_AVX)
     if (PSAVXEnabled(acceleration)) {
-        AVXIterativeValueDiv(length, b, a, dest, i, 0, 0, mode);
+        AVXIterativeDivValue(length, a, b, dest, i, 0, 0, mode);
     }
 #else
     UNUSED(acceleration);
@@ -836,7 +836,7 @@ void PSDivideScalarVector(PSFloat b, PSFloat *a, PSFloat *dest,
 #endif
 #if defined(USE_AVX)
     if (PSAVXEnabled(acceleration)) {
-        AVXIterativeValueDiv(length, b, a, dest, i, 0, 0, mode);
+        AVXIterativeValueDiv(length, a, b, dest, i, 0, 0, mode);
     }
 #else
     UNUSED(acceleration);
@@ -865,10 +865,6 @@ void PSVectorTanh(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
     }
 #endif
 #if defined(USE_AVX)
-    if (PSAVXEnabled(acceleration)) {
-        AVXIterativeTanh(length, a, dest, i, mode);
-    }
-#else
     UNUSED(acceleration);
 #endif
     /* No Acceleration */
@@ -895,10 +891,6 @@ void PSVectorExp(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
     }
 #endif
 #if defined(USE_AVX)
-    if (PSAVXEnabled(acceleration)) {
-        AVXIterativeExp(length, a, dest, i, mode);
-    }
-#else
     UNUSED(acceleration);
 #endif
     /* No Acceleration */
@@ -925,10 +917,6 @@ void PSVectorSqrt(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
     }
 #endif
 #if defined(USE_AVX)
-    if (PSAVXEnabled(acceleration)) {
-        AVXIterativeSqrt(length, a, dest, i, mode);
-    }
-#else
     UNUSED(acceleration);
 #endif
     /* No Acceleration */

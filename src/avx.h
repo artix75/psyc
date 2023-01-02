@@ -162,7 +162,7 @@
     for (avx_step = 0; avx_step < avx_steps; avx_step++) {\
         PSFloat *x_vector = x + i;\
         if (is_recurrent) x_vector += (t * size);\
-        int c = AVXDivideValue(x_vector, value, avx_step_len, dest + i, mode);\
+        int c = AVXDivideValue(x_vector, val, avx_step_len, dest + i, mode);\
         assert(c == avx_step_len);\
         i += avx_step_len;\
     } \
@@ -208,7 +208,7 @@
 /* Iteratively subtract via AVX up to N elements of the the array `y` from
  * array `x` and store results into array `dest` using operator `mode`. */
 #define AVXIterativeDiff(size, x, y, dest, i, mode) do {\
-    int avx_step_len = AVXGetStepLen(size);i\
+    int avx_step_len = AVXGetStepLen(size);\
     int avx_steps = (avx_step_len > 0 ? size / avx_step_len : 0), avx_step;\
     int x_is_dest = (x == dest);\
     for (avx_step = 0; avx_step < avx_steps; avx_step++) {\
@@ -219,75 +219,33 @@
     }\
 } while (0)
 
-/* Iteratively calculate Tanh on elements of array `x` and store results into
- * array `dest`. */
-#define AVXIterativeTanh(size, x, dest, mode) {\
-    int avx_step_len = AVXGetStepLen(size);i\
-    int avx_steps = (avx_step_len > 0 ? size / avx_step_len : 0), avx_step;\
-    int x_is_dest = (x == dest);\
-    for (avx_step = 0; avx_step < avx_steps; avx_step++) {\
-        int doffs = (x_is_dest ? i : 0);\
-        int c = AVXTanh(x + i, y + i, avx_step_len, dest + doffs, mode);\
-        assert(c == avx_step_len);\
-        i += avx_step_len;\
-    }\
-}
-
-/* Iteratively calculate Sqrt on elements of array `x` and store results into
- * array `dest`. */
-#define AVXIterativeSqrt(size, x, dest, mode) {\
-    int avx_step_len = AVXGetStepLen(size);i\
-    int avx_steps = (avx_step_len > 0 ? size / avx_step_len : 0), avx_step;\
-    int x_is_dest = (x == dest);\
-    for (avx_step = 0; avx_step < avx_steps; avx_step++) {\
-        int doffs = (x_is_dest ? i : 0);\
-        int c = AVXSqrt(x + i, y + i, avx_step_len, dest + doffs, mode);\
-        assert(c == avx_step_len);\
-        i += avx_step_len;\
-    }\
-}
-
-/* Iteratively calculate Exp on elements of array `x` and store results into
- * array `dest`. */
-#define AVXIterativeExp(size, x, dest, mode) {\
-    int avx_step_len = AVXGetStepLen(size);i\
-    int avx_steps = (avx_step_len > 0 ? size / avx_step_len : 0), avx_step;\
-    int x_is_dest = (x == dest);\
-    for (avx_step = 0; avx_step < avx_steps; avx_step++) {\
-        int doffs = (x_is_dest ? i : 0);\
-        int c = AVXExp(x + i, y + i, avx_step_len, dest + doffs, mode);\
-        assert(c == avx_step_len);\
-        i += avx_step_len;\
-    }\
-}
-
 /* Iteratively invert sign of elements of array `x` and store results into
  * array `dest`. */
-#define AVXIterativeNeg(size, x, dest, mode) {\
-    int avx_step_len = AVXGetStepLen(size);i\
+#define AVXIterativeNeg(size, x, dest, i, mode) do {\
+    int avx_step_len = AVXGetStepLen(size);\
     int avx_steps = (avx_step_len > 0 ? size / avx_step_len : 0), avx_step;\
     int x_is_dest = (x == dest);\
     for (avx_step = 0; avx_step < avx_steps; avx_step++) {\
         int doffs = (x_is_dest ? i : 0);\
-        int c = AVXNegate(x + i, y + i, avx_step_len, dest + doffs, mode);\
+        int c = AVXNegate(x + i, dest + doffs, avx_step_len, mode);\
         assert(c == avx_step_len);\
         i += avx_step_len;\
     }\
-}
+} while (0)
 
 /* Iteratively clip elements of array `x` within`min` and `max` and store
  *results into array `dest`. */
-#define AVXIterativeClip(size, x, min, max, dest, mode) {\
-    int avx_step_len = AVXGetStepLen(size);i\
+#define AVXIterativeClip(size, x, min, max, dest, i, mode) do {\
+    int avx_step_len = AVXGetStepLen(size);\
     int avx_steps = (avx_step_len > 0 ? size / avx_step_len : 0), avx_step;\
     int x_is_dest = (x == dest);\
     for (avx_step = 0; avx_step < avx_steps; avx_step++) {\
         int doffs = (x_is_dest ? i : 0);\
-        int c = AVXClip(x + i,min,max, y + i,avx_step_len,dest + doffs,mode);\
+        int c = AVXClip(x + i,min, max, dest + doffs, avx_step_len, mode);\
         assert(c == avx_step_len);\
         i += avx_step_len;\
     }\
-}
+} while (0)
 
 extern const int AVX_VECTOR_SIZE;
 extern const int AVX128_VECTOR_SIZE;
@@ -308,9 +266,6 @@ int AVXMultiply(PSFloat *x, PSFloat *y, int size, PSFloat *dest, int mode);
 int AVXDivide(PSFloat *x, PSFloat *y, int size, PSFloat *dest, int mode);
 int AVXSum(PSFloat *x, PSFloat *y, int size, PSFloat *dest, int mode);
 int AVXDiff(PSFloat *x, PSFloat *y, int size, PSFloat *dest, int mode);
-int AVXTanh(PSFloat *x, PSFloat *dest, int , int mode);
-int AVXSqrt(PSFloat *x, PSFloat *dest, int , int mode);
-int AVXExp(PSFloat *x, PSFloat *dest, int , int mode);
 int AVXNegate(PSFloat *x, PSFloat *dest, int size, int mode);
 int AVXClip(PSFloat *x, PSFloat min, PSFloat max, PSFloat *dest,
             int size, int mode);
