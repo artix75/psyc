@@ -526,13 +526,13 @@ int AVXClip(PSFloat *x, PSFloat min, PSFloat max, PSFloat *dest,
         AVX128 xv = AVX128LoadUnalign(x);
         AVX128 minv = AVX128SetVal(min);
         AVX128 maxv = AVX128SetVal(max);
-        AVX128 res = AVX128Max(AVX128Min(xv, minv), maxv);
+        AVX128 res = AVX128Min(AVX128Max(xv, minv), maxv);
         AVX128StoreWithMode(dest, res, mode);
     } else {
         AVX256 xv = AVX256LoadUnalign(x);
         AVX256 minv = AVX256SetVal(min);
         AVX256 maxv = AVX256SetVal(max);
-        AVX256 res = AVX256Max(AVX256Min(xv, minv), maxv);
+        AVX256 res = AVX256Min(AVX256Max(xv, minv), maxv);
         AVX256StoreWithMode(dest, res, mode);
     }
     return size;

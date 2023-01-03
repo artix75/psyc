@@ -123,7 +123,7 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
     PSFloat input_w, input_h, output_w, output_h;
     int use_relu = (int) (params[PARAM_USE_RELU]);
     if (previous_params == NULL) {
-        PSFloat w = PSSqrt(previous_size);
+        PSFloat w = (PSFloat) PSRound(PSSqrt(previous_size));
         input_w = w; input_h = w;
         previous_params = PSCreateConvolutionalParameters(1, 0, 0, 0, 0);
         previous_params->parameters[PARAM_OUTPUT_WIDTH] = input_w;
@@ -162,8 +162,8 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
                                             stride, (PSFloat) padding);
     params[PARAM_OUTPUT_WIDTH] = output_w;
     params[PARAM_OUTPUT_HEIGHT] = output_h;
-    int area = (int)(output_w *output_h);
-    int size = area *feature_count;
+    int area = (int)(output_w * output_h);
+    int size = area * feature_count;
     layer->size = size;
     layer->neurons = calloc(size, sizeof(PSNeuron*));
     if (layer->neurons == NULL) {
@@ -184,7 +184,7 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
     shared->feature_count = feature_count;
     shared->weights_size = (int)(region_size * region_size) * prev_features;
     shared->biases = malloc(feature_count * sizeof(PSFloat));
-    shared->weights = malloc(feature_count * sizeof(PSMatrix*));
+    shared->weights = malloc(feature_count * sizeof(PSMatrix));
     if (shared->biases == NULL || shared->weights == NULL) {
         PSErr(__func__, "Layer[%d]: Could not allocate memory!", index);
         goto err;

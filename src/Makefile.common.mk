@@ -3,7 +3,7 @@ CC=gcc
 OPTIMIZATION?=-O2
 OPT=$(OPTIMIZATION)
 CSTD=gnu99 -pedantic
-CFLAGS=-std=$(CSTD) -Wall -W -Wno-missing-field-initializers -Wno-unknown-pragmas -Wno-string-compare -Wno-unused-command-line-argument -ffast-math $(OPT)
+CFLAGS=-std=$(CSTD) -Wall -W -Wno-missing-field-initializers -Wno-unknown-pragmas -Wno-string-compare -Wno-unused-command-line-argument $(OPT)
 LDFLAGS=-lz -lm -ldl
 PREFIX?=/usr/local
 LIBDIR=$(PREFIX)/lib

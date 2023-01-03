@@ -1817,6 +1817,7 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
     layer->hyper_parameters = params;
     layer->extra = NULL;
     layer->flags = FLAG_NONE;
+    layer->neurons = NULL;
     layer->delta = NULL;
     layer->activations = NULL;
     layer->weights = NULL;
