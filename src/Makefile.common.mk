@@ -28,21 +28,21 @@ include $(CONFIGMK)
 include $(SRCPATH)avx.mk
 
 ifeq (off,$(ACCELERATE))
-ifeq (true, $(BLAS_NEEDS_ACCELERATE))
-        BLAS_CFLAGS=-DHAS_BLAS
+        HAS_ACCELERATE_FRAMEWORK=false
 endif
-else
 ifeq (true,$(HAS_ACCELERATE_FRAMEWORK))
         CFLAGS+=$(ACCELERATE_CFLAGS)
         LDFLAGS+=$(ACCELERATE_LDFLAGS)
+else
+ifeq (true, $(BLAS_NEEDS_ACCELERATE))
+        BLAS_CFLAGS=-DHAS_BLAS
+        USE_PSYC_BLAS=on
 endif
 endif
 
 ifneq (off,$(BLAS))
-ifeq (true,$(HAS_BLAS))
         CFLAGS+=$(BLAS_CFLAGS)
         LDFLAGS+=$(BLAS_LDFLAGS)
-endif
 endif
 
 OBJS=$(SRCPATH)psyc.o $(SRCPATH)config.o $(SRCPATH)io.o $(SRCPATH)utils.o $(SRCPATH)log.o $(SRCPATH)maths.o $(SRCPATH)activation.o $(SRCPATH)blas.o $(SRCPATH)convolutional.o $(SRCPATH)recurrent.o $(SRCPATH)lstm.o $(SRCPATH)mnist.o $(SRCPATH)debug.o $(SRCPATH)cifar.o
