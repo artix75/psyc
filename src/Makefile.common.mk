@@ -30,6 +30,7 @@ include $(SRCPATH)avx.mk
 ifeq (off,$(ACCELERATE))
         HAS_ACCELERATE_FRAMEWORK=false
 endif
+
 ifeq (true,$(HAS_ACCELERATE_FRAMEWORK))
         CFLAGS+=$(ACCELERATE_CFLAGS)
         LDFLAGS+=$(ACCELERATE_LDFLAGS)
@@ -37,12 +38,22 @@ else
 ifeq (true, $(BLAS_NEEDS_ACCELERATE))
         BLAS_CFLAGS=-DHAS_BLAS
         USE_PSYC_BLAS=on
+else
+ifneq (off,$(BLAS))
+        BLAS_CFLAGS=-DHAS_BLAS
+        USE_PSYC_BLAS=on
+endif
 endif
 endif
 
 ifneq (off,$(BLAS))
         CFLAGS+=$(BLAS_CFLAGS)
         LDFLAGS+=$(BLAS_LDFLAGS)
+
+ifeq (on, $(USE_PSYC_BLAS))
+	CFLAGS+=-DUSE_PSYC_BLAS
+endif
+
 endif
 
 OBJS=$(SRCPATH)psyc.o $(SRCPATH)config.o $(SRCPATH)io.o $(SRCPATH)utils.o $(SRCPATH)log.o $(SRCPATH)maths.o $(SRCPATH)activation.o $(SRCPATH)blas.o $(SRCPATH)convolutional.o $(SRCPATH)recurrent.o $(SRCPATH)lstm.o $(SRCPATH)mnist.o $(SRCPATH)debug.o $(SRCPATH)cifar.o
@@ -70,10 +81,6 @@ endif
 ifneq ($(MAGICK_VERSION), none)
         HAS_MAGICK=true
 endif
-endif
-
-ifeq (on, $(USE_PSYC_BLAS))
-	CFLAGS+=-DUSE_PSYC_BLAS
 endif
 
 ifeq ($(DOUBLE_PRECISION),on)
