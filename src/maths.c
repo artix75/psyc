@@ -1173,16 +1173,33 @@ int PSDot(PSMatrix matrix, PSFloat *vector, PSFloat *dest, PSMathOpts *opts) {
     }
     int rows = dims[0], len = dims[1], i;
     int acceleration = PSGlobalAcceleration;
-    if (opts != NULL) acceleration = opts->acceleration;
+    PSFloat *vec2add = NULL;
+    PSFloatFunc after = NULL;
+    if (opts != NULL) {
+        acceleration = opts->acceleration;
+        vec2add = opts->add_vec;
+        after = opts->after;
+    }
+    int post_process = (vec2add != NULL || after != NULL);
     /* TODO: implement "auto" acceleration type selection */
     /* TODO: disable BLAS by default on Apple with Accelrate framework? */
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSBLASEnabled(acceleration))
-        return PSMatrixProductMV(matrix, vector, len, &dest);
+    if (PSBLASEnabled(acceleration)) {
+        if (!PSMatrixProductMV(matrix, vector, len, &dest)) return 0;
+        if (post_process) {
+            for (i = 0; i < rows; i++) {
+                if (vec2add != NULL) dest[i] += vec2add[i];
+                if (after != NULL) dest[i] = after(dest[i]);
+            }
+        }
+        return 1;
+    }
 #endif
     PSFloat *mptr = matrix;
     for (i = 0; i < rows; i++) {
         dest[i] = PSDotProduct(mptr, vector, len, opts);
+        if (vec2add != NULL) dest[i] += vec2add[i];
+        if (after != NULL) dest[i] = after(dest[i]);
         mptr += len;
     }
     return 1;

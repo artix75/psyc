@@ -55,10 +55,13 @@ struct PSMathOpts;
 typedef void (*PSDotProductDebug)(int i, PSFloat a, PSFloat b, PSFloat sum,
                                   int using_acceleration,
                                   struct PSMathOpts *opts);
+typedef PSFloat (*PSFloatFunc) (PSFloat n);
 
 typedef struct PSMathOpts {
     int acceleration;
     int store_mode;
+    PSFloat *add_vec;
+    PSFloatFunc after;
     PSDotProductDebug debug_step;
     void *data;
 } PSMathOpts;
