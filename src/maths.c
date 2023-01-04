@@ -1182,7 +1182,6 @@ int PSDot(PSMatrix matrix, PSFloat *vector, PSFloat *dest, PSMathOpts *opts) {
     }
     int post_process = (vec2add != NULL || after != NULL);
     /* TODO: implement "auto" acceleration type selection */
-    /* TODO: disable BLAS by default on Apple with Accelrate framework? */
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     if (PSBLASEnabled(acceleration)) {
         if (!PSMatrixProductMV(matrix, vector, len, &dest)) return 0;
@@ -1198,9 +1197,10 @@ int PSDot(PSMatrix matrix, PSFloat *vector, PSFloat *dest, PSMathOpts *opts) {
     PSFloat *mptr = matrix;
     for (i = 0; i < rows; i++) {
         dest[i] = PSDotProduct(mptr, vector, len, opts);
+        mptr += len;
+        if (!post_process) continue;
         if (vec2add != NULL) dest[i] += vec2add[i];
         if (after != NULL) dest[i] = after(dest[i]);
-        mptr += len;
     }
     return 1;
 }
