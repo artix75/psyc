@@ -335,6 +335,12 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result) {
         PSErr(__func__, "Invalid matrix");
         return 0;
     }
+#ifndef HAS_BLAS
+    if (ndims > 2) {
+        PSErr(__func__, "BLAS is disabled: max. 2 dimensions allowed");
+        return 0;
+    }
+#endif
     int l = dims_a[ndims - 1];
     if (len != l) {
         PSErr(__func__, "Aligment error: vector len != a dim[%d] -> "
@@ -342,7 +348,7 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result) {
         return 0;
     }
     int nd = ndims - 1, outlen;
-    if (nd == 1) outlen = (ndims == 2 ? dims_a[0] : len);
+    if (nd == 1 || nd == 0) outlen = (ndims == 2 ? dims_a[0] : len);
     else if (nd == 2) outlen = dims_a[0] * len;
     else {
         PSErr(__func__, "Invalid output dimensions: %d", nd);
@@ -353,13 +359,25 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result) {
         out = *result = calloc(outlen, sizeof(PSFloat));
         if (out == NULL) return 0;
     }
+    if (ndims == 1) {
+        /* Just multiply two vectors */
+        PSMultiplyVectors(a, b, out, len, NULL);
+        return 1;
+    }
     int lda = (dims_a[1] > 1 ? dims_a[1] : 1);
     int m = dims_a[0], n = dims_a[1];
+#ifndef HAS_BLAS
+    for (int i = 0; i < m; i += lda) out[i] = PSDotProduct(a, b, n, NULL);
+#endif
     PSGemv(order, 'N', m, n, 1.0, a, lda, b, 1, 0.0, out, 1);
     return 1;
 }
 
 int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result) {
+#ifndef HAS_BLAS
+    PSErr(__func__, "BLAS is disabled");
+    return 0;
+#endif
     if (result == NULL) {
         PSErr(__func__, "argument result cannot be null");
         return 0;
@@ -481,9 +499,17 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result) {
         lda = (dims_a[1] > 1 ? dims_a[1] : 1);
         int bs = PSMatrixStride(b, 0);
         int m = dims_a[0], n = dims_a[1];
+#ifndef HAS_BLAS
+        for (int i = 0; i < m; i += lda) out[i] = PSDotProduct(a, b, n, NULL);
+        return 1;
+#endif
         PSGemv(order, 'N', m, n, 1.0, a, lda, b, bs, 0.0, out, 1);
     } else if (a_vector_like && !b_vector_like) {
         /* Vector matrix multiplication -- Level 2 BLAS */
+#ifndef HAS_BLAS
+        PSErr(__func__, "BLAS disabled");
+        return 0;
+#endif
         order = PSBlasRowMajor;
         lda = (dims_b[1] > 1 ? dims_b[1] : 1);
         int as = PSMatrixStride(a, 0);
@@ -491,6 +517,10 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result) {
         PSGemv(order, 'N', m, n, 1.0, b, lda, a, as, 0.0, out, 1);
     } else {
         /* Matrix matrix multiplication -- Level 3 BLAS */
+#ifndef HAS_BLAS
+        PSErr(__func__, "BLAS disabled");
+        return 0;
+#endif
         order = PSBlasRowMajor;
         char trans1 = 'N', trans2 = 'N';
         int l = dims_a[0];
