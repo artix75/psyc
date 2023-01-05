@@ -49,8 +49,7 @@ PSFloat PSTanhDerivative(PSFloat val) {
 void PSSigmoidV(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts) {
     if (dest == NULL) dest = vec;
     uint8_t acceleration = PSGlobalAcceleration;
-    if (opts != NULL)
-        PSEnableAcceleration(&acceleration, opts->acceleration);
+    if (opts != NULL) acceleration = opts->acceleration;
     if (acceleration != PSAcceleration_None) {
         PSVectorNeg(vec, dest, len, opts);
         PSVectorExp(dest, dest, len, opts);
@@ -64,9 +63,6 @@ void PSSigmoidV(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts) {
 
 void PSReluV(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts) {
     if (dest == NULL) dest = vec;
-    uint8_t acceleration = PSGlobalAcceleration;
-    if (opts != NULL)
-        PSEnableAcceleration(&acceleration, opts->acceleration);
     PSVectorThreshold(vec, 0.0, dest, len, opts);
 }
 
@@ -75,8 +71,7 @@ void PSSigmoidDerivativeV(PSFloat *vec, PSFloat *dest, uint64_t len,
 {
     if (dest == NULL) dest = vec;
     uint8_t acceleration = PSGlobalAcceleration;
-    if (opts != NULL)
-        PSEnableAcceleration(&acceleration, opts->acceleration);
+    if (opts != NULL) acceleration = opts->acceleration;
     if (acceleration != PSAcceleration_None) {
         PSSubtractScalarVector(1.0, vec, dest, len, opts);
         PSMultiplyVectors(vec, dest, dest, len, opts);
@@ -90,8 +85,7 @@ void PSTanhDerivativeV(PSFloat *vec, PSFloat *dest, uint64_t len,
 {
     if (dest == NULL) dest = vec;
     uint8_t acceleration = PSGlobalAcceleration;
-    if (opts != NULL)
-        PSEnableAcceleration(&acceleration, opts->acceleration);
+    if (opts != NULL) acceleration = opts->acceleration;
     if (acceleration != PSAcceleration_None) {
         PSMultiplyVectors(vec, vec, dest, len, opts);
         PSSubtractScalarVector(1.0, dest, dest, len, opts);
