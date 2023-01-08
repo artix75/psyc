@@ -34,7 +34,7 @@ if [ -z "$CC" ]; then
     exit 1
 fi
 
-FIND_C_HEADER="$SCRIPT_DIR/find_c_headers.sh"
+FIND_C_HEADER="$SCRIPT_DIR/utils/find_c_headers.sh"
 C_HEADERS_PATH="$SCRIPT_DIR/.c_headers"
 if ! [ -f "$C_HEADERS_PATH" ]; then
     echo "$SCRIPT_NAME: Search for system C headers..."
