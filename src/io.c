@@ -516,7 +516,7 @@ int PSLoadNetwork(PSNeuralNetwork *network, const char* filename) {
         if (has_model_def) goto scan_model_def;
         else if (scanFileNoMatch(f, ":")) {
             /* Scan header info */
-            PSModelFileHeader header = {0};
+            PSModelFileHeader header = {{0}};
             ok = scanModelFileHeader(f, &header, filename);
             if (!ok) {
                 loadErr(filename, NULL, "Invalid file header");

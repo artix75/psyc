@@ -40,8 +40,10 @@ ifeq (true, $(BLAS_NEEDS_ACCELERATE))
         USE_PSYC_BLAS=on
 else
 ifneq (off,$(BLAS))
+ifneq (true,$(HAS_CBLAS))
         BLAS_CFLAGS=-DHAS_BLAS
         USE_PSYC_BLAS=on
+endif
 endif
 endif
 endif

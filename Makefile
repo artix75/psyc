@@ -10,6 +10,7 @@ endif
 default: all
 
 .PHONY: clean
+.PHONY: clean-full
 .PHONY: show-build-info
 
 demo:
@@ -31,6 +32,10 @@ clean:
 	rm -f lib/*
 	if [ -e tmp/README ]; then cp tmp/README bin/; fi
 	if [ -e tmp/README ]; then cp tmp/README lib/; fi
+
+clean-full: clean
+	rm -f .c_headers
+	rm -f src/config.mk
 
 install:
 	@cd src && $(MAKE) install

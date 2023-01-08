@@ -23,7 +23,13 @@
 #define HAS_CBLAS 1
 #endif
 #elif defined(HAS_CBLAS)
+
+#ifdef HAS_GSL_CBLAS
+#include <gsl_cblas.h>
+#else
 #include <cblas.h>
+#endif
+
 #endif
 
 #ifdef HAS_CBLAS
@@ -34,12 +40,20 @@
     default: PSErr(__func__, "Invalid order"); return;\
     }\
 } while(0);
+
+
+#ifndef HAS_GSL_CBLAS
+#define _ATLAS_CONJ_A AtlasConj
+#else
+#define _ATLAS_CONJ_A 0; PSErr(NULL, "BLAS Trans 'A' not supported");abort();
+#endif
+
 #define PSBLAS_CONVERT_TRANS(trans, var) do {\
     switch (trans) {\
     case 'N': var = CblasNoTrans; break;\
     case 'T': var = CblasTrans; break;\
     case 'C': var = CblasConjTrans; break;\
-    case 'A': var = AtlasConj; break;\
+    case 'A': var = _ATLAS_CONJ_A; break;\
     default: PSErr(__func__, "Invalid trans"); return;\
     }\
 } while(0);

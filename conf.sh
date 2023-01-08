@@ -58,6 +58,7 @@ CBLAS_H_DIR=''
 CBLAS_LIB_DIR=''
 HAS_ACCELERATE_FRAMEWORK='' 
 HAS_CBLAS=''
+HAS_GSL_CBLAS=''
 ACCELERATE_CFLAGS=''
 ACCELERATE_LDFLAGS=''
 BLAS_LDFLAGS=''
@@ -113,29 +114,61 @@ if [ "$OS" = "Darwin" ]; then
 fi
 
 # Search for BLAS library
-#if [ -z "$CBLAS_H" ]; then
-#    CBLAS_H=$(echo "$C_HEADERS" | grep -E 'cblas\.h$')
-#    if ! [ -z "$CBLAS_H" ]; then
-#        CBLAS_H_DIR=$(dirname "$CBLAS_H")
-#    fi
-#fi
+if [ -z "$CBLAS_H" ]; then
+    CBLAS_H=$(echo "$C_HEADERS" | grep -E 'cblas\.h$')
+    if ! [ -z "$CBLAS_H" ]; then
+        GSL_CBLAS=$(echo "$CBLAS_H" | grep gsl)
+        if ! [ -z "$GSL_CBLAS" ]; then
+            CBLAS_H_DIR=$(dirname "$CBLAS_H")
+            GSL_ROOTDIR=$(dirname "$CBLAS_H_DIR")
+            while ! [ -z $(echo $GSL_ROOTDIR | grep include) ]; do
+                GSL_ROOTDIR=$(dirname "$GSL_ROOTDIR")
+            done
+            GSL_LIBDIR=''
+            CBLAS_LIB=''
+            if [ -d "$GSL_ROOTDIR/lib" ]; then
+                GSL_CBLAS=$(find /usr/lib/ -iname 'libgsl*' | grep cblas  | grep -E '(\.so|\.dylib)$' | head -1 2>&1)
+                if ! [ -z "$GSL_CBLAS" ]; then
+                    CBLAS_LIB="$GSL_CBLAS"
+                    GSL_LIBDIR="$GSL_ROOTDIR/lib"
+                fi
+            fi
+            if ! [ -z "$CBLAS_LIB" ]; then
+                CBLAS_LIBNAME=$(basename "$CBLAS_LIB")
+                CBLAS_LIBNAME="${CBLAS_LIBNAME#lib}"
+                CBLAS_LIBNAME="${CBLAS_LIBNAME%.so}"
+                CBLAS_LIBNAME="${CBLAS_LIBNAME%.dylib}"
+                BLAS_LDFLAGS="-l$CBLAS_LIBNAME $BLAS_LDFLAGS"
+                BLAS_LDFLAGS="-L$GSL_LIBDIR $BLAS_LDFLAGS"
+                BLAS_CFLAGS="-DHAS_GSL_CBLAS -I$CBLAS_H_DIR $BLAS_CFLAGS"
+                HAS_GSL_CBLAS=true
+            else
+                CBLAS_H_DIR=''
+            fi
+        fi
+    fi
+fi
 
 VARS=''
 NL='\n'
 if ! [ -z "$CBLAS_H" ]; then
     HAS_BLAS=true
     HAS_CBLAS=true
-elif [ "$HAS_ACCELERATE_FRAMEWORK" = 'true' ]; then
+fi
+if [ "$HAS_ACCELERATE_FRAMEWORK" = 'true' ]; then
     HAS_BLAS=true
     HAS_CBLAS=true
     ACCELERATE_CFLAGS="-DHAS_ACCELERATE_FRAMEWORK"
 fi
-if [ "$HAS_BLAS" == 'true' ]; then
+if [ "$HAS_BLAS" = 'true' ]; then
     VARS="HAS_BLAS=true$NL$VARS"
     BLAS_CFLAGS="-DHAS_BLAS $BLAS_CFLAGS"
-    if [ "$HAS_CBLAS" == 'true' ]; then
+    if [ "$HAS_CBLAS" = 'true' ]; then
         VARS="HAS_CBLAS=true$NL$VARS"
         BLAS_CFLAGS="-DHAS_CBLAS $BLAS_CFLAGS"
+    fi
+    if [ "$HAS_GSL_CBLAS" = 'true' ]; then
+        VARS="HAS_GSL_CBLAS=true$NL$VARS"
     fi
 fi
 if [ "$HAS_ACCELERATE_FRAMEWORK" = 'true' ]; then
