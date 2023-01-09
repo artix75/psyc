@@ -30,7 +30,5 @@ typedef struct {
 } PSRecurrentCell;
 
 PSRecurrentCell *PSCreateRecurrentCell(PSNeuron *neuron, int lsize);
-PSFloat *PSAddRecurrentState(PSNeuralNetwork *net, PSNeuron *neuron,
-                             PSFloat state, int times, int t);
 
 #endif /* __PS_RECURRENT_H */

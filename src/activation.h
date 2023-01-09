@@ -21,6 +21,12 @@
 
 #include "maths.h"
 
+#ifdef PS_DOUBLE_PRECISION
+#define PSTanhActivation tanh
+#else
+#define PSTanhActivation tanhf
+#endif
+
 #define PSTanhV PSVectorTanh
 
 PSFloat PSSigmoid(PSFloat val);

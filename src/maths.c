@@ -1173,22 +1173,41 @@ int PSDot(PSMatrix matrix, PSFloat *vector, PSFloat *dest, PSMathOpts *opts) {
     }
     int rows = dims[0], len = dims[1], i;
     int acceleration = PSGlobalAcceleration;
-    PSFloat *vec2add = NULL;
+    PSFloat *vec2add = NULL, *max = NULL, *tmpdest = NULL;
     PSFloatFunc after = NULL;
+    int store_mode = MATHS_STORE_MODE_NORM;
     if (opts != NULL) {
         acceleration = opts->acceleration;
         vec2add = opts->add_vec;
         after = opts->after;
+        max = opts->max;
+        store_mode = opts->store_mode;
+        tmpdest = opts->tmpdest;
     }
-    int post_process = (vec2add != NULL || after != NULL);
+    int do_process = (
+        vec2add != NULL || after != NULL || max != NULL ||
+        store_mode != MATHS_STORE_MODE_NORM
+    );
     /* TODO: implement "auto" acceleration type selection */
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     if (PSBLASEnabled(acceleration)) {
-        if (!PSMatrixProductMV(matrix, vector, len, &dest)) return 0;
-        if (post_process) {
+        PSFloat *dpdest = dest;
+        if (store_mode) {
+            if (tmpdest == NULL) tmpdest = malloc(len * sizeof(PSFloat));
+            if (tmpdest == NULL) {
+                PSPrintMemoryErrorMsg();
+                return 0;
+            }
+            dpdest = tmpdest;
+        }
+        if (!PSMatrixProductMV(matrix, vector, len, &dpdest)) return 0;
+        if (do_process) {
             for (i = 0; i < rows; i++) {
+                if (store_mode == MATHS_STORE_MODE_ADD) dest[i] += dpdest[i];
+                else if (store_mode == MATHS_STORE_MODE_SUB) dest[i]-=dpdest[i];
                 if (vec2add != NULL) dest[i] += vec2add[i];
                 if (after != NULL) dest[i] = after(dest[i]);
+                if (max != NULL && (i == 0 || dest[i] > *max)) *max = dest[i];
             }
         }
         return 1;
@@ -1196,11 +1215,15 @@ int PSDot(PSMatrix matrix, PSFloat *vector, PSFloat *dest, PSMathOpts *opts) {
 #endif
     PSFloat *mptr = matrix;
     for (i = 0; i < rows; i++) {
-        dest[i] = PSDotProduct(mptr, vector, len, opts);
+        PSFloat dp = PSDotProduct(mptr, vector, len, opts);
+        if (!store_mode) dest[i] = dp;
         mptr += len;
-        if (!post_process) continue;
+        if (!do_process) continue;
+        if (store_mode == MATHS_STORE_MODE_ADD) dest[i] += dp;
+        else if (store_mode == MATHS_STORE_MODE_SUB) dest[i] -= dp;
         if (vec2add != NULL) dest[i] += vec2add[i];
         if (after != NULL) dest[i] = after(dest[i]);
+        if (max != NULL && (i == 0 || dest[i] > *max)) *max = dest[i];
     }
     return 1;
 }

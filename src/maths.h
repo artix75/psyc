@@ -25,7 +25,6 @@
 
 #ifdef PS_DOUBLE_PRECISION
 #define PSTanh(v) tanh(v)
-#define PSTanhActivation tanh
 #define PSSqrt(v) sqrt(v)
 #define PSFloor(v) floor(v)
 #define PSExp(v) exp(v)
@@ -35,7 +34,6 @@
 #define PSPow(a,b) pow(a, b)
 #else
 #define PSTanh(v) tanhf(v)
-#define PSTanhActivation tanhf
 #define PSSqrt(v) sqrtf(v)
 #define PSFloor(v) floorf(v)
 #define PSExp(v) expf(v)
@@ -62,6 +60,9 @@ typedef struct PSMathOpts {
     int store_mode;
     PSFloat *add_vec;
     PSFloatFunc after;
+    PSFloat *min;
+    PSFloat *max;
+    PSFloat *tmpdest;
     PSDotProductDebug debug_step;
     void *data;
 } PSMathOpts;
