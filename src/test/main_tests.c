@@ -121,6 +121,9 @@ int testMathsExp(TestCase *tc, Test *test);
 int testMathsTanh(TestCase *tc, Test *test);
 int testMathsSqrt(TestCase *tc, Test *test);
 int testMathsNeg(TestCase *tc, Test *test);
+int testMathsMatrixCopy(TestCase *tc, Test *test);
+int testMathsMatrixDup(TestCase *tc, Test *test);
+int testMathsMatrixTranspose(TestCase *tc, Test *test);
 
 int testActSigmoid(TestCase *tc, Test *test);
 int testActSigmoidDeriv(TestCase *tc, Test *test);
@@ -492,6 +495,9 @@ int main(int argc, char** argv) {
         addTest(mathsTests, "Tanh", NULL, testMathsTanh);
         addTest(mathsTests, "Sqrt", NULL, testMathsSqrt);
         addTest(mathsTests, "Negate", NULL, testMathsNeg);
+        addTest(mathsTests, "Matrix Copy", NULL, testMathsMatrixCopy);
+        addTest(mathsTests, "Matrix Dup.", NULL, testMathsMatrixDup);;
+        addTest(mathsTests, "Matrix Transp.", NULL, testMathsMatrixTranspose);
         performTests(mathsTests);
         tot_tests += mathsTests->count;
         tot_failed += mathsTests->failed_count;
@@ -2348,6 +2354,189 @@ int testMathsNeg(TestCase *tc, Test *test) {
     ok = compareArrays(res, cmp_res, 6, test, "No Acceleration:", 0);
     if (!ok) return 0;
     return ok;
+}
+
+int testMathsMatrixCopy(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    int res = 1;
+    PSMatrix src = PSMatrixRandom(2, 2, 3);
+    testAssertNotNull(src, test);
+    PSMatrix dst = PSMatrixRandom(2, 2, 3);
+    if (dst == NULL) {
+        PSMatrixDelete(src);
+        testAssertNotNull(dst, test);
+    }
+    testAssertNotNull(dst, test);
+    uint64_t len = PSMatrixLength(src), i;
+    testAssertWithMessage(
+        (len == 6), test,
+        "Expected len is 6, got: %d", (int) len
+    );
+    res = PSMatrixCopy(src, dst);
+    testAssertWithMessageOrGoto(
+        res, fail, test, "Failed to copy matrix%s", ""
+    );
+    for (i = 0; i < len; i++) {
+        PSFloat srci = src[i], dsti = dst[i];
+        testAssertWithMessageOrGoto(
+            (srci == dsti), fail, test, "Source[%d] != Dest[%d] -> %g != %g",
+            (int) i, (int) i, srci, dsti
+        );
+    }
+    goto final;
+fail:
+    res = 0;
+final:
+    if (src != NULL) PSMatrixDelete(src);
+    if (dst != NULL) PSMatrixDelete(dst);
+    return res;
+}
+
+int testMathsMatrixDup(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    int res = 1;
+    PSMatrix src = PSMatrixRandom(2, 2, 3);
+    testAssertNotNull(src, test);
+    PSMatrix dst = PSMatrixDup(src);
+    if (dst == NULL) {
+        PSMatrixLength(src);
+        testAssertNotNull(dst, test);
+    }
+    uint64_t len = PSMatrixLength(src), i;
+    testAssertWithMessageOrGoto(
+        (len == 6), fail, test,
+        "Expected len is 6, got: %d", (int) len
+    );
+    for (i = 0; i < len; i++) {
+        PSFloat srci = src[i], dsti = dst[i];
+        testAssertWithMessageOrGoto(
+            (srci == dsti), fail, test, "Source[%d] != Dest[%d] -> %g != %g",
+            (int) i, (int) i, srci, dsti
+        );
+    }
+    goto final;
+fail:
+    res = 0;
+final:
+    if (src != NULL) PSMatrixDelete(src);
+    if (dst != NULL) PSMatrixDelete(dst);
+    return res;
+}
+
+int testMathsMatrixTranspose(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    const PSFloat data2D[] = {1, 2, 3, 4, 5, 6};
+    const PSFloat data2DT[] = {1, 4, 2, 5, 3, 6};
+    const PSFloat data3D[] = {1,  2,  3,  4, 5,  6,  7,  8, 9, 10, 11, 12, 13,
+                              14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24};
+    const PSFloat data3DT[] = {1, 9, 17, 5, 13, 21, 2, 10, 18, 6, 14, 22,
+                               3, 11, 19, 7, 15, 23, 4, 12, 20, 8, 16, 24};
+    int len2d = (int) (sizeof(data2D) / sizeof(PSFloat));
+    int len3d = (int) (sizeof(data3D) / sizeof(PSFloat));
+    int res = 1, i;
+    PSMatrix m2d = PSMatrixZeros(2, 2, 3);
+    testAssertNotNull(m2d, test);
+    PSMatrix m3d = PSMatrixZeros(3, 3, 2, 4);
+    PSMatrix tm2d = NULL, tm3d = NULL;
+    if (m3d == NULL) {
+        PSMatrixDelete(m3d);
+        testAssertNotNull(m3d, test);
+    }
+    int m2dlen = (int) PSMatrixLength(m2d),
+        m3dlen = (int) PSMatrixLength(m3d);
+    testAssertWithMessageOrGoto(
+        (m2dlen == len2d), fail, test,
+        "2D Matrix length should be %d, got: %d", len2d, m2dlen
+    );
+    testAssertWithMessageOrGoto(
+        (m3dlen == len3d), fail, test,
+        "3D Matrix length should be %d, got: %d", len3d, m3dlen
+    );
+    memcpy(m2d, data2D, sizeof(data2D));
+    memcpy(m3d, data3D, sizeof(data3D));
+    for (i = 0; i < m2dlen; i++) testAssertWithMessageOrGoto(
+        (m2d[i] == data2D[i]), fail, test,
+        "2DMatrix[%d] != data2D[%d]: %g != %g", i, i, m2d[i], data2D[i]
+    );
+    for (i = 0; i < m3dlen; i++) testAssertWithMessageOrGoto(
+        (m3d[i] == data3D[i]), fail, test,
+        "3DMatrix[%d] != data3D[%d]: %g != %g", i, i, m3d[i], data3D[i]
+    );
+    tm2d = PSMatrixTranspose(m2d, 1);
+    testAssertWithMessageOrGoto(
+        (tm2d != NULL), fail, test, "Transposed 2D is NULL%s",""
+    );
+    tm3d = PSMatrixTranspose(m3d, 1);
+    testAssertWithMessageOrGoto(
+        (tm3d != NULL), fail, test, "Transposed 3D is NULL%s",""
+    );
+    testAssertWithMessageOrGoto(
+        (tm2d != m2d), fail, test, "Transposed 2D is Matrix 2D%s", ""
+    );
+    testAssertWithMessageOrGoto(
+        (tm3d != m3d), fail, test, "Transposed 2D is Matrix 2D%s", ""
+    );
+    int tm2dlen = PSMatrixLength(tm2d), tm3dlen = PSMatrixLength(tm3d);
+    testAssertWithMessageOrGoto(
+        (tm2dlen == m2dlen), fail, test,
+        "Transposed 2D len %d != %d", tm2dlen, m2dlen
+    );
+    testAssertWithMessageOrGoto(
+        (tm3dlen == m3dlen), fail, test,
+        "Transposed 2D len %d != %d", tm3dlen, m3dlen
+    );
+    int ndims2d, ndims3d, tndims2d, tndims3d;
+    int dims2d[3] = {0};
+    int dims3d[3] = {0};
+    int tdims2d[3] = {0};
+    int tdims3d[3] = {0};
+    ndims2d = PSMatrixDimensions(m2d, dims2d);
+    ndims3d = PSMatrixDimensions(m3d, dims3d);
+    tndims2d = PSMatrixDimensions(tm2d, tdims2d);
+    tndims3d = PSMatrixDimensions(tm3d, tdims3d);
+    testAssertWithMessageOrGoto(
+        (tndims2d == ndims2d), fail, test,
+        "Transposed 2D dimension count %d != %d", tndims2d, ndims2d
+    );
+    testAssertWithMessageOrGoto(
+        (tndims3d == ndims3d), fail, test,
+        "Transposed 3D dimension count %d != %d", tndims3d, ndims3d
+    );
+    for (i = 0; i < ndims2d; i++) {
+        int tidx = ndims2d - 1 - i;
+        testAssertWithMessageOrGoto(
+            tdims2d[tidx] == dims2d[i], fail, test,
+            "Transposed 2D dim[%d] -> Matrix 2D[%d]: %d != %d", tidx, i,
+            tdims2d[tidx], dims2d[i]
+        );
+    }
+    for (i = 0; i < ndims3d; i++) {
+        int tidx = ndims3d - 1 - i;
+        testAssertWithMessageOrGoto(
+            tdims3d[tidx] == dims3d[i], fail, test,
+            "Transposed 3D dim[%d] -> Matrix 3D[%d]: %d != %d", tidx, i,
+            tdims3d[tidx], dims3d[i]
+        );
+    }
+    for (i = 0; i < m2dlen; i++) {
+        testAssertWithMessageOrGoto(
+            (data2DT[i] == tm2d[i]), fail, test,
+            "Transposed2D[%d] should be %g, got %g", i, data2DT[i], tm2d[i]
+        );
+    }
+    for (i = 0; i < m3dlen; i++) {
+        testAssertWithMessageOrGoto(
+            (data3DT[i] == tm3d[i]), fail, test,
+            "Transposed3D[%d] should be %g, got %g", i, data3DT[i], tm3d[i]
+        );
+    }
+    goto final;
+fail:
+    res = 0;
+final:
+    PSMatrixDelete(m2d);
+    PSMatrixDelete(m3d);
+    return res;
 }
 
 int testActSigmoid(TestCase *tc, Test *test) {

@@ -129,6 +129,8 @@ PSFloat PSGaussianRandom(PSFloat mean, PSFloat stddev) {
 typedef struct PSMatrixHeader {
     int ndims;
     int dims[MAX_DIMENSIONS];
+    PSMatrix transposed;
+    PSMatrix transposed_from;
     uint64_t length;
 } PSMatrixHeader;
 
@@ -189,6 +191,8 @@ PSMatrix PSMatrixCreateWithDims(PSFloat init_value,
     }
     PSMatrixHeader *hdr = (PSMatrixHeader *) mem;
     PSMatrix matrix = (PSMatrix)(mem + PSMatrixHeaderSize);
+    hdr->transposed = NULL;
+    hdr->transposed_from = NULL;
     hdr->ndims = ndims;
     for (i = 0; i < MAX_DIMENSIONS; i++) {
         if (i < ndims) hdr->dims[i] = dims[i];
@@ -259,6 +263,63 @@ PSMatrix PSMatrixRandom(int ndims, ...) {
     matrix = PSMatrixCreateV(0, matrixRandomInitializer, ndims, args);
     va_end(args);
     return matrix;
+}
+
+PSMatrix PSMatrixDup(PSMatrix matrix) {
+    if (matrix == NULL) return NULL;
+    uint64_t len = PSMatrixLength(matrix);
+    size_t datasize = ((size_t) len * sizeof(PSFloat));
+    size_t size = PSMatrixHeaderSize + datasize;
+    PSMatrixHeader *dst_hdr = malloc(size);
+    if (dst_hdr == NULL) {
+        PSPrintMemoryErrorMsg();
+        return NULL;
+    }
+    PSMatrix clone = (PSMatrix) (dst_hdr + 1);
+    PSMatrixHeader *src_hdr = PSMatrixGetHeader(matrix);
+    memcpy(dst_hdr, src_hdr, PSMatrixHeaderSize);
+    dst_hdr->transposed = NULL;
+    dst_hdr->transposed_from = NULL;
+    memcpy(clone, matrix, datasize);
+    return clone;
+}
+
+int PSMatrixCopy(PSMatrix src, PSMatrix dst) {
+    if (src == NULL) {
+        PSErr(__func__, "`src` matrix is NULL");
+        return 0;
+    }
+    if (dst == NULL) {
+        PSErr(__func__, "`dst` matrix is NULL");
+        return 0;
+    }
+    int src_dims[MAX_DIMENSIONS];
+    int dst_dims[MAX_DIMENSIONS];
+    int src_ndims = PSMatrixDimensions(src, src_dims),
+        dst_ndims = PSMatrixDimensions(dst, dst_dims),
+        src_len = PSMatrixLength(src), i;
+    if (src_ndims != dst_ndims) {
+        PSErr(__func__, "`src` dimensions != `dst` dimensions: %d != %d",
+              src_ndims, dst_ndims);
+        return 0;
+    }
+    for (i = 0; i < src_ndims; i++) {
+        if (src_dims[i] != dst_dims[i]) {
+            PSErr(
+                __func__, "`src` dimension[%d] != `dst`: %d != %d",
+                i, src_dims[i], dst_dims[i]
+            );
+            return 0;
+        }
+    }
+    PSMatrixHeader *dst_hdr = PSMatrixGetHeader(dst);
+    dst_hdr->transposed_from = NULL;
+    if (dst_hdr->transposed != NULL) {
+        PSMatrixDelete(dst_hdr->transposed);
+        dst_hdr->transposed = NULL;
+    }
+    memcpy(dst, src, src_len * sizeof(PSFloat));
+    return 1;
 }
 
 int PSMatrixNumDims(PSMatrix matrix) {
@@ -547,9 +608,56 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result) {
     return 1;
 }
 
+PSMatrix PSMatrixTranspose(PSMatrix matrix, int rebuild) {
+    PSMatrixHeader *hdr = PSMatrixGetHeader(matrix);
+    if (hdr->transposed != NULL) {
+        if (!rebuild) return hdr->transposed;
+        PSMatrixDelete(hdr->transposed);
+        hdr->transposed = NULL;
+    } else if (hdr->transposed_from != NULL) return hdr->transposed_from;
+    int ndims = hdr->ndims;
+    int *dims = hdr->dims;
+    int ncols = 0, nrows = 0, dlen = 0, t_ncols = 0, t_dlen = 0;
+    uint64_t x, y, z, idx, i;
+    PSMatrix transposed = NULL;
+    if (ndims == 3) {
+        transposed = PSMatrixZeros(3, dims[2], dims[1], dims[0]);
+        if (transposed == NULL) return NULL;
+        nrows = dims[1];
+        ncols = dims[2];
+        t_ncols = dims[0];
+        t_dlen = dims[0] * dims[1];
+        dlen = nrows * ncols;
+        for (i = 0; i < hdr->length; i++) {
+            z = i % dlen % ncols;
+            y = (i / ncols) % nrows;
+            x = i / dlen;
+            idx = (z * t_dlen) + (y * t_ncols) + x;
+            transposed[idx] = matrix[i];
+        }
+    } else if (ndims == 2) {
+        transposed = PSMatrixZeros(2, dims[1], dims[0]);
+        if (transposed == NULL) return NULL;
+        ncols = dims[1];
+        t_ncols = dims[0];
+        for (i = 0; i < hdr->length; i++) {
+            y = i % ncols;
+            x = i / ncols;
+            idx = (y * t_ncols) + x;
+            transposed[idx] = matrix[i];
+        }
+    } else if (ndims == 1) return matrix;
+    PSMatrixHeader *t_hdr = PSMatrixGetHeader(transposed);
+    t_hdr->transposed_from = matrix;
+    hdr->transposed = transposed;
+    return transposed;
+}
+
 void PSMatrixDelete(PSMatrix matrix) {
     if (matrix == NULL) return;
     void *ptr = (void *) getMatrixHeadPointer(matrix);
+    PSMatrixHeader *hdr = (PSMatrixHeader *) ptr;
+    if (hdr->transposed != NULL) PSMatrixDelete(hdr->transposed);
     free(ptr);
 }
 
