@@ -53,6 +53,7 @@
 #define VDSPMaxIdx(a, res, idx, len) vDSP_maxviD(a, 1, &res, idx, len)
 #define VDSPMinIdx(a, res, idx, len) vDSP_minviD(a, 1, &res, idx, len)
 #define VDSPSumElems(a, res, len) vDSP_sveD(a, 1, &res, len)
+#define VDSPMTransp(a,dest,m,n) vDSP_mtransD(a, 1, dest, 1, m, n)
 #define VVSqrt(a,dest,len) vvsqrt(dest, a, (int *)&len)
 #define VVTanh(a,dest,len) vvtanh(dest, a, (int *)&len)
 #define VVExp(a,dest,len)  vvexp(dest, a, (int *)&len)
@@ -76,6 +77,7 @@
 #define VDSPMaxIdx(a, res, idx, len) vDSP_maxvi(a, 1, &res, idx, len)
 #define VDSPMinIdx(a, res, idx, len) vDSP_minvi(a, 1, &res, idx, len)
 #define VDSPSumElems(a, res, len) vDSP_sve(a, 1, &res, len)
+#define VDSPMTransp(a,dest,m,n) vDSP_mtrans(a, 1, dest, 1, m, n)
 #define VVSqrt(a,dest,len) vvsqrtf(dest, a, (int *)&len)
 #define VVTanh(a,dest,len) vvtanhf(dest, a, (int *)&len)
 #define VVExp(a,dest,len)  vvexpf(dest, a, (int *)&len)
@@ -608,8 +610,9 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result) {
     return 1;
 }
 
-PSMatrix PSMatrixTranspose(PSMatrix matrix, int rebuild) {
+PSMatrix PSMatrixTranspose(PSMatrix matrix, int rebuild, PSMathOpts *opts) {
     PSMatrixHeader *hdr = PSMatrixGetHeader(matrix);
+    PSMatrixHeader *t_hdr = NULL;
     if (hdr->transposed != NULL) {
         if (!rebuild) return hdr->transposed;
         PSMatrixDelete(hdr->transposed);
@@ -636,8 +639,15 @@ PSMatrix PSMatrixTranspose(PSMatrix matrix, int rebuild) {
             transposed[idx] = matrix[i];
         }
     } else if (ndims == 2) {
+        int acceleration = PSGlobalAcceleration;
+        if (opts != NULL) acceleration = opts->acceleration;
         transposed = PSMatrixZeros(2, dims[1], dims[0]);
         if (transposed == NULL) return NULL;
+        if (PSACFEnabled(acceleration)) {
+            /* Use Apple Accelerate Framework */
+            VDSPMTransp(matrix, transposed, dims[1], dims[0]);
+            goto final;
+        }
         ncols = dims[1];
         t_ncols = dims[0];
         for (i = 0; i < hdr->length; i++) {
@@ -647,7 +657,9 @@ PSMatrix PSMatrixTranspose(PSMatrix matrix, int rebuild) {
             transposed[idx] = matrix[i];
         }
     } else if (ndims == 1) return matrix;
-    PSMatrixHeader *t_hdr = PSMatrixGetHeader(transposed);
+final:
+    if (transposed == NULL) return NULL;
+    t_hdr = PSMatrixGetHeader(transposed);
     t_hdr->transposed_from = matrix;
     hdr->transposed = transposed;
     return transposed;

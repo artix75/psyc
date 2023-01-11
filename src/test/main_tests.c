@@ -1839,6 +1839,49 @@ static int compareArrays(PSFloat *arr, PSFloat *exp, int len, Test* test,
     return 1;
 }
 
+static int checkMatrixTransposition(PSMatrix m, const PSFloat *tdata,
+                                    int acceleration, char *descr, Test *test)
+{
+    PSMathOpts opts = {.acceleration = acceleration};
+    PSMatrix tm = PSMatrixTranspose(m, 1, &opts);
+    testAssertWithMessage(
+        (tm != NULL), test, "%s: Transposed is NULL", descr
+    );
+    testAssertWithMessage(
+        (tm != m), test, "%s: Transposed = Matrix", descr
+    );
+    int tmlen = PSMatrixLength(tm), mlen = PSMatrixLength(m), i;
+    testAssertWithMessage(
+        (tmlen == mlen), test,
+        "%s: Transposed 2D len %d != %d", descr, tmlen, mlen
+    );
+    int ndims, tndims;
+    int dims[3] = {0};
+    int tdims[3] = {0};
+    ndims = PSMatrixDimensions(m, dims);
+    tndims = PSMatrixDimensions(tm, tdims);
+    testAssertWithMessage(
+        (tndims == ndims), test,
+        "%s: Transposed dimension count %d != %d", descr, tndims, ndims
+    );
+    for (i = 0; i < ndims; i++) {
+        int tidx = ndims - 1 - i;
+        testAssertWithMessage(
+            tdims[tidx] == dims[i], test,
+            "%s: Transposed dim[%d] -> Matrix dim[%d]: %d != %d", descr,
+            tidx, i, tdims[tidx], dims[i]
+        );
+    }
+    for (i = 0; i < mlen; i++) {
+        testAssertWithMessage(
+            (tdata[i] == tm[i]), test,
+            "%s: Transposed[%d] should be %g, got %g", descr, i,
+            tdata[i], tm[i]
+        );
+    }
+    return 1;
+}
+
 int testMathsDotProduct(TestCase *tc, Test *test) {
     UNUSED(tc);
     PSFloat x[16] = {1.0, 1.0, 2.0, 2.0, 3.0, 2.0, 1.0, 1.0,
@@ -2254,17 +2297,18 @@ int testMathsExp(TestCase *tc, Test *test) {
     PSFloat res[6] = {0};
     for (int i = 0; i < 6; i++) cmp_res[i] = PSExp(x[i]);
     int ok = 1;
+    int decrnd = NORMAL_PRECISION_DEC;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     opts.acceleration = PSAcceleration_ACF;
     PSVectorExp(x, res, 6, &opts);
-    ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0);
+    ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", decrnd);
     if (!ok) return 0;
 #endif
 #ifdef USE_AVX
     opts.acceleration = PSAcceleration_AVX;
     PSVectorExp(x, res, 6, &opts);
-    ok = compareArrays(res, cmp_res, 6, test, "AVX", 0);
+    ok = compareArrays(res, cmp_res, 6, test, "AVX", decrnd);
     if (!ok) return 0;
 #endif
     opts.acceleration = PSAcceleration_None;
@@ -2437,7 +2481,6 @@ int testMathsMatrixTranspose(TestCase *tc, Test *test) {
     PSMatrix m2d = PSMatrixZeros(2, 2, 3);
     testAssertNotNull(m2d, test);
     PSMatrix m3d = PSMatrixZeros(3, 3, 2, 4);
-    PSMatrix tm2d = NULL, tm3d = NULL;
     if (m3d == NULL) {
         PSMatrixDelete(m3d);
         testAssertNotNull(m3d, test);
@@ -2462,74 +2505,20 @@ int testMathsMatrixTranspose(TestCase *tc, Test *test) {
         (m3d[i] == data3D[i]), fail, test,
         "3DMatrix[%d] != data3D[%d]: %g != %g", i, i, m3d[i], data3D[i]
     );
-    tm2d = PSMatrixTranspose(m2d, 1);
-    testAssertWithMessageOrGoto(
-        (tm2d != NULL), fail, test, "Transposed 2D is NULL%s",""
-    );
-    tm3d = PSMatrixTranspose(m3d, 1);
-    testAssertWithMessageOrGoto(
-        (tm3d != NULL), fail, test, "Transposed 3D is NULL%s",""
-    );
-    testAssertWithMessageOrGoto(
-        (tm2d != m2d), fail, test, "Transposed 2D is Matrix 2D%s", ""
-    );
-    testAssertWithMessageOrGoto(
-        (tm3d != m3d), fail, test, "Transposed 2D is Matrix 2D%s", ""
-    );
-    int tm2dlen = PSMatrixLength(tm2d), tm3dlen = PSMatrixLength(tm3d);
-    testAssertWithMessageOrGoto(
-        (tm2dlen == m2dlen), fail, test,
-        "Transposed 2D len %d != %d", tm2dlen, m2dlen
-    );
-    testAssertWithMessageOrGoto(
-        (tm3dlen == m3dlen), fail, test,
-        "Transposed 2D len %d != %d", tm3dlen, m3dlen
-    );
-    int ndims2d, ndims3d, tndims2d, tndims3d;
-    int dims2d[3] = {0};
-    int dims3d[3] = {0};
-    int tdims2d[3] = {0};
-    int tdims3d[3] = {0};
-    ndims2d = PSMatrixDimensions(m2d, dims2d);
-    ndims3d = PSMatrixDimensions(m3d, dims3d);
-    tndims2d = PSMatrixDimensions(tm2d, tdims2d);
-    tndims3d = PSMatrixDimensions(tm3d, tdims3d);
-    testAssertWithMessageOrGoto(
-        (tndims2d == ndims2d), fail, test,
-        "Transposed 2D dimension count %d != %d", tndims2d, ndims2d
-    );
-    testAssertWithMessageOrGoto(
-        (tndims3d == ndims3d), fail, test,
-        "Transposed 3D dimension count %d != %d", tndims3d, ndims3d
-    );
-    for (i = 0; i < ndims2d; i++) {
-        int tidx = ndims2d - 1 - i;
-        testAssertWithMessageOrGoto(
-            tdims2d[tidx] == dims2d[i], fail, test,
-            "Transposed 2D dim[%d] -> Matrix 2D[%d]: %d != %d", tidx, i,
-            tdims2d[tidx], dims2d[i]
-        );
-    }
-    for (i = 0; i < ndims3d; i++) {
-        int tidx = ndims3d - 1 - i;
-        testAssertWithMessageOrGoto(
-            tdims3d[tidx] == dims3d[i], fail, test,
-            "Transposed 3D dim[%d] -> Matrix 3D[%d]: %d != %d", tidx, i,
-            tdims3d[tidx], dims3d[i]
-        );
-    }
-    for (i = 0; i < m2dlen; i++) {
-        testAssertWithMessageOrGoto(
-            (data2DT[i] == tm2d[i]), fail, test,
-            "Transposed2D[%d] should be %g, got %g", i, data2DT[i], tm2d[i]
-        );
-    }
-    for (i = 0; i < m3dlen; i++) {
-        testAssertWithMessageOrGoto(
-            (data3DT[i] == tm3d[i]), fail, test,
-            "Transposed3D[%d] should be %g, got %g", i, data3DT[i], tm3d[i]
-        );
-    }
+    int acceleration = PSAcceleration_None;
+    char descr[55] = {0};
+    snprintf(descr, 54, "Matrix 2D (No Acceleration)");
+    res = checkMatrixTransposition(m2d, data2DT, acceleration, descr, test);
+    if (!res) goto final;
+    snprintf(descr, 54, "Matrix 3D (No Acceleration)");
+    res = checkMatrixTransposition(m3d, data3DT, acceleration, descr, test);
+    if (!res) goto final;
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    acceleration = PSAcceleration_ACF;
+    snprintf(descr, 54, "Matrix 2D (%s)", PSGetAccelerationName(acceleration));
+    res = checkMatrixTransposition(m2d, data2DT, acceleration, descr, test);
+    if (!res) goto final;
+#endif
     goto final;
 fail:
     res = 0;
