@@ -106,6 +106,7 @@ int testAVXMultiplyVal(TestCase *tc, Test *test);
 
 int testMathsDotProduct(TestCase *tc, Test *test);
 int testMathsDot(TestCase *tc, Test *test);
+int testMathsVecProd(TestCase *tc, Test *test);
 int testMathsSumV(TestCase *tc, Test *test);
 int testMathsSubV(TestCase *tc, Test *test);
 int testMathsMulV(TestCase *tc, Test *test);
@@ -480,6 +481,7 @@ int main(int argc, char** argv) {
         mathsTests = createTest("Maths");
         addTest(mathsTests, "Dot Product", NULL, testMathsDotProduct);
         addTest(mathsTests, "Dot (Matrix-Vec.)", NULL, testMathsDot);
+        addTest(mathsTests, "Vector Product", NULL, testMathsVecProd);
         addTest(mathsTests, "Sum vectors", NULL, testMathsSumV);
         addTest(mathsTests, "Sub vectors", NULL, testMathsSubV);
         addTest(mathsTests, "Mul. vectors", NULL, testMathsMulV);
@@ -1975,6 +1977,56 @@ int testMathsDot(TestCase *tc, Test *test) {
         appendTestErrorMessage(test, "\n%*s", 4, "");
     }
     return (failed == 0);
+}
+
+int testMathsVecProd(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    int ok = 1, i;
+    PSFloat a[] = {2, 3};
+    PSFloat b[] = {4, 5, 6};
+    PSFloat res[6] = {0};
+    PSFloat expected[] = {8, 10, 12, 12, 15, 18};
+    PSMathOpts opts = {0};
+#ifdef HAS_BLAS
+    opts.acceleration = PSAcceleration_BLAS;
+    ok = PSVectorProduct(a, b, 2, 3, res, &opts);
+    testAssertWithMessage(ok, test, "PSVectorProduct (BLAS) failed%s", "");
+    for (i = 0; i < 6; i++) {
+        testAssertWithMessage(
+            (res[i] == expected[i]), test,
+            "PSVectorProduct (BLAS): res[%d] != expected[%d] -> %g != %g",
+            i, i, res[i], expected[i]
+        );
+        res[i] = 0;
+    }
+#endif
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    opts.acceleration = PSAcceleration_ACF;
+    ok = PSVectorProduct(a, b, 2, 3, res, &opts);
+    testAssertWithMessage(
+        ok, test, "PSVectorProduct (Accelerate Framework) failed%s", ""
+    );
+    for (i = 0; i < 6; i++) {
+        testAssertWithMessage(
+            (res[i] == expected[i]), test,
+            "PSVectorProduct (Accelerate Framework): res[%d] != expected[%d] "
+            "-> %g != %g",
+            i, i, res[i], expected[i]
+        );
+        res[i] = 0;
+    }
+#endif
+    opts.acceleration = PSAcceleration_None;
+    ok = PSVectorProduct(a, b, 2, 3, res, &opts);
+    testAssertWithMessage(ok, test, "PSVectorProduct (no accel.) failed%s", "");
+    for (i = 0; i < 6; i++) {
+        testAssertWithMessage(
+            (res[i] == expected[i]), test,
+            "PSVectorProduct (no accel.): res[%d] != expected[%d] -> %g != %g",
+            i, i, res[i], expected[i]
+        );
+    }
+    return ok;
 }
 
 int testMathsSumV(TestCase *tc, Test *test) {

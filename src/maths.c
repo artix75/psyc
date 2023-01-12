@@ -54,6 +54,7 @@
 #define VDSPMinIdx(a, res, idx, len) vDSP_minviD(a, 1, &res, idx, len)
 #define VDSPSumElems(a, res, len) vDSP_sveD(a, 1, &res, len)
 #define VDSPMTransp(a,dest,m,n) vDSP_mtransD(a, 1, dest, 1, m, n)
+#define VDSPMMul(a, b, dest, m, n, p)  vDSP_mmulD(a, 1, b, 1, dest, 1, m, n, p)
 #define VVSqrt(a,dest,len) vvsqrt(dest, a, (int *)&len)
 #define VVTanh(a,dest,len) vvtanh(dest, a, (int *)&len)
 #define VVExp(a,dest,len)  vvexp(dest, a, (int *)&len)
@@ -78,6 +79,7 @@
 #define VDSPMinIdx(a, res, idx, len) vDSP_minvi(a, 1, &res, idx, len)
 #define VDSPSumElems(a, res, len) vDSP_sve(a, 1, &res, len)
 #define VDSPMTransp(a,dest,m,n) vDSP_mtrans(a, 1, dest, 1, m, n)
+#define VDSPMMul(a, b, dest, m, n, p)  vDSP_mmul(a, 1, b, 1, dest, 1, m, n, p)
 #define VVSqrt(a,dest,len) vvsqrtf(dest, a, (int *)&len)
 #define VVTanh(a,dest,len) vvtanhf(dest, a, (int *)&len)
 #define VVExp(a,dest,len)  vvexpf(dest, a, (int *)&len)
@@ -1309,18 +1311,23 @@ int PSDot(PSMatrix matrix, PSFloat *vector, PSFloat *dest, PSMathOpts *opts) {
         store_mode != MATHS_STORE_MODE_NORM
     );
     /* TODO: implement "auto" acceleration type selection */
+    /* TODO: WARN: BLAS can only be used with Apple Accelerate Framework! */
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     if (PSBLASEnabled(acceleration)) {
         PSFloat *dpdest = dest;
         if (store_mode) {
-            if (tmpdest == NULL) tmpdest = malloc(len * sizeof(PSFloat));
-            if (tmpdest == NULL) {
+            dpdest = tmpdest;
+            if (dpdest == NULL) dpdest = malloc(len * sizeof(PSFloat));
+            if (dpdest == NULL) {
                 PSPrintMemoryErrorMsg();
                 return 0;
             }
-            dpdest = tmpdest;
         }
-        if (!PSMatrixProductMV(matrix, vector, len, &dpdest)) return 0;
+        int do_free_dpdest = (dpdest != dest && dpdest != tmpdest);
+        if (!PSMatrixProductMV(matrix, vector, len, &dpdest)) {
+            if (do_free_dpdest) free(dpdest);
+            return 0;
+        }
         if (do_process) {
             for (i = 0; i < rows; i++) {
                 if (store_mode == MATHS_STORE_MODE_ADD) dest[i] += dpdest[i];
@@ -1330,6 +1337,7 @@ int PSDot(PSMatrix matrix, PSFloat *vector, PSFloat *dest, PSMathOpts *opts) {
                 if (max != NULL && (i == 0 || dest[i] > *max)) *max = dest[i];
             }
         }
+        if (do_free_dpdest) free(dpdest);
         return 1;
     }
 #endif
@@ -1344,6 +1352,95 @@ int PSDot(PSMatrix matrix, PSFloat *vector, PSFloat *dest, PSMathOpts *opts) {
         if (vec2add != NULL) dest[i] += vec2add[i];
         if (after != NULL) dest[i] = after(dest[i]);
         if (max != NULL && (i == 0 || dest[i] > *max)) *max = dest[i];
+    }
+    return 1;
+}
+
+/* Multiply every element of vector `a` (having `alen` length) by every
+ * element of vector `b` (having `blen` length) and store results into
+ * vector `dest` (whose length must be `alen` * `blen`). */
+int PSVectorProduct(PSFloat *a, PSFloat *b, uint64_t alen, uint64_t blen,
+                    PSFloat *dest, PSMathOpts *opts)
+{
+    if (a == NULL || b == NULL || dest == NULL) {
+        PSErr(__func__, "`, `vector` and `dest` cannot be null");
+        return 0;
+    }
+    PSFloat *vec2add = NULL, *max = NULL, *tmpdest = NULL;
+    PSFloatFunc after = NULL;
+    int store_mode = MATHS_STORE_MODE_NORM;
+    int acceleration = PSGlobalAcceleration;
+    uint64_t i, j;
+    if (opts != NULL) {
+        acceleration = opts->acceleration;
+        vec2add = opts->add_vec;
+        after = opts->after;
+        max = opts->max;
+        store_mode = opts->store_mode;
+        tmpdest = opts->tmpdest;
+    }
+    int do_process = (
+        vec2add != NULL || after != NULL || max != NULL ||
+        store_mode != MATHS_STORE_MODE_NORM
+    );
+#if defined(HAS_BLAS) || defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    uint64_t dstlen = alen * blen;
+    PSFloat *vpdest = dest;
+    int blas_enabled = PSBLASEnabled(acceleration),
+        acf_enabled = PSACFEnabled(acceleration),
+        do_free_vpdest = 0, use_acceleration = (blas_enabled || acf_enabled);
+    if (!use_acceleration) goto no_acceleration;
+    if (store_mode) {
+        vpdest = tmpdest;
+        if (vpdest == NULL) vpdest = malloc(dstlen * sizeof(PSFloat));
+        if (vpdest == NULL) {
+            PSPrintMemoryErrorMsg();
+            return 0;
+        }
+        do_free_vpdest = (vpdest != dest && vpdest != tmpdest);
+    }
+#ifdef HAS_BLAS
+    if (blas_enabled) {
+        PSBlasOrder order = PSBlasRowMajor;
+        char trans1 = 'N', trans2 = 'N';
+        int m = 1, lda = 1, ldb = blen, ldc = blen;
+        PSGemm(order, trans1, trans2, alen, blen, m, 1.0, a, lda, b, ldb, 0.0,
+               dest, ldc);
+        goto acceleration_done;
+    }
+#endif
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    if (acf_enabled) {
+        VDSPMMul(a, b, vpdest, alen, blen, 1);
+        goto acceleration_done;
+    }
+#endif
+acceleration_done:
+    if (do_process) {
+        for (i = 0; i < dstlen; i++) {
+            if (store_mode == MATHS_STORE_MODE_ADD) dest[i] += vpdest[i];
+            else if (store_mode == MATHS_STORE_MODE_SUB) dest[i]-=vpdest[i];
+            if (vec2add != NULL) dest[i] += vec2add[i];
+            if (after != NULL) dest[i] = after(dest[i]);
+            if (max != NULL && (i == 0 || dest[i] > *max)) *max = dest[i];
+        }
+    }
+    if (do_free_vpdest) free(vpdest);
+    return 1;
+#endif
+no_acceleration:
+    for (i = 0; i < alen; i++) {
+        for (j = 0; j < blen; j++) {
+            uint64_t idx = (blen * i) + j;
+            PSFloat product = (a[i] * b[j]);
+            if (!store_mode) dest[idx] = product;
+            if (!do_process) continue;
+            if (store_mode == MATHS_STORE_MODE_ADD) dest[idx] += product;
+            else if (store_mode == MATHS_STORE_MODE_SUB) dest[idx] -= product;
+            if (vec2add != NULL) dest[idx] += vec2add[idx];
+            if (after != NULL) dest[idx] = after(dest[idx]);
+            if (max != NULL && (i == 0 || dest[idx] > *max)) *max = dest[idx];
+        }
     }
     return 1;
 }
