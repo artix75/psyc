@@ -131,6 +131,8 @@ void PSVectorClip(PSFloat *a, PSFloat min, PSFloat max, PSFloat *dest,
                   uint64_t length, PSMathOpts *opts);
 void PSVectorThreshold(PSFloat *a, PSFloat min, PSFloat *dest,
                        uint64_t length, PSMathOpts *opts);
+void PSVectorMapWithLimit(PSFloat *a, PSFloat limit, PSFloat mapper,
+                          PSFloat *dest, uint64_t length, PSMathOpts *opts);
 PSFloat PSVectorMax(PSFloat *a, uint64_t *index, uint64_t length,
                     PSMathOpts *opts);
 PSFloat PSSumVectorElements(PSFloat *a, uint64_t length, PSMathOpts *opts);

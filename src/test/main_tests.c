@@ -118,6 +118,7 @@ int testMathsDivVS(TestCase *tc, Test *test);
 int testMathsDivSV(TestCase *tc, Test *test);
 int testMathsClip(TestCase *tc, Test *test);
 int testMathsThres(TestCase *tc, Test *test);
+int testMathsMapLimit(TestCase *tc, Test *test);
 int testMathsExp(TestCase *tc, Test *test);
 int testMathsTanh(TestCase *tc, Test *test);
 int testMathsSqrt(TestCase *tc, Test *test);
@@ -493,6 +494,7 @@ int main(int argc, char** argv) {
         addTest(mathsTests, "Div scalar by vec.", NULL, testMathsDivSV);
         addTest(mathsTests, "Clip", NULL, testMathsClip);
         addTest(mathsTests, "Threshold", NULL, testMathsThres);
+        addTest(mathsTests, "Mapped Limit", NULL, testMathsMapLimit);
         addTest(mathsTests, "Exp", NULL, testMathsExp);
         addTest(mathsTests, "Tanh", NULL, testMathsTanh);
         addTest(mathsTests, "Sqrt", NULL, testMathsSqrt);
@@ -2338,6 +2340,27 @@ int testMathsThres(TestCase *tc, Test *test) {
     opts.acceleration = PSAcceleration_None;
     PSVectorThreshold(x, min, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "No Acceleration:", decrnd);
+    if (!ok) return 0;
+    return ok;
+}
+
+int testMathsMapLimit(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat x[6] = {1.0, 8.3, -2.0, -1.0, 0.0, 18.5};
+    PSFloat expected[6] = {1, 1, -1, -1, 1, 1};
+    PSFloat limit = 0.0;
+    PSFloat res[6] = {0};
+    int ok = 1;
+    PSMathOpts opts = {0};
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    opts.acceleration = PSAcceleration_ACF;
+    PSVectorMapWithLimit(x, limit, 1, res, 6,&opts);
+    ok = compareArrays(res, expected, 6, test, "Accelerate Framework", 0);
+    if (!ok) return 0;
+#endif
+    opts.acceleration = PSAcceleration_None;
+    PSVectorMapWithLimit(x, limit, 1, res, 6, &opts);
+    ok = compareArrays(res, expected, 6, test, "No Acceleration:", 0);
     if (!ok) return 0;
     return ok;
 }

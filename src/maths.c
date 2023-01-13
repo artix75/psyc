@@ -43,6 +43,7 @@
 #define VDSPAddVS(a,b,dest,len) vDSP_vsaddD(a, 1, &b, dest, 1, len)
 #define VDSPDivVS(a,b,dest,len) vDSP_vsdivD(a, 1, &b, dest, 1, len)
 #define VDSPDivSV(a,b,dest,len) vDSP_svdivD(&a, b, 1, dest, 1, len)
+#define VDSPVSquare(a, dest, len) vDSP_vsqD(a, 1, dest, 1, len)
 #define VDSPNeg(a,dest,len) vDSP_vnegD(a, 1, dest, 1, len)
 #define VDSPDotProd(a,b,dest,len) vDSP_dotprD(a, 1, b, 1, &dest, len)
 #define VDSPSumVecSqr(a,dest,len) vDSP_svesqD(a, 1, &dest, len)
@@ -55,6 +56,8 @@
 #define VDSPSumElems(a, res, len) vDSP_sveD(a, 1, &res, len)
 #define VDSPMTransp(a,dest,m,n) vDSP_mtransD(a, 1, dest, 1, m, n)
 #define VDSPMMul(a, b, dest, m, n, p)  vDSP_mmulD(a, 1, b, 1, dest, 1, m, n, p)
+#define VDSPVLim(a, limit, i, dest, len) vDSP_vlimD(a, 1, &limit, &i,\
+    dest, 1, len)
 #define VVSqrt(a,dest,len) vvsqrt(dest, a, (int *)&len)
 #define VVTanh(a,dest,len) vvtanh(dest, a, (int *)&len)
 #define VVExp(a,dest,len)  vvexp(dest, a, (int *)&len)
@@ -68,6 +71,7 @@
 #define VDSPAddVS(a,b,dest,len) vDSP_vsadd(a, 1, &b, dest, 1, len)
 #define VDSPDivVS(a,b,dest,len) vDSP_vsdiv(a, 1, &b, dest, 1, len)
 #define VDSPDivSV(a,b,dest,len) vDSP_svdiv(&a, b, 1, dest, 1, len)
+#define VDSPVSquare(a, dest, len) vDSP_vsq(a, 1, dest, 1, len)
 #define VDSPClip(a,min,max,dest,len) vDSP_vclip(a,1,&min,&max,dest,1,len)
 #define VDSPThres(a, min, dest, len) vDSP_vthres(a,1,&min,dest,1,len)
 #define VDSPNeg(a,dest,len) vDSP_vneg(a, 1, dest, 1, len)
@@ -80,6 +84,8 @@
 #define VDSPSumElems(a, res, len) vDSP_sve(a, 1, &res, len)
 #define VDSPMTransp(a,dest,m,n) vDSP_mtrans(a, 1, dest, 1, m, n)
 #define VDSPMMul(a, b, dest, m, n, p)  vDSP_mmul(a, 1, b, 1, dest, 1, m, n, p)
+#define VDSPVLim(a, limit, i, dest, len) vDSP_vlim(a, 1, &limit, &i,\
+    dest, 1, len)
 #define VVSqrt(a,dest,len) vvsqrtf(dest, a, (int *)&len)
 #define VVTanh(a,dest,len) vvtanhf(dest, a, (int *)&len)
 #define VVExp(a,dest,len)  vvexpf(dest, a, (int *)&len)
@@ -1174,6 +1180,25 @@ void PSVectorThreshold(PSFloat *a, PSFloat min, PSFloat *dest,
         case MATHS_STORE_MODE_SUB:
             for (; i < length; i++) dest[i]-=PSClipValue(a[i],min,PSFLOAT_MAX);
             break;
+    }
+}
+
+void PSVectorMapWithLimit(PSFloat *a, PSFloat limit, PSFloat mapper,
+                          PSFloat *dest, uint64_t length, PSMathOpts *opts)
+{
+    MATHS_OPERATION_PREAMBLE();
+#if defined(HAS_ACCELERATE_FRAMEWORK)
+    if (PSACFEnabled(acceleration) && mode == MATHS_STORE_MODE_NORM) {
+        VDSPVLim(a, limit, mapper, dest, length);
+        return;
+    }
+#else
+    UNUSED(acceleration);
+#endif
+    /* No Acceleration */
+    for (i = 0; i < length; i++) {
+        if (limit <= a[i]) dest[i] = mapper;
+        else dest[i] = -mapper;
     }
 }
 
