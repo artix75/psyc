@@ -1991,7 +1991,7 @@ int testMathsVecProd(TestCase *tc, Test *test) {
     PSMathOpts opts = {0};
 #ifdef HAS_BLAS
     opts.acceleration = PSAcceleration_BLAS;
-    ok = PSVectorProduct(a, b, 2, 3, res, &opts);
+    ok = PSVectorProduct(a, b, res, 2, 3, &opts);
     testAssertWithMessage(ok, test, "PSVectorProduct (BLAS) failed%s", "");
     for (i = 0; i < 6; i++) {
         testAssertWithMessage(
@@ -2004,7 +2004,7 @@ int testMathsVecProd(TestCase *tc, Test *test) {
 #endif
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     opts.acceleration = PSAcceleration_ACF;
-    ok = PSVectorProduct(a, b, 2, 3, res, &opts);
+    ok = PSVectorProduct(a, b, res, 2, 3, &opts);
     testAssertWithMessage(
         ok, test, "PSVectorProduct (Accelerate Framework) failed%s", ""
     );
@@ -2019,7 +2019,7 @@ int testMathsVecProd(TestCase *tc, Test *test) {
     }
 #endif
     opts.acceleration = PSAcceleration_None;
-    ok = PSVectorProduct(a, b, 2, 3, res, &opts);
+    ok = PSVectorProduct(a, b, res, 2, 3, &opts);
     testAssertWithMessage(ok, test, "PSVectorProduct (no accel.) failed%s", "");
     for (i = 0; i < 6; i++) {
         testAssertWithMessage(

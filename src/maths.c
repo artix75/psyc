@@ -1309,7 +1309,9 @@ PSFloat PSDotSquare(PSFloat *a, uint64_t length, PSMathOpts *opts) {
 
 int PSDot(PSMatrix matrix, PSFloat *vector, PSFloat *dest, PSMathOpts *opts) {
     if (matrix == NULL || vector == NULL || dest == NULL) {
-        PSErr(__func__, "`matrix`, `vector` and `dest` cannot be null");
+        if (matrix == NULL) PSErr(__func__, "`matrix` cannot be null");
+        if (vector == NULL) PSErr(__func__, "`vector` cannot be null");
+        if (dest == NULL) PSErr(__func__, "`dest` cannot be null");
         return 0;
     }
     int dims[MAX_DIMENSIONS];
@@ -1384,8 +1386,8 @@ int PSDot(PSMatrix matrix, PSFloat *vector, PSFloat *dest, PSMathOpts *opts) {
 /* Multiply every element of vector `a` (having `alen` length) by every
  * element of vector `b` (having `blen` length) and store results into
  * vector `dest` (whose length must be `alen` * `blen`). */
-int PSVectorProduct(PSFloat *a, PSFloat *b, uint64_t alen, uint64_t blen,
-                    PSFloat *dest, PSMathOpts *opts)
+int PSVectorProduct(PSFloat *a, PSFloat *b, PSFloat *dest,
+                    uint64_t alen, uint64_t blen, PSMathOpts *opts)
 {
     if (a == NULL || b == NULL || dest == NULL) {
         PSErr(__func__, "`, `vector` and `dest` cannot be null");

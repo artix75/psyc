@@ -139,8 +139,8 @@ PSFloat PSSumVectorElements(PSFloat *a, uint64_t length, PSMathOpts *opts);
 PSFloat PSDotProduct(PSFloat *a, PSFloat *b, uint64_t length, PSMathOpts *opts);
 PSFloat PSDotSquare(PSFloat *a, uint64_t length, PSMathOpts *opts);
 int PSDot(PSMatrix matrix, PSFloat *vector, PSFloat *dest, PSMathOpts *opts);
-int PSVectorProduct(PSFloat *a, PSFloat *b, uint64_t alen, uint64_t blen,
-                    PSFloat *dest, PSMathOpts *opts);
+int PSVectorProduct(PSFloat *a, PSFloat *b, PSFloat *dest,
+                    uint64_t alen, uint64_t blen, PSMathOpts *opts);
 
 #endif /* __PS_MATHS_H__ */
 
