@@ -1344,7 +1344,7 @@ int PSDot(PSMatrix matrix, PSFloat *vector, PSFloat *dest, PSMathOpts *opts) {
         PSFloat *dpdest = dest;
         if (store_mode) {
             dpdest = tmpdest;
-            if (dpdest == NULL) dpdest = malloc(len * sizeof(PSFloat));
+            if (dpdest == NULL) dpdest = malloc(rows * sizeof(PSFloat));
             if (dpdest == NULL) {
                 PSPrintMemoryErrorMsg();
                 return 0;
