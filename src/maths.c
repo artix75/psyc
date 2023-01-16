@@ -1432,7 +1432,7 @@ int PSVectorProduct(PSFloat *a, PSFloat *b, PSFloat *dest,
         char trans1 = 'N', trans2 = 'N';
         int m = 1, lda = 1, ldb = blen, ldc = blen;
         PSGemm(order, trans1, trans2, alen, blen, m, 1.0, a, lda, b, ldb, 0.0,
-               dest, ldc);
+               vpdest, ldc);
         goto acceleration_done;
     }
 #endif
