@@ -1110,7 +1110,7 @@ int testRNNBackprop(TestCase *test_case, Test *test) {
     return 1;
 on_fail:
     PSDeleteGradients(gradients, network);
-    return 1;
+    return 0;
 }
 
 int testRNNStep(TestCase *test_case, Test *test) {
