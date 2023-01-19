@@ -284,14 +284,14 @@ void segvHandler(int sig, siginfo_t *info, void *secret) {
 #else
     printf("no\n");
 #endif
-    printf("GCC:            %d.%d.%d\n",
+    printf("GCC:                %d.%d.%d\n",
 #ifdef __GNUC__
             __GNUC__,__GNUC_MINOR__,__GNUC_PATCHLEVEL__);
 #else
             0,0,0);
 #endif
-    printf("Global Flags:   %d\n", PSGlobalFlags);
-    printf("Unixtime:       %lu\n", time(NULL));
+    printf("Global Flags:       %d\n", PSGlobalFlags);
+    printf("Unixtime:           %lu\n", time(NULL));
     if (last_debug_info.has_info) printLastDebugInfo();
 
     printf("\n\n------ STACK TRACE ------\n");
@@ -629,6 +629,7 @@ int PSDumpGradients(PSNeuralNetwork *network, PSGradient **gradients,
     if (PSShouldDumpGradientsCallback != NULL) {
         if (!PSShouldDumpGradientsCallback(network)) return 0;
     }
+    int success = 1;
     char default_filename[PATH_MAX];
     if (filename == NULL) {
         if (PSDumpGradientsPath == NULL) {
@@ -678,7 +679,7 @@ int PSDumpGradients(PSNeuralNetwork *network, PSGradient **gradients,
         return 0;
     }
     PSFloat clip_h = 0.0, clip_l = 0.0;
-    int i, j, k, size, apply_clip = 0;
+    int i, j, apply_clip = 0;
     if (opts != NULL) {
         if ((apply_clip = (opts->clip != 0.0))) {
             clip_h = PSAbs(opts->clip);
@@ -687,16 +688,6 @@ int PSDumpGradients(PSNeuralNetwork *network, PSGradient **gradients,
     }
     for (i = 0; i < network->size; i++) {
         PSLayer *layer = network->layers[i];
-        PSLayerType ltype = layer->type;
-        PSHyperParameters *lparams = layer->hyper_parameters;
-        int fcount = 1, weights_size = 0;
-        if ((ltype == Convolutional || ltype == Pooling ||
-            ltype == FullyConnected) && lparams != NULL)
-        {
-            PSFloat *params = lparams->parameters;
-            fcount = (int) (params[PARAM_FEATURE_COUNT]);
-        }
-        if (fcount < 0) fcount = 1;
         DumpLayerInfo(layer, f, 0);
         if (i == 0) {
             fprintf(f, ",weight_gradients=(),bias_gradients=()\n");
@@ -707,58 +698,35 @@ int PSDumpGradients(PSNeuralNetwork *network, PSGradient **gradients,
             fprintf(f, ",weight_gradients=(),bias_gradients=()\n");
             continue;
         }
-        if (ltype == Convolutional || ltype == Pooling) size = fcount;
-        else size = layer->size;
-        PSSharedParams *shared = NULL;
-        if (ltype == Convolutional) {
-            shared = PSGetConvSharedParams(layer);
-            if (!shared) {
-                fprintf(stderr, "Shared params for Convolutional layer %d "
-                        "are NULL!\n", i);
-                exit(1);
-            }
-            weights_size = shared->weights_size;
-        } else {
-            PSNeuron *n = layer->neurons[0];
-            assert(n != NULL);
-            weights_size = n->weights_size;
-            /*if (LSTM == ltype) weights_size += 4;*/
+        if (lgradients->weight_count > 0 && lgradients->weights == NULL) {
+            PSErr(NULL, "gradients[%d]: missing weights", (i - 1));
+            success = 0;
+            goto final;
         }
         fprintf(f, ",weight_gradients=(");
-        for(j = 0; j < size; j++) {
-            PSGradient *gradient = &(lgradients[j]);
-            assert(gradient != NULL);
-            assert(gradient->weights != NULL);
-            for (k = 0; k < weights_size; k++) {
-                PSFloat wg = gradient->weights[k];
-                if (apply_clip) wg = PSClipValue(wg, clip_l, clip_h);
-                if (k > 0 || j > 0) fprintf(f, ",");
-                writeSerializedFloat(f, wg, 0);
-            }
+        for(j = 0; (uint64_t) j < lgradients->weight_count; j++) {
+            PSFloat wg = lgradients->weights[j];
+            if (apply_clip) wg = PSClipValue(wg, clip_l, clip_h);
+            if (j > 0 || j > 0) fprintf(f, ",");
+            writeSerializedFloat(f, wg, 0);
         }
-        int is_lstm = (LSTM == ltype);
+        if (lgradients->bias_count > 0 && lgradients->biases == NULL) {
+            PSErr(NULL, "gradients[%d]: missing biases", (i - 1));
+            success = 0;
+            goto final;
+        }
         fprintf(f, "),bias_gradients=(");
-        for(j = 0; j < size; j++) {
+        for(j = 0; (uint64_t) j < lgradients->bias_count; j++) {
             if (j > 0) fprintf(f, ",");
-            PSGradient *gradient = &(lgradients[j]);
-            if (!is_lstm) {
-                PSFloat bg = gradient->bias;
-                if (apply_clip) bg = PSClipValue(bg, clip_l, clip_h);
-                writeSerializedFloat(f, bg, 0);
-            } else {
-                PSNeuron *neuron = layer->neurons[j];
-                PSFloat *gbiases = PSGetLSTMGradientBiases(neuron, gradient);
-                for(k = 0; k < 4; k++) {
-                    PSFloat bg = gbiases[k];
-                    if (apply_clip) bg = PSClipValue(bg, clip_l, clip_h);
-                    writeSerializedFloat(f, bg, 0);
-                }
-            }
+            PSFloat bg = lgradients->biases[j];
+            if (apply_clip) bg = PSClipValue(bg, clip_l, clip_h);
+            writeSerializedFloat(f, bg, 0);
         }
         fprintf(f, ")\n");
     }
+final:
     fclose(f);
-    return 1;
+    return success;
 }
 
 void PSResetDebugInfo(void) {
@@ -821,11 +789,12 @@ void PSAddDebugInfo(PSNeuralNetwork *network, char *file, const char *func,
         }
         last_debug_info.activation = PSGetNeuronActivation(n, t);
         last_debug_info.z_value = n->z_value;
-        last_debug_info.bias = n->bias;
+        last_debug_info.bias = (n->bias != NULL ? *(n->bias) : 0);
         if (l->delta != NULL) last_debug_info.delta = l->delta[n->index];
     }
     if (neuron2 != NULL) {
-        PSNeuron *n2 = neuron2;
+        /* TODO: refactor */
+        /*PSNeuron *n2 = neuron2;
         last_debug_info.neuron2_index = n2->index;
         PSLayer *l2 = (PSLayer *) n2->layer;
         last_debug_info.layer2_index = l2->index;
@@ -850,7 +819,7 @@ void PSAddDebugInfo(PSNeuralNetwork *network, char *file, const char *func,
                         last_debug_info.weight = n->weights[widx];
                 }
             }
-        }
+        }*/
     }
     last_debug_info.custom_prop = prop;
     last_debug_info.custom_val = val;

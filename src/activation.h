@@ -29,6 +29,10 @@
 
 #define PSTanhV PSVectorTanh
 
+typedef PSFloat  (*PSActivationFunction) (PSFloat);
+typedef void     (*PSVecActivationFunction) (PSFloat *vec, PSFloat *dest,
+                                             uint64_t len, PSMathOpts *opts);
+
 PSFloat PSSigmoid(PSFloat val);
 PSFloat PSSigmoidDerivative(PSFloat val);
 PSFloat PSRelu(PSFloat val);
@@ -43,5 +47,6 @@ void PSTanhDerivativeV(PSFloat *vec, PSFloat *dest, uint64_t len,
                        PSMathOpts *opts);
 void PSReluDerivativeV(PSFloat *vec, PSFloat *dest, uint64_t len,
                        PSMathOpts *opts);
+void PSSoftmax(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts);
 
 #endif /* __ACTIVATION_H__ */

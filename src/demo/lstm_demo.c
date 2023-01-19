@@ -106,7 +106,7 @@ int main(int argc, char** argv) {
     int batch_size = BATCHES;
     int disable_avx = 0;
     int shuffle = 0;
-    PSTrainingOptimization optimization = NoTrainingOptimization;
+    PSOptimization optimization = PSDefaultOptimization;
     PSFloat learning_rate = LEARNING_RATE;
     PSFloat momentum = MOMENTUM;
     PSFloat l1_decay = L1;
@@ -167,12 +167,15 @@ int main(int argc, char** argv) {
             shuffle = 1;
         } else if (strcmp("--optimization", arg) == 0 && !is_last) {
             char *optname = argv[++i];
-            if (strcmp("adam", optname) == 0) optimization = Adam;
-            else if (strcmp("adagrad", optname) == 0) optimization = AdaGrad;
-            else if (strcmp("adadelta", optname) == 0) optimization = AdaDelta;
+            if (strcmp("adam", optname) == 0) optimization = PSAdamOptimization;
+            else if (strcmp("adagrad", optname) == 0)
+                optimization = PSAdaGradOptimization;
+            else if (strcmp("adadelta", optname) == 0)
+                optimization = PSAdaDeltaOptimization;
             else if (strcmp("windowgrad", optname) == 0)
-                optimization = WindowGrad;
-            else if (strcmp("nesterov", optname) == 0) optimization = Nesterov;
+                optimization = PSWindowGradOptimization;
+            else if (strcmp("nesterov", optname) == 0)
+                optimization = PSNesterovOptimization;
             else {
                 fprintf(stderr, "Invalid optmization `%s`\n", optname);
                 fprintf(

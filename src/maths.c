@@ -669,7 +669,9 @@ final:
     if (transposed == NULL) return NULL;
     t_hdr = PSMatrixGetHeader(transposed);
     t_hdr->transposed_from = matrix;
+    t_hdr->transposed = NULL;
     hdr->transposed = transposed;
+    hdr->transposed_from = NULL;
     return transposed;
 }
 

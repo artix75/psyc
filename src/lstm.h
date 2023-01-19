@@ -20,27 +20,32 @@
 
 #include "psyc.h"
 
-#define PSGetLSTMCell(neuron) ((PSLSTMCell *) neuron->extra)
+#define PS_LSTM_CANDIDATE_IDX   0
+#define PS_LSTM_INPUT_IDX       1
+#define PS_LSTM_OUTPUT_IDX      2
+#define PS_LSTM_FORGET_IDX      3
+#define PS_LSTM_ZVAL_IDX        4
+
 #define PSGetLSTMGradientBiases(n, gradient) (gradient->weights +\
  n->weights_size)
-#define PSGetLSTMStates(layer) ((PSLSTMStates *) layer->extra)
 
 typedef struct {
-    /* Common data layout with PSRecurrentCell */
-    int weights_size;
-    /* End common data layout */
-    PSFloat last_step_delta;
-    PSFloat candidate_bias;
-    PSFloat input_bias;
-    PSFloat output_bias;
-    PSFloat forget_bias;
-    PSFloat *candidate_weights;
-    PSFloat *input_weights;
-    PSFloat *output_weights;
-    PSFloat *forget_weights;
-} PSLSTMCell;
+    PSFloat *previous_step_delta;
+    /* Biases */
+    PSFloat *candidate_biases;
+    PSFloat *input_biases;
+    PSFloat *output_biases;
+    PSFloat *forget_biases;
+    /* Weights */
+    PSMatrix candidate_weights;
+    PSMatrix input_weights;
+    PSMatrix output_weights;
+    PSMatrix forget_weights;
+    PSMatrix candidate_hidden_weights;
+    PSMatrix input_hidden_weights;
+    PSMatrix output_hidden_weights;
+    PSMatrix forget_hidden_weights;
 
-typedef struct {
     PSFloat *z_values;
     PSFloat *candidates;
     PSFloat *input_gates;
@@ -51,14 +56,11 @@ typedef struct {
     PSFloat *previous_input_gates;  /* TODO: Probabily not needed */
     PSFloat *previous_output_gates; /* TODO: Probabily not needed */
     PSFloat *previous_forget_gates; /* TODO: Probabily not needed */
-} PSLSTMStates;
+} PSLSTMCell;
 
-PSLSTMCell *PSCreateLSTMCell(PSNeuron *neuron, int lsize);
+PSLSTMCell *PSCreateLSTMCell(PSLayer *layer);
+PSLSTMCell *PSGetLSTMCell(PSLayer *layer);
 void PSDeleteLSTMCell(PSLSTMCell *cell);
-void PSUpdateLSTMBiases(PSNeuron *neuron, PSGradient *gradient,
-                        PSGradient *mg, PSGradient *xg, PSFloat rate,
-                        PSTrainingOptions *opts, int iteration,
-                        int batch_size, PSFloat clip);
 
 /* Init Functions */
 

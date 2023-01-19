@@ -22,21 +22,19 @@
 #include <string.h>
 #include <assert.h>
 
-#ifdef USE_AVX
-#include "avx.h"
-#endif
-
 #include "lstm.h"
 #include "maths.h"
 #include "activation.h"
 #include "utils.h"
 #include "log.h"
 
-#define CANDIDATE_IDX   0
-#define INPUT_IDX       1
-#define OUTPUT_IDX      2
-#define FORGET_IDX      3
-#define Z_VAL_IDX       4
+#define CANDIDATE_IDX   PS_LSTM_CANDIDATE_IDX
+#define INPUT_IDX       PS_LSTM_INPUT_IDX
+#define OUTPUT_IDX      PS_LSTM_OUTPUT_IDX
+#define FORGET_IDX      PS_LSTM_FORGET_IDX
+#define Z_VAL_IDX       PS_LSTM_ZVAL_IDX
+
+#define LSTM_WEIGHT_TYPES_COUNT (4 * 2)
 
 #define FreeLSTMDeltas() do {\
     if (delta_c != NULL) free(delta_c);\
@@ -53,6 +51,12 @@
 #define getForgetGate(layer, i, t) (getLSTMState(layer, i, t, FORGET_IDX))
 #define getZValue(layer, i, t) (getLSTMState(layer, i, t, Z_VAL_IDX))
 
+#define getCandidates(layer, t) (PSGetLSTMStates(layer, t, CANDIDATE_IDX))
+#define getInputGates(layer, t) (PSGetLSTMStates(layer, t, INPUT_IDX))
+#define getOutputGates(layer, t) (PSGetLSTMStates(layer, t, OUTPUT_IDX))
+#define getForgetGates(layer, t) (PSGetLSTMStates(layer, t, FORGET_IDX))
+#define getZValues(layer, t) (PSGetLSTMStates(layer, t, Z_VAL_IDX))
+
 #define setCandidate(layer, i, s, t) (setLSTMState(layer,i,s,t,CANDIDATE_IDX))
 #define setInputGate(layer, i, s, t) (setLSTMState(layer, i, s, t, INPUT_IDX))
 #define setOutputGate(layer, i, s, t) (setLSTMState(layer, i, s, t, OUTPUT_IDX))
@@ -68,10 +72,15 @@ static char *LSTMStateNames[] = {
 /* Forward declarations */
 
 int isDroppedOut(PSNeuron *neuron, ...);
-PSFloat applyDropout(PSNeuron *neuron, PSFloat value);
+int applyLayerDroput(PSLayer *layer, int t);
+PSVecActivationFunction PSGetVectorActivationFunc(PSActivationFunction func);
 int PSLSTMBackprop(PSLayer *layer, PSLayer *previousLayer,
                    PSGradient *lgradients, ...);
 int PSLSTMFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...);
+static int getLSTMStatePointers(PSLSTMCell *cell, int type,
+                                PSFloat **state_ptr, PSFloat **previous_ptr);
+int checkLayerForFeedforward(PSLayer *layer);
+PSLSTMCell *PSCreateLSTMCell(PSLayer *layer);
 
 PSFloat applyGradientOnParameter(
     int param_type, PSTrainingOptions *options, PSFloat grad, PSFloat param,
@@ -87,155 +96,181 @@ int PSResizeRecurrentHiddenStates(PSLayer *layer, uint32_t steps);
 
 /* LSTM functions */
 
-void PSDeleteLSTMStates(PSLSTMStates *states) {
-    if (states->z_values != NULL) free(states->z_values);
-    if (states->candidates != NULL) free(states->candidates);
-    if (states->input_gates != NULL) free(states->input_gates);
-    if (states->output_gates != NULL) free(states->output_gates);
-    if (states->forget_gates != NULL) free(states->forget_gates);
-    free(states);
+PSLSTMCell *PSGetLSTMCell(PSLayer *layer) {
+    if (layer == NULL) return NULL;
+    PSLSTMCell *cell = (PSLSTMCell *) layer->extra;
+    if (cell == NULL) cell = PSCreateLSTMCell(layer);
+    return cell;
+}
+
+PSFloat *PSGetLSTMStates(PSLayer *layer, int t, int type) {
+    if (layer == NULL) return NULL;
+    PSLSTMCell *cell = PSGetLSTMCell(layer);
+    if (cell == NULL) {
+        PSErr(__func__, "Layer[%d]: missing LSTM cell");
+        return NULL;
+    }
+    PSFloat *state_ptr = NULL, *previous_ptr = NULL, *states = NULL;
+    if (!getLSTMStatePointers(cell, type, &state_ptr, &previous_ptr))
+        return NULL;
+    if (t < 0) return previous_ptr;
+    else {
+        if (state_ptr == NULL) return NULL;
+        if (t >= (int) layer->recurrent_states_count) {
+            PSErr(
+                NULL, "LSTM %s at step %d is out-of-range: layer %d only "
+                "has %d recurrent hidden states",
+                LSTMStateNames[type], t, layer->index,
+                layer->recurrent_states_count
+            );
+            return NULL;
+        }
+        states = state_ptr + (layer->size * t);
+    }
+    return states;
 }
 
 int PSInitLSTMStates(PSLayer *layer, uint32_t steps, int retain_previous) {
-    if (layer->extra == NULL) {
-        layer->extra = calloc(1, sizeof(PSLSTMStates));
-        if (layer->extra == NULL) {
-            PSPrintMemoryErrorMsg();
-            return 0;
-        }
+    if (layer == NULL) return 0;
+    PSLSTMCell *cell = PSGetLSTMCell(layer);
+    if (cell == NULL) {
+        PSErr(__func__, "Layer[%d]: missing LSTM cell", layer->index);
+        return 0;
     }
-    PSLSTMStates *states = PSGetLSTMStates(layer);
-
     PSFloat *candidates = initRecurrentStates(
-        layer, steps, retain_previous, states->candidates,
-        &states->previous_candidates
+        layer, steps, retain_previous, cell->candidates,
+        &cell->previous_candidates
     );
     if (candidates == NULL) return 0;
-    if (states->candidates != NULL) free(states->candidates);
-    states->candidates = candidates;
+    if (cell->candidates != NULL) free(cell->candidates);
+    cell->candidates = candidates;
 
     PSFloat *input_gates = initRecurrentStates(
-        layer, steps, retain_previous, states->input_gates,
-        &states->previous_input_gates
+        layer, steps, retain_previous, cell->input_gates,
+        &cell->previous_input_gates
     );
     if (input_gates == NULL) return 0;
-    if (states->input_gates != NULL) free(states->input_gates);
-    states->input_gates = input_gates;
+    if (cell->input_gates != NULL) free(cell->input_gates);
+    cell->input_gates = input_gates;
 
     PSFloat *output_gates = initRecurrentStates(
-        layer, steps, retain_previous, states->output_gates,
-        &states->previous_output_gates
+        layer, steps, retain_previous, cell->output_gates,
+        &cell->previous_output_gates
     );
     if (output_gates == NULL) return 0;
-    if (states->output_gates != NULL) free(states->output_gates);
-    states->output_gates = output_gates;
+    if (cell->output_gates != NULL) free(cell->output_gates);
+    cell->output_gates = output_gates;
 
     PSFloat *forget_gates = initRecurrentStates(
-        layer, steps, retain_previous, states->forget_gates,
-        &states->previous_forget_gates
+        layer, steps, retain_previous, cell->forget_gates,
+        &cell->previous_forget_gates
     );
     if (forget_gates == NULL) return 0;
-    if (states->forget_gates != NULL) free(states->forget_gates);
-    states->forget_gates = forget_gates;
+    if (cell->forget_gates != NULL) free(cell->forget_gates);
+    cell->forget_gates = forget_gates;
 
     PSFloat *z_values = initRecurrentStates(
-        layer, steps, retain_previous, states->z_values,
-        &states->previous_z_values
+        layer, steps, retain_previous, cell->z_values,
+        &cell->previous_z_values
     );
     if (z_values == NULL) return 0;
-    if (states->z_values != NULL) free(states->z_values);
-    states->z_values = z_values;
+    if (cell->z_values != NULL) free(cell->z_values);
+    cell->z_values = z_values;
     return 1;
 }
 
 int PSResizeLSTMStates(PSLayer *layer, uint32_t steps) {
-    if (layer->extra == NULL) {
-        layer->extra = calloc(1, sizeof(PSLSTMStates));
-        if (layer->extra == NULL) return 0;
+    PSLSTMCell *cell = PSGetLSTMCell(layer);
+    if (cell == NULL) {
+        PSErr(__func__, "Layer[%d]: missing LSTM cell");
+        return 0;
     }
-    PSLSTMStates *states = PSGetLSTMStates(layer);
 
     PSFloat *candidates = resizeRecurrentStates(
-        layer, steps, states->candidates, &states->previous_candidates
+        layer, steps, cell->candidates, &cell->previous_candidates
     );
     if (candidates == NULL) {
-        free(states->candidates);
-        states->candidates = NULL;
-        states->previous_candidates = NULL;
+        free(cell->candidates);
+        cell->candidates = NULL;
+        cell->previous_candidates = NULL;
         layer->network->status = STATUS_ERROR;
         return 0;
     }
-    states->candidates = candidates;
+    cell->candidates = candidates;
 
     PSFloat *input_gates = resizeRecurrentStates(
-        layer, steps, states->input_gates, &states->previous_input_gates
+        layer, steps, cell->input_gates, &cell->previous_input_gates
     );
     if (input_gates == NULL) {
-        free(states->input_gates);
-        states->input_gates = NULL;
-        states->previous_input_gates = NULL;
+        free(cell->input_gates);
+        cell->input_gates = NULL;
+        cell->previous_input_gates = NULL;
         layer->network->status = STATUS_ERROR;
         return 0;
     }
-    states->input_gates = input_gates;
+    cell->input_gates = input_gates;
 
     PSFloat *output_gates = resizeRecurrentStates(
-        layer, steps, states->output_gates, &states->previous_output_gates
+        layer, steps, cell->output_gates, &cell->previous_output_gates
     );
     if (output_gates == NULL) {
-        free(states->output_gates);
-        states->output_gates = NULL;
-        states->previous_output_gates = NULL;
+        free(cell->output_gates);
+        cell->output_gates = NULL;
+        cell->previous_output_gates = NULL;
         layer->network->status = STATUS_ERROR;
         return 0;
     }
-    states->output_gates = output_gates;
+    cell->output_gates = output_gates;
 
     PSFloat *forget_gates = resizeRecurrentStates(
-        layer, steps, states->forget_gates, &states->previous_forget_gates
+        layer, steps, cell->forget_gates, &cell->previous_forget_gates
     );
     if (forget_gates == NULL) {
-        free(states->forget_gates);
-        states->forget_gates = NULL;
-        states->previous_forget_gates = NULL;
+        free(cell->forget_gates);
+        cell->forget_gates = NULL;
+        cell->previous_forget_gates = NULL;
         layer->network->status = STATUS_ERROR;
         return 0;
     }
-    states->forget_gates = forget_gates;
+    cell->forget_gates = forget_gates;
 
     PSFloat *z_values = resizeRecurrentStates(
-        layer, steps, states->z_values, &states->previous_z_values
+        layer, steps, cell->z_values, &cell->previous_z_values
     );
     if (z_values == NULL) {
-        free(states->z_values);
-        states->z_values = NULL;
-        states->previous_z_values = NULL;
+        free(cell->z_values);
+        cell->z_values = NULL;
+        cell->previous_z_values = NULL;
         layer->network->status = STATUS_ERROR;
         return 0;
     }
-    states->z_values = z_values;
+    cell->z_values = z_values;
 
     return 1;
 }
 
-static int getLSTMStatePointers(PSLSTMStates *states, int type,
+static int getLSTMStatePointers(PSLSTMCell *cell, int type,
                                 PSFloat **state_ptr, PSFloat **previous_ptr)
 {
+    if (cell == NULL) {
+        PSErr(NULL, "Layer[%d]: missing LSTM cell");
+        return 0;
+    }
     if (type == CANDIDATE_IDX) {
-        *state_ptr = states->candidates;
-        *previous_ptr = states->previous_candidates;
+        *state_ptr = cell->candidates;
+        *previous_ptr = cell->previous_candidates;
     } else if (type == INPUT_IDX) {
-        *state_ptr = states->input_gates;
-        *previous_ptr = states->previous_input_gates;
+        *state_ptr = cell->input_gates;
+        *previous_ptr = cell->previous_input_gates;
     } else if (type == OUTPUT_IDX) {
-        *state_ptr = states->output_gates;
-        *previous_ptr = states->previous_output_gates;
+        *state_ptr = cell->output_gates;
+        *previous_ptr = cell->previous_output_gates;
     } else if (type == FORGET_IDX) {
-        *state_ptr = states->forget_gates;
-        *previous_ptr = states->previous_forget_gates;
+        *state_ptr = cell->forget_gates;
+        *previous_ptr = cell->previous_forget_gates;
     } else if (type == Z_VAL_IDX) {
-        *state_ptr = states->z_values;
-        *previous_ptr = states->previous_z_values;
+        *state_ptr = cell->z_values;
+        *previous_ptr = cell->previous_z_values;
     } else {
         PSErr(NULL, "Invalid LSTM state type %d", type);
         *state_ptr = NULL;
@@ -246,10 +281,10 @@ static int getLSTMStatePointers(PSLSTMStates *states, int type,
 }
 
 static PSFloat getLSTMState(PSLayer *layer, int index, int t, int type) {
-    PSLSTMStates *states = PSGetLSTMStates(layer);
-    if (states == NULL) return 0.0;
+    PSLSTMCell *cell = PSGetLSTMCell(layer);
+    if (cell == NULL) return 0.0;
     PSFloat *state_ptr = NULL, *previous_ptr = NULL;
-    if (!getLSTMStatePointers(states, type, &state_ptr, &previous_ptr)) {
+    if (!getLSTMStatePointers(cell, type, &state_ptr, &previous_ptr)) {
         PSErr(NULL, "Invalid LSTM state type %d", type);
         abort();
         return 0;
@@ -268,7 +303,7 @@ static PSFloat getLSTMState(PSLayer *layer, int index, int t, int type) {
         if (t >= (int) layer->recurrent_states_count) {
             PSErr(
                 NULL, "LSTM %s %d is out-of-range: layer %d only "
-                "has %d recurrent hidden states",
+                "has %d recurrent hidden cell",
                 "of size %d", LSTMStateNames[type], t, layer->index,
                 layer->recurrent_states_count
             );
@@ -285,16 +320,12 @@ int setLSTMState(PSLayer *layer, int index, PSFloat state, int t, int type) {
             NULL, "Neuron index %d is out-of-range for layer %d "
             "of size %d", index, layer->index, layer->size
         );
-        return 0.0;
+        return 0;
     }
-    PSLSTMStates *states = PSGetLSTMStates(layer);
-    if (states == NULL) {
-        layer->extra = calloc(1, sizeof(PSLSTMStates));
-        if (layer->extra == NULL) {
-            PSPrintMemoryErrorMsg();
-            return 0;
-        }
-        states = (PSLSTMStates *) layer->extra;
+    PSLSTMCell *cell = PSGetLSTMCell(layer);
+    if (cell == NULL) {
+        PSErr(NULL, "Layer[%d]: missing LSTM cell");
+        return 0;
     }
     PSFloat *state_ptr = NULL, *previous_ptr = NULL;
     if (t >= (int) layer->recurrent_states_count) {
@@ -314,7 +345,7 @@ int setLSTMState(PSLayer *layer, int index, PSFloat state, int t, int type) {
         );
         return 0;
     }
-    if (!getLSTMStatePointers(states, type, &state_ptr, &previous_ptr)) {
+    if (!getLSTMStatePointers(cell, type, &state_ptr, &previous_ptr)) {
         PSErr(NULL, "Invalid LSTM state type %d", type);
         abort();
         return 0;
@@ -329,173 +360,121 @@ int setLSTMState(PSLayer *layer, int index, PSFloat state, int t, int type) {
     return 1;
 }
 
-static int LSTMCellFeedforward(PSLayer *layer, PSLayer *previous,
-                               PSNeuron *neuron, int onehot_idx,
-                               int times, int t)
-{
-    UNUSED(times);
-    PSNeuralNetwork *net = layer->network;
-    PSLSTMCell *cell = PSGetLSTMCell(neuron);
-    if (cell == NULL) {
-        PSErr(NULL, "Layer[%d]: neuron[%d] cell is NULL!",
-              layer->index, neuron->index);
-        return 0;
-    }
-    PSMathOpts dpopt = {.acceleration = net->acceleration};
-    int wsize = cell->weights_size;
-    int prev_size = wsize - layer->size;
-    int ignore_previous_activations = 0;
-    int use_bias = !(layer->flags & FLAG_NO_BIAS);
-    if (!PSIsRecurrent(previous) && layer == PSGetFirstRecurrentLayer(net))
-        ignore_previous_activations = (t > 0);
-
-    PSFloat candidate = 0.0;
-    PSFloat input_gate = 0.0;
-    PSFloat output_gate = 0.0;
-    PSFloat forget_gate = 0.0;
-
-    PSFloat prev_z = 0.0;
-
-    if (ignore_previous_activations) goto forward_previous_step;
-    PSFloat *inputs = NULL;
-    if (onehot_idx >= 0) {
-        candidate = cell->candidate_weights[onehot_idx];
-        input_gate = cell->input_weights[onehot_idx];
-        output_gate = cell->output_weights[onehot_idx];
-        forget_gate = cell->forget_weights[onehot_idx];
-    } else {
-        if (inputs == NULL) inputs = PSGetActivations(previous, t);
-        if (inputs == NULL) {
-            PSErr(NULL, "Layer[%d]: previous layer[%d] has NULL activations",
-                  layer->index, previous->index);
-            return 0;
-        }
-        int input_size = previous->size;
-        candidate = PSDotProduct(
-            inputs, cell->candidate_weights, input_size, &dpopt
-        );
-        input_gate = PSDotProduct(
-            inputs, cell->input_weights, input_size, &dpopt
-        );
-        output_gate = PSDotProduct(
-            inputs, cell->output_weights, input_size, &dpopt
-        );
-        forget_gate = PSDotProduct(
-            inputs, cell->forget_weights, input_size, &dpopt
-        );
-    }
-
-forward_previous_step:
-    if (t > 0 || layer->previous_activations != NULL) {
-        int prev_t = t - 1;
-        PSFloat *prev_act = PSGetActivations(layer, prev_t);
-        prev_z = getZValue(layer, neuron->index, prev_t);
-        candidate += PSDotProduct(
-            prev_act, cell->candidate_weights + prev_size, layer->size, &dpopt
-        );
-        input_gate += PSDotProduct(
-            prev_act, cell->input_weights + prev_size, layer->size, &dpopt
-        );
-        output_gate += PSDotProduct(
-            prev_act, cell->output_weights + prev_size, layer->size, &dpopt
-        );
-        forget_gate += PSDotProduct(
-            prev_act, cell->forget_weights + prev_size, layer->size, &dpopt
-        );
-    }
-    PSFloat candidate_bias = 0.0, input_bias = 0.0, output_bias = 0.0,
-            forget_bias = 0.0;
-    if (use_bias) {
-        candidate_bias = cell->candidate_bias;
-        input_bias = cell->input_bias;
-        output_bias = cell->output_bias;
-        forget_bias = cell->forget_bias;
-    }
-    candidate = PSTanhActivation(candidate + candidate_bias);
-    input_gate = PSSigmoid(input_gate + input_bias);
-    output_gate = PSSigmoid(output_gate + output_bias);
-    forget_gate = PSSigmoid(forget_gate + forget_bias);
-
-    if (!setCandidate(layer, neuron->index, candidate, t)) goto err;
-    if (!setInputGate(layer, neuron->index, input_gate, t)) goto err;
-    if (!setOutputGate(layer, neuron->index, output_gate, t)) goto err;
-    if (!setForgetGate(layer, neuron->index, forget_gate, t)) goto err;
-
-    neuron->z_value = candidate * input_gate + prev_z * forget_gate;
-    if (!setZValue(layer, neuron->index, neuron->z_value, t)) goto err;
-
-    PSFloat activation = neuron->z_value;
-    if (layer->activate != NULL) activation = layer->activate(activation);
-    activation = output_gate * activation;
-    if (!PSSetNeuronActivation(neuron, activation, t)) goto err;
-    return 1;
-err:
-    neuron->layer->network->status = STATUS_ERROR;
-    return 0;
+static void initLSTMCellParams(PSLayer *layer, PSLSTMCell *cell) {
+    cell->candidate_biases = layer->biases + (layer->size * CANDIDATE_IDX);
+    cell->input_biases = layer->biases + (layer->size * INPUT_IDX);
+    cell->output_biases = layer->biases + (layer->size * OUTPUT_IDX);
+    cell->forget_biases = layer->biases + (layer->size * FORGET_IDX);
+    cell->candidate_weights = layer->weights[CANDIDATE_IDX];
+    cell->input_weights = layer->weights[INPUT_IDX];
+    cell->output_weights = layer->weights[OUTPUT_IDX];
+    cell->forget_weights = layer->weights[FORGET_IDX];
+    PSMatrix *hidden_weights = layer->weights + 4;
+    cell->candidate_hidden_weights = hidden_weights[CANDIDATE_IDX];
+    cell->input_hidden_weights = hidden_weights[INPUT_IDX];
+    cell->output_hidden_weights = hidden_weights[OUTPUT_IDX];
+    cell->forget_hidden_weights = hidden_weights[FORGET_IDX];
 }
 
-PSLSTMCell *PSCreateLSTMCell(PSNeuron *neuron, int weight_size) {
-
-    PSLSTMCell *cell = malloc(sizeof(PSLSTMCell));
-    if (cell == NULL) return NULL;
-    cell->last_step_delta = 0.0;
-
-    cell->candidate_bias = PSGaussianRandom(0, 1);
-    cell->input_bias = PSGaussianRandom(0, 1);
-    cell->output_bias = PSGaussianRandom(0, 1);
-    cell->forget_bias = PSGaussianRandom(0, 1);
-
-    cell->weights_size = weight_size;
-    cell->candidate_weights = neuron->weights;
-    cell->input_weights = neuron->weights + weight_size;
-    cell->output_weights = neuron->weights + (weight_size *
-                                              OUTPUT_IDX);
-    cell->forget_weights = neuron->weights + (weight_size *
-                                              FORGET_IDX);
+PSLSTMCell *PSCreateLSTMCell(PSLayer *layer) {
+    if (layer->extra != NULL) return (PSLSTMCell *) layer->extra;
+    if (layer->biases == NULL) {
+        PSErr(
+            NULL, "Layer[%d]: cannot create LSTM cell, biases are NULL",
+            layer->index
+        );
+        return NULL;
+    }
+    if (layer->weights == NULL) {
+        PSErr(
+            NULL, "Layer[%d]: cannot create LSTM cell, weights are NULL",
+            layer->index
+        );
+        return NULL;
+    }
+    PSLSTMCell *cell = calloc(1, sizeof(PSLSTMCell));
+    if (cell == NULL) goto memerr;
+    cell->previous_step_delta = calloc(layer->size, sizeof(PSFloat));
+    if (cell->previous_step_delta == NULL) goto memerr;
+    initLSTMCellParams(layer, cell);
+    int i;
+    for (i = 0; i < layer->size; i++) {
+        cell->candidate_biases[i] = PSGaussianRandom(0, 1);
+        cell->input_biases[i] = PSGaussianRandom(0, 1);
+        cell->output_biases[i] = PSGaussianRandom(0, 1);
+        cell->forget_biases[i] = PSGaussianRandom(0, 1);
+    }
+    layer->extra = cell;
     return cell;
+memerr:
+    PSPrintMemoryErrorMsg();
+    if (cell != NULL) PSDeleteLSTMCell(cell);
+    return NULL;
 }
 
 void PSDeleteLSTMCell(PSLSTMCell *cell) {
+    if (cell->previous_step_delta != NULL) free(cell->previous_step_delta);
+    if (cell->z_values != NULL) free(cell->z_values);
+    if (cell->candidates != NULL) free(cell->candidates);
+    if (cell->input_gates != NULL) free(cell->input_gates);
+    if (cell->output_gates != NULL) free(cell->output_gates);
+    if (cell->forget_gates != NULL) free(cell->forget_gates);
     free(cell);
 }
 
-void PSUpdateLSTMBiases(PSNeuron *neuron, PSGradient *gradient,
-                        PSGradient *mg, PSGradient *xg, PSFloat rate,
-                        PSTrainingOptions *opts, int iteration,
-                        int batch_size, PSFloat clip)
-{
-    PSFloat clip_min = 0.0;
-    int apply_clip = (clip > 0.0);
-    if (apply_clip) clip_min = clip * -1;
-    PSFloat *biases = PSGetLSTMGradientBiases(neuron, gradient);
-    PSLSTMCell *cell = PSGetLSTMCell(neuron);
-    PSFloat batches = (PSFloat) batch_size;
-    PSFloat candidate_g = biases[CANDIDATE_IDX] / batches,
-            input_g = biases[INPUT_IDX] / batches,
-            output_g = biases[OUTPUT_IDX] / batches,
-            forget_g = biases[FORGET_IDX] / batches;
-    if (apply_clip) {
-        candidate_g = PSClipValue(candidate_g, clip_min, clip);
-        input_g = PSClipValue(input_g, clip_min, clip);
-        output_g = PSClipValue(output_g, clip_min, clip);
-        forget_g = PSClipValue(forget_g, clip_min, clip);
+void PSDeleteLSTMLayer(PSLayer *layer) {
+    if (layer->extra != NULL) {
+        PSLSTMCell *cell = (PSLSTMCell *) layer->extra;
+        PSDeleteLSTMCell(cell);
+        layer->extra = NULL;
     }
-    cell->candidate_bias = applyGradientOnParameter(
-        PARAM_TYPE_BIAS, opts, candidate_g, cell->candidate_bias,
-        mg, xg, rate, iteration, 0
-    );
-    cell->input_bias = applyGradientOnParameter(
-        PARAM_TYPE_BIAS, opts, input_g, cell->input_bias,
-        mg, xg, rate, iteration, 0
-    );
-    cell->output_bias = applyGradientOnParameter(
-        PARAM_TYPE_BIAS, opts, output_g, cell->output_bias,
-        mg, xg, rate, iteration, 0
-    );
-    cell->forget_bias = applyGradientOnParameter(
-        PARAM_TYPE_BIAS, opts, forget_g, cell->forget_bias,
-        mg, xg, rate, iteration, 0
-    );
+}
+
+int PSLSTMLayerCopy(PSLayer *layer, PSLayer *src) {
+    if (layer == NULL || src == NULL) return 0;
+    PSLSTMCell *cell = (PSLSTMCell *) layer->extra;
+    PSLSTMCell *srccell = (PSLSTMCell *) src->extra;
+    if (cell == NULL || srccell == NULL) return 0;
+    size_t size = 0, states_size = 0;
+    if (srccell->previous_step_delta != NULL) {
+        size = layer->size * sizeof(PSFloat);
+        if (cell->previous_step_delta == NULL)
+            cell->previous_step_delta = malloc(size);
+        if (cell->previous_step_delta == NULL) goto memerr;
+        memcpy(cell->previous_step_delta, srccell->previous_step_delta, size);
+    }
+    if (srccell->candidates != NULL && src->recurrent_states_count > 0) {
+        if (srccell->input_gates == NULL || srccell->output_gates == NULL ||
+            srccell->forget_gates == NULL || srccell->z_values == NULL)
+        {
+            PSErr(NULL, "Layer[%d]: incomplete states", src->index);
+            return 0;
+        }
+        int c = src->recurrent_states_count;
+        if (src->previous_activations != NULL) c++;
+        states_size = c * layer->size * sizeof(PSFloat);
+        if (cell->candidates == NULL) cell->candidates = malloc(states_size);
+        if (cell->candidates == NULL) goto memerr;
+        memcpy(cell->candidates, srccell->candidates, states_size);
+        if (cell->input_gates == NULL) cell->input_gates = malloc(states_size);
+        if (cell->input_gates == NULL) goto memerr;
+        memcpy(cell->input_gates, srccell->input_gates, states_size);
+        if (cell->output_gates == NULL)
+            cell->output_gates = malloc(states_size);
+        if (cell->output_gates == NULL) goto memerr;
+        memcpy(cell->output_gates, srccell->output_gates, states_size);
+        if (cell->forget_gates == NULL)
+            cell->forget_gates = malloc(states_size);
+        if (cell->forget_gates == NULL) goto memerr;
+        memcpy(cell->forget_gates, srccell->forget_gates, states_size);
+        if (cell->z_values == NULL) cell->z_values = malloc(states_size);
+        if (cell->z_values == NULL) goto memerr;
+        memcpy(cell->z_values, srccell->z_values, states_size);
+    }
+    return 1;
+memerr:
+    PSPrintMemoryErrorMsg();
+    return 0;
 }
 
 /* Init Functions */
@@ -503,23 +482,30 @@ void PSUpdateLSTMBiases(PSNeuron *neuron, PSGradient *gradient,
 int PSInitLSTMLayer(PSNeuralNetwork *network, PSLayer *layer,
                     int size, int ws) {
     int i;
+    layer->on_delete = PSDeleteLSTMLayer;
+    layer->on_copy = PSLSTMLayerCopy;
     if (size == 0) {
         PSErr(__func__, "Cannot initialize layer with size = 0");
         return 0;
     }
-    ws += size;
-    int tot_ws = ws * 4; /* Weights for candidate, input, output and
-                            forget gates */
+    if (layer->biases != NULL) free(layer->biases);
+    layer->biases = calloc(size, 4 * sizeof(PSFloat));
+    if (layer->biases == NULL) goto memerr;
     layer->neurons = calloc(size, sizeof(PSNeuron*));
-    if (layer->neurons == NULL) {
-        PSErr(__func__, "Could not allocate layer neurons!");
-        return 0;
+    if (layer->neurons == NULL) goto memerr;
+    layer->weights = calloc(LSTM_WEIGHT_TYPES_COUNT, sizeof(PSMatrix));
+    if (layer->weights == NULL) goto memerr;
+    layer->weight_types_count = 0;
+    for (i = 0; i < LSTM_WEIGHT_TYPES_COUNT; i++) {
+        int hidden = (i >= 4);
+        int wsize = (hidden ? size : ws);
+        layer->weights[i] = PSMatrixWithGaussianRandom(1, 2, size, wsize);
+        if (layer->weights[i] == NULL) goto memerr;
+        layer->weight_types_count++;
     }
-    layer->weights = PSMatrixWithGaussianRandom(1, 2, size, tot_ws);
-    if (layer->weights == NULL) {
-        PSPrintMemoryErrorMsg();
-        return 0;
-    }
+    layer->delta = calloc(layer->size * 2, sizeof(PSFloat));
+    if (layer->delta == NULL) goto memerr;
+    if (!PSCreateLSTMCell(layer)) return 0;
     for (i = 0; i < size; i++) {
         PSNeuron *neuron = malloc(sizeof(PSNeuron));
         if (neuron == NULL) {
@@ -527,15 +513,11 @@ int PSInitLSTMLayer(PSNeuralNetwork *network, PSLayer *layer,
             return 0;
         }
         neuron->index = i;
-        neuron->weights_size = tot_ws;
-        neuron->bias = 0; /*PSGaussianRandom(0, 1);*/
-        neuron->weights = layer->weights + (i * tot_ws);
+        neuron->bias = NULL;
+        neuron->weights = NULL;
         neuron->z_value = 0;
         layer->neurons[i] = neuron;
-        neuron->extra = PSCreateLSTMCell(neuron, ws);
-        if (neuron->extra == NULL) {
-            return 0;
-        }
+        neuron->extra = NULL;
         neuron->layer = layer;
     }
     layer->flags |= FLAG_RECURRENT;
@@ -545,117 +527,227 @@ int PSInitLSTMLayer(PSNeuralNetwork *network, PSLayer *layer,
     layer->backprop = PSLSTMBackprop;
     network->flags |= FLAG_RECURRENT;
     return 1;
+memerr:
+    PSPrintMemoryErrorMsg();
+    return 0;
 }
 
 /* Feedforward Functions */
 
 int PSLSTMFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
+    if (!checkLayerForFeedforward(layer)) return 0;
     va_list args;
     va_start(args, layer);
     int times = va_arg(args, int);
     int t = va_arg(args, int);
     va_end(args);
     if (times < 1) {
-        PSErr(__func__, "Layer[%d]: times must be >= 1 (found %d)",
+        PSErr(NULL, "Layer[%d]: times must be >= 1 (found %d)",
               layer->index, times);
         return 0;
     }
-    int size = layer->size;
-    if (layer->neurons == NULL) {
-        PSErr(NULL, "Layer[%d] has no neurons!", layer->index);
-        return 0;
-    }
-    if (layer->index == 0) {
-        PSErr(NULL, "Cannot feedforward on layer 0!");
-        return 0;
+    if (t >= (int) layer->recurrent_states_count) {
+        if (!PSResizeRecurrentHiddenStates(layer, t + 1)) {
+            if (layer->network) layer->network->status = STATUS_ERROR;
+            PSErr(
+                NULL, "Could not resize recurrent hidden states for "
+                "layer %d", layer->index
+            );
+            return 0;
+        }
     }
     PSLayer *previous = net->layers[layer->index - 1];
-    if (previous == NULL) {
-        PSErr(NULL, "Layer[%d]: previous layer is NULL!", layer->index);
+    PSLayer *first_recurrent = PSGetFirstRecurrentLayer(net);
+    PSLSTMCell *cell = PSGetLSTMCell(layer);
+    if (cell == NULL) return 0;
+    int onehot = previous->flags & FLAG_ONEHOT;
+    int vector_size = 0, vector_idx = -1, lsize = layer->size;
+    int ignore_inputs = 0;
+    int prev_t = t - 1, i;
+    int use_bias = !(layer->flags & FLAG_NO_BIAS);
+    PSMathOpts dfopts = {.acceleration = net->acceleration};
+    PSMathOpts dpopt[] = {
+        /* Options for candiates */
+        {.acceleration = net->acceleration, .after = PSTanhActivation},
+        /* Options for input gates */
+        {.acceleration = net->acceleration, .after = PSSigmoid},
+        /* Options for output gates */
+        {.acceleration = net->acceleration, .after = PSSigmoid},
+        /* Options for forget gates */
+        {.acceleration = net->acceleration, .after = PSSigmoid}
+    };
+    if (use_bias) {
+        dpopt[CANDIDATE_IDX].add_vec = cell->candidate_biases;
+        dpopt[INPUT_IDX].add_vec = cell->input_biases;
+        dpopt[OUTPUT_IDX].add_vec = cell->output_biases;
+        dpopt[FORGET_IDX].add_vec = cell->forget_biases;
+    }
+    PSMathOpts final_opts = {.acceleration = net->acceleration};
+    PSFloat *prev_act = NULL, *prev_z = NULL;
+    PSFloat *candidates = getCandidates(layer, t);
+    PSFloat *input_gates = getInputGates(layer, t);
+    PSFloat *output_gates = getOutputGates(layer, t);
+    PSFloat *forget_gates = getForgetGates(layer, t);
+    PSFloat *z_values = getZValues(layer, t);
+    if (candidates == NULL || input_gates == NULL || output_gates == NULL ||
+        forget_gates == NULL || z_values == NULL)
+    {
+        PSErr(NULL, "Layer[%d]: missing states");
         return 0;
     }
-    int onehot = previous->flags & FLAG_ONEHOT;
-    PSHyperParameters *params = NULL;
-    int vector_size = 0, vector_idx = -1;
+    /* If layer is the first recurrent layer of a one-to-many network, inputs
+     * are fed just in the very first step. */
+    if (!PSIsRecurrent(previous) && layer == first_recurrent)
+        ignore_inputs = (t > 0);
+    int feed_previous_step = (t > 0 || layer->previous_activations != NULL);
+    PSFloat *inputs = NULL;
+    PSFloat *outputs = PSGetActivations(layer, t);
+    if (ignore_inputs) goto forward_previous_step;
     if (onehot) {
-        params = previous->hyper_parameters;
-        if (params == NULL) {
-            PSErr(NULL, "Layer[%d]: prev. onehot layer params are NULL!",
-                  layer->index);
-            return 0;
-        }
-        if (params->count < 1) {
-            PSErr(NULL, "Layer[%d]: prev. onehot layer params < 1!",
-                  layer->index);
-            return 0;
-        }
-        vector_size = (int) (params->parameters[0]);
+        /* Onehot input layers only have one input corresponding to the index
+         * of the activated unit. In this case, just take the value of the
+         * corresponding weight, since the input should always be considered
+         * as it would be 1 */
+        vector_size = PSGetOneHotLayerVectorSize(previous);
         vector_idx = (int) PSGetActivation(previous, 0, t);
-        if (vector_size == 0 && vector_idx >= vector_size) {
+        if (vector_size == 0) return 0;
+        if (vector_idx >= vector_size) {
             PSErr(NULL, "Layer[%d]: invalid vector index %d (max. %d)!",
-                  previous->index, vector_idx, vector_size - 1);
+                        previous->index, vector_idx, vector_size - 1);
             return 0;
         }
-    }
-    int i = 0;
-    for (; i < size; i++) {
-        PSNeuron *neuron = layer->neurons[i];
-        int ok = LSTMCellFeedforward(layer, previous, neuron,
-                                     vector_idx, times, t);
-        if (!ok) {
-            /* TODO: handle */
+        for (i = 0; i < layer->size; i++) {
+	    int offset = (i * vector_size) + vector_idx;
+            candidates[i] = cell->candidate_weights[offset];
+            input_gates[i] = cell->input_weights[offset];
+            output_gates[i] = cell->output_weights[offset];
+            forget_gates[i] = cell->forget_weights[offset];
+            if (!feed_previous_step) {
+                if (use_bias) {
+                    candidates[i] += cell->candidate_biases[i];
+                    input_gates[i] += cell->input_biases[i];
+                    output_gates[i] += cell->output_biases[i];
+                    forget_gates[i] += cell->forget_biases[i];
+                }
+                candidates[i] = PSTanh(candidates[i]);
+                input_gates[i] = PSSigmoid(input_gates[i]);
+                output_gates[i] = PSSigmoid(output_gates[i]);
+                forget_gates[i] = PSSigmoid(forget_gates[i]);
+            }
+        }
+    } else {
+        inputs = PSGetActivations(previous, t);
+        if (inputs == NULL) {
+            PSErr(NULL, "Layer[%d]: previous layer[%d] has NULL "
+                  "activations", layer->index, previous->index);
             return 0;
         }
+        PSMathOpts *c_opts = &dfopts, *ig_opts = &dfopts, *og_opts = &dfopts,
+                   *fg_opts = &dfopts;
+        if (!feed_previous_step) {
+            /* Since previous layer state won't be added, directly use
+             * `dpopt` options which will eventually add biases and
+             * apply activation function to PSDot results. */
+            c_opts = &dpopt[CANDIDATE_IDX];
+            ig_opts = &dpopt[INPUT_IDX];
+            og_opts = &dpopt[OUTPUT_IDX];
+            fg_opts = &dpopt[FORGET_IDX];
+        }
+        PSDot(cell->candidate_weights, inputs, candidates, c_opts);
+        PSDot(cell->input_weights, inputs, input_gates, ig_opts);
+        PSDot(cell->output_weights, inputs, output_gates, og_opts);
+        PSDot(cell->forget_weights, inputs, forget_gates, fg_opts);
     }
+forward_previous_step:
+    if (!feed_previous_step) goto final;
+    prev_act = PSGetActivations(layer, prev_t);
+    if (prev_act == NULL) goto final;
+    prev_z = getZValues(layer, prev_t);
+    dpopt[CANDIDATE_IDX].store_mode =
+    dpopt[INPUT_IDX].store_mode =
+    dpopt[OUTPUT_IDX].store_mode =
+    dpopt[FORGET_IDX].store_mode = MATHS_STORE_MODE_ADD;
+    PSDot(cell->candidate_hidden_weights, prev_act, candidates,
+          &dpopt[CANDIDATE_IDX]);
+    PSDot(cell->input_hidden_weights, prev_act, input_gates,
+          &dpopt[INPUT_IDX]);
+    PSDot(cell->output_hidden_weights, prev_act, output_gates,
+          &dpopt[OUTPUT_IDX]);
+    PSDot(cell->forget_hidden_weights, prev_act, forget_gates,
+          &dpopt[FORGET_IDX]);
+final:
+    PSMultiplyVectors(candidates, input_gates, z_values, lsize, &final_opts);
+    if (prev_z != NULL) {
+        final_opts.store_mode = MATHS_STORE_MODE_ADD;
+        PSMultiplyVectors(prev_z, forget_gates, z_values, lsize, &final_opts);
+    }
+    final_opts.store_mode = MATHS_STORE_MODE_NORM;
+    if (layer->activate != NULL) {
+        PSVecActivationFunction activate =
+            PSGetVectorActivationFunc(layer->activate);
+        if (activate != NULL) activate(z_values, outputs, lsize, &final_opts);
+        PSMultiplyVectors(outputs, output_gates, outputs, lsize, &final_opts);
+    } else PSMultiplyVectors(z_values,output_gates,outputs,lsize,&final_opts);
+    if (PSShouldApplyDropout(layer) && !applyLayerDroput(layer, t)) return 0;
     return 1;
 }
 
 /* Backpropagation Functions */
 
-int PSLSTMBackprop(PSLayer *layer, PSLayer *previousLayer,
+int PSLSTMBackprop(PSLayer *layer, PSLayer *previous_layer,
                    PSGradient *lgradients, ...)
 {
+    PSLSTMCell *cell = (PSLSTMCell *) layer->extra;
+    if (cell == NULL) {
+        PSErr(NULL, "Layer[%d] missing LSTM cell", layer->index);
+        return 0;
+    }
     va_list args;
     va_start(args, lgradients);
     int t = va_arg(args, int);
     va_end(args);
-    PSNeuralNetwork *net = (PSNeuralNetwork *) layer->network;
-#ifdef USE_AVX
-    int avx_disabled = !PSAVXEnabled(net->acceleration);
-#else
-    UNUSED(net);
-#endif
-    int onehot = previousLayer->flags & FLAG_ONEHOT;
-    int lsize = layer->size, i, w, prev_t = t - 1;
-    int previous_size = previousLayer->size;
+    /*PSMathOpts mopts = {.acceleration = layer->network->acceleration};*/
+    int onehot = previous_layer->flags & FLAG_ONEHOT;
+    int lsize = layer->size, i, w, prev_t = t - 1, success = 1;
+    int input_size = previous_layer->size;
     int use_bias = !(layer->flags & FLAG_NO_BIAS);
     if (onehot) {
-        PSHyperParameters *params = previousLayer->hyper_parameters;
-        if (params == NULL) {
-            PSErr(NULL, "Layer %d params are NULL!",
-                  previousLayer->index);
-            return 0;
-        }
-        previous_size = (int) params->parameters[0];
-        assert(previous_size > 0);
+        input_size = PSGetOneHotLayerVectorSize(previous_layer);
+        if (input_size <= 0) return 0;
     }
-    PSFloat *delta_c = calloc(sizeof(PSFloat), lsize);
-    PSFloat *delta_i = calloc(sizeof(PSFloat), lsize);
-    PSFloat *delta_o = calloc(sizeof(PSFloat), lsize);
-    PSFloat *delta_f = calloc(sizeof(PSFloat), lsize);
+    PSFloat *delta_c = calloc(lsize, sizeof(PSFloat));
+    PSFloat *delta_i = calloc(lsize, sizeof(PSFloat));
+    PSFloat *delta_o = calloc(lsize, sizeof(PSFloat));
+    PSFloat *delta_f = calloc(lsize, sizeof(PSFloat));
+    if (!delta_c || !delta_i || !delta_o || !delta_f) {
+        PSPrintMemoryErrorMsg();
+        success = 0;
+        goto final;
+    }
 
     PSFloat *delta = layer->delta;
     PSFloat *delta_z = delta + lsize;
+    PSFloat *gradient_biases_c = lgradients->biases;
+    PSFloat *gradient_biases_i = lgradients->biases + layer->size;
+    PSFloat *gradient_biases_o = lgradients->biases +
+                                 (layer->size * OUTPUT_IDX);
+    PSFloat *gradient_biases_f = lgradients->biases +
+                                 (layer->size * FORGET_IDX);
+    PSFloat *grd_input_weights = lgradients->weights;
+    PSFloat *grd_hidden_weights = lgradients->weights + (input_size * 4);
+    PSFloat *gradient_weights_c = grd_input_weights;
+    PSFloat *gradient_weights_i = grd_input_weights + input_size;
+    PSFloat *gradient_weights_o = grd_input_weights + (OUTPUT_IDX * input_size);
+    PSFloat *gradient_weights_f = grd_input_weights + (FORGET_IDX * input_size);
+    PSFloat *gradient_hweights_c = grd_hidden_weights;
+    PSFloat *gradient_hweights_i = grd_hidden_weights + layer->size;
+    PSFloat *gradient_hweights_o = grd_hidden_weights +
+                                   (OUTPUT_IDX * layer->size);
+    PSFloat *gradient_hweights_f = grd_hidden_weights +
+                                   (FORGET_IDX * layer->size);
 
     for (i = 0; i < lsize; i++) {
-        PSNeuron *neuron = layer->neurons[i];
-        PSLSTMCell *cell = PSGetLSTMCell(neuron);
-        PSGradient *gradient = &(lgradients[i]);
-        PSFloat *gradient_biases = PSGetLSTMGradientBiases(neuron, gradient);
         PSFloat dv = delta[i];
-        int cwsize = cell->weights_size;
-        int rwsize = layer->size;
-        int wsize = cwsize - rwsize;
 
         PSFloat z = getZValue(layer, i, t);
         PSFloat prev_z = getZValue(layer, i, prev_t);
@@ -689,35 +781,33 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previousLayer,
         delta_f[i] = df;
 
         if (use_bias) {
-            gradient_biases[CANDIDATE_IDX] += dc;
-            gradient_biases[INPUT_IDX] += di;
-            gradient_biases[OUTPUT_IDX] += dout;
-            gradient_biases[FORGET_IDX] += df;
+            gradient_biases_c[i] += dc;
+            gradient_biases_i[i] += di;
+            gradient_biases_o[i] += dout;
+            gradient_biases_f[i] += df;
         }
 
         if (onehot) {
-            PSFloat prev_a = PSGetActivation(previousLayer, 0, t);
-            assert(prev_a < previous_size);
+            PSFloat prev_a = PSGetActivation(previous_layer, 0, t);
+            assert(prev_a < input_size);
             w = (int) prev_a;
-            gradient->weights[w] += dc;
-            gradient->weights[w + cwsize] += di;
-            gradient->weights[w + (cwsize *OUTPUT_IDX)] += dout;
-            gradient->weights[w + (cwsize *FORGET_IDX)] += df;
+            gradient_weights_c[w] += dc;
+            gradient_weights_i[w] += di;
+            gradient_weights_o[w] += dout;
+            gradient_weights_f[w] += df;
         } else {
-            for (w = 0; w < wsize; w++) {
-                PSFloat prev_a = PSGetActivation(previousLayer, w, t);
-                gradient->weights[w] += (dc * prev_a);
-                gradient->weights[w + cwsize] += (di * prev_a);
-                gradient->weights[w + (cwsize *OUTPUT_IDX)] +=
-                    (dout *prev_a);
-                gradient->weights[w + (cwsize *FORGET_IDX)] +=
-                    (df *prev_a);
+            for (w = 0; w < input_size; w++) {
+                PSFloat prev_a = PSGetActivation(previous_layer, w, t);
+                gradient_weights_c[w] += (dc * prev_a);
+                gradient_weights_i[w] += (di * prev_a);
+                gradient_weights_o[w] += (dout *prev_a);
+                gradient_weights_f[w] += (df *prev_a);
             }
         }
 
         if (t > 0 || layer->previous_activations != NULL) {
             int w = 0;
-#ifdef USE_AVX
+/*#ifdef USE_AVX
             int i = 0, o = 0, f = 0;
             if (!avx_disabled) {
                 PSFloat *rweights = gradient->weights + wsize;
@@ -744,14 +834,13 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previousLayer,
                     f, 1, avx_t, AVX_STORE_MODE_ADD
                 );
             }
-#endif
-            for (; w < layer->size; w++) {
+#endif*/ //DELME
+            for (w = 0; w < layer->size; w++) {
                 PSFloat a = PSGetActivation(layer, w, prev_t);
-                int widx = wsize + w;
-                gradient->weights[widx] += (dc * a);
-                gradient->weights[widx + cwsize] += (di * a);
-                gradient->weights[widx + (cwsize *OUTPUT_IDX)] += (dout * a);
-                gradient->weights[widx + (cwsize *FORGET_IDX)] += (df * a);
+                gradient_hweights_c[w] += (dc * a);
+                gradient_hweights_i[w] += (di * a);
+                gradient_hweights_o[w] += (dout * a);
+                gradient_hweights_f[w] += (df * a);
             }
 
         }
@@ -761,57 +850,55 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previousLayer,
     if (t > 0) {
         for (i = 0; i < lsize; i++) {
             PSNeuron *neuron = layer->neurons[i];
-            PSLSTMCell *cell = PSGetLSTMCell(neuron);
-            int cwsize = cell->weights_size;
-            int wsize = cwsize - layer->size;
+            int widx = neuron->index;
             /* PSFloat prev_a = cell->states[prev_t]; */
             PSFloat d = 0.0;
             for (w = 0; w < lsize; w++) {
                 PSNeuron *rn = layer->neurons[w];
                 if (isDroppedOut(rn, t)) continue;
-                PSLSTMCell *rc = PSGetLSTMCell(rn);
-                int widx = neuron->index + wsize;
-                PSFloat cw = rc->candidate_weights[widx];
-                PSFloat iw = rc->input_weights[widx];
-                PSFloat ow = rc->output_weights[widx];
-                PSFloat fw = rc->forget_weights[widx];
+                PSFloat cw = cell->candidates[widx];
+                PSFloat iw = cell->input_gates[widx];
+                PSFloat ow = cell->output_gates[widx];
+                PSFloat fw = cell->forget_gates[widx];
 
                 d += delta_c[rn->index] * cw;
                 d += delta_i[rn->index] * iw;
                 d += delta_o[rn->index] * ow;
                 d += delta_f[rn->index] * fw;
             }
-            delta[neuron->index] = d;
-            cell->last_step_delta = d;
+            delta[i] = d;
+            cell->previous_step_delta[i]= d;
         }
     }
 
-    if (previousLayer->delta != NULL) {
+    if (previous_layer->delta != NULL) {
         for (i = 0; i < lsize; i++) {
             PSNeuron *neuron = layer->neurons[i];
             if (isDroppedOut(neuron, t)) continue;
-            PSLSTMCell *cell = PSGetLSTMCell(neuron);
             PSFloat d = delta[neuron->index];
-            int cwsize = cell->weights_size;
-            int wsize = cwsize - layer->size;
-            for (w = 0; w < wsize; w++) {
-                PSFloat cw = cell->candidate_weights[w];
-                PSFloat iw = cell->input_weights[w];
-                PSFloat ow = cell->output_weights[w];
-                PSFloat fw = cell->forget_weights[w];
+            int offset = (input_size * i);
+            PSFloat *weights_c = cell->candidate_weights + offset;
+            PSFloat *weights_i = cell->input_weights + offset;
+            PSFloat *weights_o = cell->output_weights + offset;
+            PSFloat *weights_f = cell->forget_weights + offset;
+            for (w = 0; w < input_size; w++) {
+                PSFloat cw = weights_c[w];
+                PSFloat iw = weights_i[w];
+                PSFloat ow = weights_o[w];
+                PSFloat fw = weights_f[w];
                 PSFloat prev_d = 0;
                 prev_d += d * cw;
                 prev_d += d * iw;
                 prev_d += d * ow;
                 prev_d += d * fw;
-                previousLayer->delta[w] += prev_d;
+                previous_layer->delta[w] += prev_d;
             }
         }
     }
-
+final:
     free(delta_c);
     free(delta_i);
     free(delta_o);
     free(delta_f);
-    return 1;
+    return success;
 }

@@ -20,15 +20,7 @@
 
 #include "psyc.h"
 
-#define PSGetRecurrentCell(neuron) ((PSRecurrentCell*) neuron->extra)
-
-typedef struct {
-    /* Common data layout used by recurrent cells (ie. PSLSTMCell) */
-    int weights_size;
-    /* End common data layout */
-    PSFloat *weights;
-} PSRecurrentCell;
-
-PSRecurrentCell *PSCreateRecurrentCell(PSNeuron *neuron, int lsize);
+PSMatrix PSGetRecurrentHiddenWeights(PSLayer *layer);
+PSFloat *PSGetRecurrentNeuronHiddenWeights(PSNeuron *neuron);
 
 #endif /* __PS_RECURRENT_H */

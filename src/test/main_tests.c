@@ -70,8 +70,8 @@
 #define NORMAL_PRECISION_DEC    6
 #define HIGH_PRECISION_DEC      8
 #else
-#define NORMAL_PRECISION_DEC    5
-#define HIGH_PRECISION_DEC      7
+#define NORMAL_PRECISION_DEC    4
+#define HIGH_PRECISION_DEC      5
 #endif
 #define getRoundedFloat(d) (getRoundedFloatDec(d, NORMAL_PRECISION_DEC))
 
@@ -216,7 +216,7 @@ PSFloat backpropConvGradients[8][8] = {
     {4.0, 0.0, 0.03533965, 0.0, 2.0, 0.00000000, 0.03533965}
 };
 
-PSFloat rnn_inner_weights[2][4] = {
+PSFloat rnn_inputs_weights[2][4] = {
     {0.23728831, -0.13215413,  0.22972574, -0.30660592},
     {0.20497796,  0.10017828, -0.42993062, 0.13334368}
 };
@@ -635,7 +635,7 @@ int genericTeardown(TestCase *test_case) {
 int RNNSetup(TestCase *test_case) {
     PSNeuralNetwork *network = PSCreateNetwork("RNN Test Network");
     if (network == NULL) {
-        fprintf(stderr, "\nCould not create network!\n");
+        PSErr(NULL, "\nCould not create network!");
         return 0;
     }
     network->flags |= FLAG_ONEHOT;
@@ -643,7 +643,7 @@ int RNNSetup(TestCase *test_case) {
     PSAddLayer(network, Recurrent, RNN_HIDDEN_SIZE, NULL);
     PSAddLayer(network, SoftMax, RNN_INPUT_SIZE, NULL);
     if (network->size < 1) {
-        fprintf(stderr, "\nCould not add all layers!\n");
+        PSErr(NULL, "\nCould not add all layers!");
         return 0;
     }
     network->layers[1]->flags |= FLAG_NO_BIAS;
@@ -652,20 +652,46 @@ int RNNSetup(TestCase *test_case) {
     int i, j, w;
     for (i = 1; i < network->size; i++) {
         PSLayer *layer = network->layers[i];
-        for (j = 0; j < layer->size; j++) {
-            PSNeuron *n = layer->neurons[j];
-            n->bias = 0;
-            for (w = 0; w < n->weights_size; w++) {
-                PSFloat *weights;
-                int w_idx = w;
-                if (i == 1) {
-                    if (w < RNN_INPUT_SIZE) weights = rnn_inner_weights[j];
-                    else {
-                        weights = rnn_recurrent_weights[j];
-                        w_idx -= RNN_INPUT_SIZE;
-                    }
-                } else weights = rnn_outer_weights[j];
-                n->weights[w] = weights[w_idx];
+        if (layer->weights == NULL) {
+            PSErr(NULL, "\nLayer[%d] weights is NULL", i);
+            return 0;
+        }
+        if (layer->weights[0] == NULL) {
+            PSErr(NULL, "\nLayer[%d] weights[0] is NULL", i);
+            return 0;
+        }
+        if (i == 1) {
+            if (layer->weights[1] == NULL) {
+                PSErr(NULL, "\nLayer[%d] weights[1] is NULL", i);
+                return 0;
+            }
+            uint64_t input_weights_count = PSMatrixLength(layer->weights[0]) /
+                layer->size;
+            /*uint64_t hidden_weights_count=PSMatrixLength(layer->weights[0]);*/
+            /*uint64_t tot_weights_count = input_weights_count + layer->size;*/
+            if ((uint64_t) RNN_INPUT_SIZE != input_weights_count) {
+                PSErr(
+                    NULL, "\nRNN Layer input_weights_count expected to be %d, "
+                    "got %llu", RNN_INPUT_SIZE, input_weights_count
+                );
+                return 0;
+            }
+            for (j = 0; j < layer->size; j++) {
+                PSFloat *input_weights = layer->weights[0] +
+                                         (j * RNN_INPUT_SIZE);
+                PSFloat *hidden_weights = layer->weights[0] +
+                                          (j * layer->size);
+                for (w = 0; w < RNN_INPUT_SIZE; w++)
+                    input_weights[w] = rnn_inputs_weights[j][w];
+                for (w = 0; w < layer->size; w++)
+                    hidden_weights[w] = rnn_recurrent_weights[j][w];
+            }
+        } else {
+            for (j = 0; j < layer->size; j++) {
+                int prev_size = network->layers[i - 1]->size;
+                PSFloat *input_weights = layer->weights[0] + (j * prev_size);
+                for (w = 0; w < prev_size; w++)
+                    input_weights[w] = rnn_inputs_weights[j][w];
             }
         }
     }
@@ -738,27 +764,43 @@ int LSTMSetup(TestCase *test_case) {
             return 0;
         }
     }
-
+    PSLSTMCell *cell = PSGetLSTMCell(layer);
+    if (cell == NULL) {
+        PSErr(NULL, "\nLSTM Cell is NULL for layer %d", layer->index);
+        return 0;
+    }
+    if (layer->weights == NULL || cell->candidate_weights == NULL) {
+        PSErr(NULL, "\nLSTM layer has incomplete weights");
+        return 0;
+    }
     int i, w;
+    int input_size = (int) PSMatrixLength(cell->candidate_weights) /
+                           layer->size;
     for (i = 0; i < layer->size; i++) {
-        PSNeuron *neuron = layer->neurons[i];
-        PSLSTMCell *cell = PSGetLSTMCell(neuron);
-        cell->candidate_bias = bg[i];
-        cell->input_bias = bi[i];
-        cell->output_bias = bo[i];
-        cell->forget_bias = bf[i];
-        for (w = 0; w < cell->weights_size; w++) {
-            cell->candidate_weights[w] = wg[i][w];
-            cell->input_weights[w] = wi[i][w];
-            cell->output_weights[w] = wo[i][w];
-            cell->forget_weights[w] = wf[i][w];
+        cell->candidate_biases[i] = bg[i];
+        cell->input_biases[i] = bi[i];
+        cell->output_biases[i] = bo[i];
+        cell->forget_biases[i] = bf[i];
+        int woffs = (i * input_size), woffs_h = (i * layer->size);
+        for (w = 0; w < input_size; w++) {
+            cell->candidate_weights[woffs + w] = wg[i][w];
+            cell->input_weights[woffs + w] = wi[i][w];
+            cell->output_weights[woffs + w] = wo[i][w];
+            cell->forget_weights[woffs + w] = wf[i][w];
+        }
+        for (w = 0; w < layer->size; w++) {
+            int src_idx = input_size + w;
+            cell->candidate_hidden_weights[woffs_h + w] = wg[i][src_idx];
+            cell->input_hidden_weights[woffs_h + w] = wi[i][src_idx];
+            cell->output_hidden_weights[woffs_h + w] = wo[i][src_idx];
+            cell->forget_hidden_weights[woffs_h + w] = wf[i][src_idx];
         }
     }
 
     for (i = 0; i < out->size; i++) {
         PSNeuron *neuron = out->neurons[i];
-        neuron->bias = 0.0;
-        for (w = 0; w < neuron->weights_size; w++) {
+        *neuron->bias = 0.0;
+        for (w = 0; w < layer->size; w++) {
             neuron->weights[w] = lstm_out_weights[i][w];
         }
     }
@@ -770,7 +812,7 @@ int LSTMSetup(TestCase *test_case) {
     }
     test_case->data[0] = network;
     int train_data_len = 2 + (LSTM_TIMES * 2);
-    PSFloat *training_data = malloc(train_data_len *sizeof(PSFloat));
+    PSFloat *training_data = malloc(train_data_len * sizeof(PSFloat));
     if (training_data == NULL) {
         fprintf(stderr, "\nCould not allocate memory!\n");
         return 0;
@@ -795,6 +837,37 @@ int testFullLoad(TestCase *test_case, Test *test) {
     testAssertEqual(
         network->layers[2]->size, pretrained_mnist_layers_size[2], test
     );
+    testAssertNotNull(network->layers[1]->biases, test);
+    testAssertNotNull(network->layers[1]->weights, test);
+    testAssertNotNull(network->layers[1]->weights[0], test);
+    PSFloat expected_biases[2][2] = {
+        {-1.1618, -2.3288},
+        {-6.0822, 0.8330}
+    };
+    PSFloat expected_weights[2][2] = {
+        {-1.8497, -0.5419},
+        {-1.2359, -4.677}
+    };
+    for(int l = 1; l < network->size; l++) {
+        for (int i = 0; i < 2; i++) {
+            PSFloat expected_bias = expected_biases[l - 1][i];
+            PSFloat bias = getRoundedFloat(network->layers[l]->biases[i]);
+            testAssertWithMessage(
+                bias == expected_bias, test,
+                "Layer[%d] Bias[%d] expected to be %g, got %g",
+                l, i, expected_bias, bias
+            );
+            PSNeuron *n = network->layers[l]->neurons[i];
+            testAssertNotNull(n->weights, test);
+            PSFloat expected_w = expected_weights[l - 1][i];
+            PSFloat w = getRoundedFloat(n->weights[0]);
+            testAssertWithMessage(
+                w == expected_w, test,
+                "Layer[%d] N[%d] Weight[0] expected to be %g, got %g",
+                l, i, expected_w, w
+            );
+        }
+    };
     return 1;
 }
 
@@ -858,34 +931,44 @@ int testFullBackprop(TestCase *test_case, Test *test) {
         int widx2 = (int) (backpropGradients[i][4]);
         PSFloat w1 = backpropGradients[i][5];
         PSFloat w2 = backpropGradients[i][6];
+
         PSGradient *dl = gradients[lidx - 1];
-        PSGradient *d = &(dl[nidx]);
-        PSFloat val = getRoundedFloatDec(d->bias, HIGH_PRECISION_DEC);
-        bias = getRoundedFloatDec(bias, HIGH_PRECISION_DEC);
-        w1 = getRoundedFloatDec(w1, HIGH_PRECISION_DEC);
-        w2 = getRoundedFloatDec(w2, HIGH_PRECISION_DEC);
+        testAssertNotNull(dl, test);
+        PSLayer *layer = network->layers[lidx];
+        testAssertNotNull(layer, test);
+        testAssertNotNull(dl->biases, test);
+        PSFloat val = getRoundedFloat(dl->biases[nidx]);
+        bias = getRoundedFloat(bias);
+        w1 = getRoundedFloat(w1);
+        w2 = getRoundedFloat(w2);
         testAssertWithMessageOrGoto(
             (val == bias), on_fail, test,
             "Gradient[%d][%d] bias %g != from expected (%g)",
             lidx - 1, nidx, val, bias
         );
-        val = getRoundedFloatDec(d->weights[widx1], HIGH_PRECISION_DEC);
+        uint64_t wsize = dl->weight_count / layer->size;
+        uint64_t widx1_g = (nidx * wsize) + widx1;
+        uint64_t widx2_g = (nidx * wsize) + widx2;
+        testAssertNotNull(dl->weights, test);
+        testAssert(widx1_g < dl->weight_count, test);
+        testAssert(widx2_g < dl->weight_count, test);
+        val = getRoundedFloat(dl->weights[widx1_g]);
         testAssertWithMessageOrGoto(
             (val == w1), on_fail, test,
             "Gradient[%d][%d] weight[%d] %g != from expected (%g)",
             lidx - 1, nidx, widx1, val, w1
         );
-        val = getRoundedFloatDec(d->weights[widx2], HIGH_PRECISION_DEC);
+        val = getRoundedFloat(dl->weights[widx2_g]);
         testAssertWithMessageOrGoto(
             (val == w2), on_fail, test,
             "Gradient[%d][%d] weight[%d] %g != from expected (%g)",
             lidx - 1, nidx, widx2, val, w2
         );
     }
-    PSDeleteGradients(gradients, network);
+    PSDeleteNetworkGradients(gradients, network);
     return 1;
 on_fail:
-    PSDeleteGradients(gradients, network);
+    PSDeleteNetworkGradients(gradients, network);
     return 0;
 }
 
@@ -902,9 +985,7 @@ int testConvLoad(TestCase *test_case, Test *test) {
         }
     }
     PSLayer *layer = network->layers[1];
-    PSSharedParams *shared;
-    shared = (PSSharedParams *) layer->extra;
-    PSFloat bias = shared->biases[0];
+    PSFloat bias = layer->biases[0];
     bias = getRoundedFloat(bias);
     PSFloat expected = CONV_L1F0_BIAS;
     expected = getRoundedFloat(expected);
@@ -943,8 +1024,7 @@ int testConvBackprop(TestCase *test_case, Test *test) {
     PSFloat *y = test_data + input_size;
     PSGradient **gradients = backprop(network, x, y, NULL, NULL);
     testAssertNotNull(gradients, test);
-    int i;
-    for (i = 0; i < BP_CONV_GRADIENTS_CHECKS; i++) {
+    for (int i = 0; i < BP_CONV_GRADIENTS_CHECKS; i++) {
         int lidx = (int) (backpropConvGradients[i][0]);
         int nidx = (int) (backpropConvGradients[i][1]);
         PSFloat bias = backpropConvGradients[i][2];
@@ -954,22 +1034,26 @@ int testConvBackprop(TestCase *test_case, Test *test) {
         PSFloat w2 = backpropConvGradients[i][6];
         PSGradient *dl = gradients[lidx - 1];
         if (dl == NULL) continue;
-        PSGradient *d = &(dl[nidx]);
-        PSFloat val = getRoundedFloatDec(d->bias, 4);
+        PSLayer *layer = network->layers[lidx];
+        testAssertNotNull(layer->weights, test);
+        testAssertNotNull(layer->weights[0], test);
+        int wsize = (int) PSMatrixLength(layer->weights[0]);
+
+        PSFloat val = getRoundedFloatDec(dl->biases[nidx], 4);
         bias = getRoundedFloatDec(bias, 4);
         testAssertWithMessageOrGoto(
             (val == bias), on_fail, test,
             "Gradient[%d][%d] bias %g != from expected (%g)",
             lidx - 1, nidx, val, bias
         );
-        val = getRoundedFloatDec(d->weights[widx1], 4);
+        val = getRoundedFloatDec(dl->weights[(nidx * wsize) + widx1], 4);
         w1 = getRoundedFloatDec(w1, 4);
         testAssertWithMessageOrGoto(
             (val == w1), on_fail, test,
             "Gradient[%d][%d] weight[%d] %g != from expect. (%g)",
             lidx - 1, nidx, widx1, val, w1
         );
-        val = getRoundedFloatDec(d->weights[widx2], 4);
+        val = getRoundedFloatDec(dl->weights[(nidx * wsize) + widx2], 4);
         w2 = getRoundedFloatDec(w2, 4);
         testAssertWithMessageOrGoto(
             (val == w2), on_fail, test,
@@ -977,10 +1061,10 @@ int testConvBackprop(TestCase *test_case, Test *test) {
             lidx - 1, nidx, widx2, val, w2
         );
     }
-    PSDeleteGradients(gradients, network);
+    PSDeleteNetworkGradients(gradients, network);
     return 1;
 on_fail:
-    PSDeleteGradients(gradients, network);
+    PSDeleteNetworkGradients(gradients, network);
     return 0;
 }
 
@@ -1013,26 +1097,76 @@ int testRNNLoad(TestCase *test_case, Test *test) {
     int loaded = PSLoadNetwork(network, RECURRENT_NETWORK);
     testAssertWithMessage(loaded, test, "Failed to load %s", RECURRENT_NETWORK);
 
-    int i, j, w;
+    int i, j, w, rnn_size = 0;
     for (i = 1; i < network->size; i++) {
         PSLayer *layer = network->layers[i];
-        for (j = 0; j < layer->size; j++) {
-            PSNeuron *n = layer->neurons[j];
-            for (w = 0; w < n->weights_size; w++) {
-                PSFloat *weights;
-                int w_idx = w;
-                if (i == 1) {
-                    if (w < RNN_INPUT_SIZE) weights = rnn_inner_weights[j];
-                    else {
-                        weights = rnn_recurrent_weights[j];
-                        w_idx -= RNN_INPUT_SIZE;
-                    }
-                } else weights = rnn_outer_weights[j];
-                testAssertWithMessage(
-                    (n->weights[w] == weights[w_idx]), test,
-                    "L[%d]N[%d]->weights[%d] %g != %g",
-                    i, j, w, n->weights[w], weights[w_idx]
-                );
+        int exp_weight_types_count = 1, is_rnn_layer = (i == 1);
+        uint64_t input_weight_count = 0, hidden_weight_count = 0;
+        if (is_rnn_layer) {
+            /* Recurrent Layer */
+            rnn_size = layer->size;
+            exp_weight_types_count = 2;
+        }
+        testAssertWithMessage(
+            layer->weight_types_count == exp_weight_types_count, test,
+            "Layer[%d] should have %d weight matrices, got: %d",
+            i, exp_weight_types_count, layer->weight_types_count
+        );
+        testAssertNotNull(layer->weights, test);
+        if (is_rnn_layer) {
+            testAssertNotNull(layer->weights[0], test);
+            testAssertNotNull(layer->weights[1], test);
+            input_weight_count = PSMatrixLength(layer->weights[0]);
+            hidden_weight_count = PSMatrixLength(layer->weights[1]);
+            testAssertWithMessage(
+                (input_weight_count == (uint64_t)(RNN_INPUT_SIZE*layer->size)),
+                test,
+                "Expected RNN Layer input weight count is %llu, got %llu",
+                (uint64_t) RNN_INPUT_SIZE, input_weight_count
+            );
+            testAssertWithMessage(
+                (hidden_weight_count == (uint64_t)(layer->size * layer->size)), 
+                test,
+                "Expected RNN Layer hidden weight count is %llu, got %llu",
+                (uint64_t) (layer->size * layer->size), hidden_weight_count
+            );
+            for (j = 0; j < layer->size; j++) {
+                PSFloat *input_weights = layer->weights[0] +
+                                         (j * RNN_INPUT_SIZE);
+                PSFloat *hidden_weights = layer->weights[1] +
+                                         (j * layer->size);
+                for (w = 0; w < RNN_INPUT_SIZE; w++) {
+                    testAssertWithMessage(
+                        (input_weights[w] == rnn_inputs_weights[j][w]), test,
+                        "RNN Layer[%d]: input weights[%d][%d] %g != %g",
+                        i, j, w, input_weights[w], rnn_inputs_weights[j][w]
+                    );
+                }
+                for (w = 0; w < layer->size; w++) {
+                    testAssertWithMessage(
+                        (hidden_weights[w] == rnn_recurrent_weights[j][w]),
+                        test, "RNN Layer[%d]: hidden weights[%d][%d] %g != %g",
+                        i, j, w, hidden_weights[w], rnn_recurrent_weights[j][w]
+                    );
+                }
+            }
+        } else {
+            testAssertNotNull(layer->weights[0], test);
+            input_weight_count = PSMatrixLength(layer->weights[0]);
+            testAssertWithMessage(
+                (input_weight_count = (uint64_t) rnn_size), test,
+                "Expected Output Layer input weight count is %llu, got %llu",
+                (uint64_t) rnn_size, input_weight_count
+            );
+            for (j = 0; j < layer->size; j++) {
+                PSFloat *weights = layer->weights[0] + (j * rnn_size);
+                for (w = 0; w < rnn_size; w++) {
+                    testAssertWithMessage(
+                        (weights[w] = rnn_outer_weights[j][w]), test,
+                        "Output Layer[%d] weights[%d][%d] %g != %g",
+                        i, j, w, weights[w], rnn_outer_weights[j][w]
+                    );
+                }
             }
         }
     }
@@ -1056,10 +1190,8 @@ int testRNNFeedforward(TestCase *test_case, Test *test) {
     for (i = 0; i < output->size; i++) {
         for (j = 0; j < (int) output->recurrent_states_count; j++) {
             PSFloat s = PSGetActivation(output, i, j);
-            s = getRoundedFloatDec(s, HIGH_PRECISION_DEC);
-            PSFloat expected = getRoundedFloatDec(
-                rnn_expected_output[j][i], HIGH_PRECISION_DEC
-            );
+            s = getRoundedFloat(s);
+            PSFloat expected = getRoundedFloat(rnn_expected_output[j][i]);
             testAssertWithMessage(
                 (s == expected), test,
                 "Output[%d][%d]: %g != %g", i, j, s, expected
@@ -1088,15 +1220,23 @@ int testRNNBackprop(TestCase *test_case, Test *test) {
     testAssertNotNull(gradients, test);
     int dsize = network->size - 1;
     for (i = 0; i < dsize; i++) {
-        PSGradient *lgradients = gradients[i];
+        PSGradient *gradient = gradients[i];
         PSLayer *l = network->layers[i + 1];
+        testAssertNotNull(l->weights, test);
+        testAssertNotNull(l->weights[0], test);
+        int input_size = gradient->weight_count;
+        int input_ws = input_size / l->size;
+        if (Recurrent == l->type) {
+            testAssertNotNull(l->weights[1], test);
+            //input_size -= l->size;
+            input_ws -= l->size;
+        }
         for (j = 0; j < l->size; j++) {
-            PSGradient *gradient = &(lgradients[j]);
-            int ws = l->neurons[j]->weights_size;
             PSFloat *expected = (i == 0 ? rnn_inner_gradients[j] :
                                  rnn_outer_gradients[j]);
-            for (w = 0; w < ws; w++) {
-                PSFloat dw = getRoundedFloat(gradient->weights[w]);
+            for (w = 0; w < input_ws; w++) {
+                int widx = (j * input_ws) + w;
+                PSFloat dw = getRoundedFloat(gradient->weights[widx]);
                 PSFloat exp_dw = getRoundedFloat(expected[w]);
                 testAssertWithMessageOrGoto(
                     (dw == exp_dw), on_fail, test,
@@ -1104,12 +1244,25 @@ int testRNNBackprop(TestCase *test_case, Test *test) {
                     i, j, w, dw, exp_dw
                 );
             }
+            if (Recurrent == l->type) {
+                for (w = 0; w < l->size; w++) {
+                    int widx = (input_ws * l->size) + (j * l->size) + w;
+                    int gwidx = input_ws + w;
+                    PSFloat dw = getRoundedFloat(gradient->weights[widx]);
+                    PSFloat exp_dw = getRoundedFloat(expected[gwidx]);
+                    testAssertWithMessageOrGoto(
+                        (dw == exp_dw), on_fail, test,
+                        "Gradient[%d][%d]->weight[%d]: %g != %g",
+                        i, j, w, dw, exp_dw
+                    );
+                }
+            }
         }
     }
-    PSDeleteGradients(gradients, network);
+    PSDeleteNetworkGradients(gradients, network);
     return 1;
 on_fail:
-    PSDeleteGradients(gradients, network);
+    PSDeleteNetworkGradients(gradients, network);
     return 0;
 }
 
@@ -1130,21 +1283,29 @@ int testRNNStep(TestCase *test_case, Test *test) {
     UNUSED(loss);
     for (i = 1; i < network->size; i++) {
         PSLayer *layer = network->layers[i];
+        int wsize = (int) PSGetLayerInputWeightsCount(layer, 1);
+        if (layer->type == Recurrent) wsize += layer->size;
         for (j = 0; j < layer->size; j++) {
             PSNeuron *n = layer->neurons[j];
-            for (w = 0; w < n->weights_size; w++) {
-                PSFloat *weights;
-                int w_idx = w;
+            for (w = 0; w < wsize; w++) {
+                PSFloat *eweights, *lweights;
+                int widx = w;
                 if (i == 1) {
-                    if (w < RNN_INPUT_SIZE)
-                        weights = rnn_trained_inner_weights[j];
-                    else {
-                        weights = rnn_trained_recurrent_weights[j];
-                        w_idx -= RNN_INPUT_SIZE;
+                    if (w < RNN_INPUT_SIZE) {
+                        eweights = rnn_trained_inner_weights[j];
+                        lweights = PSGetNeuronInputWeights(n);
+                    } else {
+                        widx -= RNN_INPUT_SIZE;
+                        eweights = rnn_trained_recurrent_weights[j];
+                        lweights = PSGetRecurrentNeuronHiddenWeights(n);
                     }
-                } else weights = rnn_trained_outer_weights[j];
-                PSFloat w_val = getRoundedFloat(n->weights[w]);
-                PSFloat expected_w = getRoundedFloat(weights[w_idx]);
+                } else {
+                    eweights = rnn_trained_outer_weights[j];
+                    lweights = PSGetNeuronInputWeights(n);
+                }
+                testAssertNotNull(lweights, test);
+                PSFloat w_val = getRoundedFloatDec(lweights[widx], 2);
+                PSFloat expected_w = getRoundedFloatDec(eweights[widx], 2);
                 testAssertWithMessage(
                     (w_val == expected_w), test,
                     "Layer[%d][%d]->weights[%d]: %g != %g",
@@ -1381,12 +1542,25 @@ int testLSTMTrain(TestCase *test_case, Test *test) {
             LSTM_BATCHES, &options, NULL, 0);
 
     PSLayer *layer = network->layers[1];
-    int i, t, w, precision = NORMAL_PRECISION_DEC - 1;
+    int i, t, w, precision = NORMAL_PRECISION_DEC - 2;
 
+    PSLSTMCell *cell = PSGetLSTMCell(layer);
+    testAssertNotNull(cell, test);
+    testAssertNotNull(cell->candidate_biases, test);
+    testAssertNotNull(cell->input_biases, test);
+    testAssertNotNull(cell->output_biases, test);
+    testAssertNotNull(cell->forget_biases, test);
+    testAssertNotNull(cell->candidate_weights, test);
+    testAssertNotNull(cell->input_weights, test);
+    testAssertNotNull(cell->output_weights, test);
+    testAssertNotNull(cell->forget_weights, test);
+    testAssertNotNull(cell->candidate_hidden_weights, test);
+    testAssertNotNull(cell->input_hidden_weights, test);
+    testAssertNotNull(cell->output_hidden_weights, test);
+    testAssertNotNull(cell->forget_hidden_weights, test);
+    int input_size = (int) PSGetLayerInputWeightsCount(layer, 1);
+    testAssert(input_size > 0, test);
     for (i = 0; i < layer->size; i++) {
-        PSNeuron *neuron = layer->neurons[i];
-        PSLSTMCell *cell = PSGetLSTMCell(neuron);
-        testAssertNotNull(cell, test);
         int times = (int) layer->recurrent_states_count;
         for (t = 0; t < times; t++) {
             PSFloat h = PSGetActivation(layer, i, t);
@@ -1400,63 +1574,105 @@ int testLSTMTrain(TestCase *test_case, Test *test) {
             /*ok = (h == expected);
              printf("H[%d][%d] = %g (%s)\n", t, i, h, (ok ? "OK" : "FAIL"));*/
         }
-        PSFloat bias = getRoundedFloat(cell->candidate_bias);
-        PSFloat expected = getRoundedFloat(expected_bg[i]);
+        PSFloat bias = getRoundedFloatDec(cell->candidate_biases[i],precision);
+        PSFloat expected = getRoundedFloatDec(expected_bg[i], precision);
         testAssertWithMessage(
             (bias == expected), test,
             "Layer[%d] Neuron[%d]->candidate_bias: %g != %g",
             layer->index, i, bias, expected
         );
-        bias = getRoundedFloat(cell->input_bias);
-        expected = getRoundedFloat(expected_bi[i]);
+        bias = getRoundedFloatDec(cell->input_biases[i], precision);
+        expected = getRoundedFloatDec(expected_bi[i], precision);
         testAssertWithMessage(
             (bias == expected), test,
             "Layer[%d] Neuron[%d]->input_bias: %g != %g",
             layer->index, i, bias, expected
         );
-        bias = getRoundedFloat(cell->output_bias);
-        expected = getRoundedFloat(expected_bo[i]);
+        bias = getRoundedFloatDec(cell->output_biases[i], precision);
+        expected = getRoundedFloatDec(expected_bo[i], precision);
         testAssertWithMessage(
             (bias == expected), test,
             "Layer[%d] Neuron[%d]->output_bias: %g != %g",
             layer->index, i, bias, expected
         );
-        bias = getRoundedFloat(cell->forget_bias);
-        expected = getRoundedFloat(expected_bf[i]);
+        bias = getRoundedFloatDec(cell->forget_biases[i], precision);
+        expected = getRoundedFloatDec(expected_bf[i], precision);
         testAssertWithMessage(
             (bias == expected), test,
             "Layer[%d] Neuron[%d]->forget_bias: %g != %g",
             layer->index, i, bias, expected
         );
-        for (w = 0; w < cell->weights_size; w++) {
-            PSFloat weight =
-                getRoundedFloatDec(cell->candidate_weights[w], precision);
-            expected =
-                getRoundedFloatDec(expected_wg[i][w], precision);
+        int woffs = (i * input_size);
+        for (w = 0; w < input_size; w++) {
+            int widx = woffs + w;
+            PSFloat weight = getRoundedFloatDec(
+                cell->candidate_weights[widx], precision
+            );
+            expected = getRoundedFloatDec(expected_wg[i][w], precision);
             testAssertWithMessage(
                 (weight == expected), test,
                 "Layer[%d] Neuron[%d]->candidate_weights[%d]: %g != %g",
                 layer->index, i, w, weight, expected
             );
-            weight = getRoundedFloatDec(cell->input_weights[w], precision);
+            weight = getRoundedFloatDec(cell->input_weights[widx], precision);
             expected = getRoundedFloatDec(expected_wi[i][w], precision);
             testAssertWithMessage(
                 (weight == expected), test,
                 "Layer[%d] Neuron[%d]->input_weights[%d]: %g != %g",
                 layer->index, i, w, weight, expected
             );
-            weight = getRoundedFloatDec(cell->output_weights[w], precision);
+            weight = getRoundedFloatDec(cell->output_weights[widx], precision);
             expected = getRoundedFloatDec(expected_wo[i][w], precision);
             testAssertWithMessage(
                 (weight == expected), test,
                 "Layer[%d] Neuron[%d]->output_weights[%d]: %g != %g",
                 layer->index, i, w, weight, expected
             );
-            weight = getRoundedFloatDec(cell->forget_weights[w], precision);
+            weight = getRoundedFloatDec(cell->forget_weights[widx], precision);
             expected = getRoundedFloatDec(expected_wf[i][w], precision);
             testAssertWithMessage(
                 (weight == expected), test,
                 "Layer[%d] Neuron[%d]->forget_weights[%d]: %g != %g",
+                layer->index, i, w, weight, expected
+            );
+        }
+        woffs = (i * layer->size);
+        for (w = 0; w < layer->size; w++) {
+            int widx = woffs + w, ewidx = input_size + w;
+            PSFloat weight = getRoundedFloatDec(
+                cell->candidate_hidden_weights[widx], precision
+            );
+            expected = getRoundedFloatDec(expected_wg[i][ewidx], precision);
+            testAssertWithMessage(
+                (weight == expected), test,
+                "Layer[%d] Neuron[%d]->candidate_hidden_weights[%d]: %g != %g",
+                layer->index, i, w, weight, expected
+            );
+            weight = getRoundedFloatDec(
+                cell->input_hidden_weights[widx], precision
+            );
+            expected = getRoundedFloatDec(expected_wi[i][ewidx], precision);
+            testAssertWithMessage(
+                (weight == expected), test,
+                "Layer[%d] Neuron[%d]->input_hidden_weights[%d]: %g != %g",
+                layer->index, i, w, weight, expected
+            );
+            weight = getRoundedFloatDec(
+                cell->output_hidden_weights[widx], precision
+            );
+            expected = getRoundedFloatDec(expected_wo[i][ewidx], precision);
+            testAssertWithMessage(
+                (weight == expected), test,
+                "Layer[%d] Neuron[%d]->output_hidden_weights[%d]: %g != %g",
+                layer->index, i, w, weight, expected
+            );
+            weight = getRoundedFloatDec(
+                cell->forget_hidden_weights[widx], precision
+            );
+            expected = getRoundedFloatDec(expected_wf[i][ewidx], precision);
+            testAssertWithMessage(
+                (weight == expected), test,
+                "Layer[%d] Neuron[%d]->forget_hidden_weights[%d]: %g != %g",
                 layer->index, i, w, weight, expected
             );
         }
@@ -1512,8 +1728,7 @@ final:
 int compareNetworks(PSNeuralNetwork *network, PSNeuralNetwork *clone,
                     Test* test)
 {
-    int ok = 1, i, k, w;
-
+    int ok = 1, i, k;
     ok = network->size == clone->size;
     testAssertWithMessage(
         (network->size == clone->size), test,
@@ -1629,81 +1844,69 @@ int compareNetworks(PSNeuralNetwork *network, PSNeuralNetwork *clone,
             "Layer[%d]: Source flags %d != Clone flags %d",
             i, o_flags, c_flags
         );
-        int conv_features_checked = 0;
-        for (k = 0; k < o_size; k++) {
-            PSNeuron *orig_n = orig_l->neurons[k];
-            PSNeuron *clone_n = clone_l->neurons[k];
-            if (otype == Convolutional) {
-                PSSharedParams* oshared;
-                PSSharedParams* cshared;
-                oshared = (PSSharedParams*) orig_l->extra;
-                cshared = (PSSharedParams*) clone_l->extra;
-                if (!conv_features_checked) {
-                    conv_features_checked = 1;
+        testAssertWithMessage(
+            (orig_l->weight_types_count == clone_l->weight_types_count), test,
+            "Layer[%d]: Source weight_types_count %d != Clone %d",
+            orig_l->weight_types_count, clone_l->weight_types_count
+        );
+        if (orig_l->biases != NULL) {
+            testAssertWithMessage(
+                clone_l->biases != NULL, test,
+                "Layer[%d]: Source biases not null, but clone biases is null",i
+            );
+        }
+        if (orig_l->biases == NULL) {
+            testAssertWithMessage(
+                clone_l->biases == NULL, test,
+                "Layer[%d]: Source biases null, but clone biases not null",i
+            );
+        }
+        if (orig_l->biases != NULL) {
+            int bias_count = PSGetLayerParametersCount(orig_l, PARAM_TYPE_BIAS);
+            for (k = 0; k < bias_count; k++) {
+                PSFloat obias = getRoundedFloat(orig_l->biases[k]);
+                PSFloat cbias = getRoundedFloat(clone_l->biases[k]);
+                ok = (obias == cbias);
+                testAssertWithMessage(
+                    (obias == cbias), test, "Layer[%d]: bias[%d]  %g != %g",
+                    orig_l->index, k, orig_l->biases[k], clone_l->biases[k]
+                );
+            }
+        }
+        if (orig_l->weights != NULL) {
+            testAssertWithMessage(
+                clone_l->weights != NULL, test,
+                "Layer[%d]: Source weights not null, but clone weights null",i
+            );
+        }
+        if (orig_l->weights == NULL) {
+            testAssertWithMessage(
+                clone_l->weights == NULL, test,
+                "Layer[%d]: Source weights null, but clone weights not null",i
+            );
+        }
+        if (orig_l->weights != NULL) {
+            for (k = 0; k < orig_l->weight_types_count; k++) {
+                PSMatrix o_weights = orig_l->weights[k];
+                PSMatrix c_weights = clone_l->weights[k];
+                testAssertNotNull(o_weights, test);
+                testAssertNotNull(c_weights, test);
+                uint64_t o_wsize = PSMatrixLength(o_weights),
+                         c_wsize = PSMatrixLength(c_weights);
+                testAssertWithMessage(
+                    o_wsize == c_wsize, test,
+                    "Layer[%d]: source weights[%d] size %llu != %llu",
+                    i, k, o_wsize, c_weights
+                );
+                for (uint64_t w = 0; w < o_wsize; w++) {
+                    PSFloat ow = o_weights[w];
+                    PSFloat cw = c_weights[w];
                     testAssertWithMessage(
-                        (oshared->feature_count == cshared->feature_count),
-                        test, "Layer[%d]: Feature count %d != %d",
-                        i, oshared->feature_count, cshared->feature_count
+                        ow == cw, test,
+                        "Layer[%d]: source weights[%d] %g != %g", i, ow, cw
                     );
                 }
-                int fsize = orig_l->size / oshared->feature_count;
-                int fidx = k / fsize;
-                PSFloat obias = getRoundedFloat(oshared->biases[fidx]);
-                PSFloat cbias = getRoundedFloat(cshared->biases[fidx]);
-                testAssertWithMessage(
-                    (obias == cbias), test,"Layer[%d][%d]: bias %g != %g",
-                    i, fidx, obias, cbias
-                );
-            } else if (otype != Recurrent && otype != LSTM) {
-                PSFloat obias = getRoundedFloat(orig_n->bias);
-                PSFloat cbias = getRoundedFloat(clone_n->bias);
-                ok = (obias == cbias);
-            } else if (otype == LSTM) {
-                PSLSTMCell *ocell =  PSGetLSTMCell(orig_n);
-                PSLSTMCell *ccell =  PSGetLSTMCell(clone_n);
-                ok = (getRoundedFloat(ocell->candidate_bias) ==
-                      getRoundedFloat(ccell->candidate_bias));
-                testAssertWithMessage(
-                    ok, test, "Layer[%d][%d]: candidate_bias %g != %g",
-                    i, k, ocell->candidate_bias, ccell->candidate_bias
-                );
-                ok = (getRoundedFloat(ocell->input_bias) ==
-                      getRoundedFloat(ccell->input_bias));
-                testAssertWithMessage(
-                    ok, test, "Layer[%d][%d]: input_bias %g != %g",
-                    i, k, ocell->input_bias, ccell->input_bias
-                );
-                ok = (getRoundedFloat(ocell->output_bias) ==
-                      getRoundedFloat(ccell->output_bias));
-                testAssertWithMessage(
-                    ok, test, "Layer[%d][%d]: output_bias %g != %g",
-                    i, k, ocell->output_bias, ccell->output_bias
-                );
-                ok = (getRoundedFloat(ocell->forget_bias) ==
-                      getRoundedFloat(ccell->forget_bias));
-                testAssertWithMessage(
-                    ok, test, "Layer[%d][%d]: forget_bias %g != %g",
-                    i, k, ocell->forget_bias, ccell->forget_bias
-                );
             }
-            testAssertWithMessage(
-                ok, test, "Layer[%d][%d]: bias  %g != %g",
-                i, k, orig_n->bias, clone_n->bias
-            );
-            testAssertWithMessage(
-                (orig_n->weights_size == clone_n->weights_size), test,
-                "Layer[%d][%d]: weight sz. %d != %d",
-                i, k, orig_n->weights_size, clone_n->weights_size
-            );
-            for (w = 0; w < orig_n->weights_size; w++) {
-                PSFloat ow = getRoundedFloat(orig_n->weights[w]);
-                PSFloat cw = getRoundedFloat(clone_n->weights[w]);
-                testAssertWithMessage(
-                    (ow == cw), test, "Layer[%d][%d]: w[%d] %g != %g",
-                    i, k, w, ow, cw
-                );
-            }
-            if (!ok) break;
         }
         if (!ok) break;
     }

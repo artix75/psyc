@@ -35,6 +35,5 @@
 
 #define PSGetColumn(index, width) (index % width)
 #define PSGetRow(index, width) ((int) ((int) index / (int) width))
-#define PSGetConvSharedParams(layer) ((PSSharedParams *) layer->extra)
 
 #endif /* __PS_CONVOLUTIONAL_H */

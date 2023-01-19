@@ -18,12 +18,15 @@
 #ifndef __PSYC_H
 #define __PSYC_H
 
+#include <stdint.h>
 #include <time.h>
 #include "types.h"
 #include "config.h"
 #include "maths.h"
+#include "activation.h"
+#include "optimization.h"
 
-#define PSYC_VERSION      "0.4.0"
+#define PSYC_VERSION      "0.9.0"
 
 #define LAYER_TYPES     6
 
@@ -86,13 +89,15 @@ struct PSNeuralNetwork;
 struct PSLayer;
 struct PSGradient;
 
-typedef PSFloat  (*PSActivationFunction) (PSFloat);
 typedef int      (*PSFeedforwardFunction) (struct PSNeuralNetwork *network,
                                            struct PSLayer *layer, ...);
 typedef int      (*PSBackpropFunction) (struct PSLayer *layer,
                                         struct PSLayer *previousLayer,
                                         struct PSGradient *layer_gradients,
                                         ...);
+typedef void     (*PSGenericLayerCallback) (struct PSLayer *layer);
+typedef int      (*PSCopyLayerCallback) (struct PSLayer *, struct PSLayer *);
+typedef uint64_t (*PSGetParamCountFunction) (struct PSLayer *layer, int type);
 
 typedef PSFloat  (*PSLossFunction) (PSFloat* x, PSFloat* y, int size,
                                    int onehot_size);
@@ -105,8 +110,11 @@ typedef void     (*PSTrainCallback) (struct PSNeuralNetwork *network,
 typedef void     (*PSSignalHandler) (int);
 
 typedef struct PSGradient {
-    PSFloat bias;
+    uint64_t bias_count;
+    uint64_t weight_count;
+    PSFloat *biases;
     PSFloat *weights;
+    PSFloat *tmp;
 } PSGradient;
 
 typedef enum {
@@ -135,28 +143,12 @@ typedef struct {
     PSSequenceStopCriterion sequence_stop_criterion;
 } PSRecurrentNetworkOptions;
 
-typedef enum {
-    NoTrainingOptimization,
-    Adam,
-    AdaGrad,
-    AdaDelta,
-    WindowGrad,
-    Nesterov
-} PSTrainingOptimization;
-
 typedef struct {
     int count;
     PSFloat *parameters;
 } PSHyperParameters;
 
-typedef struct {
-    int feature_count;
-    int weights_size;
-    PSFloat *biases;
-    PSMatrix *weights;
-} PSSharedParams;
-
-typedef struct {
+typedef struct PSTrainingOptions {
     int                     flags;
     PSFloat                 l1_decay;
     PSFloat                 l2_decay;
@@ -166,7 +158,7 @@ typedef struct {
     PSFloat                 beta1;
     PSFloat                 beta2;
     PSFloat                 clip;
-    PSTrainingOptimization  optimization;
+    PSOptimization          optimization;
     int                     bptt_truncate;
     int                     validate_every_batches;
     int                     max_validation_elements;
@@ -186,8 +178,7 @@ typedef struct {
 
 typedef struct PSNeuron {
     int             index;
-    int             weights_size;
-    PSFloat         bias;
+    PSFloat         *bias;
     PSFloat         *weights;
     PSFloat         z_value;
     void            *extra;
@@ -199,12 +190,17 @@ typedef struct PSLayer {
     int                     index;
     int                     size;
     PSHyperParameters       *hyper_parameters;
-    PSMatrix                weights;
+    int                     weight_types_count;
+    PSMatrix                *weights;
+    PSFloat                 *biases;
     PSFloat                 dropout;
     PSActivationFunction    activate;
     PSActivationFunction    derivative;
     PSFeedforwardFunction   feedforward;
     PSBackpropFunction      backprop;
+    PSGenericLayerCallback  on_delete;
+    PSCopyLayerCallback     on_copy;
+    PSGetParamCountFunction get_param_count;
     PSNeuron                **neurons;
     PSFloat                 *activations;
     PSFloat                 *delta;
@@ -245,6 +241,7 @@ PSLayer *PSAddPoolingLayer(PSNeuralNetwork *network,
                            PSHyperParameters* params);
 PSLayer *PSGetFirstRecurrentLayer(PSNeuralNetwork *network);
 PSLayer *PSGetLastRecurrentLayer(PSNeuralNetwork *network);
+PSLayer *PSGetPreviousLayer(PSLayer *layer);
 PSHyperParameters *PSCreateHyperParamenters(int count, ...);
 int PSSetHyperParameter(PSHyperParameters *params, int param, PSFloat value);
 int PSAddHyperParameter(PSHyperParameters *params, PSFloat val);
@@ -254,6 +251,14 @@ PSHyperParameters *PSCreateConvolutionalParameters(PSFloat feature_count,
                                                    int padding,
                                                    int use_relu);
 void PSDeleteHyperParamenters(PSHyperParameters *params);
+int PSGetOneHotLayerVectorSize(PSLayer *layer);
+uint64_t PSGetLayerParametersCount(PSLayer *layer, int param_type);
+PSLayer *PSGetPreviousLayer(PSLayer *layer);
+PSLayer *PSGetNextLayer(PSLayer *layer);
+int PSGetLayerInputSize(PSLayer *layer);
+uint64_t PSGetLayerInputWeightsCount(PSLayer *layer, int per_neuron);
+PSFloat *PSGetNeuronInputWeights(PSNeuron *neuron);
+
 int PSResetLayerRecurrentStates(PSLayer *layer, uint32_t steps,
                                 int retain_previous);
 int PSResetNetworkRecurrentStates(PSNeuralNetwork *network, uint32_t steps,
@@ -270,8 +275,9 @@ int PSFindLayerMaxActivation(PSLayer *layer, PSFloat *max_p, int *index_p,...);
 
 void PSDeleteNetwork(PSNeuralNetwork *network);
 void PSDeleteLayer(PSLayer *layer);
-void PSDeleteNeuron(PSNeuron *neuron, PSLayer *layer);
-void PSDeleteGradients(PSGradient **gradients, PSNeuralNetwork *network);
+void PSDeleteNeuron(PSNeuron *neuron);
+void PSDeleteGradients(PSGradient *gradients);
+void PSDeleteNetworkGradients(PSGradient **gradients, PSNeuralNetwork *net);
 
 void PSTrain(PSNeuralNetwork *network,
              PSFloat *training_data,

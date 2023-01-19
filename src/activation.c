@@ -101,3 +101,32 @@ void PSReluDerivativeV(PSFloat *vec, PSFloat *dest, uint64_t len,
     uint64_t i;
     for (i = 0; i < len; i++) dest[i] = (PSFloat)(vec[i] > 0.0);
 }
+
+void PSSoftmax(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts) {
+    if (dest == NULL) dest = vec;
+    uint8_t acceleration = PSGlobalAcceleration;
+    PSFloat max = PSFLOAT_MIN, esum = 0.0;
+    if (opts != NULL) {
+        acceleration = opts->acceleration;
+        if (opts->max != NULL) max = *(opts->max);
+    }
+    if (PSACFEnabled(acceleration)) {
+        if (max == PSFLOAT_MIN) max = PSVectorMax(vec, NULL, len, opts);
+        PSSubtractVectorScalar(vec, max, dest, len, opts);
+        PSVectorExp(dest, NULL, len, opts);
+        esum = PSSumVectorElements(dest, len, opts);
+        PSDivideVectorScalar(dest, esum, NULL, len, opts);
+        return;
+    }
+    uint64_t i;
+    for (i = 0; i < len; i++) {
+        PSFloat n = vec[i];
+        if (i == 0 || n > max) max = n;
+    }
+    for (i = 0; i < len; i++) {
+        PSFloat e = PSExp(vec[i] - max);
+        esum += e;
+        dest[i] = e;
+    }
+    for (i = 0; i < len; i++) dest[i] = dest[i] / esum;
+}

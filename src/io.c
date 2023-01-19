@@ -31,11 +31,26 @@
 #include "lstm.h"
 #include "log.h"
 #include "buildinfo.h"
+#include "optimization.h"
 
 #define DATA_LAYER_MIN_ARGC 3
 #define OPT_FLOAT_FORMAT_HEX (1 << 0)
 #define OPT_FLOAT_FORMAT_DBL (1 << 1)
 #define MODEL_TRAINING_DATA_SEP "------ training data ------\n"
+
+#define UNUSED(V) ((void) V)
+
+PSOptimization optimizationsByIndex[] = {
+    PSDefaultOptimization,
+    PSAdamOptimization,
+    PSAdaGradOptimization,
+    PSAdaDeltaOptimization,
+    PSWindowGradOptimization,
+    PSNesterovOptimization
+};
+
+static int optimization_count = sizeof(optimizationsByIndex) /
+                                sizeof(PSOptimization);
 
 typedef struct PSModelFileHeader {
     char    git_sha1[9];
@@ -80,6 +95,18 @@ int string2int(char *str, int *valid) {
     return num;
 }
 
+static int getOptimizationIndex(PSOptimization optimization) {
+    if (optimization == NULL) return 0;
+    int idx = 0, i;
+    for (i = 0; i < optimization_count; i++) {
+        if (optimizationsByIndex[i] == optimization) {
+            idx = i;
+            break;
+        }
+    }
+    return idx;
+}
+
 void printModelHeaderInfo(PSModelFileHeader *hdr) {
     printf(
         "Git: %s/%d (branch: '%s')\n",
@@ -95,8 +122,25 @@ void printModelHeaderInfo(PSModelFileHeader *hdr) {
 static void loadErr(const char *fname, FILE *f, const char *fmt, ...) {
     PSLog(PSLOGLEVEL_ERROR, "ERROR: ");
     PSLog(PSLOGLEVEL_ERROR, "ERROR: while loading file '%s'", fname);
-    if (f != NULL) PSLog(PSLOGLEVEL_ERROR, " (offset: %ld):\n", ftello(f));
-    else PSLog(PSLOGLEVEL_ERROR, "\n");
+    if (f != NULL) {
+        off_t offset = ftello(f), chars = 0, last_line_offset = 0;
+        char buf[25] = {0};
+        fgets(buf, 25, f);
+        fseeko(f, 0, SEEK_SET);
+        int line = 1;
+        while (chars++ < offset) {
+            if (fgetc(f) == '\n') {
+                line++;
+                last_line_offset = chars;
+            }
+        }
+        fseeko(f, offset, SEEK_SET);
+        PSLog(
+            PSLOGLEVEL_ERROR, " (offset: %ld, line: %d, col: %ld):\n", offset,
+            line, (offset - last_line_offset) + 1
+        );
+        PSLog(PSLOGLEVEL_ERROR, "Near: '%s'\n", buf);
+    } else PSLog(PSLOGLEVEL_ERROR, "\n");
     va_list args;
     va_start(args, fmt);
     PSVLog(PSLOGLEVEL_ERROR, fmt, args);
@@ -329,10 +373,10 @@ static int scanTrainingOptions(FILE *f, PSTrainingOptions *opts,
             if (!ok || bptt_truncate < 0) goto fail;
             opts->bptt_truncate = bptt_truncate;
         } else if (strcmp("optimization", propname) == 0) {
-            PSTrainingOptimization optimization =
-                (PSTrainingOptimization) string2int(val, &ok);
-            if (!ok || (int) optimization < 0) goto fail;
-            opts->optimization = optimization;
+            int optimization_idx = string2int(val, &ok);
+            if (!ok || (int) optimization_idx < 0) goto fail;
+            if (optimization_idx >= optimization_count) goto fail;
+            opts->optimization = optimizationsByIndex[optimization_idx];
         } else if (strcmp("l1_decay", propname) == 0) {
             PSFloat l1_decay = string2float(val, &ok);
             if (!ok) goto fail;
@@ -414,61 +458,501 @@ int writeGradients(PSNeuralNetwork *network, PSGradient **gradients,
                    int opts, FILE *f)
 {
     if (network == NULL || network->size == 0) return 0;
-    int i, j, size;
+    for (int i = 1; i < network->size; i++) {
+        PSGradient *gradient = gradients[i - 1];
+        if (gradient == NULL) continue;
+        if (gradient->bias_count > 0 && gradient->biases == NULL) {
+            PSErr("PSSaveNetwork", "Invalid gradient biases");
+            return 0;
+        }
+        if (gradient->weight_count > 0 && gradient->weights == NULL) {
+            PSErr("PSSaveNetwork", "Invalid gradient weights");
+            return 0;
+        }
+        fprintf(
+            f, "--- Gradient[%d] Biases: %llu ---\n", i - 1,
+            gradient->bias_count
+        );
+        if (gradient->bias_count > 0) {
+            writeSerializedFloatArray(
+                f, gradient->bias_count, ",", opts, gradient->biases
+            );
+            fprintf(f, "\n");
+        }
+        fprintf(
+            f, "--- Gradient[%d] Weights: %llu ---\n", i - 1,
+            gradient->weight_count
+        );
+        if (gradient->weight_count > 0) {
+            writeSerializedFloatArray(
+                f, gradient->weight_count, ",", opts, gradient->weights
+            );
+            fprintf(f, "\n");
+        }
+    }
+    return 1;
+}
+
+static int loadLegacyLayerParameters(PSNeuralNetwork *network,
+                                     const char * filename,
+                                     FILE *f, int verbose)
+{
+    int i;
+    char *lstm_fmt = PSFLOAT_FORMAT "," PSFLOAT_FORMAT "," PSFLOAT_FORMAT
+        "," PSFLOAT_FORMAT "|";
     for (i = 1; i < network->size; i++) {
         PSLayer *layer = network->layers[i];
-        PSLayerType ltype = layer->type;
-        PSHyperParameters *lparams = layer->hyper_parameters;
-        int fcount = 1, weights_size = 0;
-        if ((ltype == Convolutional || ltype == Pooling ||
-            ltype == FullyConnected) && lparams != NULL)
-        {
-            PSFloat *params = lparams->parameters;
-            fcount = (int) (params[PARAM_FEATURE_COUNT]);
-        }
-        if (fcount < 0) fcount = 1;
-        PSGradient *lgradients = gradients[i - 1];
-        if (lgradients == NULL) continue;
-        if (ltype == Convolutional || ltype == Pooling) size = fcount;
-        else size = layer->size;
-        PSSharedParams *shared = NULL;
-        if (ltype == Convolutional) {
-            shared = PSGetConvSharedParams(layer);
-            if (!shared) {
-                PSErr(
-                    NULL, "Shared params for Convolutional layer %d "
-                    "are NULL!\n", i
+        int lsize = 0;
+        if (layer->type == Convolutional) {
+            PSHyperParameters *hparams = layer->hyper_parameters;
+            if (hparams == NULL || hparams->parameters == NULL) {
+                loadErr(filename, NULL,
+                        "Layer %d, missing hyper parameters", i);
+                return 0;
+            }
+            lsize = (int) hparams->parameters[PARAM_FEATURE_COUNT];
+        } else if (layer->type == Pooling) {
+            continue;
+        } else lsize = layer->size;
+        int is_lstm = (LSTM == layer->type);
+        int llen = 0, ok;
+        uint64_t wsize = PSGetLayerInputWeightsCount(layer, 1);
+        int input_size = wsize, widx;
+        if (Recurrent == layer->type) wsize += layer->size;
+        for (int j = 0; j < lsize; j++) {
+            PSFloat bias = 0;
+            /* LSTM biases */
+            PSFloat cb = 0.0, ib = 0.0, ob = 0.0, fb = 0.0;
+            int matched = 0;
+            if (!is_lstm) ok = scanFile(f, PSFLOAT_FORMAT "|", 1, NULL, &bias);
+            else ok = scanFile(f, lstm_fmt, 4, &matched, &cb, &ib, &ob, &fb);
+            if (!ok || (is_lstm && matched < 4)) {
+                if (verbose) printf("\n");
+                loadErr(
+                    filename, f, "Layer %d, neuron %d: invalid bias!", i, j
                 );
                 return 0;
             }
-            weights_size = shared->weights_size;
-        } else {
-            PSNeuron *n = layer->neurons[0];
-            assert(n != NULL);
-            weights_size = n->weights_size;
-            /*if (LSTM == ltype) weights_size += 4;*/
+            if (layer->biases == NULL) {
+                if (verbose) printf("\n");
+                loadErr(filename, f, "Layer %d biases are NULL");
+                return 0;
+            }
+            if (layer->weights == NULL || layer->weights[0] == NULL) {
+                if (verbose) printf("\n");
+                loadErr(filename, f, "Layer %d weights are NULL");
+                return 0;
+            }
+            PSFloat *weights = NULL;
+            if (!is_lstm) {
+                layer->biases[j] = bias;
+                if (Convolutional == layer->type) {
+                    weights = layer->weights[j];
+                } else {
+                    weights = layer->weights[0];
+                }
+            } else {
+                layer->biases[j] = cb;
+                layer->biases[(PS_LSTM_INPUT_IDX * layer->size) + j] = ib;
+                layer->biases[(PS_LSTM_OUTPUT_IDX * layer->size) + j] = ob;
+                layer->biases[(PS_LSTM_FORGET_IDX * layer->size) + j] = fb;
+                PSLSTMCell *cell = (PSLSTMCell *) layer->extra;
+                if (cell == NULL) {
+                    loadErr(filename, f, "Layer %d LSTM cell is NULL");
+                    return 0;
+                }
+                if (cell->candidate_weights == NULL ||
+                    cell->input_weights == NULL ||
+                    cell->output_weights == NULL ||
+                    cell->forget_weights == NULL ||
+                    cell->candidate_hidden_weights == NULL ||
+                    cell->input_hidden_weights == NULL ||
+                    cell->output_hidden_weights == NULL ||
+                    cell->forget_hidden_weights == NULL)
+                {
+                    loadErr(filename, f, "Layer %d incomplete LSTM weights");
+                    return 0;
+                }
+                input_size = PSMatrixLength(cell->candidate_weights) / lsize;
+                wsize = (input_size + layer->size) * 4;
+            }
+            //if (Convolutional == layer->type) weights = layer->weights[j];
+            for (uint64_t k = 0; k < wsize; k++) {
+                if (Convolutional == layer->type) widx = k;
+                else widx = k + (j * input_size);
+                PSFloat w = 0;
+                ok = scanFile(f, PSFLOAT_FORMAT "%*[,\n]", 1, NULL, &w);
+                if (!ok) {
+                    if (verbose) printf("\n");
+                    loadErr(
+                        filename, f,"Layer %d neuron %d: invalid weight[%d]",
+                        i, j, k
+                    );
+                    return 0;
+                }
+                if (Recurrent == layer->type) {
+                    if (k >= (uint64_t) input_size) {
+                        weights = layer->weights[1];
+                        widx = (j * layer->size) + (k - input_size);
+                    } else weights = layer->weights[0];
+                } else if (is_lstm) {
+                    int matrix_idx = k / (input_size + layer->size);
+                    widx = k % (input_size + layer->size);
+                    if (widx >= input_size) {
+                        matrix_idx += 4;
+                        widx -= input_size;
+                    }
+                    weights = layer->weights[matrix_idx];
+                }
+                if (weights == NULL) {
+                    loadErr(
+                         filename, f,"Layer %d neuron %d weight %d: "
+                         "could not determine weights", i, j, k
+                    );
+                    return 0;
+                }
+                uint64_t matrix_len = PSMatrixLength(weights);
+                if ((uint64_t) widx >= matrix_len) {
+                    loadErr(
+                         filename, f,"Layer %d neuron %d weight %d: "
+                         "invalid weight index %d (max index: %llu)",
+                         i, j, k, widx, matrix_len - 1
+                    );
+                    return 0;
+                }
+                weights[widx] = w;
+                if (verbose) {
+                    llen = printf("\rLoading layer %d, neuron %d", i, j);
+                    PSFillWithBlank(llen - 1);
+                }
+            }
         }
-        for(j = 0; j < size; j++) {
-            PSGradient *gradient = &(lgradients[j]);
-            if (gradient == NULL) {
-                PSErr(NULL, "Layer[%d] Gradient[%d] is NULL", i, j);
-                return 0;
-            }
-            if (gradient->weights == NULL) {
-                PSErr(NULL, "Layer[%d] Gradient[%d] weights is NULL", i, j);
-                return 0;
-            }
-            if (ltype != LSTM) writeSerializedFloat(f, gradient->bias, 0);
-            else {
-                PSNeuron *neuron = layer->neurons[j];
-                PSFloat *gbiases = PSGetLSTMGradientBiases(neuron, gradient);
-                writeSerializedFloatArray(f, 4, ",", opts, gbiases);
-            }
-            fprintf(f, "|");
-            writeSerializedFloatArray(
-                f, weights_size, ",", opts, gradient->weights
+        if (verbose) {
+            llen = printf("\rLayer[%d]: Loaded %d neurons", i, lsize);
+            PSFillWithBlank(llen - 1);
+            printf("\n");
+            PSPrintLayerInfo(layer);
+        }
+    }
+    return 1;
+}
+
+static int loadLayerParameters(PSNeuralNetwork *network,
+                               const char * filename,
+                               FILE *f, int verbose)
+{
+    int ok, i;
+    for (i = 1; i < network->size; i++) {
+        PSLayer *layer = network->layers[i];
+        if (layer->type == Pooling) continue;
+        int bias_count = 0, lidx = -1, wtype_count = 0, wcount = 0;
+        ok = scanFile(
+            f, "--- Layer[%d] Biases: %d ---\n", 2, NULL, &lidx, &bias_count
+        );
+        if (!ok) {
+            loadErr(filename, f, "Missing layer %d biases header", i);
+            return 0;
+        }
+        ok = (i == lidx);
+        if (!ok) {
+            loadErr(filename, f, "Invalid layer index %d, expected: %d",
+                lidx, i
             );
-            fprintf(f, "\n");
+            return 0;
+        }
+        int expected_bias_count = PSGetLayerParametersCount(
+            layer, PARAM_TYPE_BIAS
+        );
+        int expected_weights_count = PSGetLayerParametersCount(
+            layer, PARAM_TYPE_WEIGHT
+        );
+        ok = (bias_count == expected_bias_count);
+        if (!ok) {
+            loadErr(filename, f, "Layer[%d]: found %d biases, expected: %d",
+                i, bias_count, expected_bias_count
+            );
+            return 0;
+        }
+        if (layer->biases == NULL && bias_count > 0) {
+            loadErr(filename, f, "Layer[%d]: found %d biases, but "
+                "layer->biases is NULL",
+                i, bias_count
+            );
+            return 0;
+        }
+        for (int j = 0; j < bias_count; j++) {
+            char *fmt = PSFLOAT_FORMAT ",";
+            if (j == (bias_count - 1)) fmt = PSFLOAT_FORMAT "\n";
+            PSFloat bias = 0;
+            ok = scanFile(f, fmt, 1, NULL, &bias);
+            if (!ok) {
+                loadErr(
+                    filename, f, "Layer[%d]: invalid bias %d", layer->index, j
+                );
+                return 0;
+            }
+            layer->biases[j] = bias;
+        }
+        ok = scanFile(f, "--- Layer[%d] Weights: %d,%d ---\n", 3, NULL,
+                      &lidx, &wtype_count, &wcount);
+        if (!ok) {
+            loadErr(filename, f, "Missing layer %d weights header", i);
+            return 0;
+        }
+        ok = (i == lidx);
+        if (!ok) {
+            loadErr(filename, f, "Invalid layer index %d, expected: %d",
+                lidx, i
+            );
+            return 0;
+        }
+        ok = (wtype_count == layer->weight_types_count);
+        if (!ok) {
+            loadErr(filename, f, "Layer[%d]: found %d weight types, "
+                "expected: %d", i, wtype_count, layer->weight_types_count
+            );
+            return 0;
+        }
+        ok = (wcount == expected_weights_count);
+        if (!ok) {
+            loadErr(filename, f, "Layer[%d]: found %d weights, "
+                "expected: %d", i, wcount, expected_weights_count
+            );
+            return 0;
+        }
+        if (layer->weights == NULL && wtype_count > 0) {
+            loadErr(filename, f, "Layer[%d]: found %d weights, but "
+                "layer->weights is NULL",
+                i, wcount
+            );
+            ok = 0;
+            return 0;
+        }
+        for (int j = 0; j < layer->weight_types_count; j++) {
+            PSMatrix weights = layer->weights[j];
+            if (weights == NULL) {
+                loadErr(filename, NULL, "Layer[%d]: weights[%d] is NULL", j);
+                ok = 0;
+                return 0;
+            }
+            uint64_t wlen = PSMatrixLength(weights), widx;
+            for (widx = 0; widx < wlen; widx++) {
+                char *fmt = PSFLOAT_FORMAT ",";
+                if (widx == (wlen - 1))
+                    fmt = PSFLOAT_FORMAT "\n";
+                PSFloat w = 0;
+                ok = scanFile(f, fmt, 1, NULL, &w);
+                if (!ok) {
+                    loadErr(
+                        filename, f, "Layer[%d]: invalid weight[%d][%d]",
+                        layer->index, j, widx
+                    );
+                    return 0;
+                }
+                weights[widx] = w;
+            }
+        }
+        if (verbose) {
+            int llen = printf("\rLayer[%d]: Loaded", i);
+            PSFillWithBlank(llen - 1);
+            printf("\n");
+            PSPrintLayerInfo(layer);
+        }
+    }
+    return 1;
+}
+
+static int loadLegacyGradients(PSNeuralNetwork *network, const char * filename,
+                               FILE *f, PSGradient **gradients, int i)
+{
+    char *lstm_fmt = PSFLOAT_FORMAT "," PSFLOAT_FORMAT "," PSFLOAT_FORMAT
+        "," PSFLOAT_FORMAT "|";
+    char sep[2];
+    sep[0] = '\0';
+    for (int j = 1; j < network->size; j++) {
+        PSGradient *lgradients = gradients[j - 1];
+        if (lgradients == NULL) continue;
+        PSLayer *layer = network->layers[j];
+        assert(layer != NULL);
+        int lsize = 0, wsize = 0;
+        if (layer->type == Pooling) continue;
+        int is_lstm = (LSTM == layer->type);
+        assert(layer->weights != NULL);
+        assert(layer->weights[0] != NULL);
+        wsize = (int) PSMatrixLength(layer->weights[0]);
+        if (layer->type == Convolutional) {
+            PSHyperParameters *hparams = layer->hyper_parameters;
+            if (hparams == NULL || hparams->parameters == NULL) {
+                loadErr(filename, NULL,
+                        "Layer %d, missing hyper parameters", i);
+                return 0;
+            }
+            lsize = (int) hparams->parameters[PARAM_FEATURE_COUNT];
+        } else {
+            lsize = layer->size;
+            if (is_lstm) {
+                wsize += lsize;
+                wsize *= 4;
+            } else if (Recurrent == layer->type) wsize += lsize;
+        }
+        for (int k = 0; k < lsize; k++) {
+            PSNeuron *n = layer->neurons[k];
+            int matched = 0, ok;
+            PSFloat *bias_p = lgradients->biases + k;
+            if (!is_lstm) ok = scanFile(f, PSFLOAT_FORMAT "|", 1, NULL,bias_p);
+            else {
+                assert(n != NULL);
+                PSFloat *cbias_p = lgradients->biases + j,
+                        *ibias_p = lgradients->biases + lsize + j,
+                        *obias_p = lgradients->biases + (lsize * 2) + j,
+                        *fbias_p = lgradients->biases + (lsize * 4) + j;
+                ok = scanFile(
+                    f, lstm_fmt, 4, &matched,
+                    cbias_p, ibias_p, obias_p, fbias_p
+                );
+            }
+            if (!ok || (is_lstm && matched < 4)) {
+                printf("\n");
+                loadErr(
+                    filename, f,
+                    "Memory gradients %d, Layer %d, Gradient %d: "
+                    "invalid bias!", i, j, k
+                );
+                ok = 0; return 0;
+            }
+            for (int w = 0; w < wsize; w++) {
+                PSFloat gw = 0;
+                ok = scanFile(
+                    f, PSFLOAT_FORMAT "%[,\n]", 2, NULL, gw, sep
+                );
+                if (!ok) {
+                    loadErr(
+                        filename, f,
+                        "Memory gradients %d, Layer %d, "
+                        "Gradient %d: invalid weight %d",
+                        i, j, k, w
+                    );
+                    return 0;
+                }
+                int idx = 0;
+                if (Recurrent == layer->type) {
+                    int input_size = (wsize - lsize);
+                    int is_hidden = (w >= input_size);
+                    if (is_hidden)
+                        idx = (input_size * lsize) + (k * lsize) + w;
+                    else idx = (k * input_size) + w;
+                } else if (is_lstm) {
+                    int wtype_idx = k / (wsize / 4);
+                    int input_size = (wsize - lsize);
+                    int is_hidden = (w >= input_size);
+                    if (!is_hidden) idx = (wtype_idx * input_size * lsize) + w;
+                    else {
+                        idx = (input_size * lsize * 4) +
+                              (wtype_idx *k * lsize) + w;
+                    }
+                } else idx = (k * wsize) + w;
+                assert((uint64_t) idx < lgradients->weight_count);
+                lgradients->weights[idx] = gw;
+            }
+        }
+    }
+    return 1;
+}
+
+static int loadGradients(PSNeuralNetwork *network, const char * filename,
+                         FILE *f, PSGradient **gradients, int i)
+{
+    for (int j = 1; j < network->size; j++) {
+        int grad_idx = j - 1, gidx, bias_count, weight_count, ok, k;
+        PSGradient *lgradients = gradients[grad_idx];
+        if (lgradients == NULL) continue;
+        ok = scanFile(
+            f, "--- Gradient[%d] Biases: %d ---\n", 2, NULL,
+            &gidx, &bias_count
+        );
+        if (!ok) {
+            loadErr(
+                filename, f, "Missing memory gradients[%d] "
+                "biases[%d] header", i, j
+            );
+            return 0;
+        }
+        ok = (gidx == grad_idx);
+        if (!ok) {
+            loadErr(
+                filename, f, "Invalid memory gradients[%d] index "
+                "%d, expected %d (biases[%d])", i, gidx, grad_idx,j
+            );
+            return 0;
+        }
+        if (bias_count > 0 && lgradients->biases == NULL) {
+            lgradients->biases = malloc(bias_count * sizeof(PSFloat));
+            if (lgradients->biases == NULL) {
+                PSPrintMemoryErrorMsg();
+                loadErr(
+                    filename, NULL, "Failed to allocate gradient "
+                    "biases"
+                );
+                return 0;
+            }
+        }
+        for (k = 0; k < bias_count; k++) {
+            char *fmt = PSFLOAT_FORMAT ",";
+            if (k == (bias_count - 1)) fmt = PSFLOAT_FORMAT "\n";
+            PSFloat bias;
+            ok = scanFile(f, fmt, 1, NULL, &bias);
+            if (!ok) {
+                loadErr(
+                    filename, f, "Failed to load memory "
+                    "gradients[%d] bias[%d][%d]", i, j, k
+                );
+                return 0;
+            }
+            lgradients->biases[k] = bias;
+        }
+        ok = scanFile(
+            f, "--- Gradient[%d] Weights: %d ---\n", 2, NULL,
+            &gidx, &weight_count
+        );
+        if (!ok) {
+            loadErr(
+                filename, f, "Missing memory gradients[%d] "
+                "weights[%d] header", i, j
+            );
+            return 0;
+        }
+        ok = (gidx == grad_idx);
+        if (!ok) {
+            loadErr(
+                filename, f, "Invalid memory gradients[%d] index "
+                "%d, expected %d (weights[%d])", i, gidx, grad_idx,j
+            );
+            return 0;
+        }
+        if (weight_count > 0 && lgradients->weights == NULL) {
+            lgradients->weights = malloc(weight_count * sizeof(PSFloat));
+            if (lgradients->weights == NULL) {
+                PSPrintMemoryErrorMsg();
+                loadErr(
+                    filename, NULL, "Failed to allocate gradient "
+                    "weights"
+                );
+                return 0;
+            }
+        }
+        for (k = 0; k < weight_count; k++) {
+            char *fmt = PSFLOAT_FORMAT ",";
+            if (k == (weight_count - 1)) fmt = PSFLOAT_FORMAT "\n";
+            PSFloat w;
+            ok = scanFile(f, fmt, 1, NULL, &w);
+            if (!ok) {
+                loadErr(
+                    filename, f, "Failed to load memory "
+                    "gradients[%d] weight[%d][%d]", i, j, k
+                );
+                return 0;
+            }
+            lgradients->weights[k] = w;
         }
     }
     return 1;
@@ -482,9 +966,7 @@ int PSLoadNetwork(PSNeuralNetwork *network, const char* filename) {
         PSErr(__func__, "Could not open '%s'", filename);
         return 0;
     }
-    char *lstm_fmt = PSFLOAT_FORMAT "," PSFLOAT_FORMAT "," PSFLOAT_FORMAT
-        "," PSFLOAT_FORMAT "|";
-    int netsize, i, j, k;
+    int netsize, i;
     int empty = (network->size == 0);
     int verbose = PSLogLevel == PSLOGLEVEL_DEBUG;
     char vers[20] = "0.0.0";
@@ -715,8 +1197,8 @@ scan_model_def:
                     int arg = args[aidx];
                     params->parameters[aidx] = (PSFloat) arg;
                 }
-                if (aidx < (param_c - 1)) {
-                    for (; aidx < (param_c - 1); aidx++)
+                if (argc < param_c) {
+                    for (; aidx < param_c; aidx++)
                         params->parameters[aidx] = 0.0;
                 }
                 layer = PSAddLayer(network, ltype, lsize, params);
@@ -741,82 +1223,16 @@ scan_model_def:
             layer->dropout = dropout;
         }
     }
-    for (i = 1; i < network->size; i++) {
-        layer = network->layers[i];
-        int lsize = 0;
-        PSSharedParams *shared = NULL;
-        if (layer->type == Convolutional) {
-            shared = PSGetConvSharedParams(layer);
-            if (shared == NULL) {
-                loadErr(filename, NULL, "Layer %d, missing shared params!",i);
-                ok = 0; goto final;
-            }
-            lsize = shared->feature_count;
-        } else if (layer->type == Pooling) {
-            continue;
-        } else lsize = layer->size;
-        int is_lstm = (LSTM == layer->type);
-        int llen = 0;
-        for (j = 0; j < lsize; j++) {
-            PSFloat bias = 0;
-            int wsize = 0;
-            PSFloat *weights = NULL;
-            /* LSTM biases */
-            PSFloat cb = 0.0, ib = 0.0, ob = 0.0, fb = 0.0;
-            matched = 0;
-            if (!is_lstm) ok = scanFile(f, PSFLOAT_FORMAT "|", 1, NULL, &bias);
-            else ok = scanFile(f, lstm_fmt, 4, &matched, &cb, &ib, &ob, &fb);
-            if (!ok || (is_lstm && matched < 4)) {
-                if (verbose) printf("\n");
-                loadErr(
-                    filename, f, "Layer %d, neuron %d: invalid bias!", i, j
-                );
-                ok = 0; goto final;
-            }
-            if (shared == NULL) {
-                PSNeuron *neuron = layer->neurons[j];
-                wsize = neuron->weights_size;
-                neuron->bias = bias;
-                weights = neuron->weights;
-                if (is_lstm) {
-                    PSLSTMCell *cell = PSGetLSTMCell(neuron);
-                    assert(cell != NULL);
-                    cell->candidate_bias = cb;
-                    cell->input_bias = ib;
-                    cell->output_bias = ob;
-                    cell->forget_bias = fb;
-                }
-            } else {
-                shared->biases[j] = bias;
-                wsize = shared->weights_size;
-                weights = shared->weights[j];
-            }
-            for (k = 0; k < wsize; k++) {
-                PSFloat w = 0;
-                ok = scanFile(f, PSFLOAT_FORMAT "%*[,\n]", 1, NULL, &w);
-                if (!ok) {
-                    if (verbose) printf("\n");
-                    loadErr(
-                        filename, f,"Layer %d neuron %d: invalid weight[%d]",
-                        i, j, k
-                    );
-                    goto final;
-                }
-                weights[k] = w;
-                if (verbose) {
-                    llen = printf("\rLoading layer %d, neuron %d", i, j);
-                    PSFillWithBlank(llen - 1);
-                }
-            }
-        }
-        if (verbose) {
-            llen = printf("\rLayer[%d]: Loaded %d neurons", i, lsize);
-            PSFillWithBlank(llen - 1);
-            printf("\n");
-            PSPrintLayerInfo(layer);
-        }
-    }
+    /* Load layer parameters */
+    int legacy_model = (PSCompareVersion(vers, "0.9.0") < 0);
+    if (legacy_model)
+        ok = loadLegacyLayerParameters(network, filename, f, verbose);
+    else
+        ok = loadLayerParameters(network, filename, f, verbose);
+    if (!ok) goto final;
+
     if (verbose) printf("\n");
+    /* Check for traing data */
     if (scanFileNoMatch(f, MODEL_TRAINING_DATA_SEP)) {
         /* Model file has training data */
         int numgradients = 0;
@@ -872,65 +1288,15 @@ scan_model_def:
                 loadErr(filename, f, "Invalid memory gradient header");
                 goto final;
             }
-            for (j = 1; j < netsize; j++) {
-                PSLayer *layer = network->layers[j];
-                assert(layer != NULL);
-                PSSharedParams *shared = NULL;
-                int lsize = 0, weights_size = 0, w;
-                if (layer->type == Convolutional) {
-                    shared = PSGetConvSharedParams(layer);
-                    assert(shared != NULL);
-                    lsize = shared->feature_count;
-                    weights_size = shared->weights_size;
-                } else if (layer->type == Pooling) {
-                    continue;
-                } else lsize = layer->size;
-                PSGradient *lgradients = memg[j - 1];
-                assert(lgradients != NULL);
-                int is_lstm = (LSTM == layer->type);
-                for (k = 0; k < lsize; k++) {
-                    PSNeuron *n = layer->neurons[k];
-                    if (weights_size == 0) weights_size = n->weights_size;
-                    PSGradient *gradient = &(lgradients[k]);
-                    assert(gradient != NULL);
-                    matched = 0;
-                    if (!is_lstm) {
-                        ok = scanFile(
-                            f, PSFLOAT_FORMAT "|", 1, NULL, &(gradient->bias)
-                        );
-                    } else {
-                        assert(n != NULL);
-                        PSFloat *biases = PSGetLSTMGradientBiases(n, gradient);
-                        ok = scanFile(
-                            f, lstm_fmt, 4, &matched,
-                            biases, biases + 1, biases + 2, biases + 3
-                        );
-                    }
-                    if (!ok || (is_lstm && matched < 4)) {
-                        printf("\n");
-                        loadErr(
-                            filename, f,
-                            "Memory gradients %d, Layer %d, Gradient %d: "
-                            "invalid bias!", i, j, k
-                        );
-                        ok = 0; goto final;
-                    }
-                    for (w = 0; w < weights_size; w++) {
-                        PSFloat *gw = gradient->weights + w;
-                        ok = scanFile(
-                            f, PSFLOAT_FORMAT "%[,\n]", 2, NULL, gw, sep
-                        );
-                        if (!ok) {
-                            loadErr(
-                                filename, f,
-                                "Memory gradients %d, Layer %d, "
-                                "Gradient %d: invalid weight %d",
-                                i, j, k, w
-                            );
-                            goto final;
-                        }
-                    }
-                }
+            if (legacy_model)
+                ok = loadLegacyGradients(network, filename, f, memg, i);
+            else
+                ok = loadGradients(network, filename, f, memg, i);
+            if (!ok) {
+                loadErr(
+                    filename, NULL, "Failed to load memory gradients %s", i
+                );
+                goto final;
             }
         }
     }
@@ -1025,56 +1391,41 @@ int PSSaveNetwork(PSNeuralNetwork *network, const char* filename) {
     for (i = 1; i < network->size; i++) {
         PSLayer *layer = network->layers[i];
         PSLayerType ltype = layer->type;
-        int lsize = layer->size;
-        if (Convolutional == ltype) {
-            PSSharedParams *shared = PSGetConvSharedParams(layer);
-            if (shared == NULL) {
-                PSErr(__func__, "Layer[%d]: shared params are NULL!", i);
+        if (Pooling == ltype) continue;
+        int bias_count = PSGetLayerParametersCount(layer, PARAM_TYPE_BIAS),
+            weights_count = PSGetLayerParametersCount(layer, PARAM_TYPE_WEIGHT);
+        fprintf(f, "--- Layer[%d] Biases: %d ---\n", i, bias_count);
+        if (bias_count > 0) {
+            if (layer->biases == NULL) {
+                PSErr(__func__, "Layer[%d]: biases are NULL", i);
                 fclose(f);
                 return 0;
             }
-            int feature_count = shared->feature_count;
-            if (feature_count < 1) {
-                PSErr(__func__, "Layer[%d]: feature count must be >= 1!", i);
-                fclose(f);
-                return 0;
+            for (j = 0; j < bias_count; j++) {
+                if (j > 0) fprintf(f, ",");
+                writeSerializedFloat(f, layer->biases[j], opts);
             }
-            for (j = 0; j < feature_count; j++) {
-                PSFloat bias = shared->biases[j];
-                PSFloat *weights = shared->weights[j];
-                writeSerializedFloat(f, bias, opts);
-                fprintf(f, "|");
-                for (k = 0; k < shared->weights_size; k++) {
-                    if (k > 0) fprintf(f, ",");
-                    PSFloat w = weights[k];
-                    writeSerializedFloat(f, w, opts);
-                }
-                fprintf(f, "\n");
-            }
+            fprintf(f, "\n");
         }
-        else if (Pooling == ltype) continue;
-        else {
-            int is_lstm = (LSTM == ltype);
-            for (j = 0; j < lsize; j++) {
-                PSNeuron *neuron = layer->neurons[j];
-                if (!is_lstm) {
-                    writeSerializedFloat(f, neuron->bias, opts);
-                } else {
-                    PSLSTMCell *cell = PSGetLSTMCell(neuron);
-                    assert(cell != NULL);
-                    writeSerializedFloats(
-                        f, 4, ",", opts,
-                        cell->candidate_bias,
-                        cell->input_bias,
-                        cell->output_bias,
-                        cell->forget_bias
-                    );
+        fprintf(f, "--- Layer[%d] Weights: %d,%d ---\n",
+                i, layer->weight_types_count, weights_count);
+        if (layer->weight_types_count > 0) {
+            if (layer->weights == NULL) {
+                PSErr(__func__, "Layer[%d]: weights are NULL", i);
+                fclose(f);
+                return 0;
+            }
+            for (j = 0; j < layer->weight_types_count; j++) {
+                PSMatrix weights = layer->weights[j];
+                if (weights == NULL) {
+                    PSErr(__func__, "Layer[%d]: weights[%d] are NULL", i, j);
+                    fclose(f);
+                    return 0;
                 }
-                fprintf(f, "|");
-                for (k = 0; k < neuron->weights_size; k++) {
+                int ws = PSMatrixLength(weights);
+                for (k = 0; k < ws; k++) {
                     if (k > 0) fprintf(f, ",");
-                    PSFloat w = neuron->weights[k];
-                    writeSerializedFloat(f, w, opts);
+                    writeSerializedFloat(f, weights[k], opts);
                 }
                 fprintf(f, "\n");
             }
@@ -1105,7 +1456,10 @@ int PSSaveNetwork(PSNeuralNetwork *network, const char* filename) {
             writeSerializedFloat(f, topts->beta2, opts);
             fprintf(f, ",clip=");
             writeSerializedFloat(f, topts->clip, opts);
-            fprintf(f, ",optimization=%d", (int) topts->optimization);
+            fprintf(
+                f, ",optimization=%d",
+                getOptimizationIndex(topts->optimization)
+            );
             fprintf(f, ",bptt_truncate=%d", topts->bptt_truncate);
         }
         fprintf(f, "\n");

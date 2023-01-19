@@ -34,12 +34,14 @@
 #define PSFLOAT_DIG DBL_DECIMAL_DIG
 #define PSFLOAT_MIN DBL_MIN
 #define PSFLOAT_MAX DBL_MAX
+#define PSFLOAT_EPS DBL_EPSILON
 typedef double PSFloat;
 #else
 #define PSFLOAT_FORMAT "%g"
 #define PSFLOAT_DIG FLT_DECIMAL_DIG
 #define PSFLOAT_MIN FLT_MIN
 #define PSFLOAT_MAX FLT_MAX
+#define PSFLOAT_EPS FLT_EPSILON
 typedef float PSFloat;
 #endif
 

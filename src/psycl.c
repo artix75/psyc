@@ -31,6 +31,8 @@
 #include "utils.h"
 #include "convolutional.h"
 #include "recurrent.h"
+#include "optimization.h"
+#include "activation.h"
 #include "mnist.h"
 #include "cifar.h"
 #include "log.h"
@@ -93,7 +95,7 @@ PSFloat learning_rate = LEARNING_RATE;
 PSFloat l1_decay = 0.0;
 PSFloat l2_decay = 0.0;
 PSFloat momentum = 0.0;
-PSTrainingOptimization optimization = NoTrainingOptimization;
+PSOptimization optimization = PSDefaultOptimization;
 int validate_every = 0;
 int batch_size = BATCH_SIZE;
 char outputFile[PATH_MAX];
@@ -766,12 +768,15 @@ void parseOptions(int argc, char **argv) {
             }
         } else if (strcmp("--optimization", arg) == 0 && !is_last) {
             char *optname = argv[++i];
-            if (strcmp("adam", optname) == 0) optimization = Adam;
-            else if (strcmp("adagrad", optname) == 0) optimization = AdaGrad;
-            else if (strcmp("adadelta", optname) == 0) optimization = AdaDelta;
+            if (strcmp("adam", optname) == 0) optimization = PSAdamOptimization;
+            else if (strcmp("adagrad", optname) == 0)
+                optimization = PSAdaGradOptimization;
+            else if (strcmp("adadelta", optname) == 0)
+                optimization = PSAdaDeltaOptimization;
             else if (strcmp("windowgrad", optname) == 0)
-                optimization = WindowGrad;
-            else if (strcmp("nesterov", optname) == 0) optimization = Nesterov;
+                optimization = PSWindowGradOptimization;
+            else if (strcmp("nesterov", optname) == 0)
+                optimization = PSNesterovOptimization;
             else {
                 fprintf(stderr, "Invalid optmization `%s`\n", optname);
                 fprintf(
