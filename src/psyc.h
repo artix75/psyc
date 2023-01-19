@@ -202,9 +202,9 @@ typedef struct PSLayer {
     PSCopyLayerCallback     on_copy;
     PSGetParamCountFunction get_param_count;
     PSNeuron                **neurons;
-    PSFloat                 *activations;
+    PSFloat                 *states;
     PSFloat                 *delta;
-    PSFloat                 *previous_activations;
+    PSFloat                 *initial_states;
     uint8_t                 *dropped_out;
     uint32_t                flags;
     uint32_t                recurrent_states_count;
@@ -263,15 +263,15 @@ int PSResetLayerRecurrentStates(PSLayer *layer, uint32_t steps,
                                 int retain_previous);
 int PSResetNetworkRecurrentStates(PSNeuralNetwork *network, uint32_t steps,
                                 int retain_previous);
-PSFloat PSGetActivation(PSLayer *layer, int index, ...);
-PSFloat *PSGetActivations(PSLayer *layer, ...);
-PSFloat PSGetNeuronActivation(PSNeuron *neuron, ...);
-int PSSetActivation(PSLayer *layer, PSFloat activation, int index, ...);
-int PSSetNeuronActivation(PSNeuron *neuron, double activation, ...);
+PSFloat PSGetState(PSLayer *layer, int index, ...);
+PSFloat *PSGetStates(PSLayer *layer, ...);
+PSFloat PSGetNeuronState(PSNeuron *neuron, ...);
+int PSSetState(PSLayer *layer, PSFloat state, int index, ...);
+int PSSetNeuronState(PSNeuron *neuron, double state, ...);
 int PSCheckNetwork(PSNeuralNetwork *network);
 int PSFeedforward(PSNeuralNetwork *network, PSFloat *values);
 int PSClassify(PSNeuralNetwork *network, PSFloat *values);
-int PSFindLayerMaxActivation(PSLayer *layer, PSFloat *max_p, int *index_p,...);
+int PSFindLayerMaxState(PSLayer *layer, PSFloat *max_p, int *index_p,...);
 
 void PSDeleteNetwork(PSNeuralNetwork *network);
 void PSDeleteLayer(PSLayer *layer);
@@ -300,7 +300,7 @@ int PSBuildNetwork(PSNeuralNetwork *network);
 int PSRebuildNetwork(PSNeuralNetwork *network);
 char *PSGetRecurrentModeLabel(PSRecurrentNetworkMode mode);
 void PSPrintNetworkInfo(PSNeuralNetwork *network);
-int PSDumpNetworkActivations(PSNeuralNetwork *network, const char* filename);
+int PSDumpNetworkStates(PSNeuralNetwork *network, const char* filename);
 int PSDumpNetworkDeltas(PSNeuralNetwork *network, const char* filename);
 void PSSetDefaultRNNOptions(PSRecurrentNetworkOptions *opts);
 void PSSetDefaultTrainingOptions(PSTrainingOptions *options);

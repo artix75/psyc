@@ -164,7 +164,7 @@ void onBatchTrained(PSNeuralNetwork *network, int epoch, int epochs,
     char fname[1024];
     snprintf(fname, 1023, "%s/psyc-activations-batch-%d.dump",
              dump_activations_str, batch);
-    PSDumpNetworkActivations(network, fname);
+    PSDumpNetworkStates(network, fname);
     snprintf(fname, 1023, "%s/psyc-deltas-batch-%d.dump",
              dump_activations_str, batch);
     PSDumpNetworkDeltas(network, fname);

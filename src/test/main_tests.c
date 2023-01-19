@@ -885,7 +885,7 @@ int testFullFeedforward(TestCase *test_case, Test *test) {
     PSLayer *output = network->layers[network->size - 1];
     int i, res = 1;
     for (i = 0; i < output->size; i++) {
-        PSFloat a = PSGetActivation(output, i);
+        PSFloat a = PSGetState(output, i);
         PSFloat expected = fullNetworkFeedForwardResults[i];
         a = getRoundedFloat(a);
         expected = getRoundedFloat(expected);
@@ -1004,7 +1004,7 @@ int testConvFeedforward(TestCase *test_case, Test *test) {
     PSLayer *output = network->layers[network->size - 1];
     int i;
     for (i = 0; i < output->size; i++) {
-        PSFloat a = PSGetActivation(output, i);
+        PSFloat a = PSGetState(output, i);
         PSFloat expected = convNetworkFeedForwardResults[i];
         a = getRoundedFloat(a);
         expected = getRoundedFloat(expected);
@@ -1189,7 +1189,7 @@ int testRNNFeedforward(TestCase *test_case, Test *test) {
     int i, j;
     for (i = 0; i < output->size; i++) {
         for (j = 0; j < (int) output->recurrent_states_count; j++) {
-            PSFloat s = PSGetActivation(output, i, j);
+            PSFloat s = PSGetState(output, i, j);
             s = getRoundedFloat(s);
             PSFloat expected = getRoundedFloat(rnn_expected_output[j][i]);
             testAssertWithMessage(
@@ -1563,7 +1563,7 @@ int testLSTMTrain(TestCase *test_case, Test *test) {
     for (i = 0; i < layer->size; i++) {
         int times = (int) layer->recurrent_states_count;
         for (t = 0; t < times; t++) {
-            PSFloat h = PSGetActivation(layer, i, t);
+            PSFloat h = PSGetState(layer, i, t);
             h = getRoundedFloat(h);
             PSFloat expected = getRoundedFloat(lstm_expected_states[i][t]);
             testAssertWithMessage(
@@ -1682,7 +1682,7 @@ int testLSTMTrain(TestCase *test_case, Test *test) {
     for (i = 0; i < out->size; i++) {
         int times = out->recurrent_states_count;
         for (t = 0; t < times; t++) {
-            PSFloat h = getRoundedFloat(PSGetActivation(out, i, t));
+            PSFloat h = getRoundedFloat(PSGetState(out, i, t));
             PSFloat e = getRoundedFloat(lstm_expected_outputs[t][i]);
             testAssertWithMessage(
                 (h == e), test, "Output->Neuron[%d]->output[%d]: %g != %g",

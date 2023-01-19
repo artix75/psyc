@@ -22,10 +22,6 @@
 #include <string.h>
 #include <assert.h>
 
-#ifdef USE_AVX
-#include "avx.h"
-#endif
-
 #include "psyc.h"
 #include "activation.h"
 #include "utils.h"
@@ -196,8 +192,8 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
     layer->size = size;
     layer->neurons = calloc(size, sizeof(PSNeuron*));
     if (layer->neurons == NULL) goto memerr;
-    layer->activations = calloc(size, sizeof(PSFloat));
-    if (layer->activations == NULL) goto memerr;
+    layer->states = calloc(size, sizeof(PSFloat));
+    if (layer->states == NULL) goto memerr;
     layer->biases = malloc(feature_count * sizeof(PSFloat));
     if (layer->biases == NULL) goto memerr;
     layer->weights = malloc(feature_count * sizeof(PSMatrix));
@@ -304,8 +300,8 @@ int PSInitPoolingLayer(PSNeuralNetwork *network, PSLayer *layer,
         PSAbortLayer(network, layer);
         return 0;
     }
-    layer->activations = calloc(size, sizeof(PSFloat));
-    if (layer->activations == NULL) {
+    layer->states = calloc(size, sizeof(PSFloat));
+    if (layer->states == NULL) {
         PSPrintMemoryErrorMsg();
         PSAbortLayer(network, layer);
         return 0;
@@ -447,7 +443,7 @@ int PSConvolve(PSNeuralNetwork *net, PSLayer *layer, ...) {
                     int x2 = max_x;
                     if (x2 >= input_w) x2 = input_w - 1;
 #ifdef USE_AVX
-                    int rowlen = x2 - x;
+                    /*int rowlen = x2 - x;
                     if (!avx_disabled && rowlen >= avx_min_size) {
                         int avx_step_len = AVXGetDotStepLen(rowlen);
                         int avx_steps = 0, avx_step;
@@ -472,7 +468,7 @@ int PSConvolve(PSNeuralNetwork *net, PSLayer *layer, ...) {
                             x += avx_step_len;
                             widx += avx_step_len;
                         }
-                    }
+                    }*/ //DELME
 #endif
                     for (; x < max_x; x++) {
                         int nidx = feature_offset + (y * input_w) + x;
@@ -488,23 +484,23 @@ int PSConvolve(PSNeuralNetwork *net, PSLayer *layer, ...) {
                             if (skip_w > 0) widx += skip_w;
                             break;
                         }
-                        PSFloat a = PSGetActivation(previous, nidx, t);
+                        PSFloat s = PSGetState(previous, nidx, t);
                         if (do_dump) DumpConvolveStep(
-                            col, row, r_col, r_row, max_x, max_y,previous,
+                            col, row, r_col, r_row, max_x, max_y, previous,
                             k, nidx, x, y, widx
                         );
-                        sum += (a * weights[widx++]);
+                        sum += (s * weights[widx++]);
                     }
                 }
                 /* weights += (int) region_area; */
             }
             neuron->z_value = sum + bias;
-            PSFloat activation = layer->activate(neuron->z_value);
-            if (apply_dropout) activation = applyDropout(neuron, activation);
-            int ok = PSSetActivation(layer, activation, idx, t);
+            PSFloat s = layer->activate(neuron->z_value);
+            if (apply_dropout) s = applyDropout(neuron, s);
+            int ok = PSSetState(layer, s, idx, t);
             if (!ok) {
                 PSErr(
-                    NULL, "Failed to set activation on layer %d, neuron %d",
+                    NULL, "Failed to set state on layer %d, neuron %d",
                     layer->index, idx
                 );
                 if (layer->network) layer->network->status = STATUS_ERROR;
@@ -584,7 +580,7 @@ int PSPool(PSNeuralNetwork *net, PSLayer *layer, ...) {
                 for (x = r_col; x < max_x; x++) {
                     int nidx = ((y * input_w) + x) + (prev_size *i);
                     PSNeuron *prev_neuron = previous->neurons[nidx];
-                    PSFloat a = PSGetActivation(previous, nidx, t);
+                    PSFloat a = PSGetState(previous, nidx, t);
                     PSFloat z = prev_neuron->z_value;
                     if (a > max) {
                         max = a;
@@ -597,10 +593,10 @@ int PSPool(PSNeuralNetwork *net, PSLayer *layer, ...) {
                 }
             }
             neuron->z_value = max_z;
-            int ok = PSSetActivation(layer, max, idx, t);
+            int ok = PSSetState(layer, max, idx, t);
             if (!ok) {
                 PSErr(
-                    NULL, "Failed to set activation on layer %d, neuron %d",
+                    NULL, "Failed to set state on layer %d, neuron %d",
                     layer->index, idx
                 );
                 if (layer->network) layer->network->status = STATUS_ERROR;
@@ -655,7 +651,7 @@ int PSPoolingBackprop(PSLayer *pooling_layer, PSLayer *convolutional_layer,
             int idx = j + (i * feature_size);
             dbginfo.neuron = pooling_layer->neurons[idx];
             PSFloat d = delta[idx];
-            PSFloat pool_activation = PSGetActivation(pooling_layer, idx, t);
+            PSFloat pool_state = PSGetState(pooling_layer, idx, t);
             col = idx % (int) output_w;
             if (col == 0 && j > 0) row++;
             int r_row = row *pool_size;
@@ -672,10 +668,10 @@ int PSPoolingBackprop(PSLayer *pooling_layer, PSLayer *convolutional_layer,
                         convolutional_layer, i, nidx, x, y
                     );
                     if (isDroppedOut(prev_neuron, t)) continue;
-                    PSFloat a = PSGetActivation(convolutional_layer, nidx, t);
-                    PSFloat dv = (a < pool_activation ? 0 : d);
+                    PSFloat s = PSGetState(convolutional_layer, nidx, t);
+                    PSFloat dv = (s < pool_state ? 0 : d);
                     if (dv != 0 && convolutional_layer->derivative != NULL)
-                        dv *= convolutional_layer->derivative(pool_activation);
+                        dv *= convolutional_layer->derivative(pool_state);
                     conv_delta[nidx] = dv;
                 }
             }
@@ -777,7 +773,7 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
                             break;
                         }
                         PSNeuron *prev_neuron = prev_layer->neurons[nidx];
-                        PSFloat a = PSGetActivation(prev_layer, nidx, t);
+                        PSFloat a = PSGetState(prev_layer, nidx, t);
                         assert(widx >= 0);
                         if (widx >= weight_size) {
                             /* Ensure that weight index (widx) never exceeds

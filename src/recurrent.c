@@ -65,8 +65,8 @@ int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
     layer->on_delete = PSDeleteRNNLayer;
     layer->neurons = calloc(size, sizeof(PSNeuron*));
     if (layer->neurons == NULL) goto memerr;
-    layer->activations = calloc(size, sizeof(PSFloat));
-    if (layer->activations == NULL) goto memerr;
+    layer->states = calloc(size, sizeof(PSFloat));
+    if (layer->states == NULL) goto memerr;
     layer->weights = calloc(RNN_WEIGHT_TYPES_COUNT, sizeof(PSMatrix));
     if (layer->weights == NULL) goto memerr;
     layer->weights[0] = PSMatrixWithGaussianRandom(1, 2, size, ws);
@@ -151,7 +151,7 @@ int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
     int vector_size = 0, vector_idx = 0;
     if (onehot) {
         vector_size = PSGetOneHotLayerVectorSize(previous);
-        vector_idx = (int) PSGetActivation(previous, 0, t);
+        vector_idx = (int) PSGetState(previous, 0, t);
         if (vector_size == 0) return 0;
         if (vector_idx >= vector_size) {
             PSErr(NULL, "Layer[%d]: invalid vector index %d (max. %d)!",
@@ -160,7 +160,7 @@ int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
         }
     }
     int ignore_inputs = 0;
-    int feed_previous_step = (t > 0 || layer->previous_activations != NULL);
+    int feed_previous_step = (t > 0 || layer->initial_states != NULL);
     /* If layer is the first recurrent layer of a one-to-many network, inputs
      * are fed just in the very first step. */
     if (!PSIsRecurrent(previous) && layer == first_recurrent)
@@ -168,10 +168,10 @@ int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
     PSMathOpts dpopt = {.acceleration = net->acceleration};
     int prev_t = t - 1;
     PSFloat *inputs = NULL;
-    PSFloat *prev_act = NULL;
-    PSFloat *activations = PSGetActivations(layer, t);
-    if (activations == NULL) {
-        PSErr(NULL,  "Layer[%d]: layer[%d] has NULL activations");
+    PSFloat *prev_states = NULL;
+    PSFloat *outputs = PSGetStates(layer, t);
+    if (outputs == NULL) {
+        PSErr(NULL,  "Layer[%d]: layer[%d] has no states");
         return 0;
     }
     PSMatrix input_weights = layer->weights[0],
@@ -184,28 +184,28 @@ int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
         if (!onehotInputsFeedforward(layer, previous, t, !feed_previous_step))
             return 0;
     } else {
-        inputs = PSGetActivations(previous, t);
+        inputs = PSGetStates(previous, t);
         if (inputs == NULL) {
             PSErr(NULL, "Layer[%d]: previous layer[%d] has NULL "
-                  "activations", layer->index, previous->index);
+                  "outputs", layer->index, previous->index);
             return 0;
         }
         if (!feed_previous_step) {
             if (use_bias) dpopt.add_vec = layer->biases;
             dpopt.after = layer->activate;
         }
-        PSDot(input_weights, inputs, activations, &dpopt);
+        PSDot(input_weights, inputs, outputs, &dpopt);
     }
 forward_previous_step:
     if (!feed_previous_step) goto final;
     /* Feed previous states by multiplying them with hidden weights, add
-     * the result to current states (activations) and eventually add biases
-     * and apply `activate` function. */
-    prev_act = PSGetActivations(layer, prev_t);
+     * the result to current states (`outputs`) and eventually add biases and
+     * apply `activate` function. */
+    prev_states = PSGetStates(layer, prev_t);
     dpopt.tmpdest = hidden_values;
     dpopt.store_mode = MATHS_STORE_MODE_ADD;
     dpopt.after = layer->activate;
-    PSDot(hidden_weights, prev_act, activations, &dpopt);
+    PSDot(hidden_weights, prev_states, outputs, &dpopt);
 final:
     if (PSShouldApplyDropout(layer) && !applyLayerDroput(layer, t)) return 0;
     return 1;
@@ -225,7 +225,7 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previous_layer,
     int lsize = layer->size, i, w, tt;
     PSFloat *prev_layer_delta = previous_layer->delta;
     int do_truncate = (t - lowest_t) > 0;
-    int has_prev_activations = (layer->previous_activations != NULL);
+    int has_initial_states = (layer->initial_states != NULL);
     int onehot = (previous_layer->flags & FLAG_ONEHOT);
     int onehot_vector_size = 0, onehot_idx;
     if (onehot) {
@@ -249,7 +249,7 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previous_layer,
         /* Update gradient */
         mopts.store_mode = MATHS_STORE_MODE_NORM;
         if (!onehot) {
-            PSFloat *prev_layer_outputs = PSGetActivations(previous_layer, tt);
+            PSFloat *prev_layer_outputs = PSGetStates(previous_layer, tt);
             assert(prev_layer_outputs != NULL); /* TODO: emit error */
             if (use_bias) PSSumVectors(
                 delta, gradients->biases, gradients->biases, layer->size,&mopts
@@ -260,7 +260,7 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previous_layer,
                 layer->size, previous_layer->size, &mopts
             );
         } else {
-            onehot_idx = (int) PSGetActivation(previous_layer, 0, tt);
+            onehot_idx = (int) PSGetState(previous_layer, 0, tt);
             assert(onehot_idx < onehot_vector_size);
             for (i = 0; i < lsize; i++) {
                 PSFloat dv = delta[i];
@@ -269,7 +269,7 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previous_layer,
                 gradients->weights[w] += dv;
             }
         }
-        if (!is_first_t || has_prev_activations) {
+        if (!is_first_t || has_initial_states) {
             if (update_delta && new_delta == NULL) {
                 new_delta = calloc(lsize, sizeof(PSFloat));
                 if (new_delta == NULL) {
@@ -279,7 +279,7 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previous_layer,
             }
             /* Update gradients' hidden weights */
             mopts.store_mode = MATHS_STORE_MODE_ADD;
-            PSFloat *previous_states = PSGetActivations(layer, prev_t);;
+            PSFloat *previous_states = PSGetStates(layer, prev_t);;
             PSVectorProduct(
                 delta, previous_states, gradient_hidden_weights,
                 layer->size, layer->size, &mopts
@@ -301,7 +301,7 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previous_layer,
              * timesteps tieration.
              * So, derivative must be applied here. */
             for (i = 0; i < lsize; i++) {
-                PSFloat prev_a = PSGetActivation(layer, i, prev_t);
+                PSFloat prev_a = PSGetState(layer, i, prev_t);
                 new_delta[i] *= layer->derivative(prev_a);
             }
         }

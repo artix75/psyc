@@ -787,7 +787,7 @@ void PSAddDebugInfo(PSNeuralNetwork *network, char *file, const char *func,
             last_debug_info.layer_index = l->index;
             last_debug_info.layer_type = l->type;
         }
-        last_debug_info.activation = PSGetNeuronActivation(n, t);
+        last_debug_info.activation = PSGetNeuronState(n, t);
         last_debug_info.z_value = n->z_value;
         last_debug_info.bias = (n->bias != NULL ? *(n->bias) : 0);
         if (l->delta != NULL) last_debug_info.delta = l->delta[n->index];

@@ -26,10 +26,6 @@
 #include <sys/time.h>
 #include <inttypes.h>
 
-#ifdef USE_AVX
-#include "avx.h"
-#endif
-
 #include "platform.h"
 #include "buildinfo.h"
 #include "psyc.h"
@@ -253,7 +249,7 @@ int onehotInputsFeedforward(PSLayer *layer, PSLayer *previous, int t,
                             int do_activate)
 {
     int onehot_vector_size = PSGetOneHotLayerVectorSize(previous);
-    int onehot_idx = (int) PSGetActivation(previous, 0, t);
+    int onehot_idx = (int) PSGetState(previous, 0, t);
     if (onehot_idx >= onehot_vector_size) {
         PSErr(
             NULL, "Layer[%d]: onehot index %d is out of range "
@@ -264,19 +260,19 @@ int onehotInputsFeedforward(PSLayer *layer, PSLayer *previous, int t,
     }
     PSMatrix weights = (layer->weights != NULL ? layer->weights[0] : NULL);
     if (weights == NULL) return 0;
-    PSFloat *activations = PSGetActivations(layer, t);
-    if (activations == NULL) return 0;
+    PSFloat *states = PSGetStates(layer, t);
+    if (states == NULL) return 0;
     int use_bias = !(layer->flags & FLAG_NO_BIAS);
     for (int i = 0; i < layer->size; i++) {
         PSNeuron *n = layer->neurons[i];
         PSFloat w;
         if (n != NULL && n->weights != NULL) w = n->weights[onehot_idx];
         else w = weights[(i * layer->size) + onehot_idx];
-        activations[i] = w;
+        states[i] = w;
         if (!do_activate) continue;
-        if (use_bias) activations[i] += layer->biases[i];
+        if (use_bias) states[i] += layer->biases[i];
         if (layer->activate != NULL)
-            activations[i] = layer->activate(activations[i]);
+            states[i] = layer->activate(states[i]);
     }
     return 1;
 }
@@ -305,11 +301,11 @@ static int fullFeedforward(PSNeuralNetwork *network, PSLayer *layer, ...) {
         if (!onehotInputsFeedforward(layer, previous, t, 1)) return 0;
         goto final;
     }
-    PSFloat *inputs = PSGetActivations(previous, t),
-            *activations = PSGetActivations(layer, t);
+    PSFloat *inputs = PSGetStates(previous, t),
+            *outputs = PSGetStates(layer, t);
     if (inputs == NULL) {
         PSErr(
-            NULL, "Layer[%d]: previous layer[%d] has NULL activations",
+            NULL, "Layer[%d]: previous layer[%d] has NULL outputs",
             layer->index, previous->index
         );
         return 0;
@@ -318,7 +314,7 @@ static int fullFeedforward(PSNeuralNetwork *network, PSLayer *layer, ...) {
     opts.acceleration = network->acceleration;
     if (use_bias) opts.add_vec = layer->biases;
     opts.after = layer->activate;
-    PSDot(weights, inputs, activations, &opts);
+    PSDot(weights, inputs, outputs, &opts);
 final:
     if (PSShouldApplyDropout(layer))
         if (!applyLayerDroput(layer, t)) return 0;
@@ -344,11 +340,11 @@ static int softmaxFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
         PSReadTimestepArgs(layer, tsteps, t);
         UNUSED(tsteps);
     }
-    PSFloat *inputs = PSGetActivations(previous, t),
-            *activations = PSGetActivations(layer, t);
+    PSFloat *inputs = PSGetStates(previous, t),
+            *outputs = PSGetStates(layer, t);
     if (inputs == NULL) {
         PSErr(
-            NULL, "Layer[%d]: previous layer[%d] has NULL activations",
+            NULL, "Layer[%d]: previous layer[%d] has NULL outputs",
             layer->index, previous->index
         );
         return 0;
@@ -358,8 +354,8 @@ static int softmaxFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
     PSFloat max = 0.0;
     if (use_bias) opts.add_vec = layer->biases;
     opts.max = &max;
-    PSDot(weights, inputs, activations, &opts);
-    PSSoftmax(activations, activations, layer->size, &opts);
+    PSDot(weights, inputs, outputs, &opts);
+    PSSoftmax(outputs, outputs, layer->size, &opts);
     return 1;
 }
 
@@ -464,18 +460,18 @@ static int arrayMaxIndex(PSFloat *array, int len) {
     return max_idx;
 }
 
-/* Find max activation value and the relative neuron index for layer `layer`,
- * and store them into `max_p` pointer (max activation) and `index_p` pointer
- * (index of neuron having maximum activation value).
+/* Find max state value and the relative neuron index for layer `layer`,
+ * and store them into `max_p` pointer (max state) and `index_p` pointer
+ * (index of neuron having maximum state value).
  * At least `max_p` or `index_p` must be provided.
  * If layer is recurrent, an extra argument for timestep must be provided
  * as a variadic argument (as int).
- * If timestep is negative, it will be used to read activations in a reverse
+ * If timestep is negative, it will be used to read states in a reverse
  * order (ie. -1 is last timestep, -2 is last timestep - 1, etc.).
  * Timestep must be always in range of processed timesteps (hidden states),
  * otherwise the function will fail.
  * Return value: 1 in case of success, 0 in case of error. */
-int PSFindLayerMaxActivation(PSLayer *layer, PSFloat *max_p, int *index_p, ...)
+int PSFindLayerMaxState(PSLayer *layer, PSFloat *max_p, int *index_p, ...)
 {
     if (max_p == NULL && index_p == NULL) return 0;
     int tstep = 0, i;
@@ -489,9 +485,9 @@ int PSFindLayerMaxActivation(PSLayer *layer, PSFloat *max_p, int *index_p, ...)
     PSFloat max = 0.0;
     int max_idx = -1;
     for (i = 0; i < layer->size; i++) {
-        PSFloat activation = PSGetActivation(layer, i, tstep);
-        if (activation > max) {
-            max = activation;
+        PSFloat state = PSGetState(layer, i, tstep);
+        if (state > max) {
+            max = state;
             max_idx = i;
         }
     }
@@ -508,7 +504,7 @@ static int fetchRecurrentOutputState(PSLayer *out, PSFloat *outputs,
     int max_idx = 0, oidx = 0;
     PSFloat max = 0.0;
     for (j = 0; j < out->size; j++) {
-        PSFloat s = PSGetActivation(out, j, t);
+        PSFloat s = PSGetState(out, j, t);
         if (onehot) {
             if (s > max) {
                 max = s;
@@ -905,7 +901,7 @@ PSFloat *resizeRecurrentStates(PSLayer *layer, uint32_t steps,
 {
     assert(previous != NULL);
     int len = steps;
-    if (layer->previous_activations != NULL) len += 1;
+    if (layer->initial_states != NULL) len += 1;
     size_t size = (size_t) (len * layer->size) * sizeof(PSFloat);
     PSFloat *states = realloc(current, size);
     if (states == NULL) {
@@ -926,27 +922,27 @@ PSFloat *resizeRecurrentStates(PSLayer *layer, uint32_t steps,
 int PSInitRecurrentHiddenStates(PSLayer *layer, uint32_t steps,
                                 int retain_previous)
 {
-    PSFloat *activations = layer->activations;
-    PSFloat *states = NULL;
-    if (layer->recurrent_states_count <= 0 || activations == NULL)
+    PSFloat *states = layer->states;
+    PSFloat *hstates = NULL;
+    if (layer->recurrent_states_count <= 0 || states == NULL)
         retain_previous = 0;
     if (steps == 0 && !retain_previous) {
         layer->recurrent_states_count = 0;
-        layer->activations = NULL;
-        free(activations);
+        layer->states = NULL;
+        free(states);
         if (layer->dropped_out != NULL) free(layer->dropped_out);
         layer->dropped_out = NULL;
-        layer->previous_activations = NULL;
+        layer->initial_states = NULL;
         if (LSTM == layer->type) {
             if (!PSInitLSTMStates(layer, 0, 0)) goto err;
         }
         return 1;
     }
-    states = initRecurrentStates(
-        layer, steps, retain_previous, activations,
-        &layer->previous_activations
+    hstates = initRecurrentStates(
+        layer, steps, retain_previous, states,
+        &layer->initial_states
     );
-    if (states == NULL) return 0;
+    if (hstates == NULL) return 0;
     if (PSShouldApplyDropout(layer) && steps > 0) {
         if (layer->dropped_out != NULL) free(layer->dropped_out);
         layer->dropped_out = calloc(layer->size * steps, sizeof(uint8_t));
@@ -958,19 +954,19 @@ int PSInitRecurrentHiddenStates(PSLayer *layer, uint32_t steps,
         free(layer->dropped_out);
         layer->dropped_out = NULL;
     }
-    layer->activations = states;
+    layer->states = hstates;
     layer->recurrent_states_count = steps;
-    free(activations);
+    free(states);
     if (LSTM == layer->type) {
         if (!PSInitLSTMStates(layer, steps, retain_previous))
             goto err;
     }
     return 1;
 err:
-    if (states != NULL) free(states);
-    if (layer->activations != NULL) free(layer->activations);
+    if (hstates != NULL) free(hstates);
+    if (layer->states != NULL) free(layer->states);
     layer->recurrent_states_count = 0;
-    layer->activations = NULL;
+    layer->states = NULL;
     if (layer->dropped_out != NULL) free(layer->dropped_out);
     layer->dropped_out = NULL;
     layer->network->status = STATUS_ERROR;
@@ -978,8 +974,8 @@ err:
 }
 
 int PSResizeRecurrentHiddenStates(PSLayer *layer, uint32_t steps) {
-    PSFloat *activations = layer->activations;
-    if (activations == NULL || steps == 0 || layer->recurrent_states_count == 0)
+    PSFloat *states = layer->states;
+    if (states == NULL || steps == 0 || layer->recurrent_states_count == 0)
         return PSInitRecurrentHiddenStates(layer, steps, 1);
     else if (steps == layer->recurrent_states_count) return 1;
     else if (steps < layer->recurrent_states_count) {
@@ -990,21 +986,21 @@ int PSResizeRecurrentHiddenStates(PSLayer *layer, uint32_t steps) {
         );
         return 0;
     }
-    PSFloat *states = resizeRecurrentStates(
-        layer, steps, activations, &layer->previous_activations
+    PSFloat *hstates = resizeRecurrentStates(
+        layer, steps, states, &layer->initial_states
     );
-    if (states == NULL) {
-        free(activations);
-        layer->activations = NULL;
+    if (hstates == NULL) {
+        free(states);
+        layer->states = NULL;
         layer->recurrent_states_count = 0;
-        layer->previous_activations = NULL;
+        layer->initial_states = NULL;
         if (layer->dropped_out != NULL) free(layer->dropped_out);
         layer->dropped_out = NULL;
         layer->network->status = STATUS_ERROR;
         return 0;
     }
     layer->recurrent_states_count = steps;
-    layer->activations = states;
+    layer->states = hstates;
     if (PSShouldApplyDropout(layer)) {
         uint8_t *dropped_out = realloc(layer->dropped_out, steps);
         if (dropped_out == NULL) {
@@ -1053,9 +1049,9 @@ int PSResetNetworkRecurrentStates(PSNeuralNetwork *network, uint32_t steps,
     return 1;
 }
 
-int PSSetActivation(PSLayer *layer, PSFloat activation, int index, ...) {
-    if (layer->activations == NULL) {
-        PSErr(__func__, "Layer %d: null activations!", layer->index);
+int PSSetState(PSLayer *layer, PSFloat state, int index, ...) {
+    if (layer->states == NULL) {
+        PSErr(__func__, "Layer %d: null states!", layer->index);
         return 0;
     }
     if (index >= layer->size) {
@@ -1080,7 +1076,7 @@ int PSSetActivation(PSLayer *layer, PSFloat activation, int index, ...) {
                     "layer %d", layer->index
                 );
                 return 0;
-            } else if (layer->activations == NULL) return 0;
+            } else if (layer->states == NULL) return 0;
         } else if (t < 0) {
             PSErr(
                 __func__,
@@ -1101,28 +1097,28 @@ int PSSetActivation(PSLayer *layer, PSFloat activation, int index, ...) {
     uint8_t dropped = 0;
     if (apply_dropout) {
         assert(layer->dropped_out != NULL);
-        activation = applyDropout(layer, activation, &dropped);
+        state = applyDropout(layer, state, &dropped);
         layer->dropped_out[index] = dropped;
     }
-    layer->activations[index] = activation;
+    layer->states[index] = state;
     return 1;
 }
 
-int PSSetNeuronActivation(PSNeuron *neuron, double activation, ...) {
+int PSSetNeuronState(PSNeuron *neuron, double state, ...) {
     if (neuron->layer == NULL) return 0.0;
-    PSFloat a = (PSFloat) activation;
+    PSFloat a = (PSFloat) state;
     if (PSIsRecurrent(neuron->layer)) {
         va_list args;
-        va_start(args, activation);
+        va_start(args, state);
         int t = va_arg(args, int);
         va_end(args);
-        return PSSetActivation(neuron->layer, a, neuron->index, t);
+        return PSSetState(neuron->layer, a, neuron->index, t);
     }
-    return PSSetActivation(neuron->layer, a, neuron->index);
+    return PSSetState(neuron->layer, a, neuron->index);
 }
 
-PSFloat PSGetActivation(PSLayer *layer, int index, ...) {
-    if (layer->activations == NULL) return 0.0;
+PSFloat PSGetState(PSLayer *layer, int index, ...) {
+    if (layer->states == NULL) return 0.0;
     if (index >= layer->size) {
         PSErr(
             __func__, "Neuron index %d is out-of-range for layer %d "
@@ -1135,10 +1131,10 @@ PSFloat PSGetActivation(PSLayer *layer, int index, ...) {
         va_start(args, index);
         int t = va_arg(args, int);
         va_end(args);
-        /* If t < 0, retrieve previous activation, if any. */
+        /* If t < 0, retrieve previous state, if any. */
         if (t < 0) {
-            if (layer->previous_activations == NULL) return 0.0;
-            else return layer->previous_activations[index];
+            if (layer->initial_states == NULL) return 0.0;
+            else return layer->initial_states[index];
         } else {
             if (t >= (int) layer->recurrent_states_count) {
                 PSErr(
@@ -1152,18 +1148,18 @@ PSFloat PSGetActivation(PSLayer *layer, int index, ...) {
             index = (t * layer->size) + index;
         }
     }
-    return layer->activations[index];
+    return layer->states[index];
 }
 
-PSFloat *PSGetActivations(PSLayer *layer, ...) {
-    if (layer->activations == NULL) return NULL;
+PSFloat *PSGetStates(PSLayer *layer, ...) {
+    if (layer->states == NULL) return NULL;
     if (PSIsRecurrent(layer)) {
         va_list args;
         va_start(args, layer);
         int t = va_arg(args, int);
         va_end(args);
-        /* If t < 0, retrieve previous activation, if any. */
-        if (t < 0) return layer->previous_activations;
+        /* If t < 0, retrieve previous state, if any. */
+        if (t < 0) return layer->initial_states;
         else {
             if (t >= (int) layer->recurrent_states_count) {
                 PSErr(
@@ -1174,22 +1170,22 @@ PSFloat *PSGetActivations(PSLayer *layer, ...) {
                 );
                 return NULL;
             }
-            return layer->activations + (t * layer->size);
+            return layer->states + (t * layer->size);
         }
     }
-    return layer->activations;
+    return layer->states;
 }
 
-PSFloat PSGetNeuronActivation(PSNeuron *neuron, ...) {
+PSFloat PSGetNeuronState(PSNeuron *neuron, ...) {
     if (neuron->layer == NULL) return 0.0;
     if (PSIsRecurrent(neuron->layer)) {
         va_list args;
         va_start(args, neuron);
         int t = va_arg(args, int);
         va_end(args);
-        return PSGetActivation(neuron->layer, neuron->index, t);
+        return PSGetState(neuron->layer, neuron->index, t);
     }
-    return PSGetActivation(neuron->layer, neuron->index);
+    return PSGetState(neuron->layer, neuron->index);
 }
 
 PSLayer *PSGetFirstRecurrentLayer(PSNeuralNetwork *network) {
@@ -1231,10 +1227,10 @@ int applyLayerDroput(PSLayer *layer, int t) {
     if (layer->dropout) return 1;
     if (layer->dropout > 1.0) layer->dropout = 1.0;
     PSNeuralNetwork *network = layer->network;
-    PSFloat *activations = NULL;
-    if (PSIsRecurrent(layer)) activations = PSGetActivations(layer, t);
-    else activations = layer->activations;
-    if (activations == NULL) return 1;
+    PSFloat *states = NULL;
+    if (PSIsRecurrent(layer)) states = PSGetStates(layer, t);
+    else states = layer->states;
+    if (states == NULL) return 1;
     if (layer->dropped_out == NULL) {
         layer->dropped_out = calloc(layer->size, sizeof(PSFloat));
         if (layer->dropped_out == NULL) {
@@ -1244,7 +1240,7 @@ int applyLayerDroput(PSLayer *layer, int t) {
     }
     if (network->status != STATUS_TRAINING) {
         PSMultiplyVectorScalar(
-            activations, layer->dropout, activations, layer->size, NULL
+            states, layer->dropout, states, layer->size, NULL
         );
         return 1;
     }
@@ -1252,7 +1248,7 @@ int applyLayerDroput(PSLayer *layer, int t) {
     for (i = 0; i < layer->size; i++) {
         PSFloat r = PSNormalizedRandom();
         dropped = layer->dropped_out[i] = (r < layer->dropout);
-        if (dropped) activations[i] = 0.0;
+        if (dropped) states[i] = 0.0;
     }
     return 1;
 }
@@ -1523,35 +1519,35 @@ PSNeuralNetwork *PSCloneNetwork(PSNeuralNetwork *network, int layout_only) {
         if (!layout_only) {
             cloned_layer->recurrent_states_count =
                 layer->recurrent_states_count;
-            if (cloned_layer->activations != NULL) {
-                free(cloned_layer->activations);
-                cloned_layer->activations = NULL;
+            if (cloned_layer->states != NULL) {
+                free(cloned_layer->states);
+                cloned_layer->states = NULL;
             }
             if (cloned_layer->dropped_out != NULL) {
                 free(cloned_layer->dropped_out);
                 cloned_layer->dropped_out = NULL;
             }
-            if (layer->activations != NULL) {
+            if (layer->states != NULL) {
                 int len;
                 if (PSIsRecurrent(layer)) {
                     len = layer->recurrent_states_count;
-                    if (layer->previous_activations != NULL) len += 1;
+                    if (layer->initial_states != NULL) len += 1;
                 } else len = 1;
                 if (len < 1) len = 1;
                 len *= layer->size;
                 size_t size = (size_t) len * sizeof(PSFloat);
-                cloned_layer->activations = malloc(size);
-                if (cloned_layer->activations == NULL) goto memerr;
-                memcpy(cloned_layer->activations, layer->activations, size);
-                if (layer->previous_activations != NULL) {
-                    int diff = layer->previous_activations -
-                               layer->activations;
-                    cloned_layer->previous_activations =
-                        cloned_layer->previous_activations + diff;
+                cloned_layer->states = malloc(size);
+                if (cloned_layer->states == NULL) goto memerr;
+                memcpy(cloned_layer->states, layer->states, size);
+                if (layer->initial_states != NULL) {
+                    int diff = layer->initial_states -
+                               layer->states;
+                    cloned_layer->initial_states =
+                        cloned_layer->initial_states + diff;
                 }
             } else {
-                cloned_layer->activations = NULL;
-                cloned_layer->previous_activations = NULL;
+                cloned_layer->states = NULL;
+                cloned_layer->initial_states = NULL;
             }
             if (layer->dropped_out != NULL) {
                 int len;
@@ -1774,7 +1770,7 @@ void DumpLayerInfo(PSLayer *layer, FILE *dump_file, int add_new_line) {
     if (add_new_line) fprintf(dump_file, "\n");
 }
 
-int PSDumpNetworkActivations(PSNeuralNetwork *network, const char* filename) {
+int PSDumpNetworkStates(PSNeuralNetwork *network, const char* filename) {
     if (network->size == 0) {
         PSErr(__func__, "Empty network!");
         return 0;
@@ -1805,12 +1801,12 @@ int PSDumpNetworkActivations(PSNeuralNetwork *network, const char* filename) {
             }
             if (!is_recurrent) {
                 if (nidx > 0) fprintf(f, ",");
-                writeSerializedFloat(f, PSGetActivation(layer, nidx), opts);
+                writeSerializedFloat(f, PSGetState(layer, nidx), opts);
             } else {
                 for (t = 0; t < timesteps; t++) {
                     if (nidx > 0 || t > 0) fprintf(f, ",");
                     writeSerializedFloat(
-                        f, PSGetActivation(layer, nidx, t), opts
+                        f, PSGetState(layer, nidx, t), opts
                     );
                 }
             }
@@ -1908,8 +1904,8 @@ int initGenericLayer(PSLayer *layer, int size, int previous_size) {
     }
     layer->neurons = calloc(size, sizeof(PSNeuron*));
     if (layer->neurons == NULL) goto memerr;
-    layer->activations = calloc(size, sizeof(PSFloat));
-    if (layer->activations == NULL) goto memerr;
+    layer->states = calloc(size, sizeof(PSFloat));
+    if (layer->states == NULL) goto memerr;
     PSMatrix weights = NULL;
     if (layer->index > 0 && previous_size > 0) {
         layer->weights = calloc(1, sizeof(PSMatrix));
@@ -1984,11 +1980,11 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
     layer->flags = FLAG_NONE;
     layer->neurons = NULL;
     layer->delta = NULL;
-    layer->activations = NULL;
+    layer->states = NULL;
     layer->weights = NULL;
     layer->biases = NULL;
     layer->delta = NULL;
-    layer->previous_activations = NULL;
+    layer->initial_states = NULL;
     layer->dropout = 0.0;
     layer->dropped_out = NULL;
     layer->recurrent_states_count = 0;
@@ -2136,7 +2132,7 @@ void PSDeleteLayer(PSLayer* layer) {
     void *extra = layer->extra;
     if (extra != NULL) free(layer->extra);
     if (layer->delta != NULL) free(layer->delta);
-    if (layer->activations != NULL) free(layer->activations);
+    if (layer->states != NULL) free(layer->states);
     if (layer->dropped_out != NULL) free(layer->dropped_out);
     free(layer);
 }
@@ -2236,7 +2232,7 @@ int inputLayerFeedforward(PSNeuralNetwork *network, PSFloat *values, ...) {
     }
     for (i = 0; i < input_size; i++) {
         PSFloat val = values[i];
-        if (!PSSetActivation(first, val, i, t)) {
+        if (!PSSetState(first, val, i, t)) {
             network->status = STATUS_ERROR;
             return 0;
         }
@@ -2309,7 +2305,7 @@ int feedforwardThroughTime(PSNeuralNetwork *network, PSFloat *values,
         if (values != NULL) values += input_size;
         if (variable_timesteps && eos >= 0 && last_layer != NULL) {
             int max_idx = -1;
-            if (!PSFindLayerMaxActivation(last_layer, NULL, &max_idx, t))
+            if (!PSFindLayerMaxState(last_layer, NULL, &max_idx, t))
                 return 0;
             if (max_idx == eos) break;
         }
@@ -2476,7 +2472,7 @@ int PSClassify(PSNeuralNetwork *network, PSFloat *values) {
     PSLayer *out = network->layers[netsize - 1];
     int max_idx = 0, t = (int) out->recurrent_states_count - 1;
     if (t < 0) t = 0;
-    if (!PSFindLayerMaxActivation(out, NULL, &max_idx, t)) {
+    if (!PSFindLayerMaxState(out, NULL, &max_idx, t)) {
         PSErr(__func__, "Failed to find neuron with max value");
         return -1;
     }
@@ -2733,8 +2729,8 @@ int softmaxLayerBackprop(PSLayer *layer, PSLayer *previous_layer, PSFloat *y,
     int use_bias = !(layer->flags & FLAG_NO_BIAS);
     PSFloat *delta = layer->delta;
     PSMathOpts mopts = {.acceleration = network->acceleration};
-    PSFloat *outputs = PSGetActivations(layer, t);
-    PSFloat *prev_layer_outputs = PSGetActivations(previous_layer, t);
+    PSFloat *outputs = PSGetStates(layer, t);
+    PSFloat *prev_layer_outputs = PSGetStates(previous_layer, t);
     if (outputs == NULL) {
         PSErr(NULL, "Layer[%d]: NULL outputs", layer->index);
         return 0;
@@ -2818,8 +2814,8 @@ int outputLayerBackprop(PSLayer *layer, PSLayer *previous_layer,
     PSFloat *delta = layer->delta;
     PSMathOpts mopts = {.acceleration = network->acceleration};
     /* Compute delta */
-    PSFloat *outputs = PSGetActivations(layer, t);
-    PSFloat *prev_layer_outputs = PSGetActivations(previous_layer, t);
+    PSFloat *outputs = PSGetStates(layer, t);
+    PSFloat *prev_layer_outputs = PSGetStates(previous_layer, t);
     if (outputs == NULL) {
         PSErr(NULL, "Layer[%d]: NULL outputs", layer->index);
         return 0;
@@ -2879,8 +2875,8 @@ int fullBackprop(PSLayer *layer, PSLayer *previous_layer,
         t = va_arg(args, int);
         va_end(args);
     }
-    PSFloat *outputs = PSGetActivations(layer, t);
-    PSFloat *prev_layer_outputs = PSGetActivations(previous_layer, t);
+    PSFloat *outputs = PSGetStates(layer, t);
+    PSFloat *prev_layer_outputs = PSGetStates(previous_layer, t);
     if (outputs == NULL) {
         PSErr(NULL, "Layer[%d]: NULL outputs", layer->index);
         return 0;
@@ -2901,7 +2897,7 @@ int fullBackprop(PSLayer *layer, PSLayer *previous_layer,
             }
             if (!has_derivative) continue;
             PSFloat d = delta[i];
-            PSFloat a = PSGetActivation(layer, i, t);
+            PSFloat a = PSGetState(layer, i, t);
             d *= layer->derivative(a);
             delta[i] = d;
         }
@@ -3052,7 +3048,7 @@ int backpropThroughTime(PSNeuralNetwork *network, PSFloat *y,
             for (j = 0; j < lsize; j++) {
                 PSFloat dv = delta[j];
                 if (layer->derivative != NULL) {
-                    PSFloat s = PSGetActivation(layer, j, t);
+                    PSFloat s = PSGetState(layer, j, t);
                     dv *= layer->derivative(s);
                 }
                 if (is_lstm) {
@@ -3485,9 +3481,9 @@ final:
     for (i = 0; i < label_data_size; i++) {
         if (onehot) {
             int idx = (int) *(y + i);
-            outputs[i] = PSGetActivation(out, idx, i);
+            outputs[i] = PSGetState(out, idx, i);
         } else {
-            if (!recurrent_output) outputs[i] = PSGetActivation(out, i);
+            if (!recurrent_output) outputs[i] = PSGetState(out, i);
             else i = fetchRecurrentOutputState(out, outputs, i, 0);
         }
     }
@@ -3701,8 +3697,8 @@ float validate(PSNeuralNetwork *network, PSFloat *test_data, int data_size,
 
             int omax = 0; /* Output index with max value */
             int emax = 0; /* Expected index with max value */
-            if (!PSFindLayerMaxActivation(output_layer, NULL, &omax)) {
-                PSErr(NULL, "Could not find output layer max activation");
+            if (!PSFindLayerMaxState(output_layer, NULL, &omax)) {
+                PSErr(NULL, "Could not find output layer max state");
                 goto err;
             }
             if (!onehot) emax = arrayMaxIndex(expected, output_size);
@@ -3766,8 +3762,8 @@ float validate(PSNeuralNetwork *network, PSFloat *test_data, int data_size,
             } else {
                 int omax = 0; /* Output index with max value */
                 int emax = 0; /* Expected index with max value */
-                if (!PSFindLayerMaxActivation(output_layer, NULL, &omax)) {
-                    PSErr(NULL, "Could not find output layer max activation");
+                if (!PSFindLayerMaxState(output_layer, NULL, &omax)) {
+                    PSErr(NULL, "Could not find output layer max state");
                     goto err;
                 }
                 if (!onehot) emax = arrayMaxIndex(expected, output_size);

@@ -85,7 +85,7 @@ void CompleteText (PSNeuralNetwork *network, char* text, int len,
             int oidx = 0;
             for (; o < out->size; o++) {
                 if (o == idx) continue;
-                PSFloat a = PSGetActivation(
+                PSFloat a = PSGetState(
                     out, o, out->recurrent_states_count - 1
                 );
                 if (a > omax) {

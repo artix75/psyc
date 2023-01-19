@@ -451,7 +451,7 @@ int PSLSTMLayerCopy(PSLayer *layer, PSLayer *src) {
             return 0;
         }
         int c = src->recurrent_states_count;
-        if (src->previous_activations != NULL) c++;
+        if (src->initial_states != NULL) c++;
         states_size = c * layer->size * sizeof(PSFloat);
         if (cell->candidates == NULL) cell->candidates = malloc(states_size);
         if (cell->candidates == NULL) goto memerr;
@@ -583,7 +583,7 @@ int PSLSTMFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
         dpopt[FORGET_IDX].add_vec = cell->forget_biases;
     }
     PSMathOpts final_opts = {.acceleration = net->acceleration};
-    PSFloat *prev_act = NULL, *prev_z = NULL;
+    PSFloat *prev_states = NULL, *prev_z = NULL;
     PSFloat *candidates = getCandidates(layer, t);
     PSFloat *input_gates = getInputGates(layer, t);
     PSFloat *output_gates = getOutputGates(layer, t);
@@ -599,9 +599,9 @@ int PSLSTMFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
      * are fed just in the very first step. */
     if (!PSIsRecurrent(previous) && layer == first_recurrent)
         ignore_inputs = (t > 0);
-    int feed_previous_step = (t > 0 || layer->previous_activations != NULL);
+    int feed_previous_step = (t > 0 || layer->initial_states != NULL);
     PSFloat *inputs = NULL;
-    PSFloat *outputs = PSGetActivations(layer, t);
+    PSFloat *outputs = PSGetStates(layer, t);
     if (ignore_inputs) goto forward_previous_step;
     if (onehot) {
         /* Onehot input layers only have one input corresponding to the index
@@ -609,7 +609,7 @@ int PSLSTMFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
          * corresponding weight, since the input should always be considered
          * as it would be 1 */
         vector_size = PSGetOneHotLayerVectorSize(previous);
-        vector_idx = (int) PSGetActivation(previous, 0, t);
+        vector_idx = (int) PSGetState(previous, 0, t);
         if (vector_size == 0) return 0;
         if (vector_idx >= vector_size) {
             PSErr(NULL, "Layer[%d]: invalid vector index %d (max. %d)!",
@@ -636,10 +636,10 @@ int PSLSTMFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
             }
         }
     } else {
-        inputs = PSGetActivations(previous, t);
+        inputs = PSGetStates(previous, t);
         if (inputs == NULL) {
-            PSErr(NULL, "Layer[%d]: previous layer[%d] has NULL "
-                  "activations", layer->index, previous->index);
+            PSErr(NULL, "Layer[%d]: previous layer[%d] has no states",
+                  layer->index, previous->index);
             return 0;
         }
         PSMathOpts *c_opts = &dfopts, *ig_opts = &dfopts, *og_opts = &dfopts,
@@ -660,20 +660,20 @@ int PSLSTMFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
     }
 forward_previous_step:
     if (!feed_previous_step) goto final;
-    prev_act = PSGetActivations(layer, prev_t);
-    if (prev_act == NULL) goto final;
+    prev_states = PSGetStates(layer, prev_t);
+    if (prev_states == NULL) goto final;
     prev_z = getZValues(layer, prev_t);
     dpopt[CANDIDATE_IDX].store_mode =
     dpopt[INPUT_IDX].store_mode =
     dpopt[OUTPUT_IDX].store_mode =
     dpopt[FORGET_IDX].store_mode = MATHS_STORE_MODE_ADD;
-    PSDot(cell->candidate_hidden_weights, prev_act, candidates,
+    PSDot(cell->candidate_hidden_weights, prev_states, candidates,
           &dpopt[CANDIDATE_IDX]);
-    PSDot(cell->input_hidden_weights, prev_act, input_gates,
+    PSDot(cell->input_hidden_weights, prev_states, input_gates,
           &dpopt[INPUT_IDX]);
-    PSDot(cell->output_hidden_weights, prev_act, output_gates,
+    PSDot(cell->output_hidden_weights, prev_states, output_gates,
           &dpopt[OUTPUT_IDX]);
-    PSDot(cell->forget_hidden_weights, prev_act, forget_gates,
+    PSDot(cell->forget_hidden_weights, prev_states, forget_gates,
           &dpopt[FORGET_IDX]);
 final:
     PSMultiplyVectors(candidates, input_gates, z_values, lsize, &final_opts);
@@ -788,7 +788,7 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previous_layer,
         }
 
         if (onehot) {
-            PSFloat prev_a = PSGetActivation(previous_layer, 0, t);
+            PSFloat prev_a = PSGetState(previous_layer, 0, t);
             assert(prev_a < input_size);
             w = (int) prev_a;
             gradient_weights_c[w] += dc;
@@ -797,7 +797,7 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previous_layer,
             gradient_weights_f[w] += df;
         } else {
             for (w = 0; w < input_size; w++) {
-                PSFloat prev_a = PSGetActivation(previous_layer, w, t);
+                PSFloat prev_a = PSGetState(previous_layer, w, t);
                 gradient_weights_c[w] += (dc * prev_a);
                 gradient_weights_i[w] += (di * prev_a);
                 gradient_weights_o[w] += (dout *prev_a);
@@ -805,16 +805,16 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previous_layer,
             }
         }
 
-        if (t > 0 || layer->previous_activations != NULL) {
+        if (t > 0 || layer->initial_states != NULL) {
             int w = 0;
 /*#ifdef USE_AVX
             int i = 0, o = 0, f = 0;
             if (!avx_disabled) {
                 PSFloat *rweights = gradient->weights + wsize;
-                PSFloat *act = layer->activations;
+                PSFloat *act = layer->states;
                 int avx_t = prev_t;
                 if (avx_t < 0) {
-                    act = layer->previous_activations;
+                    act = layer->initial_states;
                     avx_t = 0;
                 }
                 AVXIterativeMultiplyValue(
@@ -836,7 +836,7 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previous_layer,
             }
 #endif*/ //DELME
             for (w = 0; w < layer->size; w++) {
-                PSFloat a = PSGetActivation(layer, w, prev_t);
+                PSFloat a = PSGetState(layer, w, prev_t);
                 gradient_hweights_c[w] += (dc * a);
                 gradient_hweights_i[w] += (di * a);
                 gradient_hweights_o[w] += (dout * a);

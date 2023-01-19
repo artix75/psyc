@@ -768,7 +768,8 @@ void parseOptions(int argc, char **argv) {
             }
         } else if (strcmp("--optimization", arg) == 0 && !is_last) {
             char *optname = argv[++i];
-            if (strcmp("adam", optname) == 0) optimization = PSAdamOptimization;
+            if (strcmp("adam", optname) == 0)
+                optimization = PSAdamOptimization;
             else if (strcmp("adagrad", optname) == 0)
                 optimization = PSAdaGradOptimization;
             else if (strcmp("adadelta", optname) == 0)
