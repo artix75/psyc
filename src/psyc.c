@@ -24,6 +24,7 @@
 #include <assert.h>
 #include <signal.h>
 #include <sys/time.h>
+#include <inttypes.h>
 
 #ifdef USE_AVX
 #include "avx.h"
@@ -817,7 +818,7 @@ void PSPrintNetworkInfo(PSNeuralNetwork *network) {
             }
         }
     }
-    printf("Total (trainable) parameters: %lld\n",
+    printf("Total (trainable) parameters: %" PRIu64  "\n",
         PSGetNetworkParametersCount(network));
     char *loss_name = getLossFunctionName(network->loss);
     if (loss_name != NULL) printf("Loss Function: %s\n", loss_name);

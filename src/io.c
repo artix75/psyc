@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <time.h>
+#include <inttypes.h>
 #include <sys/utsname.h>
 
 #include "psyc.h"
@@ -470,7 +471,7 @@ int writeGradients(PSNeuralNetwork *network, PSGradient **gradients,
             return 0;
         }
         fprintf(
-            f, "--- Gradient[%d] Biases: %llu ---\n", i - 1,
+            f, "--- Gradient[%d] Biases: %" PRIu64 " ---\n", i - 1,
             gradient->bias_count
         );
         if (gradient->bias_count > 0) {
@@ -480,7 +481,7 @@ int writeGradients(PSNeuralNetwork *network, PSGradient **gradients,
             fprintf(f, "\n");
         }
         fprintf(
-            f, "--- Gradient[%d] Weights: %llu ---\n", i - 1,
+            f, "--- Gradient[%d] Weights: %" PRIu64 " ---\n", i - 1,
             gradient->weight_count
         );
         if (gradient->weight_count > 0) {

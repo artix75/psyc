@@ -651,11 +651,13 @@ PSMatrix PSMatrixTranspose(PSMatrix matrix, int rebuild, PSMathOpts *opts) {
         if (opts != NULL) acceleration = opts->acceleration;
         transposed = PSMatrixZeros(2, dims[1], dims[0]);
         if (transposed == NULL) return NULL;
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
         if (PSACFEnabled(acceleration)) {
             /* Use Apple Accelerate Framework */
             VDSPMTransp(matrix, transposed, dims[1], dims[0]);
             goto final;
         }
+#endif
         ncols = dims[1];
         t_ncols = dims[0];
         for (i = 0; i < hdr->length; i++) {
