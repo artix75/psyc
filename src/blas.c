@@ -35,8 +35,8 @@
 #ifdef HAS_CBLAS
 #define PSBLAS_CONVERT_ORDER(order, var) do {\
     switch (order) {\
-    case PSBlasRowMajor: var = CblasRowMajor; break;\
-    case PSBlasColMajor: var = CblasColMajor; break;\
+    case PSBLASRowMajor: var = CblasRowMajor; break;\
+    case PSBLASColMajor: var = CblasColMajor; break;\
     default: PSErr(__func__, "Invalid order"); return;\
     }\
 } while(0);
@@ -62,29 +62,66 @@
 #define PS_BLAS_OFFSET(inc,len) (inc > 0 ?  0 : (len - 1) * -(inc))
 #define UNUSED(V) ((void) V)
 
+PSBLASErr *PSBLASLastError = NULL;
+static PSBLASErr _BLASLastErr = {0};
+
+static void HandleBLASError(const char *func, const char *param,
+                            const int *param_pos, const int *param_val)
+{
+    if (func == NULL) return;
+    int pos = -1, val = -1;
+    if (param_pos != NULL) pos = *param_pos;
+    if (param_val != NULL) val = *param_val;
+    PSErr(
+        NULL, "BLAS Error in func '%s': invalid value %d for param '%s'",
+        func, val, param
+    );
+    _BLASLastErr.func = func;
+    _BLASLastErr.param = param;
+    _BLASLastErr.param_pos = pos;
+    _BLASLastErr.param_value = val;
+    PSBLASLastError = &_BLASLastErr;
+}
+
 /* Native BLAS functions, loosely inspired by GNU Scientific Library (GSL):
  * https://www.gnu.org/software/gsl/doc/html/ */
 
-static void psyc_gemv(PSBlasOrder order, char trans, int m, int n,
+static void psyc_gemv(PSBLASOrder order, char trans, int m, int n,
                       PSFloat alpha, PSFloat *a, int lda, PSFloat *x,
                       PSFloat incx, PSFloat beta, PSFloat *y, int incy)
 {
+    static char *params[] = {
+        "order", "trans", "m", "n", "alpha", "a", "lda", "x", "incx",
+        "beta", "y", "incy"
+    };
+    PSBLASLastError = NULL;
     trans = (trans != 'C' ? trans : 'T');
     int info = 0;
     if (trans != 'N' && trans != 'T' && trans !='C') info = 2;
     else if (m < 0) info = 3;
     else if (n < 0) info = 4;
-    else if (order == PSBlasColMajor) {
+    else if (order == PSBLASColMajor) {
         int max_m = (m > 1 ? m : 1);
         if (lda < max_m) info = 7;
-    } else if (order == PSBlasRowMajor) {
+    } else if (order == PSBLASRowMajor) {
         int max_n = (n > 1 ? n : 1);
         if (lda < max_n) info = 7;
     }
     else if (incx == 0) info = 9;
     else if (incy == 0) info = 12;
-    if (info != 0) {
-        PSErr("PSGemv", "Invalid parameter at %d", info);
+    if (info > 0) {
+        char *param = NULL;
+        int pos = info - 1, val = -1;
+        if ((size_t) pos < (sizeof(params) / sizeof(char*))) {
+            param = params[pos];
+            if (info == 2) val = (int) trans;
+            else if (info == 3) val = m;
+            else if (info == 4) val = n;
+            else if (info == 7) val = lda;
+            else if (info == 9) val = incx;
+            else if (info == 12) val = incy;
+        }
+        HandleBLASError("GEMV", param, &info, &val);
         return;
     }
 
@@ -117,8 +154,8 @@ static void psyc_gemv(PSBlasOrder order, char trans, int m, int n,
 
     if (alpha == 0.0) return;
 
-    if ((order == PSBlasRowMajor && trans == 'N') ||
-        (order == PSBlasColMajor && trans == 'T')) {
+    if ((order == PSBLASRowMajor && trans == 'N') ||
+        (order == PSBLASColMajor && trans == 'T')) {
         iy = PS_BLAS_OFFSET(leny, incy);
         for (i = 0; i < leny; i++) {
             PSFloat temp = 0.0;
@@ -130,8 +167,8 @@ static void psyc_gemv(PSBlasOrder order, char trans, int m, int n,
             y[iy] += alpha * temp;
             iy += incy;
         }
-    } else if ((order == PSBlasRowMajor && trans == 'T') ||
-               (order == PSBlasColMajor && trans == 'N')) {
+    } else if ((order == PSBLASRowMajor && trans == 'T') ||
+               (order == PSBLASColMajor && trans == 'N')) {
         ix = PS_BLAS_OFFSET(lenx, incx);
         for (j = 0; j < lenx; j++) {
             PSFloat temp = alpha * x[ix];
@@ -144,14 +181,22 @@ static void psyc_gemv(PSBlasOrder order, char trans, int m, int n,
             }
             ix += incx;
         }
-    } else PSErr("PSGemv", "ERROR: unrecognized operation");
+    } else {
+        PSErr("PSGemv", "ERROR: unrecognized operation");
+        HandleBLASError("GEMV", NULL, NULL, NULL);
+    }
 }
 
-static void psyc_gemm(PSBlasOrder order, char trans_a, char trans_b, int m,
+static void psyc_gemm(PSBLASOrder order, char trans_a, char trans_b, int m,
             int n, int k, PSFloat alpha, PSFloat *a, int lda, PSFloat *b,
             int ldb, PSFloat beta, PSFloat *c, int ldc) {
+    static char *params[] = {
+        "order", "trans_a", "trans_b", "m", "n", "k", "alpha", "a", "lda", "b",
+        "ldb", "beta", "c", "ldc"
+    };
+    PSBLASLastError = NULL;
     char trans_f, trans_g;
-    if (order == PSBlasRowMajor) {
+    if (order == PSBLASRowMajor) {
         trans_f = (trans_a != 'C' ? trans_a : 'T');
         trans_g = (trans_b != 'C' ? trans_b : 'T');
     } else {
@@ -160,27 +205,35 @@ static void psyc_gemm(PSBlasOrder order, char trans_a, char trans_b, int m,
     }
     int info = 0, maxk = (k > 1 ? k : 1), maxm = (m > 1 ? m : 1),
          maxn = (n > 1 ? n : 1);
-    if (order == PSBlasRowMajor) {
+    if (order == PSBLASRowMajor) {
         if (trans_f == 'N' && lda < maxk) info = 9;
-        else if (lda < maxm) info = 9;
+        else if (trans_f != 'N' && lda < maxm) info = 9;
         if (trans_g == 'N' && ldb < maxn) info = 11;
-        else if (ldb < maxk) info = 11;
+        else if (trans_g != 'N' && ldb < maxk) info = 11;
         if (ldc < maxn) info = 14;
     } else {
         if (trans_f == 'N' && ldb < maxk) info = 11;
-        else if (ldb < maxn) info = 11;
+        else if (trans_f != 'N' && ldb < maxn) info = 11;
         if (trans_g == 'N' && lda < maxm) info = 9;
-        else if (lda < maxk) info = 9;
+        else if (trans_g != 'N' && lda < maxk) info = 9;
         if (ldc < maxm) info = 14;
     }
     if (info != 0) {
-        PSErr("PSGemm", "Invalid parameter at %d", info);
+        char *param = NULL;
+        int pos = info - 1, val = -1;
+        if ((size_t) pos < (sizeof(params) / sizeof(char*))) {
+            param = params[pos];
+            if (info == 9) val = lda;
+            else if (info == 11) val = ldb;
+            else if (info == 14) val = ldc;
+        }
+        HandleBLASError("GEMM", param, &info, &val);
         return;
     }
     if (alpha == 0.0 && beta == 1.0) return;
     int n1, n2, ldf, ldg, i, j, _k;
     PSFloat *f, *g;
-    if (order == PSBlasRowMajor) {
+    if (order == PSBLASRowMajor) {
         n1 = m;
         n2 = n;
         f = a;
@@ -249,15 +302,22 @@ static void psyc_gemm(PSBlasOrder order, char trans_a, char trans_b, int m,
                 c[ldc * i + j] += alpha * temp;
             }
         }
-    } else PSErr("PSGemv", "ERROR: unrecognized operation");
+    } else {
+        PSErr("PSGemm", "ERROR: unrecognized operation");
+        HandleBLASError("GEMM", NULL, NULL, NULL);
+    }
 }
 
 /* Wrapper public functions */
 
-void PSGemv(PSBlasOrder order, char trans, int m, int n, PSFloat alpha,
+void PSGemv(PSBLASOrder order, char trans, int m, int n, PSFloat alpha,
             PSFloat *a, int lda, PSFloat *x, PSFloat incx, PSFloat beta,
             PSFloat *y, int incy)
 {
+    PSBLASLastError = NULL;
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    SetBLASParamErrorProc(HandleBLASError);
+#endif
 #if defined(HAS_CBLAS) && !defined(USE_PSYC_BLAS)
     UNUSED(psyc_gemv);
     enum CBLAS_ORDER cblas_order;
@@ -276,10 +336,14 @@ void PSGemv(PSBlasOrder order, char trans, int m, int n, PSFloat alpha,
 #endif
 }
 
-void PSGemm(PSBlasOrder order, char trans_a, char trans_b, int m, int n, int k,
+void PSGemm(PSBLASOrder order, char trans_a, char trans_b, int m, int n, int k,
             PSFloat alpha, PSFloat *a, int lda, PSFloat *b, int ldb,
             PSFloat beta, PSFloat *c, int ldc)
 {
+    PSBLASLastError = NULL;
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    SetBLASParamErrorProc(HandleBLASError);
+#endif
 #if defined(HAS_CBLAS) && !defined(USE_PSYC_BLAS)
     UNUSED(psyc_gemm);
     enum CBLAS_ORDER cblas_order;

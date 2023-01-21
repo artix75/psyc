@@ -399,7 +399,7 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result) {
         PSErr(__func__, "argument result cannot be null");
         return 0;
     }
-    PSBlasOrder order = PSBlasRowMajor;
+    PSBLASOrder order = PSBLASRowMajor;
     int dims_a[MAX_DIMENSIONS];
     int ndims = PSMatrixDimensions(a, dims_a);
     if (ndims == 0) {
@@ -439,8 +439,10 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result) {
     int m = dims_a[0], n = dims_a[1];
 #ifndef HAS_BLAS
     for (int i = 0; i < m; i += lda) out[i] = PSDotProduct(a, b, n, NULL);
+    return 1;
 #endif
     PSGemv(order, 'N', m, n, 1.0, a, lda, b, 1, 0.0, out, 1);
+    if (PSBLASLastError != NULL) return 0;
     return 1;
 }
 
@@ -453,7 +455,7 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result) {
         PSErr(__func__, "argument result cannot be null");
         return 0;
     }
-    PSBlasOrder order = PSBlasRowMajor;
+    PSBLASOrder order = PSBLASRowMajor;
     int dims_b[MAX_DIMENSIONS];
     int ndims = PSMatrixDimensions(b, dims_b);
     if (ndims == 0) {
@@ -501,6 +503,7 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result) {
     int lda = (dims_b[1] > 1 ? dims_b[1] : 1);
     int m = dims_b[0], n = dims_b[1];
     PSGemv(order, 'N', m, n, 1.0, b, lda, a, 1, 0.0, out, 1);
+    if (PSBLASLastError != NULL) return 0;
     return 1;
 }
 
@@ -563,10 +566,10 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result) {
     }
     int a_vector_like = (ndims_a == 1),
         b_vector_like = (ndims_b == 1);
-    PSBlasOrder order;
+    PSBLASOrder order;
     if (!a_vector_like && b_vector_like) {
         /* Matrix vector multiplication -- Level 2 BLAS */
-        order = PSBlasRowMajor;
+        order = PSBLASRowMajor;
         lda = (dims_a[1] > 1 ? dims_a[1] : 1);
         int bs = PSMatrixStride(b, 0);
         int m = dims_a[0], n = dims_a[1];
@@ -581,7 +584,7 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result) {
         PSErr(__func__, "BLAS disabled");
         return 0;
 #endif
-        order = PSBlasRowMajor;
+        order = PSBLASRowMajor;
         lda = (dims_b[1] > 1 ? dims_b[1] : 1);
         int as = PSMatrixStride(a, 0);
         int m = dims_b[0], n = dims_b[1];
@@ -592,7 +595,7 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result) {
         PSErr(__func__, "BLAS disabled");
         return 0;
 #endif
-        order = PSBlasRowMajor;
+        order = PSBLASRowMajor;
         char trans1 = 'N', trans2 = 'N';
         int l = dims_a[0];
         int n = dims_b[1];
@@ -615,6 +618,7 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result) {
                    out, ldc);
         }
     }
+    if (PSBLASLastError != NULL) return 0;
     return 1;
 }
 
@@ -1432,11 +1436,12 @@ int PSVectorProduct(PSFloat *a, PSFloat *b, PSFloat *dest,
     }
 #ifdef HAS_BLAS
     if (blas_enabled) {
-        PSBlasOrder order = PSBlasRowMajor;
+        PSBLASOrder order = PSBLASRowMajor;
         char trans1 = 'N', trans2 = 'N';
         int m = 1, lda = 1, ldb = blen, ldc = blen;
         PSGemm(order, trans1, trans2, alen, blen, m, 1.0, a, lda, b, ldb, 0.0,
                vpdest, ldc);
+        if (PSBLASLastError != NULL) return 0;
         goto acceleration_done;
     }
 #endif

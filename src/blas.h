@@ -21,14 +21,22 @@
 #include "types.h"
 
 typedef enum {
-    PSBlasRowMajor,
-    PSBlasColMajor
-} PSBlasOrder;
+    PSBLASRowMajor,
+    PSBLASColMajor
+} PSBLASOrder;
 
-void PSGemv(PSBlasOrder order, char trans, int m, int n, PSFloat alpha,
+typedef struct PSBlasErr {
+    const char *func;
+    const char *param;
+    int param_pos;
+    int param_value;
+} PSBLASErr;
+
+extern PSBLASErr *PSBLASLastError;
+void PSGemv(PSBLASOrder order, char trans, int m, int n, PSFloat alpha,
             PSFloat *a, int lda, PSFloat *x, PSFloat incx, PSFloat beta,
             PSFloat *y, int incy);
-void PSGemm(PSBlasOrder order, char trans_a, char trans_b, int m, int n, int k,
+void PSGemm(PSBLASOrder order, char trans_a, char trans_b, int m, int n, int k,
             PSFloat alpha, PSFloat *a, int lda, PSFloat *b, int ldb,
             PSFloat beta, PSFloat *c, int ldc);
 
