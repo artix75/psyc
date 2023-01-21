@@ -457,57 +457,29 @@ int main(int argc, char** argv) {
     printf("Size of PSFloat: %d\n", (int) sizeof(PSFloat));
 
     if (pretrained_file == NULL) {
-        PSHyperParameters *iparams; /* Input layer parameters */
-        PSHyperParameters *cparams; /* Convloutional layer parameters */
-        PSHyperParameters *pparams; /* Pooling layer parameters */
-        iparams = PSCreateConvolutionalParameters(3, 0, 0, 0, 0);
-        iparams->parameters[PARAM_OUTPUT_WIDTH] = 32.0;
-        iparams->parameters[PARAM_OUTPUT_HEIGHT] = 32.0;
-        /*cparams = PSCreateConvolutionalParameters(33, 3, 1, 0, use_relu);
-        pparams = PSCreateConvolutionalParameters(33, 2, 0, 0, use_relu);*/
+        /* Input layer def. */
+        PSLayerDef input_def = {
+            .output_depth = 3, .output_columns = 32, .output_rows = 32
+        };
+        /* Convolutional layer def. */
+        PSLayerDef conv_def = {
+            .output_depth = 16, .filter_width = region_size,
+            .filter_height = region_size, .padding = padding, .stride = 1
+        };
+        if (use_relu) conv_def.activation = PSRelu;
+        /* Pooling layer def. */
+        PSLayerDef pool_def = {
+            .filter_width = 2, .filter_height = 2
+        };
 
-        cparams = PSCreateConvolutionalParameters(16, region_size, 1, padding,
-            use_relu);
-        pparams = PSCreateConvolutionalParameters(16, 2, 0, 0, use_relu);
-
-        if (cparams == NULL || pparams == NULL) {
-            fprintf(stderr, "Could not create layer params!\n");
-            PSDeleteNetwork(network);
-            if (training_data != NULL) free(training_data);
-            if (test_data != NULL) free(test_data);
-            return 1;
-        }
-
-        PSAddLayer(network, FullyConnected, CIFAR_IMAGE_SIZE, iparams);
-        PSAddConvolutionalLayer(network, cparams);
-        PSAddPoolingLayer(network, pparams);
-
-        /*cparams = PSCreateConvolutionalParameters(66, 3, 1, 0, use_relu);
-        pparams = PSCreateConvolutionalParameters(66, 2, 0, 0, use_relu);
-        if (cparams == NULL || pparams == NULL) {
-            fprintf(stderr, "Could not create layer params!\n");
-            PSDeleteNetwork(network);
-            if (training_data != NULL) free(training_data);
-            if (test_data != NULL) free(test_data);
-            return 1;
-        }
-        PSAddConvolutionalLayer(network, cparams);
-        PSAddPoolingLayer(network, pparams);*/
+        PSAddLayer(network, FullyConnected, CIFAR_IMAGE_SIZE, &input_def);
+        PSAddConvolutionalLayer(network, &conv_def);
+        PSAddPoolingLayer(network, &pool_def);
 
         for (i = 0; i < additional_layers; i++) {
-            cparams = PSCreateConvolutionalParameters(20, region_size, 1,
-                padding, use_relu);
-            pparams = PSCreateConvolutionalParameters(20, 2, 0, 0,
-                use_relu);
-            if (cparams == NULL || pparams == NULL) {
-                fprintf(stderr, "Could not create layer params!\n");
-                PSDeleteNetwork(network);
-                if (training_data != NULL) free(training_data);
-                if (test_data != NULL) free(test_data);
-                return 1;
-            }
-            PSAddConvolutionalLayer(network, cparams);
-            PSAddPoolingLayer(network, pparams);
+            conv_def.output_depth = 20;
+            PSAddConvolutionalLayer(network, &conv_def);
+            PSAddPoolingLayer(network, &pool_def);
         }
 
         /* PSAddLayer(network, FullyConnected, 512, NULL); */

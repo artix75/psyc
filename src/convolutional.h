@@ -21,19 +21,20 @@
 #include "psyc.h"
 #include "utils.h"
 
-#define PARAM_FEATURE_COUNT     0
-#define PARAM_REGION_SIZE       1
-#define PARAM_STRIDE            2
-#define PARAM_INPUT_WIDTH       3
-#define PARAM_INPUT_HEIGHT      4
-#define PARAM_OUTPUT_WIDTH      5
-#define PARAM_OUTPUT_HEIGHT     6
-#define PARAM_PADDING           7
-#define PARAM_USE_RELU          8
-
-#define CONV_PARAMETER_COUNT 9
-
+#define PSGetConvolutionalSettings(layer) \
+    ((PSConvolutionalSettings *) layer->extra)
 #define PSGetColumn(index, width) (index % width)
 #define PSGetRow(index, width) ((int) ((int) index / (int) width))
+
+typedef struct PSConvolutionalSettings {
+    int stride;
+    int padding;
+    int filter_width;
+    int filter_height;
+    int filter_depth;
+    int input_width;
+    int input_height;
+    int input_depth;
+} PSConvolutionalSettings;
 
 #endif /* __PS_CONVOLUTIONAL_H */

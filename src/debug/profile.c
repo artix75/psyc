@@ -33,10 +33,13 @@
 #define RNN_TIMES       4
 #define RNN_LEARNING_RATE 0.005
 
+#define UNUSED(V) ((void) V)
+
 PSFloat rnn_train_data[10] = {1, 4, 0, 1, 2, 3, 3, 2, 1, 0};
 
 int main(int argc, char** argv) {
-
+    UNUSED(argc);
+    UNUSED(argv);
     PSFloat *test_data = NULL;
     PSFloat *train_data = NULL;
     PSFloat *eval_data = NULL;
@@ -52,18 +55,19 @@ int main(int argc, char** argv) {
                                   "../../resources/t10k-images-idx3-ubyte.gz",
                                   "../../resources/t10k-labels-idx1-ubyte.gz",
                                   &test_data);
-
+    UNUSED(testlen);
     PSNeuralNetwork *network = PSCreateNetwork("Profiling Network");
 
-    PSHyperParameters *cparams;
-    PSHyperParameters *pparams;
-    cparams = PSCreateConvolutionalParameters(FEATURES_COUNT, REGIONS_SIZE,
-                                              1, 0, 1);
-    pparams = PSCreateConvolutionalParameters(FEATURES_COUNT, POOL_SIZE,
-                                              0, 0, 1);
+    PSLayerDef cdef = {
+        .output_depth = FEATURES_COUNT, .filter_width = REGIONS_SIZE,
+        .filter_height = REGIONS_SIZE, .stride = 1, .activation = PSRelu
+    };
+    PSLayerDef pdef = {
+        .filter_width = REGIONS_SIZE, .filter_height = REGIONS_SIZE
+    };
     PSAddLayer(network, FullyConnected, INPUT_SIZE, NULL);
-    PSAddConvolutionalLayer(network, cparams);
-    PSAddPoolingLayer(network, pparams);
+    PSAddConvolutionalLayer(network, &cdef);
+    PSAddPoolingLayer(network, &pdef);
     PSAddLayer(network, FullyConnected, 30, NULL);
     /* PSAddLayer(network, FullyConnected, 10, NULL); */
     PSAddLayer(network, SoftMax, 10, NULL);

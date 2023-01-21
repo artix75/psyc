@@ -96,6 +96,7 @@ int writeSerializedFloat(FILE *out, PSFloat fnum, int opts);
 void DumpLayerInfo(PSLayer *layer, FILE *dump_file, int add_new_line);
 int (*PSShouldDumpGradientsCallback) (PSNeuralNetwork *network) = NULL;
 int writeSerializedFloat(FILE *out, PSFloat fnum, int opts);
+const char *PSGetActivationName(PSActivationFunction func);
 
 #ifdef BACKTRACE_AVAILABLE
 static void *getEip(ucontext_t *uc) {
@@ -300,7 +301,6 @@ void segvHandler(int sig, siginfo_t *info, void *secret) {
     if (sig == SIGFPE) dumpfloatinPointExecption();
 
     printf("\n\n---- SIZEOF STRUCTS ----\n");
-    printf("PSHyperParameters: %d\n", (int) sizeof(PSHyperParameters));
     printf("PSTrainingOptions: %d\n", (int) sizeof(PSTrainingOptions));
     printf("PSTrainingInfo:    %d\n", (int) sizeof(PSTrainingInfo));
     printf("PSNeuron:          %d\n", (int) sizeof(PSNeuron));
@@ -431,15 +431,9 @@ char *PSGetNeuronDebugID(PSNeuron *neuron, PSLayer *layer) {
     if (neuron == NULL || layer == NULL) return "null";
     int n_index = neuron->index;
     int l_lindex = layer->index;
-    int fcount = 0, f_index;
-    PSHyperParameters *lparams = layer->hyper_parameters;
-    if (lparams != NULL) {
-        PSFloat *params = lparams->parameters;
-        fcount = (int) (params[PARAM_FEATURE_COUNT]);
-    }
-    if (fcount > 1) {
-        int fsize = layer->size / fcount;
-        f_index = n_index / fsize;
+    if (layer->output_depth > 1) {
+        int fsize = layer->size / layer->output_depth;
+        int f_index = n_index / fsize;
         snprintf(neuron_id, 255, "%d-%d-%d", l_lindex, f_index, n_index);
     } else snprintf(neuron_id, 255, "%d-%d", l_lindex, n_index);
     return neuron_id;
@@ -567,46 +561,47 @@ void PSTrainingDebugDumpHeader(PSNeuralNetwork *network,
         PSLayer *layer = network->layers[i];
         PSLayerType ltype = layer->type;
         char *type_name = PSGetLayerTypeLabel(layer);
-        PSHyperParameters *lparams = layer->hyper_parameters;
         PSTrainingDebugDump(network, "layer:index=%d,type=%s,size=%d",
             i, type_name, layer->size);
         if (i == 0 && layer->flags & FLAG_ONEHOT) {
-            PSHyperParameters *params = layer->hyper_parameters;
-            int onehot_sz = (int) (params->parameters[0]);
-            PSTrainingDebugDump(network, ",vector_size=%d", onehot_sz);
+            PSTrainingDebugDump(network, ",vector_size=%d",
+                                layer->onehot_vector_size);
         }
-        if ((ltype == Convolutional || ltype == Pooling) && lparams != NULL) {
-            PSFloat *params = lparams->parameters;
-            int fcount = (int) (params[PARAM_FEATURE_COUNT]);
-            int rsize = (int) (params[PARAM_REGION_SIZE]);
-            int input_w = (int) (params[PARAM_INPUT_WIDTH]);
-            int input_h = (int) (params[PARAM_INPUT_HEIGHT]);
-            int output_w = (int) (params[PARAM_OUTPUT_WIDTH]);
-            int output_h = (int) (params[PARAM_OUTPUT_HEIGHT]);
-            int stride = (int) (params[PARAM_STRIDE]);
-            int use_relu = (int) (params[PARAM_USE_RELU]);
-            if (stride <= 0 && ltype == Pooling) stride = rsize;
+        if (ltype == Convolutional || ltype == Pooling) {
+            PSConvolutionalSettings *settings =
+                PSGetConvolutionalSettings(layer);
+            int input_w = 0, input_h = 0, filter_w = 0, filter_h = 0;
+            int stride = 0, padding = 0;
+            if (settings != NULL) {
+                input_w = settings->input_width;
+                input_h = settings->input_height;
+                stride = settings->stride;
+                padding = settings->padding;
+                filter_w = settings->filter_width;
+                filter_h = settings->filter_height;
+            }
+            if (stride <= 0 && ltype == Pooling) stride = filter_w;
             PSTrainingDebugDump(
                 network,
                 ",input_size=%dx%d,output_size=%dx%d,features=%d"
                 ",region=%dx%d,stride=%d",
-                input_w, input_h, output_w, output_h, fcount,
-                rsize, rsize, stride
+                input_w, input_h, layer->output_columns, layer->output_rows,
+                layer->output_depth, filter_w, filter_h, stride
             );
             if (ltype == Convolutional) {
-                char *actv = (use_relu ? "PSRelu" : "PSSigmoid");
-                int padding = (int) (params[PARAM_PADDING]);
                 if (padding < 0) padding = 0;
                 PSTrainingDebugDump(
-                    network, ",padding=%d,activation=%s\n", padding, actv
+                    network, ",padding=%d", padding
                 );
-            } else PSTrainingDebugDump(network, "\n");
-        } else if (lparams != NULL && ltype == FullyConnected) {
-            PSFloat *params = lparams->parameters;
-            int fcount = (int) (params[PARAM_FEATURE_COUNT]);
-            if (fcount > 1) {
+            }
+            const char *actvname = PSGetActivationName(layer->activate);
+            if (actvname != NULL)
+                PSTrainingDebugDump(network, ",activation=%s\n", actvname);
+            else PSTrainingDebugDump(network, "\n");
+        } else if (ltype == FullyConnected) {
+            if (layer->output_depth > 1) {
                 PSTrainingDebugDump(
-                    network, ",features=%d\n", fcount
+                    network, ",features=%d\n", layer->output_depth
                 );
             } else PSTrainingDebugDump(network, "\n");
         } else PSTrainingDebugDump(network, "\n");

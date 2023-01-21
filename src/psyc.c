@@ -99,9 +99,9 @@ float validate(PSNeuralNetwork *network, PSFloat *test_data, int data_size,
 PSFloat applyDropout(PSLayer *layer, PSFloat value, uint8_t *dropped_p);
 uint8_t isDroppedOut(PSNeuron *neuron, ...);
 int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
-                             PSHyperParameters *parameters);
+                             PSLayerDef *ldef);
 int PSInitPoolingLayer(PSNeuralNetwork *network, PSLayer *layer,
-                       PSHyperParameters *parameters);
+                       PSLayerDef *ldef);
 int fullBackprop(PSLayer *layer, PSLayer *previous_layer,
                  PSGradient *layer_gradients, ...);
 int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
@@ -608,6 +608,20 @@ PSVecActivationFunction PSGetVectorActivationFunc(PSActivationFunction func) {
     return NULL;
 }
 
+const char *PSGetActivationName(PSActivationFunction func) {
+    if (func == PSSigmoid) return "sigmoid";
+    else if (func == PSTanhActivation) return "tanh";
+    else if (func == PSRelu) return "relu";
+    return NULL;
+}
+
+PSActivationFunction PSGetActivationDerivative(PSActivationFunction func) {
+    if (func == PSSigmoid) return PSSigmoidDerivative;
+    else if (func == PSTanhActivation) return PSTanhDerivative;
+    else if (func == PSRelu) return PSReluDerivative;
+    return NULL;
+}
+
 uint64_t PSGetLayerParametersCount(PSLayer *layer, int param_type) {
     if (layer == NULL) return 0;
     if (Pooling == layer->type || layer->index == 0 || layer->size == 0)
@@ -624,12 +638,9 @@ uint64_t PSGetLayerParametersCount(PSLayer *layer, int param_type) {
     }
     if (param_type & PARAM_TYPE_BIAS) {
         if (!(layer->flags & FLAG_NO_BIAS) && layer->biases != NULL) {
-            int bias_count = 0;
-            if (Convolutional == layer->type) {
-                PSHyperParameters *params = layer->hyper_parameters;
-                if (params != NULL && params->parameters != NULL)
-                    bias_count = (int) params->parameters[PARAM_FEATURE_COUNT];
-            } else if (LSTM == layer->type) bias_count = layer->size * 4;
+            int bias_count;
+            if (Convolutional == layer->type) bias_count = layer->output_depth;
+            else if (LSTM == layer->type) bias_count = layer->size * 4;
             else bias_count = layer->size;
             count += bias_count;
         }
@@ -649,21 +660,7 @@ uint64_t PSGetNetworkParametersCount(PSNeuralNetwork *network) {
 
 int PSGetOneHotLayerVectorSize(PSLayer *layer) {
     if (!(layer->flags & FLAG_ONEHOT)) return layer->size;
-    PSHyperParameters *params = layer->hyper_parameters;
-    if (params == NULL) {
-        PSErr(NULL, "Layer[%d]: onehot layer params are NULL!", layer->index);
-        return 0;
-    }
-    if (params->count < 1) {
-        PSErr(NULL, "Layer[%d]: onehot layer params < 1!", layer->index);
-        return 0;
-    }
-    if (params->parameters == NULL) {
-        PSErr(NULL, "Layer[%d]: onehot layer "
-              "hyper_parameters->parameters are NULL!", layer->index);
-        return 0;
-    }
-    return (int) (params->parameters[0]);
+    return layer->onehot_vector_size;
 }
 
 PSLayer *PSGetPreviousLayer(PSLayer *layer) {
@@ -700,21 +697,8 @@ uint64_t PSGetLayerInputWeightsCount(PSLayer *layer, int per_neuron) {
     if (layer->weights[0] == NULL) return 0;
     if (layer->type == Pooling) return 0;
     uint64_t wcount = PSMatrixLength(layer->weights[0]);
-    if (per_neuron) {
-        if (Convolutional == layer->type) {
-            PSLayer *previous = PSGetPreviousLayer(layer);
-            if (previous == NULL) return 0;
-            PSHyperParameters *hparams = previous->hyper_parameters;
-            if (hparams == NULL || hparams->parameters == NULL) return 0;
-            if (hparams->count >= CONV_PARAMETER_COUNT) {
-                int depth = (int) hparams->parameters[PARAM_FEATURE_COUNT];
-                if (depth <= 0) return wcount;
-                return wcount / depth;
-            }
-            return wcount;
-        } else return wcount / layer->size;
-    }
-    else return wcount;
+    if (per_neuron && layer->type != Convolutional) wcount /= layer->size;
+    return wcount;
 }
 
 PSFloat *PSGetNeuronInputWeights(PSNeuron *neuron) {
@@ -736,44 +720,43 @@ void PSPrintLayerInfo(PSLayer *layer) {
     if (layer == NULL) return;
     PSLayerType ltype = layer->type;
     char *type_name = PSGetLayerTypeLabel(layer);
-    PSHyperParameters *lparams = layer->hyper_parameters;
     char onehot_info[50];
     onehot_info[0] = 0;
     int onehot_input = (layer->index == 0 && layer->flags & FLAG_ONEHOT);
-    if (onehot_input) {
-        PSHyperParameters *params = layer->hyper_parameters;
-        int onehot_sz = (int) (params->parameters[0]);
-        sprintf(onehot_info, " (vector size: %d)", onehot_sz);
-    }
+    if (onehot_input)
+        sprintf(onehot_info, " (vector size: %d)", layer->onehot_vector_size);
     printf("Layer[%d]: %s, size = %d", layer->index, type_name, layer->size);
     if (layer->dropout > 0.0) printf(", dropout = %g", layer->dropout);
     if (onehot_info[0]) printf(" %s", onehot_info);
-    if ((ltype == Convolutional || ltype == Pooling) && lparams != NULL) {
-        PSFloat *params = lparams->parameters;
-        int fcount = (int) (params[PARAM_FEATURE_COUNT]);
-        int rsize = (int) (params[PARAM_REGION_SIZE]);
-        int input_w = (int) (params[PARAM_INPUT_WIDTH]);
-        int input_h = (int) (params[PARAM_INPUT_HEIGHT]);
-        int output_w = (int) (params[PARAM_OUTPUT_WIDTH]);
-        int output_h = (int) (params[PARAM_OUTPUT_HEIGHT]);
-        int stride = (int) (params[PARAM_STRIDE]);
-        int use_relu = (int) (params[PARAM_USE_RELU]);
-        if (stride <= 0 && ltype == Pooling) stride = rsize;
-        printf(", input size = %dx%d, output_size = %dx%d, features = %d",
-            input_w, input_h, output_w, output_h, fcount);
-        printf(", region = %dx%d, stride = %d", rsize, rsize, stride);
+    if (ltype == Convolutional || ltype == Pooling) {
+        PSConvolutionalSettings *settings = PSGetConvolutionalSettings(layer);
+        int output_w = layer->output_columns, output_h = layer->output_rows,
+            depth = layer->output_depth, filter_w = 0, filter_h = 0,
+            filter_d = 0, input_w = 0, input_h = 0, stride = 0, padding = 0;
+        if (settings != NULL) {
+            input_w = settings->input_width;
+            input_h = settings->input_height;
+            filter_w = settings->filter_width;
+            filter_h = settings->filter_height;
+            filter_d = settings->filter_depth;
+            stride = settings->stride;
+            padding = settings->padding;
+        }
+        if (stride <= 0 && ltype == Pooling) stride = filter_w;
+        printf(", input size = %dx%d, output_size = %dx%d, depth = %d",
+            input_w, input_h, output_w, output_h, depth);
+        printf(", filter = %dx%dx%d, stride = %d",
+               filter_w, filter_h, filter_d, stride);
         if (ltype == Convolutional) {
-            char *actv = (use_relu ? "PSRelu" : "PSSigmoid");
-            int padding = (int) (params[PARAM_PADDING]);
             if (padding < 0) padding = 0;
-            printf(", padding = %d, activation = %s\n", padding, actv);
-        } else printf("\n");
-    } else if (lparams != NULL && ltype == FullyConnected && !onehot_input) {
-        PSFloat *params = lparams->parameters;
-        int fcount = (int) (params[PARAM_FEATURE_COUNT]);
-        if (fcount > 1) printf(", features = %d\n", fcount);
-        else printf("\n");
-    } else printf("\n");
+            printf(", padding = %d", padding);
+        }
+    } else if (ltype == FullyConnected && layer->output_depth > 1) {
+       printf(", depth = %d\n", layer->output_depth);
+    }
+    const char *activation = PSGetActivationName(layer->activate);
+    if (activation != NULL) printf(", activation = %s", activation);
+    printf("\n");
 }
 
 void PSPrintNetworkInfo(PSNeuralNetwork *network) {
@@ -1495,21 +1478,23 @@ PSNeuralNetwork *PSCloneNetwork(PSNeuralNetwork *network, int layout_only) {
     for (i = 0; i < network->size; i++) {
         PSLayer *layer = network->layers[i];
         PSLayerType type = layer->type;
-        PSHyperParameters *oparams = layer->hyper_parameters;
-        PSHyperParameters *cparams = NULL;
-        if (oparams) {
-            cparams = malloc(sizeof(PSHyperParameters));
-            if (cparams == NULL) goto memerr;
-            cparams->count = oparams->count;
-            cparams->parameters = malloc(cparams->count * sizeof(PSFloat));
-            if (cparams->parameters == NULL) {
-                free(cparams);
-                goto memerr;
-            }
-            for (j = 0; j < cparams->count; j++)
-                cparams->parameters[j] = oparams->parameters[j];
+        PSLayerDef ldef = {
+            .activation = layer->activate,
+            .flags = layer->flags,
+            .dropout = layer->dropout,
+            .output_depth = layer->output_depth,
+            .output_columns = layer->output_columns,
+            .output_rows = layer->output_rows
+        };
+        if (Convolutional == type || Pooling == type) {
+            PSConvolutionalSettings *csettings =
+                PSGetConvolutionalSettings(layer);
+            ldef.stride = csettings->stride;
+            ldef.padding = csettings->padding;
+            ldef.filter_width = csettings->filter_width;
+            ldef.filter_height = csettings->filter_height;
         }
-        PSLayer *cloned_layer = PSAddLayer(clone, type, layer->size, cparams);
+        PSLayer *cloned_layer = PSAddLayer(clone, type, layer->size, &ldef);
         if (cloned_layer == NULL) {
             PSDeleteNetwork(clone);
             return NULL;
@@ -1727,46 +1712,42 @@ static void DumpNetworkHeader(PSNeuralNetwork *network, FILE *dump_file) {
 void DumpLayerInfo(PSLayer *layer, FILE *dump_file, int add_new_line) {
     PSLayerType ltype = layer->type;
     char *type_name = PSGetLayerTypeLabel(layer);
-    PSHyperParameters *lparams = layer->hyper_parameters;
     fprintf(dump_file, "layer:index=%d,type=%s,size=%d", layer->index,
         type_name, layer->size);
     int onehot_input = (layer->index == 0 && layer->flags & FLAG_ONEHOT);
-    if (onehot_input) {
-        PSHyperParameters *params = layer->hyper_parameters;
-        int onehot_sz = (int) (params->parameters[0]);
-        fprintf(dump_file, ",vector_size=%d", onehot_sz);
-    }
+    if (onehot_input)
+        fprintf(dump_file, ",vector_size=%d", layer->onehot_vector_size);
     if (PSIsRecurrent(layer) && PSIsRecurrent(layer->network))
         fprintf(dump_file, ",recurrent=1");
-    int fcount = 1;
-    if ((ltype == Convolutional || ltype == Pooling) && lparams != NULL) {
-        PSFloat *params = lparams->parameters;
-        fcount = (int) (params[PARAM_FEATURE_COUNT]);
-        int rsize = (int) (params[PARAM_REGION_SIZE]);
-        int input_w = (int) (params[PARAM_INPUT_WIDTH]);
-        int input_h = (int) (params[PARAM_INPUT_HEIGHT]);
-        int output_w = (int) (params[PARAM_OUTPUT_WIDTH]);
-        int output_h = (int) (params[PARAM_OUTPUT_HEIGHT]);
-        int stride = (int) (params[PARAM_STRIDE]);
-        int use_relu = (int) (params[PARAM_USE_RELU]);
-        if (stride <= 0 && ltype == Pooling) stride = rsize;
+    if (ltype == Convolutional || ltype == Pooling) {
+        PSConvolutionalSettings *settings = PSGetConvolutionalSettings(layer);
+        int output_w = layer->output_columns, output_h = layer->output_rows,
+            depth = layer->output_depth, filter_w = 0, filter_h = 0,
+            input_w = 0, input_h = 0, stride = 0, padding = 0;
+        if (settings != NULL) {
+            input_w = settings->input_width;
+            input_h = settings->input_height;
+            filter_w = settings->filter_width;
+            filter_h = settings->filter_height;
+            stride = settings->stride;
+            padding = settings->padding;
+        }
+        if (stride <= 0 && ltype == Pooling) stride = filter_w;
         fprintf(
             dump_file, ",input_size=%dx%d,output_size=%dx%d,features=%d"
             ",region=%dx%d,stride=%d",
-            input_w, input_h, output_w, output_h, fcount,
-            rsize, rsize, stride
+            input_w, input_h, output_w, output_h, depth,
+            filter_w, filter_h, stride
         );
         if (ltype == Convolutional) {
-            char *actv = (use_relu ? "PSRelu" : "PSSigmoid");
-            int padding = (int) (params[PARAM_PADDING]);
             if (padding < 0) padding = 0;
-            fprintf(dump_file, ",padding=%d,activation=%s", padding, actv);
+            fprintf(dump_file, ",padding=%d", padding);
         }
-    } else if (!onehot_input && lparams != NULL && ltype == FullyConnected) {
-        PSFloat *params = lparams->parameters;
-        fcount = (int) (params[PARAM_FEATURE_COUNT]);
-        if (fcount > 1) fprintf(dump_file, ",features=%d", fcount);
+    } else if (ltype == FullyConnected && layer->output_depth > 1) {
+        fprintf(dump_file, ",depth=%d", layer->output_depth);
     }
+    const char *activation = PSGetActivationName(layer->activate);
+    if (activation != NULL) printf(", activation = %s", activation);
     if (add_new_line) fprintf(dump_file, "\n");
 }
 
@@ -1896,6 +1877,12 @@ void PSDeleteNeuron(PSNeuron *neuron) {
     free(neuron);
 }
 
+void PSSetDefaultLayerDef(PSLayerDef *ldef, PSLayerType type) {
+    memset(ldef, 0, sizeof(*ldef));
+    UNUSED(type);
+    /* TODO: use specific settings for type? */
+}
+
 int initGenericLayer(PSLayer *layer, int size, int previous_size) {
     if (layer == NULL) return 0;
     if (layer->network == NULL) {
@@ -1938,8 +1925,10 @@ int initGenericLayer(PSLayer *layer, int size, int previous_size) {
         layer->neurons[i] = neuron;
     }
     if (layer->type != SoftMax) {
-        layer->activate = PSSigmoid;
-        layer->derivative = PSSigmoidDerivative;
+        if (layer->activate == NULL) {
+            layer->activate = PSSigmoid;
+            layer->derivative = PSSigmoidDerivative;
+        }
         layer->feedforward = fullFeedforward;
         layer->backprop = fullBackprop;
     } else {
@@ -1958,7 +1947,7 @@ fail:
 }
 
 PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
-                     PSHyperParameters* params)
+                     PSLayerDef *layer_def)
 {
     if (network == NULL) return NULL;
     if (network->size == 0 && type != FullyConnected) {
@@ -1971,13 +1960,17 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
         return NULL;
     }
     int verbose = (PSLogLevel == PSLOGLEVEL_DEBUG);
+    PSLayerDef default_def = {0};
+    if (layer_def == NULL) {
+        PSSetDefaultLayerDef(&default_def, type);
+        layer_def = &default_def;
+    }
     layer->network = network;
     layer->index = network->size++;
     layer->type = type;
     layer->size = size;
-    layer->hyper_parameters = params;
     layer->extra = NULL;
-    layer->flags = FLAG_NONE;
+    layer->flags = layer_def->flags;
     layer->neurons = NULL;
     layer->delta = NULL;
     layer->states = NULL;
@@ -1985,15 +1978,22 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
     layer->biases = NULL;
     layer->delta = NULL;
     layer->initial_states = NULL;
-    layer->dropout = 0.0;
+    layer->dropout = layer_def->dropout;
     layer->dropped_out = NULL;
     layer->recurrent_states_count = 0;
-    layer->activate = NULL;
-    layer->derivative = NULL;
+    layer->activate = layer_def->activation;
+    layer->derivative = PSGetActivationDerivative(layer->activate);
     layer->on_delete = NULL;
     layer->on_copy = NULL;
     layer->get_param_count = NULL;
     layer->weight_types_count = 0;
+    layer->onehot_vector_size = size;
+    layer->output_depth = layer_def->output_depth;
+    if (layer->output_depth <= 0) layer->output_depth = 1;
+    layer->output_columns = layer_def->output_columns;
+    layer->output_rows = layer_def->output_rows;
+    if (layer->output_columns < 0) layer->output_columns = 0;
+    if (layer->output_rows < 0) layer->output_rows = 0;
     PSLayer *previous = NULL;
     int previous_size = 0;
     int initialized = 0;
@@ -2005,11 +2005,9 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
             PSErr(__func__, "Could not allocate network layers!");
             return NULL;
         }
-        if ((network->flags & FLAG_ONEHOT) && params == NULL) {
+        if (network->flags & FLAG_ONEHOT) {
             layer->flags |= FLAG_ONEHOT;
-            PSHyperParameters *params;
-            params = PSCreateHyperParamenters(1, (PSFloat) size);
-            layer->hyper_parameters = params;
+            layer->onehot_vector_size = size;
             size = 1;
             layer->size = 1;
         }
@@ -2030,15 +2028,8 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
             return NULL;
         }
         previous_size = previous->size;
-        if (layer->index == 1 && previous->flags & FLAG_ONEHOT) {
-            PSHyperParameters *params = previous->hyper_parameters;
-            if (params == NULL) {
-                PSAbortLayer(network, layer);
-                PSErr(__func__, "Missing layer params on onehot layer[0]!");
-                return NULL;
-            }
-            previous_size = (int) (params->parameters[0]);
-        }
+        if (layer->index == 1 && previous->flags & FLAG_ONEHOT)
+            previous_size = previous->onehot_vector_size;
         network->output_size = size;
     }
     if (previous && previous->type == Convolutional && type != Pooling) {
@@ -2051,10 +2042,10 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
     if (type == FullyConnected || type == SoftMax) {
         initialized = initGenericLayer(layer, size, previous_size);
     } else if (type == Convolutional) {
-        initialized = PSInitConvolutionalLayer(network, layer, params);
+        initialized = PSInitConvolutionalLayer(network, layer, layer_def);
         /* TODO: Make PSCrossEntropyLoss default also for convolutional? */
     } else if (type == Pooling) {
-        initialized = PSInitPoolingLayer(network, layer, params);
+        initialized = PSInitPoolingLayer(network, layer, layer_def);
     } else if (type == Recurrent) {
         initialized = PSInitRecurrentLayer(network, layer, size, previous_size);
     } else if (type == LSTM) {
@@ -2094,16 +2085,12 @@ fail:
     return NULL;
 }
 
-PSLayer *PSAddConvolutionalLayer(PSNeuralNetwork *network,
-                                  PSHyperParameters* params)
-{
-    return PSAddLayer(network, Convolutional, 0, params);
+PSLayer *PSAddConvolutionalLayer(PSNeuralNetwork *network, PSLayerDef *ldef) {
+    return PSAddLayer(network, Convolutional, 0, ldef);
 }
 
-PSLayer *PSAddPoolingLayer(PSNeuralNetwork *network,
-                            PSHyperParameters* params)
-{
-    return PSAddLayer(network, Pooling, 0, params);
+PSLayer *PSAddPoolingLayer(PSNeuralNetwork *network, PSLayerDef *ldef) {
+    return PSAddLayer(network, Pooling, 0, ldef);
 }
 
 void PSDeleteLayer(PSLayer* layer) {
@@ -2126,8 +2113,6 @@ void PSDeleteLayer(PSLayer* layer) {
         free(layer->weights);
     }
     if (layer->biases != NULL) free(layer->biases);
-    PSHyperParameters *params = layer->hyper_parameters;
-    if (params != NULL) PSDeleteHyperParamenters(params);
     if (layer->on_delete != NULL) layer->on_delete(layer);
     void *extra = layer->extra;
     if (extra != NULL) free(layer->extra);
@@ -2135,81 +2120,6 @@ void PSDeleteLayer(PSLayer* layer) {
     if (layer->states != NULL) free(layer->states);
     if (layer->dropped_out != NULL) free(layer->dropped_out);
     free(layer);
-}
-
-PSHyperParameters *PSCreateHyperParamenters(int count, ...) {
-    PSHyperParameters *params = malloc(sizeof(PSHyperParameters));
-    if (params == NULL) {
-        PSErr(NULL, "Could not allocate Layer Parameters!");
-        return NULL;
-    }
-    params->count = count;
-    if (count == 0) params->parameters = NULL;
-    else {
-        params->parameters = calloc(count, sizeof(PSFloat));
-        if (params->parameters == NULL) {
-            PSErr(NULL, "Could not allocate Layer Parameters!");
-            free(params);
-            return NULL;
-        }
-        va_list args;
-        va_start(args, count);
-        int i;
-        for (i = 0; i < count; i++)
-            params->parameters[i] = (PSFloat) (va_arg(args, double));
-        va_end(args);
-    }
-    return params;
-}
-
-PSHyperParameters *PSCreateConvolutionalParameters(PSFloat feature_count,
-                                                    PSFloat region_size,
-                                                    int stride,
-                                                    int padding,
-                                                    int use_relu)
-{
-    return PSCreateHyperParamenters(CONV_PARAMETER_COUNT, feature_count,
-                                    region_size, (PSFloat) stride,
-                                    0.0f, 0.0f, 0.0f, 0.0f,
-                                    (PSFloat) padding, (PSFloat) use_relu);
-}
-
-int PSSetHyperParameter(PSHyperParameters *params, int param, PSFloat value) {
-    if (params->parameters == NULL) {
-        int len = param + 1;
-        params->parameters = malloc(sizeof(PSFloat) * len);
-        if (params->parameters == NULL) {
-            PSPrintMemoryErrorMsg();
-            return 0;
-        }
-        memset(params->parameters, 0, sizeof(PSFloat) * len);
-        params->count = len;
-    } else if (param >= params->count) {
-        int len = params->count;
-        int new_len = param + 1;
-        PSFloat *old_params = params->parameters;
-        size_t size = sizeof(PSFloat) * new_len;
-        params->parameters = malloc(sizeof(PSFloat) * size);
-        if (params->parameters == NULL) {
-            PSPrintMemoryErrorMsg();
-            return 0;
-        }
-        memset(params->parameters, 0, sizeof(PSFloat) * size);
-        memcpy(params->parameters, old_params, len * sizeof(PSFloat));
-        free(old_params);
-    }
-    params->parameters[param] = value;
-    return 1;
-}
-
-int PSAddHyperParameter(PSHyperParameters *params, PSFloat val) {
-    return PSSetHyperParameter(params, params->count + 1, val);
-}
-
-void PSDeleteHyperParamenters(PSHyperParameters *params) {
-    if (params == NULL) return;
-    if (params->parameters != NULL) free(params->parameters);
-    free(params);
 }
 
 int inputLayerFeedforward(PSNeuralNetwork *network, PSFloat *values, ...) {
@@ -3803,6 +3713,8 @@ err:
 }
 
 static void checkTrainingOptions(PSTrainingOptions *options) {
+    if (options->optimization == NULL)
+        options->optimization = PSDefaultOptimization;
     if (options->optimization != PSDefaultOptimization) {
         if (options->eps == 0) options->eps = DEFAULT_EPS;
         if (options->rho == 0) options->rho = DEFAULT_RHO;
@@ -4066,26 +3978,7 @@ int PSCheckNetwork(PSNeuralNetwork *network) {
                       i, PSGetLabelForType(FullyConnected));
                 return 0;
             }
-            if (layer->flags & FLAG_ONEHOT) {
-                PSHyperParameters *params = layer->hyper_parameters;
-                onehot_input = 1;
-                if (params == NULL) {
-                    PSErr(
-                        __func__,
-                        "Layer[%d] uses a onehot vector index as input, "
-                        "but it has no hyper parameters", i
-                    );
-                    return 0;
-                }
-                if (params->count < 1) {
-                    PSErr(
-                        __func__,
-                        "Layer[%d] uses a onehot vector index as input, "
-                        "but hyper parameters count is < 1", i
-                    );
-                    return 0;
-                }
-            }
+            if (layer->flags & FLAG_ONEHOT) onehot_input = 1;
             recurrent_input = is_recurrent_layer;
         }
         if (ltype == SoftMax && layer != output_layer) {

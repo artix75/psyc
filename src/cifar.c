@@ -128,9 +128,8 @@ PSLayer *PSAddCIFARInputLayer(PSNeuralNetwork *network) {
         PSErr(__func__, "CIFAR layer must be input layer!\n");
         return NULL;
     }
-    PSHyperParameters *iparams = PSCreateConvolutionalParameters(3, 0, 0, 0, 0);
-    if (iparams == NULL) return NULL;
-    iparams->parameters[PARAM_OUTPUT_WIDTH] = 32.0;
-    iparams->parameters[PARAM_OUTPUT_HEIGHT] = 32.0;
-    return PSAddLayer(network, FullyConnected, CIFAR_IMAGE_SIZE, iparams);
+    PSLayerDef ldef = {
+        .output_depth = 3, .output_columns = 32, .output_rows = 32
+    };
+    return PSAddLayer(network, FullyConnected, CIFAR_IMAGE_SIZE, &ldef);
 }

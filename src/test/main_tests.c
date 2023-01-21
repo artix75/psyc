@@ -1392,13 +1392,7 @@ int testRNNOneHot(TestCase *test_case, Test *test) {
         ok, final, test, "%s network layer[%d] is OneHot!",
         standard_network->name, last_layer
     );
-    PSHyperParameters *hparams = onehot_network->layers[0]->hyper_parameters;
-    ok = (hparams != NULL);
-    testAssertWithMessageOrGoto(
-        hparams != NULL, final, test,
-        "%s network layer[0] hyper parameters are NULL", onehot_network->name
-    );
-    int vector_size = (int) hparams->parameters[0];
+    int vector_size = onehot_network->layers[0]->onehot_vector_size;
     ok = (vector_size > 0);
     testAssertWithMessageOrGoto(
         vector_size > 0, final, test,

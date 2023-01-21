@@ -109,6 +109,19 @@ typedef void     (*PSTrainCallback) (struct PSNeuralNetwork *network,
                                      PSFloat *training_data);
 typedef void     (*PSSignalHandler) (int);
 
+typedef struct PSLayerDef {
+    PSActivationFunction activation;
+    int flags;
+    PSFloat dropout;
+    int output_depth;
+    int output_columns;
+    int output_rows;
+    int stride;         /* Used by Convolutional and Pooling layers */
+    int padding;        /* Used by Convolutional layers */
+    int filter_width;   /* Used by Convolutional layers */
+    int filter_height;  /* Used by Convolutional layers */
+} PSLayerDef;
+
 typedef struct PSGradient {
     uint64_t bias_count;
     uint64_t weight_count;
@@ -142,11 +155,6 @@ typedef struct {
     PSRecurrentNetworkMode  mode;
     PSSequenceStopCriterion sequence_stop_criterion;
 } PSRecurrentNetworkOptions;
-
-typedef struct {
-    int count;
-    PSFloat *parameters;
-} PSHyperParameters;
 
 typedef struct PSTrainingOptions {
     int                     flags;
@@ -189,11 +197,9 @@ typedef struct PSLayer {
     PSLayerType             type;
     int                     index;
     int                     size;
-    PSHyperParameters       *hyper_parameters;
     int                     weight_types_count;
     PSMatrix                *weights;
     PSFloat                 *biases;
-    PSFloat                 dropout;
     PSActivationFunction    activate;
     PSActivationFunction    derivative;
     PSFeedforwardFunction   feedforward;
@@ -206,8 +212,13 @@ typedef struct PSLayer {
     PSFloat                 *delta;
     PSFloat                 *initial_states;
     uint8_t                 *dropped_out;
-    uint32_t                flags;
     uint32_t                recurrent_states_count;
+    uint32_t                flags;
+    PSFloat                 dropout;
+    int                     onehot_vector_size;
+    int                     output_depth;
+    int                     output_columns;
+    int                     output_rows;
     void                    *extra;
     struct PSNeuralNetwork  *network;
 } PSLayer;
@@ -234,23 +245,12 @@ PSNeuralNetwork *PSCloneNetwork(PSNeuralNetwork *network, int layout_only);
 int PSLoadNetwork(PSNeuralNetwork *network, const char* filename);
 int PSSaveNetwork(PSNeuralNetwork *network, const char* filename);
 PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
-                    PSHyperParameters* params);
-PSLayer *PSAddConvolutionalLayer(PSNeuralNetwork *network,
-                                 PSHyperParameters* params);
-PSLayer *PSAddPoolingLayer(PSNeuralNetwork *network,
-                           PSHyperParameters* params);
+                    PSLayerDef *layer_def);
+PSLayer *PSAddConvolutionalLayer(PSNeuralNetwork *network, PSLayerDef *ldef);
+PSLayer *PSAddPoolingLayer(PSNeuralNetwork *network, PSLayerDef *ldef);
 PSLayer *PSGetFirstRecurrentLayer(PSNeuralNetwork *network);
 PSLayer *PSGetLastRecurrentLayer(PSNeuralNetwork *network);
 PSLayer *PSGetPreviousLayer(PSLayer *layer);
-PSHyperParameters *PSCreateHyperParamenters(int count, ...);
-int PSSetHyperParameter(PSHyperParameters *params, int param, PSFloat value);
-int PSAddHyperParameter(PSHyperParameters *params, PSFloat val);
-PSHyperParameters *PSCreateConvolutionalParameters(PSFloat feature_count,
-                                                   PSFloat region_size,
-                                                   int stride,
-                                                   int padding,
-                                                   int use_relu);
-void PSDeleteHyperParamenters(PSHyperParameters *params);
 int PSGetOneHotLayerVectorSize(PSLayer *layer);
 uint64_t PSGetLayerParametersCount(PSLayer *layer, int param_type);
 PSLayer *PSGetPreviousLayer(PSLayer *layer);

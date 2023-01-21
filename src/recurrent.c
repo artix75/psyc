@@ -91,8 +91,10 @@ int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
         neuron->layer = layer;
     }
     layer->flags |= FLAG_RECURRENT;
-    layer->activate = PSTanhActivation;
-    layer->derivative = PSTanhDerivative;
+    if (layer->activate == NULL) {
+        layer->activate = PSTanhActivation;
+        layer->derivative = PSTanhDerivative;
+    }
     layer->feedforward = PSRecurrentFeedforward;
     layer->backprop = PSRecurrentBackprop;
     network->flags |= FLAG_RECURRENT;

@@ -39,6 +39,18 @@
 #define OPT_FLOAT_FORMAT_DBL (1 << 1)
 #define MODEL_TRAINING_DATA_SEP "------ training data ------\n"
 
+#define CONV_PARAM_FEATURE_COUNT     0
+#define CONV_PARAM_REGION_SIZE       1
+#define CONV_PARAM_STRIDE            2
+#define CONV_PARAM_INPUT_WIDTH       3
+#define CONV_PARAM_INPUT_HEIGHT      4
+#define CONV_PARAM_OUTPUT_WIDTH      5
+#define CONV_PARAM_OUTPUT_HEIGHT     6
+#define CONV_PARAM_PADDING           7
+#define CONV_PARAM_USE_RELU          8
+
+#define CONV_PARAMETER_COUNT 9
+
 #define UNUSED(V) ((void) V)
 
 PSOptimization optimizationsByIndex[] = {
@@ -77,6 +89,7 @@ int PSCompareVersion(const char* vers1, const char* vers2);
 int getLossFunctionIndex(PSLossFunction function);
 PSLossFunction getLossFunctionAtIndex(int index);
 void PSPrintLayerInfo(PSLayer *layer);
+const char *PSGetActivationName(PSActivationFunction func);
 
 PSFloat string2float(char *str, int *valid) {
     char *endptr = NULL;
@@ -494,6 +507,431 @@ int writeGradients(PSNeuralNetwork *network, PSGradient **gradients,
     return 1;
 }
 
+void writeLayerDefinition(PSLayer *layer, FILE *f) {
+    char *activation = (char *) PSGetActivationName(layer->activate);
+    if (activation == NULL) activation = "null";
+    fprintf(
+        f, "layer[%d]:%d,%d,%d,dropout=" PSFLOAT_FORMAT ",activation=%s,"
+        "output_depth=%d,output_cols=%d,output_rows=%d",
+        layer->index, (int) layer->type, layer->size,
+        layer->flags, layer->dropout, activation, layer->output_depth,
+        layer->output_columns, layer->output_rows
+    );
+    if (layer->flags & FLAG_ONEHOT && layer->index == 0)
+        fprintf(f, ",onehot_size=%d", layer->onehot_vector_size);
+    if (Convolutional == layer->type || Pooling == layer->type) {
+        int stride = 0, padding = 0, filter_w = 0, filter_h = 0;
+        PSConvolutionalSettings *csettings = PSGetConvolutionalSettings(layer);
+        if (csettings != NULL) {
+            stride = csettings->stride;
+            padding = csettings->padding;
+            filter_w = csettings->filter_width;
+            filter_h = csettings->filter_height;
+        }
+        fprintf(f, ",stride=%d,padding=%d,filter_width=%d,filter_height=%d\n",
+                stride, padding, filter_w, filter_h);
+    } else fprintf(f, "\n");
+}
+
+static int loadLegacyLayerDefinitions(PSNeuralNetwork *network, char *vers,
+                                      int netsize, int empty,
+                                      const char *filename, FILE *f)
+{
+    int min_argc = 1, i, ok;
+    if (PSCompareVersion(vers, "0.2.2") == 1) min_argc = DATA_LAYER_MIN_ARGC;
+    else if (PSCompareVersion(vers, "0.0.0") == 1) min_argc = 2;
+    PSLayer *layer = NULL;
+    for (i = 0; i < netsize; i++) {
+        int lsize = 0;
+        int lflags = 0;
+        PSFloat dropout = 0.0;
+        PSLayerType ltype = FullyConnected;
+        int args[20];
+        int argc = 0, aidx = 0;
+        char sep[2] = {0};
+        /* Simple FullyConnected layers with no flags, no dropout and no
+         * hyper-parameters are only saved as a single integer (layer->size) */
+        /* fputs(fmt, stderr); */
+        int matched = scanFile(f, "%d%1[,\n]", 2, NULL, &lsize, sep);
+        if (!matched) {
+            /* Try to parse more complex layer definitions declared as an
+             * array of numeric values: [type, argc, args...]. */
+            int type = 0, arg = 0;
+            PSFloat argf = 0.0;
+            argc = 0;
+            ok = scanFile(f, "[%d,%d", 2, NULL, &type, &argc);
+            if (!ok) {
+                loadErr(filename, f, "Invalid layer def: layer[%d]", i);
+                return 0;
+            }
+            if (argc == 0) {
+                loadErr(
+                    filename, NULL,
+                    "Layer %d must have at least 1 argument (size)", i
+                );
+                ok = 0;
+                return 0;
+            }
+            /* For backward compatibility, data here can be parsed in different
+             * ways, and `min_argc` is used to indicate the minumum number of
+             * fixed arguments, that can be:
+             * - flags (min_argc == 2)
+             * - flags, dropout (min_argc == 3)
+             * The rest of the arguments is used in case of  eventual
+             * PSHyperParameters. */
+            ltype = (PSLayerType) type;
+            for (aidx = 0; aidx < argc; aidx++) {
+                if (min_argc == 3 && aidx == 2)
+                    ok = scanFile(f, "," PSFLOAT_FORMAT, 1, NULL, &argf);
+                else ok = scanFile(f, ",%d", 1, NULL, &arg);
+                if (!ok) {
+                    loadErr(
+                        filename, f,
+                        "Invalid layer def: l%d, arg. %d",
+                        i, aidx
+                    );
+                    return 0;
+                }
+                if (aidx == 0) lsize = arg;
+                else if (min_argc > 1 && aidx == 1) lflags = arg;
+                else if (min_argc > 2 && aidx == 2) dropout = argf;
+                else {
+                    int arg_aidx = aidx - min_argc;
+                    if (arg_aidx >= 20) {
+                        loadErr(filename, f, "Argument is out-of-bounds");
+                        return 0;
+                    }
+                    args[arg_aidx] = arg;
+                }
+            }
+            argc -= min_argc;
+            ok = scanFile(f, "]%[,\n]", 1, NULL, sep);
+            if (!ok) return 0;
+        }
+        if (!empty) {
+            layer = network->layers[i];
+            if (layer->size != lsize) {
+                loadErr(filename, NULL, "Layer %d size %d differs from %d!",
+                    i, layer->size, lsize);
+                return 0;
+            }
+            if (ltype != layer->type) {
+                loadErr(filename, NULL, "Layer %d type %d differs from %d!",
+                        i, (int) (layer->type), (int) ltype);
+                return 0;
+            }
+            if (ltype == Convolutional || ltype == Pooling) {
+                PSConvolutionalSettings *settings =
+                    PSGetConvolutionalSettings(layer);
+                if (settings == NULL) {
+                    PSErr(
+                        __func__, "Layer %d: missing convolutional settings", i
+                    );
+                    return 0;
+                }
+                for (aidx = 0; aidx < argc; aidx++) {
+                    if (aidx >= CONV_PARAMETER_COUNT) break;
+                    int arg = args[aidx], val;
+                    char *argname = NULL;
+                    if (aidx == CONV_PARAM_FEATURE_COUNT) {
+                        val = layer->output_depth;
+                        argname = "output_depth";
+                    } else if (aidx == CONV_PARAM_INPUT_WIDTH) {
+                        val = settings->input_width;
+                        argname = "input_width";
+                    } else if (aidx == CONV_PARAM_INPUT_HEIGHT) {
+                        val = settings->input_height;
+                        argname = "input_height";
+                    } else if (aidx == CONV_PARAM_OUTPUT_WIDTH) {
+                        val = layer->output_columns;
+                        argname = "output_columns";
+                    } else if (aidx == CONV_PARAM_OUTPUT_HEIGHT) {
+                        val = layer->output_rows;
+                        argname = "output_rows";
+                    } else if (aidx == CONV_PARAM_REGION_SIZE) {
+                        val = settings->filter_width;
+                        if (val != arg) {
+                            loadErr(
+                                filename, f, "Layer[%d] filter_width is %d, "
+                                "but file spcifies %d", layer->index, val, arg
+                            );
+                            return 0;
+                        }
+                        val = settings->filter_height;
+                        if (val != arg && val > 0) {
+                            loadErr(
+                                filename, f, "Layer[%d] filter_height is %d, "
+                                "but file spcifies %d", layer->index, val, arg
+                            );
+                            return 0;
+                        }
+                        continue;
+                    } else if (aidx == CONV_PARAM_STRIDE) {
+                        val = settings->stride;
+                        argname = "stride";
+                    } else if (aidx == CONV_PARAM_PADDING) {
+                        val = settings->padding;
+                        argname = "padding";
+                    } else if (aidx == CONV_PARAM_USE_RELU) {
+                        int use_relu = (arg == 1);
+                        if (use_relu && layer->activate != PSRelu) {
+                            loadErr(filename, f, "Layer[%d] activation is %s"
+                                    ", but file specifies relu", layer->index,
+                                    PSGetActivationName(layer->activate));
+                            return 0;
+                        } else if (!use_relu && layer->activate == PSRelu) {
+                            loadErr(filename, f, "Layer[%d] activation is relu"
+                                    ", but file activation isn't",
+                                    layer->index);
+                            return 0;
+                        }
+                        continue;
+                    } else {
+                        loadErr(filename, f, "Layer[%d]: unknown argument[%d]",
+                                layer->index, aidx);
+                        return 0;
+                    }
+                    if (arg != val) {
+                        loadErr(
+                            filename, f,
+                            "Layer %d: loaded arg[%d] = %d differs from "
+                            "%s = %d",
+                            i, aidx, arg, argname, val
+                        );
+                        return 0;
+                    }
+                }
+            }
+            layer->dropout = dropout;
+        } else {
+            layer = NULL;
+            PSLayerDef ldef = {.flags = lflags, .dropout = dropout};
+            if (ltype == Convolutional || ltype == Pooling) {
+                int param_c = CONV_PARAMETER_COUNT;
+                for (aidx = 0; aidx < param_c; aidx++) {
+                    int arg = (aidx < argc ? args[aidx] : 0);
+                    if (aidx == CONV_PARAM_FEATURE_COUNT)
+                        ldef.output_depth = arg;
+                    else if (aidx == CONV_PARAM_OUTPUT_WIDTH)
+                        ldef.output_columns = arg;
+                    else if (aidx == CONV_PARAM_OUTPUT_HEIGHT)
+                        ldef.output_rows = arg;
+                    else if (aidx == CONV_PARAM_STRIDE)
+                        ldef.stride = arg;
+                    else if (aidx == CONV_PARAM_PADDING)
+                        ldef.padding = arg;
+                    else if (aidx == CONV_PARAM_USE_RELU && arg)
+                        ldef.activation = PSRelu;
+                    else if (aidx == CONV_PARAM_REGION_SIZE) {
+                        ldef.filter_width = arg;
+                        ldef.filter_height = arg;
+                    }
+                }
+            } else {
+                if (network->size == 0 && (lflags & FLAG_ONEHOT) && argc > 0) {
+                    lsize = args[0];
+                    network->flags |= FLAG_ONEHOT;
+                } else if (argc > 0) {
+                    /*loadErr(filename, f, "Unknown arguments");
+                    return 0;*/
+                    for (aidx = 0; aidx < argc; aidx++) {
+                        int arg = args[aidx];
+                        if (aidx == CONV_PARAM_FEATURE_COUNT)
+                            ldef.output_depth = arg;
+                        else if (aidx == CONV_PARAM_OUTPUT_WIDTH)
+                            ldef.output_columns = arg;
+                        else if (aidx == CONV_PARAM_OUTPUT_HEIGHT)
+                            ldef.output_rows = arg;
+                    }
+                }
+            }
+            layer = PSAddLayer(network, ltype, lsize, &ldef);
+            if (layer == NULL) {
+                PSErr(__func__, "Could not create layer %d", i);
+                return 0;
+            }
+            layer->flags |= lflags;
+            layer->dropout = dropout;
+        }
+    }
+    return 1;
+}
+
+static int loadLayerDefinitions(PSNeuralNetwork *network, char *vers,
+                                int netsize, int empty, const char *filename,
+                                FILE *f)
+{
+    UNUSED(vers);
+    PSLayer *layer = NULL;
+    for (int i = 0; i < netsize; i++) {
+        int idx = 0, lsize = 0, lflags = 0, type = 0;
+        PSLayerType ltype = FullyConnected;
+        char sep[2] = {0};
+        char propname[31];
+        int ok = scanFile(
+            f, "layer[%d]:%d,%d,%d%1[,\n]", 5, NULL,
+            &idx, &type, &lsize, &lflags, sep
+        );
+        if (!ok) {
+            loadErr(filename, f, "Invalid layer %d definition");
+            return 0;
+        }
+        if (i != idx) {
+            loadErr(filename, f, "Expected layer %d, got %d",
+                    i, idx);
+            return 0;
+        }
+        if (!empty) {
+            layer = network->layers[i];
+            if (layer == NULL) {
+                loadErr(filename, NULL, "Network has no layer at index %d", i);
+                return 0;
+            }
+            if (layer->size != lsize) {
+                loadErr(filename, NULL, "Layer %d size %d differs from %d!",
+                    i, layer->size, lsize);
+                return 0;
+            }
+            if (ltype != layer->type) {
+                loadErr(filename, NULL, "Layer %d type %d differs from %d!",
+                        i, (int) (layer->type), (int) ltype);
+                return 0;
+            }
+        }
+        PSLayerDef ldef = {.flags = lflags};
+        while (sep[0] != '\n') {
+            ok = scanFile(f, "%30[a-zA-Z_-]=", 1, NULL, propname);
+            if (!ok) {
+                loadErr(filename, f, "Invalid layer property def.");
+                return 0;
+            }
+            if (strcmp("activation", propname) == 0) {
+                char actvname[31] = {0};
+                ok = scanFile(f, "%30[a-z]%1[,\n]", 2, NULL, actvname, sep);
+                if (!ok) {
+                    loadErr(filename, f, "Invalid layer property value");
+                    return 0;
+                }
+                if (strcmp("sigmoid", actvname) == 0)
+                    ldef.activation = PSSigmoid;
+                else if (strcmp("tanh", actvname) == 0)
+                    ldef.activation = PSTanhActivation;
+                else if (strcmp("relu", actvname) == 0)
+                    ldef.activation = PSRelu;
+                else if (strcmp("null", actvname) == 0)
+                    ldef.activation = NULL;
+                else {
+                    loadErr(filename, f, "Invalid activation function: '%s'",
+                            actvname);
+                    return 0;
+                }
+            } else if (strcmp("output_depth", propname) == 0) {
+                ok = scanFile(
+                    f, "%d%1[,\n]", 2, NULL, &(ldef.output_depth), sep
+                );
+                if (!ok) {
+                    loadErr(filename, f, "Invalid output_depth");
+                    return 0;
+                }
+            } else if (strcmp("output_cols", propname) == 0) {
+                ok = scanFile(
+                    f, "%d%1[,\n]", 2, NULL, &(ldef.output_columns), sep
+                );
+                if (!ok) {
+                    loadErr(filename, f, "Invalid output_cols");
+                    return 0;
+                }
+            } else if (strcmp("output_rows", propname) == 0) {
+                ok = scanFile(
+                    f, "%d%1[,\n]", 2, NULL, &(ldef.output_rows), sep
+                );
+                if (!ok) {
+                    loadErr(filename, f, "Invalid output_rows");
+                    return 0;
+                }
+            } else if (strcmp("output_cols", propname) == 0) {
+                ok = scanFile(
+                    f, "%d%1[,\n]", 2, NULL, &(ldef.output_columns), sep
+                );
+                if (!ok) {
+                    loadErr(filename, f, "Invalid output_cols");
+                    return 0;
+                }
+            } else if (strcmp("dropout", propname) == 0) {
+                ok = scanFile(
+                    f, PSFLOAT_FORMAT "%1[,\n]", 2, NULL,
+                    &(ldef.dropout), sep
+                );
+                if (!ok) {
+                    loadErr(filename, f, "Invalid output_cols");
+                    return 0;
+                }
+            } else if (strcmp("stride", propname) == 0) {
+                ok = scanFile(
+                    f, "%d%1[,\n]", 2, NULL, &(ldef.stride), sep
+                );
+                if (!ok) {
+                    loadErr(filename, f, "Invalid stride");
+                    return 0;
+                }
+            } else if (strcmp("padding", propname) == 0) {
+                ok = scanFile(
+                    f, "%d%1[,\n]", 2, NULL, &(ldef.padding), sep
+                );
+                if (!ok) {
+                    loadErr(filename, f, "Invalid padding");
+                    return 0;
+                }
+            } else if (strcmp("filter_width", propname) == 0) {
+                ok = scanFile(
+                    f, "%d%1[,\n]", 2, NULL, &(ldef.filter_width), sep
+                );
+                if (!ok) {
+                    loadErr(filename, f, "Invalid filter_width");
+                    return 0;
+                }
+            } else if (strcmp("filter_height", propname) == 0) {
+                ok = scanFile(
+                    f, "%d%1[,\n]", 2, NULL, &(ldef.filter_height), sep
+                );
+                if (!ok) {
+                    loadErr(filename, f, "Invalid filter_height");
+                    return 0;
+                }
+            } else if (strcmp("onehot_size", propname) == 0) {
+                int onehot_size = 0;
+                ok = scanFile(
+                    f, "%d%1[,\n]", 2, NULL, &onehot_size, sep
+                );
+                if (!ok || onehot_size < 0) {
+                    loadErr(filename, f, "Invalid onehot_size");
+                    return 0;
+                }
+                ldef.flags |= FLAG_ONEHOT;
+                lsize = onehot_size;
+            } else {
+                ok = scanFile(f, "%*[^,\n]%1[,\n]", 1, NULL, sep);
+                if (!ok) {
+                    loadErr(filename, f, "Invalid layer property value");
+                    return 0;
+                }
+                continue;
+            }
+        }
+        if (!empty) {
+            //TODO: perform checks
+            continue;
+        }
+        ltype = (PSLayerType) type;
+        layer = PSAddLayer(network, ltype, lsize, &ldef);
+        if (layer == NULL) {
+            PSErr(__func__, "Could not create layer %d", i);
+            return 0;
+        }
+    }
+    return 1;
+}
+
 static int loadLegacyLayerParameters(PSNeuralNetwork *network,
                                      const char * filename,
                                      FILE *f, int verbose)
@@ -505,13 +943,7 @@ static int loadLegacyLayerParameters(PSNeuralNetwork *network,
         PSLayer *layer = network->layers[i];
         int lsize = 0;
         if (layer->type == Convolutional) {
-            PSHyperParameters *hparams = layer->hyper_parameters;
-            if (hparams == NULL || hparams->parameters == NULL) {
-                loadErr(filename, NULL,
-                        "Layer %d, missing hyper parameters", i);
-                return 0;
-            }
-            lsize = (int) hparams->parameters[PARAM_FEATURE_COUNT];
+            lsize = layer->output_depth;
         } else if (layer->type == Pooling) {
             continue;
         } else lsize = layer->size;
@@ -782,13 +1214,7 @@ static int loadLegacyGradients(PSNeuralNetwork *network, const char * filename,
         assert(layer->weights[0] != NULL);
         wsize = (int) PSMatrixLength(layer->weights[0]);
         if (layer->type == Convolutional) {
-            PSHyperParameters *hparams = layer->hyper_parameters;
-            if (hparams == NULL || hparams->parameters == NULL) {
-                loadErr(filename, NULL,
-                        "Layer %d, missing hyper parameters", i);
-                return 0;
-            }
-            lsize = (int) hparams->parameters[PARAM_FEATURE_COUNT];
+            lsize = layer->output_depth;
         } else {
             lsize = layer->size;
             if (is_lstm) {
@@ -977,7 +1403,7 @@ int PSLoadNetwork(PSNeuralNetwork *network, const char* filename) {
         max_recurrent_output_steps = MAX_RECURRENT_OUTPUT_STEPS,
         eos_recurrent_output_index = -1, is_built = 0,
         acceleration = PSGlobalAcceleration;
-    int matched = 0, ok = 1, has_model_def = 0;
+    int ok = 1, has_model_def = 0;
     char sep[2];
     sep[0] = '\0';
     /* Search for header */
@@ -1076,7 +1502,9 @@ scan_model_def:
         } else if (network->flags & FLAG_ACCEL_DISABLED)
             network->acceleration = 0;
     }
-    ok = scanFile(f, "%d:", 1, NULL, &netsize);
+    int legacy_model = (PSCompareVersion(vers, "0.9.0") < 0);
+    if (!legacy_model) ok = scanFile(f, "layers:%d\n", 1, NULL, &netsize);
+    else ok = scanFile(f, "%d:", 1, NULL, &netsize);
     if (!ok) {
         loadErr(filename, f, "Missing network size definition");
         goto final;
@@ -1091,141 +1519,11 @@ scan_model_def:
         ok = 0;
         goto final;
     }
-    int min_argc = 1;
-    if (PSCompareVersion(vers, "0.2.2") == 1) min_argc = DATA_LAYER_MIN_ARGC;
-    else if (PSCompareVersion(vers, "0.0.0") == 1) min_argc = 2;
-    PSLayer *layer = NULL;
-    for (i = 0; i < netsize; i++) {
-        int lsize = 0;
-        int lflags = 0;
-        PSFloat dropout = 0.0;
-        PSLayerType ltype = FullyConnected;
-        int args[20];
-        int argc = 0, aidx = 0;
-        /* Simple FullyConnected layers with no flags, no dropout and no
-         * hyper-parameters are only saved as a single integer (layer->size) */
-        /* fputs(fmt, stderr); */
-        matched = scanFile(f, "%d%[,\n]", 2, NULL, &lsize, sep);
-        if (!matched) {
-            /* Try to parse more complex layer definitions declared as an
-             * array of numeric values: [type, argc, args...]. */
-            int type = 0, arg = 0;
-            PSFloat argf = 0.0;
-            argc = 0;
-            ok = scanFile(f, "[%d,%d", 2, NULL, &type, &argc);
-            if (!ok) {
-                loadErr(filename, f, "Invalid layer def: layer[%d]", i);
-                goto final;
-            }
-            if (argc == 0) {
-                loadErr(
-                    filename, NULL,
-                    "Layer %d must have at least 1 argument (size)", i
-                );
-                ok = 0;
-                goto final;
-            }
-            /* For backward compatibility, data here can be parsed in different
-             * ways, and `min_argc` is used to indicate the minumum number of
-             * fixed arguments, that can be:
-             * - flags (min_argc == 2)
-             * - flags, dropout (min_argc == 3)
-             * The rest of the arguments is used in case of  eventual
-             * PSHyperParameters. */
-            ltype = (PSLayerType) type;
-            for (aidx = 0; aidx < argc; aidx++) {
-                if (min_argc == 3 && aidx == 2)
-                    ok = scanFile(f, "," PSFLOAT_FORMAT, 1, NULL, &argf);
-                else ok = scanFile(f, ",%d", 1, NULL, &arg);
-                if (!ok) {
-                    loadErr(
-                        filename, f,
-                        "Invalid layer def: l%d, arg. %d",
-                        i, aidx
-                    );
-                    goto final;
-                }
-                if (aidx == 0) lsize = arg;
-                else if (min_argc > 1 && aidx == 1) lflags = arg;
-                else if (min_argc > 2 && aidx == 2) dropout = argf;
-                else args[aidx - min_argc] = arg;
-            }
-            argc -= min_argc;
-            ok = scanFile(f, "]%[,\n]", 1, NULL, sep);
-            if (!ok) goto final;
-        }
-        if (!empty) {
-            layer = network->layers[i];
-            if (layer->size != lsize) {
-                loadErr(filename, NULL, "Layer %d size %d differs from %d!",
-                    i, layer->size, lsize);
-                ok = 0; goto final;
-            }
-            if (ltype != layer->type) {
-                loadErr(filename, NULL, "Layer %d type %d differs from %d!",
-                        i, (int) (layer->type), (int) ltype);
-                ok = 0; goto final;
-            }
-            if (ltype == Convolutional || ltype == Pooling) {
-                PSHyperParameters *params = layer->hyper_parameters;
-                if (params == NULL) {
-                    PSErr(__func__, "Layer %d params are NULL!", i);
-                    ok = 0; goto final;
-                }
-                for (aidx = 0; aidx < argc; aidx++) {
-                    if (aidx >= params->count) break;
-                    int arg = args[aidx];
-                    PSFloat val = params->parameters[aidx];
-                    if (arg != (int) val) {
-                        loadErr(
-                            filename, NULL,
-                            "Layer %d arg[%d] %d diff. from %d!",
-                            i, aidx,(int) val, arg
-                        );
-                        ok = 0; goto final;
-                    }
-                }
-            }
-            layer->dropout = dropout;
-        } else {
-            layer = NULL;
-            PSHyperParameters *params = NULL;
-            if (ltype == Convolutional || ltype == Pooling) {
-                int param_c = CONV_PARAMETER_COUNT;
-                params = PSCreateHyperParamenters(param_c);
-                for (aidx = 0; aidx < argc; aidx++) {
-                    if (aidx >= param_c) break;
-                    int arg = args[aidx];
-                    params->parameters[aidx] = (PSFloat) arg;
-                }
-                if (argc < param_c) {
-                    for (; aidx < param_c; aidx++)
-                        params->parameters[aidx] = 0.0;
-                }
-                layer = PSAddLayer(network, ltype, lsize, params);
-            } else {
-                if (network->size == 0 && (lflags & FLAG_ONEHOT) && argc > 0) {
-                    lsize = args[0];
-                    network->flags |= FLAG_ONEHOT;
-                } else if (argc > 0) {
-                    params = PSCreateHyperParamenters(argc);
-                    for (aidx = 0; aidx < argc; aidx++) {
-                        int arg = args[aidx];
-                        params->parameters[aidx] = (PSFloat) arg;
-                    }
-                }
-                layer = PSAddLayer(network, ltype, lsize, params);
-            }
-            if (layer == NULL) {
-                PSErr(__func__, "Could not create layer %d", i);
-                ok = 0; goto final;
-            }
-            layer->flags |= lflags;
-            layer->dropout = dropout;
-        }
-    }
+    if (legacy_model)
+        ok = loadLegacyLayerDefinitions(network,vers,netsize,empty,filename, f);
+    else ok = loadLayerDefinitions(network, vers, netsize, empty, filename, f);
+    if (!ok) goto final;
     /* Load layer parameters */
-    int legacy_model = (PSCompareVersion(vers, "0.9.0") < 0);
     if (legacy_model)
         ok = loadLegacyLayerParameters(network, filename, f, verbose);
     else
@@ -1360,35 +1658,11 @@ int PSSaveNetwork(PSNeuralNetwork *network, const char* filename) {
             loss_function, current_epoch, current_batch, network->status,
             current_element, batch_size, (int) rnn_mode,
             max_steps, eos, PSIsNetworkBuilt(network));
-    fprintf(f, "%d:", network->size);
+    fprintf(f, "layers:%d\n", network->size);
     for (i = 0; i < network->size; i++) {
         PSLayer *layer = network->layers[i];
-        PSLayerType ltype = layer->type;
-        if (i > 0) fprintf(f, ",");
-        int flags = layer->flags;
-        PSFloat dropout = layer->dropout;
-        PSHyperParameters *params = layer->hyper_parameters;
-        if (FullyConnected == ltype && !flags && !params && dropout <= 0.0)
-            fprintf(f, "%d", layer->size);
-        else if (params) {
-            int argc = params->count;
-            fprintf(
-                f, "[%d,%d,%d,%d,%g",
-                (int) ltype, DATA_LAYER_MIN_ARGC + argc, layer->size,
-                layer->flags, dropout
-            );
-            for (j = 0; j < argc; j++) {
-                fprintf(f, ",%d", (int) (params->parameters[j]));
-            }
-            fprintf(f, "]");
-        } else {
-            fprintf(
-                f, "[%d,%d,%d,%d,%g]",
-                (int) ltype, DATA_LAYER_MIN_ARGC, layer->size, flags, dropout
-            );
-        }
+        writeLayerDefinition(layer, f);
     }
-    fprintf(f, "\n");
     for (i = 1; i < network->size; i++) {
         PSLayer *layer = network->layers[i];
         PSLayerType ltype = layer->type;

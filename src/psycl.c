@@ -516,88 +516,129 @@ void parseOptions(int argc, char **argv) {
             PSLayerType ltype = getLayerType(type, &is_cifar);
             if ((i + 1) >= argc) break;
             PSLayer *layer = NULL;
-            j = i + 1;
-            if (Convolutional == ltype) {
-                PSHyperParameters *params = NULL;
-                params = PSCreateConvolutionalParameters(CONV_FEATURE_COUNT,
-                                                         CONV_REGION_SIZE,
-                                                         1, 0, 0);
-                PSFloat *lparams = params->parameters;
-                for (; j < argc; j++) {
-                    char *carg = argv[j];
-                    if (strcmp("--feature-count", carg) == 0 && ++j < argc) {
-                        int fcount = 0;
-                        char *fcstr = argv[j];
-                        int matched = sscanf(fcstr, "%d", &fcount);
-                        if (!matched) {
-                            fprintf(
-                                stderr, "Invalid feature count %s\n",fcstr
-                            );
-                            goto err;
-                        }
-                        i = j;
-                        lparams[PARAM_FEATURE_COUNT] = (PSFloat) fcount;
-                    } else if (strcmp("--region-size", carg) == 0 && ++j<argc) {
-                        int rsize = 0;
-                        char *rsstr = argv[j];
-                        int matched = sscanf(rsstr, "%d", &rsize);
-                        if (!matched) {
-                            fprintf(stderr, "Invalid region size %s\n", rsstr);
-                            goto err;
-                        }
-                        i = j;
-                        lparams[PARAM_REGION_SIZE] = (PSFloat) rsize;
-                    } else if (strcmp("--stride", carg) == 0 && ++j < argc) {
-                        int stride = 0;
-                        char *ststr = argv[j];
-                        int matched = sscanf(ststr, "%d", &stride);
-                        if (!matched) {
-                            fprintf(stderr, "Invalid stride %s\n", ststr);
-                            goto err;
-                        }
-                        i = j;
-                        lparams[PARAM_STRIDE] = (PSFloat) stride;
-                    } else if (strcmp("--padding", carg) == 0 && ++j < argc) {
-                        int padding = 0;
-                        char *padstr = argv[j];
-                        int matched = sscanf(padstr, "%d", &padding);
-                        if (!matched) {
-                            fprintf(stderr, "Invalid padding %s\n", padstr);
-                            goto err;
-                        }
-                        i = j;
-                        lparams[PARAM_PADDING] = (PSFloat) padding;
-                    } else if (strcmp("--use-relu", carg) == 0) {
-                        i = j;
-                        lparams[PARAM_USE_RELU] = 1.0;
-                    } else break;
-                }
-                layer = PSAddConvolutionalLayer(network, params);
-            } else if (Pooling == ltype) {
-                PSHyperParameters *params = NULL;
-                params = PSCreateConvolutionalParameters(0, POOL_REGION_SIZE,
-                                                         POOL_REGION_SIZE,
-                                                         0, 0);
-                PSFloat *lparams = params->parameters;
-                for (; j < argc; j++) {
-                    char *carg = argv[j];
-                    if (strcmp("--region-size", carg) == 0 && ++j < argc) {
-                        int rsize = 0;
-                        char *rsstr = argv[j];
-                        int matched = sscanf(rsstr, "%d", &rsize);
-                        if (!matched) {
-                            fprintf(stderr, "Invalid region size %s\n", rsstr);
-                            goto err;
-                        }
-                        lparams[PARAM_REGION_SIZE] = (PSFloat) rsize;
-                        i = j;
-                    } else break;
-                }
-                layer = PSAddPoolingLayer(network, params);
-            } else if (is_cifar) {
+            PSLayerDef ldef = {0};
+            if (is_cifar) {
                 layer = PSAddCIFARInputLayer(network);
-            } else {
-                int size = 0;
+                continue;
+            }
+            j = i + 1;
+
+            for (; j < argc; j++) {
+                char *carg = argv[j];
+                if ((strcmp("--feature-count", carg) == 0 || /* Legacy */
+                     strcmp("--output-depth", carg) == 0) && ++j < argc)
+                {
+                    int depth = 0;
+                    char *fcstr = argv[j];
+                    int matched = sscanf(fcstr, "%d", &depth);
+                    if (!matched) {
+                        fprintf(
+                            stderr, "Invalid %s %s\n", carg, fcstr
+                        );
+                        goto err;
+                    }
+                    i = j;
+                    ldef.output_depth = depth;
+                } else if (strcmp("--output-width", carg) == 0 && ++j < argc) {
+                    char *szstr = argv[j];
+                    int matched = sscanf(
+                        szstr, "%d", &(ldef.output_columns)
+                    );
+                    if (!matched) {
+                        fprintf(
+                            stderr, "Invalid %s %s\n", carg, szstr
+                        );
+                        goto err;
+                    }
+                    i = j;
+                } else if (strcmp("--output-height", carg) == 0 && ++j < argc) {
+                    char *szstr = argv[j];
+                    int matched = sscanf(
+                        szstr, "%d", &(ldef.output_rows)
+                    );
+                    if (!matched) {
+                        fprintf(
+                            stderr, "Invalid %s %s\n", carg, szstr
+                        );
+                        goto err;
+                    }
+                    i = j;
+                } else if (strcmp("--activation", carg) == 0 && ++j < argc) {
+                    char *actvname = argv[j];
+                    if (strcasecmp("sigmoid", actvname) == 0)
+                        ldef.activation = PSSigmoid;
+                    else if (strcasecmp("tanh", actvname) == 0)
+                        ldef.activation = PSTanhActivation;
+                    else if (strcasecmp("relu", actvname) == 0)
+                        ldef.activation = PSRelu;
+                    else {
+                        fprintf(stderr, "Invalid activation '%s'", actvname);
+                        goto err;
+                    }
+                } else if ((strcmp("--region-size", carg) == 0 ||
+                            strcmp("--filter-width", carg) == 0) &&
+                            ++j<argc)
+                {
+                    int filter_w = 0;
+                    char *rsstr = argv[j];
+                    int matched = sscanf(rsstr, "%d", &filter_w);
+                    if (!matched) {
+                        fprintf(stderr, "Invalid %s %s\n", carg, rsstr);
+                        goto err;
+                    }
+                    i = j;
+                    ldef.filter_width = filter_w;
+                } else if (strcmp("--filter-height", carg)==0 && ++j<argc) {
+                    int filter_h = 0;
+                    char *rsstr = argv[j];
+                    int matched = sscanf(rsstr, "%d", &filter_h);
+                    if (!matched) {
+                        fprintf(stderr, "Invalid %s %s\n", carg, rsstr);
+                        goto err;
+                    }
+                    i = j;
+                    ldef.filter_height = filter_h;
+                } else if (strcmp("--stride", carg) == 0 && ++j < argc) {
+                    int stride = 0;
+                    char *ststr = argv[j];
+                    int matched = sscanf(ststr, "%d", &stride);
+                    if (!matched) {
+                        fprintf(stderr, "Invalid stride %s\n", ststr);
+                        goto err;
+                    }
+                    i = j;
+                    ldef.stride = stride;
+                } else if (strcmp("--padding", carg) == 0 && ++j < argc) {
+                    int padding = 0;
+                    char *padstr = argv[j];
+                    int matched = sscanf(padstr, "%d", &padding);
+                    if (!matched) {
+                        fprintf(stderr, "Invalid padding %s\n", padstr);
+                        goto err;
+                    }
+                    i = j;
+                    ldef.padding = padding;
+                } else if (strcmp("--use-relu", carg) == 0) {
+                    i = j;
+                    ldef.activation = PSRelu;
+                } else if (strcmp("--dropout", carg) == 0 && ++j < argc) {
+                    char *dropout = argv[j];
+                    int matched = sscanf(
+                        dropout, PSFLOAT_FORMAT, &(ldef.dropout)
+                    );
+                    if (!matched) {
+                        fprintf(
+                            stderr, "Invalid dropout %s\n", dropout
+                        );
+                        goto err;
+                    }
+                    i = j;
+                } else if (strcmp("--recurrent-layer", carg) == 0) {
+                    ldef.flags |= FLAG_RECURRENT;
+                } else break;
+            }
+            int size = 0;
+            if (ltype != Convolutional && ltype != Pooling) {
                 char *sizestr = argv[++i];
                 int matched = sscanf(sizestr, "%d", &size);
                 if (!matched) {
@@ -605,80 +646,9 @@ void parseOptions(int argc, char **argv) {
                     goto err;
                 }
                 j = i + 1;
-                PSHyperParameters *params = NULL;
-                if (FullyConnected == ltype && (i + 1) < argc) {
-                    int feature_count = 0, output_w = 0, output_h = 0;
-                    for (; j < argc; j++) {
-                        char *carg = argv[j];
-                        if (strcmp("--feature-count",carg) == 0 && ++j < argc) {
-                            char *fcstr = argv[j];
-                            int matched = sscanf(fcstr, "%d", &feature_count);
-                            if (!matched) {
-                                fprintf(
-                                    stderr, "Invalid feature count %s\n",fcstr
-                                );
-                                goto err;
-                            }
-                            i = j;
-                        } else if (strcmp("--output-width", carg) == 0 &&
-                                   ++j < argc)
-                        {
-                            char *szstr = argv[j];
-                            int matched = sscanf(szstr, "%d", &output_w);
-                            if (!matched) {
-                                fprintf(
-                                    stderr, "Invalid %s %s\n", carg, szstr
-                                );
-                                goto err;
-                            }
-                            i = j;
-                        } else if (strcmp("--output-height", carg) == 0 &&
-                                   ++j < argc)
-                        {
-                            char *szstr = argv[j];
-                            int matched = sscanf(szstr, "%d", &output_h);
-                            if (!matched) {
-                                fprintf(
-                                    stderr, "Invalid %s %s\n", carg, szstr
-                                );
-                                goto err;
-                            }
-                            i = j;
-                        } else break;
-                    }
-                    if (feature_count > 0) {
-                        if (output_h == 0) output_h = output_w;
-                        params = PSCreateConvolutionalParameters(
-                            (PSFloat) feature_count, 0, 0, 0, 0
-                        );
-                        params->parameters[PARAM_OUTPUT_WIDTH] =
-                            (PSFloat) output_w;
-                        params->parameters[PARAM_OUTPUT_HEIGHT] =
-                            (PSFloat) output_h;
-                    }
-                }
-                layer = PSAddLayer(network, ltype, size, params);
             }
-            if (layer != NULL) {
-                for (; j < argc; j++) {
-                    char *carg = argv[j];
-                    if (strcmp("--dropout", carg) == 0 && ++j < argc) {
-                        char *dropout = argv[j];
-                        int matched = sscanf(
-                            dropout, PSFLOAT_FORMAT, &layer->dropout
-                        );
-                        if (!matched) {
-                            fprintf(
-                                stderr, "Invalid dropout %s\n", dropout
-                            );
-                            goto err;
-                        }
-                        i = j;
-                    } else if (strcmp("--recurrent-layer", carg) == 0) {
-                        layer->flags |= FLAG_RECURRENT;
-                    } else break;
-                }
-            } else {
+            layer = PSAddLayer(network, ltype, size, &ldef);
+            if (layer == NULL) {
                 fprintf(
                     stderr, "FATAL: Failed to create layer %d\n", lidx
                 );
@@ -1257,21 +1227,27 @@ void printHelp(const char* program_path) {
     PSIterateLossFunctions(printLossFunctionName);
     printf("\n");
     printf("LAYER OPTIONS:\n\n");
+    printf("        --activation FUNC         Activation Function:\n"
+           "                                  (sigmoid,tanh,relu)\n");
     printf("        --dropout DROPOUT         Layer Dropout (float)\n");
     printf("        --recurrent-layer         Recurrent layer mode\n");
-    printf("        --feature-count COUNT     Convolutional features"
-           " (def. %d)\n", CONV_FEATURE_COUNT);
-    printf("        --region-size SIZE        Convolutional region size"
+    printf("        --output-width WIDTH      Output Width\n");
+    printf("        --output-height HEIGHT    Output Height\n");
+    printf("        --output-depth DEPTH      Output Depth\n");
+    /*       " (def. %d)\n", CONV_FEATURE_COUNT);*/
+    printf("        --filter-width WIDTH      Convolutional filter width"
            " (def. %d)\n", CONV_REGION_SIZE);
-    printf("        --stride STRIDE           Convolutional region stride"
+    printf("        --filter-height HEIGHT    Convolutional filter height"
+           " (def. %d)\n", CONV_REGION_SIZE);
+    printf("        --stride STRIDE           Convolutional stride"
            " (def. 1)\n");
     printf("        --padding PADDING         Convolutional padding"
            " (def. 0)\n");
-    printf("        --use-relu                Use ReLU activation (for "
-           "Convolutional Layers)\n");
+    /*printf("        --use-relu                Use ReLU activation (for "
+           "Convolutional Layers)\n");*/
     printf("\n");
     printf("LOG LEVELS:\n\n");
-    printLogLevels(stdout); printf("\n\n");
+    printf("        "); printLogLevels(stdout); printf("\n\n");
     printf("TRAIN|TEST OPTIONS:\n\n");
     printf("        --mnist                   Dataset format is MNIST\n");
     printf("        --cifar [CLASSES]         Dataset format is CIFAR\n"
@@ -1293,13 +1269,14 @@ void printHelp(const char* program_path) {
     printf("\n");
     printf("SCRIPTS:\n\n");
     printf(
-        "Using options such as `--on-batch-trained` and `--on-epoch-trained`\n"
-        "it's possible to execute an arbitrary external script when such\n"
-        "events happen.The scripts will eventually receive the following\n"
-        "arguments:\n"
-        "  --event TYPE, --name NETWORK_NAME --epoch CURRENT_EPOC\n"
-        "  --epochs TOT_EPOCHS --average-loss AVERAGE_LOSS --current-loss\n"
-        "  CURRENT_LOSS --accuracy CURRENT_ACCURACY --learning-rate RATE\n"
+        "  Using options such as `--on-batch-trained` and `--on-epoch-trained`"
+        "\n"
+        "  it's possible to execute an arbitrary external script when such\n"
+        "  events happen.The scripts will eventually receive the following\n"
+        "  arguments:\n"
+        "    --event TYPE, --name NETWORK_NAME --epoch CURRENT_EPOC\n"
+        "    --epochs TOT_EPOCHS --average-loss AVERAGE_LOSS --current-loss\n"
+        "    CURRENT_LOSS --accuracy CURRENT_ACCURACY --learning-rate RATE\n"
     );
     printf("\n");
 }

@@ -28,7 +28,6 @@
 #define POOL_SIZE 2
 #define TRAIN_DATASET_LEN 50000
 #define EVAL_DATASET_LEN 10000
-#define RELU_ENABLED 0
 
 int main(int argc, char** argv) {
     if (argc < 3) {
@@ -72,24 +71,16 @@ int main(int argc, char** argv) {
     }
 
     if (pretrained_file == NULL) {
-        PSHyperParameters *cparams;
-        PSHyperParameters *pparams;
-        cparams = PSCreateConvolutionalParameters(FEATURES_COUNT, REGIONS_SIZE,
-                                                  1, 0, RELU_ENABLED);
-        pparams = PSCreateConvolutionalParameters(FEATURES_COUNT, POOL_SIZE,
-                                                  0, 0, RELU_ENABLED);
-
-        if (cparams == NULL || pparams == NULL) {
-            fprintf(stderr, "Could not create layer params!\n");
-            PSDeleteNetwork(network);
-            if (training_data != NULL) free(training_data);
-            if (test_data != NULL) free(test_data);
-            return 1;
-        }
+        PSLayerDef convdef = {
+            .output_depth = FEATURES_COUNT, .filter_width = REGIONS_SIZE
+        };
+        PSLayerDef pooldef = {
+            .output_depth = FEATURES_COUNT, .filter_width = POOL_SIZE
+        };
 
         PSAddLayer(network, FullyConnected, INPUT_SIZE, NULL);
-        PSAddConvolutionalLayer(network, cparams);
-        PSAddPoolingLayer(network, pparams);
+        PSAddConvolutionalLayer(network, &convdef);
+        PSAddPoolingLayer(network, &pooldef);
         PSAddLayer(network, FullyConnected, 30, NULL);
         /* PSAddLayer(network, FullyConnected, 10, NULL); */
         PSAddLayer(network, SoftMax, 10, NULL);

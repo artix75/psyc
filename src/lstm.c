@@ -521,8 +521,10 @@ int PSInitLSTMLayer(PSNeuralNetwork *network, PSLayer *layer,
         neuron->layer = layer;
     }
     layer->flags |= FLAG_RECURRENT;
-    layer->activate = PSTanhActivation;
-    layer->derivative = PSTanhDerivative;
+    if (layer->activate == NULL) {
+        layer->activate = PSTanhActivation;
+        layer->derivative = PSTanhDerivative;
+    }
     layer->feedforward = PSLSTMFeedforward;
     layer->backprop = PSLSTMBackprop;
     network->flags |= FLAG_RECURRENT;
