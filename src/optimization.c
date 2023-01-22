@@ -171,7 +171,7 @@ int PSAdaDeltaOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
             tmp = tmpalloc;
         }
         if (mtmp == NULL) {
-            tmpalloc = malloc(len * sizeof(PSFloat));
+            tmpalloc1 = malloc(len * sizeof(PSFloat));
             if (tmpalloc1 == NULL) {
                 PSPrintMemoryErrorMsg();
                 success = 0;
@@ -180,7 +180,7 @@ int PSAdaDeltaOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
             mtmp = tmpalloc1;
         }
         if (xtmp == NULL) {
-            tmpalloc = malloc(len * sizeof(PSFloat));
+            tmpalloc2 = malloc(len * sizeof(PSFloat));
             if (tmpalloc2 == NULL) {
                 PSPrintMemoryErrorMsg();
                 success = 0;
@@ -275,11 +275,10 @@ int PSWindowGradOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
         PSMultiplyVectorScalar(tmp, (1 - rho), mgrads, len, &mopts);
         /* dx = - rate / PSSqrt(mgrads[i] + eps) * grads[i] */
         mopts.store_mode = MATHS_STORE_MODE_NORM;
-        PSVectorSqrt(mgrads, tmp, len, &mopts);
-        PSMultiplyVectorScalar(tmp, eps, tmp, len, &mopts);
-        PSDivideScalarVector(rate, tmp, tmp, len, &mopts);
-        PSMultiplyVectors(tmp, grads, tmp, len, &mopts);
-        PSVectorNeg(tmp, tmp, len, &mopts);
+        PSSumVectorScalar(mgrads, eps, tmp, len, &mopts);
+        PSVectorSqrt(tmp, tmp, len, &mopts);
+        PSDivideScalarVector(-rate, tmp, tmp, len, &mopts);
+        PSMultiplyVectors(grads, tmp, tmp, len, &mopts);
         /* params[i] += dx */
         PSSumVectors(params, tmp, params, len, &mopts);
     }
@@ -500,8 +499,8 @@ int PSLRegularization(PSFloat l1, PSFloat l2, PSFloat *weights,
                     PSDivideVectorScalar(l1_grads,batches,l1_grads,len,&mopts);
                 PSSumVectors(wgradients, l1_grads, wgradients, len, &mopts);
                 if (l1_loss != NULL) {
-                    PSFloat loss = PSSumVectorElements(weights, len, &mopts);
-                    *l1_loss += PSAbs(loss);
+                    PSVectorAbs(weights, tmp, len, &mopts);
+                    *l1_loss += PSSumVectorElements(tmp, len, &mopts);
                 }
             }
         }
@@ -514,7 +513,7 @@ int PSLRegularization(PSFloat l1, PSFloat l2, PSFloat *weights,
                 if (batches > 1)
                     PSDivideVectorScalar(l2_grads,batches,l2_grads,len,&mopts);
                 PSSumVectors(wgradients, l2_grads, wgradients, len, &mopts);
-                if (l1_loss != NULL) {
+                if (l2_loss != NULL) {
                     PSMultiplyVectors(weights, weights, tmp, len, &mopts);
                     PSFloat loss = PSSumVectorElements(tmp, len, &mopts);
                     *l2_loss += loss;

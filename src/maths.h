@@ -127,6 +127,7 @@ void PSVectorSqrt(PSFloat *a, PSFloat *dest, uint64_t length,
                   PSMathOpts *opts);
 void PSVectorExp(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts);
 void PSVectorNeg(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts);
+void PSVectorAbs(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts);
 void PSVectorClip(PSFloat *a, PSFloat min, PSFloat max, PSFloat *dest,
                   uint64_t length, PSMathOpts *opts);
 void PSVectorThreshold(PSFloat *a, PSFloat min, PSFloat *dest,

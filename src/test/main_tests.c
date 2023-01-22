@@ -33,6 +33,7 @@
 #include "../mnist.h"
 #include "../maths.h"
 #include "../activation.h"
+#include "../optimization.h"
 #include "../utils.h"
 #include "../debug.h"
 #include "../log.h"
@@ -88,6 +89,7 @@ TestCase *AVXTests;
 
 TestCase *mathsTests;
 TestCase *activationTests;
+TestCase *optimizationTests;
 
 int genericSetup (TestCase *test_case);
 int genericTeardown (TestCase *test_case);
@@ -123,6 +125,7 @@ int testMathsExp(TestCase *tc, Test *test);
 int testMathsTanh(TestCase *tc, Test *test);
 int testMathsSqrt(TestCase *tc, Test *test);
 int testMathsNeg(TestCase *tc, Test *test);
+int testMathsAbs(TestCase *tc, Test *test);
 int testMathsMatrixCopy(TestCase *tc, Test *test);
 int testMathsMatrixDup(TestCase *tc, Test *test);
 int testMathsMatrixTranspose(TestCase *tc, Test *test);
@@ -133,6 +136,18 @@ int testActTanh(TestCase *tc, Test *test);
 int testActTanhDeriv(TestCase *tc, Test *test);
 int testActRelu(TestCase *tc, Test *test);
 int testActReluDeriv(TestCase *tc, Test *test);
+
+int testDefaultOptimization(TestCase *tc, Test *test);
+int testMomentumOptimization(TestCase *tc, Test *test);
+int testNesterovOptimization(TestCase *tc, Test *test);
+int testAdaDeltaOptimization(TestCase *tc, Test *test);
+int testWindowGradOptimization(TestCase *tc, Test *test);
+int testAdaGradOptimization(TestCase *tc, Test *test);
+int testAdamOptimization(TestCase *tc, Test *test);
+int testL1WeightDecay(TestCase *tc, Test *test);
+int testL2WeightDecay(TestCase *tc, Test *test);
+int testL1Regularization(TestCase *tc, Test *test);
+int testL2Regularization(TestCase *tc, Test *test);
 
 int testFullLoad(TestCase *test_case, Test *test);
 int testFullFeedforward(TestCase *test_case, Test *test);
@@ -365,17 +380,17 @@ static int arrayMaxIndex(PSFloat *array, int len) {
 
 /* Enabled tests */
 static int avx_tests = 1, maths_tests = 1, activation_tests = 1,
-           fullnet_tests = 1, convnet_tests = 1, rnn_tests = 1,
-           lstm_tests = 1;
+           optimization_tests = 1, fullnet_tests = 1, convnet_tests = 1,
+           rnn_tests = 1, lstm_tests = 1;
 
 static int *test_ptrs[] = {
-    &avx_tests, &maths_tests, &activation_tests, &fullnet_tests,
-    &convnet_tests, &rnn_tests, &lstm_tests
+    &avx_tests, &maths_tests, &activation_tests, &optimization_tests,
+    &fullnet_tests, &convnet_tests, &rnn_tests, &lstm_tests
 };
 
 static char*test_ids[] = {
-    "avx", "maths", "activation", "fully-connected", "convolutional",
-    "rnn", "lstm"
+    "avx", "maths", "activation", "optimization", "fully-connected",
+    "convolutional", "rnn", "lstm"
 };
 
 static void printTestList(void) {
@@ -499,6 +514,7 @@ int main(int argc, char** argv) {
         addTest(mathsTests, "Tanh", NULL, testMathsTanh);
         addTest(mathsTests, "Sqrt", NULL, testMathsSqrt);
         addTest(mathsTests, "Negate", NULL, testMathsNeg);
+        addTest(mathsTests, "Abs.", NULL, testMathsAbs);
         addTest(mathsTests, "Matrix Copy", NULL, testMathsMatrixCopy);
         addTest(mathsTests, "Matrix Dup.", NULL, testMathsMatrixDup);;
         addTest(mathsTests, "Matrix Transp.", NULL, testMathsMatrixTranspose);
@@ -520,6 +536,26 @@ int main(int argc, char** argv) {
         tot_tests += activationTests->count;
         tot_failed += activationTests->failed_count;
         deleteTest(activationTests);
+    }
+
+    if (optimization_tests) {
+        optimizationTests = createTest("Optimization");
+        addTest(optimizationTests, "Default", NULL, testDefaultOptimization);
+        addTest(optimizationTests, "Momentum", NULL, testMomentumOptimization);
+        addTest(optimizationTests, "Nesterov", NULL, testNesterovOptimization);
+        addTest(optimizationTests, "AdaDelta", NULL, testAdaDeltaOptimization);
+        addTest(optimizationTests, "WindowGrad", NULL,
+            testWindowGradOptimization);
+        addTest(optimizationTests, "AdaGrad", NULL, testAdaGradOptimization);
+        addTest(optimizationTests, "Adam", NULL, testAdamOptimization);
+        addTest(optimizationTests, "L1 W.Decay", NULL, testL1WeightDecay);
+        addTest(optimizationTests, "L2 W.Decay", NULL, testL2WeightDecay);
+        addTest(optimizationTests, "L1 Regul.", NULL, testL1Regularization);
+        addTest(optimizationTests, "L2 Regul.", NULL, testL2Regularization);
+        performTests(optimizationTests);
+        tot_tests += optimizationTests->count;
+        tot_failed += optimizationTests->failed_count;
+        deleteTest(optimizationTests);
     }
 
     if (fullnet_tests) {
@@ -2672,6 +2708,32 @@ int testMathsNeg(TestCase *tc, Test *test) {
     return ok;
 }
 
+int testMathsAbs(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat x[6] = {1.0, 8.3, -2.0, -1.0, 0.0, 18.5};
+    PSFloat cmp_res[6] = {1.0, 8.3, 2.0, 1.0, 0.0, 18.5};
+    PSFloat res[6] = {0};
+    int ok = 1;
+    PSMathOpts opts = {0};
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    opts.acceleration = PSAcceleration_ACF;
+    PSVectorAbs(x, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    opts.acceleration = PSAcceleration_AVX;
+    PSVectorAbs(x, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "AVX", 0);
+    if (!ok) return 0;
+#endif
+    opts.acceleration = PSAcceleration_None;
+    PSVectorAbs(x, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "No Acceleration:", 0);
+    if (!ok) return 0;
+    return ok;
+}
+
 int testMathsMatrixCopy(TestCase *tc, Test *test) {
     UNUSED(tc);
     int res = 1;
@@ -2961,6 +3023,672 @@ int testActReluDeriv(TestCase *tc, Test *test) {
     ok = compareArrays(res, cmp_res, 6, test, "No Acceleration:", 0);
     if (!ok) return 0;
     return ok;
+}
+
+int testDefaultOptimization(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat gradients[] = {
+        0.00000302, 0.0, 202.0, 0.0, 0.00000099, 1.0, -0.00580211, -0.00211678
+    };
+    PSFloat orig_params[] = {
+        0.23728831, -0.13215413,  0.22972574, -0.30660592,
+        0.10017828, -0.42993062, 0.0, 1.0
+    };
+    PSFloat expected[] = {
+        0.237288, -0.132154, -19.9703, -0.306606, 0.100178, -0.529931,
+        0.000580211, 1.00021
+    };
+    uint64_t len = 8;
+    PSFloat params[len];
+    memcpy(params, orig_params, len * sizeof(PSFloat));
+    PSFloat rate = 0.1;
+    int acceleration = PSAcceleration_None;
+    int ok = PSDefaultOptimization(
+        params, gradients, NULL, NULL, NULL, NULL, NULL, rate, 0.0, len,
+        acceleration, 0, NULL
+    );
+    testAssert(ok, test);
+    ok = compareArrays(params, expected, len, test, "No Accel.", 4);
+    if (!ok) return 0;
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    acceleration = PSAcceleration_ACF;
+    memcpy(params, orig_params, len * sizeof(PSFloat));
+    ok = PSDefaultOptimization(
+        params, gradients, NULL, NULL, NULL, NULL, NULL, rate, 0.0, len,
+        acceleration, 0, NULL
+    );
+    testAssert(ok, test);
+    ok = compareArrays(params, expected, len, test, "ACF", 4);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    acceleration = PSAcceleration_AVX;
+    memcpy(params, orig_params, len * sizeof(PSFloat));
+    ok = PSDefaultOptimization(
+        params, gradients, NULL, NULL, NULL, NULL, NULL, rate, 0.0, len,
+        acceleration, 0, NULL
+    );
+    testAssert(ok, test);
+    ok = compareArrays(params, expected, len, test, "AVX", 4);
+    if (!ok) return 0;
+#endif
+    return 1;
+}
+
+int testMomentumOptimization(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat gradients[] = {
+        0.00000302, 0.0, 202.0, 0.0, 0.00000099, 1.0, -0.00580211, -0.00211678
+    };
+    PSFloat orig_params[] = {
+        0.23728831, -0.13215413,  0.22972574, -0.30660592,
+        0.10017828, -0.42993062, 0.0, 1.0
+    };
+    PSFloat expected[] = {
+        0.237287, -0.132154, -58.3503, -0.306606, 0.100178,
+        -0.719931, 0.00168261, 1.00061
+    };
+    uint64_t len = 8;
+    PSFloat params[len];
+    PSFloat mem[len];
+    memcpy(params, orig_params, len * sizeof(PSFloat));
+    memset(mem, 0, len * sizeof(PSFloat));
+    PSFloat rate = 0.1, momentum = 0.9;
+    int iterations = 2, ok, i;
+    int acceleration = PSAcceleration_None;
+    for (i = 0; i < iterations; i++) {
+        ok = PSDefaultOptimization(
+            params, gradients, mem, NULL, NULL, NULL, NULL, rate, momentum,
+            len, acceleration, i, NULL
+        );
+        testAssert(ok, test);
+    }
+    ok = compareArrays(params, expected, len, test, "No Accel.", 4);
+    if (!ok) return 0;
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    acceleration = PSAcceleration_ACF;
+    memcpy(params, orig_params, len * sizeof(PSFloat));
+    memset(mem, 0, len * sizeof(PSFloat));
+    for (i = 0; i < iterations; i++) {
+        ok = PSDefaultOptimization(
+            params, gradients, mem, NULL, NULL, NULL, NULL, rate, momentum,
+            len, acceleration, i, NULL
+        );
+        testAssert(ok, test);
+    }
+    ok = compareArrays(params, expected, len, test, "ACF.", 4);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    acceleration = PSAcceleration_AVX;
+    memcpy(params, orig_params, len * sizeof(PSFloat));
+    memset(mem, 0, len * sizeof(PSFloat));
+    for (i = 0; i < iterations; i++) {
+        ok = PSDefaultOptimization(
+            params, gradients, mem, NULL, NULL, NULL, NULL, rate, momentum,
+            len, acceleration, i, NULL
+        );
+        testAssert(ok, test);
+    }
+    ok = compareArrays(params, expected, len, test, "AVX", 4);
+    if (!ok) return 0;
+#endif
+    return 1;
+}
+
+int testNesterovOptimization(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat gradients[] = {
+        0.00000302, 0.0, 202.0, 0.0, 0.00000099, 1.0, -0.00580211, -0.00211678
+    };
+    PSFloat orig_params[] = {
+        0.23728831, -0.13215413,  0.22972574, -0.30660592,
+        0.10017828, -0.42993062, 0.0, 1.0
+    };
+    PSFloat expected[] = {
+        0.237287, -0.132154, -92.8923, -0.306606, 0.100178, -0.890931,
+        0.00267477, 1.00098
+    };
+    uint64_t len = 8;
+    PSFloat params[len];
+    PSFloat mem[len];
+    memcpy(params, orig_params, len * sizeof(PSFloat));
+    memset(mem, 0, len * sizeof(PSFloat));
+    PSFloat rate = 0.1, momentum = 0.9;
+    int iterations = 2, ok, i;
+    int acceleration = PSAcceleration_None;
+    for (i = 0; i < iterations; i++) {
+        ok = PSNesterovOptimization(
+            params, gradients, mem, NULL, NULL, NULL, NULL, rate, momentum,
+            len, acceleration, i, NULL
+        );
+        testAssert(ok, test);
+    }
+    ok = compareArrays(params, expected, len, test, "No Accel.", 4);
+    if (!ok) return 0;
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    acceleration = PSAcceleration_ACF;
+    memcpy(params, orig_params, len * sizeof(PSFloat));
+    memset(mem, 0, len * sizeof(PSFloat));
+    for (i = 0; i < iterations; i++) {
+        ok = PSNesterovOptimization(
+            params, gradients, mem, NULL, NULL, NULL, NULL, rate, momentum,
+            len, acceleration, i, NULL
+        );
+        testAssert(ok, test);
+    }
+    ok = compareArrays(params, expected, len, test, "ACF", 4);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    acceleration = PSAcceleration_AVX;
+    memcpy(params, orig_params, len * sizeof(PSFloat));
+    memset(mem, 0, len * sizeof(PSFloat));
+    for (i = 0; i < iterations; i++) {
+        ok = PSNesterovOptimization(
+            params, gradients, mem, NULL, NULL, NULL, NULL, rate, momentum,
+            len, acceleration, i, NULL
+        );
+        testAssert(ok, test);
+    }
+    ok = compareArrays(params, expected, len, test, "AVX", 4);
+    if (!ok) return 0;
+#endif
+    return 1;
+}
+
+int testAdaDeltaOptimization(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat gradients[] = {
+        0.00000302, 0.0, 202.0, 0.0, 0.00000099, 1.0, -0.00580211, -0.00211678
+    };
+    PSFloat orig_params[] = {
+        0.23728831, -0.13215413,  0.22972574, -0.30660592,
+        0.10017828, -0.42993062, 0.0, 1.0
+    };
+    PSFloat expected[] = {
+        0.237282, -0.132154, 0.226879, -0.306606, 0.100176, -0.432777,
+        0.00276497, 1.00236
+    };
+    uint64_t len = 8;
+    PSFloat params[len];
+    PSFloat mem1[len];
+    PSFloat mem2[len];
+    memcpy(params, orig_params, len * sizeof(PSFloat));
+    memset(mem1, 0, len * sizeof(PSFloat));
+    memset(mem2, 0, len * sizeof(PSFloat));
+    PSFloat rate = 0.1, momentum = 0.9;
+    int iterations = 2, ok, i;
+    int acceleration = PSAcceleration_None;
+    for (i = 0; i < iterations; i++) {
+        ok = PSAdaDeltaOptimization(
+            params, gradients, mem1, mem2, NULL, NULL, NULL, rate, momentum,
+            len, acceleration, i, NULL
+        );
+        testAssert(ok, test);
+    }
+    ok = compareArrays(params, expected, len, test, "No Accel.", 4);
+    if (!ok) return 0;
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    acceleration = PSAcceleration_ACF;
+    memcpy(params, orig_params, len * sizeof(PSFloat));
+    memset(mem1, 0, len * sizeof(PSFloat));
+    memset(mem2, 0, len * sizeof(PSFloat));
+    for (i = 0; i < iterations; i++) {
+        ok = PSAdaDeltaOptimization(
+            params, gradients, mem1, mem2, NULL, NULL, NULL, rate, momentum,
+            len, acceleration, i, NULL
+        );
+        testAssert(ok, test);
+    }
+    ok = compareArrays(params, expected, len, test, "ACF", 4);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    acceleration = PSAcceleration_AVX;
+    memcpy(params, orig_params, len * sizeof(PSFloat));
+    memset(mem1, 0, len * sizeof(PSFloat));
+    memset(mem2, 0, len * sizeof(PSFloat));
+    for (i = 0; i < iterations; i++) {
+        ok = PSAdaDeltaOptimization(
+            params, gradients, mem1, mem2, NULL, NULL, NULL, rate, momentum,
+            len, acceleration, i, NULL
+        );
+        testAssert(ok, test);
+    }
+    ok = compareArrays(params, expected, len, test, "AVX", 4);
+    if (!ok) return 0;
+#endif
+    return 1;
+}
+
+int testWindowGradOptimization(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat gradients[] = {
+        0.00000302, 0.0, 202.0, 0.0, 0.00000099, 1.0, -0.00580211, -0.00211678
+    };
+    PSFloat orig_params[] = {
+        0.23728831, -0.13215413,  0.22972574, -0.30660592,
+        0.10017828, -0.42993062, 0.0, 1.0
+    };
+    PSFloat expected[] = {
+        0.235378, -0.132154, -0.537744, -0.306606, 0.0995521,
+        -1.1974, 0.74998, 1.66075
+    };
+    uint64_t len = 8;
+    PSFloat params[len];
+    PSFloat mem[len];
+    memcpy(params, orig_params, len * sizeof(PSFloat));
+    memset(mem, 0, len * sizeof(PSFloat));
+    PSFloat rate = 0.1, momentum = 0.9;
+    int iterations = 2, ok, i;
+    int acceleration = PSAcceleration_None;
+    for (i = 0; i < iterations; i++) {
+        ok = PSWindowGradOptimization(
+            params, gradients, mem, NULL, NULL, NULL, NULL, rate, momentum,
+            len, acceleration, i, NULL
+        );
+        testAssert(ok, test);
+    }
+    ok = compareArrays(params, expected, len, test, "No Accel.", 4);
+    if (!ok) return 0;
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    acceleration = PSAcceleration_ACF;
+    memcpy(params, orig_params, len * sizeof(PSFloat));
+    memset(mem, 0, len * sizeof(PSFloat));
+    for (i = 0; i < iterations; i++) {
+        ok = PSWindowGradOptimization(
+            params, gradients, mem, NULL, NULL, NULL, NULL, rate, momentum,
+            len, acceleration, i, NULL
+        );
+        testAssert(ok, test);
+    }
+    ok = compareArrays(params, expected, len, test, "ACF", 4);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    acceleration = PSAcceleration_AVX;
+    memcpy(params, orig_params, len * sizeof(PSFloat));
+    memset(mem, 0, len * sizeof(PSFloat));
+    for (i = 0; i < iterations; i++) {
+        ok = PSWindowGradOptimization(
+            params, gradients, mem, NULL, NULL, NULL, NULL, rate, momentum,
+            len, acceleration, i, NULL
+        );
+        testAssert(ok, test);
+    }
+    ok = compareArrays(params, expected, len, test, "AVX", 4);
+    if (!ok) return 0;
+#endif
+    return 1;
+}
+
+int testAdaGradOptimization(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat gradients[] = {
+        0.00000302, 0.0, 202.0, 0.0, 0.00000099, 1.0, -0.00580211, -0.00211678
+    };
+    PSFloat orig_params[] = {
+        0.23728831, -0.13215413,  0.22972574, -0.30660592,
+        0.10017828, -0.42993062, 0.0, 1.0
+    };
+    PSFloat expected[] = {
+        0.235378, -0.132154, 0.059015, -0.306606, 0.0995521,
+        -0.600641, 0.17051, 1.16922
+    };
+    uint64_t len = 8;
+    PSFloat params[len];
+    PSFloat mem[len];
+    memcpy(params, orig_params, len * sizeof(PSFloat));
+    memset(mem, 0, len * sizeof(PSFloat));
+    PSFloat rate = 0.1, momentum = 0.9;
+    int iterations = 2, ok, i;
+    int acceleration = PSAcceleration_None;
+    for (i = 0; i < iterations; i++) {
+        ok = PSAdaGradOptimization(
+            params, gradients, mem, NULL, NULL, NULL, NULL, rate, momentum,
+            len, acceleration, i, NULL
+        );
+        testAssert(ok, test);
+    }
+    ok = compareArrays(params, expected, len, test, "No Accel.", 4);
+    if (!ok) return 0;
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    acceleration = PSAcceleration_ACF;
+    memcpy(params, orig_params, len * sizeof(PSFloat));
+    memset(mem, 0, len * sizeof(PSFloat));
+    for (i = 0; i < iterations; i++) {
+        ok = PSAdaGradOptimization(
+            params, gradients, mem, NULL, NULL, NULL, NULL, rate, momentum,
+            len, acceleration, i, NULL
+        );
+        testAssert(ok, test);
+    }
+    ok = compareArrays(params, expected, len, test, "ACF", 4);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    acceleration = PSAcceleration_AVX;
+    memcpy(params, orig_params, len * sizeof(PSFloat));
+    memset(mem, 0, len * sizeof(PSFloat));
+    for (i = 0; i < iterations; i++) {
+        ok = PSAdaGradOptimization(
+            params, gradients, mem, NULL, NULL, NULL, NULL, rate, momentum,
+            len, acceleration, i, NULL
+        );
+        testAssert(ok, test);
+    }
+    ok = compareArrays(params, expected, len, test, "AVX", 4);
+    if (!ok) return 0;
+#endif
+    return 1;
+}
+
+int testAdamOptimization(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat gradients[] = {
+        0.00000302, 0.0, 202.0, 0.0, 0.00000099, 1.0, -0.00580211, -0.00211678
+    };
+    PSFloat orig_params[] = {
+        0.23728831, -0.13215413,  0.22972574, -0.30660592,
+        0.10017828, -0.42993062, 0.0, 1.0
+    };
+    PSFloat expected[] = {
+        0.182258, -0.132154, -1.11413, -0.306606, 0.0816279,
+        -1.77369, 1.32767, 2.30041
+    };
+    uint64_t len = 8;
+    PSFloat params[len];
+    PSFloat mem1[len];
+    PSFloat mem2[len];
+    memcpy(params, orig_params, len * sizeof(PSFloat));
+    memset(mem1, 0, len * sizeof(PSFloat));
+    memset(mem2, 0, len * sizeof(PSFloat));
+    PSFloat rate = 0.1, momentum = 0.9;
+    int iterations = 2, ok, i;
+    int acceleration = PSAcceleration_None;
+    for (i = 0; i < iterations; i++) {
+        ok = PSAdamOptimization(
+            params, gradients, mem1, mem2, NULL, NULL, NULL, rate, momentum,
+            len, acceleration, i, NULL
+        );
+        testAssert(ok, test);
+    }
+    ok = compareArrays(params, expected, len, test, "No Accel.", 4);
+    if (!ok) return 0;
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    acceleration = PSAcceleration_ACF;
+    memcpy(params, orig_params, len * sizeof(PSFloat));
+    memset(mem1, 0, len * sizeof(PSFloat));
+    memset(mem2, 0, len * sizeof(PSFloat));
+    for (i = 0; i < iterations; i++) {
+        ok = PSAdamOptimization(
+            params, gradients, mem1, mem2, NULL, NULL, NULL, rate, momentum,
+            len, acceleration, i, NULL
+        );
+        testAssert(ok, test);
+    }
+    ok = compareArrays(params, expected, len, test, "ACF", 4);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    acceleration = PSAcceleration_AVX;
+    memcpy(params, orig_params, len * sizeof(PSFloat));
+    memset(mem1, 0, len * sizeof(PSFloat));
+    memset(mem2, 0, len * sizeof(PSFloat));
+    for (i = 0; i < iterations; i++) {
+        ok = PSAdamOptimization(
+            params, gradients, mem1, mem2, NULL, NULL, NULL, rate, momentum,
+            len, acceleration, i, NULL
+        );
+        testAssert(ok, test);
+    }
+    ok = compareArrays(params, expected, len, test, "AVX", 4);
+    if (!ok) return 0;
+#endif
+    return 1;
+}
+
+int testL1WeightDecay(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat gradients[] = {
+        0.00000302, 0.0, 202.0, 0.0, 0.00000099, 1.0, -0.00580211, -0.00211678
+    };
+    PSFloat orig_params[] = {
+        0.23728831, -0.13215413,  0.22972574, -0.30660592,
+        0.10017828, -0.42993062, 0.0, 1.0
+    };
+    PSFloat expected[] = {
+        0.0237288, -0.0132154, 0.0229726, -0.0306606, 0.0100178,
+        -0.0429931, 0, 0.1
+    };
+    uint64_t len = 8;
+    PSFloat params[len];
+    memcpy(params, orig_params, len * sizeof(PSFloat));
+    PSFloat l1 = 0.1, l1_loss = 0.0;
+    int batches = 1;
+    int acceleration = PSAcceleration_None;
+    int ok = PSLRegularization(
+        l1, 0.0, params, gradients, NULL, len, &l1_loss, NULL, batches,
+        1, acceleration
+    );
+    testAssert(ok, test);
+    ok = compareArrays(params, expected, len, test, "No Accel.", 4);
+    if (!ok) return 0;
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    acceleration = PSAcceleration_ACF;
+    memcpy(params, orig_params, len * sizeof(PSFloat));
+    ok = PSLRegularization(
+        l1, 0.0, params, gradients, NULL, len, &l1_loss, NULL, batches,
+        1, acceleration
+    );
+    testAssert(ok, test);
+    ok = compareArrays(params, expected, len, test, "ACF", 4);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    acceleration = PSAcceleration_AVX;
+    memcpy(params, orig_params, len * sizeof(PSFloat));
+    ok = PSLRegularization(
+        l1, 0.0, params, gradients, NULL, len, &l1_loss, NULL, batches,
+        1, acceleration
+    );
+    testAssert(ok, test);
+    ok = compareArrays(params, expected, len, test, "AVX", 4);
+    if (!ok) return 0;
+#endif
+    return 1;
+}
+
+int testL2WeightDecay(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat gradients[] = {
+        0.00000302, 0.0, 202.0, 0.0, 0.00000099, 1.0, -0.00580211, -0.00211678
+    };
+    PSFloat orig_params[] = {
+        0.23728831, -0.13215413,  0.22972574, -0.30660592,
+        0.10017828, -0.42993062, 0.0, 1.0
+    };
+    PSFloat expected[] = {
+        0.0237288, -0.0132154, 0.0229726, -0.0306606, 0.0100178,
+        -0.0429931, 0, 0.1
+    };
+    uint64_t len = 8;
+    PSFloat params[len];
+    memcpy(params, orig_params, len * sizeof(PSFloat));
+    PSFloat l2 = 0.1, l2_loss = 0.0;
+    int batches = 1;
+    int acceleration = PSAcceleration_None;
+    int ok = PSLRegularization(
+        0.0, l2, params, gradients, NULL, len, NULL, &l2_loss, batches,
+        1, acceleration
+    );
+    testAssert(ok, test);
+    ok = compareArrays(params, expected, len, test, "No Accel.", 4);
+    if (!ok) return 0;
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    acceleration = PSAcceleration_ACF;
+    memcpy(params, orig_params, len * sizeof(PSFloat));
+    ok = PSLRegularization(
+        0.0, l2, params, gradients, NULL, len, NULL, &l2_loss, batches,
+        1, acceleration
+    );
+    testAssert(ok, test);
+    ok = compareArrays(params, expected, len, test, "ACF", 4);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    acceleration = PSAcceleration_AVX;
+    memcpy(params, orig_params, len * sizeof(PSFloat));
+    ok = PSLRegularization(
+        0.0, l2, params, gradients, NULL, len, NULL, &l2_loss, batches,
+        1, acceleration
+    );
+    testAssert(ok, test);
+    ok = compareArrays(params, expected, len, test, "AVX", 4);
+    if (!ok) return 0;
+#endif
+    return 1;
+}
+
+int testL1Regularization(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat orig_gradients[] = {
+        0.00000302, 0.0, 202.0, 0.0, 0.00000099, 1.0, -0.00580211, -0.00211678
+    };
+    PSFloat params[] = {
+        0.23728831, -0.13215413,  0.22972574, -0.30660592,
+        0.10017828, -0.42993062, 0.0, 1.0
+    };
+    PSFloat expected[] = {
+        0.100003, -0.1, 202.1, -0.1, 0.100001, 0.9, -0.105802, 0.0978832
+    };
+    PSFloat expected_l1_loss = getRoundedFloatDec(2.43588, 4);
+    uint64_t len = 8;
+    PSFloat gradients[len];
+    memcpy(gradients, orig_gradients, len * sizeof(PSFloat));
+    PSFloat l1 = 0.1, l1_loss = 0.0;
+    int batches = 1;
+    int acceleration = PSAcceleration_None;
+    int ok = PSLRegularization(
+        l1, 0.0, params, gradients, NULL, len, &l1_loss, NULL, batches,
+        0, acceleration
+    );
+    testAssert(ok, test);
+    ok = compareArrays(gradients, expected, len, test, "No Accel.", 4);
+    if (!ok) return 0;
+    l1_loss = getRoundedFloatDec(l1_loss, 4);
+    testAssertWithMessage(
+        l1_loss == expected_l1_loss, test, "L1 Loss %g != expected %g",
+        l1_loss, expected_l1_loss
+    );
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    acceleration = PSAcceleration_ACF;
+    memcpy(gradients, orig_gradients, len * sizeof(PSFloat));
+    l1_loss = 0.0;
+    ok = PSLRegularization(
+        l1, 0.0, params, gradients, NULL, len, &l1_loss, NULL, batches,
+        0, acceleration
+    );
+    testAssert(ok, test);
+    ok = compareArrays(gradients, expected, len, test, "ACF", 4);
+    if (!ok) return 0;
+    l1_loss = getRoundedFloatDec(l1_loss, 4);
+    testAssertWithMessage(
+        l1_loss == expected_l1_loss, test, "(ACF) L1 Loss %g != expected %g",
+        l1_loss, expected_l1_loss
+    );
+#endif
+#ifdef USE_AVX
+    acceleration = PSAcceleration_AVX;
+    memcpy(gradients, orig_gradients, len * sizeof(PSFloat));
+    l1_loss = 0.0;
+    ok = PSLRegularization(
+        l1, 0.0, params, gradients, NULL, len, &l1_loss, NULL, batches,
+        0, acceleration
+    );
+    testAssert(ok, test);
+    ok = compareArrays(gradients, expected, len, test, "AVX", 4);
+    if (!ok) return 0;
+    l1_loss = getRoundedFloatDec(l1_loss, 4);
+    testAssertWithMessage(
+        l1_loss == expected_l1_loss, test, "(AVX) L1 Loss %g != expected %g",
+        l1_loss, expected_l1_loss
+    );
+#endif
+    return 1;
+}
+
+int testL2Regularization(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat orig_gradients[] = {
+        0.00000302, 0.0, 202.0, 0.0, 0.00000099, 1.0, -0.00580211, -0.00211678
+    };
+    PSFloat params[] = {
+        0.23728831, -0.13215413,  0.22972574, -0.30660592,
+        0.10017828, -0.42993062, 0.0, 1.0
+    };
+    PSFloat expected[] = {
+        0.0237319, -0.0132154, 202.023, -0.0306606, 0.0100188, 0.957007,
+        -0.00580211, 0.0978832
+    };
+    PSFloat expected_l2_loss = getRoundedFloatDec(1.41543, 4);
+    uint64_t len = 8;
+    PSFloat gradients[len];
+    memcpy(gradients, orig_gradients, len * sizeof(PSFloat));
+    PSFloat l2 = 0.1, l2_loss = 0.0;
+    int batches = 1;
+    int acceleration = PSAcceleration_None;
+    int ok = PSLRegularization(
+        0.0, l2, params, gradients, NULL, len, NULL, &l2_loss, batches,
+        0, acceleration
+    );
+    testAssert(ok, test);
+//printf("\nL2 LOSS: %g\n", l2_loss);//printf("\n"); for(int i=0;i < len;i++){if(i>0)printf(", ");printf("%g", gradients[i]);};printf("\n");return 1;//DELME
+    ok = compareArrays(gradients, expected, len, test, "No Accel.", 4);
+    if (!ok) return 0;
+    l2_loss = getRoundedFloatDec(l2_loss, 4);
+    testAssertWithMessage(
+        l2_loss == expected_l2_loss, test, "L2 Loss %g != expected %g",
+        l2_loss, expected_l2_loss
+    );
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    acceleration = PSAcceleration_ACF;
+    memcpy(gradients, orig_gradients, len * sizeof(PSFloat));
+    l2_loss = 0.0;
+    ok = PSLRegularization(
+        0.0, l2, params, gradients, NULL, len, NULL, &l2_loss, batches,
+        0, acceleration
+    );
+    testAssert(ok, test);
+    ok = compareArrays(gradients, expected, len, test, "ACF", 4);
+    if (!ok) return 0;
+    l2_loss = getRoundedFloatDec(l2_loss, 4);
+    l2_loss = getRoundedFloatDec(l2_loss, 4);
+    testAssertWithMessage(
+        l2_loss == expected_l2_loss, test, "(ACF) L2 Loss %g != expected %g",
+        l2_loss, expected_l2_loss
+    );
+#endif
+#ifdef USE_AVX
+    acceleration = PSAcceleration_AVX;
+    memcpy(gradients, orig_gradients, len * sizeof(PSFloat));
+    l2_loss = 0.0;
+    ok = PSLRegularization(
+        0.0, l2, params, gradients, NULL, len, NULL, &l2_loss, batches,
+        0, acceleration
+    );
+    testAssert(ok, test);
+    ok = compareArrays(gradients, expected, len, test, "AVX", 4);
+    if (!ok) return 0;
+    l2_loss = getRoundedFloatDec(l2_loss, 4);
+    l2_loss = getRoundedFloatDec(l2_loss, 4);
+    testAssertWithMessage(
+        l2_loss == expected_l2_loss, test, "(AVX) L2 Loss %g != expected %g",
+        l2_loss, expected_l2_loss
+    );
+#endif
+    return 1;
 }
 
 #ifdef USE_AVX

@@ -45,6 +45,7 @@
 #define VDSPDivSV(a,b,dest,len) vDSP_svdivD(&a, b, 1, dest, 1, len)
 #define VDSPVSquare(a, dest, len) vDSP_vsqD(a, 1, dest, 1, len)
 #define VDSPNeg(a,dest,len) vDSP_vnegD(a, 1, dest, 1, len)
+#define VDSPAbs(a,dest,len) vDSP_vabsD(a, 1, dest, 1, len)
 #define VDSPDotProd(a,b,dest,len) vDSP_dotprD(a, 1, b, 1, &dest, len)
 #define VDSPSumVecSqr(a,dest,len) vDSP_svesqD(a, 1, &dest, len)
 #define VDSPClip(a,min,max,dest,len) vDSP_vclipD(a,1,&min,&max,dest,1,len)
@@ -75,6 +76,7 @@
 #define VDSPClip(a,min,max,dest,len) vDSP_vclip(a,1,&min,&max,dest,1,len)
 #define VDSPThres(a, min, dest, len) vDSP_vthres(a,1,&min,dest,1,len)
 #define VDSPNeg(a,dest,len) vDSP_vneg(a, 1, dest, 1, len)
+#define VDSPAbs(a,dest,len) vDSP_vabs(a, 1, dest, 1, len)
 #define VDSPDotProd(a,b,dest,len) vDSP_dotpr(a, 1, b, 1, &dest, len)
 #define VDSPSumVecSqr(a,dest,len) vDSP_svesq(a, 1, &dest, len)
 #define VDSPMax(a, res, len) vDSP_maxv(a, 1, &res, len)
@@ -1125,6 +1127,31 @@ void PSVectorNeg(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
             break;
         case MATHS_STORE_MODE_SUB:
             for (; i < length; i++) dest[i] -= -(a[i]);
+            break;
+    }
+}
+
+void PSVectorAbs(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+{
+    MATHS_OPERATION_PREAMBLE();
+#if defined(HAS_ACCELERATE_FRAMEWORK)
+    if (PSACFEnabled(acceleration) && mode == MATHS_STORE_MODE_NORM) {
+        VDSPAbs(a, dest, length);
+        return;
+    }
+#else
+    UNUSED(acceleration);
+#endif
+    /* No Acceleration */
+    switch (mode) {
+        case MATHS_STORE_MODE_NORM:
+            for (; i < length; i++) dest[i] = PSAbs(a[i]);
+            break;
+        case MATHS_STORE_MODE_ADD:
+            for (; i < length; i++) dest[i] += PSAbs(a[i]);
+            break;
+        case MATHS_STORE_MODE_SUB:
+            for (; i < length; i++) dest[i] -= PSAbs(a[i]);
             break;
     }
 }
