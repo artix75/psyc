@@ -3644,7 +3644,6 @@ int testL2Regularization(TestCase *tc, Test *test) {
         0, acceleration
     );
     testAssert(ok, test);
-//printf("\nL2 LOSS: %g\n", l2_loss);//printf("\n"); for(int i=0;i < len;i++){if(i>0)printf(", ");printf("%g", gradients[i]);};printf("\n");return 1;//DELME
     ok = compareArrays(gradients, expected, len, test, "No Accel.", 4);
     if (!ok) return 0;
     l2_loss = getRoundedFloatDec(l2_loss, 4);

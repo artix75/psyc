@@ -66,8 +66,8 @@ int PSDefaultOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
             mopts.store_mode = MATHS_STORE_MODE_NORM;
             PSSumVectors(params, mgrads, params, len, &mopts);
         } else {
-            mopts.store_mode = MATHS_STORE_MODE_SUB;
-            PSMultiplyVectorScalar(grads, rate, params, len, &mopts);
+            mopts.store_mode = MATHS_STORE_MODE_ADD;
+            PSMultiplyVectorScalar(grads, -rate, params, len, &mopts);
         }
     }
     return 1;

@@ -106,6 +106,8 @@ void print_help(char *progname) {
            "Framework\n");
 #endif
     printf("        --disable-blas                  Disable BLAS\n");
+    printf("        --no-acceleration               Disable all "
+           "accelerations\n");
     printf("        --debug-dump-to FILE            Debug training to FILE\n"
            "                                        "
            "(pass 'stdout' for STDOUT)\n");
@@ -221,6 +223,7 @@ int main(int argc, char** argv) {
     int disable_avx = 0;
     int disable_acf = 0;
     int disable_blas = 0;
+    int no_acceleration = 0;
     int max_images = 0;
     int no_shuffle = 0;
     PSOptimization optimization = PSDefaultOptimization;
@@ -345,6 +348,11 @@ int main(int argc, char** argv) {
             disable_acf = 1;
         } else if (strcmp("--disable-blas", arg) == 0) {
             disable_blas = 1;
+        } else if (strcmp("--no-acceleration", arg) == 0) {
+            disable_blas = 1;
+            disable_acf = 1;
+            disable_avx = 1;
+            no_acceleration = 1;
         } else if (strcmp("--no-shuffle", arg) == 0) {
             no_shuffle = 1;
         } else if (strcmp("--optimization", arg) == 0 && !is_last) {
@@ -432,8 +440,10 @@ int main(int argc, char** argv) {
         if (test_data != NULL) free(test_data);
         return 1;
     }
-    if (dump_activations_str != NULL || max_batches > 0)
+    if (dump_activations_str != NULL || max_batches > 0) {
         network->onBatchTrained = onBatchTrained;
+        PSDumpGradientsPath = dump_activations_str;
+    }
     printf("Network created!\n");
     printf("AVX: ");
 #ifdef USE_AVX
@@ -448,6 +458,7 @@ int main(int argc, char** argv) {
         PSDisableAcceleration(&(network->acceleration), PSAcceleration_ACF);
     if (disable_blas)
         PSDisableAcceleration(&(network->acceleration), PSAcceleration_BLAS);
+    if (no_acceleration) network->acceleration = PSAcceleration_None;
     printf("Accelerate Framework: ");
     if (PSACFEnabled(network->acceleration)) printf("on\n");
     else printf("off\n");

@@ -803,7 +803,8 @@ void PSPrintNetworkInfo(PSNeuralNetwork *network) {
     if (loss_name != NULL) printf("Loss Function: %s\n", loss_name);
     printf("Status: %s\n", getNetworkStatusLabel(network));
     printf("AVX: %s\n", (PSAVXEnabled(network->acceleration) ? "yes" : "no"));
-    printf("DSP: %s\n", (PSACFEnabled(network->acceleration) ? "yes" : "no"));
+    printf("Apple Accelerate: %s\n",
+        (PSACFEnabled(network->acceleration) ? "yes" : "no"));
     printf("BLAS: %s\n", (PSBLASEnabled(network->acceleration) ? "yes" : "no"));
 }
 
@@ -1747,7 +1748,7 @@ void DumpLayerInfo(PSLayer *layer, FILE *dump_file, int add_new_line) {
         fprintf(dump_file, ",depth=%d", layer->output_depth);
     }
     const char *activation = PSGetActivationName(layer->activate);
-    if (activation != NULL) printf(", activation = %s", activation);
+    if (activation != NULL) fprintf(dump_file, ",activation=%s", activation);
     if (add_new_line) fprintf(dump_file, "\n");
 }
 
@@ -2654,7 +2655,7 @@ int softmaxLayerBackprop(PSLayer *layer, PSLayer *previous_layer, PSFloat *y,
     memcpy(delta, outputs, layer->size * sizeof(PSFloat));
     uint64_t oidx;
     if (onehot) oidx = (uint64_t) *y;
-    else PSVectorMax(outputs, &oidx, layer->size, &mopts);
+    else PSVectorMax(y, &oidx, layer->size, &mopts);
     delta[oidx] += -1;
     if (apply_derivative) {
         PSMultiplyVectors(delta, outputs, delta, layer->size, &mopts);
@@ -3143,9 +3144,9 @@ int applyGradientsOnParameters(
         abort();
     }
     if (offset > 0) {
-            gptr += offset;
-            mptr += offset;
-            xptr += offset;
+        gptr += offset;
+        if (mptr != NULL) mptr += offset;
+        if (xptr != NULL) xptr += offset;
     }
     PSFloat *mtmp = ((mg != NULL) ? mg->tmp : NULL),
             *xtmp = ((xg != NULL) ? xg->tmp : NULL);
@@ -3235,6 +3236,7 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
             clip_min = clip_max * -1;
         }
     }
+    if (optimization == NULL) optimization = PSDefaultOptimization;
     int apply_momentum = (momentum > 0.0);
     int use_optimization = (optimization != PSDefaultOptimization);
     if (apply_momentum || use_optimization) {
@@ -3340,9 +3342,10 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
                 goto final;
             }
             uint64_t wlen = PSMatrixLength(weights);
+            PSFloat *wgradients = lgradients->weights + wgrad_offset;
             if (l1 != 0.0 || l2 != 0.0) {
                 int ok = PSLRegularization(
-                    l1, l2, weights, lgradients->weights, lgradients->tmp,
+                    l1, l2, weights, wgradients, lgradients->tmp,
                     wlen, &l1_loss, &l2_loss, 0, use_weight_decay,
                     mopts.acceleration
                 );
@@ -3356,20 +3359,19 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
                 }
             }
             if (batch_size > 1) PSDivideVectorScalar(
-                lgradients->weights, (PSFloat) batch_size, lgradients->weights,
-                lgradients->weight_count, &mopts
+                wgradients, (PSFloat) batch_size, wgradients,
+                wlen, &mopts
             );
             if (apply_clip) {
                 PSVectorClip(
-                    lgradients->weights, clip_min, clip_max,lgradients->weights,
-                    lgradients->weight_count, &mopts
+                    wgradients, clip_min, clip_max, wgradients,
+                    wlen, &mopts
                 );
             }
             int ok = applyGradientsOnWeights(
                 opts, lgradients, weights, mgradients, xgradients,
                 wgrad_offset, wlen, rate, iteration, mopts.acceleration
             );
-            wgrad_offset += wlen;
             if (!ok) {
                 PSErr(
                     __func__, "Layer[%d]: failed to update weights[%d]",
@@ -3378,6 +3380,7 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
                 network->status = STATUS_ERROR;
                 goto final;
             }
+            wgrad_offset += wlen;
         }
     }
 final:
@@ -3911,7 +3914,8 @@ void PSTrain(PSNeuralNetwork *network,
         }
     }
     time(&end_t);
-    PSLog(PSLOGLEVEL_SUCCESS, "Completed in %ld sec.\n", end_t - start_t);
+    fflush(stdout);
+    PSLog(PSLOGLEVEL_SUCCESS, "\nCompleted in %ld sec.\n", end_t - start_t);
     network->training->ended_at = end_t;
     if (network->status == STATUS_TRAINING) network->status = STATUS_TRAINED;
 }

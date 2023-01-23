@@ -660,9 +660,11 @@ int PSDumpGradients(PSNeuralNetwork *network, PSGradient **gradients,
         }
         if (network->training != NULL) {
             int epoch = network->training->current_epoch,
-                batch = network->training->current_batch;
+                batch = network->training->current_batch,
+                elem  = network->training->current_element;
             len += snprintf(
-                p, maxlen, "psyc-gradients-%s-%d-%d.dump", name, epoch, batch
+                p, maxlen, "psyc-gradients-%s-%d-%d-%d.dump",
+                name, epoch, batch, elem
             );
         } else len += snprintf(p, maxlen, "psyc-gradients-%s.dump", name);
         filename = default_filename;
