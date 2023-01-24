@@ -3205,38 +3205,25 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
     }
     UNUSED(elements_count); /* TODO: remove elements_count arg if not needed */
     PSOptimization optimization = PSDefaultOptimization;
-    int use_weight_decay = 0;
+    int use_weight_decay = 0, divide_grads_by_batches = 0;
     if (opts != NULL) {
-        /* If weight decay is enabled (TRAINING_WEIGHT_DECAY flag), l2_decay
-         * will be used to directly update weights and not gradients.
-         * Furthermore, l1_loss and l2_loss won't be computed nor used in
-         * loss calculation.
-         * If disabled (default), L1/L2 regularization will be used so l2_decay
-         * and l1_decaywill be applied on gradients and L1/L2 loss will be
-         * computed and taken into account by final loss. */
-        if (opts->l2_decay != 0.0) {
-            use_weight_decay = (opts->flags & TRAINING_WEIGHT_DECAY);
-            if (use_weight_decay) {
-                l2 = opts->l2_decay / batch_size;
-                l2 = (1 - (rate * l2));
-            } else l2 = opts->l2_decay;
-        }
-        if (opts->l1_decay != 0.0) {
-            if (opts->l2_decay == 0.0)
-                use_weight_decay = (opts->flags & TRAINING_WEIGHT_DECAY);
-            if (use_weight_decay) {
-                l1 = opts->l1_decay / batch_size;
-                l1 = (1 - (rate * l1));
-            } else l1 = opts->l1_decay;
-        }
-        momentum = opts->momentum;
         optimization = opts->optimization;
+        if (optimization == NULL) optimization = PSDefaultOptimization;
+        divide_grads_by_batches =  (
+            optimization == PSAdaDeltaOptimization ||
+            optimization == PSWindowGradOptimization ||
+            optimization == PSAdaGradOptimization ||
+            optimization == PSAdamOptimization
+        );
+        use_weight_decay = (opts->flags & TRAINING_WEIGHT_DECAY);
+        l1 = opts->l1_decay;
+        l2 = opts->l2_decay;
+        momentum = opts->momentum;
         if ((apply_clip = (opts->clip != 0.0))) {
             clip_max = PSAbs(opts->clip);
             clip_min = clip_max * -1;
         }
     }
-    if (optimization == NULL) optimization = PSDefaultOptimization;
     int apply_momentum = (momentum > 0.0);
     int use_optimization = (optimization != PSDefaultOptimization);
     if (apply_momentum || use_optimization) {
@@ -3252,6 +3239,23 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
                 goto final;
             }
         }
+    }
+    if (!divide_grads_by_batches) rate /= batch_size;
+    else divide_grads_by_batches = (batch_size > 1);
+    /* If weight decay is enabled (TRAINING_WEIGHT_DECAY flag), l2_decay
+     * will be used to directly update weights and not gradients.
+     * Furthermore, l1_loss and l2_loss won't be computed nor used in
+     * loss calculation.
+     * If disabled (default), L1/L2 regularization will be used so l2_decay
+     * and l1_decaywill be applied on gradients and L1/L2 loss will be
+     * computed and taken into account by final loss. */
+    if (l2 != 0.0 && use_weight_decay) {
+        if (divide_grads_by_batches) l2 = opts->l2_decay / batch_size;
+        l2 = (1 - (rate * l2));
+    }
+    if (l1 != 0.0 && use_weight_decay) {
+        if (divide_grads_by_batches) l1 = opts->l1_decay / batch_size;
+        l1 = (1 - (rate * l1));
     }
 
     /* Iterate elements of the batch and, for each element, get gradients
@@ -3307,7 +3311,7 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
         PSLayer *layer = network->layers[i + 1];
         /* Update Biases */
         if (!(layer->flags & FLAG_NO_BIAS)) {
-            if (batch_size > 1) PSDivideVectorScalar(
+            if (divide_grads_by_batches) PSDivideVectorScalar(
                 lgradients->biases, (PSFloat) batch_size, lgradients->biases,
                 lgradients->bias_count, &mopts
             );
@@ -3358,7 +3362,7 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
                     goto final;
                 }
             }
-            if (batch_size > 1) PSDivideVectorScalar(
+            if (divide_grads_by_batches) PSDivideVectorScalar(
                 wgradients, (PSFloat) batch_size, wgradients,
                 wlen, &mopts
             );

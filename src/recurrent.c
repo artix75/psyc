@@ -207,6 +207,7 @@ forward_previous_step:
     dpopt.tmpdest = hidden_values;
     dpopt.store_mode = MATHS_STORE_MODE_ADD;
     dpopt.after = layer->activate;
+    if (use_bias) dpopt.add_vec = layer->biases;
     PSDot(hidden_weights, prev_states, outputs, &dpopt);
 final:
     if (PSShouldApplyDropout(layer) && !applyLayerDroput(layer, t)) return 0;
@@ -237,7 +238,7 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previous_layer,
     uint64_t input_weight_size = PSMatrixLength(layer->weights[0]);
     PSMathOpts mopts = {.acceleration = layer->network->acceleration};
     PSMatrix hidden_weights = layer->weights[1];
-    PSMatrix t_hidden_weights = PSMatrixTranspose(hidden_weights, 1, &mopts);
+    PSMatrix tr_hidden_weights = PSMatrixTranspose(hidden_weights, 1, &mopts);
     PSMatrix tweights = PSMatrixTranspose(layer->weights[0], 1, &mopts);
     PSFloat *gradient_hidden_weights = gradients->weights + input_weight_size;
     /* Cycle over previous time steps until lowest step (`lowest_t`) defined
@@ -289,22 +290,22 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previous_layer,
             /* Eventually update new delta. */
             if (update_delta) {
                 mopts.store_mode = MATHS_STORE_MODE_ADD;
-                int ok = PSDot(t_hidden_weights, delta, new_delta, &mopts);
+                int ok = PSDot(tr_hidden_weights, delta, new_delta, &mopts);
                 if (!ok) {
                     free(new_delta);
                     return 0;
                 }
             }
-        }
-        if (do_truncate && update_delta && layer->derivative != NULL) {
-            /* If BPTT is truncated, new_delta won't be cumulated to
-             * delta calculated from next layer in next `t` iteration,
-             * while it's used to update gradients during truncated
-             * timesteps tieration.
-             * So, derivative must be applied here. */
-            for (i = 0; i < lsize; i++) {
-                PSFloat prev_a = PSGetState(layer, i, prev_t);
-                new_delta[i] *= layer->derivative(prev_a);
+            if (do_truncate && update_delta && layer->derivative != NULL) {
+                /* If BPTT is truncated, new_delta won't be cumulated to
+                 * delta calculated from next layer in next `t` iteration,
+                 * while it's used to update gradients during truncated
+                 * timesteps tieration.
+                 * So, derivative must be applied here. */
+                for (i = 0; i < lsize; i++) {
+                    PSFloat prev_a = PSGetState(layer, i, prev_t);
+                    new_delta[i] *= layer->derivative(prev_a);
+                }
             }
         }
         if (new_delta != NULL) {
