@@ -683,6 +683,15 @@ final:
     return transposed;
 }
 
+void PSMatrixResetTransposed(PSMatrix matrix) {
+    if (matrix == NULL) return;
+    PSMatrixHeader *hdr = PSMatrixGetHeader(matrix);
+    if (hdr->transposed != NULL) {
+        PSMatrixDelete(hdr->transposed);
+        hdr->transposed = NULL;
+    }
+}
+
 void PSMatrixDelete(PSMatrix matrix) {
     if (matrix == NULL) return;
     void *ptr = (void *) getMatrixHeadPointer(matrix);

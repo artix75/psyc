@@ -95,6 +95,7 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result);
 int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result);
 int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result);
 PSMatrix PSMatrixTranspose(PSMatrix matrix, int rebuild, PSMathOpts *opts);
+void PSMatrixResetTransposed(PSMatrix matrix);
 PSMatrix PSMatrixDup(PSMatrix matrix);
 int PSMatrixCopy(PSMatrix src, PSMatrix dst);
 void PSMatrixDelete(PSMatrix matrix);

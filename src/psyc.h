@@ -273,6 +273,7 @@ int PSFeedforward(PSNeuralNetwork *network, PSFloat *values);
 int PSClassify(PSNeuralNetwork *network, PSFloat *values);
 int PSFindLayerMaxState(PSLayer *layer, PSFloat *max_p, int *index_p,...);
 
+void PSResetTransposedWeights(PSNeuralNetwork *network);
 void PSDeleteNetwork(PSNeuralNetwork *network);
 void PSDeleteLayer(PSLayer *layer);
 void PSDeleteNeuron(PSNeuron *neuron);

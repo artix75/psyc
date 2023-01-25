@@ -238,8 +238,8 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previous_layer,
     uint64_t input_weight_size = PSMatrixLength(layer->weights[0]);
     PSMathOpts mopts = {.acceleration = layer->network->acceleration};
     PSMatrix hidden_weights = layer->weights[1];
-    PSMatrix tr_hidden_weights = PSMatrixTranspose(hidden_weights, 1, &mopts);
-    PSMatrix tweights = PSMatrixTranspose(layer->weights[0], 1, &mopts);
+    PSMatrix tr_hidden_weights = PSMatrixTranspose(hidden_weights, 0, &mopts);
+    PSMatrix tr_weights = PSMatrixTranspose(layer->weights[0], 0, &mopts);
     PSFloat *gradient_hidden_weights = gradients->weights + input_weight_size;
     /* Cycle over previous time steps until lowest step (`lowest_t`) defined
      * by the window of BPTT_TRUNCATE. */
@@ -317,7 +317,7 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previous_layer,
         if (is_lowest && prev_layer_delta != NULL) {
             /* TODO: Reimplement dropout*/
             mopts.store_mode = MATHS_STORE_MODE_NORM;
-            int ok = PSDot(tweights, delta, previous_layer->delta, &mopts);
+            int ok = PSDot(tr_weights, delta, previous_layer->delta, &mopts);
             if (!ok) {
                 PSErr(NULL, "Layer[%d]: failed backprop (PSDot)", layer->index);
                 return 0;

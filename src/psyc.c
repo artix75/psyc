@@ -2544,6 +2544,20 @@ static void resetDeltas(PSNeuralNetwork *network) {
     }
 }
 
+void PSResetTransposedWeights(PSNeuralNetwork *network) {
+    if (network == NULL || network->layers == NULL) return;
+    int i, j;
+    for (i = 0; i < network->size; i++) {
+        PSLayer *layer = network->layers[i];
+        if (layer == NULL) continue;
+        if (layer->weights == NULL) continue;
+        for (j = 0; j < layer->weight_types_count; j++) {
+            PSMatrix weights = layer->weights[j];
+            PSMatrixResetTransposed(weights);
+        }
+    }
+}
+
 static PSTrainingContext *getTrainingContext(PSNeuralNetwork *network) {
     PSNetworkContext *ctx = getNetworkContext(network);
     if (ctx == NULL) return NULL;
@@ -2681,7 +2695,7 @@ int softmaxLayerBackprop(PSLayer *layer, PSLayer *previous_layer, PSFloat *y,
             PSErr(NULL, "Layer[%d] NULL weights", layer->index);
             return 0;
         }
-        PSMatrix tweights = PSMatrixTranspose(layer->weights[0], 1, &mopts);
+        PSMatrix tweights = PSMatrixTranspose(layer->weights[0], 0, &mopts);
         int ok = PSDot(tweights, delta, previous_layer->delta, &mopts);
         if (!ok) {
             PSErr(NULL, "Layer[%d]: failed backprop (PSDot)", layer->index);
@@ -2761,7 +2775,7 @@ int outputLayerBackprop(PSLayer *layer, PSLayer *previous_layer,
             PSErr(NULL, "Layer[%d] NULL weights", layer->index);
             return 0;
         }
-        PSMatrix tweights = PSMatrixTranspose(layer->weights[0], 1, &mopts);
+        PSMatrix tweights = PSMatrixTranspose(layer->weights[0], 0, &mopts);
         int ok = PSDot(tweights, delta, previous_layer->delta, &mopts);
         if (!ok) {
             PSErr(NULL, "Layer[%d]: failed backprop (PSDot)", layer->index);
@@ -2828,7 +2842,7 @@ int fullBackprop(PSLayer *layer, PSLayer *previous_layer,
             PSErr(NULL, "Layer[%d] NULL weights", layer->index);
             return 0;
         }
-        PSMatrix tweights = PSMatrixTranspose(layer->weights[0], 1, &mopts);
+        PSMatrix tweights = PSMatrixTranspose(layer->weights[0], 0, &mopts);
         int ok = PSDot(tweights, delta, previous_layer->delta, &mopts);
         if (!ok) {
             PSErr(NULL, "Layer[%d]: failed backprop (PSDot)", layer->index);
@@ -3295,6 +3309,7 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
         }
         if (PSDumpGradientsPath != NULL)
             PSDumpGradients(network, gradients, NULL, opts);
+        PSResetTransposedWeights(network);
         if (network->status == STATUS_PAUSED) break;
     }
 
