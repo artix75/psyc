@@ -3170,6 +3170,49 @@ int applyGradientsOnParameters(
     );
 }
 
+int sumGradients(PSGradient **dstgrads, PSGradient **srcgrads, int count,
+                 PSMathOpts *mopts)
+{
+    for (int i = 0; i < count; i++) {
+        PSGradient *src = srcgrads[i];
+        PSGradient *dst = dstgrads[i];
+        if (src == NULL) continue;
+        if (src->bias_count > 0 && src->biases != NULL) {
+            if (dst->biases == NULL || dst->bias_count != src->bias_count) {
+                PSErr(NULL, "Cannot sum gradients: destination and source "
+                      "biases mismatch");
+                return 0;
+            }
+            PSSumVectors(src->biases, dst->biases, dst->biases, src->bias_count,
+                         mopts);
+        }
+        if (src->weight_count > 0 && src->weights != NULL) {
+            if (dst->weights == NULL || dst->weight_count != src->weight_count)
+            {
+                PSErr(NULL, "Cannot sum gradients: destination and source "
+                      "weights mismatch");
+                return 0;
+            }
+            PSSumVectors(src->weights, dst->weights, dst->weights,
+                         src->weight_count, mopts);
+        }
+    }
+    return 1;
+}
+
+void clipGradients(PSGradient **grads, PSFloat min, PSFloat max, int count,
+                   PSMathOpts *mopts)
+{
+    for (int i = 0; i < count; i++) {
+        PSGradient *g = grads[i];
+        if (g == NULL) continue;
+        if (g->bias_count > 0 && g->biases != NULL)
+            PSVectorClip(g->biases, min, max, g->biases, g->bias_count, mopts);
+        if (g->weight_count > 0 && g->weights != NULL)
+            PSVectorClip(g->weights,min,max,g->weights,g->weight_count,mopts);
+    }
+}
+
 /* Iterate over a single batch of training elements (`training_data`) and
  * obtain  batch's gradients by back-propagation on each element of the batch
  * itself (by calling the `backprop` function).
@@ -3272,6 +3315,9 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
         l1 = (1 - (rate * l1));
     }
 
+    PSMathOpts mopts = {.acceleration = network->acceleration};
+    PSGradient **bp_dest_gradients = gradients;
+    if (apply_clip) bp_dest_gradients = NULL;
     /* Iterate elements of the batch and, for each element, get gradients
      * from the backpropagation of the error. Then, sum the backpropagation
      * gradients to the batch's gradients. */
@@ -3302,10 +3348,18 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
                 y = x + 1 + (timesteps * training_data_size);
             } else y = x + training_data_size;
         }
-        bp_gradients = backprop(network, x, y, opts, gradients);
+        bp_gradients = backprop(network, x, y, opts, bp_dest_gradients);
         if (bp_gradients == NULL) {
             network->status = STATUS_ERROR;
             goto final;
+        }
+        if (apply_clip) {
+            clipGradients(bp_gradients, clip_min, clip_max, gsize, &mopts);
+            int ok = sumGradients(gradients, bp_gradients, gsize, &mopts);
+            if (!ok) {
+                network->status = STATUS_ERROR;
+                goto final;
+            }
         }
         if (PSDumpGradientsPath != NULL)
             PSDumpGradients(network, gradients, NULL, opts);
@@ -3315,7 +3369,6 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
 
     /* Update network paramenters (biases, weights, etc.) by apply
      * batch gradients. */
-    PSMathOpts mopts = {.acceleration = network->acceleration};
     for (i = 0; i < gsize; i++) {
         /* Get layer gradients */
         PSGradient *lgradients = gradients[i], *mgradients = NULL,
@@ -3330,12 +3383,6 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
                 lgradients->biases, (PSFloat) batch_size, lgradients->biases,
                 lgradients->bias_count, &mopts
             );
-            if (apply_clip) {
-                PSVectorClip(
-                    lgradients->biases, clip_min, clip_max, lgradients->biases,
-                    lgradients->bias_count, &mopts
-                );
-            }
             int ok = applyGradientsOnBiases(
                 opts, lgradients, layer->biases, mgradients, xgradients,
                 lgradients->bias_count, rate, iteration, mopts.acceleration
@@ -3381,12 +3428,6 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
                 wgradients, (PSFloat) batch_size, wgradients,
                 wlen, &mopts
             );
-            if (apply_clip) {
-                PSVectorClip(
-                    wgradients, clip_min, clip_max, wgradients,
-                    wlen, &mopts
-                );
-            }
             int ok = applyGradientsOnWeights(
                 opts, lgradients, weights, mgradients, xgradients,
                 wgrad_offset, wlen, rate, iteration, mopts.acceleration
