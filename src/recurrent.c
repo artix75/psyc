@@ -29,6 +29,7 @@
 #include "log.h"
 
 #define RNN_WEIGHT_TYPES_COUNT 2
+#define RNN_INIT_SCALE 0.01
 #define UNUSED(V) ((void) V)
 
 /* Forward declaration. */
@@ -69,10 +70,14 @@ int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
     if (layer->states == NULL) goto memerr;
     layer->weights = calloc(RNN_WEIGHT_TYPES_COUNT, sizeof(PSMatrix));
     if (layer->weights == NULL) goto memerr;
-    layer->weights[0] = PSMatrixWithGaussianRandom(1, 2, size, ws);
+    layer->weights[0] = PSMatrixWithGaussianRandom(
+        RNN_INIT_SCALE, 2, size, ws
+    );
     if (layer->weights[0] == NULL) goto memerr;
     layer->weight_types_count = 1;
-    layer->weights[1] = PSMatrixWithGaussianRandom(1, 2, size, size);
+    layer->weights[1] = PSMatrixWithGaussianRandom(
+        RNN_INIT_SCALE, 2, size, size
+    );
     if (layer->weights[1] == NULL) goto memerr;
     layer->weight_types_count = 2;
     layer->biases = malloc(size * sizeof(PSFloat));
@@ -84,7 +89,7 @@ int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
         PSNeuron *neuron = malloc(sizeof(PSNeuron));
         if (neuron == NULL) goto memerr;
         neuron->index = i;
-        layer->biases[i] = PSGaussianRandom(0, 1);
+        layer->biases[i] = 0.0; /* PSGaussianRandom(0, 1); */
         neuron->weights = weights + (i * ws);
         neuron->z_value = 0;
         layer->neurons[i] = neuron;
