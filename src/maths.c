@@ -663,6 +663,8 @@ PSMatrix PSMatrixTranspose(PSMatrix matrix, int rebuild, PSMathOpts *opts) {
             VDSPMTransp(matrix, transposed, dims[1], dims[0]);
             goto final;
         }
+#else
+        UNUSED(acceleration);
 #endif
         ncols = dims[1];
         t_ncols = dims[0];
@@ -1040,8 +1042,7 @@ void PSVectorTanh(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
         VVTanh(a, dest, length);
         return;
     }
-#endif
-#if defined(USE_AVX)
+#else
     UNUSED(acceleration);
 #endif
     /* No Acceleration */
@@ -1066,8 +1067,7 @@ void PSVectorExp(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
         VVExp(a, dest, length);
         return;
     }
-#endif
-#if defined(USE_AVX)
+#else
     UNUSED(acceleration);
 #endif
     /* No Acceleration */
@@ -1092,8 +1092,7 @@ void PSVectorSqrt(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
         VVSqrt(a, dest, length);
         return;
     }
-#endif
-#if defined(USE_AVX)
+#else
     UNUSED(acceleration);
 #endif
     /* No Acceleration */
@@ -1258,6 +1257,8 @@ PSFloat PSVectorMax(PSFloat *a, uint64_t *index, uint64_t length,
         else VDSPMaxIdx(a, max, (unsigned long*) index, length);
         return max;
     }
+#else
+    UNUSED(acceleration);
 #endif
     uint64_t i;
     if (index != NULL) *index = 0;
@@ -1280,6 +1281,8 @@ PSFloat PSSumVectorElements(PSFloat *a, uint64_t length, PSMathOpts *opts) {
         VDSPSumElems(a, sum, length);
         return sum;
     }
+#else
+    UNUSED(acceleration);
 #endif
     uint64_t i;
     for (i = 0; i < length; i++) sum += a[i];
@@ -1411,6 +1414,9 @@ int PSDot(PSMatrix matrix, PSFloat *vector, PSFloat *dest, PSMathOpts *opts) {
         if (do_free_dpdest) free(dpdest);
         return 1;
     }
+#else
+    UNUSED(tmpdest);
+    UNUSED(acceleration);
 #endif
     PSFloat *mptr = matrix;
     for (i = 0; i < rows; i++) {
@@ -1499,6 +1505,9 @@ acceleration_done:
     }
     if (do_free_vpdest) free(vpdest);
     return 1;
+#else
+    UNUSED(tmpdest);
+    UNUSED(acceleration);
 #endif
 no_acceleration:
     for (i = 0; i < alen; i++) {
