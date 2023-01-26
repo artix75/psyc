@@ -24,7 +24,7 @@
 #define PS_LSTM_INPUT_IDX       1
 #define PS_LSTM_OUTPUT_IDX      2
 #define PS_LSTM_FORGET_IDX      3
-#define PS_LSTM_ZVAL_IDX        4
+#define PS_LSTM_RAWSTATE_IDX    4
 
 #define PSGetLSTMGradientBiases(n, gradient) (gradient->weights +\
  n->weights_size)
@@ -46,16 +46,16 @@ typedef struct {
     PSMatrix output_hidden_weights;
     PSMatrix forget_hidden_weights;
 
-    PSFloat *z_values;
+    PSFloat *raw_states;
     PSFloat *candidates;
     PSFloat *input_gates;
     PSFloat *output_gates;
     PSFloat *forget_gates;
-    PSFloat *previous_z_values;
-    PSFloat *previous_candidates;   /* TODO: Probabily not needed */
-    PSFloat *previous_input_gates;  /* TODO: Probabily not needed */
-    PSFloat *previous_output_gates; /* TODO: Probabily not needed */
-    PSFloat *previous_forget_gates; /* TODO: Probabily not needed */
+    PSFloat *initial_raw_states;
+    PSFloat *initial_candidates;   /* TODO: Probabily not needed */
+    PSFloat *initial_input_gates;  /* TODO: Probabily not needed */
+    PSFloat *initial_output_gates; /* TODO: Probabily not needed */
+    PSFloat *initial_forget_gates; /* TODO: Probabily not needed */
 } PSLSTMCell;
 
 PSLSTMCell *PSCreateLSTMCell(PSLayer *layer);

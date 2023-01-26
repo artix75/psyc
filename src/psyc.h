@@ -188,7 +188,6 @@ typedef struct PSNeuron {
     int             index;
     PSFloat         *bias;
     PSFloat         *weights;
-    PSFloat         z_value;
     void            *extra;
     struct PSLayer  *layer;
 } PSNeuron;

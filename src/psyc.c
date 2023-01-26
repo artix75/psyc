@@ -1595,9 +1595,7 @@ PSNeuralNetwork *PSCloneNetwork(PSNeuralNetwork *network, int layout_only) {
                 if (!layer->on_copy(cloned_layer, layer)) goto err;
             } else {
                 for (j = 0; j < layer->size; j++) {
-                    PSNeuron *orig_n = layer->neurons[j];
                     PSNeuron *clone_n = cloned_layer->neurons[j];
-                    clone_n->z_value = orig_n->z_value;
                     /* if (Pooling == type) continue; */
                     if (cloned_layer->biases != NULL) {
                         clone_n->bias = cloned_layer->biases + j;
@@ -1921,7 +1919,6 @@ int initGenericLayer(PSLayer *layer, int size, int previous_size) {
             neuron->bias = NULL;
             neuron->weights = NULL;
         }
-        neuron->z_value = 0;
         neuron->layer = layer;
         layer->neurons[i] = neuron;
     }

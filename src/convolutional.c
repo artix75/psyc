@@ -473,10 +473,10 @@ int PSConvolve(PSNeuralNetwork *net, PSLayer *layer, ...) {
                 }
                 /* weights += (int) region_area; */
             }
-            neuron->z_value = sum + bias;
-            PSFloat s = layer->activate(neuron->z_value);
-            if (apply_dropout) s = applyDropout(neuron, s);
-            int ok = PSSetState(layer, s, idx, t);
+            PSFloat state = sum + bias;
+            state = layer->activate(state);
+            if (apply_dropout) state = applyDropout(neuron, state);
+            int ok = PSSetState(layer, state, idx, t);
             if (!ok) {
                 PSErr(
                     NULL, "Failed to set state on layer %d, neuron %d",
@@ -547,24 +547,18 @@ int PSPool(PSNeuralNetwork *net, PSLayer *layer, ...) {
             int r_col = col * settings->filter_width;
             int max_x = settings->filter_width + r_col;
             int max_y = settings->filter_height + r_row;
-            PSFloat max = 0.0, max_z = 0.0;
+            PSFloat max = 0.0;
             for (y = r_row; y < max_y; y++) {
                 for (x = r_col; x < max_x; x++) {
                     int nidx = ((y * input_w) + x) + (prev_size *i);
-                    PSNeuron *prev_neuron = previous->neurons[nidx];
                     PSFloat a = PSGetState(previous, nidx, t);
-                    PSFloat z = prev_neuron->z_value;
-                    if (a > max) {
-                        max = a;
-                        max_z = z;
-                    }
+                    if (a > max) max = a;
                     if (do_dump) DumpPoolStep(
                         col, row, r_col, r_row, max_x, max_y, previous,
                         i, nidx, x, y
                     );
                 }
             }
-            neuron->z_value = max_z;
             int ok = PSSetState(layer, max, idx, t);
             if (!ok) {
                 PSErr(

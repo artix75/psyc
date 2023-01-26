@@ -32,7 +32,7 @@
 #define INPUT_IDX       PS_LSTM_INPUT_IDX
 #define OUTPUT_IDX      PS_LSTM_OUTPUT_IDX
 #define FORGET_IDX      PS_LSTM_FORGET_IDX
-#define Z_VAL_IDX       PS_LSTM_ZVAL_IDX
+#define RAW_STATE_IDX  PS_LSTM_RAWSTATE_IDX
 
 #define LSTM_WEIGHT_TYPES_COUNT (4 * 2)
 
@@ -49,19 +49,19 @@
 #define getInputGate(layer, i, t) (getLSTMState(layer, i, t, INPUT_IDX))
 #define getOutputGate(layer, i, t) (getLSTMState(layer, i, t, OUTPUT_IDX))
 #define getForgetGate(layer, i, t) (getLSTMState(layer, i, t, FORGET_IDX))
-#define getZValue(layer, i, t) (getLSTMState(layer, i, t, Z_VAL_IDX))
+#define getRawState(layer, i, t) (getLSTMState(layer, i, t, RAW_STATE_IDX))
 
 #define getCandidates(layer, t) (PSGetLSTMStates(layer, t, CANDIDATE_IDX))
 #define getInputGates(layer, t) (PSGetLSTMStates(layer, t, INPUT_IDX))
 #define getOutputGates(layer, t) (PSGetLSTMStates(layer, t, OUTPUT_IDX))
 #define getForgetGates(layer, t) (PSGetLSTMStates(layer, t, FORGET_IDX))
-#define getZValues(layer, t) (PSGetLSTMStates(layer, t, Z_VAL_IDX))
+#define getRawStates(layer, t) (PSGetLSTMStates(layer, t, RAW_STATE_IDX))
 
 #define setCandidate(layer, i, s, t) (setLSTMState(layer,i,s,t,CANDIDATE_IDX))
 #define setInputGate(layer, i, s, t) (setLSTMState(layer, i, s, t, INPUT_IDX))
 #define setOutputGate(layer, i, s, t) (setLSTMState(layer, i, s, t, OUTPUT_IDX))
 #define setForgetGate(layer, i, s, t) (setLSTMState(layer, i, s, t, FORGET_IDX))
-#define setZValue(layer, i, s, t) (setLSTMState(layer, i, s, t, Z_VAL_IDX))
+#define setZValue(layer, i, s, t) (setLSTMState(layer, i, s, t, RAW_STATE_IDX))
 
 #define UNUSED(V) ((void) V)
 
@@ -139,7 +139,7 @@ int PSInitLSTMStates(PSLayer *layer, uint32_t steps, int retain_previous) {
     }
     PSFloat *candidates = initRecurrentStates(
         layer, steps, retain_previous, cell->candidates,
-        &cell->previous_candidates
+        &cell->initial_candidates
     );
     if (candidates == NULL) return 0;
     if (cell->candidates != NULL) free(cell->candidates);
@@ -147,7 +147,7 @@ int PSInitLSTMStates(PSLayer *layer, uint32_t steps, int retain_previous) {
 
     PSFloat *input_gates = initRecurrentStates(
         layer, steps, retain_previous, cell->input_gates,
-        &cell->previous_input_gates
+        &cell->initial_input_gates
     );
     if (input_gates == NULL) return 0;
     if (cell->input_gates != NULL) free(cell->input_gates);
@@ -155,7 +155,7 @@ int PSInitLSTMStates(PSLayer *layer, uint32_t steps, int retain_previous) {
 
     PSFloat *output_gates = initRecurrentStates(
         layer, steps, retain_previous, cell->output_gates,
-        &cell->previous_output_gates
+        &cell->initial_output_gates
     );
     if (output_gates == NULL) return 0;
     if (cell->output_gates != NULL) free(cell->output_gates);
@@ -163,19 +163,19 @@ int PSInitLSTMStates(PSLayer *layer, uint32_t steps, int retain_previous) {
 
     PSFloat *forget_gates = initRecurrentStates(
         layer, steps, retain_previous, cell->forget_gates,
-        &cell->previous_forget_gates
+        &cell->initial_forget_gates
     );
     if (forget_gates == NULL) return 0;
     if (cell->forget_gates != NULL) free(cell->forget_gates);
     cell->forget_gates = forget_gates;
 
-    PSFloat *z_values = initRecurrentStates(
-        layer, steps, retain_previous, cell->z_values,
-        &cell->previous_z_values
+    PSFloat *raw_states = initRecurrentStates(
+        layer, steps, retain_previous, cell->raw_states,
+        &cell->initial_raw_states
     );
-    if (z_values == NULL) return 0;
-    if (cell->z_values != NULL) free(cell->z_values);
-    cell->z_values = z_values;
+    if (raw_states == NULL) return 0;
+    if (cell->raw_states != NULL) free(cell->raw_states);
+    cell->raw_states = raw_states;
     return 1;
 }
 
@@ -187,64 +187,64 @@ int PSResizeLSTMStates(PSLayer *layer, uint32_t steps) {
     }
 
     PSFloat *candidates = resizeRecurrentStates(
-        layer, steps, cell->candidates, &cell->previous_candidates
+        layer, steps, cell->candidates, &cell->initial_candidates
     );
     if (candidates == NULL) {
         free(cell->candidates);
         cell->candidates = NULL;
-        cell->previous_candidates = NULL;
+        cell->initial_candidates = NULL;
         layer->network->status = STATUS_ERROR;
         return 0;
     }
     cell->candidates = candidates;
 
     PSFloat *input_gates = resizeRecurrentStates(
-        layer, steps, cell->input_gates, &cell->previous_input_gates
+        layer, steps, cell->input_gates, &cell->initial_input_gates
     );
     if (input_gates == NULL) {
         free(cell->input_gates);
         cell->input_gates = NULL;
-        cell->previous_input_gates = NULL;
+        cell->initial_input_gates = NULL;
         layer->network->status = STATUS_ERROR;
         return 0;
     }
     cell->input_gates = input_gates;
 
     PSFloat *output_gates = resizeRecurrentStates(
-        layer, steps, cell->output_gates, &cell->previous_output_gates
+        layer, steps, cell->output_gates, &cell->initial_output_gates
     );
     if (output_gates == NULL) {
         free(cell->output_gates);
         cell->output_gates = NULL;
-        cell->previous_output_gates = NULL;
+        cell->initial_output_gates = NULL;
         layer->network->status = STATUS_ERROR;
         return 0;
     }
     cell->output_gates = output_gates;
 
     PSFloat *forget_gates = resizeRecurrentStates(
-        layer, steps, cell->forget_gates, &cell->previous_forget_gates
+        layer, steps, cell->forget_gates, &cell->initial_forget_gates
     );
     if (forget_gates == NULL) {
         free(cell->forget_gates);
         cell->forget_gates = NULL;
-        cell->previous_forget_gates = NULL;
+        cell->initial_forget_gates = NULL;
         layer->network->status = STATUS_ERROR;
         return 0;
     }
     cell->forget_gates = forget_gates;
 
-    PSFloat *z_values = resizeRecurrentStates(
-        layer, steps, cell->z_values, &cell->previous_z_values
+    PSFloat *raw_states = resizeRecurrentStates(
+        layer, steps, cell->raw_states, &cell->initial_raw_states
     );
-    if (z_values == NULL) {
-        free(cell->z_values);
-        cell->z_values = NULL;
-        cell->previous_z_values = NULL;
+    if (raw_states == NULL) {
+        free(cell->raw_states);
+        cell->raw_states = NULL;
+        cell->initial_raw_states = NULL;
         layer->network->status = STATUS_ERROR;
         return 0;
     }
-    cell->z_values = z_values;
+    cell->raw_states = raw_states;
 
     return 1;
 }
@@ -258,19 +258,19 @@ static int getLSTMStatePointers(PSLSTMCell *cell, int type,
     }
     if (type == CANDIDATE_IDX) {
         *state_ptr = cell->candidates;
-        *previous_ptr = cell->previous_candidates;
+        *previous_ptr = cell->initial_candidates;
     } else if (type == INPUT_IDX) {
         *state_ptr = cell->input_gates;
-        *previous_ptr = cell->previous_input_gates;
+        *previous_ptr = cell->initial_input_gates;
     } else if (type == OUTPUT_IDX) {
         *state_ptr = cell->output_gates;
-        *previous_ptr = cell->previous_output_gates;
+        *previous_ptr = cell->initial_output_gates;
     } else if (type == FORGET_IDX) {
         *state_ptr = cell->forget_gates;
-        *previous_ptr = cell->previous_forget_gates;
-    } else if (type == Z_VAL_IDX) {
-        *state_ptr = cell->z_values;
-        *previous_ptr = cell->previous_z_values;
+        *previous_ptr = cell->initial_forget_gates;
+    } else if (type == RAW_STATE_IDX) {
+        *state_ptr = cell->raw_states;
+        *previous_ptr = cell->initial_raw_states;
     } else {
         PSErr(NULL, "Invalid LSTM state type %d", type);
         *state_ptr = NULL;
@@ -414,7 +414,7 @@ memerr:
 
 void PSDeleteLSTMCell(PSLSTMCell *cell) {
     if (cell->previous_step_delta != NULL) free(cell->previous_step_delta);
-    if (cell->z_values != NULL) free(cell->z_values);
+    if (cell->raw_states != NULL) free(cell->raw_states);
     if (cell->candidates != NULL) free(cell->candidates);
     if (cell->input_gates != NULL) free(cell->input_gates);
     if (cell->output_gates != NULL) free(cell->output_gates);
@@ -445,7 +445,7 @@ int PSLSTMLayerCopy(PSLayer *layer, PSLayer *src) {
     }
     if (srccell->candidates != NULL && src->recurrent_states_count > 0) {
         if (srccell->input_gates == NULL || srccell->output_gates == NULL ||
-            srccell->forget_gates == NULL || srccell->z_values == NULL)
+            srccell->forget_gates == NULL || srccell->raw_states == NULL)
         {
             PSErr(NULL, "Layer[%d]: incomplete states", src->index);
             return 0;
@@ -467,9 +467,9 @@ int PSLSTMLayerCopy(PSLayer *layer, PSLayer *src) {
             cell->forget_gates = malloc(states_size);
         if (cell->forget_gates == NULL) goto memerr;
         memcpy(cell->forget_gates, srccell->forget_gates, states_size);
-        if (cell->z_values == NULL) cell->z_values = malloc(states_size);
-        if (cell->z_values == NULL) goto memerr;
-        memcpy(cell->z_values, srccell->z_values, states_size);
+        if (cell->raw_states == NULL) cell->raw_states = malloc(states_size);
+        if (cell->raw_states == NULL) goto memerr;
+        memcpy(cell->raw_states, srccell->raw_states, states_size);
     }
     return 1;
 memerr:
@@ -515,7 +515,6 @@ int PSInitLSTMLayer(PSNeuralNetwork *network, PSLayer *layer,
         neuron->index = i;
         neuron->bias = NULL;
         neuron->weights = NULL;
-        neuron->z_value = 0;
         layer->neurons[i] = neuron;
         neuron->extra = NULL;
         neuron->layer = layer;
@@ -590,9 +589,9 @@ int PSLSTMFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
     PSFloat *input_gates = getInputGates(layer, t);
     PSFloat *output_gates = getOutputGates(layer, t);
     PSFloat *forget_gates = getForgetGates(layer, t);
-    PSFloat *z_values = getZValues(layer, t);
+    PSFloat *raw_states = getRawStates(layer, t);
     if (candidates == NULL || input_gates == NULL || output_gates == NULL ||
-        forget_gates == NULL || z_values == NULL)
+        forget_gates == NULL || raw_states == NULL)
     {
         PSErr(NULL, "Layer[%d]: missing states");
         return 0;
@@ -664,7 +663,7 @@ forward_previous_step:
     if (!feed_previous_step) goto final;
     prev_states = PSGetStates(layer, prev_t);
     if (prev_states == NULL) goto final;
-    prev_z = getZValues(layer, prev_t);
+    prev_z = getRawStates(layer, prev_t);
     dpopt[CANDIDATE_IDX].store_mode =
     dpopt[INPUT_IDX].store_mode =
     dpopt[OUTPUT_IDX].store_mode =
@@ -678,18 +677,18 @@ forward_previous_step:
     PSDot(cell->forget_hidden_weights, prev_states, forget_gates,
           &dpopt[FORGET_IDX]);
 final:
-    PSMultiplyVectors(candidates, input_gates, z_values, lsize, &final_opts);
+    PSMultiplyVectors(candidates, input_gates, raw_states, lsize, &final_opts);
     if (prev_z != NULL) {
         final_opts.store_mode = MATHS_STORE_MODE_ADD;
-        PSMultiplyVectors(prev_z, forget_gates, z_values, lsize, &final_opts);
+        PSMultiplyVectors(prev_z, forget_gates, raw_states, lsize, &final_opts);
     }
     final_opts.store_mode = MATHS_STORE_MODE_NORM;
     if (layer->activate != NULL) {
         PSVecActivationFunction activate =
             PSGetVectorActivationFunc(layer->activate);
-        if (activate != NULL) activate(z_values, outputs, lsize, &final_opts);
+        if (activate != NULL) activate(raw_states, outputs, lsize, &final_opts);
         PSMultiplyVectors(outputs, output_gates, outputs, lsize, &final_opts);
-    } else PSMultiplyVectors(z_values,output_gates,outputs,lsize,&final_opts);
+    } else PSMultiplyVectors(raw_states,output_gates,outputs,lsize,&final_opts);
     if (PSShouldApplyDropout(layer) && !applyLayerDroput(layer, t)) return 0;
     return 1;
 }
@@ -751,8 +750,8 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previous_layer,
     for (i = 0; i < lsize; i++) {
         PSFloat dv = delta[i];
 
-        PSFloat z = getZValue(layer, i, t);
-        PSFloat prev_z = getZValue(layer, i, prev_t);
+        PSFloat z = getRawState(layer, i, t);
+        PSFloat prev_z = getRawState(layer, i, prev_t);
         PSFloat ig = getInputGate(layer, i, t);
         PSFloat og = getOutputGate(layer, i, t);
         PSFloat fg = getForgetGate(layer, i, t);

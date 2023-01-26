@@ -91,7 +91,6 @@ int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
         neuron->index = i;
         layer->biases[i] = 0.0; /* PSGaussianRandom(0, 1); */
         neuron->weights = weights + (i * ws);
-        neuron->z_value = 0;
         layer->neurons[i] = neuron;
         neuron->layer = layer;
     }
