@@ -707,7 +707,7 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previous_layer,
     va_start(args, lgradients);
     int t = va_arg(args, int);
     va_end(args);
-    /*PSMathOpts mopts = {.acceleration = layer->network->acceleration};*/
+    PSMathOpts mopts = {.acceleration = layer->network->acceleration};
     int onehot = previous_layer->flags & FLAG_ONEHOT;
     int lsize = layer->size, i, w, prev_t = t - 1, success = 1;
     int input_size = previous_layer->size;
@@ -808,42 +808,20 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previous_layer,
 
         if (t > 0 || layer->initial_states != NULL) {
             int w = 0;
-/*#ifdef USE_AVX
-            int i = 0, o = 0, f = 0;
-            if (!avx_disabled) {
-                PSFloat *rweights = gradient->weights + wsize;
-                PSFloat *act = layer->states;
-                int avx_t = prev_t;
-                if (avx_t < 0) {
-                    act = layer->initial_states;
-                    avx_t = 0;
-                }
-                AVXIterativeMultiplyValue(
-                    layer->size, act, dc, rweights, w, 1, avx_t,
-                    AVX_STORE_MODE_ADD
-                );
-                AVXIterativeMultiplyValue(
-                    layer->size, act, di, rweights + cwsize, i,
-                    1, avx_t, AVX_STORE_MODE_ADD
-                );
-                AVXIterativeMultiplyValue(
-                    layer->size, act, dout, rweights + (cwsize *OUTPUT_IDX),
-                    o, 1, avx_t, AVX_STORE_MODE_ADD
-                );
-                AVXIterativeMultiplyValue(
-                    layer->size, act, df, rweights + (cwsize *FORGET_IDX),
-                    f, 1, avx_t, AVX_STORE_MODE_ADD
-                );
-            }
-#endif*/ //DELME
-            for (w = 0; w < layer->size; w++) {
-                PSFloat a = PSGetState(layer, w, prev_t);
-                gradient_hweights_c[w] += (dc * a);
-                gradient_hweights_i[w] += (di * a);
-                gradient_hweights_o[w] += (dout * a);
-                gradient_hweights_f[w] += (df * a);
-            }
-
+            PSFloat *prev_states = PSGetStates(layer, prev_t);
+            mopts.store_mode = MATHS_STORE_MODE_ADD;
+            PSMultiplyVectorScalar(
+                prev_states, dc, gradient_hweights_c, layer->size, &mopts
+            );
+            PSMultiplyVectorScalar(
+                prev_states, di, gradient_hweights_i, layer->size, &mopts
+            );
+            PSMultiplyVectorScalar(
+                prev_states, dout, gradient_hweights_o, layer->size, &mopts
+            );
+            PSMultiplyVectorScalar(
+                prev_states, df, gradient_hweights_f, layer->size, &mopts
+            );
         }
 
     }
