@@ -2944,7 +2944,7 @@ int backpropThroughTime(PSNeuralNetwork *network, PSFloat *y,
              * is not cumulated since it has been already backpropagated
              * to previous timesteps during previous iteration.
              * So, reset previous layer deltas. */
-            if (do_truncate)
+            if (do_truncate && LSTM != previous_layer->type)
                 resetLayerDeltas(previous_layer, 0);
             ok = outputLayerBackprop(
                 output_layer, previous_layer, timestep_y, lgradients, t
@@ -2965,22 +2965,17 @@ int backpropThroughTime(PSNeuralNetwork *network, PSFloat *y,
             if (!is_recurrent && !is_lstm) continue;
             /* PSLayerType prev_ltype = previous_layer->type; */
 
-            delta = layer->delta;
             /*  Calculate layer deltas */
-            for (j = 0; j < lsize; j++) {
-                PSFloat dv = delta[j];
-                if (layer->derivative != NULL) {
-                    PSFloat s = PSGetState(layer, j, t);
-                    dv *= layer->derivative(s);
-                }
-                if (is_lstm) {
-                    PSLSTMCell *lstmcell = PSGetLSTMCell(layer);
-                    PSFloat *prev_dv = lstmcell->previous_step_delta;
-                    if (prev_dv != NULL) {
-                        delta[j] = prev_dv[j] + dv;
-                        prev_dv[j] = delta[j];
+            if (!is_lstm) {
+                delta = layer->delta;
+                for (j = 0; j < lsize; j++) {
+                    PSFloat dv = delta[j];
+                    if (layer->derivative != NULL && !is_lstm) {
+                        PSFloat s = PSGetState(layer, j, t);
+                        dv *= layer->derivative(s);
                     }
-                } else delta[j] = dv;
+                    delta[j] = dv;
+                }
             }
             int ok = 1;
             if (do_truncate) resetLayerDeltas(previous_layer, 0);
