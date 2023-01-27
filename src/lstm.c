@@ -281,7 +281,7 @@ static int getLSTMStatePointers(PSLSTMCell *cell, int type,
     return 1;
 }
 
-static PSFloat getLSTMState(PSLayer *layer, int index, int t, int type) {
+PSFloat getLSTMState(PSLayer *layer, int index, int t, int type) {
     PSLSTMCell *cell = PSGetLSTMCell(layer);
     if (cell == NULL) return 0.0;
     PSFloat *state_ptr = NULL, *previous_ptr = NULL;
@@ -710,7 +710,7 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previous_layer,
     va_end(args);
     PSMathOpts mopts = {.acceleration = layer->network->acceleration};
     int onehot = previous_layer->flags & FLAG_ONEHOT;
-    int lsize = layer->size, i, w, prev_t = t - 1, success = 1;
+    int lsize = layer->size, prev_t = t - 1, success = 1;
     int input_size = previous_layer->size;
     int use_bias = !(layer->flags & FLAG_NO_BIAS);
     if (onehot) {
