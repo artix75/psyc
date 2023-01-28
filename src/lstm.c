@@ -482,7 +482,7 @@ memerr:
 
 int PSInitLSTMLayer(PSNeuralNetwork *network, PSLayer *layer,
                     int size, int ws) {
-    int i;
+    int i, bias_count = size * 4;
     layer->on_delete = PSDeleteLSTMLayer;
     layer->on_copy = PSLSTMLayerCopy;
     if (size == 0) {
@@ -490,7 +490,7 @@ int PSInitLSTMLayer(PSNeuralNetwork *network, PSLayer *layer,
         return 0;
     }
     if (layer->biases != NULL) free(layer->biases);
-    layer->biases = calloc(size, 4 * sizeof(PSFloat));
+    layer->biases = calloc(size, bias_count * sizeof(PSFloat));
     if (layer->biases == NULL) goto memerr;
     layer->neurons = calloc(size, sizeof(PSNeuron*));
     if (layer->neurons == NULL) goto memerr;
