@@ -399,8 +399,6 @@ PSLSTMCell *PSCreateLSTMCell(PSLayer *layer) {
     }
     PSLSTMCell *cell = calloc(1, sizeof(PSLSTMCell));
     if (cell == NULL) goto memerr;
-    cell->previous_step_delta = calloc(layer->size, sizeof(PSFloat));
-    if (cell->previous_step_delta == NULL) goto memerr;
     initLSTMCellParams(layer, cell);
     layer->extra = cell;
     return cell;
@@ -411,7 +409,6 @@ memerr:
 }
 
 void PSDeleteLSTMCell(PSLSTMCell *cell) {
-    if (cell->previous_step_delta != NULL) free(cell->previous_step_delta);
     if (cell->raw_states != NULL) free(cell->raw_states);
     if (cell->candidates != NULL) free(cell->candidates);
     if (cell->input_gates != NULL) free(cell->input_gates);
@@ -433,14 +430,7 @@ int PSLSTMLayerCopy(PSLayer *layer, PSLayer *src) {
     PSLSTMCell *cell = (PSLSTMCell *) layer->extra;
     PSLSTMCell *srccell = (PSLSTMCell *) src->extra;
     if (cell == NULL || srccell == NULL) return 0;
-    size_t size = 0, states_size = 0;
-    if (srccell->previous_step_delta != NULL) {
-        size = layer->size * sizeof(PSFloat);
-        if (cell->previous_step_delta == NULL)
-            cell->previous_step_delta = malloc(size);
-        if (cell->previous_step_delta == NULL) goto memerr;
-        memcpy(cell->previous_step_delta, srccell->previous_step_delta, size);
-    }
+    size_t states_size = 0;
     if (srccell->candidates != NULL && src->recurrent_states_count > 0) {
         if (srccell->input_gates == NULL || srccell->output_gates == NULL ||
             srccell->forget_gates == NULL || srccell->raw_states == NULL)

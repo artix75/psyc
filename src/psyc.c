@@ -2591,17 +2591,7 @@ void PSDeleteNetworkGradients(PSGradient **gradients, PSNeuralNetwork *network)
 static void resetLayerDeltas(PSLayer *layer, int full_reset) {
     if (layer->delta != NULL) {
         int dsize = layer->size;
-        if (layer->type == LSTM && full_reset) {
-            PSLSTMCell *cell= PSGetLSTMCell(layer);
-            if (cell != NULL) {
-                if (cell->previous_step_delta != NULL) {
-                    memset(
-                        cell->previous_step_delta, 0, dsize * sizeof(PSFloat)
-                    );
-                }
-            }
-            dsize *= 2;
-        }
+        if (layer->type == LSTM && full_reset) dsize *= 2;
         memset(layer->delta, 0, (size_t) dsize * sizeof(PSFloat));
     }
 }

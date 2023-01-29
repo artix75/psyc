@@ -26,9 +26,6 @@
 #define PS_LSTM_FORGET_IDX      3
 #define PS_LSTM_RAWSTATE_IDX    4
 
-#define PSGetLSTMGradientBiases(n, gradient) (gradient->weights +\
- n->weights_size)
-
 typedef struct {
     PSFloat *previous_step_delta;
     /* Biases */
