@@ -27,7 +27,6 @@
 #define PS_LSTM_RAWSTATE_IDX    4
 
 typedef struct {
-    PSFloat *previous_step_delta;
     /* Biases */
     PSFloat *candidate_biases;
     PSFloat *input_biases;
