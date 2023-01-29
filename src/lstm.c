@@ -94,6 +94,10 @@ PSFloat *initRecurrentStates(PSLayer *layer, uint32_t steps,
 PSFloat *resizeRecurrentStates(PSLayer *layer, uint32_t steps,
                                PSFloat *current, PSFloat **previous);
 int PSResizeRecurrentHiddenStates(PSLayer *layer, uint32_t steps);
+PSMatrix PSInitWeights(PSLayer *layer, int rows, int columns,
+                       PSLayerDef *ldef, PSFloat range, PSFloat scale);
+PSFloat PSInitParam(int param_type, PSLayerDef *ldef, PSFloat range,
+                    PSFloat scale);
 
 /* LSTM functions */
 
@@ -398,13 +402,6 @@ PSLSTMCell *PSCreateLSTMCell(PSLayer *layer) {
     cell->previous_step_delta = calloc(layer->size, sizeof(PSFloat));
     if (cell->previous_step_delta == NULL) goto memerr;
     initLSTMCellParams(layer, cell);
-    int i;
-    for (i = 0; i < layer->size; i++) {
-        cell->candidate_biases[i] = PSGaussianRandom(0, 1);
-        cell->input_biases[i] = PSGaussianRandom(0, 1);
-        cell->output_biases[i] = PSGaussianRandom(0, 1);
-        cell->forget_biases[i] = PSGaussianRandom(0, 1);
-    }
     layer->extra = cell;
     return cell;
 memerr:
@@ -481,7 +478,8 @@ memerr:
 /* Init Functions */
 
 int PSInitLSTMLayer(PSNeuralNetwork *network, PSLayer *layer,
-                    int size, int ws) {
+                    int size, int ws, PSLayerDef *ldef)
+{
     int i, bias_count = size * 4;
     layer->on_delete = PSDeleteLSTMLayer;
     layer->on_copy = PSLSTMLayerCopy;
@@ -500,9 +498,16 @@ int PSInitLSTMLayer(PSNeuralNetwork *network, PSLayer *layer,
     for (i = 0; i < LSTM_WEIGHT_TYPES_COUNT; i++) {
         int hidden = (i >= 4);
         int wsize = (hidden ? size : ws);
-        layer->weights[i] = PSMatrixWithGaussianRandom(1, 2, size, wsize);
+        layer->weights[i] = PSInitWeights(layer, size, wsize, ldef, 1, 0);
         if (layer->weights[i] == NULL) goto memerr;
         layer->weight_types_count++;
+    }
+    int bias_init_mode = (ldef != NULL ? ldef->bias_init_mode : INIT_MODE_AUTO);
+    if (bias_init_mode == INIT_MODE_ZERO)
+        memset(layer->biases, 0, bias_count * sizeof(PSFloat));
+    else {
+        for (i = 0; i < bias_count; i++)
+            layer->biases[i] = PSInitParam(PARAM_TYPE_BIAS, ldef, 1, 0);
     }
     layer->delta = calloc(layer->size * 2, sizeof(PSFloat));
     if (layer->delta == NULL) goto memerr;

@@ -469,6 +469,58 @@ static void printLogLevels(FILE *out) {
     }
 }
 
+static void printAccelerationInfo(PSAcceleration acceleration) {
+    char *label = NULL, *notes = NULL, *prop = NULL;
+    if (!PSIsAccelerationAvailable(acceleration)) return;
+    if (acceleration == PSAcceleration_AVX) {
+        label = "AVX";
+        prop = "--avx";
+    } else if (acceleration == PSAcceleration_ACF) {
+        label = "Accelerate Framework";
+        prop = "--accelerate-framework";
+    } else if (acceleration == PSAcceleration_BLAS) {
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+        if (PSIsAccelerationAvailable(PSAcceleration_ACF))
+            notes = "(Accelerate Framework)";
+#elif defined(HAS_GSL_CBLAS)
+        notes = "(GNU Scientific Library)";
+#endif
+        if (notes == NULL) notes = "(native)";
+        label = "BLAS";
+        prop = "--blas";
+    } else return;
+    if (notes == NULL) notes = "";
+    printf("%-25s %-25s %s\n", label, prop, notes);
+}
+
+static void printAvailableAccelerations(void) {
+    printf("%-25s %-25s %s\n", "NAME", "OPTION", "NOTES");
+    printf("-----------------------------------------------------------------"
+           "-----\n");
+    printAccelerationInfo(PSAcceleration_AVX);
+    printAccelerationInfo(PSAcceleration_ACF);
+    printAccelerationInfo(PSAcceleration_BLAS);
+}
+
+static int parseParamInitMode(int param_type, char *arg, PSLayerDef *ldef,
+                              char *mode)
+{
+    int *modeptr = NULL;
+    if (param_type == PARAM_TYPE_BIAS) modeptr = &(ldef->bias_init_mode);
+    else if (param_type == PARAM_TYPE_BIAS) modeptr = &(ldef->weight_init_mode);
+    else return 0;
+    if (strcmp("auto", mode) == 0) *modeptr = INIT_MODE_AUTO;
+    else if (strcmp("random", mode) == 0) *modeptr = INIT_MODE_RAND;
+    else if (strcmp("zero", mode) == 0) *modeptr = INIT_MODE_ZERO;
+    else if (strcmp("0", mode) == 0) *modeptr = INIT_MODE_ZERO;
+    else {
+        fprintf(stderr, "ERROR: Invalid %s: '%s'.", arg, mode);
+        fprintf(stderr, " Valid modes: auto, random, zero\n");
+        return 0;
+    }
+    return 1;
+}
+
 void parseOptions(int argc, char **argv) {
     int i, j;
     for (i = 1; i < argc; i++) {
@@ -533,7 +585,7 @@ void parseOptions(int argc, char **argv) {
                     int matched = sscanf(fcstr, "%d", &depth);
                     if (!matched) {
                         fprintf(
-                            stderr, "Invalid %s %s\n", carg, fcstr
+                            stderr, "ERROR: Invalid %s %s\n", carg, fcstr
                         );
                         goto err;
                     }
@@ -546,7 +598,7 @@ void parseOptions(int argc, char **argv) {
                     );
                     if (!matched) {
                         fprintf(
-                            stderr, "Invalid %s %s\n", carg, szstr
+                            stderr, "ERROR: Invalid %s %s\n", carg, szstr
                         );
                         goto err;
                     }
@@ -558,7 +610,7 @@ void parseOptions(int argc, char **argv) {
                     );
                     if (!matched) {
                         fprintf(
-                            stderr, "Invalid %s %s\n", carg, szstr
+                            stderr, "ERROR: Invalid %s %s\n", carg, szstr
                         );
                         goto err;
                     }
@@ -572,7 +624,8 @@ void parseOptions(int argc, char **argv) {
                     else if (strcasecmp("relu", actvname) == 0)
                         ldef.activation = PSRelu;
                     else {
-                        fprintf(stderr, "Invalid activation '%s'", actvname);
+                        fprintf(stderr, "ERROR: Invalid activation '%s'",
+                                actvname);
                         goto err;
                     }
                 } else if ((strcmp("--region-size", carg) == 0 ||
@@ -583,7 +636,7 @@ void parseOptions(int argc, char **argv) {
                     char *rsstr = argv[j];
                     int matched = sscanf(rsstr, "%d", &filter_w);
                     if (!matched) {
-                        fprintf(stderr, "Invalid %s %s\n", carg, rsstr);
+                        fprintf(stderr, "ERROR: Invalid %s %s\n", carg, rsstr);
                         goto err;
                     }
                     i = j;
@@ -593,7 +646,7 @@ void parseOptions(int argc, char **argv) {
                     char *rsstr = argv[j];
                     int matched = sscanf(rsstr, "%d", &filter_h);
                     if (!matched) {
-                        fprintf(stderr, "Invalid %s %s\n", carg, rsstr);
+                        fprintf(stderr, "ERROR: Invalid %s %s\n", carg, rsstr);
                         goto err;
                     }
                     i = j;
@@ -603,7 +656,7 @@ void parseOptions(int argc, char **argv) {
                     char *ststr = argv[j];
                     int matched = sscanf(ststr, "%d", &stride);
                     if (!matched) {
-                        fprintf(stderr, "Invalid stride %s\n", ststr);
+                        fprintf(stderr, "ERROR: Invalid stride %s\n", ststr);
                         goto err;
                     }
                     i = j;
@@ -613,7 +666,7 @@ void parseOptions(int argc, char **argv) {
                     char *padstr = argv[j];
                     int matched = sscanf(padstr, "%d", &padding);
                     if (!matched) {
-                        fprintf(stderr, "Invalid padding %s\n", padstr);
+                        fprintf(stderr, "ERROR: Invalid padding %s\n", padstr);
                         goto err;
                     }
                     i = j;
@@ -628,13 +681,45 @@ void parseOptions(int argc, char **argv) {
                     );
                     if (!matched) {
                         fprintf(
-                            stderr, "Invalid dropout %s\n", dropout
+                            stderr, "ERROR: Invalid dropout %s\n", dropout
                         );
                         goto err;
                     }
                     i = j;
                 } else if (strcmp("--recurrent-layer", carg) == 0) {
                     ldef.flags |= FLAG_RECURRENT;
+                } else if (strcmp("--disable-biases", carg) == 0) {
+                    ldef.flags |= FLAG_NO_BIAS;
+                } else if (strcmp("--weight-init-mode", carg)==0 && ++j<argc) {
+                    char *modestr = argv[j];
+                    int ok = parseParamInitMode(
+                        PARAM_TYPE_WEIGHT, carg, &ldef, modestr
+                    );
+                    if (!ok) goto err;
+                } else if (strcmp("--bias-init-mode", carg)==0 && ++j<argc) {
+                    char *modestr = argv[j];
+                    int ok = parseParamInitMode(
+                        PARAM_TYPE_BIAS, carg, &ldef, modestr
+                    );
+                    if (!ok) goto err;
+                } else if (strcmp("--init-range", carg)==0 && ++j<argc) {
+                    char *rangestr = argv[j];
+                    PSFloat range = 0.0;
+                    int matched = sscanf(rangestr, PSFLOAT_FORMAT, &range);
+                    if (!matched || range < 0) {
+                        fprintf(stderr, "ERROR: Invalid %s\n", carg);
+                        goto err;
+                    }
+                    ldef.init_range = range;
+                } else if (strcmp("--init-scale", carg)==0 && ++j<argc) {
+                    char *scalestr = argv[j];
+                    PSFloat scale = 0.0;
+                    int matched = sscanf(scalestr, PSFLOAT_FORMAT, &scale);
+                    if (!matched || scale < 0) {
+                        fprintf(stderr, "ERROR: Invalid %s\n", carg);
+                        goto err;
+                    }
+                    ldef.init_scale = scale;
                 } else break;
             }
             int size = 0;
@@ -748,11 +833,15 @@ void parseOptions(int argc, char **argv) {
                 optimization = PSWindowGradOptimization;
             else if (strcmp("nesterov", optname) == 0)
                 optimization = PSNesterovOptimization;
+            else if (strcmp("default", optname) == 0)
+                optimization = PSDefaultOptimization;
+            else if (strcmp("none", optname) == 0)
+                optimization = PSDefaultOptimization;
             else {
                 fprintf(stderr, "Invalid optmization `%s`\n", optname);
                 fprintf(
                     stderr, "Valid values: adam, adagrad, adadelta, "
-                    "windowgrad, nesterov\n"
+                    "windowgrad, nesterov, default\n"
                 );
                 goto err;
             }
@@ -819,6 +908,9 @@ void parseOptions(int argc, char **argv) {
                 );
                 goto err;
             }
+        } else if (strcmp("--available-accelerations", arg) == 0) {
+            printAvailableAccelerations();
+            exit(0);
         } else if (strcmp("-v", arg) == 0 || strcmp("--version", arg) == 0) {
             printf("%s v%s (AVX=", PROGRAM_NAME, PSYC_VERSION);
 #ifdef USE_AVX
@@ -1184,7 +1276,7 @@ void printHelp(const char* program_path) {
            "regularization\n");
     printf("        --optimization              Training Optimization\n"
            "                                    (adagrad,adadelta,adam,\n"
-           "                                     windowgrad,nesterov)\n"
+           "                                     windowgrad,nesterov,default)\n"
     );
     printf("        --training-no-shuffle       Prevent dataset shuffle\n");
     printf("        --training-adjust-rate      Auto-adjust learn rate\n");
@@ -1208,6 +1300,8 @@ void printHelp(const char* program_path) {
     printf("        --disable-blas              Disable BLAS\n");
     printf("        --loglevel LEVEL            Set log level "
            "(see \"LOG LEVELS\" section)\n");
+    printf("        --available-accelerations   List available "
+           "accelerations\n");
     printf("        --quiet                     Quiet output (loglevel ERROR)"
            "\n");
     printf("        --verbose                   Verbose output (loglevel DEBUG)"
@@ -1231,6 +1325,7 @@ void printHelp(const char* program_path) {
            "                                  (sigmoid,tanh,relu)\n");
     printf("        --dropout DROPOUT         Layer Dropout (float)\n");
     printf("        --recurrent-layer         Recurrent layer mode\n");
+    printf("        --disable-biases          Disable biases\n");
     printf("        --output-width WIDTH      Output Width\n");
     printf("        --output-height HEIGHT    Output Height\n");
     printf("        --output-depth DEPTH      Output Depth\n");
@@ -1243,6 +1338,16 @@ void printHelp(const char* program_path) {
            " (def. 1)\n");
     printf("        --padding PADDING         Convolutional padding"
            " (def. 0)\n");
+    printf("        --weight-init-mode MODE   Weight initialization mode:\n"
+           "                                  auto,random,zero (def. auto)\n");
+    printf("        --bias-init-mode MODE     Bias initialization mode:\n"
+           "                                  auto,random,zero (def. auto)\n");
+    printf("        --init-range RANGE        Weight|Bias initialization "
+           "range\n"
+           "                                  (for 'random' init mode)\n");
+    printf("        --init-scale SCALE        Weight|Bias initialization "
+           "scale\n"
+           "                                  (for 'random' init mode)\n");
     /*printf("        --use-relu                Use ReLU activation (for "
            "Convolutional Layers)\n");*/
     printf("\n");

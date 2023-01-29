@@ -58,6 +58,10 @@
 #define PARAM_TYPE_BIAS          1
 #define PARAM_TYPE_WEIGHT        2
 
+#define INIT_MODE_AUTO      0
+#define INIT_MODE_RAND      1
+#define INIT_MODE_ZERO      2
+
 #define TRAINING_PHASE_FEEDFORWARD  1
 #define TRAINING_PHASE_BACKPROP     2
 #define TRAINING_PHASE_UPDATE_GRAD  3
@@ -84,6 +88,7 @@
     (layer->network->size - 1))
 #define PSIsRecurrent(o) (o->flags & FLAG_RECURRENT)
 #define PSSetRecurrent(o) (o->flags |= FLAG_RECURRENT)
+#define PSLDEF(...) ((PSLayerDef *) &((PSLayerDef) {__VA_ARGS__}))
 
 struct PSNeuralNetwork;
 struct PSLayer;
@@ -113,6 +118,10 @@ typedef struct PSLayerDef {
     PSActivationFunction activation;
     int flags;
     PSFloat dropout;
+    int weight_init_mode;
+    int bias_init_mode;
+    PSFloat init_range;
+    PSFloat init_scale;
     int output_depth;
     int output_columns;
     int output_rows;

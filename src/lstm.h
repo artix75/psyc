@@ -65,6 +65,6 @@ void PSDeleteLSTMCell(PSLSTMCell *cell);
 /* Init Functions */
 
 int PSInitLSTMLayer(PSNeuralNetwork *network, PSLayer *layer,
-                    int size, int ws);
+                    int size, int ws, PSLayerDef *ldef);
 
 #endif /*  __PS_LSTM_H */

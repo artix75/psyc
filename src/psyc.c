@@ -105,9 +105,9 @@ int PSInitPoolingLayer(PSNeuralNetwork *network, PSLayer *layer,
 int fullBackprop(PSLayer *layer, PSLayer *previous_layer,
                  PSGradient *layer_gradients, ...);
 int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
-                         int size,int ws);
+                         int size,int ws, PSLayerDef *ldef);
 int PSInitLSTMLayer(PSNeuralNetwork *network, PSLayer *layer,
-                    int size, int ws);
+                    int size, int ws, PSLayerDef *ldef);
 int PSInitLSTMStates(PSLayer *layer, uint32_t steps, int retain_previous);
 int PSResizeLSTMStates(PSLayer *layer, uint32_t steps);
 int PSDumpGradients(PSNeuralNetwork *network, PSGradient **gradients,
@@ -755,22 +755,35 @@ void PSPrintLayerInfo(PSLayer *layer) {
        printf(", depth = %d\n", layer->output_depth);
     }
     const char *activation = PSGetActivationName(layer->activate);
-    if (activation != NULL) printf(", activation = %s", activation);
+    if (layer->index > 0 && activation != NULL)
+        printf(", activation = %s", activation);
+    printf("\n");
+}
+
+static void printInfoRow(char *label, char *fmt, ...) {
+    if (label == NULL) return;
+    if (fmt == NULL) fmt = "";
+    int use_color = PSLogColorEnabled();
+    if (use_color) printf(PSCOLOR_BOLD);
+    int padding = 40;
+    int len = printf("%s:", label);
+    if (use_color) printf(PSCOLOR_RESET_BOLD);
+    printf("%-*s", (padding - len), " ");
+    va_list args;
+    va_start(args, fmt);
+    vfprintf(stdout, fmt, args);
+    va_end(args);
     printf("\n");
 }
 
 void PSPrintNetworkInfo(PSNeuralNetwork *network) {
     if (network == NULL) return;
+    if (PSLogColorEnabled()) printf(PSCOLOR_BOLD);
+    if (PSLogColorEnabled()) printf(PSCOLOR_RESET_BOLD);
     const char *name = network->name;
     if (name == NULL || !strlen(name)) name = "UNNAMED NETWORK";
-    printf("Network: %s\n", name);
-    printf("Size: %d\nLayers:\n", network->size);
-    int i;
-    for (i = 0; i < network->size; i++) {
-        PSLayer *layer = network->layers[i];
-        printf("  ");
-        PSPrintLayerInfo(layer);
-    }
+    printInfoRow("Name", "\"%s\"", name);
+    printInfoRow("Size", "%d", network->size);
     int is_recurrent = PSIsRecurrent(network);
     PSRecurrentNetworkMode mode = PSGetRecurrentNetworkMode(network);
     PSNetworkContext *ctx = network->context;
@@ -779,33 +792,40 @@ void PSPrintNetworkInfo(PSNeuralNetwork *network) {
     if (is_recurrent || mode != NonRecurrent) {
         first_recurrent_layer = PSGetFirstRecurrentLayer(network);
         last_recurrent_layer = PSGetLastRecurrentLayer(network);
-        printf(
-            "Recurrent Network Mode: %s\n",
-            PSGetRecurrentModeLabel(mode)
-        );
+        printInfoRow("Recurrent Network Mode", "%s",
+                     PSGetRecurrentModeLabel(mode));
         if (ManyToOne == mode) {
             if (last_recurrent_layer != NULL) {
-                printf(
-                    "Last Recurrent Layer: %d\n", last_recurrent_layer->index
-                );
+                printInfoRow("Last Recurrent Layer", "%d",
+                             last_recurrent_layer->index);
             }
         } else if (OneToMany == mode) {
             if (first_recurrent_layer != NULL) {
-                printf(
-                    "First Recurrent Layer: %d\n", first_recurrent_layer->index
-                );
+                printInfoRow("First Recurrent Layer", "%d",
+                             first_recurrent_layer->index);
             }
         }
     }
-    printf("Total (trainable) parameters: %" PRIu64  "\n",
-        PSGetNetworkParametersCount(network));
+    printInfoRow("Total (trainable) parameters", "%" PRIu64,
+                 PSGetNetworkParametersCount(network));
     char *loss_name = getLossFunctionName(network->loss);
-    if (loss_name != NULL) printf("Loss Function: %s\n", loss_name);
-    printf("Status: %s\n", getNetworkStatusLabel(network));
-    printf("AVX: %s\n", (PSAVXEnabled(network->acceleration) ? "yes" : "no"));
-    printf("Apple Accelerate: %s\n",
-        (PSACFEnabled(network->acceleration) ? "yes" : "no"));
-    printf("BLAS: %s\n", (PSBLASEnabled(network->acceleration) ? "yes" : "no"));
+    if (loss_name != NULL) printInfoRow("Loss Function", "%s", loss_name);
+    printInfoRow("Status", "%s", getNetworkStatusLabel(network));
+    printInfoRow("AVX", "%s",
+                 (PSAVXEnabled(network->acceleration) ? "yes" : "no"));
+    printInfoRow("Apple Accelerate Framework", "%s",
+                 (PSACFEnabled(network->acceleration) ? "yes" : "no"));
+    printInfoRow("BLAS", "%s",
+                 (PSBLASEnabled(network->acceleration) ? "yes" : "no"));
+    if (PSLogColorEnabled()) printf(PSCOLOR_BOLD);
+    printf("Layers:\n");
+    if (PSLogColorEnabled()) printf(PSCOLOR_RESET_BOLD);
+    int i;
+    for (i = 0; i < network->size; i++) {
+        PSLayer *layer = network->layers[i];
+        printf("  ");
+        PSPrintLayerInfo(layer);
+    }
 }
 
 /* Loss Functions */
@@ -1882,7 +1902,59 @@ void PSSetDefaultLayerDef(PSLayerDef *ldef, PSLayerType type) {
     /* TODO: use specific settings for type? */
 }
 
-int initGenericLayer(PSLayer *layer, int size, int previous_size) {
+PSMatrix PSInitWeights(PSLayer *layer, int rows, int columns,
+                       PSLayerDef *ldef, PSFloat range, PSFloat scale)
+{
+    static PSLayerDef default_def = {0};
+    if (ldef == NULL) ldef = &default_def;
+    PSMatrix weights = NULL;
+    if (ldef->weight_init_mode == INIT_MODE_ZERO)
+        weights = PSMatrixZeros(2, rows, columns);
+    else {
+        if (ldef->weight_init_mode == INIT_MODE_RAND) {
+            range = ldef->init_range;
+            scale = ldef->init_scale;
+        }
+        if (range == 0) range = 1;
+        weights = PSMatrixWithGaussianRandom(range, 2, rows, columns);
+        if (scale > 0 && weights != NULL) {
+            int acceleration = PSGlobalAcceleration;
+            if (layer != NULL && layer->network != NULL)
+                acceleration = layer->network->acceleration;
+            PSMathOpts opts = {.acceleration = acceleration};
+            PSMultiplyVectorScalar(
+                weights, scale, weights, (rows * columns), &opts
+            );
+        }
+    }
+    return weights;
+}
+
+PSFloat PSInitParam(int param_type, PSLayerDef *ldef, PSFloat range,
+                    PSFloat scale)
+{
+    static PSLayerDef default_def = {0};
+    if (ldef == NULL) ldef = &default_def;
+    int mode = INIT_MODE_AUTO;
+    if (param_type == PARAM_TYPE_BIAS) mode = ldef->bias_init_mode;
+    else mode = ldef->weight_init_mode;
+    PSFloat param;
+    if (mode == INIT_MODE_ZERO) param = 0.0;
+    else {
+        if (mode == INIT_MODE_RAND) {
+            range = ldef->init_range;
+            scale = ldef->init_scale;
+        }
+        if (range == 0) range = 1;
+        param = PSGaussianRandom(0, range);
+        if (scale) param *= scale;
+    }
+    return param;
+}
+
+int initGenericLayer(PSLayer *layer, int size, int previous_size,
+                     PSLayerDef *ldef)
+{
     if (layer == NULL) return 0;
     if (layer->network == NULL) {
         PSErr(NULL, "Layer[%d]: missing network");
@@ -1896,8 +1968,8 @@ int initGenericLayer(PSLayer *layer, int size, int previous_size) {
     if (layer->index > 0 && previous_size > 0) {
         layer->weights = calloc(1, sizeof(PSMatrix));
         if (layer->weights == NULL) goto memerr;
-        layer->weights[0] = PSMatrixWithGaussianRandom(
-            1.0, 2, size, previous_size
+        layer->weights[0] = PSInitWeights(
+            layer, size, previous_size, ldef, 1.0, 0
         );
         if (layer->weights[0] == NULL) goto memerr;
         layer->weight_types_count = 1;
@@ -1913,7 +1985,7 @@ int initGenericLayer(PSLayer *layer, int size, int previous_size) {
         neuron->extra = NULL;
         if (layer->index > 0 && previous_size > 0) {
             neuron->bias = layer->biases + i;
-            *(neuron->bias) = PSGaussianRandom(0, 1);
+            *(neuron->bias) = PSInitParam(PARAM_TYPE_BIAS, ldef, 1.0, 0.0);
             neuron->weights = weights + (i * previous_size);
         } else {
             neuron->bias = NULL;
@@ -2038,16 +2110,18 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
         return NULL;
     }
     if (type == FullyConnected || type == SoftMax) {
-        initialized = initGenericLayer(layer, size, previous_size);
+        initialized = initGenericLayer(layer, size, previous_size, layer_def);
     } else if (type == Convolutional) {
         initialized = PSInitConvolutionalLayer(network, layer, layer_def);
         /* TODO: Make PSCrossEntropyLoss default also for convolutional? */
     } else if (type == Pooling) {
         initialized = PSInitPoolingLayer(network, layer, layer_def);
     } else if (type == Recurrent) {
-        initialized = PSInitRecurrentLayer(network, layer, size, previous_size);
+        initialized = PSInitRecurrentLayer(network, layer, size, previous_size,
+                                           layer_def);
     } else if (type == LSTM) {
-        initialized = PSInitLSTMLayer(network, layer, size, previous_size);
+        initialized = PSInitLSTMLayer(network, layer, size, previous_size,
+                                      layer_def);
     } else PSErr(__func__, "Invalid layer type %d", type);
     if (!initialized) goto fail;
     if (layer->index > 0 && layer->delta == NULL) {
@@ -3348,6 +3422,7 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
         if (apply_clip) {
             clipGradients(bp_gradients, clip_min, clip_max, gsize, &mopts);
             int ok = sumGradients(gradients, bp_gradients, gsize, &mopts);
+            PSDeleteNetworkGradients(bp_gradients, network);
             if (!ok) {
                 network->status = STATUS_ERROR;
                 goto final;
@@ -3843,9 +3918,9 @@ void PSTrain(PSNeuralNetwork *network,
     } else elements_count = data_size / element_size;
     const char *name = network->name != NULL ? network->name : "UNNAMED";
     PSLog(PSLOGLEVEL_NOTICE, "Training network \"%s\"\n", name);
-    PSInfo("Training data elements: %d", elements_count);
-    PSInfo("Batch Size: %d", batch_size);
-    PSInfo("Learning Rate: %g", learning_rate);
+    PSInfo("Training data elements:     %d", elements_count);
+    PSInfo("Batch Size:                 %d", batch_size);
+    PSInfo("Learning Rate:              %g", learning_rate);
     int bptt_truncate = BPTT_TRUNCATE;
     if (options != NULL) {
         checkTrainingOptions(options);
@@ -3858,12 +3933,13 @@ void PSTrain(PSNeuralNetwork *network,
             (options->flags & TRAINING_WEIGHT_DECAY)
         );
         bptt_truncate = options->bptt_truncate;
-        PSInfo("L1 Decay: %g", options->l1_decay);
-        PSInfo("L2 Decay: %g", options->l2_decay);
-        PSInfo("Weight Decay: %s", (use_weight_decay ? "yes" : "no"));
-        PSInfo("Clip: %g", PSAbs(options->clip));
-        PSInfo("Momentum: %g", options->momentum);
-        PSInfo("Optimization: %s",
+        PSInfo("L1 Decay:                   %g", options->l1_decay);
+        PSInfo("L2 Decay:                   %g", options->l2_decay);
+        PSInfo("Weight Decay:               %s",
+                (use_weight_decay ? "yes" : "no"));
+        PSInfo("Clip:                       %g", PSAbs(options->clip));
+        PSInfo("Momentum:                   %g", options->momentum);
+        PSInfo("Optimization:               %s",
             getOptimizationName(options->optimization));
         int single_seq = (options->flags & TRAINING_EPOCH_AS_SEQUENCE),
             no_shuffle = (options->flags & TRAINING_NO_SHUFFLE);
@@ -3875,17 +3951,18 @@ void PSTrain(PSNeuralNetwork *network,
             );
             options->flags |= TRAINING_NO_SHUFFLE;
         }
-        if (single_seq) PSInfo("Single sequence: yes");
-        PSInfo("Data shuffle (SGD): %s", (!no_shuffle ? "yes" : "no"));
+        if (single_seq) PSInfo("Single sequence:            yes");
+        PSInfo("Data shuffle (SGD):         %s", (!no_shuffle ? "yes" : "no"));
         training_ctx->options = *options;
     } else PSSetDefaultTrainingOptions(&training_ctx->options);
-    if (is_recurrent) PSInfo("BPTT Truncate: %d", bptt_truncate);
+    if (is_recurrent)
+        PSInfo("BPTT Truncate:              %d", bptt_truncate);
     if (network->layers[network->size - 1]->flags & FLAG_ONEHOT)
-        PSInfo("Onehot Labels: yes");
+        PSInfo("Onehot Labels:              yes");
     char *loss_func_name = NULL;
     if (network->loss != NULL) {
         loss_func_name = getLossFunctionName(network->loss);
-        PSInfo("Loss Function: %s", loss_func_name);
+        PSInfo("Loss Function:              %s", loss_func_name);
     }
     int was_paused = (network->status == STATUS_PAUSED);
     network->status = STATUS_TRAINING;

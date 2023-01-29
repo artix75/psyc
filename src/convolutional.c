@@ -122,6 +122,42 @@ void PSDeleteConvolutionalLayer(PSLayer *layer) {
 
 /* Init Functions */
 
+static PSMatrix initConvWeights(PSLayer *layer, int depth, int rows, int cols,
+                                PSLayerDef *ldef, PSFloat range, PSFloat scale)
+{
+    static PSLayerDef default_def = {0};
+    if (ldef == NULL) ldef = &default_def;
+    PSMatrix weights = NULL;
+    if (ldef->weight_init_mode == INIT_MODE_ZERO)
+        weights = PSMatrixZeros(3, depth, rows, cols);
+    else {
+        if (ldef->weight_init_mode == INIT_MODE_RAND) {
+            range = ldef->init_range;
+            scale = ldef->init_scale;
+        }
+        if (range == 0) range = 1;
+        weights = PSMatrixWithGaussianRandom(range, 3, depth, rows, cols);
+        if (scale > 0 && weights != NULL) {
+            int acceleration = PSGlobalAcceleration;
+            if (layer != NULL && layer->network != NULL)
+                acceleration = layer->network->acceleration;
+            PSMathOpts opts = {.acceleration = acceleration};
+            PSMultiplyVectorScalar(weights, scale, weights, (rows*cols), &opts);
+        }
+    }
+    return weights;
+}
+
+static PSFloat convRandomBias(PSLayerDef *ldef) {
+    static PSLayerDef default_def = {0};
+    if (ldef == NULL) ldef = &default_def;
+    PSFloat bias, range = ldef->init_range, scale = ldef->init_scale;
+    if (range <= 0) range = 1.0;
+    bias = PSGaussianRandom(0.0, range);
+    if (scale > 0) bias *= scale;
+    return bias;
+}
+
 int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
                              PSLayerDef *layer_def)
 {
@@ -215,14 +251,19 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
     if (layer->biases == NULL) goto memerr;
     layer->weights = malloc(layer->output_depth * sizeof(PSMatrix));
     if (layer->weights == NULL) goto memerr;
-    PSFloat wscale = PSSqrt(1.0 / weights_size);
-    int i, j, use_relu = (layer->activate == PSRelu);
+    PSFloat wrange = PSSqrt(1.0 / weights_size);
+    int i, j, use_relu = (layer->activate == PSRelu), rand_bias = 0;
     layer->weight_types_count = 0;
+    PSFloat default_bias = (use_relu ? 0.1 : 0.0);
+    if (layer_def->bias_init_mode == INIT_MODE_ZERO) default_bias = 0.0;
+    else rand_bias = (layer_def->bias_init_mode == INIT_MODE_RAND);
     for (i = 0; i < layer->output_depth; i++) {
-        layer->biases[i] = (use_relu ? 0.1 : 0.0);
-        layer->weights[i] = PSMatrixWithGaussianRandom(
-            wscale, 3, previous->output_depth,
-            settings->filter_width, settings->filter_height
+        layer->biases[i] = (
+            rand_bias ? convRandomBias(layer_def) : default_bias
+        );
+        layer->weights[i] = initConvWeights(
+            layer, previous->output_depth, settings->filter_width,
+            settings->filter_height, layer_def, wrange, 1.0
         );
         if (layer->weights[i] == NULL) goto memerr;
         layer->weight_types_count++;

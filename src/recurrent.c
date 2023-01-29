@@ -46,7 +46,10 @@ int isDroppedOut(PSNeuron *neuron, ...);
 int checkLayerForFeedforward(PSLayer *layer);
 int onehotInputsFeedforward(PSLayer *layer, PSLayer *previous, int t,
                             int do_activate);
-
+PSMatrix PSInitWeights(PSLayer *layer, int rows, int columns,
+                       PSLayerDef *ldef, PSFloat range, PSFloat scale);
+PSFloat PSInitParam(int param_type, PSLayerDef *ldef, PSFloat range,
+                    PSFloat scale);
 /* Recurrent network functions */
 
 PSMatrix PSGetRecurrentHiddenWeights(PSLayer *layer) {
@@ -60,7 +63,7 @@ void PSDeleteRNNLayer(PSLayer *layer) {
 }
 
 int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
-                         int size, int ws)
+                         int size, int ws, PSLayerDef *ldef)
 {
     int i;
     layer->on_delete = PSDeleteRNNLayer;
@@ -70,13 +73,13 @@ int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
     if (layer->states == NULL) goto memerr;
     layer->weights = calloc(RNN_WEIGHT_TYPES_COUNT, sizeof(PSMatrix));
     if (layer->weights == NULL) goto memerr;
-    layer->weights[0] = PSMatrixWithGaussianRandom(
-        RNN_INIT_SCALE, 2, size, ws
+    layer->weights[0] = PSInitWeights(
+        layer, size, ws, ldef, 1, RNN_INIT_SCALE
     );
     if (layer->weights[0] == NULL) goto memerr;
     layer->weight_types_count = 1;
-    layer->weights[1] = PSMatrixWithGaussianRandom(
-        RNN_INIT_SCALE, 2, size, size
+    layer->weights[1] = PSInitWeights(
+        layer, size, size, ldef, 1, RNN_INIT_SCALE
     );
     if (layer->weights[1] == NULL) goto memerr;
     layer->weight_types_count = 2;
@@ -85,12 +88,16 @@ int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
     layer->extra = calloc(size, sizeof(PSFloat));
     if (layer->extra == NULL) goto memerr;
     PSMatrix weights = layer->weights[0];
+    int bias_init_mode = (ldef != NULL ? ldef->bias_init_mode : INIT_MODE_AUTO);
+    int rand_bias = (bias_init_mode == INIT_MODE_RAND);
     for (i = 0; i < size; i++) {
         PSNeuron *neuron = malloc(sizeof(PSNeuron));
         if (neuron == NULL) goto memerr;
         neuron->index = i;
-        layer->biases[i] = 0.0; /* PSGaussianRandom(0, 1); */
+        if (rand_bias) layer->biases[i] = PSInitParam(PARAM_TYPE_BIAS,ldef,1,0);
+        else layer->biases[i] = 0.0;
         neuron->weights = weights + (i * ws);
+        neuron->bias = layer->biases + i;
         layer->neurons[i] = neuron;
         neuron->layer = layer;
     }
