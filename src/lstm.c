@@ -36,15 +36,6 @@
 
 #define LSTM_WEIGHT_TYPES_COUNT (4 * 2)
 
-#define FreeLSTMDeltas() do {\
-    if (delta_c != NULL) free(delta_c);\
-    if (delta_i != NULL) free(delta_i);\
-    if (delta_o != NULL) free(delta_o);\
-    if (delta_f != NULL) free(delta_f);\
-    if (lstm_delta != NULL) free(lstm_delta);\
-} while(0)
-
-
 #define getCandidate(layer, i, t) (getLSTMState(layer, i, t, CANDIDATE_IDX))
 #define getInputGate(layer, i, t) (getLSTMState(layer, i, t, INPUT_IDX))
 #define getOutputGate(layer, i, t) (getLSTMState(layer, i, t, OUTPUT_IDX))
