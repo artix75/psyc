@@ -82,6 +82,7 @@ static int getLSTMStatePointers(PSLSTMCell *cell, int type,
                                 PSFloat **state_ptr, PSFloat **previous_ptr);
 int checkLayerForFeedforward(PSLayer *layer);
 PSLSTMCell *PSCreateLSTMCell(PSLayer *layer);
+void PSDeleteLSTMCell(PSLSTMCell *cell);
 
 PSFloat applyGradientOnParameter(
     int param_type, PSTrainingOptions *options, PSFloat grad, PSFloat param,

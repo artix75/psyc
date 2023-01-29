@@ -54,13 +54,6 @@ typedef struct {
     PSFloat *initial_forget_gates; /* TODO: Probabily not needed */
 } PSLSTMCell;
 
-PSLSTMCell *PSCreateLSTMCell(PSLayer *layer);
 PSLSTMCell *PSGetLSTMCell(PSLayer *layer);
-void PSDeleteLSTMCell(PSLSTMCell *cell);
-
-/* Init Functions */
-
-int PSInitLSTMLayer(PSNeuralNetwork *network, PSLayer *layer,
-                    int size, int ws, PSLayerDef *ldef);
 
 #endif /*  __PS_LSTM_H */
