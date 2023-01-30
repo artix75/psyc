@@ -52,12 +52,13 @@
 #define setInputGate(layer, i, s, t) (setLSTMState(layer, i, s, t, INPUT_IDX))
 #define setOutputGate(layer, i, s, t) (setLSTMState(layer, i, s, t, OUTPUT_IDX))
 #define setForgetGate(layer, i, s, t) (setLSTMState(layer, i, s, t, FORGET_IDX))
-#define setZValue(layer, i, s, t) (setLSTMState(layer, i, s, t, RAW_STATE_IDX))
+#define setRawState(layer, i, s, t) \
+    (setLSTMState(layer, i, s, t, RAW_STATE_IDX))
 
 #define UNUSED(V) ((void) V)
 
 static char *LSTMStateNames[] = {
-    "Candidate", "Input gate", "Output gate", "Forget gate", "Z Val"
+    "Candidate", "Input gate", "Output gate", "Forget gate", "Raw State"
 };
 
 /* Forward declarations */
