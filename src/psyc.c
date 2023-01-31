@@ -36,6 +36,7 @@
 #include "convolutional.h"
 #include "recurrent.h"
 #include "lstm.h"
+#include "gru.h"
 #include "debug.h"
 
 #define STATUS_ERROR_LOSS ((PSFloat) FLT_MIN)
@@ -108,8 +109,12 @@ int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
                          int size,int ws, PSLayerDef *ldef);
 int PSInitLSTMLayer(PSNeuralNetwork *network, PSLayer *layer,
                     int size, int ws, PSLayerDef *ldef);
+int PSInitGRULayer(PSNeuralNetwork *network, PSLayer *layer,
+                   int size, int ws, PSLayerDef *ldef);
 int PSInitLSTMStates(PSLayer *layer, uint32_t steps, int retain_previous);
 int PSResizeLSTMStates(PSLayer *layer, uint32_t steps);
+int PSInitGRUStates(PSLayer *layer, uint32_t steps, int retain_previous);
+int PSResizeGRUStates(PSLayer *layer, uint32_t steps);
 int PSDumpGradients(PSNeuralNetwork *network, PSGradient **gradients,
                     const char* filename, PSTrainingOptions *opts);
 PSGradient **cloneNetworkGradients(PSGradient **gradients,
@@ -536,6 +541,8 @@ char *PSGetLabelForType(PSLayerType type) {
             return "LSTM";
         case SoftMax:
             return "Softmax";
+        case GRU:
+            return "GRU";
     }
     return "UNKOWN";
 }
@@ -641,6 +648,7 @@ uint64_t PSGetLayerParametersCount(PSLayer *layer, int param_type) {
             int bias_count;
             if (Convolutional == layer->type) bias_count = layer->output_depth;
             else if (LSTM == layer->type) bias_count = layer->size * 4;
+            else if (GRU == layer->type) bias_count = layer->size * 3;
             else bias_count = layer->size;
             count += bias_count;
         }
@@ -939,6 +947,8 @@ int PSInitRecurrentHiddenStates(PSLayer *layer, uint32_t steps,
         layer->initial_states = NULL;
         if (LSTM == layer->type) {
             if (!PSInitLSTMStates(layer, 0, 0)) goto err;
+        } else if (GRU == layer->type) {
+            if (!PSInitGRUStates(layer, 0, 0)) goto err;
         }
         return 1;
     }
@@ -963,6 +973,9 @@ int PSInitRecurrentHiddenStates(PSLayer *layer, uint32_t steps,
     free(states);
     if (LSTM == layer->type) {
         if (!PSInitLSTMStates(layer, steps, retain_previous))
+            goto err;
+    } else if (GRU == layer->type) {
+        if (!PSInitGRUStates(layer, steps, retain_previous))
             goto err;
     }
     return 1;
@@ -1022,6 +1035,8 @@ int PSResizeRecurrentHiddenStates(PSLayer *layer, uint32_t steps) {
     }
     if (LSTM == layer->type) {
         if (!PSResizeLSTMStates(layer, steps)) return 0;
+    } else if (GRU == layer->type) {
+        if (!PSResizeGRUStates(layer, steps)) return 0;
     }
     return 1;
 }
@@ -1319,7 +1334,7 @@ static void updateNetworkForRecurrentMode(PSNeuralNetwork *network,
                     for (j = 1; j < layer->index; j++)
                         network->layers[j]->flags |= FLAG_RECURRENT;
                 }
-            } else if (Recurrent != type && LSTM != type) {
+            } else if (Recurrent != type && LSTM != type && GRU != type) {
                 network->layers[i]->flags &= (unsigned) (~FLAG_RECURRENT);
             }
         } else if (OneToMany == mode) {
@@ -2122,6 +2137,9 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
     } else if (type == LSTM) {
         initialized = PSInitLSTMLayer(network, layer, size, previous_size,
                                       layer_def);
+    } else if (type == GRU) {
+        initialized = PSInitGRULayer(network, layer, size, previous_size,
+                                     layer_def);
     } else PSErr(__func__, "Invalid layer type %d", type);
     if (!initialized) goto fail;
     if (layer->index > 0 && layer->delta == NULL) {
@@ -3008,7 +3026,7 @@ int backpropThroughTime(PSNeuralNetwork *network, PSFloat *y,
              * is not cumulated since it has been already backpropagated
              * to previous timesteps during previous iteration.
              * So, reset previous layer deltas. */
-            if (do_truncate && LSTM != previous_layer->type)
+            if (do_truncate && Recurrent == previous_layer->type)
                 resetLayerDeltas(previous_layer, 0);
             ok = outputLayerBackprop(
                 output_layer, previous_layer, timestep_y, lgradients, t
@@ -3026,23 +3044,23 @@ int backpropThroughTime(PSNeuralNetwork *network, PSFloat *y,
             PSLayerType ltype = layer->type;
             int is_recurrent = (Recurrent == ltype);
             int is_lstm = (LSTM == ltype);
-            if (!is_recurrent && !is_lstm) continue;
-            /* PSLayerType prev_ltype = previous_layer->type; */
+            int is_gru = (GRU == ltype);
+            if (!is_recurrent && !is_lstm && !is_gru) continue;
 
             /*  Calculate layer deltas */
-            if (!is_lstm) {
+            if (!is_lstm && !is_gru) {
                 delta = layer->delta;
                 for (j = 0; j < lsize; j++) {
                     PSFloat dv = delta[j];
-                    if (layer->derivative != NULL && !is_lstm) {
+                    if (layer->derivative != NULL) {
                         PSFloat s = PSGetState(layer, j, t);
                         dv *= layer->derivative(s);
                     }
                     delta[j] = dv;
                 }
             }
-            int ok = 1;
-            if (do_truncate) resetLayerDeltas(previous_layer, 0);
+            if (do_truncate && Recurrent == previous_layer->type)
+                resetLayerDeltas(previous_layer, 0);
             ok = layer->backprop(
                 layer, previous_layer, lgradients, t, lowest_t
             );
@@ -3406,6 +3424,9 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
         }
         bp_gradients = backprop(network, x, y, opts, bp_dest_gradients);
         if (bp_gradients == NULL) {
+            PSErr(NULL, "Backpropagation failed for network '%s'",
+                 (network->name != NULL ? network->name : "UNNAMED")
+            );
             network->status = STATUS_ERROR;
             goto final;
         }
@@ -3621,6 +3642,12 @@ PSFloat gradientDescent(PSNeuralNetwork *network,
             learning_rate, momentum_gradients, aux_gradients, series_head
         );
         err += batch_err;
+        if (network->status == STATUS_ERROR) {
+            PSErr(NULL, "SGD failed at batch %d for network '%s'", i,
+                  (network->name != NULL ? network->name : "UNNAMED")
+            );
+            goto final;
+        }
         gettimeofday(&et, NULL);
         elapsed_t = PSGetElapsedTimeUS(st, et);
         tot_t += elapsed_t;
@@ -4087,7 +4114,8 @@ int PSCheckNetwork(PSNeuralNetwork *network) {
             return 0;
         }
         int ltype = layer->type;
-        if (Recurrent == ltype || LSTM == ltype) recurrent_type_layers++;
+        if (Recurrent == ltype || LSTM == ltype || GRU == ltype)
+            recurrent_type_layers++;
         int is_recurrent_layer = PSIsRecurrent(layer);
         if (is_recurrent_layer) {
             recurrent_layers++;
@@ -4184,7 +4212,7 @@ int PSCheckNetwork(PSNeuralNetwork *network) {
         }
         if (recurrent_type_layers == 0) {
             PSErr(__func__,
-                "Network is recurrent but has no Recurrent or LSTM layers"
+                "Network is recurrent but has no Recurrent, LSTM or GRU layers"
             );
             return 0;
         }
@@ -4257,7 +4285,7 @@ int PSCheckNetwork(PSNeuralNetwork *network) {
     } else {
         if (recurrent_type_layers > 0) {
             PSErr(__func__,
-                "Network is not recurrent but has Recurrent or LSTM layers"
+                "Network is not recurrent but has Recurrent, LSTM or GRU layers"
             );
             return 0;
         }

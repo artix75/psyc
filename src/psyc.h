@@ -145,7 +145,8 @@ typedef enum {
     Pooling,
     Recurrent,
     LSTM,
-    SoftMax
+    SoftMax,
+    GRU
 } PSLayerType;
 
 typedef enum {

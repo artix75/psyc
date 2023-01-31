@@ -30,6 +30,7 @@
 #include "convolutional.h"
 #include "recurrent.h"
 #include "lstm.h"
+#include "gru.h"
 #include "log.h"
 #include "buildinfo.h"
 #include "optimization.h"
@@ -947,6 +948,11 @@ static int loadLegacyLayerParameters(PSNeuralNetwork *network,
         } else if (layer->type == Pooling) {
             continue;
         } else lsize = layer->size;
+        if (GRU == layer->type) {
+            loadErr(filename, NULL, "GRU layers not supported in models "
+                    "saved with version < 0.9.0");
+            return 0;
+        }
         int is_lstm = (LSTM == layer->type);
         int llen = 0, ok;
         uint64_t wsize = PSGetLayerInputWeightsCount(layer, 1);
@@ -1209,6 +1215,11 @@ static int loadLegacyGradients(PSNeuralNetwork *network, const char * filename,
         assert(layer != NULL);
         int lsize = 0, wsize = 0;
         if (layer->type == Pooling) continue;
+        if (GRU == layer->type) {
+            loadErr(filename, NULL, "GRU layers not supported in models "
+                    "saved with version < 0.9.0");
+            return 0;
+        }
         int is_lstm = (LSTM == layer->type);
         assert(layer->weights != NULL);
         assert(layer->weights[0] != NULL);

@@ -250,6 +250,8 @@ static PSLayerType getLayerType(char *name, int *is_cifar) {
         return Recurrent;
     else if (strcasecmp("lstm", name) == 0)
         return LSTM;
+    else if (strcasecmp("gru", name) == 0)
+        return GRU;
     else if (strcasecmp("cifar", name) == 0) {
         *is_cifar = 1;
         return FullyConnected;

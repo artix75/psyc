@@ -704,7 +704,7 @@ int PSDumpGradients(PSNeuralNetwork *network, PSGradient **gradients,
         for(j = 0; (uint64_t) j < lgradients->weight_count; j++) {
             PSFloat wg = lgradients->weights[j];
             if (apply_clip) wg = PSClipValue(wg, clip_l, clip_h);
-            if (j > 0 || j > 0) fprintf(f, ",");
+            if (j > 0) fprintf(f, ",");
             writeSerializedFloat(f, wg, 0);
         }
         if (lgradients->bias_count > 0 && lgradients->biases == NULL) {
