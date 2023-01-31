@@ -717,6 +717,8 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previous_layer,
         goto final;
     }
 
+    int input_weight_size = input_size * lsize;
+    int hidden_weight_size = lsize * lsize;
     PSFloat *delta = layer->delta;
     PSFloat *delta_z = delta + lsize;
     PSFloat *gradient_biases_c = lgradients->biases;
@@ -726,17 +728,20 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previous_layer,
     PSFloat *gradient_biases_f = lgradients->biases +
                                  (layer->size * FORGET_IDX);
     PSFloat *grd_input_weights = lgradients->weights;
-    PSFloat *grd_hidden_weights = lgradients->weights + (input_size * 4);
+    PSFloat *grd_hidden_weights = lgradients->weights +
+                                  (input_weight_size * 4);
     PSFloat *gradient_weights_c = grd_input_weights;
-    PSFloat *gradient_weights_i = grd_input_weights + input_size;
-    PSFloat *gradient_weights_o = grd_input_weights + (OUTPUT_IDX * input_size);
-    PSFloat *gradient_weights_f = grd_input_weights + (FORGET_IDX * input_size);
+    PSFloat *gradient_weights_i = grd_input_weights + input_weight_size;
+    PSFloat *gradient_weights_o = grd_input_weights +
+                                  (OUTPUT_IDX * input_weight_size);
+    PSFloat *gradient_weights_f = grd_input_weights +
+                                  (FORGET_IDX * input_weight_size);
     PSFloat *gradient_hweights_c = grd_hidden_weights;
-    PSFloat *gradient_hweights_i = grd_hidden_weights + layer->size;
+    PSFloat *gradient_hweights_i = grd_hidden_weights + hidden_weight_size;
     PSFloat *gradient_hweights_o = grd_hidden_weights +
-                                   (OUTPUT_IDX * layer->size);
+                                   (OUTPUT_IDX * hidden_weight_size);
     PSFloat *gradient_hweights_f = grd_hidden_weights +
-                                   (FORGET_IDX * layer->size);
+                                   (FORGET_IDX * hidden_weight_size);
     PSFloat *candidates = getCandidates(layer, t);
     PSFloat *input_gates = getInputGates(layer, t);
     PSFloat *output_gates = getOutputGates(layer, t);
@@ -814,8 +819,9 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previous_layer,
             success = 0;
             goto final;
         }
-        int widx = (int) input;
+        int onehot_idx = (int) input;
         for (int i = 0; i < layer->size; i++) {
+            int widx = (i * input_size) + onehot_idx;
             gradient_weights_c[widx] += delta_c[i];
             gradient_weights_i[widx] += delta_i[i];
             gradient_weights_o[widx] += delta_o[i];
