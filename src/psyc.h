@@ -18,6 +18,7 @@
 #ifndef __PSYC_H
 #define __PSYC_H
 
+#include <stdio.h>
 #include <stdint.h>
 #include <time.h>
 #include "types.h"
@@ -84,8 +85,6 @@
 #define TRAINING_WEIGHT_DECAY       (1 << 2)
 #define TRAINING_EPOCH_AS_SEQUENCE  (1 << 3)
 
-#define PSShouldApplyDropout(layer) (layer->dropout != 0.0 && layer->index < \
-    (layer->network->size - 1))
 #define PSIsRecurrent(o) (o->flags & FLAG_RECURRENT)
 #define PSSetRecurrent(o) (o->flags |= FLAG_RECURRENT)
 #define PSLDEF(...) ((PSLayerDef *) &((PSLayerDef) {__VA_ARGS__}))
@@ -146,7 +145,8 @@ typedef enum {
     Recurrent,
     LSTM,
     SoftMax,
-    GRU
+    GRU,
+    Dropout
 } PSLayerType;
 
 typedef enum {
@@ -220,10 +220,8 @@ typedef struct PSLayer {
     PSFloat                 *states;
     PSFloat                 *delta;
     PSFloat                 *initial_states;
-    uint8_t                 *dropped_out;
     uint32_t                recurrent_states_count;
     uint32_t                flags;
-    PSFloat                 dropout;
     int                     onehot_vector_size;
     int                     output_depth;
     int                     output_columns;
@@ -259,7 +257,6 @@ PSLayer *PSAddConvolutionalLayer(PSNeuralNetwork *network, PSLayerDef *ldef);
 PSLayer *PSAddPoolingLayer(PSNeuralNetwork *network, PSLayerDef *ldef);
 PSLayer *PSGetFirstRecurrentLayer(PSNeuralNetwork *network);
 PSLayer *PSGetLastRecurrentLayer(PSNeuralNetwork *network);
-PSLayer *PSGetPreviousLayer(PSLayer *layer);
 int PSGetOneHotLayerVectorSize(PSLayer *layer);
 uint64_t PSGetLayerParametersCount(PSLayer *layer, int param_type);
 PSLayer *PSGetPreviousLayer(PSLayer *layer);

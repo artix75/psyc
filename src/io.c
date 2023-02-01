@@ -31,6 +31,7 @@
 #include "recurrent.h"
 #include "lstm.h"
 #include "gru.h"
+#include "dropout.h"
 #include "log.h"
 #include "buildinfo.h"
 #include "optimization.h"
@@ -512,10 +513,10 @@ void writeLayerDefinition(PSLayer *layer, FILE *f) {
     char *activation = (char *) PSGetActivationName(layer->activate);
     if (activation == NULL) activation = "null";
     fprintf(
-        f, "layer[%d]:%d,%d,%d,dropout=" PSFLOAT_FORMAT ",activation=%s,"
+        f, "layer[%d]:%d,%d,%d,activation=%s,"
         "output_depth=%d,output_cols=%d,output_rows=%d",
         layer->index, (int) layer->type, layer->size,
-        layer->flags, layer->dropout, activation, layer->output_depth,
+        layer->flags, activation, layer->output_depth,
         layer->output_columns, layer->output_rows
     );
     if (layer->flags & FLAG_ONEHOT && layer->index == 0)
@@ -531,6 +532,9 @@ void writeLayerDefinition(PSLayer *layer, FILE *f) {
         }
         fprintf(f, ",stride=%d,padding=%d,filter_width=%d,filter_height=%d\n",
                 stride, padding, filter_w, filter_h);
+    } else if (Dropout == layer->type) {
+        PSFloat dropout = PSGetDropout(layer);
+        fprintf(f, ",dropout=" PSFLOAT_FORMAT "\n", dropout);
     } else fprintf(f, "\n");
 }
 
@@ -703,10 +707,10 @@ static int loadLegacyLayerDefinitions(PSNeuralNetwork *network, char *vers,
                     }
                 }
             }
-            layer->dropout = dropout;
+            PSSetDropout(layer, dropout);
         } else {
             layer = NULL;
-            PSLayerDef ldef = {.flags = lflags, .dropout = dropout};
+            PSLayerDef ldef = {.flags = lflags};
             if (ltype == Convolutional || ltype == Pooling) {
                 int param_c = CONV_PARAMETER_COUNT;
                 for (aidx = 0; aidx < param_c; aidx++) {
@@ -752,7 +756,16 @@ static int loadLegacyLayerDefinitions(PSNeuralNetwork *network, char *vers,
                 return 0;
             }
             layer->flags |= lflags;
-            layer->dropout = dropout;
+            if (dropout > 0) {
+                PSLayerDef dropout_ldef = {.dropout = dropout};
+                PSLayer *dropout_layer = PSAddLayer(
+                    network, Dropout, lsize, &dropout_ldef
+                );
+                if (dropout_layer == NULL) {
+                    PSErr(__func__, "Could not create dropout layer %d", i + 1);
+                    return 0;
+                }
+            }
         }
     }
     return 1;
@@ -945,7 +958,7 @@ static int loadLegacyLayerParameters(PSNeuralNetwork *network,
         int lsize = 0;
         if (layer->type == Convolutional) {
             lsize = layer->output_depth;
-        } else if (layer->type == Pooling) {
+        } else if (layer->type == Pooling || layer->type == Dropout) {
             continue;
         } else lsize = layer->size;
         if (GRU == layer->type) {
@@ -1083,7 +1096,7 @@ static int loadLayerParameters(PSNeuralNetwork *network,
     int ok, i;
     for (i = 1; i < network->size; i++) {
         PSLayer *layer = network->layers[i];
-        if (layer->type == Pooling) continue;
+        if (layer->type == Pooling || layer->type == Dropout) continue;
         int bias_count = 0, lidx = -1, wtype_count = 0, wcount = 0;
         ok = scanFile(
             f, "--- Layer[%d] Biases: %d ---\n", 2, NULL, &lidx, &bias_count
@@ -1214,7 +1227,7 @@ static int loadLegacyGradients(PSNeuralNetwork *network, const char * filename,
         PSLayer *layer = network->layers[j];
         assert(layer != NULL);
         int lsize = 0, wsize = 0;
-        if (layer->type == Pooling) continue;
+        if (layer->type == Pooling || layer->type == Dropout) continue;
         if (GRU == layer->type) {
             loadErr(filename, NULL, "GRU layers not supported in models "
                     "saved with version < 0.9.0");
@@ -1677,7 +1690,7 @@ int PSSaveNetwork(PSNeuralNetwork *network, const char* filename) {
     for (i = 1; i < network->size; i++) {
         PSLayer *layer = network->layers[i];
         PSLayerType ltype = layer->type;
-        if (Pooling == ltype) continue;
+        if (Pooling == ltype || layer->type == Dropout) continue;
         int bias_count = PSGetLayerParametersCount(layer, PARAM_TYPE_BIAS),
             weights_count = PSGetLayerParametersCount(layer, PARAM_TYPE_WEIGHT);
         fprintf(f, "--- Layer[%d] Biases: %d ---\n", i, bias_count);

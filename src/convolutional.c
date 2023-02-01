@@ -73,7 +73,6 @@ w,steplen,step,rowlen) \
 
 /* Forward declarations */
 
-PSFloat applyDropout(PSNeuron *neuron, PSFloat value);
 PSActivationFunction PSGetActivationDerivative(PSActivationFunction func);
 int PSConvolve(PSNeuralNetwork *net, PSLayer *layer, ...);
 int PSPool(PSNeuralNetwork *net, PSLayer *layer, ...);
@@ -82,7 +81,6 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
 int PSPoolingBackprop(PSLayer *pooling_layer, PSLayer *convolutional_layer,
                       PSGradient *layer_gradients, ...);
 
-uint8_t isDroppedOut(PSNeuron *neuron, ...);
 int checkLayerForFeedforward(PSLayer *layer);
 
 /* Generic Functions */
@@ -405,7 +403,6 @@ int PSConvolve(PSNeuralNetwork *net, PSLayer *layer, ...) {
     int padding = settings->padding;
     int filter_area = settings->filter_width * settings->filter_height;
     int feature_size = layer->size / layer->output_depth;
-    int apply_dropout = PSShouldApplyDropout(layer);
     int use_bias = !(layer->flags & FLAG_NO_BIAS);
     int input_w = settings->input_width, input_h = settings->input_height;
 #ifdef USE_AVX
@@ -516,7 +513,6 @@ int PSConvolve(PSNeuralNetwork *net, PSLayer *layer, ...) {
             }
             PSFloat state = sum + bias;
             state = layer->activate(state);
-            if (apply_dropout) state = applyDropout(neuron, state);
             int ok = PSSetState(layer, state, idx, t);
             if (!ok) {
                 PSErr(
@@ -675,12 +671,10 @@ int PSPoolingBackprop(PSLayer *pooling_layer, PSLayer *convolutional_layer,
             for (y = r_row; y < max_y; y++) {
                 for (x = r_col; x < max_x; x++) {
                     int nidx = ((y * input_w) + x) + (prev_feat_size *i);
-                    PSNeuron *prev_neuron = convolutional_layer->neurons[nidx];
                     if (do_dump) DumpPoolBackpropStep(
                         col, row, r_col, r_row, max_x, max_y,
                         convolutional_layer, i, nidx, x, y
                     );
-                    if (isDroppedOut(prev_neuron, t)) continue;
                     PSFloat s = PSGetState(convolutional_layer, nidx, t);
                     PSFloat dv = (s < pool_state ? 0 : d);
                     if (dv != 0 && convolutional_layer->derivative != NULL)
@@ -789,7 +783,6 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
                             if (skip_w > 0) widx += skip_w;
                             break;
                         }
-                        PSNeuron *prev_neuron = prev_layer->neurons[nidx];
                         PSFloat a = PSGetState(prev_layer, nidx, t);
                         assert(widx >= 0);
                         if (widx >= weight_size) {
@@ -809,7 +802,7 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
                             prev_layer, k, nidx, x, y, widx
                         );
                         gradient->weights[weight_offset + widx] += (a * d);
-                        if (prev_delta != NULL && !isDroppedOut(prev_neuron,t)){
+                        if (prev_delta != NULL) {
                             PSNeuron *neuron =
                                 convolutional_layer->neurons[idx];
                             prev_delta[nidx] += (d * neuron->weights[widx]);

@@ -29,6 +29,7 @@
 #include "../psyc.h"
 #include "../convolutional.h"
 #include "../recurrent.h"
+#include "../dropout.h"
 #include "../lstm.h"
 #include "../mnist.h"
 #include "../maths.h"
@@ -1735,8 +1736,6 @@ int testGenericClone(TestCase *test_case, Test *test) {
 int testGenericSave(TestCase *test_case, Test *test) {
     PSNeuralNetwork *network = getNetwork(test_case);
     assert(network->size > 0);
-    PSFloat old_dropout = network->layers[0]->dropout;
-    network->layers[0]->dropout = 0.5;
     char tmpfile[255];
     getTmpFileName("tests-save-nn", ".psmodel", tmpfile);
     int ok = PSSaveNetwork(network, tmpfile);
@@ -1748,7 +1747,6 @@ int testGenericSave(TestCase *test_case, Test *test) {
         ok, final, test, "Could not load network from %s",tmpfile
     );
     ok = compareNetworks(network, clone, test);
-    network->layers[0]->dropout = old_dropout;
     remove(tmpfile);
 final:
     PSDeleteNetwork(clone);
@@ -1858,13 +1856,16 @@ int compareNetworks(PSNeuralNetwork *network, PSNeuralNetwork *clone,
             "Layer[%d]: Source size %d != Clone size %d",
             i, o_size, c_size
         );
-        PSFloat o_dropout = orig_l->dropout;
-        PSFloat c_dropout = clone_l->dropout;
-        testAssertWithMessage(
-            (o_dropout == c_dropout), test,
-            "Layer[%d]: Source dropout %g != Clone dropout %g",
-            i, o_dropout, c_dropout
-        );
+        if (Dropout == orig_l->type) {
+            PSFloat o_dropout = PSGetDropout(orig_l);
+            PSFloat c_dropout = PSGetDropout(clone_l);
+            testAssertWithMessage(
+                (o_dropout == c_dropout), test,
+                "Layer[%d]: Source dropout %g != Clone dropout %g",
+                i, o_dropout, c_dropout
+            );
+            continue;
+        }
         if (i == 0) continue;
         if (otype == Pooling) continue;
         int o_flags = orig_l->flags;

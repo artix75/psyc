@@ -54,7 +54,6 @@ static char *GRUStateNames[] = {
 
 /* Forward declarations */
 
-int applyLayerDroput(PSLayer *layer, int t);
 int checkLayerForFeedforward(PSLayer *layer);
 PSGRUCell *PSCreateGRUCell(PSLayer *layer);
 void PSDeleteGRUCell(PSGRUCell *cell);
@@ -593,7 +592,6 @@ make_outputs:
     if (feed_previous_step) final_opts.store_mode = MATHS_STORE_MODE_ADD;
     PSMultiplyVectors(candidates, cache, outputs, layer->size,
                       &final_opts);
-    if (PSShouldApplyDropout(layer) && !applyLayerDroput(layer, t)) return 0;
 final:
     free(cache);
     return success;

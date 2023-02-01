@@ -35,14 +35,12 @@
 /* Forward declaration. */
 
 int PSResizeRecurrentHiddenStates(PSLayer *layer, uint32_t steps);
-int applyLayerDroput(PSLayer *layer, int t);
 int PSRecurrentBackprop(PSLayer *layer, PSLayer *previous_layer,
                         PSGradient *lgradients, ...);
 int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...);
 
 /* External functions */
 
-int isDroppedOut(PSNeuron *neuron, ...);
 int checkLayerForFeedforward(PSLayer *layer);
 int onehotInputsFeedforward(PSLayer *layer, PSLayer *previous, int t,
                             int do_activate);
@@ -221,7 +219,6 @@ forward_previous_step:
     if (use_bias) dpopt.add_vec = layer->biases;
     PSDot(hidden_weights, prev_states, outputs, &dpopt);
 final:
-    if (PSShouldApplyDropout(layer) && !applyLayerDroput(layer, t)) return 0;
     return 1;
 }
 
@@ -326,7 +323,6 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previous_layer,
         }
         /* Update previous layer delta */
         if (is_lowest && prev_layer_delta != NULL) {
-            /* TODO: Reimplement dropout*/
             mopts.store_mode = MATHS_STORE_MODE_NORM;
             int ok = PSDot(tr_weights, delta, previous_layer->delta, &mopts);
             if (!ok) {

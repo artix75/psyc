@@ -63,8 +63,6 @@ static char *LSTMStateNames[] = {
 
 /* Forward declarations */
 
-int isDroppedOut(PSNeuron *neuron, ...);
-int applyLayerDroput(PSLayer *layer, int t);
 PSVecActivationFunction PSGetVectorActivationFunc(PSActivationFunction func);
 PSActivationFunction PSGetActivationDerivative(PSActivationFunction func);
 int PSLSTMBackprop(PSLayer *layer, PSLayer *previousLayer,
@@ -678,7 +676,6 @@ final:
         if (activate != NULL) activate(raw_states, outputs, lsize, &final_opts);
         PSMultiplyVectors(outputs, output_gates, outputs, lsize, &final_opts);
     } else PSMultiplyVectors(raw_states,output_gates,outputs,lsize,&final_opts);
-    if (PSShouldApplyDropout(layer) && !applyLayerDroput(layer, t)) return 0;
     return 1;
 }
 

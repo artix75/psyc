@@ -252,6 +252,8 @@ static PSLayerType getLayerType(char *name, int *is_cifar) {
         return LSTM;
     else if (strcasecmp("gru", name) == 0)
         return GRU;
+    else if (strcasecmp("dropout", name) == 0)
+        return Dropout;
     else if (strcasecmp("cifar", name) == 0) {
         *is_cifar = 1;
         return FullyConnected;
@@ -698,12 +700,14 @@ void parseOptions(int argc, char **argv) {
                         PARAM_TYPE_WEIGHT, carg, &ldef, modestr
                     );
                     if (!ok) goto err;
+                    i = j;
                 } else if (strcmp("--bias-init-mode", carg)==0 && ++j<argc) {
                     char *modestr = argv[j];
                     int ok = parseParamInitMode(
                         PARAM_TYPE_BIAS, carg, &ldef, modestr
                     );
                     if (!ok) goto err;
+                    i = j;
                 } else if (strcmp("--init-range", carg)==0 && ++j<argc) {
                     char *rangestr = argv[j];
                     PSFloat range = 0.0;
@@ -713,6 +717,7 @@ void parseOptions(int argc, char **argv) {
                         goto err;
                     }
                     ldef.init_range = range;
+                    i = j;
                 } else if (strcmp("--init-scale", carg)==0 && ++j<argc) {
                     char *scalestr = argv[j];
                     PSFloat scale = 0.0;
@@ -722,14 +727,22 @@ void parseOptions(int argc, char **argv) {
                         goto err;
                     }
                     ldef.init_scale = scale;
+                    i = j;
                 } else break;
             }
             int size = 0;
-            if (ltype != Convolutional && ltype != Pooling) {
+            if (ltype != Convolutional && ltype != Pooling && ltype != Dropout)
+            {
+                if (i >= argc) {
+                    fprintf(
+                        stderr, "ERROR: missing layer size for layer %d\n",
+                        lidx
+                    );
+                }
                 char *sizestr = argv[++i];
                 int matched = sscanf(sizestr, "%d", &size);
                 if (!matched) {
-                    fprintf(stderr, "Invalid size %s\n", sizestr);
+                    fprintf(stderr, "ERROR: Invalid size %s\n", sizestr);
                     goto err;
                 }
                 j = i + 1;

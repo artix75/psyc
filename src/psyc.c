@@ -37,6 +37,7 @@
 #include "recurrent.h"
 #include "lstm.h"
 #include "gru.h"
+#include "dropout.h"
 #include "debug.h"
 
 #define STATUS_ERROR_LOSS ((PSFloat) FLT_MIN)
@@ -97,8 +98,6 @@ char *getLossFunctionName(PSLossFunction function);
 char *getNetworkStatusLabel(PSNeuralNetwork *network);
 float validate(PSNeuralNetwork *network, PSFloat *test_data, int data_size,
                int log);
-PSFloat applyDropout(PSLayer *layer, PSFloat value, uint8_t *dropped_p);
-uint8_t isDroppedOut(PSNeuron *neuron, ...);
 int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
                              PSLayerDef *ldef);
 int PSInitPoolingLayer(PSNeuralNetwork *network, PSLayer *layer,
@@ -111,10 +110,14 @@ int PSInitLSTMLayer(PSNeuralNetwork *network, PSLayer *layer,
                     int size, int ws, PSLayerDef *ldef);
 int PSInitGRULayer(PSNeuralNetwork *network, PSLayer *layer,
                    int size, int ws, PSLayerDef *ldef);
+int PSInitDropoutLayer(PSNeuralNetwork *network, PSLayer *layer,
+                       PSLayerDef *layer_def);
 int PSInitLSTMStates(PSLayer *layer, uint32_t steps, int retain_previous);
 int PSResizeLSTMStates(PSLayer *layer, uint32_t steps);
 int PSInitGRUStates(PSLayer *layer, uint32_t steps, int retain_previous);
 int PSResizeGRUStates(PSLayer *layer, uint32_t steps);
+int PSInitDropoutMask(PSLayer *layer, uint32_t steps);
+int PSResizeDropoutMask(PSLayer *layer, uint32_t steps);
 int PSDumpGradients(PSNeuralNetwork *network, PSGradient **gradients,
                     const char* filename, PSTrainingOptions *opts);
 PSGradient **cloneNetworkGradients(PSGradient **gradients,
@@ -124,7 +127,6 @@ static void deleteTrainingContext(PSTrainingContext *training_ctx,
 static void deleteNetworkContext(PSNetworkContext *ctx,
                                  PSNeuralNetwork *network);
 int writeSerializedFloat(FILE *out, PSFloat fnum, int opts);
-int applyLayerDroput(PSLayer *layer, int t);
 
 /* Miscellaneous functions */
 
@@ -208,7 +210,7 @@ void dumpFeedforwardStep(int i, PSFloat a, PSFloat b, PSFloat sum,
 /* Feedforward Functions */
 
 int checkLayerForFeedforward(PSLayer *layer) {
-    if (layer->neurons == NULL) {
+    if (layer->neurons == NULL && Dropout != layer->type) {
         PSErr(NULL, "Layer[%d] has no neurons!", layer->index);
         return 0;
     }
@@ -225,7 +227,7 @@ int checkLayerForFeedforward(PSLayer *layer) {
         PSErr(NULL, "Layer[%d]: previous layer is NULL", layer->index);
         return 0;
     }
-    if (layer->weight_types_count > 0) {
+    if (layer->weight_types_count > 0 && Dropout != layer->type) {
         if (layer->weights == NULL) {
             PSErr(NULL, "Layer[%d]: layer has no weights", layer->index);
             return 0;
@@ -237,7 +239,7 @@ int checkLayerForFeedforward(PSLayer *layer) {
             }
         }
     } else {
-        if (layer->type != Pooling) {
+        if (layer->type != Pooling && layer->type != Dropout) {
             PSErr(NULL, "Layer[%d]: weights required for layer type %s",
                   PSGetLabelForType(layer->type));
             return 0;
@@ -321,8 +323,6 @@ static int fullFeedforward(PSNeuralNetwork *network, PSLayer *layer, ...) {
     opts.after = layer->activate;
     PSDot(weights, inputs, outputs, &opts);
 final:
-    if (PSShouldApplyDropout(layer))
-        if (!applyLayerDroput(layer, t)) return 0;
     return 1;
 }
 
@@ -543,6 +543,8 @@ char *PSGetLabelForType(PSLayerType type) {
             return "Softmax";
         case GRU:
             return "GRU";
+        case Dropout:
+            return "Dropout";
     }
     return "UNKOWN";
 }
@@ -631,8 +633,8 @@ PSActivationFunction PSGetActivationDerivative(PSActivationFunction func) {
 
 uint64_t PSGetLayerParametersCount(PSLayer *layer, int param_type) {
     if (layer == NULL) return 0;
-    if (Pooling == layer->type || layer->index == 0 || layer->size == 0)
-        return 0;
+    if (Pooling == layer->type || layer->index == 0 || layer->size == 0 ||
+        Dropout == layer->type) return 0;
     if (param_type == 0) param_type = (PARAM_TYPE_WEIGHT | PARAM_TYPE_BIAS);
     if (layer->get_param_count != NULL)
         return layer->get_param_count(layer, param_type);
@@ -703,7 +705,7 @@ uint64_t PSGetLayerInputWeightsCount(PSLayer *layer, int per_neuron) {
     if (layer == NULL) return 0;
     if (layer->weights == NULL) return 0;
     if (layer->weights[0] == NULL) return 0;
-    if (layer->type == Pooling) return 0;
+    if (layer->type == Pooling || layer->type == Dropout) return 0;
     uint64_t wcount = PSMatrixLength(layer->weights[0]);
     if (per_neuron && layer->type != Convolutional) wcount /= layer->size;
     return wcount;
@@ -711,7 +713,8 @@ uint64_t PSGetLayerInputWeightsCount(PSLayer *layer, int per_neuron) {
 
 PSFloat *PSGetNeuronInputWeights(PSNeuron *neuron) {
     if (neuron->layer == NULL) return NULL;
-    if (neuron->layer->type == Pooling) return NULL;
+    if (neuron->layer->type == Pooling || neuron->layer->type == Dropout)
+        return NULL;
     if (neuron->layer->weights == NULL || neuron->layer->weights[0] == NULL)
         return NULL;
     uint64_t wcount = PSGetLayerInputWeightsCount(neuron->layer, 1);
@@ -734,7 +737,7 @@ void PSPrintLayerInfo(PSLayer *layer) {
     if (onehot_input)
         sprintf(onehot_info, " (vector size: %d)", layer->onehot_vector_size);
     printf("Layer[%d]: %s, size = %d", layer->index, type_name, layer->size);
-    if (layer->dropout > 0.0) printf(", dropout = %g", layer->dropout);
+    if (Dropout == layer->type) printf(", dropout = %g", PSGetDropout(layer));
     if (onehot_info[0]) printf(" %s", onehot_info);
     if (ltype == Convolutional || ltype == Pooling) {
         PSConvolutionalSettings *settings = PSGetConvolutionalSettings(layer);
@@ -942,13 +945,13 @@ int PSInitRecurrentHiddenStates(PSLayer *layer, uint32_t steps,
         layer->recurrent_states_count = 0;
         layer->states = NULL;
         free(states);
-        if (layer->dropped_out != NULL) free(layer->dropped_out);
-        layer->dropped_out = NULL;
         layer->initial_states = NULL;
         if (LSTM == layer->type) {
             if (!PSInitLSTMStates(layer, 0, 0)) goto err;
         } else if (GRU == layer->type) {
             if (!PSInitGRUStates(layer, 0, 0)) goto err;
+        } else if (Dropout == layer->type) {
+            if (!PSInitDropoutMask(layer, 0)) goto err;
         }
         return 1;
     }
@@ -957,26 +960,15 @@ int PSInitRecurrentHiddenStates(PSLayer *layer, uint32_t steps,
         &layer->initial_states
     );
     if (hstates == NULL) return 0;
-    if (PSShouldApplyDropout(layer) && steps > 0) {
-        if (layer->dropped_out != NULL) free(layer->dropped_out);
-        layer->dropped_out = calloc(layer->size * steps, sizeof(uint8_t));
-        if (layer->dropped_out == NULL) {
-            PSPrintMemoryErrorMsg();
-            goto err;
-        }
-    } else if (layer->dropped_out != NULL) {
-        free(layer->dropped_out);
-        layer->dropped_out = NULL;
-    }
     layer->states = hstates;
     layer->recurrent_states_count = steps;
     free(states);
     if (LSTM == layer->type) {
-        if (!PSInitLSTMStates(layer, steps, retain_previous))
-            goto err;
+        if (!PSInitLSTMStates(layer, steps, retain_previous)) goto err;
     } else if (GRU == layer->type) {
-        if (!PSInitGRUStates(layer, steps, retain_previous))
-            goto err;
+        if (!PSInitGRUStates(layer, steps, retain_previous)) goto err;
+    } else if (Dropout == layer->type) {
+        if (!PSInitDropoutMask(layer, steps)) goto err;
     }
     return 1;
 err:
@@ -984,8 +976,6 @@ err:
     if (layer->states != NULL) free(layer->states);
     layer->recurrent_states_count = 0;
     layer->states = NULL;
-    if (layer->dropped_out != NULL) free(layer->dropped_out);
-    layer->dropped_out = NULL;
     layer->network->status = STATUS_ERROR;
     return 0;
 }
@@ -1011,32 +1001,17 @@ int PSResizeRecurrentHiddenStates(PSLayer *layer, uint32_t steps) {
         layer->states = NULL;
         layer->recurrent_states_count = 0;
         layer->initial_states = NULL;
-        if (layer->dropped_out != NULL) free(layer->dropped_out);
-        layer->dropped_out = NULL;
         layer->network->status = STATUS_ERROR;
         return 0;
     }
     layer->recurrent_states_count = steps;
     layer->states = hstates;
-    if (PSShouldApplyDropout(layer)) {
-        uint8_t *dropped_out = realloc(layer->dropped_out, steps);
-        if (dropped_out == NULL) {
-            free(layer->dropped_out);
-            layer->dropped_out = NULL;
-            PSPrintMemoryErrorMsg();
-            layer->network->status = STATUS_ERROR;
-            return 0;
-        }
-        int diff = steps - layer->recurrent_states_count;
-        uint8_t *new_segment =
-            dropped_out + (layer->recurrent_states_count * layer->size);
-        memset(new_segment, 0, (size_t) diff);
-        layer->dropped_out = dropped_out;
-    }
     if (LSTM == layer->type) {
         if (!PSResizeLSTMStates(layer, steps)) return 0;
     } else if (GRU == layer->type) {
         if (!PSResizeGRUStates(layer, steps)) return 0;
+    } else if (Dropout == layer->type) {
+        if (!PSResizeDropoutMask(layer, steps)) return 0;
     }
     return 1;
 }
@@ -1080,7 +1055,6 @@ int PSSetState(PSLayer *layer, PSFloat state, int index, ...) {
         );
         return 0;
     }
-    int apply_dropout = PSShouldApplyDropout(layer);
     int t = 0;
     if (PSIsRecurrent(layer)) {
         va_list args;
@@ -1105,19 +1079,9 @@ int PSSetState(PSLayer *layer, PSFloat state, int index, ...) {
             return 0;
         }
         index = (t * layer->size) + index;
-    } else if (apply_dropout && layer->dropped_out == NULL) {
-        layer->dropped_out = calloc(layer->size, sizeof(uint8_t));
-        if (layer->dropped_out == NULL) {
-            PSPrintMemoryErrorMsg();
-            if (layer->network) layer->network->status = STATUS_ERROR;
-            return 0;
-        }
-    }
-    uint8_t dropped = 0;
-    if (apply_dropout) {
-        assert(layer->dropped_out != NULL);
-        state = applyDropout(layer, state, &dropped);
-        layer->dropped_out[index] = dropped;
+    } else if (Dropout == layer->type) {
+        PSErr(__func__, "PSSetState cannot be called on Dropout layer");
+        return 0;
     }
     layer->states[index] = state;
     return 1;
@@ -1240,68 +1204,6 @@ static PSRecurrentNetworkOptions *createDefaultRNNOptions(PSNeuralNetwork *net)
 void PSSetDefaultRNNOptions(PSRecurrentNetworkOptions *opts) {
     opts->sequence_stop_criterion.max_steps = MAX_RECURRENT_OUTPUT_STEPS;
     opts->sequence_stop_criterion.eos = -1;
-}
-
-int applyLayerDroput(PSLayer *layer, int t) {
-    if (layer->dropout) return 1;
-    if (layer->dropout > 1.0) layer->dropout = 1.0;
-    PSNeuralNetwork *network = layer->network;
-    PSFloat *states = NULL;
-    if (PSIsRecurrent(layer)) states = PSGetStates(layer, t);
-    else states = layer->states;
-    if (states == NULL) return 1;
-    if (layer->dropped_out == NULL) {
-        layer->dropped_out = calloc(layer->size, sizeof(PSFloat));
-        if (layer->dropped_out == NULL) {
-            PSPrintMemoryErrorMsg();
-            return 0;
-        }
-    }
-    if (network->status != STATUS_TRAINING) {
-        PSMultiplyVectorScalar(
-            states, layer->dropout, states, layer->size, NULL
-        );
-        return 1;
-    }
-    int dropped, i;
-    for (i = 0; i < layer->size; i++) {
-        PSFloat r = PSNormalizedRandom();
-        dropped = layer->dropped_out[i] = (r < layer->dropout);
-        if (dropped) states[i] = 0.0;
-    }
-    return 1;
-}
-
-PSFloat applyDropout(PSLayer *layer, PSFloat value, uint8_t *dropped_p) {
-    if (layer->dropout <= 0) return value;
-    PSNeuralNetwork *network = layer->network;
-    if (layer->dropout > 1.0) layer->dropout = 1.0;
-    if (network->status == STATUS_TRAINING) {
-        assert(dropped_p != NULL);
-        PSFloat r = PSNormalizedRandom();
-        if (r < layer->dropout) {
-            *dropped_p = 1;
-            return 0.0;
-        } else {
-            *dropped_p = 0;
-            return value;
-        }
-    } else return value * layer->dropout;
-}
-
-uint8_t isDroppedOut(PSNeuron *neuron, ...) {
-    if (neuron == NULL) return 0;
-    if (neuron->layer->dropped_out == NULL) return 0;
-    int index = neuron->index;
-    if (!PSIsRecurrent(neuron->layer)) {
-        int t = 0;
-        va_list ap;
-        va_start(ap, neuron);
-        t = va_arg(ap, int);
-        va_end(ap);
-        index += (neuron->layer->size * t);
-    }
-    return neuron->layer->dropped_out[index];
 }
 
 static void updateNetworkForRecurrentMode(PSNeuralNetwork *network,
@@ -1517,11 +1419,11 @@ PSNeuralNetwork *PSCloneNetwork(PSNeuralNetwork *network, int layout_only) {
         PSLayerDef ldef = {
             .activation = layer->activate,
             .flags = layer->flags,
-            .dropout = layer->dropout,
             .output_depth = layer->output_depth,
             .output_columns = layer->output_columns,
             .output_rows = layer->output_rows
         };
+        if (Dropout == type) ldef.dropout = PSGetDropout(layer);
         if (Convolutional == type || Pooling == type) {
             PSConvolutionalSettings *csettings =
                 PSGetConvolutionalSettings(layer);
@@ -1536,17 +1438,12 @@ PSNeuralNetwork *PSCloneNetwork(PSNeuralNetwork *network, int layout_only) {
             return NULL;
         }
         cloned_layer->flags = layer->flags;
-        cloned_layer->dropout = layer->dropout;
         if (!layout_only) {
             cloned_layer->recurrent_states_count =
                 layer->recurrent_states_count;
             if (cloned_layer->states != NULL) {
                 free(cloned_layer->states);
                 cloned_layer->states = NULL;
-            }
-            if (cloned_layer->dropped_out != NULL) {
-                free(cloned_layer->dropped_out);
-                cloned_layer->dropped_out = NULL;
             }
             if (layer->states != NULL) {
                 int len;
@@ -1570,17 +1467,6 @@ PSNeuralNetwork *PSCloneNetwork(PSNeuralNetwork *network, int layout_only) {
                 cloned_layer->states = NULL;
                 cloned_layer->initial_states = NULL;
             }
-            if (layer->dropped_out != NULL) {
-                int len;
-                if (PSIsRecurrent(layer)) len = layer->recurrent_states_count;
-                else len = 1;
-                if (len < 1) len = 1;
-                len *= layer->size;
-                size_t size = (size_t) len * sizeof(PSFloat);
-                cloned_layer->dropped_out = malloc(size);
-                if (cloned_layer->dropped_out == NULL) goto memerr;
-                memcpy(cloned_layer->dropped_out, layer->dropped_out, size);
-            } else cloned_layer->dropped_out = NULL;
             if (layer->weights != NULL) {
                 if (layer->weight_types_count == 0) {
                     PSErr(__func__, "Layer[%d]: weights not NULL but "
@@ -2063,8 +1949,6 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
     layer->biases = NULL;
     layer->delta = NULL;
     layer->initial_states = NULL;
-    layer->dropout = layer_def->dropout;
-    layer->dropped_out = NULL;
     layer->recurrent_states_count = 0;
     layer->activate = layer_def->activation;
     layer->derivative = PSGetActivationDerivative(layer->activate);
@@ -2140,6 +2024,8 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
     } else if (type == GRU) {
         initialized = PSInitGRULayer(network, layer, size, previous_size,
                                      layer_def);
+    } else if (type == Dropout) {
+        initialized = PSInitDropoutLayer(network, layer, layer_def);
     } else PSErr(__func__, "Invalid layer type %d", type);
     if (!initialized) goto fail;
     if (layer->index > 0 && layer->delta == NULL) {
@@ -2208,7 +2094,6 @@ void PSDeleteLayer(PSLayer* layer) {
     if (extra != NULL) free(layer->extra);
     if (layer->delta != NULL) free(layer->delta);
     if (layer->states != NULL) free(layer->states);
-    if (layer->dropped_out != NULL) free(layer->dropped_out);
     free(layer);
 }
 
@@ -2420,7 +2305,7 @@ int PSFeedforward(PSNeuralNetwork *network, PSFloat *values) {
 
 PSGradient *createLayerGradients(PSLayer *layer) {
     if (layer == NULL) return NULL;
-    if (layer->type == Pooling) return NULL;
+    if (layer->type == Pooling || layer->type == Dropout) return NULL;
     PSGradient *gradients = malloc(sizeof(*gradients));
     if (gradients == NULL) {
         PSPrintMemoryErrorMsg();
@@ -2492,7 +2377,9 @@ PSGradient **createGradients(PSNeuralNetwork *network) {
         PSLayer *layer = network->layers[i];
         int idx = i - 1;
         gradients[idx] = createLayerGradients(layer);
-        if (gradients[idx] == NULL && layer->type != Pooling) {
+        if (gradients[idx] == NULL && layer->type != Pooling &&
+            layer->type != Dropout)
+        {
             PSPrintMemoryErrorMsg();
             PSDeleteNetworkGradients(gradients, network);
             return NULL;
@@ -2889,17 +2776,9 @@ int fullBackprop(PSLayer *layer, PSLayer *previous_layer,
         PSErr(NULL, "Layer[%d]: NULL outputs", previous_layer->index);
         return 0;
     }
-    int apply_dropout = PSShouldApplyDropout(layer) &&
-                        layer->dropped_out != NULL;
     int has_derivative = (layer->derivative != NULL);
-    if (has_derivative || apply_dropout) {
+    if (has_derivative) {
         for (int i = 0; i < layer->size; i++) {
-            if (apply_dropout && isDroppedOut(layer->neurons[i], t)) {
-                /* TODO: multiply layer->dropped_out (1 or 0 values) with
-                 * delta. */
-                delta[i] = 0;
-            }
-            if (!has_derivative) continue;
             PSFloat d = delta[i];
             PSFloat a = PSGetState(layer, i, t);
             d *= layer->derivative(a);
