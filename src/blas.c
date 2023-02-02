@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2022 Fabio Nicotra <artix2 at gmail dot com>.
+ * Copyright (C) 2016-2023 Fabio Nicotra <artix2 at gmail dot com>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms are permitted
@@ -363,4 +363,3 @@ void PSGemm(PSBLASOrder order, char trans_a, char trans_b, int m, int n, int k,
               beta, c, ldc);
 #endif
 }
-

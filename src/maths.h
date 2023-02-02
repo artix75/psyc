@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2022 Fabio Nicotra <artix2 at gmail dot com>.
+ * Copyright (C) 2016-2023 Fabio Nicotra <artix2 at gmail dot com>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms are permitted
@@ -145,4 +145,3 @@ int PSVectorProduct(PSFloat *a, PSFloat *b, PSFloat *dest,
                     uint64_t alen, uint64_t blen, PSMathOpts *opts);
 
 #endif /* __PS_MATHS_H__ */
-
