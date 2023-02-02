@@ -196,7 +196,8 @@ void printSample(PSNeuralNetwork *network, int input_idx, int len) {
                 return;
             }
         } else {
-            max_idx = randomChoice(out->states + t, out->size);
+            PSFloat *states = PSGetStates(out, t);
+            max_idx = randomChoice(states, out->size);
             if (max_idx < 0) {
                 if (!PSFindLayerMaxState(out, NULL, &max_idx, t)) {
                     network->status = oldstatus;
