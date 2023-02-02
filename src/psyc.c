@@ -70,8 +70,8 @@ void segvHandler(int sig, siginfo_t *info, void *secret);
 
 typedef struct {
     PSTrainingOptions options;
-    PSGradient **momentum_gradients;
-    PSGradient **aux_gradients;
+    PSGradient **memory_gradients1;
+    PSGradient **memory_gradients2;
 } PSTrainingContext;
 
 typedef struct {
@@ -1562,33 +1562,33 @@ PSNeuralNetwork *PSCloneNetwork(PSNeuralNetwork *network, int layout_only) {
             PSTrainingContext *clone_training_ctx=clone_ctx->training_context;
             clone_training_ctx->options = training_ctx->options;
             clone_training_ctx->options.debug_dump_to = NULL;
-            PSGradient **mgradients = training_ctx->momentum_gradients;
-            PSGradient **xgradients = training_ctx->aux_gradients;
+            PSGradient **mgradients = training_ctx->memory_gradients1;
+            PSGradient **xgradients = training_ctx->memory_gradients2;
             if (mgradients != NULL) {
-                clone_training_ctx->momentum_gradients = cloneNetworkGradients(
+                clone_training_ctx->memory_gradients1 = cloneNetworkGradients(
                     mgradients, network
                 );
-                if (clone_training_ctx->momentum_gradients == NULL) goto err;
+                if (clone_training_ctx->memory_gradients1 == NULL) goto err;
             } else {
-                if (clone_training_ctx->momentum_gradients) {
+                if (clone_training_ctx->memory_gradients1) {
                     PSDeleteNetworkGradients(
-                        clone_training_ctx->momentum_gradients, network
+                        clone_training_ctx->memory_gradients1, network
                     );
                 }
-                clone_training_ctx->momentum_gradients = NULL;
+                clone_training_ctx->memory_gradients1 = NULL;
             }
             if (xgradients != NULL) {
-                clone_training_ctx->aux_gradients = cloneNetworkGradients(
+                clone_training_ctx->memory_gradients2 = cloneNetworkGradients(
                     xgradients, network
                 );
-                if (clone_training_ctx->aux_gradients == NULL) goto err;
+                if (clone_training_ctx->memory_gradients2 == NULL) goto err;
             } else {
-                if (clone_training_ctx->aux_gradients) {
+                if (clone_training_ctx->memory_gradients2) {
                     PSDeleteNetworkGradients(
-                        clone_training_ctx->aux_gradients, network
+                        clone_training_ctx->memory_gradients2, network
                     );
                 }
-                clone_training_ctx->aux_gradients = NULL;
+                clone_training_ctx->memory_gradients2 = NULL;
             }
         } else {
             if (clone_ctx->training_context != NULL)
@@ -1753,10 +1753,10 @@ int PSDumpNetworkDeltas(PSNeuralNetwork *network, const char* filename) {
 static void deleteTrainingContext(PSTrainingContext *training_ctx,
                                   PSNeuralNetwork *network)
 {
-    if (training_ctx->momentum_gradients != NULL)
-        PSDeleteNetworkGradients(training_ctx->momentum_gradients, network);
-    if (training_ctx->aux_gradients != NULL)
-        PSDeleteNetworkGradients(training_ctx->aux_gradients, network);
+    if (training_ctx->memory_gradients1 != NULL)
+        PSDeleteNetworkGradients(training_ctx->memory_gradients1, network);
+    if (training_ctx->memory_gradients2 != NULL)
+        PSDeleteNetworkGradients(training_ctx->memory_gradients2, network);
     free(training_ctx);
 }
 
@@ -2542,13 +2542,13 @@ int PSGetTrainingMemoryGradients(PSNeuralNetwork *network,
     if (mg1 != NULL) *mg1 = NULL;
     if (mg2 != NULL) *mg2 = NULL;
     if (tctx == NULL) return 0;
-    if (tctx->momentum_gradients != NULL) {
+    if (tctx->memory_gradients1 != NULL) {
         count++;
-        if (mg1 != NULL) *mg1 = tctx->momentum_gradients;
+        if (mg1 != NULL) *mg1 = tctx->memory_gradients1;
     }
-    if (tctx->aux_gradients != NULL) {
+    if (tctx->memory_gradients2 != NULL) {
         count++;
-        if (mg2 != NULL) *mg2 = tctx->aux_gradients;
+        if (mg2 != NULL) *mg2 = tctx->memory_gradients2;
     }
     return count;
 }
@@ -2571,14 +2571,14 @@ int initTrainingContext(PSNeuralNetwork *network, int mem_gradients_count) {
     }
     PSSetDefaultTrainingOptions(&(ctx->training_context->options));
     if (mem_gradients_count > 0) {
-        ctx->training_context->momentum_gradients = createGradients(network);
-        if (ctx->training_context->momentum_gradients == NULL) {
+        ctx->training_context->memory_gradients1 = createGradients(network);
+        if (ctx->training_context->memory_gradients1 == NULL) {
             PSPrintMemoryErrorMsg();
             return 0;
         }
         if (mem_gradients_count < 2) goto final;
-        ctx->training_context->aux_gradients = createGradients(network);
-        if (ctx->training_context->aux_gradients == NULL) {
+        ctx->training_context->memory_gradients2 = createGradients(network);
+        if (ctx->training_context->memory_gradients2 == NULL) {
             PSPrintMemoryErrorMsg();
             return 0;
         }
@@ -3176,8 +3176,8 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
                                 PSFloat *training_data,
                                 int batch_size, int elements_count,
                                 PSTrainingOptions* opts, PSFloat rate,
-                                PSGradient **momentum_gradients,
-                                PSGradient **aux_gradients, ...)
+                                PSGradient **memory_gradients1,
+                                PSGradient **memory_gradients2, ...)
 {
     int i, j, netsize = network->size, gsize = netsize - 1,
         timesteps = 0, iteration = 0, apply_clip = 0;
@@ -3200,7 +3200,7 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
         recurrent_input = 0, recurrent_output = 0;
     if (is_recurrent) {
         va_list args;
-        va_start(args, aux_gradients);
+        va_start(args, memory_gradients2);
         series = va_arg(args, PSFloat**);
         va_end(args);
         if (series == NULL) {
@@ -3235,14 +3235,14 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
     int apply_momentum = (momentum > 0.0);
     int use_optimization = (optimization != PSDefaultOptimization);
     if (apply_momentum || use_optimization) {
-        if (momentum_gradients == NULL) {
+        if (memory_gradients1 == NULL) {
             network->status = STATUS_ERROR;
             goto final;
         }
         if (optimization == PSAdaDeltaOptimization ||
             optimization == PSAdamOptimization)
         {
-            if (aux_gradients == NULL) {
+            if (memory_gradients2 == NULL) {
                 network->status = STATUS_ERROR;
                 goto final;
             }
@@ -3329,8 +3329,8 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
         PSGradient *lgradients = gradients[i], *mgradients = NULL,
                    *xgradients = NULL;
         if (lgradients == NULL) continue;
-        if (momentum_gradients != NULL) mgradients = momentum_gradients[i];
-        if (aux_gradients != NULL) xgradients = aux_gradients[i];
+        if (memory_gradients1 != NULL) mgradients = memory_gradients1[i];
+        if (memory_gradients2 != NULL) xgradients = memory_gradients2[i];
         PSLayer *layer = network->layers[i + 1];
         /* Update Biases */
         if (!(layer->flags & FLAG_NO_BIAS)) {
@@ -3468,30 +3468,30 @@ PSFloat gradientDescent(PSNeuralNetwork *network,
     PSFloat err = 0.0, avg_err = 0.0, acc = 0.0, tot_acc = 0.0, avg_acc = 0.0;
     long tot_t = 0, avg_t, elapsed_t, test_data_size, validations = 0;
     int offset = (element_size * batch_size), validate_every = 0, i;
-    PSGradient **momentum_gradients = training_ctx->momentum_gradients,
-               **aux_gradients = training_ctx->aux_gradients;
+    PSGradient **memory_gradients1 = training_ctx->memory_gradients1,
+               **memory_gradients2 = training_ctx->memory_gradients2;
     if (options != NULL) {
         PSOptimization optimization = options->optimization;
         if (options->momentum != 0 || optimization != PSDefaultOptimization) {
-            if (momentum_gradients == NULL) {
-                momentum_gradients = createGradients(network);
-                if (momentum_gradients == NULL) {
+            if (memory_gradients1 == NULL) {
+                memory_gradients1 = createGradients(network);
+                if (memory_gradients1 == NULL) {
                     network->status = STATUS_ERROR;
                     goto final;
                 }
-                training_ctx->momentum_gradients = momentum_gradients;
+                training_ctx->memory_gradients1 = memory_gradients1;
             }
         }
         if (optimization == PSAdaDeltaOptimization ||
             optimization == PSAdamOptimization)
         {
-            if (aux_gradients == NULL) {
-                aux_gradients = createGradients(network);
-                if (aux_gradients == NULL) {
+            if (memory_gradients2 == NULL) {
+                memory_gradients2 = createGradients(network);
+                if (memory_gradients2 == NULL) {
                     network->status = STATUS_ERROR;
                     goto final;
                 }
-                training_ctx->aux_gradients = aux_gradients;
+                training_ctx->memory_gradients2 = memory_gradients2;
             }
         }
         validate_every = options->validate_every_batches;
@@ -3516,7 +3516,7 @@ PSFloat gradientDescent(PSNeuralNetwork *network,
         gettimeofday(&st, NULL);
         PSFloat batch_err = updateNetworkParameters(
             network, training_data, batch_size, elements_count, options,
-            learning_rate, momentum_gradients, aux_gradients, series_head
+            learning_rate, memory_gradients1, memory_gradients2, series_head
         );
         err += batch_err;
         if (network->status == STATUS_ERROR) {

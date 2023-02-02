@@ -178,8 +178,8 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
                                 PSFloat *training_data,
                                 int batch_size, int elements_count,
                                 PSTrainingOptions* opts, PSFloat rate,
-                                PSGradient **momentum_gradeints,
-                                PSGradient **aux_gradients, ...);
+                                PSGradient **memory_gradients1,
+                                PSGradient **memory_gradients2, ...);
 
 int testlen = 0;
 
