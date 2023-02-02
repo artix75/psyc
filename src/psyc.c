@@ -775,10 +775,10 @@ static void printInfoRow(char *label, char *fmt, ...) {
     if (label == NULL) return;
     if (fmt == NULL) fmt = "";
     int use_color = PSLogColorEnabled();
-    if (use_color) printf(PSCOLOR_BOLD);
+    if (use_color) printf(PSCOLOR_CYAN);
     int padding = 40;
     int len = printf("%s:", label);
-    if (use_color) printf(PSCOLOR_RESET_BOLD);
+    if (use_color) printf(PSCOLOR_RESET);
     printf("%-*s", (padding - len), " ");
     va_list args;
     va_start(args, fmt);
@@ -789,8 +789,6 @@ static void printInfoRow(char *label, char *fmt, ...) {
 
 void PSPrintNetworkInfo(PSNeuralNetwork *network) {
     if (network == NULL) return;
-    if (PSLogColorEnabled()) printf(PSCOLOR_BOLD);
-    if (PSLogColorEnabled()) printf(PSCOLOR_RESET_BOLD);
     const char *name = network->name;
     if (name == NULL || !strlen(name)) name = "UNNAMED NETWORK";
     printInfoRow("Name", "\"%s\"", name);
@@ -828,9 +826,9 @@ void PSPrintNetworkInfo(PSNeuralNetwork *network) {
                  (PSACFEnabled(network->acceleration) ? "yes" : "no"));
     printInfoRow("BLAS", "%s",
                  (PSBLASEnabled(network->acceleration) ? "yes" : "no"));
-    if (PSLogColorEnabled()) printf(PSCOLOR_BOLD);
+    if (PSLogColorEnabled()) printf(PSCOLOR_CYAN);
     printf("Layers:\n");
-    if (PSLogColorEnabled()) printf(PSCOLOR_RESET_BOLD);
+    if (PSLogColorEnabled()) printf(PSCOLOR_RESET);
     int i;
     for (i = 0; i < network->size; i++) {
         PSLayer *layer = network->layers[i];
