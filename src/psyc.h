@@ -29,7 +29,7 @@
 
 #define PSYC_VERSION      "0.9.0"
 
-#define LAYER_TYPES     6
+#define LAYER_TYPES     8
 
 #define DEFAULT_RHO     0.95
 #define DEFAULT_BETA1   0.9
