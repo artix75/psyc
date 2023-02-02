@@ -171,7 +171,9 @@ void printSample(PSNeuralNetwork *network, int input_idx, int len) {
     int c = len;
     int oldstatus = network->status;
     network->status = STATUS_PAUSED;
+    if (PSLogColorEnabled()) printf(PSCOLOR_BOLD);
     printf("\n\n==== SAMPLE ====\n\n");
+    if (PSLogColorEnabled()) printf(PSCOLOR_RESET);
     fflush(stdout);
     char character = characters[(unsigned) word_idx];
     printf("%c", character);
@@ -209,7 +211,7 @@ void printSample(PSNeuralNetwork *network, int input_idx, int len) {
         data[1] = (PSFloat) max_idx;
     }
     network->status = oldstatus;
-    printf("\n");
+    printf("\n\n");
     fflush(stdout);
 }
 

@@ -845,20 +845,6 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previous_layer,
 
     if (t > 0 || layer->initial_states != NULL) {
         PSFloat *prev_states = PSGetStates(layer, prev_t);
-
-        /* Update gradient hidden weights */
-        mopts.store_mode = MATHS_STORE_MODE_ADD;
-        PSVectorProduct(delta_c, prev_states, gradient_hweights_c,
-                        layer->size, layer->size, &mopts);
-        PSVectorProduct(delta_i, prev_states, gradient_hweights_i,
-                        layer->size, layer->size, &mopts);
-        PSVectorProduct(delta_o, prev_states, gradient_hweights_o,
-                        layer->size, layer->size, &mopts);
-        PSVectorProduct(delta_f, prev_states, gradient_hweights_f,
-                        layer->size, layer->size, &mopts);
-
-        /* Update delta */
-        mopts.store_mode = MATHS_STORE_MODE_NORM;
         PSMatrix tr_hweights_c = PSMatrixTranspose(
             cell->candidate_hidden_weights, 0, &mopts
         );
@@ -877,11 +863,27 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previous_layer,
             success = 0;
             goto final;
         }
-        PSDot(tr_hweights_c, delta_c, layer->delta, &mopts);
+
+        /* Update gradient hidden weights */
         mopts.store_mode = MATHS_STORE_MODE_ADD;
-        PSDot(tr_hweights_i, delta_i, layer->delta, &mopts);
-        PSDot(tr_hweights_o, delta_o, layer->delta, &mopts);
-        PSDot(tr_hweights_f, delta_f, layer->delta, &mopts);
+        PSVectorProduct(delta_c, prev_states, gradient_hweights_c,
+                        layer->size, layer->size, &mopts);
+        PSVectorProduct(delta_i, prev_states, gradient_hweights_i,
+                        layer->size, layer->size, &mopts);
+        PSVectorProduct(delta_o, prev_states, gradient_hweights_o,
+                        layer->size, layer->size, &mopts);
+        PSVectorProduct(delta_f, prev_states, gradient_hweights_f,
+                        layer->size, layer->size, &mopts);
+
+        /* Update delta */
+        if (t > 0) {
+            mopts.store_mode = MATHS_STORE_MODE_NORM;
+            PSDot(tr_hweights_c, delta_c, layer->delta, &mopts);
+            mopts.store_mode = MATHS_STORE_MODE_ADD;
+            PSDot(tr_hweights_i, delta_i, layer->delta, &mopts);
+            PSDot(tr_hweights_o, delta_o, layer->delta, &mopts);
+            PSDot(tr_hweights_f, delta_f, layer->delta, &mopts);
+        }
     }
 
     if (previous_layer->delta != NULL) {
