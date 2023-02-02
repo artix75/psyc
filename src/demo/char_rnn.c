@@ -16,237 +16,421 @@
  */
 
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
+#include <strings.h>
+#include <signal.h>
+#include <assert.h>
 #include <time.h>
+#include <sys/time.h>
+
+#include <execinfo.h>
+#include <fenv.h>
+#if defined(__x86_64__) || defined(__i386__)
+#include <xmmintrin.h>
+#endif
+
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+#include <Accelerate/Accelerate.h>
+#endif
+
 #include "../psyc.h"
+#include "../convolutional.h"
+#include "../recurrent.h"
+#include "../lstm.h"
+#include "../gru.h"
+#include "../utils.h"
+#include "../debug.h"
+#include "../log.h"
+#include "../config.h"
+#include "../optimization.h"
+#include "../activation.h"
+/* Data taken from some paragraphs of Wikipedia's article about planet Saturn
+ * (https://en.wikipedia.org/wiki/Saturn). */
 #include "char_training_data.h"
 
-#define EPOCHS 300
-#define LEARNING_RATE 0.0025
-/* #define LEARNING_RATE 0.01 */
-#define BATCHES 1
+#define LEARNING_RATE 0.1
+#define EPOCHS 5000
+#define BATCH_SIZE 1
+#define SAMPLE_EVERY_EPOCHS 10
+#define SAMPLE_LEN 200
+#define CLIP 5.0
+#define OPTIMIZATION PSAdaGradOptimization
+#define HIDDEN_SIZE 100
 
-#define strEq(s1,s2) (strcmp(s1, s2) == 0)
 #define UNUSED(V) ((void) V)
 
-void CompleteText (PSNeuralNetwork *network, char* text, int len,
-                   float randomicity, int max_words)
-{
-    int i = 0, wcount = 0;
-    PSFloat inputs[len + 1];
-    if (text == NULL) {
-        srand ( time(NULL) - i);
-        inputs[0] = 1.0;
-        inputs[1] = (PSFloat)(rand() % INPUT_SIZE);
-        printf("\nSample:\n%s", characters[(int) inputs[1]]);
-    } else {
-        int txtlen = strlen(text), j;
-        if (txtlen >= len) {
-            fprintf(stderr, "text legth >= length!\n");
-            return;
-        }
-        inputs[0] = (PSFloat) txtlen;
-        printf("\nSample:\n");
-        for (i = 0; i < txtlen; i++) {
-            char c = text[i];
-            if (c == 0) break;
-            int idx = -1;
-            for (j = 0; j < INPUT_SIZE; j++) {
-                char *chr = characters[j];
-                if (chr[0] == c) {
-                    idx = j;
-                    break;
-                }
-            }
-            if (idx < 0) {
-                char invalid[2];
-                invalid[1] = 0;
-                invalid[0] = c;
-                fprintf(stderr, "Invalid char: %s\n", invalid);
-                return;
-            }
-            printf("%s", characters[idx]);
-            inputs[i + 1] = (PSFloat) idx;
-        }
-    }
-    char last_char = 0;
-    int is_sep = 0;
-    for (i = 0; i < len - 1; i++) {
-        srand ( time(NULL) + i);
-        float p = (rand() % 10) / 10.0f;
-        int idx = PSClassify(network, inputs);
-        is_sep = (last_char == ' ' || last_char == ',' || last_char == '.');
-        if (max_words > 0 && is_sep && (++wcount > max_words)) break;
-        if (p <= randomicity && is_sep) {
-            PSLayer *out = network->layers[network->size - 1];
-            int o = 0;
-            PSFloat omax = 0.0;
-            int oidx = 0;
-            for (; o < out->size; o++) {
-                if (o == idx) continue;
-                PSFloat a = PSGetState(
-                    out, o, out->recurrent_states_count - 1
-                );
-                if (a > omax) {
-                    omax = a;
-                    oidx = o;
-                }
-            }
-            idx = oidx;
-            /* printf("RND(%.2f):(%s)", p, characters[idx]); */
-            /* idx = (rand() % INPUT_SIZE); */
-        }
-        if (idx >= INPUT_SIZE) {
-            fprintf(stderr, "Index %d >= %d", idx, INPUT_SIZE);
-            return;
-        }
-        printf("%s", characters[idx]);
-        inputs[0] += 1.0;
-        last_char = characters[idx][0];
-        inputs[(int) inputs[0]] = (PSFloat) idx;
-    }
-    printf("\n");
+int hidden_size = HIDDEN_SIZE;
+PSFloat learning_rate = LEARNING_RATE;
+int epochs = EPOCHS;
+PSFloat clip = CLIP;
+PSOptimization optimization = OPTIMIZATION;
+int sample_every = SAMPLE_EVERY_EPOCHS;
+int use_random_choice = 1;
+int num_elements = 0;
+int do_validate = 1;
+PSFloat smooth_loss = 0.0;
+PSFloat last_batch_loss = 0.0;
+PSLayerType recurrent_ltype = Recurrent;
+int catch_fpe = 0;
+int log_sequences = 0;
+char *load_model_file = NULL;
+
+void printSample(PSNeuralNetwork *network, int input_idx, int len);
+char *getOptimizationName(PSOptimization optimization);
+
+int compareFloats(const void *p1, const void *p2) {
+    PSFloat f1 = *(const PSFloat *) p1;
+    PSFloat f2 = *(const PSFloat *) p2;
+    return (f1 > f2) - (f1 < f2);
 }
 
-void TrainCallback (PSNeuralNetwork *network, int epoch, int epochs,
-                    PSFloat loss, PSFloat previous_loss, float accuracy,
+int randomChoice(PSFloat *weights, int count) {
+    int i;
+    PSFloat r = PSNormalizedRandom();
+    for (i = 0; i < count; i++) {
+        PSFloat w = weights[i];
+        if (w > r) return i;
+    }
+    return -1;
+}
+
+void onBatchTrained(PSNeuralNetwork *network, int epoch, int epochs,
+                    PSFloat loss, PSFloat current_loss, float accuracy,
+                    PSFloat *rate, PSFloat *training_data)
+{
+    UNUSED(epoch);
+    UNUSED(loss);
+    UNUSED(accuracy);
+    UNUSED(rate);
+    UNUSED(network);
+    UNUSED(epochs);
+    UNUSED(training_data);
+    last_batch_loss = current_loss;
+    if (log_sequences) {
+        int seqlen = (int) training_data[0], i;
+        PSFloat *seq = training_data + 1,
+                *y = seq + seqlen;
+        printf("\nBatch[%d] Seq(len = %d):\n         \"",
+            network->training->current_batch, seqlen);
+        for (i = 0; i < seqlen; i++) {
+            char c = characters[(int) seq[i]];
+            if (c == '\n') c = '-';
+            printf("%c", c);
+        }
+        printf("\"\n");
+        printf("\n         Y(len = %d):\n         \"", seqlen);
+        for (i = 0; i < seqlen; i++) {
+            char c = characters[(int) y[i]];
+            if (c == '\n') c = '-';
+            printf("%c", c);
+        }
+        printf("\"\n");
+    }
+}
+
+void onEpochTrained(PSNeuralNetwork *network, int epoch, int epochs,
+                    PSFloat loss, PSFloat current_loss, float accuracy,
                     PSFloat *rate, PSFloat *training_data)
 {
     UNUSED(epoch);
     UNUSED(epochs);
     UNUSED(loss);
-    UNUSED(previous_loss);
+    UNUSED(current_loss);
     UNUSED(accuracy);
     UNUSED(rate);
     UNUSED(training_data);
-    /* if ((epoch % 2) != 0) return; */
-    CompleteText(network, NULL, 255, 2.0f, 0);
+    if (sample_every > 0 && (epoch % sample_every) != 0) return;
+    int iteration =
+        (epoch * num_elements) + network->training->current_element;
+    printSample(network, 0, SAMPLE_LEN);
+    if (last_batch_loss != 0) {
+        PSFloat curloss = last_batch_loss * 25;
+        smooth_loss = smooth_loss * 0.999 + curloss * 0.001;
+        printf("** Smooth loss: %g, Curr. Loss = %g, Iteration = %d\n",
+               smooth_loss, curloss, iteration);
+    }
+    fflush(stdout);
 }
 
-int main(int argc, char**argv){
-    PSNeuralNetwork *network = PSCreateNetwork("TEST CHAR RNN");
-    network->onEpochTrained = TrainCallback;
+void printSample(PSNeuralNetwork *network, int input_idx, int len) {
+    int index = 2 + input_idx;
+    if (index >= TRAIN_DATA_LEN) {
+        fprintf(stderr, "ERROR (%s): Invalid input %d\n", __func__, input_idx);
+        return;
+    }
+    if (!PSResetNetworkRecurrentStates(network, 0, 0)) {
+        fprintf(stderr, "ERROR (%s): Failed to reset states\n", __func__);
+        return;
+    }
+    PSLayer *out = network->layers[network->size - 1];
+    PSFloat word_idx = training_data[index];
+    PSFloat data[2];
+    data[0] = 1.0;
+    data[1] = word_idx;
+    int c = len;
+    int oldstatus = network->status;
+    network->status = STATUS_PAUSED;
+    printf("\n\n==== SAMPLE ====\n\n");
+    fflush(stdout);
+    char character = characters[(unsigned) word_idx];
+    printf("%c", character);
+    while (c-- >= 0) {
+        int ok = PSFeedforward(network, data);
+        if (!ok) {
+            network->status = oldstatus;
+            fprintf(
+                stderr, "ERROR (%s): Failed to feed data at t=%d",
+                __func__, c + 1
+            );
+            return;
+        }
+        int max_idx = 0;
+        int t = ((unsigned int) data[0]) - 1;
+        if (!use_random_choice) {
+            if (!PSFindLayerMaxState(out, NULL, &max_idx, t)) {
+                network->status = oldstatus;
+                PSErr(__func__, "Failed to find neuron with max value");
+                return;
+            }
+        } else {
+            max_idx = randomChoice(out->states + t, out->size);
+            if (max_idx < 0) {
+                if (!PSFindLayerMaxState(out, NULL, &max_idx, t)) {
+                    network->status = oldstatus;
+                    PSErr(__func__, "Failed to find neuron with max value");
+                    return;
+                }
+            }
+        }
+        assert(max_idx < VOCABULARY_SIZE);
+        character = characters[max_idx];
+        printf("%c", character);
+        data[1] = (PSFloat) max_idx;
+    }
+    network->status = oldstatus;
+    printf("\n");
+    fflush(stdout);
+}
 
-    int epochs = EPOCHS;
-    int batch_size = BATCHES;
-    PSFloat learning_rate = LEARNING_RATE;
-    PSFloat l2_decay = 0.0;
-    PSLayerType type = LSTM;
-    char *save_to = NULL;
-    char *load_from = NULL;
-    char *complete_text = NULL;
-    float randomicity = 2.0f;
-    int max_words = 0;
-    int hidden_size = INPUT_SIZE / 2;
-    /*PSFloat *vdataset = validation_data;
-    int vdlen = EVAL_DATALEN;
-    PSFloat *tdataset = test_data;
-    int tdlen = TEST_DATALEN;*/
-    int pretest = 0 ;
+void printHelp(char *executable) {
+    printf("Usage %s [OPTIONS]\n", executable);
+    printf("    OPTIONS:\n");
+    printf("        -l, --load MODEL_FILE           Load model\n");
+    printf("        --learning-rate RATE            Learnig Rate "
+        "(def. %g)\n", LEARNING_RATE);
+    printf("        --lstm                          Use LSTM instead of RNN\n");
+    printf("        --gru                           Use GRU instead of RNN\n");
+    printf("        --clip CLIP                     Gradient clip "
+        "(def. %g)\n", CLIP);
+    printf("        --optimization                  Training Optimization \n"
+          "                                        "
+          "(adagrad,adadelta,adam,windowgrad,\n"
+          "                                         "
+          "nesterov, none)\n"
+          "                                        "
+          "Default: %s\n", getOptimizationName(optimization)
+    );
+    printf("        --epochs EPOCHS                 Epochs (def. %d)\n",
+        EPOCHS);
+    printf("        --hidden-size NUM               Hidden layer size "
+        "(def. %d)\n", HIDDEN_SIZE);
+    printf("        --print-sample-every EPOCHS     Print sample epoch interval"
+        "(def. %d)\n", SAMPLE_EVERY_EPOCHS);
+    printf("        --no-sample-randomization       Disable sample text "
+           "randomization\n");
+    printf("        --no-validation                 Do not validate\n");
+    /*printf("        --catch-fpe                     Catch floating-point "
+        "exceptions\n");
+      printf("        --log-sequences                 Log X and Y sequences\n");
+    */
+    printf("        --colors                        Enable colorized output\n");
+    printf("        -h, --help                      Print this help\n");
+}
 
-    int i;
-    for (i = 0; i < argc; i++) {
+void parseOptions(int argc, char **argv) {
+    int i, last_arg, last_idx = argc - 1;
+    for (i = 1; i < argc; i++) {
+        last_arg = (i == last_idx);
         char *arg = argv[i];
-        int next_idx = i + 1;
-        if (strEq("--use-rnn", arg)) type = Recurrent;
-        /*if (strEq("--same-dataset", arg)) {
-            vdataset = training_data;
-            vdlen = TRAIN_DATALEN;
-            tdataset = training_data;
-            tdlen = TRAIN_DATALEN;
-        }*/
-        if (strEq("--pre-test", arg)) pretest = 1;
-        if (next_idx < argc) {
-            char *next = argv[next_idx];
-            if (strEq("--epochs", arg) || strEq("-e", arg)) {
-                epochs = atoi(next);
-                if (!epochs) {
-                    fputs("Invalid epochs!", stderr);
-                    return 1;
-                }
+        if (strcmp("--learning-rate", arg) == 0 && !last_arg) {
+            learning_rate = atof(argv[++i]);
+            if (learning_rate <= 0.0) {
+                fprintf(stderr, "ERROR: learning rate must > 0\n");
+                exit(1);
             }
-            if (strEq("--batch-size", arg) || strEq("-b", arg)) {
-                batch_size = atoi(next);
-                if (!batch_size) {
-                    fputs("Invalid batch-size!", stderr);
-                    return 1;
-                }
+        } else if (strcmp("--clip", arg) == 0 && !last_arg) {
+            clip = atof(argv[++i]);
+            if (clip < 0.0) clip *= -1;
+        } else if (strcmp("--epochs", arg) == 0 && !last_arg) {
+            epochs = atoi(argv[++i]);
+            if (epochs <= 0) {
+                fprintf(stderr, "ERROR: epochs must > 0\n");
+                exit(1);
             }
-            if (strEq("--hidden-size", arg) || strEq("-s", arg)) {
-                hidden_size = atoi(next);
-                if (!hidden_size) {
-                    fputs("Invalid hidden-size!", stderr);
-                    return 1;
-                }
+        } else if (strcmp("--print-sample-every", arg) == 0 && !last_arg) {
+            sample_every = atoi(argv[++i]);
+            if (sample_every < 0) sample_every = 0;
+        } else if (strcmp("--hidden-size", arg) == 0 && !last_arg) {
+            hidden_size = atoi(argv[++i]);
+            if (hidden_size < 2) {
+                fprintf(stderr, "ERROR: --hidden-size must be >= 2\n");
+                exit(1);
             }
-            if (strEq("--learning-rate", arg) || strEq("-r", arg)) {
-                learning_rate = (PSFloat) atof(next);
-                if (learning_rate == 0.0) {
-                    fputs("Invalid learing rate!", stderr);
-                    return 1;
-                }
+        } else if (strcmp("--optimization", arg) == 0 && !last_arg) {
+            char *optname = argv[++i];
+            if (strcmp("adam", optname) == 0)
+                optimization = PSAdamOptimization;
+            else if (strcmp("adagrad", optname) == 0)
+                optimization = PSAdaGradOptimization;
+            else if (strcmp("adadelta", optname) == 0)
+                optimization = PSAdaDeltaOptimization;
+            else if (strcmp("windowgrad", optname) == 0)
+                optimization = PSWindowGradOptimization;
+            else if (strcmp("nesterov", optname) == 0)
+                optimization = PSNesterovOptimization;
+            else if (strcmp("none", optname) == 0)
+                optimization = PSDefaultOptimization;
+            else {
+                fprintf(stderr, "Invalid optmization `%s`\n", optname);
+                fprintf(
+                    stderr, "Valid values: adam, adagrad, adadelta, "
+                    "windowgrad, nesterov\n"
+                );
+                exit(1);
             }
-            if (strEq("--l2-decay", arg))
-                l2_decay = (PSFloat) atof(next);
-            if (strEq("--save", arg))
-                save_to = next;
-            if (strEq("--load", arg))
-                load_from = next;
-            if (strEq("--complete", arg))
-                complete_text = next;
-            if (strEq("--randomicity", arg)) {
-                int matched = sscanf(next, "%f", &randomicity);
-                if (!matched)
-                    fprintf(stderr, "Invalid randomicity %s\n", next);
+        } else if (strcmp("--no-sample-randomization", arg) == 0) {
+            use_random_choice = 0;
+        } else if (strcmp("--no-validation", arg) == 0) {
+            do_validate = 0;
+        } else if (strcmp("--catch-fpe", arg) == 0) {
+            catch_fpe = 1;
+        } else if (strcmp("--lstm", arg) == 0) {
+            recurrent_ltype = LSTM;
+        } else if (strcmp("--gru", arg) == 0) {
+            recurrent_ltype = GRU;
+        } else if (strcmp("--log-sequences", arg) == 0) {
+            log_sequences = 1;
+        } else if (strcmp("--load", arg) == 0 || strcmp("-l", arg) == 0) {
+            if (last_arg) {
+                fprintf(stderr, "ERROR: missing model file\n");
+                exit(1);
             }
-            if (strEq("--max-words", arg)) {
-                int matched = sscanf(next, "%d", &max_words);
-                if (!matched)
-                    fprintf(stderr, "Invalid max-words %s\n", next);
-            }
+            load_model_file = argv[++i];
+            continue;
+        } else if (strcmp("--colors", arg) == 0) {
+            PSLogEnableColor();
+        } else if (strcmp("--help", arg) == 0 || strcmp("-h", arg) == 0) {
+            printHelp(argv[0]);
+            exit(0);
+        } else {
+            fprintf(stderr, "ERROR: Invalid option `%s`\n", arg);
+            exit(1);
         }
     }
-    /* printf("CHAR: %s\n", characters[6]);return 0; */
-    network->flags |= FLAG_ONEHOT;
+}
 
-    PSAddLayer(network, FullyConnected, INPUT_SIZE, NULL);
-    PSAddLayer(network, type, hidden_size, NULL);
-    PSAddLayer(network, SoftMax, INPUT_SIZE, NULL);
-
-    network->layers[network->size - 1]->flags |= FLAG_ONEHOT;
-
-    if (load_from != NULL) {
-        PSLoadNetwork(network, load_from);
-        if (complete_text)
-            CompleteText(network, complete_text, 255, randomicity, max_words);
+void initLSTMGRUParams(PSNeuralNetwork *network) {
+    PSLayer *layer = network->layers[1];
+    if (layer->type != LSTM && layer->type != GRU) {
+        PSErr(__func__, "Layer[1] is not LSTM nor GRU");
+        PSDeleteNetwork(network);
+        exit(1);
     }
-    else {
-        printf("Epochs: %d\n", epochs);
-        printf("Rate: %f\n", learning_rate);
+    PSMathOpts opts = {.acceleration = network->acceleration};
+    for (int i = 0; i < layer->weight_types_count; i++) {
+        PSMatrix weights = layer->weights[i];
+        if (weights == NULL) continue;
+        uint64_t wlen = PSMatrixLength(weights);
+        if (wlen == 0) continue;
+        /*printf("Scaling LSTM/GRU weights[%d] (len = %llu)\n", i, wlen);*/
+        PSMultiplyVectorScalar(weights, 0.01, weights, wlen, &opts);
+    }
+    uint64_t bias_count = PSGetLayerParametersCount(layer, PARAM_TYPE_BIAS);
+    if (bias_count > 0) {
+        printf("Setting LSTM/GRU biases to zero (len = %llu)\n", bias_count);
+        memset(layer->biases, 0, bias_count * sizeof(PSFloat));
+    }
+}
 
-        if (pretest) {
-            PSTest(network, training_data, TRAIN_DATALEN);
-            TrainCallback (network, 0, 0, 0.0,
-                           0.0, 0.0,
-                           NULL, NULL);
+int main(int argc, char **argv) {
+    parseOptions(argc, argv);
+#if defined(__x86_64__) || defined(__i386__)
+    _MM_SET_EXCEPTION_MASK( _MM_GET_EXCEPTION_MASK()
+           & ~( _MM_EXCEPT_INVALID |
+                _MM_EXCEPT_DENORM |
+                _MM_EXCEPT_DIV_ZERO |
+                _MM_EXCEPT_OVERFLOW |
+                _MM_EXCEPT_UNDERFLOW |
+                _MM_EXCEPT_INEXACT ) );
+#endif
+    if (catch_fpe) PSCatchFloatingPointExceptions(
+        /*FE_INVALID | */FE_OVERFLOW | FE_DIVBYZERO
+    );
+    PSHandleSignals(NULL);
+    /*PSFloat *test_data = NULL;
+    PSFloat *validation_data = NULL;*/
+    int seq_length = 25;
+    int ok = 1;
+    smooth_loss =
+        -PSMathLog(1.0 / (PSFloat) VOCABULARY_SIZE)*(PSFloat)seq_length;
+    PSNeuralNetwork * network = PSCreateNetwork("Char RNN");
+    if (network == NULL) {
+        fprintf(stderr, "FATAL: Could not create network\n");
+        return 1;
+    }
+    if (load_model_file == NULL) {
+        network->flags |= FLAG_ONEHOT;
+        PSAddLayer(network, FullyConnected, VOCABULARY_SIZE, NULL);
+        PSAddLayer(network, recurrent_ltype, hidden_size, NULL);
+        PSAddLayer(network, SoftMax, VOCABULARY_SIZE, NULL);
+        network->layers[network->size - 1]->flags |= FLAG_ONEHOT;
+        if (LSTM == recurrent_ltype || GRU == recurrent_ltype)
+            initLSTMGRUParams(network);
+    } else {
+        ok = PSLoadNetwork(network, load_model_file);
+        if (!ok) {
+            PSErr(NULL, "Could not load model file");
+            PSDeleteNetwork(network);
+            return 1;
         }
-        /* epochs = 2; */
-        PSTrainingOptions options = {
-            .flags = TRAINING_NO_SHUFFLE,
-            .l2_decay = l2_decay
-        };
-        printf("L2 Decay: %.2f\n", (float) l2_decay);
-        PSPrintNetworkInfo(network);
-        PSTrain(network, training_data, TRAIN_DATALEN, epochs, learning_rate,
-                batch_size, &options, training_data, TRAIN_DATALEN);
-
-        PSTest(network, training_data, TRAIN_DATALEN);
-
-        if (save_to != NULL)
-            PSSaveNetwork(network, save_to);
     }
 
+    if (!PSIsNetworkBuilt(network)) {
+        if (!PSBuildNetwork(network)) {
+            fprintf(stderr, "Could not build network!\n");
+            PSDeleteNetwork(network);
+            return 1;
+        }
+    }
+    network->acceleration = PSGlobalAcceleration;
+    network->loss = PSCrossEntropyLoss;
+    PSPrintNetworkInfo(network);
+    network->onEpochTrained = onEpochTrained;
+    network->onBatchTrained = onBatchTrained;
+
+    uint32_t flags = (TRAINING_NO_SHUFFLE | TRAINING_EPOCH_AS_SEQUENCE);
+    PSTrainingOptions opts = {
+        .bptt_truncate = 0,
+        .flags = flags,
+        .clip = clip,
+        .optimization = optimization
+    };
+    num_elements = (int)training_data[0];
+    PSFloat *test_data = training_data;
+    int test_data_len = TRAIN_DATA_LEN;
+    if (!do_validate) {
+        test_data = NULL;
+        test_data_len = 0;
+    }
+    if (PSLogColorEnabled()) printf(PSCOLOR_DIM);
+    printf("*** NOTE ***\nTraining data taken from some paragraphs of "
+           "Wikipedia's article about planet\nSaturn: "
+           "(https://en.wikipedia.org/wiki/Saturn).\n\n");
+    if (PSLogColorEnabled()) printf(PSCOLOR_RESET);
+    PSTrain(network, training_data, TRAIN_DATA_LEN, epochs, learning_rate,
+            BATCH_SIZE, &opts, test_data, test_data_len);
+final:
     PSDeleteNetwork(network);
-    return 0;
+    return (ok ? 0 : 1);
 }
