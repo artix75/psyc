@@ -29,7 +29,7 @@
 
 #define PSYC_VERSION      "0.9.0"
 
-#define LAYER_TYPES     8
+#define LAYER_TYPES     9
 
 #define DEFAULT_RHO     0.95
 #define DEFAULT_BETA1   0.9
@@ -51,6 +51,7 @@
 #define STATUS_PAUSED       4
 #define STATUS_ABORTED      5
 #define STATUS_VALIDATING   6
+#define STATUS_PRETRAINING  7
 
 #define ACTION_NONE         0
 #define ACTION_PAUSE        4
@@ -78,6 +79,7 @@
                                       * acceleration when loading models
                                       * generated with versiob < 0.4 */
 #define FLAG_NO_BIAS        (1 << 3)
+#define FLAG_PRETRAINER     (1 << 4)
 
 /* Training Flags */
 #define TRAINING_NO_SHUFFLE         (1 << 0)
@@ -88,10 +90,13 @@
 #define PSIsRecurrent(o) (o->flags & FLAG_RECURRENT)
 #define PSSetRecurrent(o) (o->flags |= FLAG_RECURRENT)
 #define PSLDEF(...) ((PSLayerDef *) &((PSLayerDef) {__VA_ARGS__}))
+#define PSTRAINOPT(...) \
+    ((PSTrainingOptions *) &((PSTrainingOptions) {__VA_ARGS__}))
 
 struct PSNeuralNetwork;
 struct PSLayer;
 struct PSGradient;
+struct PSTrainingOptions;
 
 typedef int      (*PSFeedforwardFunction) (struct PSNeuralNetwork *network,
                                            struct PSLayer *layer, ...);
@@ -101,6 +106,9 @@ typedef int      (*PSBackpropFunction) (struct PSLayer *layer,
                                         ...);
 typedef void     (*PSGenericLayerCallback) (struct PSLayer *layer);
 typedef int      (*PSCopyLayerCallback) (struct PSLayer *, struct PSLayer *);
+typedef int      (*PSPretrainLayerFunction) (struct PSLayer *,
+                                             PSFloat *training_data,
+                                             int data_size);
 typedef uint64_t (*PSGetParamCountFunction) (struct PSLayer *layer, int type);
 
 typedef PSFloat  (*PSLossFunction) (PSFloat* x, PSFloat* y, int size,
@@ -128,6 +136,12 @@ typedef struct PSLayerDef {
     int padding;        /* Used by Convolutional layers */
     int filter_width;   /* Used by Convolutional layers */
     int filter_height;  /* Used by Convolutional layers */
+    int pretrained;
+    int embedding_type;
+    const char *load_from;
+    PSFloat *training_data;
+    int training_data_size;
+    struct PSTrainingOptions *pretraining_options;
 } PSLayerDef;
 
 typedef struct PSGradient {
@@ -146,7 +160,8 @@ typedef enum {
     LSTM,
     SoftMax,
     GRU,
-    Dropout
+    Dropout,
+    Embedding
 } PSLayerType;
 
 typedef enum {
@@ -167,6 +182,9 @@ typedef struct {
 } PSRecurrentNetworkOptions;
 
 typedef struct PSTrainingOptions {
+    int                     epochs;
+    PSFloat                 learning_rate;
+    int                     batch_size;
     int                     flags;
     PSFloat                 l1_decay;
     PSFloat                 l2_decay;
@@ -209,13 +227,6 @@ typedef struct PSLayer {
     int                     weight_types_count;
     PSMatrix                *weights;
     PSFloat                 *biases;
-    PSActivationFunction    activate;
-    PSActivationFunction    derivative;
-    PSFeedforwardFunction   feedforward;
-    PSBackpropFunction      backprop;
-    PSGenericLayerCallback  on_delete;
-    PSCopyLayerCallback     on_copy;
-    PSGetParamCountFunction get_param_count;
     PSNeuron                **neurons;
     PSFloat                 *states;
     PSFloat                 *delta;
@@ -226,8 +237,18 @@ typedef struct PSLayer {
     int                     output_depth;
     int                     output_columns;
     int                     output_rows;
+    int                     pretrained;
     void                    *extra;
+    PSActivationFunction    activate;
+    PSActivationFunction    derivative;
+    PSFeedforwardFunction   feedforward;
+    PSBackpropFunction      backprop;
+    PSGenericLayerCallback  on_delete;
+    PSCopyLayerCallback     on_copy;
+    PSGetParamCountFunction get_param_count;
+    PSPretrainLayerFunction pretrain;
     struct PSNeuralNetwork  *network;
+    struct PSNeuralNetwork  *pretrainer;
 } PSLayer;
 
 typedef struct PSNeuralNetwork {
@@ -251,6 +272,8 @@ PSNeuralNetwork *PSCreateNetwork(const char* name);
 PSNeuralNetwork *PSCloneNetwork(PSNeuralNetwork *network, int layout_only);
 int PSLoadNetwork(PSNeuralNetwork *network, const char* filename);
 int PSSaveNetwork(PSNeuralNetwork *network, const char* filename);
+int PSLoadLayer(PSLayer *layer, const char *filepath);
+int PSSaveLayer(PSLayer *layer, const char *filepath, int save_definition);
 PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
                     PSLayerDef *layer_def);
 PSLayer *PSAddConvolutionalLayer(PSNeuralNetwork *network, PSLayerDef *ldef);
@@ -285,16 +308,12 @@ void PSDeleteLayer(PSLayer *layer);
 void PSDeleteNeuron(PSNeuron *neuron);
 void PSDeleteGradients(PSGradient *gradients);
 void PSDeleteNetworkGradients(PSGradient **gradients, PSNeuralNetwork *net);
-
 void PSTrain(PSNeuralNetwork *network,
              PSFloat *training_data,
              int data_size,
-             int epochs,
-             PSFloat learning_rate,
-             int batch_size,
-             PSTrainingOptions *options,
              PSFloat *test_data,
-             int test_size);
+             int test_size,
+             PSTrainingOptions *options);
 void PSPauseTraining(PSNeuralNetwork *network);
 void PSAbortTraining(PSNeuralNetwork *network);
 float PSTest(PSNeuralNetwork *network, PSFloat *test_data, int data_size);

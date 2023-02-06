@@ -414,6 +414,9 @@ int main(int argc, char **argv) {
 
     uint32_t flags = (TRAINING_NO_SHUFFLE | TRAINING_EPOCH_AS_SEQUENCE);
     PSTrainingOptions opts = {
+        .epochs = epochs,
+        .batch_size = BATCH_SIZE,
+        .learning_rate = learning_rate,
         .bptt_truncate = 0,
         .flags = flags,
         .clip = clip,
@@ -431,8 +434,8 @@ int main(int argc, char **argv) {
            "Wikipedia's article about planet\nSaturn: "
            "(https://en.wikipedia.org/wiki/Saturn).\n\n");
     if (PSLogColorEnabled()) printf(PSCOLOR_RESET);
-    PSTrain(network, training_data, TRAIN_DATA_LEN, epochs, learning_rate,
-            BATCH_SIZE, &opts, test_data, test_data_len);
+    PSTrain(network, training_data, TRAIN_DATA_LEN, test_data, test_data_len,
+            &opts);
 final:
     PSDeleteNetwork(network);
     return (ok ? 0 : 1);

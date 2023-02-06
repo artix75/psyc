@@ -535,12 +535,59 @@ void writeLayerDefinition(PSLayer *layer, FILE *f) {
     } else if (Dropout == layer->type) {
         PSFloat dropout = PSGetDropout(layer);
         fprintf(f, ",dropout=" PSFLOAT_FORMAT "\n", dropout);
+    } else if (layer->pretrain != NULL) {
+        fprintf(f, ",pretrained=%d", layer->pretrained);
     } else fprintf(f, "\n");
+}
+
+int writeLayerParameters(PSLayer *layer, int opts, FILE *f, const char *func) {
+    PSLayerType ltype = layer->type;
+    if (Pooling == ltype || layer->type == Dropout) return 0;
+    int bias_count = PSGetLayerParametersCount(layer, PARAM_TYPE_BIAS),
+        weights_count = PSGetLayerParametersCount(layer, PARAM_TYPE_WEIGHT);
+    int i = layer->index, k, j;
+    fprintf(f, "--- Layer[%d] Biases: %d ---\n", i, bias_count);
+    if (bias_count > 0) {
+        if (layer->biases == NULL) {
+            PSErr(func, "Layer[%d]: biases are NULL", i);
+            fclose(f);
+            return 0;
+        }
+        for (j = 0; j < bias_count; j++) {
+            if (j > 0) fprintf(f, ",");
+            writeSerializedFloat(f, layer->biases[j], opts);
+        }
+        fprintf(f, "\n");
+    }
+    fprintf(f, "--- Layer[%d] Weights: %d,%d ---\n",
+            i, layer->weight_types_count, weights_count);
+    if (layer->weight_types_count > 0) {
+        if (layer->weights == NULL) {
+            PSErr(func, "Layer[%d]: weights are NULL", i);
+            fclose(f);
+            return 0;
+        }
+        for (j = 0; j < layer->weight_types_count; j++) {
+            PSMatrix weights = layer->weights[j];
+            if (weights == NULL) {
+                PSErr(func, "Layer[%d]: weights[%d] are NULL", i, j);
+                fclose(f);
+                return 0;
+            }
+            int ws = PSMatrixLength(weights);
+            for (k = 0; k < ws; k++) {
+                if (k > 0) fprintf(f, ",");
+                writeSerializedFloat(f, weights[k], opts);
+            }
+            fprintf(f, "\n");
+        }
+    }
+    return 1;
 }
 
 static int loadLegacyLayerDefinitions(PSNeuralNetwork *network, char *vers,
                                       int netsize, int empty,
-                                      const char *filename, FILE *f)
+                                      const char *filepath, FILE *f)
 {
     int min_argc = 1, i, ok;
     if (PSCompareVersion(vers, "0.2.2") == 1) min_argc = DATA_LAYER_MIN_ARGC;
@@ -566,12 +613,12 @@ static int loadLegacyLayerDefinitions(PSNeuralNetwork *network, char *vers,
             argc = 0;
             ok = scanFile(f, "[%d,%d", 2, NULL, &type, &argc);
             if (!ok) {
-                loadErr(filename, f, "Invalid layer def: layer[%d]", i);
+                loadErr(filepath, f, "Invalid layer def: layer[%d]", i);
                 return 0;
             }
             if (argc == 0) {
                 loadErr(
-                    filename, NULL,
+                    filepath, NULL,
                     "Layer %d must have at least 1 argument (size)", i
                 );
                 ok = 0;
@@ -591,7 +638,7 @@ static int loadLegacyLayerDefinitions(PSNeuralNetwork *network, char *vers,
                 else ok = scanFile(f, ",%d", 1, NULL, &arg);
                 if (!ok) {
                     loadErr(
-                        filename, f,
+                        filepath, f,
                         "Invalid layer def: l%d, arg. %d",
                         i, aidx
                     );
@@ -603,7 +650,7 @@ static int loadLegacyLayerDefinitions(PSNeuralNetwork *network, char *vers,
                 else {
                     int arg_aidx = aidx - min_argc;
                     if (arg_aidx >= 20) {
-                        loadErr(filename, f, "Argument is out-of-bounds");
+                        loadErr(filepath, f, "Argument is out-of-bounds");
                         return 0;
                     }
                     args[arg_aidx] = arg;
@@ -616,12 +663,12 @@ static int loadLegacyLayerDefinitions(PSNeuralNetwork *network, char *vers,
         if (!empty) {
             layer = network->layers[i];
             if (layer->size != lsize) {
-                loadErr(filename, NULL, "Layer %d size %d differs from %d!",
+                loadErr(filepath, NULL, "Layer %d size %d differs from %d!",
                     i, layer->size, lsize);
                 return 0;
             }
             if (ltype != layer->type) {
-                loadErr(filename, NULL, "Layer %d type %d differs from %d!",
+                loadErr(filepath, NULL, "Layer %d type %d differs from %d!",
                         i, (int) (layer->type), (int) ltype);
                 return 0;
             }
@@ -657,7 +704,7 @@ static int loadLegacyLayerDefinitions(PSNeuralNetwork *network, char *vers,
                         val = settings->filter_width;
                         if (val != arg) {
                             loadErr(
-                                filename, f, "Layer[%d] filter_width is %d, "
+                                filepath, f, "Layer[%d] filter_width is %d, "
                                 "but file spcifies %d", layer->index, val, arg
                             );
                             return 0;
@@ -665,7 +712,7 @@ static int loadLegacyLayerDefinitions(PSNeuralNetwork *network, char *vers,
                         val = settings->filter_height;
                         if (val != arg && val > 0) {
                             loadErr(
-                                filename, f, "Layer[%d] filter_height is %d, "
+                                filepath, f, "Layer[%d] filter_height is %d, "
                                 "but file spcifies %d", layer->index, val, arg
                             );
                             return 0;
@@ -680,25 +727,25 @@ static int loadLegacyLayerDefinitions(PSNeuralNetwork *network, char *vers,
                     } else if (aidx == CONV_PARAM_USE_RELU) {
                         int use_relu = (arg == 1);
                         if (use_relu && layer->activate != PSRelu) {
-                            loadErr(filename, f, "Layer[%d] activation is %s"
+                            loadErr(filepath, f, "Layer[%d] activation is %s"
                                     ", but file specifies relu", layer->index,
                                     PSGetActivationName(layer->activate));
                             return 0;
                         } else if (!use_relu && layer->activate == PSRelu) {
-                            loadErr(filename, f, "Layer[%d] activation is relu"
+                            loadErr(filepath, f, "Layer[%d] activation is relu"
                                     ", but file activation isn't",
                                     layer->index);
                             return 0;
                         }
                         continue;
                     } else {
-                        loadErr(filename, f, "Layer[%d]: unknown argument[%d]",
+                        loadErr(filepath, f, "Layer[%d]: unknown argument[%d]",
                                 layer->index, aidx);
                         return 0;
                     }
                     if (arg != val) {
                         loadErr(
-                            filename, f,
+                            filepath, f,
                             "Layer %d: loaded arg[%d] = %d differs from "
                             "%s = %d",
                             i, aidx, arg, argname, val
@@ -737,7 +784,7 @@ static int loadLegacyLayerDefinitions(PSNeuralNetwork *network, char *vers,
                     lsize = args[0];
                     network->flags |= FLAG_ONEHOT;
                 } else if (argc > 0) {
-                    /*loadErr(filename, f, "Unknown arguments");
+                    /*loadErr(filepath, f, "Unknown arguments");
                     return 0;*/
                     for (aidx = 0; aidx < argc; aidx++) {
                         int arg = args[aidx];
@@ -772,7 +819,7 @@ static int loadLegacyLayerDefinitions(PSNeuralNetwork *network, char *vers,
 }
 
 static int loadLayerDefinitions(PSNeuralNetwork *network, char *vers,
-                                int netsize, int empty, const char *filename,
+                                int netsize, int empty, const char *filepath,
                                 FILE *f)
 {
     UNUSED(vers);
@@ -787,27 +834,27 @@ static int loadLayerDefinitions(PSNeuralNetwork *network, char *vers,
             &idx, &type, &lsize, &lflags, sep
         );
         if (!ok) {
-            loadErr(filename, f, "Invalid layer %d definition");
+            loadErr(filepath, f, "Invalid layer %d definition");
             return 0;
         }
         if (i != idx) {
-            loadErr(filename, f, "Expected layer %d, got %d",
+            loadErr(filepath, f, "Expected layer %d, got %d",
                     i, idx);
             return 0;
         }
         if (!empty) {
             layer = network->layers[i];
             if (layer == NULL) {
-                loadErr(filename, NULL, "Network has no layer at index %d", i);
+                loadErr(filepath, NULL, "Network has no layer at index %d", i);
                 return 0;
             }
             if (layer->size != lsize) {
-                loadErr(filename, NULL, "Layer %d size %d differs from %d!",
+                loadErr(filepath, NULL, "Layer %d size %d differs from %d!",
                     i, layer->size, lsize);
                 return 0;
             }
             if (ltype != layer->type) {
-                loadErr(filename, NULL, "Layer %d type %d differs from %d!",
+                loadErr(filepath, NULL, "Layer %d type %d differs from %d!",
                         i, (int) (layer->type), (int) ltype);
                 return 0;
             }
@@ -816,14 +863,14 @@ static int loadLayerDefinitions(PSNeuralNetwork *network, char *vers,
         while (sep[0] != '\n') {
             ok = scanFile(f, "%30[a-zA-Z_-]=", 1, NULL, propname);
             if (!ok) {
-                loadErr(filename, f, "Invalid layer property def.");
+                loadErr(filepath, f, "Invalid layer property def.");
                 return 0;
             }
             if (strcmp("activation", propname) == 0) {
                 char actvname[31] = {0};
                 ok = scanFile(f, "%30[a-z]%1[,\n]", 2, NULL, actvname, sep);
                 if (!ok) {
-                    loadErr(filename, f, "Invalid layer property value");
+                    loadErr(filepath, f, "Invalid layer property value");
                     return 0;
                 }
                 if (strcmp("sigmoid", actvname) == 0)
@@ -835,7 +882,7 @@ static int loadLayerDefinitions(PSNeuralNetwork *network, char *vers,
                 else if (strcmp("null", actvname) == 0)
                     ldef.activation = NULL;
                 else {
-                    loadErr(filename, f, "Invalid activation function: '%s'",
+                    loadErr(filepath, f, "Invalid activation function: '%s'",
                             actvname);
                     return 0;
                 }
@@ -844,7 +891,7 @@ static int loadLayerDefinitions(PSNeuralNetwork *network, char *vers,
                     f, "%d%1[,\n]", 2, NULL, &(ldef.output_depth), sep
                 );
                 if (!ok) {
-                    loadErr(filename, f, "Invalid output_depth");
+                    loadErr(filepath, f, "Invalid output_depth");
                     return 0;
                 }
             } else if (strcmp("output_cols", propname) == 0) {
@@ -852,7 +899,7 @@ static int loadLayerDefinitions(PSNeuralNetwork *network, char *vers,
                     f, "%d%1[,\n]", 2, NULL, &(ldef.output_columns), sep
                 );
                 if (!ok) {
-                    loadErr(filename, f, "Invalid output_cols");
+                    loadErr(filepath, f, "Invalid output_cols");
                     return 0;
                 }
             } else if (strcmp("output_rows", propname) == 0) {
@@ -860,7 +907,7 @@ static int loadLayerDefinitions(PSNeuralNetwork *network, char *vers,
                     f, "%d%1[,\n]", 2, NULL, &(ldef.output_rows), sep
                 );
                 if (!ok) {
-                    loadErr(filename, f, "Invalid output_rows");
+                    loadErr(filepath, f, "Invalid output_rows");
                     return 0;
                 }
             } else if (strcmp("output_cols", propname) == 0) {
@@ -868,7 +915,7 @@ static int loadLayerDefinitions(PSNeuralNetwork *network, char *vers,
                     f, "%d%1[,\n]", 2, NULL, &(ldef.output_columns), sep
                 );
                 if (!ok) {
-                    loadErr(filename, f, "Invalid output_cols");
+                    loadErr(filepath, f, "Invalid output_cols");
                     return 0;
                 }
             } else if (strcmp("dropout", propname) == 0) {
@@ -877,7 +924,7 @@ static int loadLayerDefinitions(PSNeuralNetwork *network, char *vers,
                     &(ldef.dropout), sep
                 );
                 if (!ok) {
-                    loadErr(filename, f, "Invalid output_cols");
+                    loadErr(filepath, f, "Invalid output_cols");
                     return 0;
                 }
             } else if (strcmp("stride", propname) == 0) {
@@ -885,7 +932,7 @@ static int loadLayerDefinitions(PSNeuralNetwork *network, char *vers,
                     f, "%d%1[,\n]", 2, NULL, &(ldef.stride), sep
                 );
                 if (!ok) {
-                    loadErr(filename, f, "Invalid stride");
+                    loadErr(filepath, f, "Invalid stride");
                     return 0;
                 }
             } else if (strcmp("padding", propname) == 0) {
@@ -893,7 +940,7 @@ static int loadLayerDefinitions(PSNeuralNetwork *network, char *vers,
                     f, "%d%1[,\n]", 2, NULL, &(ldef.padding), sep
                 );
                 if (!ok) {
-                    loadErr(filename, f, "Invalid padding");
+                    loadErr(filepath, f, "Invalid padding");
                     return 0;
                 }
             } else if (strcmp("filter_width", propname) == 0) {
@@ -901,7 +948,7 @@ static int loadLayerDefinitions(PSNeuralNetwork *network, char *vers,
                     f, "%d%1[,\n]", 2, NULL, &(ldef.filter_width), sep
                 );
                 if (!ok) {
-                    loadErr(filename, f, "Invalid filter_width");
+                    loadErr(filepath, f, "Invalid filter_width");
                     return 0;
                 }
             } else if (strcmp("filter_height", propname) == 0) {
@@ -909,7 +956,7 @@ static int loadLayerDefinitions(PSNeuralNetwork *network, char *vers,
                     f, "%d%1[,\n]", 2, NULL, &(ldef.filter_height), sep
                 );
                 if (!ok) {
-                    loadErr(filename, f, "Invalid filter_height");
+                    loadErr(filepath, f, "Invalid filter_height");
                     return 0;
                 }
             } else if (strcmp("onehot_size", propname) == 0) {
@@ -918,15 +965,23 @@ static int loadLayerDefinitions(PSNeuralNetwork *network, char *vers,
                     f, "%d%1[,\n]", 2, NULL, &onehot_size, sep
                 );
                 if (!ok || onehot_size < 0) {
-                    loadErr(filename, f, "Invalid onehot_size");
+                    loadErr(filepath, f, "Invalid onehot_size");
                     return 0;
                 }
                 ldef.flags |= FLAG_ONEHOT;
                 lsize = onehot_size;
+            } else if (strcmp("pretrained", propname) == 0) {
+                ok = scanFile(
+                    f, "%d%1[,\n]", 2, NULL, &(ldef.pretrained), sep
+                );
+                if (!ok) {
+                    loadErr(filepath, f, "Invalid 'pretrained' value");
+                    return 0;
+                }
             } else {
                 ok = scanFile(f, "%*[^,\n]%1[,\n]", 1, NULL, sep);
                 if (!ok) {
-                    loadErr(filename, f, "Invalid layer property value");
+                    loadErr(filepath, f, "Invalid layer property value");
                     return 0;
                 }
                 continue;
@@ -946,9 +1001,9 @@ static int loadLayerDefinitions(PSNeuralNetwork *network, char *vers,
     return 1;
 }
 
-static int loadLegacyLayerParameters(PSNeuralNetwork *network,
-                                     const char * filename,
-                                     FILE *f, int verbose)
+static int loadLegacyLayersParameters(PSNeuralNetwork *network,
+                                      const char * filepath,
+                                      FILE *f, int verbose)
 {
     int i;
     char *lstm_fmt = PSFLOAT_FORMAT "," PSFLOAT_FORMAT "," PSFLOAT_FORMAT
@@ -962,7 +1017,7 @@ static int loadLegacyLayerParameters(PSNeuralNetwork *network,
             continue;
         } else lsize = layer->size;
         if (GRU == layer->type) {
-            loadErr(filename, NULL, "GRU layers not supported in models "
+            loadErr(filepath, NULL, "GRU layers not supported in models "
                     "saved with version < 0.9.0");
             return 0;
         }
@@ -981,18 +1036,18 @@ static int loadLegacyLayerParameters(PSNeuralNetwork *network,
             if (!ok || (is_lstm && matched < 4)) {
                 if (verbose) printf("\n");
                 loadErr(
-                    filename, f, "Layer %d, neuron %d: invalid bias!", i, j
+                    filepath, f, "Layer %d, neuron %d: invalid bias!", i, j
                 );
                 return 0;
             }
             if (layer->biases == NULL) {
                 if (verbose) printf("\n");
-                loadErr(filename, f, "Layer %d biases are NULL");
+                loadErr(filepath, f, "Layer %d biases are NULL");
                 return 0;
             }
             if (layer->weights == NULL || layer->weights[0] == NULL) {
                 if (verbose) printf("\n");
-                loadErr(filename, f, "Layer %d weights are NULL");
+                loadErr(filepath, f, "Layer %d weights are NULL");
                 return 0;
             }
             PSFloat *weights = NULL;
@@ -1010,7 +1065,7 @@ static int loadLegacyLayerParameters(PSNeuralNetwork *network,
                 layer->biases[(PS_LSTM_FORGET_IDX * layer->size) + j] = fb;
                 PSLSTMCell *cell = (PSLSTMCell *) layer->extra;
                 if (cell == NULL) {
-                    loadErr(filename, f, "Layer %d LSTM cell is NULL");
+                    loadErr(filepath, f, "Layer %d LSTM cell is NULL");
                     return 0;
                 }
                 if (cell->candidate_weights == NULL ||
@@ -1022,7 +1077,7 @@ static int loadLegacyLayerParameters(PSNeuralNetwork *network,
                     cell->output_hidden_weights == NULL ||
                     cell->forget_hidden_weights == NULL)
                 {
-                    loadErr(filename, f, "Layer %d incomplete LSTM weights");
+                    loadErr(filepath, f, "Layer %d incomplete LSTM weights");
                     return 0;
                 }
                 input_size = PSMatrixLength(cell->candidate_weights) / lsize;
@@ -1037,7 +1092,7 @@ static int loadLegacyLayerParameters(PSNeuralNetwork *network,
                 if (!ok) {
                     if (verbose) printf("\n");
                     loadErr(
-                        filename, f,"Layer %d neuron %d: invalid weight[%d]",
+                        filepath, f,"Layer %d neuron %d: invalid weight[%d]",
                         i, j, k
                     );
                     return 0;
@@ -1058,7 +1113,7 @@ static int loadLegacyLayerParameters(PSNeuralNetwork *network,
                 }
                 if (weights == NULL) {
                     loadErr(
-                         filename, f,"Layer %d neuron %d weight %d: "
+                         filepath, f,"Layer %d neuron %d weight %d: "
                          "could not determine weights", i, j, k
                     );
                     return 0;
@@ -1066,7 +1121,7 @@ static int loadLegacyLayerParameters(PSNeuralNetwork *network,
                 uint64_t matrix_len = PSMatrixLength(weights);
                 if ((uint64_t) widx >= matrix_len) {
                     loadErr(
-                         filename, f,"Layer %d neuron %d weight %d: "
+                         filepath, f,"Layer %d neuron %d weight %d: "
                          "invalid weight index %d (max index: %llu)",
                          i, j, k, widx, matrix_len - 1
                     );
@@ -1089,132 +1144,141 @@ static int loadLegacyLayerParameters(PSNeuralNetwork *network,
     return 1;
 }
 
-static int loadLayerParameters(PSNeuralNetwork *network,
-                               const char * filename,
-                               FILE *f, int verbose)
+static int loadLayerParameters(PSLayer *layer, const char *filepath, FILE *f,
+                               int check_index, int verbose)
 {
-    int ok, i;
-    for (i = 1; i < network->size; i++) {
-        PSLayer *layer = network->layers[i];
-        if (layer->type == Pooling || layer->type == Dropout) continue;
-        int bias_count = 0, lidx = -1, wtype_count = 0, wcount = 0;
-        ok = scanFile(
-            f, "--- Layer[%d] Biases: %d ---\n", 2, NULL, &lidx, &bias_count
+
+    if (layer->type == Pooling || layer->type == Dropout) return 0;
+    int bias_count = 0, lidx = -1, wtype_count = 0, wcount = 0, ok = 1,
+        i = layer->index;
+    ok = scanFile(
+        f, "--- Layer[%d] Biases: %d ---\n", 2, NULL, &lidx, &bias_count
+    );
+    if (!ok) {
+        loadErr(filepath, f, "Missing layer %d biases header", i);
+        return 0;
+    }
+    ok = (!check_index || i == lidx);
+    if (!ok) {
+        loadErr(filepath, f, "Invalid layer index %d, expected: %d",
+            lidx, i
         );
-        if (!ok) {
-            loadErr(filename, f, "Missing layer %d biases header", i);
-            return 0;
-        }
-        ok = (i == lidx);
-        if (!ok) {
-            loadErr(filename, f, "Invalid layer index %d, expected: %d",
-                lidx, i
-            );
-            return 0;
-        }
-        int expected_bias_count = PSGetLayerParametersCount(
-            layer, PARAM_TYPE_BIAS
+        return 0;
+    }
+    int expected_bias_count = PSGetLayerParametersCount(
+        layer, PARAM_TYPE_BIAS
+    );
+    int expected_weights_count = PSGetLayerParametersCount(
+        layer, PARAM_TYPE_WEIGHT
+    );
+    ok = (bias_count == expected_bias_count);
+    if (!ok) {
+        loadErr(filepath, f, "Layer[%d]: found %d biases, expected: %d",
+            i, bias_count, expected_bias_count
         );
-        int expected_weights_count = PSGetLayerParametersCount(
-            layer, PARAM_TYPE_WEIGHT
+        return 0;
+    }
+    if (layer->biases == NULL && bias_count > 0) {
+        loadErr(filepath, f, "Layer[%d]: found %d biases, but "
+            "layer->biases is NULL",
+            i, bias_count
         );
-        ok = (bias_count == expected_bias_count);
+        return 0;
+    }
+    for (int j = 0; j < bias_count; j++) {
+        char *fmt = PSFLOAT_FORMAT ",";
+        if (j == (bias_count - 1)) fmt = PSFLOAT_FORMAT "\n";
+        PSFloat bias = 0;
+        ok = scanFile(f, fmt, 1, NULL, &bias);
         if (!ok) {
-            loadErr(filename, f, "Layer[%d]: found %d biases, expected: %d",
-                i, bias_count, expected_bias_count
+            loadErr(
+                filepath, f, "Layer[%d]: invalid bias %d", layer->index, j
             );
             return 0;
         }
-        if (layer->biases == NULL && bias_count > 0) {
-            loadErr(filename, f, "Layer[%d]: found %d biases, but "
-                "layer->biases is NULL",
-                i, bias_count
-            );
-            return 0;
-        }
-        for (int j = 0; j < bias_count; j++) {
-            char *fmt = PSFLOAT_FORMAT ",";
-            if (j == (bias_count - 1)) fmt = PSFLOAT_FORMAT "\n";
-            PSFloat bias = 0;
-            ok = scanFile(f, fmt, 1, NULL, &bias);
-            if (!ok) {
-                loadErr(
-                    filename, f, "Layer[%d]: invalid bias %d", layer->index, j
-                );
-                return 0;
-            }
-            layer->biases[j] = bias;
-        }
-        ok = scanFile(f, "--- Layer[%d] Weights: %d,%d ---\n", 3, NULL,
-                      &lidx, &wtype_count, &wcount);
-        if (!ok) {
-            loadErr(filename, f, "Missing layer %d weights header", i);
-            return 0;
-        }
-        ok = (i == lidx);
-        if (!ok) {
-            loadErr(filename, f, "Invalid layer index %d, expected: %d",
-                lidx, i
-            );
-            return 0;
-        }
-        ok = (wtype_count == layer->weight_types_count);
-        if (!ok) {
-            loadErr(filename, f, "Layer[%d]: found %d weight types, "
-                "expected: %d", i, wtype_count, layer->weight_types_count
-            );
-            return 0;
-        }
-        ok = (wcount == expected_weights_count);
-        if (!ok) {
-            loadErr(filename, f, "Layer[%d]: found %d weights, "
-                "expected: %d", i, wcount, expected_weights_count
-            );
-            return 0;
-        }
-        if (layer->weights == NULL && wtype_count > 0) {
-            loadErr(filename, f, "Layer[%d]: found %d weights, but "
-                "layer->weights is NULL",
-                i, wcount
-            );
+        layer->biases[j] = bias;
+    }
+    ok = scanFile(f, "--- Layer[%d] Weights: %d,%d ---\n", 3, NULL,
+                  &lidx, &wtype_count, &wcount);
+    if (!ok) {
+        loadErr(filepath, f, "Missing layer %d weights header", i);
+        return 0;
+    }
+    ok = (i == lidx);
+    if (!ok) {
+        loadErr(filepath, f, "Invalid layer index %d, expected: %d",
+            lidx, i
+        );
+        return 0;
+    }
+    ok = (wtype_count == layer->weight_types_count);
+    if (!ok) {
+        loadErr(filepath, f, "Layer[%d]: found %d weight types, "
+            "expected: %d", i, wtype_count, layer->weight_types_count
+        );
+        return 0;
+    }
+    ok = (wcount == expected_weights_count);
+    if (!ok) {
+        loadErr(filepath, f, "Layer[%d]: found %d weights, "
+            "expected: %d", i, wcount, expected_weights_count
+        );
+        return 0;
+    }
+    if (layer->weights == NULL && wtype_count > 0) {
+        loadErr(filepath, f, "Layer[%d]: found %d weights, but "
+            "layer->weights is NULL",
+            i, wcount
+        );
+        ok = 0;
+        return 0;
+    }
+    for (int j = 0; j < layer->weight_types_count; j++) {
+        PSMatrix weights = layer->weights[j];
+        if (weights == NULL) {
+            loadErr(filepath, NULL, "Layer[%d]: weights[%d] is NULL", j);
             ok = 0;
             return 0;
         }
-        for (int j = 0; j < layer->weight_types_count; j++) {
-            PSMatrix weights = layer->weights[j];
-            if (weights == NULL) {
-                loadErr(filename, NULL, "Layer[%d]: weights[%d] is NULL", j);
-                ok = 0;
+        uint64_t wlen = PSMatrixLength(weights), widx;
+        for (widx = 0; widx < wlen; widx++) {
+            char *fmt = PSFLOAT_FORMAT ",";
+            if (widx == (wlen - 1))
+                fmt = PSFLOAT_FORMAT "\n";
+            PSFloat w = 0;
+            ok = scanFile(f, fmt, 1, NULL, &w);
+            if (!ok) {
+                loadErr(
+                    filepath, f, "Layer[%d]: invalid weight[%d][%d]",
+                    layer->index, j, widx
+                );
                 return 0;
             }
-            uint64_t wlen = PSMatrixLength(weights), widx;
-            for (widx = 0; widx < wlen; widx++) {
-                char *fmt = PSFLOAT_FORMAT ",";
-                if (widx == (wlen - 1))
-                    fmt = PSFLOAT_FORMAT "\n";
-                PSFloat w = 0;
-                ok = scanFile(f, fmt, 1, NULL, &w);
-                if (!ok) {
-                    loadErr(
-                        filename, f, "Layer[%d]: invalid weight[%d][%d]",
-                        layer->index, j, widx
-                    );
-                    return 0;
-                }
-                weights[widx] = w;
-            }
+            weights[widx] = w;
         }
-        if (verbose) {
-            int llen = printf("\rLayer[%d]: Loaded", i);
-            PSFillWithBlank(llen - 1);
-            printf("\n");
-            PSPrintLayerInfo(layer);
-        }
+    }
+    if (verbose) {
+        int llen = printf("\rLayer[%d]: Loaded", i);
+        PSFillWithBlank(llen - 1);
+        printf("\n");
+        PSPrintLayerInfo(layer);
+    }
+    return ok;
+}
+
+static int loadLayersParameters(PSNeuralNetwork *network,
+                                const char *filepath,
+                                FILE *f, int verbose)
+{
+    for (int i = 1; i < network->size; i++) {
+        PSLayer *layer = network->layers[i];
+        if (layer->type == Pooling || layer->type == Dropout) continue;
+        if (!loadLayerParameters(layer, filepath, f, 1, verbose)) return 0;
     }
     return 1;
 }
 
-static int loadLegacyGradients(PSNeuralNetwork *network, const char * filename,
+static int loadLegacyGradients(PSNeuralNetwork *network, const char * filepath,
                                FILE *f, PSGradient **gradients, int i)
 {
     char *lstm_fmt = PSFLOAT_FORMAT "," PSFLOAT_FORMAT "," PSFLOAT_FORMAT
@@ -1229,7 +1293,7 @@ static int loadLegacyGradients(PSNeuralNetwork *network, const char * filename,
         int lsize = 0, wsize = 0;
         if (layer->type == Pooling || layer->type == Dropout) continue;
         if (GRU == layer->type) {
-            loadErr(filename, NULL, "GRU layers not supported in models "
+            loadErr(filepath, NULL, "GRU layers not supported in models "
                     "saved with version < 0.9.0");
             return 0;
         }
@@ -1265,7 +1329,7 @@ static int loadLegacyGradients(PSNeuralNetwork *network, const char * filename,
             if (!ok || (is_lstm && matched < 4)) {
                 printf("\n");
                 loadErr(
-                    filename, f,
+                    filepath, f,
                     "Memory gradients %d, Layer %d, Gradient %d: "
                     "invalid bias!", i, j, k
                 );
@@ -1278,7 +1342,7 @@ static int loadLegacyGradients(PSNeuralNetwork *network, const char * filename,
                 );
                 if (!ok) {
                     loadErr(
-                        filename, f,
+                        filepath, f,
                         "Memory gradients %d, Layer %d, "
                         "Gradient %d: invalid weight %d",
                         i, j, k, w
@@ -1310,7 +1374,7 @@ static int loadLegacyGradients(PSNeuralNetwork *network, const char * filename,
     return 1;
 }
 
-static int loadGradients(PSNeuralNetwork *network, const char * filename,
+static int loadGradients(PSNeuralNetwork *network, const char * filepath,
                          FILE *f, PSGradient **gradients, int i)
 {
     for (int j = 1; j < network->size; j++) {
@@ -1323,7 +1387,7 @@ static int loadGradients(PSNeuralNetwork *network, const char * filename,
         );
         if (!ok) {
             loadErr(
-                filename, f, "Missing memory gradients[%d] "
+                filepath, f, "Missing memory gradients[%d] "
                 "biases[%d] header", i, j
             );
             return 0;
@@ -1331,7 +1395,7 @@ static int loadGradients(PSNeuralNetwork *network, const char * filename,
         ok = (gidx == grad_idx);
         if (!ok) {
             loadErr(
-                filename, f, "Invalid memory gradients[%d] index "
+                filepath, f, "Invalid memory gradients[%d] index "
                 "%d, expected %d (biases[%d])", i, gidx, grad_idx,j
             );
             return 0;
@@ -1341,7 +1405,7 @@ static int loadGradients(PSNeuralNetwork *network, const char * filename,
             if (lgradients->biases == NULL) {
                 PSPrintMemoryErrorMsg();
                 loadErr(
-                    filename, NULL, "Failed to allocate gradient "
+                    filepath, NULL, "Failed to allocate gradient "
                     "biases"
                 );
                 return 0;
@@ -1354,7 +1418,7 @@ static int loadGradients(PSNeuralNetwork *network, const char * filename,
             ok = scanFile(f, fmt, 1, NULL, &bias);
             if (!ok) {
                 loadErr(
-                    filename, f, "Failed to load memory "
+                    filepath, f, "Failed to load memory "
                     "gradients[%d] bias[%d][%d]", i, j, k
                 );
                 return 0;
@@ -1367,7 +1431,7 @@ static int loadGradients(PSNeuralNetwork *network, const char * filename,
         );
         if (!ok) {
             loadErr(
-                filename, f, "Missing memory gradients[%d] "
+                filepath, f, "Missing memory gradients[%d] "
                 "weights[%d] header", i, j
             );
             return 0;
@@ -1375,7 +1439,7 @@ static int loadGradients(PSNeuralNetwork *network, const char * filename,
         ok = (gidx == grad_idx);
         if (!ok) {
             loadErr(
-                filename, f, "Invalid memory gradients[%d] index "
+                filepath, f, "Invalid memory gradients[%d] index "
                 "%d, expected %d (weights[%d])", i, gidx, grad_idx,j
             );
             return 0;
@@ -1385,7 +1449,7 @@ static int loadGradients(PSNeuralNetwork *network, const char * filename,
             if (lgradients->weights == NULL) {
                 PSPrintMemoryErrorMsg();
                 loadErr(
-                    filename, NULL, "Failed to allocate gradient "
+                    filepath, NULL, "Failed to allocate gradient "
                     "weights"
                 );
                 return 0;
@@ -1398,7 +1462,7 @@ static int loadGradients(PSNeuralNetwork *network, const char * filename,
             ok = scanFile(f, fmt, 1, NULL, &w);
             if (!ok) {
                 loadErr(
-                    filename, f, "Failed to load memory "
+                    filepath, f, "Failed to load memory "
                     "gradients[%d] weight[%d][%d]", i, j, k
                 );
                 return 0;
@@ -1409,12 +1473,53 @@ static int loadGradients(PSNeuralNetwork *network, const char * filename,
     return 1;
 }
 
-int PSLoadNetwork(PSNeuralNetwork *network, const char* filename) {
-    if (network == NULL) return 0;
-    FILE *f = fopen(filename, "r");
-    PSInfo("Loading network from %s", filename);
+int PSLoadLayer(PSLayer *layer, const char *filepath) {
+    if (layer == NULL) return 0;
+    FILE *f = fopen(filepath, "r");
+    PSInfo("Loading network from %s", filepath);
     if (f == NULL) {
-        PSErr(__func__, "Could not open '%s'", filename);
+        PSErr(__func__, "Could not open '%s'", filepath);
+        return 0;
+    }
+    int loaded = 0;
+    if (scanFileNoMatch(f, "layer[%*d]:")) {
+        /* Ignore layer definition */
+        char c = fgetc(f);
+        while (c != '\n') {
+            if (c == EOF) break;
+            c = fgetc(f);
+        }
+        if (c == EOF) {
+            loadErr(filepath, NULL, "Invalid layer file");
+            goto final;
+        }
+    }
+    loaded = loadLayerParameters(layer, filepath, f, 0, 0);
+final:
+    fclose(f);
+    return loaded;
+}
+
+int PSSaveLayer(PSLayer *layer, const char *filepath, int save_definition) {
+    if (layer == NULL) return 0;
+    FILE *f = fopen(filepath, "w");
+    PSInfo("Saving layer %d to %s", layer->index, filepath);
+    if (f == NULL) {
+        PSErr(__func__, "Cannot open %s for writing!", filepath);
+        return 0;
+    }
+    if (save_definition) writeLayerDefinition(layer, f);
+    int saved = writeLayerParameters(layer, 0, f, __func__);
+    fclose(f);
+    return saved;
+}
+
+int PSLoadNetwork(PSNeuralNetwork *network, const char* filepath) {
+    if (network == NULL) return 0;
+    FILE *f = fopen(filepath, "r");
+    PSInfo("Loading network from %s", filepath);
+    if (f == NULL) {
+        PSErr(__func__, "Could not open '%s'", filepath);
         return 0;
     }
     int netsize, i;
@@ -1440,7 +1545,7 @@ int PSLoadNetwork(PSNeuralNetwork *network, const char* filename) {
                 __func__,
                 "File version is higher than current PsyC version: %s > %s\n"
                 "PsyC %s (or higher) is required to open '%s'",
-                vers, PSYC_VERSION, vers, filename
+                vers, PSYC_VERSION, vers, filepath
             );
             goto final;
         }
@@ -1450,18 +1555,18 @@ int PSLoadNetwork(PSNeuralNetwork *network, const char* filename) {
         else if (scanFileNoMatch(f, ":")) {
             /* Scan header info */
             PSModelFileHeader header = {{0}};
-            ok = scanModelFileHeader(f, &header, filename);
+            ok = scanModelFileHeader(f, &header, filepath);
             if (!ok) {
-                loadErr(filename, NULL, "Invalid file header");
+                loadErr(filepath, NULL, "Invalid file header");
                 goto final;
             }
             ok = scanFileNoMatch(f, "model:");
             if (!ok) {
-                loadErr(filename, f, "Missing `model:` definition");
+                loadErr(filepath, f, "Missing `model:` definition");
                 goto final;
             }
             if (verbose) {
-                PSInfo("Info for file '%s':", filename);
+                PSInfo("Info for file '%s':", filepath);
                 printModelHeaderInfo(&header);
             }
             has_model_def = 1;
@@ -1530,28 +1635,28 @@ scan_model_def:
     if (!legacy_model) ok = scanFile(f, "layers:%d\n", 1, NULL, &netsize);
     else ok = scanFile(f, "%d:", 1, NULL, &netsize);
     if (!ok) {
-        loadErr(filename, f, "Missing network size definition");
+        loadErr(filepath, f, "Missing network size definition");
         goto final;
     }
     if (netsize == 0) {
-        loadErr(filename, NULL, "Empty network model!");
+        loadErr(filepath, NULL, "Empty network model!");
         ok = 0;
         goto final;
     }
     if (!empty && network->size != netsize) {
-        loadErr(filename, NULL, "Network size differs!");
+        loadErr(filepath, NULL, "Network size differs!");
         ok = 0;
         goto final;
     }
     if (legacy_model)
-        ok = loadLegacyLayerDefinitions(network,vers,netsize,empty,filename, f);
-    else ok = loadLayerDefinitions(network, vers, netsize, empty, filename, f);
+        ok = loadLegacyLayerDefinitions(network,vers,netsize,empty,filepath, f);
+    else ok = loadLayerDefinitions(network, vers, netsize, empty, filepath, f);
     if (!ok) goto final;
     /* Load layer parameters */
     if (legacy_model)
-        ok = loadLegacyLayerParameters(network, filename, f, verbose);
+        ok = loadLegacyLayersParameters(network, filepath, f, verbose);
     else
-        ok = loadLayerParameters(network, filename, f, verbose);
+        ok = loadLayersParameters(network, filepath, f, verbose);
     if (!ok) goto final;
 
     if (verbose) printf("\n");
@@ -1561,7 +1666,7 @@ scan_model_def:
         int numgradients = 0;
         ok = scanFile(f, "memory_gradients:%d\n", 1, NULL, &numgradients);
         if (!ok) {
-            loadErr(filename, f, "Invalid or missing 'memory_gradients'");
+            loadErr(filepath, f, "Invalid or missing 'memory_gradients'");
             goto final;
         }
         ok = initTrainingContext(network, numgradients);
@@ -1586,7 +1691,7 @@ scan_model_def:
             }
             if (!ok) {
                 loadErr(
-                    filename, NULL, "Invalid network training data (missing "
+                    filepath, NULL, "Invalid network training data (missing "
                     "gradients)"
                 );
                 goto final;
@@ -1594,10 +1699,10 @@ scan_model_def:
         }
         ok = scanFileNoMatch(f, "training_options:");
         if (!ok) {
-            loadErr(filename, f, "Missing 'training_options'");
+            loadErr(filepath, f, "Missing 'training_options'");
             goto final;
         }
-        ok = scanTrainingOptions(f, topts, filename);
+        ok = scanTrainingOptions(f, topts, filepath);
         if (!ok) goto final;
         for (i = 0; i < numgradients; i++) {
             PSGradient **memg = NULL;
@@ -1608,16 +1713,16 @@ scan_model_def:
             ok = scanFile(f, "memory_gradients[%d]:\n", 1, NULL, &gidx);
             if (ok && gidx != i) ok = 0;
             if (!ok) {
-                loadErr(filename, f, "Invalid memory gradient header");
+                loadErr(filepath, f, "Invalid memory gradient header");
                 goto final;
             }
             if (legacy_model)
-                ok = loadLegacyGradients(network, filename, f, memg, i);
+                ok = loadLegacyGradients(network, filepath, f, memg, i);
             else
-                ok = loadGradients(network, filename, f, memg, i);
+                ok = loadGradients(network, filepath, f, memg, i);
             if (!ok) {
                 loadErr(
-                    filename, NULL, "Failed to load memory gradients %s", i
+                    filepath, NULL, "Failed to load memory gradients %s", i
                 );
                 goto final;
             }
@@ -1629,18 +1734,18 @@ final:
     return ok;
 }
 
-int PSSaveNetwork(PSNeuralNetwork *network, const char* filename) {
+int PSSaveNetwork(PSNeuralNetwork *network, const char* filepath) {
     if (network->size == 0) {
         PSErr(__func__, "Empty network!");
         return 0;
     }
-    FILE *f = fopen(filename, "w");
-    PSInfo("Saving network to %s", filename);
+    FILE *f = fopen(filepath, "w");
+    PSInfo("Saving network to %s", filepath);
     if (f == NULL) {
-        PSErr(__func__, "Cannot open %s for writing!", filename);
+        PSErr(__func__, "Cannot open %s for writing!", filepath);
         return 0;
     }
-    int i, j, k, opts = 0, ok = 1;
+    int i, opts = 0, ok = 1;
     int loss_function = getLossFunctionIndex(network->loss);
     /*  Header */
     static struct utsname sysinfo;
@@ -1691,44 +1796,7 @@ int PSSaveNetwork(PSNeuralNetwork *network, const char* filename) {
         PSLayer *layer = network->layers[i];
         PSLayerType ltype = layer->type;
         if (Pooling == ltype || layer->type == Dropout) continue;
-        int bias_count = PSGetLayerParametersCount(layer, PARAM_TYPE_BIAS),
-            weights_count = PSGetLayerParametersCount(layer, PARAM_TYPE_WEIGHT);
-        fprintf(f, "--- Layer[%d] Biases: %d ---\n", i, bias_count);
-        if (bias_count > 0) {
-            if (layer->biases == NULL) {
-                PSErr(__func__, "Layer[%d]: biases are NULL", i);
-                fclose(f);
-                return 0;
-            }
-            for (j = 0; j < bias_count; j++) {
-                if (j > 0) fprintf(f, ",");
-                writeSerializedFloat(f, layer->biases[j], opts);
-            }
-            fprintf(f, "\n");
-        }
-        fprintf(f, "--- Layer[%d] Weights: %d,%d ---\n",
-                i, layer->weight_types_count, weights_count);
-        if (layer->weight_types_count > 0) {
-            if (layer->weights == NULL) {
-                PSErr(__func__, "Layer[%d]: weights are NULL", i);
-                fclose(f);
-                return 0;
-            }
-            for (j = 0; j < layer->weight_types_count; j++) {
-                PSMatrix weights = layer->weights[j];
-                if (weights == NULL) {
-                    PSErr(__func__, "Layer[%d]: weights[%d] are NULL", i, j);
-                    fclose(f);
-                    return 0;
-                }
-                int ws = PSMatrixLength(weights);
-                for (k = 0; k < ws; k++) {
-                    if (k > 0) fprintf(f, ",");
-                    writeSerializedFloat(f, weights[k], opts);
-                }
-                fprintf(f, "\n");
-            }
-        }
+        if (!writeLayerParameters(layer, opts, f, __func__)) return 0;
     }
     PSTrainingOptions *topts = PSGetNetworkTrainingOptions(network);
     PSGradient **memg1 = NULL, **memg2 = NULL;

@@ -254,6 +254,8 @@ static PSLayerType getLayerType(char *name, int *is_cifar) {
         return GRU;
     else if (strcasecmp("dropout", name) == 0)
         return Dropout;
+    else if (strcasecmp("embedding", name) == 0)
+        return Embedding;
     else if (strcasecmp("cifar", name) == 0) {
         *is_cifar = 1;
         return FullyConnected;
@@ -678,6 +680,10 @@ void parseOptions(int argc, char **argv) {
                 } else if (strcmp("--use-relu", carg) == 0) {
                     i = j;
                     ldef.activation = PSRelu;
+                } else if (strcmp("--pretrained", carg) == 0) {
+                    ldef.pretrained = 1;
+                } else if (strcmp("--load-layer", carg) == 0 && ++j < argc) {
+                    ldef.load_from = argv[j];
                 } else if (strcmp("--dropout", carg) == 0 && ++j < argc) {
                     char *dropout = argv[j];
                     int matched = sscanf(
@@ -1200,6 +1206,9 @@ int main(int argc, char **argv) {
         }
 
         PSTrainingOptions options = {
+            .epochs = epochs,
+            .batch_size = batch_size,
+            .learning_rate = learning_rate,
             .flags = training_flags,
             .l1_decay = (PSFloat) l1_decay,
             .l2_decay = (PSFloat) l2_decay,
@@ -1207,8 +1216,8 @@ int main(int argc, char **argv) {
             .optimization = optimization,
             .validate_every_batches = validate_every
         };
-        PSTrain(network, training_data, datalen, epochs, learning_rate,
-                batch_size, &options, validation_data, valdlen);
+        PSTrain(network, training_data, datalen, validation_data, valdlen,
+                &options);
         free(training_data);
     }
     if (test_data != NULL) {
@@ -1363,6 +1372,9 @@ void printHelp(const char* program_path) {
     printf("        --init-scale SCALE        Weight|Bias initialization "
            "scale\n"
            "                                  (for 'random' init mode)\n");
+    printf("        --pretrained              Pretrained layer\n");
+    printf("        --load-layer PATH         Load layer parameters from "
+           "PATH\n");
     /*printf("        --use-relu                Use ReLU activation (for "
            "Convolutional Layers)\n");*/
     printf("\n");
@@ -1389,12 +1401,13 @@ void printHelp(const char* program_path) {
     printf("\n");
     printf("SCRIPTS:\n\n");
     printf(
-        "  Using options such as `--on-batch-trained` and `--on-epoch-trained`"
+        "  By using options such as `--on-batch-trained` and "
+        "`--on-epoch-trained`"
         "\n"
         "  it's possible to execute an arbitrary external script when such\n"
-        "  events happen.The scripts will eventually receive the following\n"
+        "  events happen. The scripts will eventually receive the following\n"
         "  arguments:\n"
-        "    --event TYPE, --name NETWORK_NAME --epoch CURRENT_EPOC\n"
+        "    --event TYPE, --name NETWORK_NAME --epoch CURRENT_EPOCH\n"
         "    --epochs TOT_EPOCHS --average-loss AVERAGE_LOSS --current-loss\n"
         "    CURRENT_LOSS --accuracy CURRENT_ACCURACY --learning-rate RATE\n"
     );

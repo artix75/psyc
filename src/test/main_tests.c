@@ -1309,13 +1309,13 @@ int testRNNStep(TestCase *test_case, Test *test) {
     if (!testRecurrentNetworkMode(network, ManyToMany, test)) return 0;
     PSResetNetworkRecurrentStates(network, 0, 0);
     PSFloat *training_data = getTestData(test_case);
-    PSFloat **series = &training_data;
+    PSFloat **sequences = &training_data;
     int elements_count = (int) *training_data;
 
     int i, j, w;
     PSFloat loss = updateNetworkParameters(
         network, training_data, 1, elements_count,
-        NULL, RNN_LEARNING_RATE, NULL, NULL, series
+        NULL, RNN_LEARNING_RATE, NULL, NULL, sequences
     );
     UNUSED(loss);
     for (i = 1; i < network->size; i++) {
@@ -1351,7 +1351,7 @@ int testRNNStep(TestCase *test_case, Test *test) {
             }
         }
     }
-    /* free(series); */
+    /* free(sequences); */
     return 1;
 }
 
@@ -1565,12 +1565,14 @@ int testLSTMTrain(TestCase *test_case, Test *test) {
     PSFloat *training_data = getTestData(test_case);
 
     PSTrainingOptions options = {
+        .epochs = LSTM_EPOCHS,
+        .batch_size = LSTM_BATCHES,
+        .learning_rate = LSTM_LEARNING_RATE,
         .flags = TRAINING_NO_SHUFFLE,
         .l2_decay = 0.0,
         .bptt_truncate = 4
     };
-    PSTrain(network, training_data, 8, LSTM_EPOCHS, LSTM_LEARNING_RATE,
-            LSTM_BATCHES, &options, NULL, 0);
+    PSTrain(network, training_data, 8, NULL, 0, &options);
 
     PSLayer *layer = network->layers[1];
     int i, t, w, precision = NORMAL_PRECISION_DEC - 2;

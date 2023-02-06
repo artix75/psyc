@@ -18,11 +18,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #include <execinfo.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <assert.h>
 
 #include <fenv.h>
 #if defined(__x86_64__) || defined(__i386__)
@@ -32,14 +34,18 @@
 #include "../psyc.h"
 #include "../optimization.h"
 #include "../activation.h"
+#include "../log.h"
 #include "w2v_training_data.h"
 
 #define BATCHES 1
-#define EPOCHS 30
+#define EPOCHS 120
+#define EMBED_EPOCHS 4
 #define LEARNING_RATE   0.025
 #define MOMENTUM        0.0
 #define L1              0.0
 #define L2              0.0
+#define HIDDEN_SIZE     60
+#define SAMPLE_LEN      30
 
 #define DEFAULT_OUTPUT_FILE "/tmp/pretrained.rnn.psmodel"
 
@@ -48,6 +54,7 @@
 PSNeuralNetwork *network = NULL;
 char *output_path = DEFAULT_OUTPUT_FILE;
 int pause_requested = 0;
+int use_random_choice = 0;
 
 void print_help(char *progname) {
     printf("Usage %s OPTIONS\n", progname);
@@ -56,6 +63,13 @@ void print_help(char *progname) {
     printf("        -s, --save TRAINED_DT_FILE      Save trained model\n"
            "                                        "
            "(default: %s)\n", DEFAULT_OUTPUT_FILE);
+    printf("        --hidden-size SIZE              Hidden size (def. %d)\n",
+        HIDDEN_SIZE);
+    printf("        --embedding SIZE                Use embedding layer\n");
+    printf("        --embedding-learn-rate RATE     Embedding layer learning "
+           "rate\n");
+    printf("        --embedding-epochs EPOCHS       Embedding layer training "
+           "epochs (def. %d)\n", EMBED_EPOCHS);
     printf("        --learning-rate RATE            Learnig Rate "
         "(def. %g)\n", LEARNING_RATE);
     printf("        --momentum MOMENTUM             Momentum "
@@ -77,6 +91,10 @@ void print_help(char *progname) {
     printf("        --disable-avx                   Disable AVX\n");
 #endif
     printf("        --shuffle                       Shuffle data\n");
+    printf("        --print-sample                  Print sample\n");
+    printf("        --sample-length LEN             Sample words count "
+          "(def. %d)\n", SAMPLE_LEN);
+    printf("        --colors                        Enable colorized output\n");
     printf("        -h, --help                      Print this help\n");
 }
 
@@ -93,6 +111,84 @@ void handler(int sig) {
     }
 }
 
+int randomChoice(PSFloat *weights, int count) {
+    int i;
+    PSFloat r = PSNormalizedRandom();
+    for (i = 0; i < count; i++) {
+        PSFloat w = weights[i];
+        if (w > r) return i;
+    }
+    return -1;
+}
+
+void printSample(PSNeuralNetwork *network, int input_idx, int len) {
+    int index = 2 + input_idx;
+    if (index >= TRAIN_DATA_LEN) {
+        fprintf(stderr, "ERROR (%s): Invalid input %d\n", __func__, input_idx);
+        return;
+    }
+    if (!PSResetNetworkRecurrentStates(network, 0, 0)) {
+        fprintf(stderr, "ERROR (%s): Failed to reset states\n", __func__);
+        return;
+    }
+    PSLayer *out = network->layers[network->size - 1];
+    PSFloat word_idx = training_data[index];
+    PSFloat data[2];
+    data[0] = 1.0;
+    data[1] = word_idx;
+    int c = len;
+    int oldstatus = network->status;
+    network->status = STATUS_PAUSED;
+    if (PSLogColorEnabled()) printf(PSCOLOR_BOLD);
+    printf("\n\n==== SAMPLE ====\n\n");
+    if (PSLogColorEnabled()) printf(PSCOLOR_RESET);
+    fflush(stdout);
+    char *word = words[(unsigned) word_idx];
+    char *last_word = word;
+    printf("%s", word);
+    while (c-- >= 0) {
+        int ok = PSFeedforward(network, data);
+        if (!ok) {
+            network->status = oldstatus;
+            fprintf(
+                stderr, "ERROR (%s): Failed to feed data at t=%d",
+                __func__, c + 1
+            );
+            return;
+        }
+        int max_idx = 0;
+        int t = ((unsigned int) data[0]) - 1;
+        if (!use_random_choice) {
+            if (!PSFindLayerMaxState(out, NULL, &max_idx, t)) {
+                network->status = oldstatus;
+                PSErr(__func__, "Failed to find neuron with max value");
+                return;
+            }
+        } else {
+            PSFloat *states = PSGetStates(out, t);
+            max_idx = randomChoice(states, out->size);
+            if (max_idx < 0) {
+                if (!PSFindLayerMaxState(out, NULL, &max_idx, t)) {
+                    network->status = oldstatus;
+                    PSErr(__func__, "Failed to find neuron with max value");
+                    return;
+                }
+            }
+        }
+        assert(max_idx < VOCABULARY_SIZE);
+        word = words[max_idx];
+        char *sep = " ";
+        if (strlen(last_word) == 1 && ispunct(last_word[0])) sep = "";
+        else if (strlen(word) == 1 && ispunct(word[0])) sep = "";
+        printf("%s%s", sep, word);
+        data[1] = (PSFloat) max_idx;
+        last_word = word;
+    }
+    network->status = oldstatus;
+    printf("\n\n");
+    fflush(stdout);
+}
+
 int main(int argc, char** argv) {
 
     /*signal(SIGSEGV, handler);
@@ -105,15 +201,21 @@ int main(int argc, char** argv) {
     const char *pretrained_file = NULL;
     int i;
     int epochs = EPOCHS;
+    int embedding_epochs = EMBED_EPOCHS;
     int batch_size = BATCHES;
     int disable_avx = 0;
     int shuffle = 0;
     PSOptimization optimization = PSDefaultOptimization;
     PSFloat learning_rate = LEARNING_RATE;
+    PSFloat embedding_learning_rate = 0;
     PSFloat momentum = MOMENTUM;
     PSFloat l1_decay = L1;
     PSFloat l2_decay = L2;
     int validate_every = 0;
+    int hidden_size = HIDDEN_SIZE;
+    int print_sample = 0;
+    int sample_len = SAMPLE_LEN;
+    int embedding_size = 0;
     UNUSED(disable_avx); /* Actually not used if USE_AVX macro not defined */
 
     network = PSCreateNetwork("RNN Demo");
@@ -140,12 +242,42 @@ int main(int argc, char** argv) {
                 fprintf(stderr, "Invalid epochs: at least 1 required\n");
                 return 1;
             }
+        } else if (strcmp("--embedding-epochs", arg) == 0 && (i + 1) < argc) {
+            embedding_epochs = atoi(argv[++i]);
+            if (embedding_epochs < 1) {
+                fprintf(stderr, "Invalid epochs: at least 1 required\n");
+                return 1;
+            }
         } else if (strcmp("--learning-rate", arg) == 0 && (i + 1) < argc) {
             learning_rate = (PSFloat) atof(argv[++i]);
             if (learning_rate <= 0.0) {
                 fprintf(stderr, "Learning rate must be > 0\n");
                 return 1;
             }
+        } else if (strcmp("--embedding-learn-rate", arg) == 0 &&
+                   (i + 1) < argc)
+        {
+            embedding_learning_rate = (PSFloat) atof(argv[++i]);
+            if (embedding_learning_rate <= 0.0) {
+                fprintf(stderr, "Learning rate must be > 0\n");
+                return 1;
+            }
+        } else if (strcmp("--hidden-size", arg) == 0 && (i + 1) < argc) {
+            hidden_size = atoi(argv[++i]);
+            if (hidden_size < 2) {
+                fprintf(stderr, "Invalid hidden_size: at least 2 required\n");
+                return 1;
+            }
+        } else if (strcmp("--embedding", arg) == 0 && (i + 1) < argc) {
+            embedding_size = atoi(argv[++i]);
+            if (embedding_size < 2) {
+                fprintf(stderr, "Invalid embedding_size: at least 2 "
+                        "required\n");
+                return 1;
+            }
+        } else if (strcmp("--sample-length", arg) == 0 && (i + 1) < argc) {
+            sample_len = atoi(argv[++i]);
+            if (sample_len < 0) sample_len = SAMPLE_LEN;
         } else if (strcmp("--momentum", arg) == 0 && (i + 1) < argc) {
             momentum = (PSFloat) atof(argv[++i]);
         } else if (strcmp("--l1-decay", arg) == 0 && (i + 1) < argc) {
@@ -167,6 +299,8 @@ int main(int argc, char** argv) {
 #endif
         } else if (strcmp("--shuffle", arg) == 0) {
             shuffle = 1;
+        } else if (strcmp("--print-sample", arg) == 0) {
+            print_sample = 1;
         } else if (strcmp("--optimization", arg) == 0 && !is_last) {
             char *optname = argv[++i];
             if (strcmp("adam", optname) == 0) optimization = PSAdamOptimization;
@@ -186,6 +320,8 @@ int main(int argc, char** argv) {
                 );
                 return 1;
             }
+        } else if (strcmp("--colors", arg) == 0) {
+            PSLogEnableColor();
         } else if (strcmp("--help", arg) == 0 || strcmp("-h", arg) == 0) {
             print_help(argv[0]);
             return 0;
@@ -197,7 +333,16 @@ int main(int argc, char** argv) {
 
     if (pretrained_file == NULL) {
         PSAddLayer(network, FullyConnected, VOCABULARY_SIZE, NULL);
-        PSAddLayer(network, Recurrent, 60, NULL);
+        if (embedding_size > 0) {
+            PSTrainingOptions embedding_training_opts = {
+                .epochs = embedding_epochs,
+                .learning_rate = embedding_learning_rate
+            };
+            PSAddLayer(network, Embedding, embedding_size, PSLDEF(
+                .pretraining_options = &embedding_training_opts
+            ));
+        }
+        PSAddLayer(network, Recurrent, hidden_size, NULL);
         PSAddLayer(network, SoftMax, VOCABULARY_SIZE, NULL);
         network->layers[network->size - 1]->flags |= FLAG_ONEHOT;
         if (network->size < 1) {
@@ -228,26 +373,40 @@ int main(int argc, char** argv) {
 #endif
     PSPrintNetworkInfo(network);
     int flags = TRAINING_ADJUST_RATE;
-    if (!shuffle) flags |= TRAINING_NO_SHUFFLE;
+    if (!shuffle) flags |= (TRAINING_NO_SHUFFLE | TRAINING_EPOCH_AS_SEQUENCE);
+    printf("*** NOTE ***\nTraining data taken from some paragraphs of "
+           "Wikipedia's article about planet\nSaturn: "
+           "(https://en.wikipedia.org/wiki/Saturn).\n\n");
 
     PSTrainingOptions options = {
+        .epochs = epochs,
+        .batch_size = batch_size,
+        .learning_rate = learning_rate,
         .flags = flags,
         .l1_decay = l1_decay,
         .l2_decay = l2_decay,
         .momentum = momentum,
-        .optimization = optimization
+        .optimization = optimization,
+        .bptt_truncate = 0
     };
-    PSTrain(network, training_data, TRAIN_DATA_LEN, epochs, learning_rate,
-            batch_size, &options, validation_data, EVAL_DATA_LEN);
+    PSTrain(network, training_data, TRAIN_DATA_LEN, training_data,
+            TRAIN_DATA_LEN, &options);
 
+    int return_status = 0;
+    if (network->status == STATUS_ERROR) {
+        return_status = 1;
+        goto final;
+    }
     if (TEST_DATA_LEN > 0) {
         printf("Test Data len: %d\n", TEST_DATA_LEN);
         PSTest(network, test_data, TEST_DATA_LEN);
     }
+    if (print_sample) printSample(network, 0, sample_len);
     if (output_path != NULL)
         PSSaveNetwork(network, output_path);
+final:
     PSDeleteNetwork(network);
     /* free(training_data); */
     /* if (TEST_DATA_LEN) free(test_data); */
-    return 0;
+    return return_status;
 }

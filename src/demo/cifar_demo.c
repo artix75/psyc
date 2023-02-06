@@ -567,14 +567,20 @@ int main(int argc, char** argv) {
         int flags = 0;
         if (no_shuffle) flags |= TRAINING_NO_SHUFFLE;
         PSTrainingOptions train_opts = {
-            .flags = flags, .l1_decay = l1_decay, .l2_decay = l2_decay,
-            .momentum = momentum, .debug_dump_to = debug_dump_to,
+            .epochs = epochs,
+            .batch_size = batch_size,
+            .learning_rate = learning_rate,
+            .flags = flags,
+            .l1_decay = l1_decay,
+            .l2_decay = l2_decay,
+            .momentum = momentum,
+            .debug_dump_to = debug_dump_to,
             .validate_every_batches = validate_every
         };
         if (optimization != PSDefaultOptimization)
             train_opts.optimization = optimization;
-        PSTrain(network, training_data, datalen, epochs, learning_rate,
-                batch_size, &train_opts, validation_data, valdlen);
+        PSTrain(network, training_data, datalen, validation_data, valdlen,
+                &train_opts);
     }
     if (network->status == STATUS_ERROR) {
         PSDeleteNetwork(network);

@@ -80,8 +80,11 @@ int main(int argc, char** argv) {
     printf("Data len: %d\n", datalen);
     PSPrintNetworkInfo(network);
 
-    if (!loaded) PSTrain(network, training_data, datalen, EPOCHS, 3, 10, NULL,
-                         NULL, 0);
+    if (!loaded) PSTrain(network, training_data, datalen, NULL, 0, PSTRAINOPT(
+        .learning_rate = 3,
+        .batch_size = 10,
+        .epochs = EPOCHS
+    ));
     if (network->status == STATUS_ERROR) {
         PSDeleteNetwork(network);
         if (training_data != NULL) free(training_data);

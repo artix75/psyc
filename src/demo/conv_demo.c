@@ -134,9 +134,15 @@ int main(int argc, char** argv) {
         }
     }
 
-    if (datalen > 0)
-        PSTrain(network, training_data, datalen, EPOCHS, 1.5, 10, NULL,
-                validation_data, valdlen);
+    if (datalen > 0) {
+        PSTrainingOptions opts = {
+            .epochs = EPOCHS,
+            .learning_rate = 1.5,
+            .batch_size = 10
+        };
+        PSTrain(network, training_data, datalen, validation_data, valdlen,
+                &opts);
+    }
 
     if (network->status == STATUS_ERROR) {
         PSDeleteNetwork(network);
