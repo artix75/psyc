@@ -106,6 +106,10 @@
         mode = opts->store_mode;\
         debug_step = opts->debug_step;\
         assert(mode >= 0 && mode <= MATHS_STORE_MODE_SUB);\
+        if (opts->after != NULL) {\
+            PSWarn("PSMathOpts `after` is only used by `PSDot` and "\
+                   "`PSVectorProduct`");\
+        }\
     }\
     UNUSED(debug_step);
 
@@ -1440,7 +1444,7 @@ int PSVectorProduct(PSFloat *a, PSFloat *b, PSFloat *dest,
                     uint64_t alen, uint64_t blen, PSMathOpts *opts)
 {
     if (a == NULL || b == NULL || dest == NULL) {
-        PSErr(__func__, "`, `vector` and `dest` cannot be null");
+        PSErr(__func__, "`a`, `vector` and `dest` cannot be null");
         return 0;
     }
     PSFloat *vec2add = NULL, *max = NULL, *tmpdest = NULL;

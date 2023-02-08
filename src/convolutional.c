@@ -27,6 +27,8 @@
 #include "utils.h"
 #include "convolutional.h"
 #include "recurrent.h"
+#include "maths.h"
+#include "blas.h"
 #include "debug.h"
 #include "log.h"
 
@@ -74,14 +76,168 @@ w,steplen,step,rowlen) \
 /* Forward declarations */
 
 PSActivationFunction PSGetActivationDerivative(PSActivationFunction func);
-int PSConvolve(PSNeuralNetwork *net, PSLayer *layer, ...);
+int PSConvolutionalFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...);
 int PSPool(PSNeuralNetwork *net, PSLayer *layer, ...);
 int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
                             PSGradient *lgradients, ...);
 int PSPoolingBackprop(PSLayer *pooling_layer, PSLayer *convolutional_layer,
                       PSGradient *layer_gradients, ...);
-
+PSVecActivationFunction PSGetVectorActivationFunc(PSActivationFunction func);
 int checkLayerForFeedforward(PSLayer *layer);
+
+/* Helper functions */
+
+static PSFloat *im2col(PSFloat *inputs, int input_size, int channels,
+                       int width, int height, int kernel_width,
+                       int kernel_height, int padding, int stride, int dilation,
+                       int *output_size, int *output_columns, int *output_rows)
+{
+    if (output_size != NULL) *output_size = 0;
+    if (inputs == NULL || input_size <= 0) return NULL;
+    if (dilation <= 0) dilation = 1;
+    if (stride <= 0) stride = 1;
+    if (padding < 0) padding = 0;
+    if (height <= 0) height = width;
+    if (kernel_height <= 0) kernel_height = kernel_width;
+    int output_w = (width + 2 * padding - (dilation * (kernel_width - 1) + 1)) /
+                   stride + 1;
+    int output_h = (height + 2 * padding -  (dilation * (kernel_height - 1)+1))/
+                   stride + 1;
+    int channel_size = height * width;
+    if (output_w <= 0 || output_h <= 0 || channel_size <= 0) goto invalid_size;
+    int out_cols = kernel_width * kernel_height * channels;
+    if (out_cols <= 0) goto invalid_size;
+    int outsize = channels * output_w * output_h * kernel_width * kernel_height;
+    if (outsize <= 0) goto invalid_size;
+    int out_rows = outsize / out_cols;
+    if (out_rows <= 0) goto invalid_size;
+    PSFloat *output = malloc(outsize * sizeof(PSFloat));
+    if (output == NULL) {
+        PSPrintMemoryErrorMsg();
+        return NULL;
+    }
+    if (output_size != NULL) *output_size = outsize;
+    if (output_columns != NULL) *output_columns = out_cols;
+    if (output_rows != NULL) *output_rows = out_rows;
+    PSFloat *output_p = output;
+    PSFloat *inputs_p = inputs;
+    for (int ch = 0; ch < channels; ch++) {
+        for (int krow = 0; krow < kernel_height; krow++) {
+            for (int kcol = 0; kcol < kernel_width; kcol++) {
+                int input_row = -padding + krow * dilation;
+                int output_rows = output_h;
+                while (output_rows-- > 0) {
+                    if (input_row < 0 || input_row >= height) {
+                        int output_cols = output_w;
+                        while (output_cols-- > 0) *(output_p++) = 0.0;
+                    } else {
+                        int input_col = -padding + kcol * dilation;
+                        int output_col = output_w;
+                        while (output_col-- > 0) {
+                            PSFloat val = 0.0;
+                            if (input_col >= 0 && input_col < width)
+                                val = inputs_p[input_row * width + input_col];
+                            *(output_p++) = val;
+                            input_col += stride;
+                        }
+                    }
+                    input_row += stride;
+                }
+            }
+        }
+        inputs_p += channel_size;
+    }
+    return output;
+invalid_size:
+    PSErr(__func__, "invalid size");
+    return NULL;
+}
+
+static PSFloat *weights2col(PSFloat **lweights, int filter_width,
+                            int filter_height, int filter_depth,
+                            int out_depth, int *output_size,
+                            int *output_columns, int *output_rows,
+                            int transpose)
+{
+    if (output_size != NULL) *output_size = 0;
+    if (lweights == NULL) return NULL;
+    if (filter_height <= 0) filter_height = filter_width;
+    int fsize = filter_width * filter_height * filter_depth;
+    if (fsize <= 0) goto invalid_size;
+    int rows = fsize;
+    int cols = out_depth;
+    int size = rows * cols;
+    if (size <= 0) goto invalid_size;
+    PSFloat *outputs = malloc(size * sizeof(PSFloat));
+    if (outputs == NULL) {
+        PSPrintMemoryErrorMsg();
+        return NULL;
+    }
+    if (output_size != NULL) *output_size = size;
+    if (output_columns != NULL) *output_columns = cols;
+    if (output_rows != NULL) *output_rows = rows;
+    for (int col = 0; col < out_depth; col++) {
+        PSFloat *weights = lweights[col];
+        if (weights == NULL) {
+            PSErr(__func__, "missing weights[%d]", col);
+            free(outputs);
+            if (output_size != NULL) *output_size = 0;
+            return NULL;
+        }
+        if (!transpose) {
+            memcpy(outputs + (col * fsize), weights, fsize * sizeof(PSFloat));
+            continue;
+        }
+        for (int row = 0; row < fsize; row++)
+            outputs[(row * cols) + col] = weights[row];
+    }
+    return outputs;
+invalid_size:
+    PSErr(__func__, "invalid size");
+    return NULL;
+}
+
+static int BLASConvolve(PSFloat *inputs, int input_size, PSFloat **weights,
+                        int output_depth, int input_width, int input_height,
+                        int input_depth, int filter_width, int filter_height,
+                        int padding, int stride, int output_size,
+                        PSFloat *outputs)
+{
+    if (inputs == NULL) {
+        PSErr(__func__, "NULL inputs");
+        return 0;
+    }
+    if (outputs == NULL) {
+        PSErr(__func__, "NULL outputs");
+        return 0;
+    }
+    int i2c_size = 0, i2c_rows = 0, i2c_cols = 0, w2c_size = 0, w2c_cols = 0,
+        w2c_rows = 0, success = 1;
+    PSFloat *i2c = im2col(inputs, input_size, input_depth,
+                          input_width, input_height, filter_width,
+                          filter_height, padding, stride, 1,
+                          &i2c_size, &i2c_cols, &i2c_rows);
+    if (i2c == NULL) return 0;
+    PSFloat *w2c = weights2col(weights, filter_width, filter_height,
+                               input_depth, output_depth, &w2c_size,
+                               &w2c_cols, &w2c_rows, 0);
+    if (w2c == NULL) {
+        success = 0;
+        goto final;
+    }
+    int m = output_depth;
+    int n = output_size / output_depth;
+    int k = filter_width * filter_height * input_depth;
+    int lda = k, ldb = n;
+    PSGemm(PSBLASRowMajor, 'N', 'N', m, n, k, 1.0, w2c, lda, i2c, ldb, 0.0,
+           outputs, n);
+    success = (PSBLASLastError == NULL);
+    if (!success) goto final;
+final:
+    free(i2c);
+    free(w2c);
+    return success;
+}
 
 /* Generic Functions */
 
@@ -280,7 +436,7 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
             layer->neurons[idx] = neuron;
         }
     }
-    layer->feedforward = PSConvolve;
+    layer->feedforward = PSConvolutionalFeedforward;
     layer->backprop = PSConvolutionalBackprop;
     return 1;
 memerr:
@@ -362,8 +518,8 @@ memerr:
 
 /* Feedforward Functions */
 
-int PSConvolve(PSNeuralNetwork *net, PSLayer *layer, ...) {
-    if (!checkLayerForFeedforward(layer)) return 0;
+int PSConvolutionalFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
+    if (!checkLayerForFeedforward(layer)) goto failed;
     int do_dump =
         (net->training != NULL && net->training->debug_dump_to != NULL);
     PSDebugStepInfo dbginfo = {
@@ -375,18 +531,18 @@ int PSConvolve(PSNeuralNetwork *net, PSLayer *layer, ...) {
     PSLayer *previous = net->layers[layer->index - 1];
     if (previous == NULL) {
         PSErr(NULL, "Layer[%d]: previous layer is NULL!", layer->index);
-        return 0;
+        goto failed;
     }
     if (previous->flags & FLAG_ONEHOT) {
         PSErr(NULL, "Layer[%d]: convolutional layer cannot be fed with"
               "onehot input", layer->index);
-        return 0;
+        goto failed;
     }
     PSConvolutionalSettings *settings = PSGetConvolutionalSettings(layer);
     if (settings == NULL) {
         PSErr(NULL, "Layer[%d]: convolutional layer has no settings",
               layer->index);
-        return 0;
+        goto failed;
     }
     if (layer->output_depth == 0) layer->output_depth = 1;
     int i, j, k, x, y, row, col;
@@ -405,14 +561,53 @@ int PSConvolve(PSNeuralNetwork *net, PSLayer *layer, ...) {
     int feature_size = layer->size / layer->output_depth;
     int use_bias = !(layer->flags & FLAG_NO_BIAS);
     int input_w = settings->input_width, input_h = settings->input_height;
-#ifdef USE_AVX
-    int avx_disabled = !PSAVXEnabled(net->acceleration);
-    /* AVX doesn't offer performance increase if not applied on big vectors */
-    int avx_min_size = AVX_MIN_VECTOR_SIZE * 2;
-#endif
+    int use_blas_acceleration = (
+        PSIsAccelerationAvailable(PSAcceleration_BLAS) &&
+        PSBLASEnabled(net->acceleration)
+    );
     int previous_feature_size = 0;
     if (previous->output_depth == 0) previous->output_depth = 1;
     previous_feature_size = previous->size / previous->output_depth;
+    if (use_blas_acceleration) {
+        PSMathOpts mopts = {.acceleration = net->acceleration};
+        PSFloat *inputs = PSGetStates(previous, t);
+        PSFloat *outputs = PSGetStates(layer, t);
+        if (inputs == NULL || outputs == NULL) {
+            PSErr(NULL, "Layer[%d]: missing inputs and/or outputs");
+            goto failed;
+        }
+        int ok = BLASConvolve(inputs, previous->size,
+                              (PSFloat **) layer->weights,
+                              layer->output_depth, input_w, input_h,
+                              previous->output_depth, settings->filter_width,
+                              settings->filter_height,
+                              settings->padding,
+                              settings->stride,
+                              layer->size, outputs);
+        if (!ok) {
+            PSErr(NULL, "Layer[%d]: convolutional layer failed feedforward",
+                  layer->index);
+            goto failed;
+        }
+        if (use_bias) {
+            for (i = 0; i < layer->output_depth; i++) {
+                PSFloat bias = layer->biases[i];
+                PSFloat *states = outputs + (i * feature_size);
+                PSSumVectorScalar(states, bias, states, feature_size, &mopts);
+            }
+        }
+        if (layer->activate != NULL) {
+            PSVecActivationFunction activate = PSGetVectorActivationFunc(
+                layer->activate
+            );
+            if (activate == NULL) {
+                PSErr(NULL, "Layer[%d]: invalid activation function");
+                return 0;
+            }
+            activate(outputs, outputs, layer->size, &mopts);
+        }
+        return 1;
+    }
     for (i = 0; i < layer->output_depth; i++) {
         if (do_dump && i > 1) do_dump = 0;
         PSFloat bias = (use_bias ? layer->biases[i] : 0.0);
@@ -512,7 +707,7 @@ int PSConvolve(PSNeuralNetwork *net, PSLayer *layer, ...) {
                 /* weights += (int) region_area; */
             }
             PSFloat state = sum + bias;
-            state = layer->activate(state);
+            if (layer->activate != NULL)  state = layer->activate(state);
             int ok = PSSetState(layer, state, idx, t);
             if (!ok) {
                 PSErr(
@@ -525,6 +720,9 @@ int PSConvolve(PSNeuralNetwork *net, PSLayer *layer, ...) {
         }
     }
     return 1;
+failed:
+    net->status = STATUS_ERROR;
+    return 0;
 }
 
 int PSPool(PSNeuralNetwork *net, PSLayer *layer, ...) {
