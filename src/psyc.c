@@ -3374,6 +3374,7 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
     PSMathOpts mopts = {.acceleration = network->acceleration};
     PSGradient **bp_dest_gradients = gradients;
     if (apply_clip) bp_dest_gradients = NULL;
+    PSResetTransposedWeights(network);
     /* Iterate elements of the batch and, for each element, get gradients
      * from the backpropagation of the error. Then, sum the backpropagation
      * gradients to the batch's gradients. */
@@ -3423,7 +3424,6 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
         }
         if (PSDumpGradientsPath != NULL)
             PSDumpGradients(network, gradients, NULL, opts);
-        PSResetTransposedWeights(network);
         if (network->status == STATUS_PAUSED) break;
     }
 
