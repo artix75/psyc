@@ -52,3 +52,6 @@ helgrind:
 	
 show-build-info:
 	@cd src && $(MAKE) show-build-info
+
+list-available-options:
+	@cd src && $(MAKE) list-available-options

@@ -78,3 +78,15 @@ show-build-info:
 	@echo "HAS_MAGICK=$(HAS_MAGICK)"
 	@echo "MAGICK_VERSION=$(MAGICK_VERSION)"
 	@echo "MAGICK_VERSION_MAJOR=$(MAGICK_VERSION_MAJOR)"
+
+list-available-options:
+	@echo "Option           Argument    Description         Default"
+	@echo "=============================================================="
+	@echo "PREFIX           PATH        Installation path   $(PREFIX)"
+	@echo "OPTIMIZATION     OPT         Optimization        $(OPTIMIZATION)"
+	@echo "AVX              (on|off)    AVX support         $(AVX)"
+	@echo "ACCELERATE       (on|off)    Apple Accelerate"
+	@echo "                             Framework support   $(ACCELERATE)"
+	@echo "BLAS             (on|off)    BLAS support        $(BLAS)"
+	@echo "USE_PSYC_BLAS    (on|off)    Force native BLAS   $(USE_PSYC_BLAS)"
+	@echo "MAGICK           (on|off)    ImageMagick support $(MAGICK)"

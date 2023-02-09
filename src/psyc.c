@@ -844,7 +844,7 @@ void PSPrintLayerInfo(PSLayer *layer) {
             printf(", padding = %d", padding);
         }
     } else if (ltype == FullyConnected && layer->output_depth > 1) {
-       printf(", depth = %d\n", layer->output_depth);
+       printf(", depth = %d", layer->output_depth);
     }
     const char *activation = PSGetActivationName(layer->activate);
     if (layer->index > 0 && activation != NULL)
@@ -2041,6 +2041,8 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
     layer->pretrained = layer_def->pretrained;
     layer->pretrainer = NULL;
     layer->pretrain = NULL;
+    layer->private = NULL;
+    layer->before_batch_training = NULL;
     if (layer->output_depth <= 0) layer->output_depth = 1;
     layer->output_columns = layer_def->output_columns;
     layer->output_rows = layer_def->output_rows;
@@ -2607,6 +2609,23 @@ static void resetDeltas(PSNeuralNetwork *network) {
     for (i = 0; i < network->size; i++) {
         PSLayer *layer = network->layers[i];
         resetLayerDeltas(layer, 1);
+    }
+}
+
+void beforeBatchTraining(PSNeuralNetwork *network) {
+    if (network == NULL || network->layers == NULL) return;
+    int i, j;
+    for (i = 0; i < network->size; i++) {
+        PSLayer *layer = network->layers[i];
+        if (layer == NULL) continue;
+        if (layer->weights != NULL) {
+            for (j = 0; j < layer->weight_types_count; j++) {
+                PSMatrix weights = layer->weights[j];
+                PSMatrixResetTransposed(weights);
+            }
+        }
+        if (layer->before_batch_training != NULL)
+            layer->before_batch_training(layer);
     }
 }
 
@@ -3374,7 +3393,7 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
     PSMathOpts mopts = {.acceleration = network->acceleration};
     PSGradient **bp_dest_gradients = gradients;
     if (apply_clip) bp_dest_gradients = NULL;
-    PSResetTransposedWeights(network);
+    beforeBatchTraining(network);
     /* Iterate elements of the batch and, for each element, get gradients
      * from the backpropagation of the error. Then, sum the backpropagation
      * gradients to the batch's gradients. */

@@ -73,6 +73,15 @@ w,steplen,step,rowlen) \
 
 #define UNUSED(V) ((void) V)
 
+#define GetConvPrivateData(layer) ((PSPrivateConvData *) layer->private)
+
+typedef struct {
+    PSFloat *im2col;
+    PSFloat *w2col;
+    PSFloat *bias_mul; /* Used by BLAS backpropagation, always set to 1 */
+    int im2col_size;
+} PSPrivateConvData;
+
 /* Forward declarations */
 
 PSActivationFunction PSGetActivationDerivative(PSActivationFunction func);
@@ -84,6 +93,7 @@ int PSPoolingBackprop(PSLayer *pooling_layer, PSLayer *convolutional_layer,
                       PSGradient *layer_gradients, ...);
 PSVecActivationFunction PSGetVectorActivationFunc(PSActivationFunction func);
 int checkLayerForFeedforward(PSLayer *layer);
+PSGradient *createLayerGradients(PSLayer *layer);
 
 /* Helper functions */
 
@@ -153,6 +163,63 @@ invalid_size:
     return NULL;
 }
 
+static PSFloat *col2im(PSFloat *input, int channels, int width, int height,
+                       int kernel_width, int kernel_height, int padding,
+                       int stride, int dilation, PSFloat *dest, int dest_size)
+{
+    if (input == NULL) return NULL;
+    int outsize = height * width * channels;
+    if (outsize <= 0) goto invalid_size;
+    int output_h = (height + 2 * padding - (dilation * (kernel_height-1)+1)) /
+                   stride + 1;
+    int output_w = (width + 2 * padding - (dilation * (kernel_width-1)+1)) /
+                   stride + 1;
+    if (output_h <= 0 || output_w <= 0) goto invalid_size;
+    PSFloat *output = dest;
+    if (output == NULL) {
+        output = malloc(outsize * sizeof(PSFloat));
+        if (output == NULL) {
+            PSPrintMemoryErrorMsg();
+            return NULL;
+        }
+    } else {
+        if (dest_size != outsize) goto invalid_size;
+    }
+    int channel_size = height * width;
+    PSFloat *output_p = output;
+    PSFloat *input_p = input;
+    for (int ch = 0; ch < channels; ch++) {
+        for (int krow = 0; krow < kernel_height; krow ++) {
+            for (int kcol = 0; kcol < kernel_width; kcol++) {
+                int input_row = -padding + krow * dilation;
+                int output_rows = output_h;
+                while (output_rows-- > 0) {
+                    if (input_row < 0 || input_row >= height)
+                        input_p += output_w;
+                    else {
+                        int input_col = -padding + kcol * dilation;
+                        int output_col = output_w;
+                        while (output_col-- > 0) {
+                            if (input_col >= 0 && input_col < width) {
+                                int oidx = (input_row * width + input_col);
+                                output_p[oidx] = *input_p;
+                            }
+                            input_p++;
+                            input_col += stride;
+                        }
+                    }
+                    input_row += stride;
+                }
+            }
+        }
+        output_p += channel_size;
+    }
+    return output;
+invalid_size:
+    PSErr(__func__, "invalid size");
+    return NULL;
+}
+
 static PSFloat *weights2col(PSFloat **lweights, int filter_width,
                             int filter_height, int filter_depth,
                             int out_depth, int *output_size,
@@ -197,10 +264,9 @@ invalid_size:
     return NULL;
 }
 
-static int BLASConvolve(PSFloat *inputs, int input_size, PSFloat **weights,
-                        int output_depth, int input_width, int input_height,
-                        int input_depth, int filter_width, int filter_height,
-                        int padding, int stride, int output_size,
+/* Accelerated convolution with BLAS */
+
+static int BLASConvolve(PSLayer *layer, PSFloat *inputs, int input_size,
                         PSFloat *outputs)
 {
     if (inputs == NULL) {
@@ -211,31 +277,144 @@ static int BLASConvolve(PSFloat *inputs, int input_size, PSFloat **weights,
         PSErr(__func__, "NULL outputs");
         return 0;
     }
+    PSConvolutionalSettings *settings = PSGetConvolutionalSettings(layer);
+    if (settings == NULL) {
+        PSErr(__func__, "Layer[%d] has no settings");
+        return 0;
+    }
+    PSPrivateConvData *privdata = GetConvPrivateData(layer);
+    if (privdata == NULL) {
+        privdata = calloc(1, sizeof(PSPrivateConvData));
+        if (privdata == NULL) {
+            PSPrintMemoryErrorMsg();
+            return 0;
+        }
+        layer->private = privdata;
+    }
     int i2c_size = 0, i2c_rows = 0, i2c_cols = 0, w2c_size = 0, w2c_cols = 0,
         w2c_rows = 0, success = 1;
-    PSFloat *i2c = im2col(inputs, input_size, input_depth,
-                          input_width, input_height, filter_width,
-                          filter_height, padding, stride, 1,
+    PSFloat *i2c = im2col(inputs, input_size, settings->input_depth,
+                          settings->input_width, settings->input_height,
+                          settings->filter_width,
+                          settings->filter_height, settings->padding,
+                          settings->stride, 1,
                           &i2c_size, &i2c_cols, &i2c_rows);
     if (i2c == NULL) return 0;
-    PSFloat *w2c = weights2col(weights, filter_width, filter_height,
-                               input_depth, output_depth, &w2c_size,
-                               &w2c_cols, &w2c_rows, 0);
+    if (privdata->im2col != NULL) free(privdata->im2col);
+    privdata->im2col = i2c;
+    privdata->im2col_size = i2c_size;
+    PSFloat *w2c = privdata->w2col;
+    if (w2c == NULL) {
+        w2c = weights2col(layer->weights, settings->filter_width,
+                          settings->filter_height, settings->input_depth,
+                          layer->output_depth, &w2c_size, &w2c_cols,
+                          &w2c_rows, 0);
+        privdata->w2col = w2c;
+    }
     if (w2c == NULL) {
         success = 0;
         goto final;
     }
-    int m = output_depth;
-    int n = output_size / output_depth;
-    int k = filter_width * filter_height * input_depth;
+    int m = layer->output_depth;
+    int n = layer->size / layer->output_depth;
+    int k = settings->filter_width * settings->filter_height *
+            settings->input_depth;
     int lda = k, ldb = n;
     PSGemm(PSBLASRowMajor, 'N', 'N', m, n, k, 1.0, w2c, lda, i2c, ldb, 0.0,
            outputs, n);
     success = (PSBLASLastError == NULL);
+final:
+    return success;
+}
+
+static int BLASConvolutionalBackprop(PSLayer *layer, PSGradient *gradient) {
+    int success = 1;
+    PSLayer *previous = PSGetPreviousLayer(layer);
+    if (previous == NULL) return 0;
+    PSConvolutionalSettings *settings = PSGetConvolutionalSettings(layer);
+    if (settings == NULL) {
+        PSErr(__func__, "Layer[%d] has no settings");
+        return 0;
+    }
+    PSPrivateConvData *privdata = GetConvPrivateData(layer);
+    if (privdata == NULL) {
+        PSErr(__func__, "Layer[%d] has no private data");
+        return 0;
+    }
+    PSFloat *delta = layer->delta;
+    int use_bias = !(layer->flags & FLAG_NO_BIAS);
+    int feature_size = layer->size / layer->output_depth;
+    int ksize = settings->filter_width * settings->filter_height *
+                settings->input_depth;
+    if (use_bias) {
+        /* Update gradient biases */
+        if (privdata->bias_mul == NULL) {
+            privdata->bias_mul = malloc(feature_size * sizeof(PSFloat));
+            success = (privdata->bias_mul != NULL);
+            if (!success) {
+                PSPrintMemoryErrorMsg();
+                goto final;
+            }
+            for (int i = 0; i < feature_size; i++) privdata->bias_mul[i] = 1.0;
+        }
+        PSGemv(PSBLASRowMajor, 'N', layer->output_depth, feature_size, 1.0,
+               delta, feature_size, privdata->bias_mul, 1, 1.0,
+               gradient->biases, 1);
+        success = (PSBLASLastError == NULL);
+        if (!success) goto final;
+    }
+    int i2c_size = privdata->im2col_size;
+    PSFloat *i2c = privdata->im2col;
+    if (i2c == NULL) {
+        PSFloat *inputs = PSGetStates(previous, 0);
+        success = inputs != NULL;
+        if (!success) goto final;
+        i2c = im2col(inputs, previous->size, settings->input_depth,
+                     settings->input_width, settings->input_height,
+                     settings->filter_width,
+                     settings->filter_height, settings->padding,
+                     settings->stride, 1, &i2c_size, NULL, NULL);
+        success = (i2c != NULL);
+        if (!success) goto final;
+    }
+    /* Update gradient weights */
+    int m = layer->output_depth, n = ksize, k = feature_size;
+    int lda = k;
+    int ldb = k;
+    PSGemm(PSBLASRowMajor, 'N', 'T', m, n, k, 1.0, delta, lda, i2c, ldb,
+           1.0, gradient->weights, n);
+    success = (PSBLASLastError == NULL);
+    if (!success) goto final;
+    if (previous->delta == NULL) goto final;
+    /* Update previous layer delta */
+    PSFloat *w2c = privdata->w2col;
+    if (w2c == NULL) {
+        w2c = weights2col(layer->weights, settings->filter_width,
+                          settings->filter_height, settings->input_depth,
+                          layer->output_depth, NULL, NULL, NULL, 0);
+        privdata->w2col = w2c;
+    }
+    success = (w2c != NULL);
+    if (!success) goto final;
+    m = ksize;
+    n = feature_size;
+    k = layer->output_depth;
+    lda = m;
+    ldb = n;
+    PSGemm(PSBLASRowMajor, 'T', 'N', m, n, k, 1.0, w2c, lda, delta, ldb,
+           0.0, i2c, n);
+    if (!success) goto final;
+    PSFloat *prev_delta = col2im(
+        i2c, settings->input_depth, settings->input_width,
+        settings->input_height, settings->filter_width,
+        settings->filter_height, settings->padding, settings->stride,
+        1, previous->delta, previous->size
+    );
+    success = (prev_delta != NULL);
     if (!success) goto final;
 final:
-    free(i2c);
-    free(w2c);
+    free(privdata->im2col);
+    privdata->im2col = NULL;
     return success;
 }
 
@@ -272,6 +451,24 @@ int PSConvolutionalLayerCopy(PSLayer *layer, PSLayer *src) {
 void PSDeleteConvolutionalLayer(PSLayer *layer) {
     if (layer->extra != NULL) free(layer->extra);
     layer->extra = NULL;
+    if (layer->private != NULL) {
+        PSPrivateConvData *privdata = (PSPrivateConvData *) layer->private;
+        free(privdata->im2col);
+        free(privdata->w2col);
+        free(privdata->bias_mul);
+        free(layer->private);
+        layer->private = NULL;
+    }
+}
+
+void PSBeforeConvolutionalBatchTraining(PSLayer *layer) {
+    if (layer == NULL) return;
+    PSPrivateConvData *privdata = GetConvPrivateData(layer);
+    if (privdata != NULL) {
+        if (privdata->im2col != NULL) free(privdata->im2col);
+        if (privdata->w2col != NULL) free(privdata->w2col);
+        privdata->im2col = privdata->w2col = NULL;
+    }
 }
 
 /* Init Functions */
@@ -326,8 +523,11 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
     }
     layer->on_copy = PSConvolutionalLayerCopy;
     layer->on_delete = PSDeleteConvolutionalLayer;
+    layer->before_batch_training = PSBeforeConvolutionalBatchTraining;
     layer->extra = calloc(1, sizeof(PSConvolutionalSettings));
     if (layer->extra == NULL) goto memerr;
+    layer->private = calloc(1, sizeof(PSPrivateConvData));
+    if (layer->private == NULL) goto memerr;
     PSConvolutionalSettings *settings = (PSConvolutionalSettings *)layer->extra;
     PSLayer *previous = network->layers[index - 1];
     layer->output_depth = layer_def->output_depth;
@@ -563,7 +763,8 @@ int PSConvolutionalFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
     int input_w = settings->input_width, input_h = settings->input_height;
     int use_blas_acceleration = (
         PSIsAccelerationAvailable(PSAcceleration_BLAS) &&
-        PSBLASEnabled(net->acceleration)
+        PSBLASEnabled(net->acceleration) &&
+        !is_recurrent
     );
     int previous_feature_size = 0;
     if (previous->output_depth == 0) previous->output_depth = 1;
@@ -576,14 +777,7 @@ int PSConvolutionalFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
             PSErr(NULL, "Layer[%d]: missing inputs and/or outputs");
             goto failed;
         }
-        int ok = BLASConvolve(inputs, previous->size,
-                              (PSFloat **) layer->weights,
-                              layer->output_depth, input_w, input_h,
-                              previous->output_depth, settings->filter_width,
-                              settings->filter_height,
-                              settings->padding,
-                              settings->stride,
-                              layer->size, outputs);
+        int ok = BLASConvolve(layer, inputs, previous->size, outputs);
         if (!ok) {
             PSErr(NULL, "Layer[%d]: convolutional layer failed feedforward",
                   layer->index);
@@ -592,8 +786,9 @@ int PSConvolutionalFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
         if (use_bias) {
             for (i = 0; i < layer->output_depth; i++) {
                 PSFloat bias = layer->biases[i];
-                PSFloat *states = outputs + (i * feature_size);
-                PSSumVectorScalar(states, bias, states, feature_size, &mopts);
+                PSFloat *feature_map = outputs + (i * feature_size);
+                PSSumVectorScalar(feature_map, bias, feature_map,
+                                  feature_size, &mopts);
             }
         }
         if (layer->activate != NULL) {
@@ -654,34 +849,6 @@ int PSConvolutionalFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
                     }
                     int x2 = max_x;
                     if (x2 >= settings->input_width) x2 = input_w - 1;
-#ifdef USE_AVX
-                    /*int rowlen = x2 - x;
-                    if (!avx_disabled && rowlen >= avx_min_size) {
-                        int avx_step_len = AVXGetDotStepLen(rowlen);
-                        int avx_steps = 0, avx_step;
-                        if (avx_step_len > 0)
-                            avx_steps = rowlen / avx_step_len;
-                        PSFloat *prev_activations = previous->activations;
-                        assert(prev_activations != NULL);
-                        if (PSIsRecurrent(previous))
-                            prev_activations += (t * previous->size);
-                        for (avx_step = 0; avx_step < avx_steps; avx_step++) {
-                            int nidx = foffset + (y * input_w) + x;
-                            PSFloat *x_vector =
-                                prev_activations + nidx;
-                            PSFloat *y_vector = weights + widx;
-                            if (do_dump) DumpConvolveAVXStep(
-                                col, row, r_col, r_row,
-                                max_x, max_y, previous, k, nidx, x, y, widx,
-                                avx_step_len, avx_step, rowlen
-                            );
-                            sum += AVXDotProduct(x_vector, y_vector,
-                                                 avx_step_len, NULL);
-                            x += avx_step_len;
-                            widx += avx_step_len;
-                        }
-                    }*/ //DELME
-#endif
                     for (; x < max_x; x++) {
                         int nidx = foffset + (y * settings->input_width) + x;
                         /* printf("  -> %d,%d [%d]\n", x, y, nidx); */
@@ -888,6 +1055,23 @@ int PSPoolingBackprop(PSLayer *pooling_layer, PSLayer *convolutional_layer,
 int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
                             PSGradient *gradient, ...)
 {
+    PSNeuralNetwork *net = (PSNeuralNetwork *) convolutional_layer->network;
+    if (net == NULL) return 0;
+    if (gradient == NULL) return 0;
+    int is_recurrent = PSIsRecurrent(convolutional_layer), t = 0;
+    int use_blas_acceleration = (
+        PSIsAccelerationAvailable(PSAcceleration_BLAS) &&
+        PSBLASEnabled(net->acceleration) &&
+        !is_recurrent
+    );
+    if (use_blas_acceleration) {
+        if (!BLASConvolutionalBackprop(convolutional_layer, gradient)) {
+            PSErr(NULL, "Layer[%d]: failed backprop using BLAS acceleration",
+                  convolutional_layer->index);
+            return 0;
+        }
+        return 1;
+    }
     PSFloat *delta = convolutional_layer->delta;
     PSFloat *prev_delta = prev_layer->delta;
     if (convolutional_layer->weights == NULL ||
@@ -915,7 +1099,6 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
     if (prev_depth <= 0) prev_depth = 1;
     previous_feature_size = prev_layer->size / prev_depth;
     int weight_size = PSMatrixLength(convolutional_layer->weights[0]);
-    PSNeuralNetwork *net = (PSNeuralNetwork *) convolutional_layer->network;
     int do_dump = 0;
     if (net != NULL) {
         do_dump = (
@@ -928,7 +1111,6 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
         .func = __func__,
         .training_phase = TRAINING_PHASE_BACKPROP
     };
-    int is_recurrent = PSIsRecurrent(convolutional_layer), t = 0;
     int use_bias = !(convolutional_layer->flags & FLAG_NO_BIAS);
     if (is_recurrent) {
         va_list args;

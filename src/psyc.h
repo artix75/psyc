@@ -239,12 +239,14 @@ typedef struct PSLayer {
     int                     output_rows;
     int                     pretrained;
     void                    *extra;
+    void                    *private;
     PSActivationFunction    activate;
     PSActivationFunction    derivative;
     PSFeedforwardFunction   feedforward;
     PSBackpropFunction      backprop;
     PSGenericLayerCallback  on_delete;
     PSCopyLayerCallback     on_copy;
+    PSGenericLayerCallback  before_batch_training;
     PSGetParamCountFunction get_param_count;
     PSPretrainLayerFunction pretrain;
     struct PSNeuralNetwork  *network;

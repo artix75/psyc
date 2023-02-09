@@ -20,6 +20,8 @@
 
 int PSGlobalFlags = 0;
 
+#ifdef HAS_BLAS
+
 #if !defined(USE_AVX)
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
 #define PS_UNAVAILABLE_ACCEL PSAcceleration_AVX
@@ -30,6 +32,23 @@ int PSGlobalFlags = 0;
 #define PS_UNAVAILABLE_ACCEL PSAcceleration_ACF
 #else
 #define PS_UNAVAILABLE_ACCEL 0
+#endif
+
+#else
+
+#if !defined(USE_AVX)
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+#define PS_UNAVAILABLE_ACCEL PSAcceleration_BLAS | PSAcceleration_AVX
+#else
+#define PS_UNAVAILABLE_ACCEL \
+    (PSAcceleration_AVX | PSAcceleration_ACF | PSAcceleration_BLAS)
+#endif
+#elif !defined(__APPLE__) || !defined(HAS_ACCELERATE_FRAMEWORK)
+#define PS_UNAVAILABLE_ACCEL PSAcceleration_ACF | PSAcceleration_BLAS
+#else
+#define PS_UNAVAILABLE_ACCEL PSAcceleration_BLAS
+#endif
+
 #endif
 
 static uint8_t unavailableAccelerations = PS_UNAVAILABLE_ACCEL;
