@@ -213,7 +213,7 @@ int PSPretrainEmbeddingLayer(PSLayer *layer, PSFloat *training_data,
         goto final;
     }
     PSEmbeddingDataGenerator make_data = NULL;
-    if (settings->embedding_type == Word2Vec)
+    if (settings->embedding_type == PSWord2Vec)
         make_data = PSCreateWord2VecTrainingData;
     else {
         PSErr(__func__, "Layer[%d]: invalid embedding_type %d",
@@ -347,7 +347,7 @@ int PSEmbeddingLayerCopy(PSLayer *layer, PSLayer *src) {
 int PSInitEmbeddingLayer(PSLayer *layer, int size, int previous_size,
                          PSLayerDef *ldef)
 {
-    static PSLayerDef default_def = {.embedding_type = Word2Vec};
+    static PSLayerDef default_def = {.embedding_type = PSWord2Vec};
     if (layer->index == 0) {
         PSErr(NULL, "Embedding layer cannot be the first layer");
         return 0;

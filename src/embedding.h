@@ -20,8 +20,12 @@
 
 #include "psyc.h"
 
+/* PSWord2Vec embedding type is based on Word2Vec algorithm created by
+ * Tomas Mikolov: https://scholar.google.com/citations?user=oBu8kMMAAAAJ&hl=en
+ * Reference: https://code.google.com/archive/p/word2vec/
+ */
 typedef enum PSEmbeddingType {
-    Word2Vec
+    PSWord2Vec
 } PSEmbeddingType;
 
 PSFloat *PSCreateWord2VecTrainingData(PSFloat *tokens, size_t token_count,
