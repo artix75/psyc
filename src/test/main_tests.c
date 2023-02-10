@@ -31,6 +31,7 @@
 #include "../recurrent.h"
 #include "../dropout.h"
 #include "../lstm.h"
+#include "../gru.h"
 #include "../mnist.h"
 #include "../maths.h"
 #include "../activation.h"
@@ -83,6 +84,7 @@ TestCase *fullNetworkTests;
 TestCase *convNetworkTests;
 TestCase *recurrentNetworkTests;
 TestCase *LSTMNetworkTests;
+TestCase *GRUNetworkTests;
 
 #ifdef USE_AVX
 TestCase *AVXTests;
@@ -97,6 +99,7 @@ int genericTeardown (TestCase *test_case);
 int RNNSetup (TestCase *test_case);
 int RNNTeardown (TestCase *test_case);
 int LSTMSetup (TestCase *test_case);
+int GRUSetup(TestCase *test_case);
 
 int testGenericClone(TestCase *test_case, Test *test);
 int testGenericSave(TestCase *test_case, Test *test);
@@ -168,6 +171,8 @@ int testRNNOneHot(TestCase *tc, Test *test);
 
 int testLSTMLoad(TestCase *test_case, Test *test);
 int testLSTMTrain(TestCase *test_case, Test *test);
+int testGRULoad(TestCase *test_case, Test *test);
+int testGRUTrain(TestCase *test_case, Test *test);
 
 /* psyc.c function prototypes */
 
@@ -348,6 +353,34 @@ PSFloat expected_bi[2] = {0.009745, 0.0431118};
 PSFloat expected_bo[2] = {0.00974497, 0.04311221};
 PSFloat expected_bf[2] = {0.00975461, 0.04307629};
 
+PSFloat gru_expected_states[2][3] = {
+    {0.0097, 0.0307, 0.0309},
+    {0.015, 0.0649, 0.098}
+};
+
+PSFloat gru_expected_outputs[3][4] = {
+    { 0.25, 0.2499, 0.24995914, 0.25005937},
+    { 0.2501, 0.24978575, 0.24983151, 0.2503149},
+    { 0.25008373, 0.24962334, 0.2497762, 0.25051672}
+};
+
+PSFloat gru_expected_wg[2][6] = {
+    {0.02, 0.03, 0.01, 0.01,-0.01527745,0.02916139},
+    {-0.03, 0.09,0.12,-0.02,0.05836385,0.00582174}
+};
+PSFloat gru_expected_wu[2][6] = {
+    {0.00976488,0.04302317,0.0205475,0.00897664,-0.0152692,0.02917851},
+    {-0.01249252,0.07837006,0.09280098,-0.0233117,0.05834622,0.00578173}
+};
+PSFloat gru_expected_wr[2][6] = {
+    {0.00976767,0.04302572,0.02054214,0.00897664,-0.01526927,0.02917832},
+    {-0.0124946,0.07833524,0.09283829,-0.0233117,0.05834666,0.00578289}
+};
+
+PSFloat gru_expected_bg[2] = {-0.01, 0.06};
+PSFloat gru_expected_bu[2] = {0.009745, 0.0431118};
+PSFloat gru_expected_br[2] = {0.00974497, 0.04311221};
+
 int compareNetworks(PSNeuralNetwork *net1, PSNeuralNetwork *net2, Test* test);
 
 static int testRecurrentNetworkMode(PSNeuralNetwork *network,
@@ -382,16 +415,16 @@ static int arrayMaxIndex(PSFloat *array, int len) {
 /* Enabled tests */
 static int avx_tests = 1, maths_tests = 1, activation_tests = 1,
            optimization_tests = 1, fullnet_tests = 1, convnet_tests = 1,
-           rnn_tests = 1, lstm_tests = 1;
+           rnn_tests = 1, lstm_tests = 1, gru_tests = 1;
 
 static int *test_ptrs[] = {
     &avx_tests, &maths_tests, &activation_tests, &optimization_tests,
-    &fullnet_tests, &convnet_tests, &rnn_tests, &lstm_tests
+    &fullnet_tests, &convnet_tests, &rnn_tests, &lstm_tests, &gru_tests
 };
 
 static char*test_ids[] = {
     "avx", "maths", "activation", "optimization", "fully-connected",
-    "convolutional", "rnn", "lstm"
+    "convolutional", "rnn", "lstm", "gru"
 };
 
 static void printTestList(void) {
@@ -620,6 +653,19 @@ int main(int argc, char** argv) {
         tot_tests += LSTMNetworkTests->count;
         tot_failed += LSTMNetworkTests->failed_count;
         deleteTest(LSTMNetworkTests);
+    }
+    if (gru_tests) {
+        GRUNetworkTests = createTest("GRU Network");
+        GRUNetworkTests->setup = GRUSetup;
+        GRUNetworkTests->teardown = RNNTeardown;
+        /* addTest(GRUNetworkTests, "Load", NULL, testGRULoad); */
+        addTest(GRUNetworkTests, "Train", NULL, testGRUTrain);
+        addTest(GRUNetworkTests, "Clone", NULL, testGenericClone);
+        addTest(GRUNetworkTests, "Save", NULL, testGenericSave);
+        performTests(GRUNetworkTests);
+        tot_tests += GRUNetworkTests->count;
+        tot_failed += GRUNetworkTests->failed_count;
+        deleteTest(GRUNetworkTests);
     }
     gettimeofday(&end_t, NULL);
     time_t elapsed = PSGetElapsedTimeUS(start_t, end_t);
@@ -859,6 +905,83 @@ int LSTMSetup(TestCase *test_case) {
     return 1;
 }
 
+int GRUSetup(TestCase *test_case) {
+    PSNeuralNetwork *network = PSCreateNetwork("GRU Test Network");
+    if (network == NULL) {
+        fprintf(stderr, "\nCould not create network!\n");
+        return 0;
+    }
+    network->flags |= FLAG_ONEHOT;
+    PSAddLayer(network, FullyConnected, RNN_INPUT_SIZE, NULL);
+    PSAddLayer(network, GRU, RNN_HIDDEN_SIZE, NULL);
+    PSAddLayer(network, SoftMax, RNN_INPUT_SIZE, NULL);
+    if (network->size < 1) {
+        fprintf(stderr, "\nCould not add all layers!\n");
+        return 0;
+    }
+    PSLayer *out = network->layers[network->size - 1];
+    out->flags |= FLAG_ONEHOT;
+    PSLayer *layer = network->layers[1];
+    if (!PSIsNetworkBuilt(network)) {
+        if (!PSBuildNetwork(network)) {
+            fprintf(stderr, "\nFailed to build network!\n");
+            return 0;
+        }
+    }
+    PSGRUCell *cell = PSGetGRUCell(layer);
+    if (cell == NULL) {
+        PSErr(NULL, "\nGRU Cell is NULL for layer %d", layer->index);
+        return 0;
+    }
+    if (layer->weights == NULL || cell->candidate_weights == NULL) {
+        PSErr(NULL, "\nGRU layer has incomplete weights");
+        return 0;
+    }
+    int i, w;
+    int input_size = (int) PSMatrixLength(cell->candidate_weights) /
+                           layer->size;
+    for (i = 0; i < layer->size; i++) {
+        cell->candidate_biases[i] = bg[i];
+        cell->update_biases[i] = bi[i];
+        cell->reset_biases[i] = bf[i];
+        int woffs = (i * input_size), woffs_h = (i * layer->size);
+        for (w = 0; w < input_size; w++) {
+            cell->candidate_weights[woffs + w] = wg[i][w];
+            cell->update_weights[woffs + w] = wi[i][w];
+            cell->reset_weights[woffs + w] = wf[i][w];
+        }
+        for (w = 0; w < layer->size; w++) {
+            int src_idx = input_size + w;
+            cell->candidate_hidden_weights[woffs_h + w] = wg[i][src_idx];
+            cell->update_hidden_weights[woffs_h + w] = wi[i][src_idx];
+            cell->reset_hidden_weights[woffs_h + w] = wf[i][src_idx];
+        }
+    }
+
+    for (i = 0; i < out->size; i++) {
+        PSNeuron *neuron = out->neurons[i];
+        *neuron->bias = 0.0;
+        for (w = 0; w < layer->size; w++) {
+            neuron->weights[w] = lstm_out_weights[i][w];
+        }
+    }
+
+    test_case->data = malloc(2 * sizeof(void*));
+    if (test_case->data == NULL) {
+        fprintf(stderr, "\nCould not allocate memory!\n");
+        return 0;
+    }
+    test_case->data[0] = network;
+    int train_data_len = 2 + (LSTM_TIMES * 2);
+    PSFloat *training_data = malloc(train_data_len * sizeof(PSFloat));
+    if (training_data == NULL) {
+        fprintf(stderr, "\nCould not allocate memory!\n");
+        return 0;
+    }
+    memcpy(training_data, lstm_training_data, train_data_len * sizeof(PSFloat));
+    test_case->data[1] = training_data;
+    return 1;
+}
 
 int testFullLoad(TestCase *test_case, Test *test) {
     PSNeuralNetwork *network = getNetwork(test_case);
@@ -1717,6 +1840,144 @@ int testLSTMTrain(TestCase *test_case, Test *test) {
         for (t = 0; t < times; t++) {
             PSFloat h = getRoundedFloat(PSGetState(out, i, t));
             PSFloat e = getRoundedFloat(lstm_expected_outputs[t][i]);
+            testAssertWithMessage(
+                (h == e), test, "Output->Neuron[%d]->output[%d]: %g != %g",
+                i, t, h, e
+            );
+        }
+    }
+    return 1;
+}
+
+int testGRUTrain(TestCase *test_case, Test *test) {
+    PSNeuralNetwork *network = getNetwork(test_case);
+    PSFloat *training_data = getTestData(test_case);
+
+    PSTrainingOptions options = {
+        .epochs = LSTM_EPOCHS,
+        .batch_size = LSTM_BATCHES,
+        .learning_rate = 1.5,//LSTM_LEARNING_RATE,
+        .flags = TRAINING_NO_SHUFFLE,
+        .l2_decay = 0.0,
+        .bptt_truncate = 4
+    };
+    PSTrain(network, training_data, 8, NULL, 0, &options);
+
+    PSLayer *layer = network->layers[1];
+    int i, t, w, precision = NORMAL_PRECISION_DEC - 2;
+
+    PSGRUCell *cell = PSGetGRUCell(layer);
+    testAssertNotNull(cell, test);
+    testAssertNotNull(cell->candidate_biases, test);
+    testAssertNotNull(cell->update_biases, test);
+    testAssertNotNull(cell->reset_biases, test);
+    testAssertNotNull(cell->candidate_weights, test);
+    testAssertNotNull(cell->update_weights, test);
+    testAssertNotNull(cell->reset_weights, test);
+    testAssertNotNull(cell->candidate_hidden_weights, test);
+    testAssertNotNull(cell->update_hidden_weights, test);
+    testAssertNotNull(cell->reset_hidden_weights, test);
+    int input_size = (int) PSGetLayerInputWeightsCount(layer, 1);
+    testAssert(input_size > 0, test);
+    for (i = 0; i < layer->size; i++) {
+        int times = (int) layer->recurrent_states_count;
+        for (t = 0; t < times; t++) {
+            PSFloat h = PSGetState(layer, i, t);
+            h = getRoundedFloat(h);
+            PSFloat expected = getRoundedFloat(gru_expected_states[i][t]);
+            testAssertWithMessage(
+                (h == expected), test,
+                "Layer[%d] Neuron[%d]->state[%d]: %g != %g",
+                layer->index, i, t, h, expected
+            );
+        }
+        PSFloat bias = getRoundedFloatDec(cell->candidate_biases[i],precision);
+        PSFloat expected = getRoundedFloatDec(gru_expected_bg[i], precision);
+        testAssertWithMessage(
+            (bias == expected), test,
+            "Layer[%d] Neuron[%d]->candidate_bias: %g != %g",
+            layer->index, i, bias, expected
+        );
+        bias = getRoundedFloatDec(cell->update_biases[i], precision);
+        expected = getRoundedFloatDec(gru_expected_bu[i], precision);
+        testAssertWithMessage(
+            (bias == expected), test,
+            "Layer[%d] Neuron[%d]->update_bias: %g != %g",
+            layer->index, i, bias, expected
+        );
+        bias = getRoundedFloatDec(cell->reset_biases[i], precision);
+        expected = getRoundedFloatDec(gru_expected_br[i], precision);
+        testAssertWithMessage(
+            (bias == expected), test,
+            "Layer[%d] Neuron[%d]->reset_bias: %g != %g",
+            layer->index, i, bias, expected
+        );
+        int woffs = (i * input_size);
+        for (w = 0; w < input_size; w++) {
+            int widx = woffs + w;
+            PSFloat weight = getRoundedFloatDec(
+                cell->candidate_weights[widx], precision
+            );
+            expected = getRoundedFloatDec(gru_expected_wg[i][w], precision);
+            testAssertWithMessage(
+                (weight == expected), test,
+                "Layer[%d] Neuron[%d]->candidate_weights[%d]: %g != %g",
+                layer->index, i, w, weight, expected
+            );
+            weight = getRoundedFloatDec(cell->update_weights[widx], precision);
+            expected = getRoundedFloatDec(gru_expected_wu[i][w], precision);
+            testAssertWithMessage(
+                (weight == expected), test,
+                "Layer[%d] Neuron[%d]->update_weights[%d]: %g != %g",
+                layer->index, i, w, weight, expected
+            );
+            weight = getRoundedFloatDec(cell->reset_weights[widx], precision);
+            expected = getRoundedFloatDec(gru_expected_wr[i][w], precision);
+            testAssertWithMessage(
+                (weight == expected), test,
+                "Layer[%d] Neuron[%d]->reset_weights[%d]: %g != %g",
+                layer->index, i, w, weight, expected
+            );
+        }
+        woffs = (i * layer->size);
+        for (w = 0; w < layer->size; w++) {
+            int widx = woffs + w, ewidx = input_size + w;
+            PSFloat weight = getRoundedFloatDec(
+                cell->candidate_hidden_weights[widx], precision
+            );
+            expected = getRoundedFloatDec(gru_expected_wg[i][ewidx], precision);
+            testAssertWithMessage(
+                (weight == expected), test,
+                "Layer[%d] Neuron[%d]->candidate_hidden_weights[%d]: %g != %g",
+                layer->index, i, w, weight, expected
+            );
+            weight = getRoundedFloatDec(
+                cell->update_hidden_weights[widx], precision
+            );
+            expected = getRoundedFloatDec(gru_expected_wu[i][ewidx], precision);
+            testAssertWithMessage(
+                (weight == expected), test,
+                "Layer[%d] Neuron[%d]->update_hidden_weights[%d]: %g != %g",
+                layer->index, i, w, weight, expected
+            );
+            weight = getRoundedFloatDec(
+                cell->reset_hidden_weights[widx], precision
+            );
+            expected = getRoundedFloatDec(gru_expected_wr[i][ewidx], precision);
+            testAssertWithMessage(
+                (weight == expected), test,
+                "Layer[%d] Neuron[%d]->reset_hidden_weights[%d]: %g != %g",
+                layer->index, i, w, weight, expected
+            );
+        }
+    }
+    PSLayer *out = network->layers[network->size - 1];
+
+    for (i = 0; i < out->size; i++) {
+        int times = out->recurrent_states_count;
+        for (t = 0; t < times; t++) {
+            PSFloat h = getRoundedFloatDec(PSGetState(out, i, t), 2);
+            PSFloat e = getRoundedFloatDec(gru_expected_outputs[t][i], 2);
             testAssertWithMessage(
                 (h == e), test, "Output->Neuron[%d]->output[%d]: %g != %g",
                 i, t, h, e
