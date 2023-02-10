@@ -275,14 +275,13 @@ static void psyc_gemm(PSBLASOrder order, char trans_a, char trans_b, int m,
         for (i = 0; i < n1; i++) {
             for (j = 0; j < n2; j++) {
                 PSFloat temp = 0.0;
-                for (_k = 0; _k < k; k++) {
-                    temp += g[ldf * i + _k] * g[ldg * j + _k];
+                for (_k = 0; _k < k; _k++) {
+                    temp += f[ldf * i + _k] * g[ldg * j + _k];
                 }
                 c[ldc * i + j] += alpha * temp;
             }
         }
     } else if (trans_f == 'T' && trans_g == 'N') {
-
         for (_k = 0; _k < k; _k++) {
             for (i = 0; i < n1; i++) {
                 PSFloat temp = alpha * f[ldf * _k + i];

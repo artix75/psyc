@@ -2621,6 +2621,8 @@ int testMathsExp(TestCase *tc, Test *test) {
     PSVectorExp(x, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "AVX", decrnd);
     if (!ok) return 0;
+#else
+    UNUSED(decrnd);
 #endif
     opts.acceleration = PSAcceleration_None;
     PSVectorExp(x, res, 6, &opts);
