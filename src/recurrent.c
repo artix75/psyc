@@ -324,7 +324,8 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previous_layer,
         /* Update previous layer delta */
         if (is_lowest && prev_layer_delta != NULL) {
             mopts.store_mode = MATHS_STORE_MODE_NORM;
-            int ok = PSDot(tr_weights, delta, previous_layer->delta, &mopts);
+            int ok = PSDot(tr_weights, layer->delta, previous_layer->delta,
+                           &mopts);
             if (!ok) {
                 PSErr(NULL, "Layer[%d]: failed backprop (PSDot)", layer->index);
                 return 0;

@@ -527,11 +527,13 @@ int PSGRUFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
          * as it would be 1 */
         vector_size = PSGetOneHotLayerVectorSize(previous);
         vector_idx = (int) PSGetState(previous, 0, t);
-        if (vector_size == 0) return 0;
+        success = vector_size > 0;
+        if (!success) goto final;
         if (vector_idx >= vector_size) {
             PSErr(NULL, "Layer[%d]: invalid vector index %d (max. %d)!",
                         previous->index, vector_idx, vector_size - 1);
-            return 0;
+            success = 0;
+            goto final;
         }
         for (i = 0; i < layer->size; i++) {
 	    int offset = (i * vector_size) + vector_idx;
@@ -554,7 +556,8 @@ int PSGRUFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
         if (inputs == NULL) {
             PSErr(NULL, "Layer[%d]: previous layer[%d] has no states",
                   layer->index, previous->index);
-            return 0;
+            success = 0;
+            goto final;
         }
         PSMathOpts *c_opts = &dfopts, *ug_opts = &dfopts, *rg_opts = &dfopts;
         if (!feed_previous_step) {

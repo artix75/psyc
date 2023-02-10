@@ -118,8 +118,11 @@ PSFloat *PSGetDropoutMask(PSLayer *layer, int t) {
     PSFloat *mask = data->dropout_mask;
     if (PSIsRecurrent(layer)) {
         if (t < 0) return NULL;
-        if ((uint32_t) t >= layer->recurrent_states_count)
+        if ((uint32_t) t >= layer->recurrent_states_count) {
             if (!PSResizeDropoutMask(layer, t + 1)) return NULL;
+            mask = data->dropout_mask;
+            if (mask == NULL) return NULL;
+        }
         mask += (t * layer->size);
     } else {
         if (mask == NULL) {
@@ -151,8 +154,8 @@ int PSDropoutLayerCopy(PSLayer *layer, PSLayer *src) {
             return 0;
         }
         layer->extra = dstdata;
-    } else if (dstdata != NULL && srcdata == NULL) {
-        deleteDropoutData(dstdata);
+    } else if (srcdata == NULL) {
+        if (dstdata != NULL) deleteDropoutData(dstdata);
         layer->extra = NULL;
         return 1;
     }

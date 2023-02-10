@@ -142,16 +142,16 @@ PSNeuralNetwork *PSCreateEmbeddingTrainer(PSLayer *layer) {
     if (layer->network != NULL && layer->network->flags & FLAG_PRETRAINER)
         return NULL;
     PSEmbeddingSettings *settings = GetEmbeddingSettings(layer);
-    int vocabulary_size;
+    int vocabulary_size = 0;
     if (settings != NULL) vocabulary_size = settings->vocabulary_size;
     PSLayer *previous = PSGetPreviousLayer(layer);
-    if (settings->vocabulary_size <= 0) {
+    if (vocabulary_size <= 0) {
         if (previous != NULL) {
             if (previous->flags & FLAG_ONEHOT)
                 vocabulary_size = PSGetOneHotLayerVectorSize(previous);
             else vocabulary_size = previous->size;
         }
-        if (settings->vocabulary_size <= 0) {
+        if (vocabulary_size <= 0) {
             PSErr(__func__, "Layer[%d]: could not determine vocabulary_size",
                   layer->index);
             return NULL;
@@ -370,6 +370,7 @@ int PSInitEmbeddingLayer(PSLayer *layer, int size, int previous_size,
     }
     PSEmbeddingSettings *settings = calloc(1, sizeof(*settings));
     if (settings == NULL) goto memerr;
+    layer->extra = settings;
     if (ldef == NULL) ldef = &default_def;
     settings->embedding_type = ldef->embedding_type;
     settings->vocabulary_size = vocabulary_size;
@@ -387,7 +388,6 @@ int PSInitEmbeddingLayer(PSLayer *layer, int size, int previous_size,
     }
     layer->states = calloc(size, sizeof(PSFloat));
     if (layer->states == NULL) goto memerr;
-    layer->extra = settings;
     layer->weights = malloc(sizeof(PSMatrix));
     if (layer->weights == NULL) goto memerr;
     layer->weights[0] = PSInitWeights(layer, size, vocabulary_size, ldef, 1, 0);
