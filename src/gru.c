@@ -568,9 +568,10 @@ int PSGRUFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
             ug_opts = &dpopt[UPDATE_IDX];
             rg_opts = &dpopt[RESET_IDX];
         }
-        PSDot(cell->candidate_weights, inputs, candidates, c_opts);
-        PSDot(cell->update_weights, inputs, update_gates, ug_opts);
-        PSDot(cell->reset_weights, inputs, reset_gates, rg_opts);
+        success = PSDot(cell->candidate_weights, inputs, candidates, c_opts) &&
+                  PSDot(cell->update_weights, inputs, update_gates, ug_opts) &&
+                  PSDot(cell->reset_weights, inputs, reset_gates, rg_opts);
+        if (!success) goto final;
     }
 forward_previous_step:
     if (!feed_previous_step) goto make_outputs;
@@ -579,14 +580,16 @@ forward_previous_step:
     dpopt[CANDIDATE_IDX].store_mode =
     dpopt[UPDATE_IDX].store_mode =
     dpopt[RESET_IDX].store_mode = MATHS_STORE_MODE_ADD;
-    PSDot(cell->update_hidden_weights, prev_states, update_gates,
-          &dpopt[UPDATE_IDX]);
-    PSDot(cell->reset_hidden_weights, prev_states, reset_gates,
-          &dpopt[RESET_IDX]);
+    success = PSDot(cell->update_hidden_weights, prev_states, update_gates,
+                    &dpopt[UPDATE_IDX]) &&
+              PSDot(cell->reset_hidden_weights, prev_states, reset_gates,
+                    &dpopt[RESET_IDX]);
+    if (!success) goto final;
     PSMultiplyVectors(reset_gates, prev_states, cache, layer->size,
                       &final_opts);
-    PSDot(cell->candidate_hidden_weights, cache, candidates,
-          &dpopt[CANDIDATE_IDX]);
+    success = PSDot(cell->candidate_hidden_weights, cache, candidates,
+                    &dpopt[CANDIDATE_IDX]);
+    if (!success) goto final;
     /* Produce outputs */
     PSMultiplyVectors(update_gates, prev_states, outputs, layer->size,
                       &final_opts);
@@ -786,10 +789,14 @@ int PSGRUBackprop(PSLayer *layer, PSLayer *previous_layer,
             success = 0;
             goto final;
         }
-        PSDot(tr_weights_c, delta_c, previous_layer->delta, &mopts);
+        success = PSDot(tr_weights_c, delta_c, previous_layer->delta, &mopts);
+        if (!success) goto final;
         mopts.store_mode = MATHS_STORE_MODE_ADD;
-        PSDot(tr_weights_u, delta_u, previous_layer->delta, &mopts);
-        PSDot(tr_weights_r, delta_r, previous_layer->delta, &mopts);
+        success = (
+            PSDot(tr_weights_u, delta_u, previous_layer->delta, &mopts) &&
+            PSDot(tr_weights_r, delta_r, previous_layer->delta, &mopts)
+        );
+        if (!success) goto final;
     }
 final:
     free(delta_c);

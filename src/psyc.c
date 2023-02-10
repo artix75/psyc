@@ -332,7 +332,8 @@ int PSFullFeedforward(PSNeuralNetwork *network, PSLayer *layer, ...) {
     opts.acceleration = network->acceleration;
     if (use_bias) opts.add_vec = layer->biases;
     opts.after = layer->activate;
-    PSDot(weights, inputs, outputs, &opts);
+    int ok = PSDot(weights, inputs, outputs, &opts);
+    if (!ok) return 0;
 final:
     return 1;
 }
@@ -370,7 +371,8 @@ static int softmaxFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
     PSFloat max = 0.0;
     if (use_bias) opts.add_vec = layer->biases;
     opts.max = &max;
-    PSDot(weights, inputs, outputs, &opts);
+    int ok = PSDot(weights, inputs, outputs, &opts);
+    if (!ok) return 0;
     PSSoftmax(outputs, outputs, layer->size, &opts);
     return 1;
 }
