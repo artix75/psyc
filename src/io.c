@@ -307,9 +307,9 @@ static int scanModelFileHeader(FILE *f, PSModelFileHeader *header,
     val[0] = '\0';
     char sep[2];
     sep[0] = '\0';
-    while ((ok = scanFile(f, "%[a-zA-Z_-]=", 1, NULL, propname))) {
+    while ((ok = scanFile(f, "%254[a-zA-Z_-]=", 1, NULL, propname))) {
         sep[0] = '\0';
-        ok = scanFile(f, "%[^;\n]%[;\n]", 2, NULL, val, sep);
+        ok = scanFile(f, "%4095[^;\n]%1[;\n]", 2, NULL, val, sep);
         if (!ok) goto fail;
         if (sep[0] != ';' && sep[0] != '\n') goto fail;
         if (strcmp("git", propname) == 0) {
@@ -375,9 +375,9 @@ static int scanTrainingOptions(FILE *f, PSTrainingOptions *opts,
     val[0] = '\0';
     char sep[2];
     sep[0] = '\0';
-    while ((ok = scanFile(f, "%[a-zA-Z0-9_-]=", 1, NULL, propname))) {
+    while ((ok = scanFile(f, "%254[a-zA-Z0-9_-]=", 1, NULL, propname))) {
         sep[0] = '\0';
-        ok = scanFile(f, "%[^,\n]%[,\n]", 2, NULL, val, sep);
+        ok = scanFile(f, "%4095[^,\n]%1[,\n]", 2, NULL, val, sep);
         if (!ok) goto fail;
         if (sep[0] != ',' && sep[0] != '\n') goto fail;
         if (strcmp("flags", propname) == 0) {
@@ -657,7 +657,7 @@ static int loadLegacyLayerDefinitions(PSNeuralNetwork *network, char *vers,
                 }
             }
             argc -= min_argc;
-            ok = scanFile(f, "]%[,\n]", 1, NULL, sep);
+            ok = scanFile(f, "]%1[,\n]", 1, NULL, sep);
             if (!ok) return 0;
         }
         if (!empty) {
@@ -1338,7 +1338,7 @@ static int loadLegacyGradients(PSNeuralNetwork *network, const char * filepath,
             for (int w = 0; w < wsize; w++) {
                 PSFloat gw = 0;
                 ok = scanFile(
-                    f, PSFLOAT_FORMAT "%[,\n]", 2, NULL, gw, sep
+                    f, PSFLOAT_FORMAT "%1[,\n]", 2, NULL, gw, sep
                 );
                 if (!ok) {
                     loadErr(
@@ -1575,7 +1575,7 @@ int PSLoadNetwork(PSNeuralNetwork *network, const char* filepath) {
 scan_model_def:
     if (has_model_def) {
         int idx = 0, val = 0;
-        while (scanFile(f, "%d%[,\n]", 2, NULL, &val, sep)) {
+        while (scanFile(f, "%d%1[,\n]", 2, NULL, &val, sep)) {
             switch (idx++) {
                 case 0:
                     network->flags |= val; break;
