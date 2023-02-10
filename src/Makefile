@@ -90,3 +90,5 @@ list-available-options:
 	@echo "BLAS             (on|off)    BLAS support        $(BLAS)"
 	@echo "USE_PSYC_BLAS    (on|off)    Force native BLAS   $(USE_PSYC_BLAS)"
 	@echo "MAGICK           (on|off)    ImageMagick support $(MAGICK)"
+	@echo "TESTS            TESTS       Only perform"
+	@echo "                             specific tests"

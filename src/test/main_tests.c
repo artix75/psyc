@@ -381,6 +381,8 @@ PSFloat gru_expected_bg[2] = {-0.01, 0.06};
 PSFloat gru_expected_bu[2] = {0.009745, 0.0431118};
 PSFloat gru_expected_br[2] = {0.00974497, 0.04311221};
 
+PSTrainingOptions optimization_train_opts = {0};
+
 int compareNetworks(PSNeuralNetwork *net1, PSNeuralNetwork *net2, Test* test);
 
 static int testRecurrentNetworkMode(PSNeuralNetwork *network,
@@ -505,6 +507,9 @@ int main(int argc, char** argv) {
     PSCatchFloatingPointExceptions(FE_OVERFLOW | FE_DIVBYZERO);
 #endif
     PSHandleSignals(NULL);
+    PSSetDefaultTrainingOptions(&optimization_train_opts);
+    /* Prevent differences between tests with float and tests with double */
+    optimization_train_opts.eps = 1e-7;
     int argidx = parseOptions(argc, argv), all_disabled = 0;
     while (argidx < argc) {
         if (!all_disabled) disableAllTests();
@@ -1011,7 +1016,7 @@ int testFullLoad(TestCase *test_case, Test *test) {
     for(int l = 1; l < network->size; l++) {
         for (int i = 0; i < 2; i++) {
             PSFloat expected_bias = expected_biases[l - 1][i];
-            PSFloat bias = getRoundedFloat(network->layers[l]->biases[i]);
+            PSFloat bias = getRoundedFloatDec(network->layers[l]->biases[i], 4);
             testAssertWithMessage(
                 bias == expected_bias, test,
                 "Layer[%d] Bias[%d] expected to be %g, got %g",
@@ -1020,7 +1025,7 @@ int testFullLoad(TestCase *test_case, Test *test) {
             PSNeuron *n = network->layers[l]->neurons[i];
             testAssertNotNull(n->weights, test);
             PSFloat expected_w = expected_weights[l - 1][i];
-            PSFloat w = getRoundedFloat(n->weights[0]);
+            PSFloat w = getRoundedFloatDec(n->weights[0], 4);
             testAssertWithMessage(
                 w == expected_w, test,
                 "Layer[%d] N[%d] Weight[0] expected to be %g, got %g",
@@ -1396,8 +1401,8 @@ int testRNNBackprop(TestCase *test_case, Test *test) {
                                  rnn_outer_gradients[j]);
             for (w = 0; w < input_ws; w++) {
                 int widx = (j * input_ws) + w;
-                PSFloat dw = getRoundedFloat(gradient->weights[widx]);
-                PSFloat exp_dw = getRoundedFloat(expected[w]);
+                PSFloat dw = getRoundedFloatDec(gradient->weights[widx], 5);
+                PSFloat exp_dw = getRoundedFloatDec(expected[w], 5);
                 testAssertWithMessageOrGoto(
                     (dw == exp_dw), on_fail, test,
                     "Gradient[%d][%d]->weight[%d]: %g != %g",
@@ -1864,7 +1869,7 @@ int testGRUTrain(TestCase *test_case, Test *test) {
     PSTrain(network, training_data, 8, NULL, 0, &options);
 
     PSLayer *layer = network->layers[1];
-    int i, t, w, precision = NORMAL_PRECISION_DEC - 2;
+    int i, t, w, precision = 2;
 
     PSGRUCell *cell = PSGetGRUCell(layer);
     testAssertNotNull(cell, test);
@@ -1883,8 +1888,8 @@ int testGRUTrain(TestCase *test_case, Test *test) {
         int times = (int) layer->recurrent_states_count;
         for (t = 0; t < times; t++) {
             PSFloat h = PSGetState(layer, i, t);
-            h = getRoundedFloat(h);
-            PSFloat expected = getRoundedFloat(gru_expected_states[i][t]);
+            h = getRoundedFloatDec(h, 4);
+            PSFloat expected = getRoundedFloatDec(gru_expected_states[i][t],4);
             testAssertWithMessage(
                 (h == expected), test,
                 "Layer[%d] Neuron[%d]->state[%d]: %g != %g",
@@ -3489,7 +3494,7 @@ int testAdaDeltaOptimization(TestCase *tc, Test *test) {
     for (i = 0; i < iterations; i++) {
         ok = PSAdaDeltaOptimization(
             params, gradients, mem1, mem2, NULL, NULL, NULL, rate, momentum,
-            len, acceleration, i, NULL
+            len, acceleration, i, &optimization_train_opts
         );
         testAssert(ok, test);
     }
@@ -3503,7 +3508,7 @@ int testAdaDeltaOptimization(TestCase *tc, Test *test) {
     for (i = 0; i < iterations; i++) {
         ok = PSAdaDeltaOptimization(
             params, gradients, mem1, mem2, NULL, NULL, NULL, rate, momentum,
-            len, acceleration, i, NULL
+            len, acceleration, i, &optimization_train_opts
         );
         testAssert(ok, test);
     }
@@ -3518,7 +3523,7 @@ int testAdaDeltaOptimization(TestCase *tc, Test *test) {
     for (i = 0; i < iterations; i++) {
         ok = PSAdaDeltaOptimization(
             params, gradients, mem1, mem2, NULL, NULL, NULL, rate, momentum,
-            len, acceleration, i, NULL
+            len, acceleration, i, &optimization_train_opts
         );
         testAssert(ok, test);
     }
@@ -3552,7 +3557,7 @@ int testWindowGradOptimization(TestCase *tc, Test *test) {
     for (i = 0; i < iterations; i++) {
         ok = PSWindowGradOptimization(
             params, gradients, mem, NULL, NULL, NULL, NULL, rate, momentum,
-            len, acceleration, i, NULL
+            len, acceleration, i, &optimization_train_opts
         );
         testAssert(ok, test);
     }
@@ -3565,7 +3570,7 @@ int testWindowGradOptimization(TestCase *tc, Test *test) {
     for (i = 0; i < iterations; i++) {
         ok = PSWindowGradOptimization(
             params, gradients, mem, NULL, NULL, NULL, NULL, rate, momentum,
-            len, acceleration, i, NULL
+            len, acceleration, i, &optimization_train_opts
         );
         testAssert(ok, test);
     }
@@ -3579,7 +3584,7 @@ int testWindowGradOptimization(TestCase *tc, Test *test) {
     for (i = 0; i < iterations; i++) {
         ok = PSWindowGradOptimization(
             params, gradients, mem, NULL, NULL, NULL, NULL, rate, momentum,
-            len, acceleration, i, NULL
+            len, acceleration, i, &optimization_train_opts
         );
         testAssert(ok, test);
     }
@@ -3613,7 +3618,7 @@ int testAdaGradOptimization(TestCase *tc, Test *test) {
     for (i = 0; i < iterations; i++) {
         ok = PSAdaGradOptimization(
             params, gradients, mem, NULL, NULL, NULL, NULL, rate, momentum,
-            len, acceleration, i, NULL
+            len, acceleration, i, &optimization_train_opts
         );
         testAssert(ok, test);
     }
@@ -3626,7 +3631,7 @@ int testAdaGradOptimization(TestCase *tc, Test *test) {
     for (i = 0; i < iterations; i++) {
         ok = PSAdaGradOptimization(
             params, gradients, mem, NULL, NULL, NULL, NULL, rate, momentum,
-            len, acceleration, i, NULL
+            len, acceleration, i, &optimization_train_opts
         );
         testAssert(ok, test);
     }
@@ -3640,7 +3645,7 @@ int testAdaGradOptimization(TestCase *tc, Test *test) {
     for (i = 0; i < iterations; i++) {
         ok = PSAdaGradOptimization(
             params, gradients, mem, NULL, NULL, NULL, NULL, rate, momentum,
-            len, acceleration, i, NULL
+            len, acceleration, i, &optimization_train_opts
         );
         testAssert(ok, test);
     }
@@ -3676,7 +3681,7 @@ int testAdamOptimization(TestCase *tc, Test *test) {
     for (i = 0; i < iterations; i++) {
         ok = PSAdamOptimization(
             params, gradients, mem1, mem2, NULL, NULL, NULL, rate, momentum,
-            len, acceleration, i, NULL
+            len, acceleration, i, &optimization_train_opts
         );
         testAssert(ok, test);
     }
@@ -3690,7 +3695,7 @@ int testAdamOptimization(TestCase *tc, Test *test) {
     for (i = 0; i < iterations; i++) {
         ok = PSAdamOptimization(
             params, gradients, mem1, mem2, NULL, NULL, NULL, rate, momentum,
-            len, acceleration, i, NULL
+            len, acceleration, i, &optimization_train_opts
         );
         testAssert(ok, test);
     }
@@ -3705,7 +3710,7 @@ int testAdamOptimization(TestCase *tc, Test *test) {
     for (i = 0; i < iterations; i++) {
         ok = PSAdamOptimization(
             params, gradients, mem1, mem2, NULL, NULL, NULL, rate, momentum,
-            len, acceleration, i, NULL
+            len, acceleration, i, &optimization_train_opts
         );
         testAssert(ok, test);
     }
