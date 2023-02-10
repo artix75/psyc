@@ -2788,6 +2788,11 @@ int softmaxLayerBackprop(PSLayer *layer, PSLayer *previous_layer, PSFloat *y,
             return 0;
         }
         PSMatrix tweights = PSMatrixTranspose(layer->weights[0], 0, &mopts);
+        if (tweights == NULL) {
+            PSErr(NULL, "Layer[%d]: failed backprop (PSMatrixTranspose)",
+                  layer->index);
+            return 0;
+        }
         int ok = PSDot(tweights, delta, previous_layer->delta, &mopts);
         if (!ok) {
             PSErr(NULL, "Layer[%d]: failed backprop (PSDot)", layer->index);
@@ -2868,6 +2873,11 @@ int outputLayerBackprop(PSLayer *layer, PSLayer *previous_layer,
             return 0;
         }
         PSMatrix tweights = PSMatrixTranspose(layer->weights[0], 0, &mopts);
+        if (tweights == NULL) {
+            PSErr(NULL, "Layer[%d]: failed backprop (PSMatrixTranspose)",
+                  layer->index);
+            return 0;
+        }
         int ok = PSDot(tweights, delta, previous_layer->delta, &mopts);
         if (!ok) {
             PSErr(NULL, "Layer[%d]: failed backprop (PSDot)", layer->index);
@@ -2927,6 +2937,11 @@ int PSFullBackprop(PSLayer *layer, PSLayer *previous_layer,
             return 0;
         }
         PSMatrix tweights = PSMatrixTranspose(layer->weights[0], 0, &mopts);
+        if (tweights == NULL) {
+            PSErr(NULL, "Layer[%d]: failed backprop (PSMatrixTranspose)",
+                  layer->index);
+            return 0;
+        }
         int ok = PSDot(tweights, delta, previous_layer->delta, &mopts);
         if (!ok) {
             PSErr(NULL, "Layer[%d]: failed backprop (PSDot)", layer->index);
