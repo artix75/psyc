@@ -37,6 +37,7 @@
 #include "recurrent.h"
 #include "lstm.h"
 #include "gru.h"
+#include "embedding.h"
 #include "dropout.h"
 #include "debug.h"
 
@@ -847,6 +848,10 @@ void PSPrintLayerInfo(PSLayer *layer) {
         }
     } else if (ltype == FullyConnected && layer->output_depth > 1) {
        printf(", depth = %d", layer->output_depth);
+    } else if (ltype == Embedding) {
+        int vocab_size = PSGetEmbeddingVocabularySize(layer);
+        if (vocab_size > 0)
+            printf(", vocabulary_size = %d", vocab_size);
     }
     const char *activation = PSGetActivationName(layer->activate);
     if (layer->index > 0 && activation != NULL)

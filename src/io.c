@@ -1476,13 +1476,13 @@ static int loadGradients(PSNeuralNetwork *network, const char * filepath,
 int PSLoadLayer(PSLayer *layer, const char *filepath) {
     if (layer == NULL) return 0;
     FILE *f = fopen(filepath, "r");
-    PSInfo("Loading network from %s", filepath);
+    PSInfo("Loading layer from %s", filepath);
     if (f == NULL) {
         PSErr(__func__, "Could not open '%s'", filepath);
         return 0;
     }
-    int loaded = 0;
-    if (scanFileNoMatch(f, "layer[%*d]:")) {
+    int loaded = 0, lidx = 0;
+    if (scanFile(f, "layer[%d]:", 1, NULL, &lidx)) {
         /* Ignore layer definition */
         char c = fgetc(f);
         while (c != '\n') {

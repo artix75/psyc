@@ -34,6 +34,7 @@ typedef struct {
     PSTrainingOptions training_options;
     PSFloat *training_data;
     int training_data_size;
+    const char *save_pretrained_to;
 } PSEmbeddingSettings;
 
 typedef PSFloat *(*PSEmbeddingDataGenerator) (PSFloat *tokens,
@@ -288,6 +289,8 @@ int PSPretrainEmbeddingLayer(PSLayer *layer, PSFloat *training_data,
     uint64_t wlen = PSMatrixLength(pretrained_layer->weights[0]);
     memcpy(layer->weights[0], pretrained_layer->weights[0], wlen);
     PSInfo("Successfully pretrained embedding layer %d", layer->index);
+    if (settings->save_pretrained_to != NULL)
+        success = PSSaveLayer(layer, settings->save_pretrained_to, 0);
 final:
     free(tokens);
     free(pretrain_data);
@@ -295,6 +298,13 @@ final:
 }
 
 /* Embedding laer functions */
+
+int PSGetEmbeddingVocabularySize(PSLayer *layer) {
+    if (layer == NULL) return 0;
+    PSEmbeddingSettings *settings = GetEmbeddingSettings(layer);
+    if (settings == NULL) return 0;
+    return settings->vocabulary_size;
+}
 
 void PSDeleteEmbeddingSettings(PSEmbeddingSettings *settings) {
     if (settings->training_data != NULL) free(settings->training_data);
@@ -386,6 +396,7 @@ int PSInitEmbeddingLayer(PSLayer *layer, int size, int previous_size,
         }
         memcpy(settings->training_data, ldef->training_data, datasize);
     }
+    settings->save_pretrained_to = ldef->save_pretrained_to;
     layer->states = calloc(size, sizeof(PSFloat));
     if (layer->states == NULL) goto memerr;
     layer->weights = malloc(sizeof(PSMatrix));

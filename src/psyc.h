@@ -139,6 +139,7 @@ typedef struct PSLayerDef {
     int pretrained;
     int embedding_type;
     const char *load_from;
+    const char *save_pretrained_to;
     PSFloat *training_data;
     int training_data_size;
     struct PSTrainingOptions *pretraining_options;

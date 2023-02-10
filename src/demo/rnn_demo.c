@@ -70,6 +70,10 @@ void print_help(char *progname) {
            "rate\n");
     printf("        --embedding-epochs EPOCHS       Embedding layer training "
            "epochs (def. %d)\n", EMBED_EPOCHS);
+    printf("        --embedding-load PATH           Load pretrained "
+           "embedding layer\n");
+    printf("        --embedding-save PATH           Save trained embedding "
+           "layer\n");
     printf("        --learning-rate RATE            Learnig Rate "
         "(def. %g)\n", LEARNING_RATE);
     printf("        --momentum MOMENTUM             Momentum "
@@ -216,6 +220,9 @@ int main(int argc, char** argv) {
     int print_sample = 0;
     int sample_len = SAMPLE_LEN;
     int embedding_size = 0;
+    char *embedding_load_from = NULL,
+         *embedding_save_to = NULL;
+    int return_status = 0;
     UNUSED(disable_avx); /* Actually not used if USE_AVX macro not defined */
 
     network = PSCreateNetwork("RNN Demo");
@@ -262,6 +269,10 @@ int main(int argc, char** argv) {
                 fprintf(stderr, "Learning rate must be > 0\n");
                 return 1;
             }
+        } else if (strcmp("--embedding-load", arg) == 0 && (i + 1) < argc) {
+            embedding_load_from = argv[++i];
+        } else if (strcmp("--embedding-save", arg) == 0 && (i + 1) < argc) {
+            embedding_save_to = argv[++i];
         } else if (strcmp("--hidden-size", arg) == 0 && (i + 1) < argc) {
             hidden_size = atoi(argv[++i]);
             if (hidden_size < 2) {
@@ -332,15 +343,28 @@ int main(int argc, char** argv) {
     }
 
     if (pretrained_file == NULL) {
+        if (embedding_load_from != NULL && embedding_size <= 0) {
+            PSErr(NULL, "Option `--embedding` needed by `--embedding-load`");
+            return 1;
+        }
         PSAddLayer(network, FullyConnected, VOCABULARY_SIZE, NULL);
         if (embedding_size > 0) {
             PSTrainingOptions embedding_training_opts = {
                 .epochs = embedding_epochs,
                 .learning_rate = embedding_learning_rate
             };
-            PSAddLayer(network, Embedding, embedding_size, PSLDEF(
-                .pretraining_options = &embedding_training_opts
+            PSLayer *embedding = PSAddLayer(
+                network, Embedding, embedding_size, PSLDEF(
+                .pretraining_options = &embedding_training_opts,
+                .load_from = embedding_load_from,
+                .save_pretrained_to = embedding_save_to
             ));
+            if (embedding == NULL) {
+                PSErr(NULL, "Failed to add embedding layer");
+                return_status = 1;
+                goto final;
+            }
+            embedding->pretrained = (embedding_load_from != NULL);
         }
         PSAddLayer(network, Recurrent, hidden_size, NULL);
         PSAddLayer(network, SoftMax, VOCABULARY_SIZE, NULL);
@@ -392,7 +416,6 @@ int main(int argc, char** argv) {
     PSTrain(network, training_data, TRAIN_DATA_LEN, training_data,
             TRAIN_DATA_LEN, &options);
 
-    int return_status = 0;
     if (network->status == STATUS_ERROR) {
         return_status = 1;
         goto final;
