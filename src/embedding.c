@@ -52,7 +52,7 @@ PSFloat PSInitParam(int param_type, PSLayerDef *ldef, PSFloat range,
 PSActivationFunction PSGetActivationDerivative(PSActivationFunction func);
 int PSFullBackprop(PSLayer *layer, PSLayer *previous_layer,
                  PSGradient *gradient, ...);
-int PSFullFeedforward(PSNeuralNetwork *network, PSLayer *layer, ...);
+int PSFullFeedforward(PSLayer *layer, ...);
 PSFloat *PSGetInputsFromTrainingData(PSFloat *training_data, int data_size,
                                      int num_elements, int input_size,
                                      int label_size, int recurrent_input,

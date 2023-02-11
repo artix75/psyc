@@ -85,8 +85,8 @@ typedef struct {
 /* Forward declarations */
 
 PSActivationFunction PSGetActivationDerivative(PSActivationFunction func);
-int PSConvolutionalFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...);
-int PSPool(PSNeuralNetwork *net, PSLayer *layer, ...);
+int PSConvolutionalFeedforward(PSLayer *layer, ...);
+int PSPool(PSLayer *layer, ...);
 int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
                             PSGradient *lgradients, ...);
 int PSPoolingBackprop(PSLayer *pooling_layer, PSLayer *convolutional_layer,
@@ -718,8 +718,10 @@ memerr:
 
 /* Feedforward Functions */
 
-int PSConvolutionalFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
+int PSConvolutionalFeedforward(PSLayer *layer, ...) {
+    PSNeuralNetwork *net = NULL;
     if (!checkLayerForFeedforward(layer)) goto failed;
+    net = layer->network;
     int do_dump =
         (net->training != NULL && net->training->debug_dump_to != NULL);
     PSDebugStepInfo dbginfo = {
@@ -892,7 +894,8 @@ failed:
     return 0;
 }
 
-int PSPool(PSNeuralNetwork *net, PSLayer *layer, ...) {
+int PSPool(PSLayer *layer, ...) {
+    PSNeuralNetwork *net = layer->network;
     if (layer->neurons == NULL) {
         PSErr(NULL, "Layer[%d] has no neurons!", layer->index);
         return 0;

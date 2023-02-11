@@ -296,8 +296,9 @@ int onehotInputsFeedforward(PSLayer *layer, PSLayer *previous, int t,
     return 1;
 }
 
-int PSFullFeedforward(PSNeuralNetwork *network, PSLayer *layer, ...) {
+int PSFullFeedforward(PSLayer *layer, ...) {
     if (!checkLayerForFeedforward(layer)) return 0;
+    PSNeuralNetwork *network = layer->network;
 #ifdef PS_DEBUG_MODE
     PSAddContextualDebug(network, layer, NULL, NULL, "feedforward", 0);
 #endif
@@ -339,18 +340,19 @@ final:
     return 1;
 }
 
-static int softmaxFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
+static int softmaxFeedforward(PSLayer *layer, ...) {
     if (!checkLayerForFeedforward(layer)) return 0;
+    PSNeuralNetwork *network = layer->network;
 #ifdef PS_DEBUG_MODE
     PSAddContextualDebug(network, layer, NULL, NULL, "feedforward", 0);
 #endif
-    PSLayer *previous = layer->network->layers[layer->index - 1];
+    PSLayer *previous = network->layers[layer->index - 1];
     int is_recurrent = PSIsRecurrent(layer), tsteps = 0, t = 0;
     int use_bias = !(layer->flags & FLAG_NO_BIAS);
     PSMathOpts opts = {0};
     PSDebugStepInfo dbginfo =
-        {.network = net, .layer = layer, .func = __func__};
-    if (PSShouldDebugDump(net)) {
+        {.network = network, .layer = layer, .func = __func__};
+    if (PSShouldDebugDump(network)) {
         opts.data = &dbginfo;
         opts.debug_step = dumpFeedforwardStep;
     }
@@ -367,7 +369,7 @@ static int softmaxFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
         );
         return 0;
     }
-    opts.acceleration = net->acceleration;
+    opts.acceleration = network->acceleration;
     PSMatrix weights = layer->weights[0];
     PSFloat max = 0.0;
     if (use_bias) opts.add_vec = layer->biases;
@@ -2291,7 +2293,7 @@ int feedforwardThroughTime(PSNeuralNetwork *network, PSFloat *values,
             }
             if (!PSIsRecurrent(layer)) break;
             else last_layer = layer;
-            ok = layer->feedforward(network, layer, timesteps, t);
+            ok = layer->feedforward(layer, timesteps, t);
             if (!ok) return 0;
         }
         if (last_recurrent == NULL && last_layer != NULL)
@@ -2397,7 +2399,7 @@ int feedforward(PSNeuralNetwork *network, PSFloat *values, int backprop, ...) {
             PSErr(__func__, "Layer %d feedforward function is NULL", i);
             return 0;
         }
-        ok = layer->feedforward(network, layer);
+        ok = layer->feedforward(layer);
         if (!ok) return 0;
     }
     return 1;

@@ -31,7 +31,7 @@ typedef struct PSDropoutData {
 
 /* Forward declarations */
 
-int PSDropoutFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...);
+int PSDropoutFeedforward(PSLayer *layer, ...);
 int PSDropoutBackprop(PSLayer *layer, PSLayer *previous_layer,
                       PSGradient *gradients, ...);
 int checkLayerForFeedforward(PSLayer *layer);
@@ -247,8 +247,9 @@ int PSInitDropoutLayer(PSNeuralNetwork *network, PSLayer *layer,
 
 /* Feedforward */
 
-int PSDropoutFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
+int PSDropoutFeedforward(PSLayer *layer, ...) {
     if (!checkLayerForFeedforward(layer)) return 0;
+    PSNeuralNetwork *net = layer->network;
     int success = 1, i, t = 0, times = 0, is_recurrent = PSIsRecurrent(layer);
     PSLayer *previous = PSGetPreviousLayer(layer);
     if (is_recurrent) {

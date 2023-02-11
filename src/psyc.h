@@ -98,8 +98,7 @@ struct PSLayer;
 struct PSGradient;
 struct PSTrainingOptions;
 
-typedef int      (*PSFeedforwardFunction) (struct PSNeuralNetwork *network,
-                                           struct PSLayer *layer, ...);
+typedef int      (*PSFeedforwardFunction) (struct PSLayer *layer, ...);
 typedef int      (*PSBackpropFunction) (struct PSLayer *layer,
                                         struct PSLayer *previousLayer,
                                         struct PSGradient *layer_gradients,
@@ -112,7 +111,7 @@ typedef int      (*PSPretrainLayerFunction) (struct PSLayer *,
 typedef uint64_t (*PSGetParamCountFunction) (struct PSLayer *layer, int type);
 
 typedef PSFloat  (*PSLossFunction) (PSFloat* x, PSFloat* y, int size,
-                                   int onehot_size);
+                                    int onehot_size);
 typedef void     (*PSTrainCallback) (struct PSNeuralNetwork *network,
                                      int epoch, int epochs,
                                      PSFloat average_loss,

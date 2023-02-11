@@ -37,7 +37,7 @@
 int PSResizeRecurrentHiddenStates(PSLayer *layer, uint32_t steps);
 int PSRecurrentBackprop(PSLayer *layer, PSLayer *previous_layer,
                         PSGradient *lgradients, ...);
-int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...);
+int PSRecurrentFeedforward(PSLayer *layer, ...);
 
 /* External functions */
 
@@ -129,12 +129,13 @@ PSFloat *PSGetRecurrentNeuronHiddenWeights(PSNeuron *neuron) {
 
 /* Feedforward Functions */
 
-int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
+int PSRecurrentFeedforward(PSLayer *layer, ...) {
     if (!checkLayerForFeedforward(layer)) return 0;
+    PSNeuralNetwork *network = layer->network;
 #ifdef PS_DEBUG_MODE
-    PSAddContextualDebug(net, layer, NULL, NULL, "feedforward", 0);
+    PSAddContextualDebug(network, layer, NULL, NULL, "feedforward", 0);
 #endif
-    PSLayer *previous = layer->network->layers[layer->index - 1];
+    PSLayer *previous = network->layers[layer->index - 1];
     va_list args;
     va_start(args, layer);
     int times = va_arg(args, int);
@@ -147,7 +148,7 @@ int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
     }
     if (t >= (int) layer->recurrent_states_count) {
         if (!PSResizeRecurrentHiddenStates(layer, t + 1)) {
-            if (layer->network) layer->network->status = STATUS_ERROR;
+            network->status = STATUS_ERROR;
             PSErr(
                 NULL, "Could not resize recurrent hidden states for "
                 "layer %d", layer->index
@@ -156,7 +157,7 @@ int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
         }
     }
     PSFloat *hidden_values = (PSFloat *) layer->extra;
-    PSLayer *first_recurrent = PSGetFirstRecurrentLayer(net);
+    PSLayer *first_recurrent = PSGetFirstRecurrentLayer(network);
     int onehot = previous->flags & FLAG_ONEHOT;
     int use_bias = !(layer->flags & FLAG_NO_BIAS);
     int vector_size = 0, vector_idx = 0;
@@ -176,7 +177,7 @@ int PSRecurrentFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
      * are fed just in the very first step. */
     if (!PSIsRecurrent(previous) && layer == first_recurrent)
         ignore_inputs = (t > 0);
-    PSMathOpts dpopt = {.acceleration = net->acceleration};
+    PSMathOpts dpopt = {.acceleration = network->acceleration};
     int prev_t = t - 1;
     PSFloat *inputs = NULL;
     PSFloat *prev_states = NULL;

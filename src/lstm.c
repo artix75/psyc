@@ -67,7 +67,7 @@ PSVecActivationFunction PSGetVectorActivationFunc(PSActivationFunction func);
 PSActivationFunction PSGetActivationDerivative(PSActivationFunction func);
 int PSLSTMBackprop(PSLayer *layer, PSLayer *previousLayer,
                    PSGradient *lgradients, ...);
-int PSLSTMFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...);
+int PSLSTMFeedforward(PSLayer *layer, ...);
 static int getLSTMStatePointers(PSLSTMCell *cell, int type,
                                 PSFloat **state_ptr, PSFloat **previous_ptr);
 int checkLayerForFeedforward(PSLayer *layer);
@@ -522,8 +522,9 @@ memerr:
 
 /* Feedforward Functions */
 
-int PSLSTMFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
+int PSLSTMFeedforward(PSLayer *layer, ...) {
     if (!checkLayerForFeedforward(layer)) return 0;
+    PSNeuralNetwork *net = layer->network;
     va_list args;
     va_start(args, layer);
     int times = va_arg(args, int);

@@ -71,7 +71,7 @@ PSMatrix PSInitWeights(PSLayer *layer, int rows, int columns,
                        PSLayerDef *ldef, PSFloat range, PSFloat scale);
 PSFloat PSInitParam(int param_type, PSLayerDef *ldef, PSFloat range,
                     PSFloat scale);
-int PSGRUFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...);
+int PSGRUFeedforward(PSLayer *layer, ...);
 int PSGRUBackprop(PSLayer *layer, PSLayer *previous_layer,
                    PSGradient *lgradients, ...);
 
@@ -449,8 +449,9 @@ memerr:
 
 /* Feedforward Functions */
 
-int PSGRUFeedforward(PSNeuralNetwork *net, PSLayer *layer, ...) {
+int PSGRUFeedforward(PSLayer *layer, ...) {
     if (!checkLayerForFeedforward(layer)) return 0;
+    PSNeuralNetwork *net = layer->network;
     int success = 1;
     PSFloat *cache = NULL;
     va_list args;
