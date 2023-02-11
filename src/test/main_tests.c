@@ -130,6 +130,9 @@ int testMathsTanh(TestCase *tc, Test *test);
 int testMathsSqrt(TestCase *tc, Test *test);
 int testMathsNeg(TestCase *tc, Test *test);
 int testMathsAbs(TestCase *tc, Test *test);
+int testMathsMean(TestCase *tc, Test *test);
+int testMathsVar(TestCase *tc, Test *test);
+int testMathsStd(TestCase *tc, Test *test);
 int testMathsMatrixCopy(TestCase *tc, Test *test);
 int testMathsMatrixDup(TestCase *tc, Test *test);
 int testMathsMatrixTranspose(TestCase *tc, Test *test);
@@ -554,6 +557,9 @@ int main(int argc, char** argv) {
         addTest(mathsTests, "Sqrt", NULL, testMathsSqrt);
         addTest(mathsTests, "Negate", NULL, testMathsNeg);
         addTest(mathsTests, "Abs.", NULL, testMathsAbs);
+        addTest(mathsTests, "Mean", NULL, testMathsMean);
+        addTest(mathsTests, "Variance", NULL, testMathsVar);
+        addTest(mathsTests, "StdDev", NULL, testMathsStd);
         addTest(mathsTests, "Matrix Copy", NULL, testMathsMatrixCopy);
         addTest(mathsTests, "Matrix Dup.", NULL, testMathsMatrixDup);;
         addTest(mathsTests, "Matrix Transp.", NULL, testMathsMatrixTranspose);
@@ -3003,6 +3009,106 @@ int testMathsAbs(TestCase *tc, Test *test) {
     ok = compareArrays(res, cmp_res, 6, test, "No Acceleration:", 0);
     if (!ok) return 0;
     return ok;
+}
+
+int testMathsMean(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat x[6] = {34.8428, 76.1856, 21.2119, 137.8675, 40.4213, 67.1189};
+    PSFloat expected = 62.9413, mean;
+    PSMathOpts opts = {0};
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    opts.acceleration = PSAcceleration_ACF;
+    mean = PSMean(x, 6, &opts);
+    mean = getRoundedFloatDec(mean, 4);
+    testAssertWithMessage(
+        (mean == expected), test, "Mean (ACF) != Expected: %g != %g",
+        mean, expected
+    );
+#endif
+#ifdef USE_AVX
+    opts.acceleration = PSAcceleration_AVX;
+    mean = PSMean(x, 6, &opts);
+    mean = getRoundedFloatDec(mean, 4);
+    testAssertWithMessage(
+        (mean == expected), test, "Mean (AVX) != Expected: %g != %g",
+        mean, expected
+    );
+#endif
+    opts.acceleration = 0;
+    mean = PSMean(x, 6, &opts);
+    mean = getRoundedFloatDec(mean, 4);
+    testAssertWithMessage(
+        (mean == expected), test, "Mean (No accel.) != Expected: %g != %g",
+        mean, expected
+    );
+    return 1;
+}
+
+int testMathsVar(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat x[6] = {34.8428, 76.1856, 21.2119, 137.8675, 40.4213, 67.1189};
+    PSFloat expected = 1474.14, var;
+    expected = getRoundedFloatDec(expected, 2);
+    PSMathOpts opts = {0};
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    opts.acceleration = PSAcceleration_ACF;
+    var = PSVariance(x, 6, &opts);
+    var = getRoundedFloatDec(var, 2);
+    testAssertWithMessage(
+        (var == expected), test, "Variance (ACF) != Expected: %g != %g",
+        var, expected
+    );
+#endif
+#ifdef USE_AVX
+    opts.acceleration = PSAcceleration_AVX;
+    var = PSVariance(x, 6, &opts);
+    var = getRoundedFloatDec(var, 2);
+    testAssertWithMessage(
+        (var == expected), test, "Variance (AVX) != Expected: %g != %g",
+        var, expected
+    );
+#endif
+    opts.acceleration = 0;
+    var = PSVariance(x, 6, &opts);
+    var = getRoundedFloatDec(var, 2);
+    testAssertWithMessage(
+        (var == expected), test, "Variance (No accel.) != Expected: %g != %g",
+        var, expected
+    );
+    return 1;
+}
+
+int testMathsStd(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat x[6] = {34.8428, 76.1856, 21.2119, 137.8675, 40.4213, 67.1189};
+    PSFloat expected = 38.3945, stddev;
+    PSMathOpts opts = {0};
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    opts.acceleration = PSAcceleration_ACF;
+    stddev = PSStdDev(x, 6, &opts);
+    stddev = getRoundedFloatDec(stddev, 4);
+    testAssertWithMessage(
+        (stddev == expected), test, "StdDev (ACF) != Expected: %g != %g",
+        stddev, expected
+    );
+#endif
+#ifdef USE_AVX
+    opts.acceleration = PSAcceleration_AVX;
+    stddev = PSstddev(x, 6, &opts);
+    stddev = getRoundedFloatDec(stddev, 4);
+    testAssertWithMessage(
+        (stddev == expected), test, "StdDev (AVX) != Expected: %g != %g",
+        stddev, expected
+    );
+#endif
+    opts.acceleration = 0;
+    stddev = PSStdDev(x, 6, &opts);
+    stddev = getRoundedFloatDec(stddev, 4);
+    testAssertWithMessage(
+        (stddev == expected), test, "StdDev (No accel.) != Expected: %g != %g",
+        stddev, expected
+    );
+    return 1;
 }
 
 int testMathsMatrixCopy(TestCase *tc, Test *test) {

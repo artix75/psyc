@@ -27,13 +27,16 @@
 #include "maths.h"
 #include "blas.h"
 #include "log.h"
+
 #ifdef USE_AVX
 #include "avx.h"
 #endif
+
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
 #include <Accelerate/Accelerate.h>
 
 #ifdef PS_DOUBLE_PRECISION
+
 #define VDSPAddV(a,b,dest,len) vDSP_vaddD(a, 1, b, 1, dest, 1, len)
 #define VDSPSubV(a,b,dest,len) vDSP_vsubD(b, 1, a, 1, dest, 1, len)
 #define VDSPMulV(a,b,dest,len) vDSP_vmulD(a, 1, b, 1, dest, 1, len)
@@ -59,10 +62,13 @@
 #define VDSPMMul(a, b, dest, m, n, p)  vDSP_mmulD(a, 1, b, 1, dest, 1, m, n, p)
 #define VDSPVLim(a, limit, i, dest, len) vDSP_vlimD(a, 1, &limit, &i,\
     dest, 1, len)
+#define VDSPMean(a, res, len) vDSP_meanvD(a, 1, &res, len)
 #define VVSqrt(a,dest,len) vvsqrt(dest, a, (int *)&len)
 #define VVTanh(a,dest,len) vvtanh(dest, a, (int *)&len)
 #define VVExp(a,dest,len)  vvexp(dest, a, (int *)&len)
+
 #else
+
 #define VDSPAddV(a,b,dest,len) vDSP_vadd(a, 1, b, 1, dest, 1, len)
 #define VDSPSubV(a,b,dest,len) vDSP_vsub(b, 1, a, 1, dest, 1, len)
 #define VDSPMulV(a,b,dest,len) vDSP_vmul(a, 1, b, 1, dest, 1, len)
@@ -88,9 +94,11 @@
 #define VDSPMMul(a, b, dest, m, n, p)  vDSP_mmul(a, 1, b, 1, dest, 1, m, n, p)
 #define VDSPVLim(a, limit, i, dest, len) vDSP_vlim(a, 1, &limit, &i,\
     dest, 1, len)
+#define VDSPMean(a, res, len) vDSP_meanv(a, 1, &res, len)
 #define VVSqrt(a,dest,len) vvsqrtf(dest, a, (int *)&len)
 #define VVTanh(a,dest,len) vvtanhf(dest, a, (int *)&len)
 #define VVExp(a,dest,len)  vvexpf(dest, a, (int *)&len)
+
 #endif
 
 #endif
@@ -1291,6 +1299,63 @@ PSFloat PSSumVectorElements(PSFloat *a, uint64_t length, PSMathOpts *opts) {
     uint64_t i;
     for (i = 0; i < length; i++) sum += a[i];
     return sum;
+}
+
+PSFloat PSMean(PSFloat *a, uint64_t length, PSMathOpts *opts) {
+    PSFloat mean = 0.0;
+    int acceleration = PSGlobalAcceleration;
+    if (opts != NULL) acceleration = opts->acceleration;
+#if defined(HAS_ACCELERATE_FRAMEWORK)
+    if (PSACFEnabled(acceleration)) {
+        VDSPMean(a, mean, length);
+        return mean;
+    }
+#else
+    UNUSED(acceleration);
+#endif
+    uint64_t i;
+    for (i = 0; i < length; i++) mean += a[i];
+    mean = mean / (PSFloat) length;
+    return mean;
+}
+
+PSFloat PSVariance(PSFloat *a, uint64_t len, PSMathOpts *opts) {
+    PSFloat var = 0.0;
+    PSFloat *cache = NULL;
+    PSFloat mean = PSMean(a, len, opts);
+    int acceleration = PSGlobalAcceleration;
+    if (opts != NULL) {
+        acceleration = opts->acceleration;
+        cache = opts->tmpdest;
+    }
+    int do_free_cache = (cache == NULL);
+#if defined(HAS_ACCELERATE_FRAMEWORK)
+    if (PSACFEnabled(acceleration)) {
+        if (cache == NULL) cache = malloc(len * sizeof(PSFloat));
+        if (cache != NULL) {
+            PSSubtractVectorScalar(a, mean, cache, len, opts);
+            PSMultiplyVectors(cache, cache, cache, len, opts);
+            var = PSMean(cache, len, opts);
+            goto final;
+        }
+    }
+#else
+    UNUSED(acceleration);
+#endif
+    PSFloat sum = 0.0;
+    for (uint64_t i = 0; i < len; i++) {
+        PSFloat d = (a[i] - mean);
+        sum += (d * d);
+    }
+    var = sum / (PSFloat) len;
+final:
+    if (do_free_cache) free(cache);
+    return var;
+}
+
+PSFloat PSStdDev(PSFloat *a, uint64_t len, PSMathOpts *opts) {
+    PSFloat variance = PSVariance(a, len, opts);
+    return PSSqrt(variance);
 }
 
 PSFloat PSDotProduct(PSFloat *a, PSFloat *b, uint64_t length, PSMathOpts *opts)

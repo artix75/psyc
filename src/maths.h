@@ -138,6 +138,9 @@ void PSVectorMapWithLimit(PSFloat *a, PSFloat limit, PSFloat mapper,
 PSFloat PSVectorMax(PSFloat *a, uint64_t *index, uint64_t length,
                     PSMathOpts *opts);
 PSFloat PSSumVectorElements(PSFloat *a, uint64_t length, PSMathOpts *opts);
+PSFloat PSMean(PSFloat *a, uint64_t length, PSMathOpts *opts);
+PSFloat PSVariance(PSFloat *a, uint64_t len, PSMathOpts *opts);
+PSFloat PSStdDev(PSFloat *a, uint64_t len, PSMathOpts *opts);
 PSFloat PSDotProduct(PSFloat *a, PSFloat *b, uint64_t length, PSMathOpts *opts);
 PSFloat PSDotSquare(PSFloat *a, uint64_t length, PSMathOpts *opts);
 int PSDot(PSMatrix matrix, PSFloat *vector, PSFloat *dest, PSMathOpts *opts);
