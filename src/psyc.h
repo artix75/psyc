@@ -109,7 +109,11 @@ typedef int      (*PSPretrainLayerFunction) (struct PSLayer *,
                                              PSFloat *training_data,
                                              int data_size);
 typedef uint64_t (*PSGetParamCountFunction) (struct PSLayer *layer, int type);
-
+typedef int      (*PSInitRecurrentStatesFunc) (struct PSLayer *layer,
+                                               uint32_t steps,
+                                               int retain_previous);
+typedef int      (*PSResizeRecurrentStatesFunc) (struct PSLayer *layer,
+                                                 uint32_t steps);
 typedef PSFloat  (*PSLossFunction) (PSFloat* x, PSFloat* y, int size,
                                     int onehot_size);
 typedef void     (*PSTrainCallback) (struct PSNeuralNetwork *network,
@@ -221,36 +225,38 @@ typedef struct PSNeuron {
 } PSNeuron;
 
 typedef struct PSLayer {
-    PSLayerType             type;
-    int                     index;
-    int                     size;
-    int                     weight_types_count;
-    PSMatrix                *weights;
-    PSFloat                 *biases;
-    PSNeuron                **neurons;
-    PSFloat                 *states;
-    PSFloat                 *delta;
-    PSFloat                 *initial_states;
-    uint32_t                recurrent_states_count;
-    uint32_t                flags;
-    int                     onehot_vector_size;
-    int                     output_depth;
-    int                     output_columns;
-    int                     output_rows;
-    int                     pretrained;
-    void                    *extra;
-    void                    *private;
-    PSActivationFunction    activate;
-    PSActivationFunction    derivative;
-    PSFeedforwardFunction   feedforward;
-    PSBackpropFunction      backprop;
-    PSGenericLayerCallback  on_delete;
-    PSCopyLayerCallback     on_copy;
-    PSGenericLayerCallback  before_batch_training;
-    PSGetParamCountFunction get_param_count;
-    PSPretrainLayerFunction pretrain;
-    struct PSNeuralNetwork  *network;
-    struct PSNeuralNetwork  *pretrainer;
+    PSLayerType                 type;
+    int                         index;
+    int                         size;
+    int                         weight_types_count;
+    PSMatrix                    *weights;
+    PSFloat                     *biases;
+    PSNeuron                    **neurons;
+    PSFloat                     *states;
+    PSFloat                     *delta;
+    PSFloat                     *initial_states;
+    uint32_t                    recurrent_states_count;
+    uint32_t                    flags;
+    int                         onehot_vector_size;
+    int                         output_depth;
+    int                         output_columns;
+    int                         output_rows;
+    int                         pretrained;
+    void                        *extra;
+    void                        *private;
+    PSFeedforwardFunction       feedforward;
+    PSBackpropFunction          backprop;
+    PSActivationFunction        activate;
+    PSActivationFunction        derivative;
+    PSGenericLayerCallback      on_delete;
+    PSCopyLayerCallback         on_copy;
+    PSGenericLayerCallback      before_batch_training;
+    PSGetParamCountFunction     get_param_count;
+    PSInitRecurrentStatesFunc   on_recurrent_states_init;
+    PSResizeRecurrentStatesFunc on_recurrent_states_resize;
+    PSPretrainLayerFunction     pretrain;
+    struct PSNeuralNetwork      *network;
+    struct PSNeuralNetwork      *pretrainer;
 } PSLayer;
 
 typedef struct PSNeuralNetwork {

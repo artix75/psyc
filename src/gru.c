@@ -391,6 +391,8 @@ int PSInitGRULayer(PSNeuralNetwork *network, PSLayer *layer,
     int i, bias_count = size * 3;
     layer->on_delete = PSDeleteGRULayer;
     layer->on_copy = PSGRULayerCopy;
+    layer->on_recurrent_states_init = PSInitGRUStates;
+    layer->on_recurrent_states_resize = PSResizeGRUStates;
     if (size == 0) {
         PSErr(__func__, "Cannot initialize layer with size = 0");
         return 0;
@@ -581,10 +583,12 @@ forward_previous_step:
     dpopt[CANDIDATE_IDX].store_mode =
     dpopt[UPDATE_IDX].store_mode =
     dpopt[RESET_IDX].store_mode = MATHS_STORE_MODE_ADD;
-    success = PSDot(cell->update_hidden_weights, prev_states, update_gates,
+    success = (
+        PSDot(cell->update_hidden_weights, prev_states, update_gates,
                     &dpopt[UPDATE_IDX]) &&
-              PSDot(cell->reset_hidden_weights, prev_states, reset_gates,
-                    &dpopt[RESET_IDX]);
+        PSDot(cell->reset_hidden_weights, prev_states, reset_gates,
+                    &dpopt[RESET_IDX])
+    );
     if (!success) goto final;
     PSMultiplyVectors(reset_gates, prev_states, cache, layer->size,
                       &final_opts);

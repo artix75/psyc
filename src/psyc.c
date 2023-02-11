@@ -118,12 +118,6 @@ int PSInitDropoutLayer(PSNeuralNetwork *network, PSLayer *layer,
                        PSLayerDef *layer_def);
 int PSInitEmbeddingLayer(PSLayer *layer, int size, int previous_size,
                          PSLayerDef *ldef);
-int PSInitLSTMStates(PSLayer *layer, uint32_t steps, int retain_previous);
-int PSResizeLSTMStates(PSLayer *layer, uint32_t steps);
-int PSInitGRUStates(PSLayer *layer, uint32_t steps, int retain_previous);
-int PSResizeGRUStates(PSLayer *layer, uint32_t steps);
-int PSInitDropoutMask(PSLayer *layer, uint32_t steps);
-int PSResizeDropoutMask(PSLayer *layer, uint32_t steps);
 int PSDumpGradients(PSNeuralNetwork *network, PSGradient **gradients,
                     const char* filename, PSTrainingOptions *opts);
 PSGradient **cloneNetworkGradients(PSGradient **gradients,
@@ -1034,13 +1028,8 @@ int PSInitRecurrentHiddenStates(PSLayer *layer, uint32_t steps,
         layer->states = NULL;
         free(states);
         layer->initial_states = NULL;
-        if (LSTM == layer->type) {
-            if (!PSInitLSTMStates(layer, 0, 0)) goto err;
-        } else if (GRU == layer->type) {
-            if (!PSInitGRUStates(layer, 0, 0)) goto err;
-        } else if (Dropout == layer->type) {
-            if (!PSInitDropoutMask(layer, 0)) goto err;
-        }
+        if (layer->on_recurrent_states_init != NULL)
+            if (!layer->on_recurrent_states_init(layer, 0, 0)) goto err;
         return 1;
     }
     hstates = initRecurrentStates(
@@ -1051,12 +1040,9 @@ int PSInitRecurrentHiddenStates(PSLayer *layer, uint32_t steps,
     layer->states = hstates;
     layer->recurrent_states_count = steps;
     free(states);
-    if (LSTM == layer->type) {
-        if (!PSInitLSTMStates(layer, steps, retain_previous)) goto err;
-    } else if (GRU == layer->type) {
-        if (!PSInitGRUStates(layer, steps, retain_previous)) goto err;
-    } else if (Dropout == layer->type) {
-        if (!PSInitDropoutMask(layer, steps)) goto err;
+    if (layer->on_recurrent_states_init != NULL) {
+        if (!layer->on_recurrent_states_init(layer, steps, retain_previous))
+            goto err;
     }
     return 1;
 err:
@@ -1094,13 +1080,8 @@ int PSResizeRecurrentHiddenStates(PSLayer *layer, uint32_t steps) {
     }
     layer->recurrent_states_count = steps;
     layer->states = hstates;
-    if (LSTM == layer->type) {
-        if (!PSResizeLSTMStates(layer, steps)) return 0;
-    } else if (GRU == layer->type) {
-        if (!PSResizeGRUStates(layer, steps)) return 0;
-    } else if (Dropout == layer->type) {
-        if (!PSResizeDropoutMask(layer, steps)) return 0;
-    }
+    if (layer->on_recurrent_states_resize != NULL)
+        if (!layer->on_recurrent_states_resize(layer, steps)) return 0;
     return 1;
 }
 
@@ -2052,6 +2033,8 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
     layer->pretrain = NULL;
     layer->private = NULL;
     layer->before_batch_training = NULL;
+    layer->on_recurrent_states_init = NULL;
+    layer->on_recurrent_states_resize = NULL;
     if (layer->output_depth <= 0) layer->output_depth = 1;
     layer->output_columns = layer_def->output_columns;
     layer->output_rows = layer_def->output_rows;
@@ -3070,7 +3053,7 @@ int backpropThroughTime(PSNeuralNetwork *network, PSFloat *y,
             int is_gru = (GRU == ltype);
             if (!is_recurrent && !is_lstm && !is_gru) continue;
 
-            /*  Calculate layer deltas */
+            /*  Apply derivative on layer deltas */
             if (!is_lstm && !is_gru) {
                 delta = layer->delta;
                 for (j = 0; j < lsize; j++) {

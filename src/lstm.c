@@ -464,6 +464,8 @@ int PSInitLSTMLayer(PSNeuralNetwork *network, PSLayer *layer,
     int i, bias_count = size * 4;
     layer->on_delete = PSDeleteLSTMLayer;
     layer->on_copy = PSLSTMLayerCopy;
+    layer->on_recurrent_states_init = PSInitLSTMStates;
+    layer->on_recurrent_states_resize = PSResizeLSTMStates;
     if (size == 0) {
         PSErr(__func__, "Cannot initialize layer with size = 0");
         return 0;

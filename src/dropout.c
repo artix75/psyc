@@ -64,7 +64,8 @@ void PSSetDropout(PSLayer *dropout_layer, PSFloat dropout) {
     data->dropout = dropout;
 }
 
-int PSInitDropoutMask(PSLayer *layer, uint32_t steps) {
+int PSInitDropoutMask(PSLayer *layer, uint32_t steps, int retain_previous) {
+    UNUSED(retain_previous);
     if (layer == NULL) return 0;
     PSDropoutData *data = PSGetDropoutData(layer);
     if (data == NULL) {
@@ -213,6 +214,8 @@ int PSInitDropoutLayer(PSNeuralNetwork *network, PSLayer *layer,
     if (dropout > 1.0) dropout = 1.0;
     layer->on_copy = PSDropoutLayerCopy;
     layer->on_delete = PSDeleteDropoutLayer;
+    layer->on_recurrent_states_init = PSInitDropoutMask;
+    layer->on_recurrent_states_resize = PSResizeDropoutMask;
     if (PSIsRecurrent(previous)) layer->flags |= FLAG_RECURRENT;
     layer->size = previous->size;
     if (layer->biases != NULL) free(layer->biases);
