@@ -32,6 +32,7 @@
 #include "lstm.h"
 #include "gru.h"
 #include "dropout.h"
+#include "normalization.h"
 #include "log.h"
 #include "buildinfo.h"
 #include "optimization.h"
@@ -530,14 +531,22 @@ void writeLayerDefinition(PSLayer *layer, FILE *f) {
             filter_w = csettings->filter_width;
             filter_h = csettings->filter_height;
         }
-        fprintf(f, ",stride=%d,padding=%d,filter_width=%d,filter_height=%d\n",
+        fprintf(f, ",stride=%d,padding=%d,filter_width=%d,filter_height=%d",
                 stride, padding, filter_w, filter_h);
     } else if (Dropout == layer->type) {
         PSFloat dropout = PSGetDropout(layer);
-        fprintf(f, ",dropout=" PSFLOAT_FORMAT "\n", dropout);
-    } else if (layer->pretrain != NULL) {
+        fprintf(f, ",dropout=" PSFLOAT_FORMAT, dropout);
+    } else if (Normalization == layer->type) {
+        PSNormalizationLayerSettings *normsettings =
+            PSGetNormalizationSettings(layer);
+        PSFloat eps = PSDEFAULT_NORM_EPSILON;
+        if (normsettings != NULL) eps = normsettings->epsilon;
+        if (eps == 0) eps = PSDEFAULT_NORM_EPSILON;
+        fprintf(f, ",epsilon=" PSFLOAT_FORMAT, eps);
+    }
+    if (layer->pretrain != NULL)
         fprintf(f, ",pretrained=%d", layer->pretrained);
-    } else fprintf(f, "\n");
+    fprintf(f, "\n");
 }
 
 int writeLayerParameters(PSLayer *layer, int opts, FILE *f, const char *func) {
@@ -924,7 +933,7 @@ static int loadLayerDefinitions(PSNeuralNetwork *network, char *vers,
                     &(ldef.dropout), sep
                 );
                 if (!ok) {
-                    loadErr(filepath, f, "Invalid output_cols");
+                    loadErr(filepath, f, "Invalid dropout");
                     return 0;
                 }
             } else if (strcmp("stride", propname) == 0) {
@@ -976,6 +985,15 @@ static int loadLayerDefinitions(PSNeuralNetwork *network, char *vers,
                 );
                 if (!ok) {
                     loadErr(filepath, f, "Invalid 'pretrained' value");
+                    return 0;
+                }
+            } else if (strcmp("epsilon", propname) == 0) {
+                ok = scanFile(
+                    f, PSFLOAT_FORMAT "%1[,\n]", 2, NULL,
+                    &(ldef.epsilon), sep
+                );
+                if (!ok) {
+                    loadErr(filepath, f, "Invalid epsilon");
                     return 0;
                 }
             } else {

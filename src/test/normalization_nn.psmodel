@@ -1,0 +1,14 @@
+--v0.9.0:git=8870119d/324-1.0-dev;float_size=4;archbits=64;avx=0;accelerate=1,sys=Darwin,22.2.0,arm64;global_flags=0;acceleration=254;savetime=1676227600
+model:0,2,0,0,0,0,0,0,0,-1,0
+layers:3
+layer[0]:0,4,0,activation=sigmoid,output_depth=1,output_cols=0,output_rows=0
+layer[1]:9,4,0,activation=null,output_depth=1,output_cols=0,output_rows=0,epsilon=1e-05
+layer[2]:5,2,0,activation=null,output_depth=1,output_cols=0,output_rows=0
+--- Layer[1] Biases: 4 ---
+0,0,0,0
+--- Layer[1] Weights: 1,4 ---
+1,1,1,1
+--- Layer[2] Biases: 2 ---
+0.63149792,0.145241559
+--- Layer[2] Weights: 1,8 ---
+-2.26618838,1.1287266,0.280869722,-2.29642534,0.574544907,0.235255688,0.397527546,0.789150953

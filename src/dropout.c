@@ -212,6 +212,7 @@ int PSInitDropoutLayer(PSNeuralNetwork *network, PSLayer *layer,
         return 0;
     }
     if (dropout > 1.0) dropout = 1.0;
+    layer->flags |= FLAG_NON_TRAINABLE;
     layer->on_copy = PSDropoutLayerCopy;
     layer->on_delete = PSDeleteDropoutLayer;
     layer->on_recurrent_states_init = PSInitDropoutMask;

@@ -32,6 +32,7 @@
 #include "../dropout.h"
 #include "../lstm.h"
 #include "../gru.h"
+#include "../normalization.h"
 #include "../mnist.h"
 #include "../maths.h"
 #include "../activation.h"
@@ -47,6 +48,7 @@
 #define CONVOLUTIONAL_NETWORK "cnn.data"
 #define CONVOLUTIONAL_TRAINED_NETWORK "../../resources/pretrained.cnn.data"
 #define RECURRENT_NETWORK "rnn.data"
+#define NORMALIZATION_NETWORK "normalization_nn.psmodel"
 #define TEST_IMAGE_FILE "../../resources/t10k-images-idx3-ubyte.gz"
 #define TEST_LABEL_FILE "../../resources/t10k-labels-idx1-ubyte.gz"
 #define TEST_IMAGE_SIZE 28
@@ -85,6 +87,7 @@ TestCase *convNetworkTests;
 TestCase *recurrentNetworkTests;
 TestCase *LSTMNetworkTests;
 TestCase *GRUNetworkTests;
+TestCase *NormalizationNetworkTests;
 
 #ifdef USE_AVX
 TestCase *AVXTests;
@@ -176,6 +179,11 @@ int testLSTMLoad(TestCase *test_case, Test *test);
 int testLSTMTrain(TestCase *test_case, Test *test);
 int testGRULoad(TestCase *test_case, Test *test);
 int testGRUTrain(TestCase *test_case, Test *test);
+
+
+int testNormalizationLoad(TestCase *test_case, Test *test);
+int testNormalizationFeedforward(TestCase *test_case, Test *test);
+
 
 /* psyc.c function prototypes */
 
@@ -420,16 +428,18 @@ static int arrayMaxIndex(PSFloat *array, int len) {
 /* Enabled tests */
 static int avx_tests = 1, maths_tests = 1, activation_tests = 1,
            optimization_tests = 1, fullnet_tests = 1, convnet_tests = 1,
-           rnn_tests = 1, lstm_tests = 1, gru_tests = 1;
+           rnn_tests = 1, lstm_tests = 1, gru_tests = 1,
+           normalization_tests = 1;
 
 static int *test_ptrs[] = {
     &avx_tests, &maths_tests, &activation_tests, &optimization_tests,
-    &fullnet_tests, &convnet_tests, &rnn_tests, &lstm_tests, &gru_tests
+    &fullnet_tests, &convnet_tests, &rnn_tests, &lstm_tests, &gru_tests,
+    &normalization_tests
 };
 
 static char*test_ids[] = {
     "avx", "maths", "activation", "optimization", "fully-connected",
-    "convolutional", "rnn", "lstm", "gru"
+    "convolutional", "rnn", "lstm", "gru", "normalization"
 };
 
 static void printTestList(void) {
@@ -677,6 +687,18 @@ int main(int argc, char** argv) {
         tot_tests += GRUNetworkTests->count;
         tot_failed += GRUNetworkTests->failed_count;
         deleteTest(GRUNetworkTests);
+    }
+    if (normalization_tests) {
+        NormalizationNetworkTests = createTest("Normalization Network");
+        NormalizationNetworkTests->setup = genericSetup;
+        NormalizationNetworkTests->teardown = genericTeardown;
+        addTest(NormalizationNetworkTests, "Load", NULL, testNormalizationLoad);
+        addTest(NormalizationNetworkTests, "Feedforward", NULL,
+               testNormalizationFeedforward);
+        performTests(NormalizationNetworkTests);
+        tot_tests += NormalizationNetworkTests->count;
+        tot_failed += NormalizationNetworkTests->failed_count;
+        deleteTest(NormalizationNetworkTests);
     }
     gettimeofday(&end_t, NULL);
     time_t elapsed = PSGetElapsedTimeUS(start_t, end_t);
@@ -1994,6 +2016,46 @@ int testGRUTrain(TestCase *test_case, Test *test) {
                 i, t, h, e
             );
         }
+    }
+    return 1;
+}
+
+int testNormalizationLoad(TestCase *test_case, Test *test) {
+    PSNeuralNetwork *network = getNetwork(test_case);
+    int loaded = PSLoadNetwork(network, NORMALIZATION_NETWORK);
+    testAssertWithMessage(loaded, test, "Failed to load %s",
+                          NORMALIZATION_NETWORK);
+    PSLayer *normlayer = network->layers[1];
+    PSLayer *softmax = network->layers[2];
+    testAssertNotNull(normlayer, test);
+    testAssert(normlayer->type == Normalization, test);
+    testAssert(normlayer->size == 4, test);
+    testAssertNotNull(softmax, test);
+    testAssert(softmax->type == SoftMax, test);
+    testAssert(softmax->size == 2, test);
+    if (!PSIsNetworkBuilt(network)) {
+        int built = PSBuildNetwork(network);
+        testAssert(built, test);
+    }
+    return 1;
+}
+
+int testNormalizationFeedforward(TestCase *test_case, Test *test) {
+    static PSFloat data[] = {90.3487, 198.1253, 18.3623, 162.5884, 0, 0};
+    static PSFloat normalized[] = {-0.3909, 1.1689, -1.4326, 0.6546};
+    PSNeuralNetwork *network = getNetwork(test_case);
+    PSFeedforward(network, data);
+    PSLayer *normlayer = network->layers[1];
+    testAssertNotNull(normlayer, test);
+    PSFloat *states = PSGetStates(normlayer, 0);
+    testAssertNotNull(states, test);
+    for (int i = 0; i < normlayer->size; i++) {
+        PSFloat s = getRoundedFloatDec(states[i], 4);
+        PSFloat expected =  getRoundedFloatDec(normalized[i], 4);
+        testAssertWithMessage(
+            s == expected, test, "Normalized state[%d] != expected: %g != %g",
+            i, s, expected
+        );
     }
     return 1;
 }

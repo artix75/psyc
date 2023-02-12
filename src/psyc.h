@@ -29,7 +29,7 @@
 
 #define PSYC_VERSION      "0.9.0"
 
-#define LAYER_TYPES     9
+#define LAYER_TYPES     10
 
 #define DEFAULT_RHO     0.95
 #define DEFAULT_BETA1   0.9
@@ -63,6 +63,7 @@
 #define INIT_MODE_AUTO      0
 #define INIT_MODE_RAND      1
 #define INIT_MODE_ZERO      2
+#define INIT_MODE_VALUE     3
 
 #define TRAINING_PHASE_FEEDFORWARD  1
 #define TRAINING_PHASE_BACKPROP     2
@@ -80,6 +81,7 @@
                                       * generated with versiob < 0.4 */
 #define FLAG_NO_BIAS        (1 << 3)
 #define FLAG_PRETRAINER     (1 << 4)
+#define FLAG_NON_TRAINABLE  (1 << 5)
 
 /* Training Flags */
 #define TRAINING_NO_SHUFFLE         (1 << 0)
@@ -127,20 +129,27 @@ typedef void     (*PSSignalHandler) (int);
 typedef struct PSLayerDef {
     PSActivationFunction activation;
     int flags;
-    PSFloat dropout;
     int weight_init_mode;
     int bias_init_mode;
     PSFloat init_range;
     PSFloat init_scale;
+    PSFloat init_value;
     int output_depth;
+    /* Convolutional and Pooling layers hyperparamaters */
     int output_columns;
     int output_rows;
     int stride;         /* Used by Convolutional and Pooling layers */
     int padding;        /* Used by Convolutional layers */
     int filter_width;   /* Used by Convolutional layers */
     int filter_height;  /* Used by Convolutional layers */
-    int pretrained;
+    /* Embedding layers options */
     int embedding_type;
+    /* Dropout layers hyperparamaters */
+    PSFloat dropout;
+    /* Normalization layers hyperparamaters */
+    PSFloat epsilon;
+    /* Pretrainable layers options */
+    int pretrained;
     const char *load_from;
     const char *save_pretrained_to;
     PSFloat *training_data;
@@ -165,7 +174,8 @@ typedef enum {
     SoftMax,
     GRU,
     Dropout,
-    Embedding
+    Embedding,
+    Normalization
 } PSLayerType;
 
 typedef enum {

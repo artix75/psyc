@@ -118,6 +118,7 @@ int PSInitDropoutLayer(PSNeuralNetwork *network, PSLayer *layer,
                        PSLayerDef *layer_def);
 int PSInitEmbeddingLayer(PSLayer *layer, int size, int previous_size,
                          PSLayerDef *ldef);
+int PSInitNormalizationLayer(PSLayer *layer, PSLayerDef *ldef);
 int PSDumpGradients(PSNeuralNetwork *network, PSGradient **gradients,
                     const char* filename, PSTrainingOptions *opts);
 PSGradient **cloneNetworkGradients(PSGradient **gradients,
@@ -210,7 +211,12 @@ void dumpFeedforwardStep(int i, PSFloat a, PSFloat b, PSFloat sum,
 /* Feedforward Functions */
 
 int checkLayerForFeedforward(PSLayer *layer) {
-    if (layer->neurons == NULL && Dropout != layer->type) {
+    if (layer == NULL) return 0;
+    int trainable = !(layer->flags & FLAG_NON_TRAINABLE);
+    int needs_neurons = (
+        Dropout != layer->type && Normalization != layer->type
+    );
+    if (layer->neurons == NULL && needs_neurons) {
         PSErr(NULL, "Layer[%d] has no neurons!", layer->index);
         return 0;
     }
@@ -227,7 +233,7 @@ int checkLayerForFeedforward(PSLayer *layer) {
         PSErr(NULL, "Layer[%d]: previous layer is NULL", layer->index);
         return 0;
     }
-    if (layer->weight_types_count > 0 && Dropout != layer->type) {
+    if (layer->weight_types_count > 0 && trainable) {
         if (layer->weights == NULL) {
             PSErr(NULL, "Layer[%d]: layer has no weights", layer->index);
             return 0;
@@ -625,6 +631,8 @@ char *PSGetLabelForType(PSLayerType type) {
             return "Dropout";
         case Embedding:
             return "Embedding";
+        case Normalization:
+            return "Normalization";
     }
     return "UNKOWN";
 }
@@ -1881,7 +1889,10 @@ PSMatrix PSInitWeights(PSLayer *layer, int rows, int columns,
     PSMatrix weights = NULL;
     if (ldef->weight_init_mode == INIT_MODE_ZERO)
         weights = PSMatrixZeros(2, rows, columns);
-    else {
+    else if (ldef->weight_init_mode == INIT_MODE_VALUE) {
+        PSFloat init_value = ldef->init_value;
+        weights = PSMatrixCreate(init_value, NULL, 2, rows, columns);
+    } else {
         if (ldef->weight_init_mode == INIT_MODE_RAND) {
             range = ldef->init_range;
             scale = ldef->init_scale;
@@ -2106,6 +2117,8 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
     } else if (type == Embedding) {
         initialized = PSInitEmbeddingLayer(layer, size, previous_size,
                                            layer_def);
+    } else if (type == Normalization) {
+        initialized = PSInitNormalizationLayer(layer, layer_def);
     } else PSErr(__func__, "Invalid layer type %d", type);
     if (!initialized) goto fail;
     if (layer->index > 0 && layer->delta == NULL) {

@@ -256,6 +256,8 @@ static PSLayerType getLayerType(char *name, int *is_cifar) {
         return Dropout;
     else if (strcasecmp("embedding", name) == 0)
         return Embedding;
+    else if (strcasecmp("normalization", name) == 0)
+        return Normalization;
     else if (strcasecmp("cifar", name) == 0) {
         *is_cifar = 1;
         return FullyConnected;

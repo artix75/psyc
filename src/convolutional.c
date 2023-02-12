@@ -653,6 +653,7 @@ int PSInitPoolingLayer(PSNeuralNetwork *network, PSLayer *layer,
     layer->biases = NULL;
     layer->on_delete = PSDeleteConvolutionalLayer;
     layer->on_copy = PSConvolutionalLayerCopy;
+    layer->flags |= FLAG_NON_TRAINABLE;
     PSLayer *previous = network->layers[index - 1];
     if (previous->type != Convolutional) {
         PSErr(
