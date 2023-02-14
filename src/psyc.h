@@ -315,7 +315,6 @@ PSFloat *PSGetStates(PSLayer *layer, ...);
 PSFloat PSGetNeuronState(PSNeuron *neuron, ...);
 int PSSetState(PSLayer *layer, PSFloat state, int index, ...);
 int PSSetNeuronState(PSNeuron *neuron, double state, ...);
-int PSCheckNetwork(PSNeuralNetwork *network);
 int PSFeedforward(PSNeuralNetwork *network, PSFloat *values);
 int PSClassify(PSNeuralNetwork *network, PSFloat *values);
 int PSFindLayerMaxState(PSLayer *layer, PSFloat *max_p, int *index_p,...);
