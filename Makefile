@@ -19,6 +19,8 @@ neural_cli:
 	@cd src && $(MAKE)
 test:
 	cd src/test && $(MAKE)
+benchmark:
+	cd src/test && $(MAKE) benchmark
 profile:
 	cd src/debug && $(MAKE)
 clean:

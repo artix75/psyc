@@ -2524,6 +2524,7 @@ int testMathsDot(TestCase *tc, Test *test) {
     }
 #endif
 #ifdef USE_AVX
+    opts.acceleration = PSAcceleration_AVX;
     ok = PSDot(matrix, y, res, &opts);
     testAssert(ok, test);
     ok = compareArrays(res, cmp_res, 2, test, "AVX", decrnd);

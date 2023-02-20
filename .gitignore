@@ -11,6 +11,7 @@ lib/*
 !lib/README
 tmp/*
 src/test/main_tests
+src/test/benchmark
 src/debug/profile
 .DS_Store
 src/demo/cifar-10-batches-bin/

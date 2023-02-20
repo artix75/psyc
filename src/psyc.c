@@ -2919,7 +2919,7 @@ int PSFullBackprop(PSLayer *layer, PSLayer *previous_layer,
             delta[i] = d;
         }
     }
-    /* Update gradient (Softmax layer) */
+    /* Update gradient */
     if (use_bias) PSSumVectors(
         delta, gradient->biases, gradient->biases, layer->size, &mopts
     );
