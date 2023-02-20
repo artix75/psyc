@@ -800,6 +800,81 @@ final:
     return ok;
 }
 
+int optimDefaultBenchmark(PSBenchmarkConfig *cfg, int *num_results,
+                          PSBenchmarkResults *results)
+{
+    PS_BENCHMARK_PREAMBLE(cfg, results);
+    assert(cfg->argc > 0 && cfg->argv != NULL);
+    int size = *((int *) cfg->argv), ok = 1;
+    assert(size > 0);
+    int use_momentum = 0;
+    if (cfg->argc > 1) use_momentum = *(((int *) cfg->argv) + 1);
+    PSMatrix x = PSMatrixWithGaussianRandom(1, 1, size);
+    PSMatrix y = PSMatrixWithGaussianRandom(1, 1, size);
+    PSFloat *dest = malloc(size * sizeof(PSFloat));
+    PSFloat *mem = malloc(size * sizeof(PSFloat));
+    if (x == NULL || y == NULL || dest == NULL || mem == NULL) {
+        PSPrintMemoryErrorMsg();
+        ok = 0;
+        goto final;
+    }
+    assert(PSMatrixLength(x) == (size_t) size);
+    PSMathOpts opts = {0};
+    PSFloat rate = 0.1, momentum = 0.0;
+    if (use_momentum) momentum = 0.9;
+    PSBenchmarkResults *res = results;
+    int acceleration = 0;
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    acceleration = PSAcceleration_ACF;
+    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    opts.acceleration = PSAcceleration_ACF;
+    memcpy(dest, x, size * sizeof(PSFloat));
+    PSBenchmarkMeasure(res, (
+        ok = PSDefaultOptimization(
+            x, y, mem, NULL, NULL, NULL, NULL, rate, momentum,
+            size, acceleration, 0, NULL
+        )
+    ));
+    if (!ok) goto final;
+    *num_results += 1;
+    res += 1;
+#endif
+#ifdef USE_AVX
+    acceleration = PSAcceleration_AVX;
+    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    opts.acceleration = PSAcceleration_ACF;
+    memcpy(dest, x, size * sizeof(PSFloat));
+    PSBenchmarkMeasure(res, (
+        ok = PSDefaultOptimization(
+            x, y, mem, NULL, NULL, NULL, NULL, rate, momentum,
+            size, acceleration, 0, NULL
+        )
+    ));
+    if (!ok) goto final;
+    *num_results += 1;
+    res += 1;
+#endif
+    acceleration = PSAcceleration_None;
+    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    opts.acceleration = PSAcceleration_ACF;
+    memcpy(dest, x, size * sizeof(PSFloat));
+    PSBenchmarkMeasure(res, (
+        ok = PSDefaultOptimization(
+            x, y, mem, NULL, NULL, NULL, NULL, rate, momentum,
+            size, acceleration, 0, NULL
+        )
+    ));
+    if (!ok) goto final;
+    *num_results += 1;
+    res += 1;
+final:
+    if (x != NULL) PSMatrixDelete(x);
+    if (y != NULL) PSMatrixDelete(y);
+    free(dest);
+    free(mem);
+    return ok;
+}
+
 /* Benchmark configurations */
 PSBenchmarkConfig bechmarks[] = {
     /*{"Dummy", NULL, 3, 1, dummyBenchmark, 0, NULL},*/
@@ -862,6 +937,31 @@ PSBenchmarkConfig bechmarks[] = {
     {"PSReluV (10000)", &activation_tag, 0, 10, actReluBenchmark,
      1, INTARGS(10000)},
     {"PSReluV (100000)", &activation_tag, 0, 10, actReluBenchmark,
+     1, INTARGS(100000)},
+    {"PSSigmoidDerivativeV (1000)", &activation_tag, 0, 10,
+      actSigmoidDerivBenchmark, 1, INTARGS(1000)},
+    {"PSSigmoidDerivativeV (10000)", &activation_tag, 0, 10,
+     actSigmoidDerivBenchmark, 1, INTARGS(10000)},
+    {"PSSigmoidDerivativeV (100000)", &activation_tag, 0, 10,
+     actSigmoidDerivBenchmark, 1, INTARGS(100000)},
+    {"PSTanhDerivativeV (1000)", &activation_tag, 0, 10,
+      actTanhDerivBenchmark, 1, INTARGS(1000)},
+    {"PSTanhDerivativeV (10000)", &activation_tag, 0, 10,
+     actTanhDerivBenchmark, 1, INTARGS(10000)},
+    {"PSTanhDerivativeV (100000)", &activation_tag, 0, 10,
+     actTanhDerivBenchmark, 1, INTARGS(100000)},
+    {"PSReluDerivativeV (1000)", &activation_tag, 0, 10,
+      actReluDerivBenchmark, 1, INTARGS(1000)},
+    {"PSReluDerivativeV (10000)", &activation_tag, 0, 10,
+     actReluDerivBenchmark, 1, INTARGS(10000)},
+    {"PSReluDerivativeV (100000)", &activation_tag, 0, 10,
+     actReluDerivBenchmark, 1, INTARGS(100000)},
+    {"PSDefaultOptimization (1000)", &optimization_tag, 0, 10,
+     optimDefaultBenchmark, 1, INTARGS(1000)},
+    {"PSDefaultOptimization (10000)", &optimization_tag, 0, 10,
+     optimDefaultBenchmark, 1, INTARGS(10000)},
+    {"PSDefaultOptimization (100000)", &optimization_tag, 0, 10,
+     optimDefaultBenchmark,
      1, INTARGS(100000)},
 };
 
