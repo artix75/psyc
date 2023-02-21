@@ -289,6 +289,18 @@ PSMatrix PSMatrixRandom(int ndims, ...) {
     return matrix;
 }
 
+PSMatrix PSMatrixFromArray(PSFloat *array, int ndims, ...) {
+    if (array == NULL) return NULL;
+    PSMatrix matrix = NULL;
+    va_list args;
+    va_start(args, ndims);
+    matrix = PSMatrixCreateV(0, matrixRandomInitializer, ndims, args);
+    va_end(args);
+    size_t array_size = PSMatrixLength(matrix) * sizeof(PSFloat);
+    memcpy(matrix, array, array_size);
+    return matrix;
+}
+
 PSMatrix PSMatrixDup(PSMatrix matrix) {
     if (matrix == NULL) return NULL;
     uint64_t len = PSMatrixLength(matrix);
@@ -346,6 +358,48 @@ int PSMatrixCopy(PSMatrix src, PSMatrix dst) {
     return 1;
 }
 
+/* Expand matrix `src` by adding `add` to its first dimension. Added data will
+ * be set to zero.
+ * Beware of the fact that `src` matrix could be freed after the process,
+ * so always assing the return value of this function to a new variable, since
+ * it could lead to memory leaks in case of a NULL return value. Also beware of
+ * the fact that the original variable holding `src` could point to freed
+ * memry after function returns. */
+PSMatrix PSMatrixExpand(PSMatrix src, int add) {
+    if (src == NULL) return NULL;
+    if (add <= 0) return src;
+    PSMatrix matrix = NULL;
+    PSMatrixHeader *src_hdr = PSMatrixGetHeader(src);
+    if (src_hdr->transposed_from != NULL) {
+        matrix = PSMatrixExpand(src_hdr->transposed_from, add);
+        if (matrix == NULL) return NULL;
+        PSMathOpts opts = {.acceleration = PSGlobalAcceleration};
+        return PSMatrixTranspose(matrix, 1, &opts);
+    }
+    if (src_hdr->transposed != NULL) {
+        PSMatrixDelete(src_hdr->transposed);
+        src_hdr->transposed = NULL;
+    }
+    int new_dim = src_hdr->dims[0] + add;
+    uint64_t cur_len = src_hdr->length, new_len = (uint64_t) new_dim;
+    for (int i = 1; i < src_hdr->ndims; i++) new_len *= src_hdr->dims[i];
+    size_t datasize = ((size_t) new_len * sizeof(PSFloat));
+    size_t size = PSMatrixHeaderSize + datasize;
+    PSMatrixHeader *new_hdr = realloc(src_hdr, size);
+    if (new_hdr == NULL) {
+        PSPrintMemoryErrorMsg();
+        return NULL;
+    }
+    new_hdr->dims[0] = new_dim;
+    new_hdr->length = new_len;
+    new_hdr->transposed = NULL;
+    new_hdr->transposed_from = NULL;
+    matrix = (PSMatrix) (new_hdr + 1);
+    size_t added_size = ((size_t)(new_len - cur_len) * sizeof(PSFloat));
+    memset(((PSFloat *) matrix) + cur_len, 0, added_size);
+    return matrix;
+}
+
 int PSMatrixNumDims(PSMatrix matrix) {
     if (matrix == NULL) return 0;
     PSMatrixHeader *hdr = PSMatrixGetHeader(matrix);
@@ -382,15 +436,15 @@ int PSMatrixStride(PSMatrix matrix, int dim) {
     return hdr->dims[refdim];
 }
 
-PSFloat *PSMatrixValues(PSMatrix matrix, uint32_t *len, int argc, ...) {
+PSFloat *PSMatrixGet(PSMatrix matrix, int ndims, uint32_t *len, ...) {
     if (matrix == NULL) return NULL;
     PSMatrixHeader *hdr = PSMatrixGetHeader(matrix);
     PSFloat *values = matrix;
     int stride = 1;
-    if (argc > hdr->ndims) argc = hdr->ndims;
+    if (ndims > hdr->ndims) ndims = hdr->ndims;
     va_list args;
-    va_start(args, argc);
-    for (int i = 0; i < argc; i++) {
+    va_start(args, len);
+    for (int i = 0; i < ndims; i++) {
         int refdim = i + 1;
         if (refdim >= hdr->ndims) stride = 1;
         else stride = hdr->dims[refdim];

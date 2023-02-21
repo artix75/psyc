@@ -85,12 +85,14 @@ PSMatrix PSMatrixCreate(PSFloat init_value, PSMatrixInitializer initializer,
 PSMatrix PSMatrixZeros(int ndims, ...);
 PSMatrix PSMatrixRandom(int ndims, ...);
 PSMatrix PSMatrixWithGaussianRandom(PSFloat stddev, int ndims, ...);
+PSMatrix PSMatrixFromArray(PSFloat *array, int ndims, ...);
+PSMatrix PSMatrixExpand(PSMatrix src, int add);
 int PSMatrixNumDims(PSMatrix matrix);
 int PSMatrixDim(PSMatrix matrix, int dim);
 int PSMatrixDimensions(PSMatrix matrix, int *dims);
 size_t PSMatrixLength(PSMatrix matrix);
 int PSMatrixStride(PSMatrix matrix, int dim);
-PSFloat *PSMatrixValues(PSMatrix matrix, uint32_t *len, int argc, ...);
+PSFloat *PSMatrixGet(PSMatrix matrix, int ndims, uint32_t *len, ...);
 int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result);
 int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result);
 int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result);

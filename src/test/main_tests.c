@@ -139,6 +139,7 @@ int testMathsStd(TestCase *tc, Test *test);
 int testMathsMatrixCopy(TestCase *tc, Test *test);
 int testMathsMatrixDup(TestCase *tc, Test *test);
 int testMathsMatrixTranspose(TestCase *tc, Test *test);
+int testMathsMatrixExpand(TestCase *tc, Test *test);
 
 int testActSigmoid(TestCase *tc, Test *test);
 int testActSigmoidDeriv(TestCase *tc, Test *test);
@@ -571,7 +572,8 @@ int main(int argc, char** argv) {
         addTest(mathsTests, "Variance", NULL, testMathsVar);
         addTest(mathsTests, "StdDev", NULL, testMathsStd);
         addTest(mathsTests, "Matrix Copy", NULL, testMathsMatrixCopy);
-        addTest(mathsTests, "Matrix Dup.", NULL, testMathsMatrixDup);;
+        addTest(mathsTests, "Matrix Dup.", NULL, testMathsMatrixDup);
+        addTest(mathsTests, "Matrix Expand", NULL, testMathsMatrixExpand);
         addTest(mathsTests, "Matrix Transp.", NULL, testMathsMatrixTranspose);
         performTests(mathsTests);
         tot_tests += mathsTests->count;
@@ -3299,6 +3301,56 @@ fail:
 final:
     PSMatrixDelete(m2d);
     PSMatrixDelete(m3d);
+    return res;
+}
+
+int testMathsMatrixExpand(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    int res = 1;
+    PSMatrix src = PSMatrixRandom(2, 2, 4), expanded = NULL;
+    PSFloat *srcvalues = NULL;
+    testAssertNotNull(src, test);
+    uint64_t curlen = PSMatrixLength(src);
+    srcvalues = malloc(curlen * sizeof(PSFloat));
+    testAssertWithMessageOrGoto(srcvalues != NULL, fail, test, "%s", "");
+    memcpy(srcvalues, src, curlen * sizeof(PSFloat));
+    testAssertWithMessageOrGoto(
+        curlen == (2 * 4), fail, test,
+        "Current length is %lld, expected: %d",
+        curlen, (2 * 4)
+    );
+    expanded = PSMatrixExpand(src, 1);
+    testAssertWithMessageOrGoto(
+        expanded != NULL, fail, test, "PSMatrixExpand returned NULL%s",""
+    );
+    src = NULL;
+    uint64_t newlen = PSMatrixLength(expanded), expectedlen = (3 * 4), i;
+    testAssertWithMessageOrGoto(
+        (newlen == expectedlen), fail, test,
+        "Expected len is %lld, got: %lld", (int) expectedlen, (int) newlen
+    );
+    for (i = 0; i < curlen; i++) {
+        PSFloat srci = srcvalues[i], dsti = expanded[i];
+        testAssertWithMessageOrGoto(
+            (srci == dsti), fail, test,
+            "Source[%d] != Expanded[%d] -> %g != %g",
+            (int) i, (int) i, srci, dsti
+        );
+    }
+    for (; i < newlen; i++) {
+        PSFloat dsti = expanded[i];
+        testAssertWithMessageOrGoto(
+            (dsti == 0.0), fail, test, "Expanded[%d] != 0.0 -> %g != 0.0",
+            (int) i, dsti
+        );
+    }
+    goto final;
+fail:
+    res = 0;
+final:
+    if (src != NULL) PSMatrixDelete(src);
+    if (expanded != NULL) PSMatrixDelete(expanded);
+    free(srcvalues);
     return res;
 }
 
