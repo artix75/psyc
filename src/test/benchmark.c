@@ -875,6 +875,66 @@ final:
     return ok;
 }
 
+int fullnetFeedforwardBenchmark(PSBenchmarkConfig *cfg, int *num_results,
+                                PSBenchmarkResults *results)
+{
+    PS_BENCHMARK_PREAMBLE(cfg, results);
+    assert(cfg->argc == 2 && cfg->argv != NULL);
+    int *intargs = (int *) cfg->argv;
+    int input_size = intargs[0], layer_size = intargs[1], ok = 1;
+    assert(input_size > 0);
+    assert(layer_size > 0);
+    PSNeuralNetwork *network = PSCreateNetwork("Fullly connected benchmark");
+    PSMatrix x = PSMatrixWithGaussianRandom(1, 1, input_size);
+    if (x == NULL || network == NULL) {
+        PSPrintMemoryErrorMsg();
+        ok = 0;
+        goto final;
+    }
+    ok = PSAddLayer(network, FullyConnected, input_size, NULL) != NULL;
+    if (!ok) goto final;
+    ok = PSAddLayer(network, FullyConnected, layer_size, NULL) != NULL;
+    if (!PSIsNetworkBuilt(network)) PSBuildNetwork(network);
+    ok = PSIsNetworkBuilt(network);
+    if (!ok) {
+        PSErr(__func__, "Could not build network");
+        goto final;
+    }
+    PSBenchmarkResults *res = results;
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    network->acceleration = PSAcceleration_ACF;
+    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PSBenchmarkMeasure(res, (
+        ok = PSFeedforward(network, x)
+    ));
+    if (!ok) goto final;
+    *num_results += 1;
+    res += 1;
+#endif
+#ifdef USE_AVX
+    network->acceleration = PSAcceleration_AVX;
+    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    PSBenchmarkMeasure(res, (
+        ok = PSFeedforward(network, x)
+    ));
+    if (!ok) goto final;
+    *num_results += 1;
+    res += 1;
+#endif
+    network->acceleration = PSAcceleration_None;
+    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    PSBenchmarkMeasure(res, (
+        ok = PSFeedforward(network, x)
+    ));
+    if (!ok) goto final;
+    *num_results += 1;
+    res += 1;
+final:
+    if (x != NULL) PSMatrixDelete(x);
+    if (network != NULL) PSDeleteNetwork(network);
+    return ok;
+}
+
 /* Benchmark configurations */
 PSBenchmarkConfig bechmarks[] = {
     /*{"Dummy", NULL, 3, 1, dummyBenchmark, 0, NULL},*/
@@ -961,8 +1021,13 @@ PSBenchmarkConfig bechmarks[] = {
     {"PSDefaultOptimization (10000)", &optimization_tag, 0, 10,
      optimDefaultBenchmark, 1, INTARGS(10000)},
     {"PSDefaultOptimization (100000)", &optimization_tag, 0, 10,
-     optimDefaultBenchmark,
-     1, INTARGS(100000)},
+     optimDefaultBenchmark, 1, INTARGS(100000)},
+    {"FullyConnected Feed (500,1000)", &fullnet_tag, 0, 10,
+     fullnetFeedforwardBenchmark, 2, INTARGS(500,1000)},
+    {"FullyConnected Feed (5000,10000)", &fullnet_tag, 0, 10,
+     fullnetFeedforwardBenchmark, 2, INTARGS(5000,10000)},
+    {"FullyConnected Feed (10000,20000)", &fullnet_tag, 0, 10,
+     fullnetFeedforwardBenchmark, 2, INTARGS(10000,20000)},
 };
 
 /* Main functions */
