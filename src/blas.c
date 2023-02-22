@@ -73,7 +73,7 @@ static void HandleBLASError(const char *func, const char *param,
     if (param_pos != NULL) pos = *param_pos;
     if (param_val != NULL) val = *param_val;
     PSErr(
-        NULL, "BLAS Error in func '%s': invalid value %d for param '%s'",
+        NULL, "\nBLAS Error in func '%s': invalid value %d for param '%s'",
         func, val, param
     );
     _BLASLastErr.func = func;

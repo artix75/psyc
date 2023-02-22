@@ -93,9 +93,11 @@ int PSMatrixDimensions(PSMatrix matrix, int *dims);
 size_t PSMatrixLength(PSMatrix matrix);
 int PSMatrixStride(PSMatrix matrix, int dim);
 PSFloat *PSMatrixGet(PSMatrix matrix, int ndims, uint32_t *len, ...);
-int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result);
-int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result);
-int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result);
+int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt);
+int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
+                      PSMathOpts *opts);
+int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
+                      PSMathOpts *opts);
 PSMatrix PSMatrixTranspose(PSMatrix matrix, int rebuild, PSMathOpts *opts);
 void PSMatrixResetTransposed(PSMatrix matrix);
 PSMatrix PSMatrixDup(PSMatrix matrix);

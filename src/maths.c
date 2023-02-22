@@ -462,7 +462,20 @@ PSFloat *PSMatrixGet(PSMatrix matrix, int ndims, uint32_t *len, ...) {
     return values;
 }
 
-int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result) {
+/* Performs matrix-vector multiplication between matrix `a` and vector `b`.
+ * Results are stored into vector pointed by pointer `result`. If pointer
+ * pointed by `result` is NULL, a new vector is automatically allocated
+ * by the function itself and its pointer will be stored into `result`.
+ * By defaults, function uses BLAS to compute the result. Anyway, if BLAS
+ * support is missing in PsyC build, function will compute results by
+ * using `PSMultiplyVectors` as fallback.
+ * By default, data in result vector will be overwritten. Anyaway, if
+ * `MATHS_STORE_MODE_ADD` is set as `store_mode` into `opts`, result will
+ * be added to data already present in the result vector.
+ * Return value: 1 if operation succeeds, 0 if ti fails. */
+int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
+                      PSMathOpts *opts)
+{
     if (result == NULL) {
         PSErr(__func__, "argument result cannot be null");
         return 0;
@@ -505,16 +518,35 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result) {
     }
     int lda = (dims_a[1] > 1 ? dims_a[1] : 1);
     int m = dims_a[0], n = dims_a[1];
+    PSFloat beta = 0.0;
+    if (opts != NULL && opts->store_mode == MATHS_STORE_MODE_ADD)
+        beta = 1.0;
 #ifndef HAS_BLAS
-    for (int i = 0; i < m; i += lda) out[i] = PSDotProduct(a, b, n, NULL);
+    int do_add = (beta == 1.0);
+    for (int i = 0; i < m; i += lda) {
+        if (!do_add) out[i] = PSDotProduct(a, b, n, opts);
+        else out[i] += PSDotProduct(a, b, n, opts);
+    }
     return 1;
 #endif
-    PSGemv(order, 'N', m, n, 1.0, a, lda, b, 1, 0.0, out, 1);
+    PSGemv(order, 'N', m, n, 1.0, a, lda, b, 1, beta, out, 1);
     if (PSBLASLastError != NULL) return 0;
     return 1;
 }
 
-int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result) {
+/* Performs vector-matrix multiplication between vector `a` and matrix `b`.
+ * Results are stored into matrix pointed by `result`. If pointer
+ * pointed by `result` is NULL, a new matrix is automatically allocated
+ * by the function itself and its pointer will be stored into `result`.
+ * The function uses BLAS to compute the result, so, if BLAS support is
+ * missing in PsyC build, function will fail.
+ * By default, data in result vector will be overwritten. Anyaway, if
+ * `MATHS_STORE_MODE_ADD` is set as `store_mode` into `opts`, result will
+ * be added to data already present in the result vector.
+ * Return value: 1 if operation succeeds, 0 if ti fails. */
+int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
+                      PSMathOpts *opts)
+{
 #ifndef HAS_BLAS
     PSErr(__func__, "BLAS is disabled");
     return 0;
@@ -570,12 +602,26 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result) {
     }
     int lda = (dims_b[1] > 1 ? dims_b[1] : 1);
     int m = dims_b[0], n = dims_b[1];
-    PSGemv(order, 'N', m, n, 1.0, b, lda, a, 1, 0.0, out, 1);
+    PSFloat beta = 0.0;
+    if (opts != NULL && opts->store_mode == MATHS_STORE_MODE_ADD) beta = 1.0;
+    PSGemv(order, 'N', m, n, 1.0, b, lda, a, 1, beta, out, 1);
     if (PSBLASLastError != NULL) return 0;
     return 1;
 }
 
-int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result) {
+/* Performs matrix-matrix multiplication between matrix `a` and vector `b`.
+ * Results are stored into matrix pointed by `result`. If pointer
+ * pointed by `result` is NULL, a new matrix is automatically allocated
+ * by the function itself and its pointer will be stored into `result`.
+ * By defaults, function uses BLAS to compute the result. Anyway, if BLAS
+ * support is missing in PsyC build and `b` only has one dimension, function
+ * will try compute results by using `PSMultiplyVectors` as fallback (for all
+ * other cases, it will fail).
+ * By default, data in result vector will be overwritten. Anyaway, if
+ * `MATHS_STORE_MODE_ADD` is set as `store_mode` into `opt`, result will
+ * be added to data already present in the result vector.
+ * Return value: 1 if operation succeeds, 0 if ti fails. */
+int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
     if (result == NULL) {
         PSErr(__func__, "argument result cannot be null");
         return 0;
@@ -635,17 +681,23 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result) {
     int a_vector_like = (ndims_a == 1),
         b_vector_like = (ndims_b == 1);
     PSBLASOrder order;
+    PSFloat beta = 0.0;
+    if (opt != NULL && opt->store_mode == MATHS_STORE_MODE_ADD) beta = 1.0;
     if (!a_vector_like && b_vector_like) {
         /* Matrix vector multiplication -- Level 2 BLAS */
+#ifndef HAS_BLAS
+        int do_add = (beta == 1.0);
+        for (int i = 0; i < m; i += lda) {
+            if (!do_add) out[i] = PSDotProduct(a, b, n, NULL);
+            else out[i] += PSDotProduct(a, b, n, NULL);
+        }
+        return 1;
+#endif
         order = PSBLASRowMajor;
         lda = (dims_a[1] > 1 ? dims_a[1] : 1);
         int bs = PSMatrixStride(b, 0);
         int m = dims_a[0], n = dims_a[1];
-#ifndef HAS_BLAS
-        for (int i = 0; i < m; i += lda) out[i] = PSDotProduct(a, b, n, NULL);
-        return 1;
-#endif
-        PSGemv(order, 'N', m, n, 1.0, a, lda, b, bs, 0.0, out, 1);
+        PSGemv(order, 'N', m, n, 1.0, a, lda, b, bs, beta, out, 1);
     } else if (a_vector_like && !b_vector_like) {
         /* Vector matrix multiplication -- Level 2 BLAS */
 #ifndef HAS_BLAS
@@ -656,7 +708,7 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result) {
         lda = (dims_b[1] > 1 ? dims_b[1] : 1);
         int as = PSMatrixStride(a, 0);
         int m = dims_b[0], n = dims_b[1];
-        PSGemv(order, 'N', m, n, 1.0, b, lda, a, as, 0.0, out, 1);
+        PSGemv(order, 'N', m, n, 1.0, b, lda, a, as, beta, out, 1);
     } else {
         /* Matrix matrix multiplication -- Level 3 BLAS */
 #ifndef HAS_BLAS
@@ -665,9 +717,9 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result) {
 #endif
         order = PSBLASRowMajor;
         char trans1 = 'N', trans2 = 'N';
-        int l = dims_a[0];
+        int m = dims_a[0];
         int n = dims_b[1];
-        int m = dims_b[0];
+        int k = dims_b[0];
         lda = (dims_a[1] > 1 ? dims_a[1] : 1);
         ldb = (dims_b[1] > 1 ? dims_b[1] : 1);
         size_t alen = PSMatrixLength(a), blen = PSMatrixLength(b);
@@ -682,7 +734,7 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result) {
         } else {
             int odim1 = PSMatrixDim(out, 1);
             int ldc = ((odim1 > 1) ? odim1 : 1);
-            PSGemm(order, trans1, trans2, l, n, m, 1.0, a, lda, b, ldb, 0.0,
+            PSGemm(order, trans1, trans2, m, n, k, 1.0, a, lda, b, ldb, beta,
                    out, ldc);
         }
     }
@@ -1504,31 +1556,29 @@ int PSDot(PSMatrix matrix, PSFloat *vector, PSFloat *dest, PSMathOpts *opts) {
         tmpdest = opts->tmpdest;
     }
     int do_process = (
-        vec2add != NULL || after != NULL || max != NULL ||
-        store_mode != MATHS_STORE_MODE_NORM
+        vec2add != NULL || after != NULL || max != NULL
     );
     /* TODO: implement "auto" acceleration type selection */
-    /* TODO: WARN: BLAS can only be used with Apple Accelerate Framework! */
-#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+#ifdef HAS_BLAS
     if (PSBLASEnabled(acceleration)) {
         PSFloat *dpdest = dest;
-        if (store_mode) {
+        if (store_mode && store_mode != MATHS_STORE_MODE_ADD) {
             dpdest = tmpdest;
             if (dpdest == NULL) dpdest = malloc(rows * sizeof(PSFloat));
             if (dpdest == NULL) {
                 PSPrintMemoryErrorMsg();
                 return 0;
             }
+            do_process = 1;
         }
         int do_free_dpdest = (dpdest != dest && dpdest != tmpdest);
-        if (!PSMatrixProductMV(matrix, vector, len, &dpdest)) {
+        if (!PSMatrixProductMV(matrix, vector, len, &dpdest, opts)) {
             if (do_free_dpdest) free(dpdest);
             return 0;
         }
         if (do_process) {
             for (i = 0; i < rows; i++) {
-                if (store_mode == MATHS_STORE_MODE_ADD) dest[i] += dpdest[i];
-                else if (store_mode == MATHS_STORE_MODE_SUB) dest[i]-=dpdest[i];
+                if (store_mode == MATHS_STORE_MODE_SUB) dest[i]-=dpdest[i];
                 if (vec2add != NULL) dest[i] += vec2add[i];
                 if (after != NULL) dest[i] = after(dest[i]);
                 if (max != NULL && (i == 0 || dest[i] > *max)) *max = dest[i];
@@ -1540,6 +1590,7 @@ int PSDot(PSMatrix matrix, PSFloat *vector, PSFloat *dest, PSMathOpts *opts) {
 #else
     UNUSED(tmpdest);
     UNUSED(acceleration);
+    if (!do_process) do_process = store_mode != MATHS_STORE_MODE_NORM;
 #endif
     PSFloat *mptr = matrix;
     for (i = 0; i < rows; i++) {
