@@ -1630,10 +1630,7 @@ int PSVectorProduct(PSFloat *a, PSFloat *b, PSFloat *dest,
         store_mode = opts->store_mode;
         tmpdest = opts->tmpdest;
     }
-    int do_process = (
-        vec2add != NULL || after != NULL || max != NULL ||
-        store_mode != MATHS_STORE_MODE_NORM
-    );
+    int do_process = (vec2add != NULL || after != NULL || max != NULL);
 #if defined(HAS_BLAS) || defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     uint64_t dstlen = alen * blen;
     PSFloat *vpdest = dest;
@@ -1641,7 +1638,7 @@ int PSVectorProduct(PSFloat *a, PSFloat *b, PSFloat *dest,
         acf_enabled = PSACFEnabled(acceleration),
         do_free_vpdest = 0, use_acceleration = (blas_enabled || acf_enabled);
     if (!use_acceleration) goto no_acceleration;
-    if (store_mode) {
+    if (store_mode && store_mode != MATHS_STORE_MODE_ADD && !blas_enabled) {
         vpdest = tmpdest;
         if (vpdest == NULL) vpdest = malloc(dstlen * sizeof(PSFloat));
         if (vpdest == NULL) {
@@ -1655,11 +1652,18 @@ int PSVectorProduct(PSFloat *a, PSFloat *b, PSFloat *dest,
         PSBLASOrder order = PSBLASRowMajor;
         char trans1 = 'N', trans2 = 'N';
         int m = 1, lda = 1, ldb = blen, ldc = blen;
-        PSGemm(order, trans1, trans2, alen, blen, m, 1.0, a, lda, b, ldb, 0.0,
+        PSFloat beta = 0.0;
+        if (store_mode == MATHS_STORE_MODE_ADD) {
+            beta = 1.0;
+            store_mode = MATHS_STORE_MODE_NORM;
+        }
+        PSGemm(order, trans1, trans2, alen, blen, m, 1.0, a, lda, b, ldb, beta,
                vpdest, ldc);
         if (PSBLASLastError != NULL) return 0;
         goto acceleration_done;
     }
+#else
+    if (!do_process) do_process = store_mode != MATHS_STORE_MODE_NORM;
 #endif
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     if (acf_enabled) {
@@ -1682,6 +1686,7 @@ acceleration_done:
 #else
     UNUSED(tmpdest);
     UNUSED(acceleration);
+    if (!do_process) do_process = store_mode != MATHS_STORE_MODE_NORM;
 #endif
 no_acceleration:
     for (i = 0; i < alen; i++) {
