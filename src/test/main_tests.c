@@ -140,6 +140,9 @@ int testMathsMatrixCopy(TestCase *tc, Test *test);
 int testMathsMatrixDup(TestCase *tc, Test *test);
 int testMathsMatrixTranspose(TestCase *tc, Test *test);
 int testMathsMatrixExpand(TestCase *tc, Test *test);
+int testMathsMatrixProduct(TestCase *tc, Test *test);
+int testMathsMatrixProductMV(TestCase *tc, Test *test);
+int testMathsMatrixProductVM(TestCase *tc, Test *test);
 
 int testActSigmoid(TestCase *tc, Test *test);
 int testActSigmoidDeriv(TestCase *tc, Test *test);
@@ -575,6 +578,11 @@ int main(int argc, char** argv) {
         addTest(mathsTests, "Matrix Dup.", NULL, testMathsMatrixDup);
         addTest(mathsTests, "Matrix Expand", NULL, testMathsMatrixExpand);
         addTest(mathsTests, "Matrix Transp.", NULL, testMathsMatrixTranspose);
+        addTest(mathsTests, "Matrix Product", NULL, testMathsMatrixProduct);
+        addTest(mathsTests, "Matrix Product (MV)", NULL,
+                testMathsMatrixProductMV);
+        addTest(mathsTests, "Matrix Product (VM)", NULL,
+                testMathsMatrixProductVM);
         performTests(mathsTests);
         tot_tests += mathsTests->count;
         tot_failed += mathsTests->failed_count;
@@ -3351,6 +3359,226 @@ final:
     if (src != NULL) PSMatrixDelete(src);
     if (expanded != NULL) PSMatrixDelete(expanded);
     free(srcvalues);
+    return res;
+}
+
+int testMathsMatrixProduct(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    int res = 1;
+    PSMatrix a = NULL, b = NULL, c = NULL, result = NULL;
+#ifndef HAS_BLAS
+    goto final;
+#endif
+    PSFloat avalues[] = {1, 2, 3, 4, 5, 6};
+    PSFloat bvalues[] = {1, 2, 3, 4, 5, 6};
+    PSFloat cvalues[] = {1, 2, 3, 4, 5, 6, 3, 2, 1, 6, 5, 4};
+    PSFloat ab_expected[] = {22, 28, 49, 64}; /* a * b */
+    PSFloat act_expected[] = {14, 32, 10, 28, 32, 77, 28, 73}; // a * c(t)
+    PSFloat btb_expected[] = {35, 44, 44, 56};/* b(t) * b */
+    PSFloat atbt_expected[] = {9, 19, 29, 12, 26,
+                              40, 15, 33, 51}; /* a(t) @ b(t) */
+    int ab_l = sizeof(ab_expected) / sizeof(PSFloat);
+    int btb_l = sizeof(btb_expected) / sizeof(PSFloat);
+    int act_l = sizeof(act_expected) / sizeof(PSFloat);
+    int atbt_l = sizeof(atbt_expected) / sizeof(PSFloat);
+    int rlen = 0;
+    a = PSMatrixFromArray(avalues, 2, 2, 3);
+    b = PSMatrixFromArray(bvalues, 2, 3, 2);
+    c = PSMatrixFromArray(cvalues, 2, 4, 3);
+    testAssertWithMessageOrGoto(
+        a != NULL, final, test, "matrix `%s` is NULL%s", "a"
+    );
+    testAssertWithMessageOrGoto(
+        b != NULL, final, test, "matrix `%s` is NULL%s", "b"
+    );
+    testAssertWithMessageOrGoto(
+        c != NULL, final, test, "matrix `%s` is NULL%s", "c"
+    );
+    PSMathOpts opts = {.acceleration = PSGlobalAcceleration};
+
+    opts.transpose = 0;
+    res = PSMatrixProduct(a, b, &result, &opts);
+    testAssertWithMessageOrGoto(
+        res, final, test, "Failed PSMatrixProduct(%s,%s) (transp = 0)", "a","b"
+    );
+    testAssertWithMessageOrGoto(
+        result != NULL, final, test, "No result for PSMatrixProduct(%s,%s) "
+        "(transp = 0)", "a","b"
+    );
+    rlen = PSMatrixLength(result);
+    testAssertWithMessageOrGoto(
+        rlen == ab_l, final, test,
+        "Length of result for PSMatrixProduct(%s,%s) is %d, should be %d",
+        "a", "b", rlen, ab_l
+    );
+    res = compareArrays(result, ab_expected, ab_l, test,
+                        "a * b", 0);
+    testAssertWithMessageOrGoto(
+        res, final, test, "Result != expected for PSMatrixProduct(%s,%s)",
+        "a", "b"
+    );
+
+    PSMatrixDelete(result);
+    result = NULL;
+    opts.transpose = 1;
+    res = PSMatrixProduct(b, b, &result, &opts);
+    testAssertWithMessageOrGoto(
+        res, final, test, "Failed PSMatrixProduct(%s,%s) (transp = 1)", "b","b"
+    );
+    testAssertWithMessageOrGoto(
+        result != NULL, final, test, "No result for PSMatrixProduct(%s,%s) "
+        "(transp = 1)", "b","b"
+    );
+    rlen = PSMatrixLength(result);
+    testAssertWithMessageOrGoto(
+        rlen == btb_l, final, test,
+        "Length of result for PSMatrixProduct(%s,%s) is %d, should be %d",
+        "a", "b", rlen, btb_l
+    );
+    res = compareArrays(result, btb_expected, btb_l, test, "b(T) * b", 0);
+    testAssertWithMessageOrGoto(
+        res, final, test, "Result != expected for PSMatrixProduct(%s,%s)",
+        "b(T)", "b"
+    );
+
+    PSMatrixDelete(result);
+    result = NULL;
+    opts.transpose = 2;
+    res = PSMatrixProduct(a, c, &result, &opts);
+    testAssertWithMessageOrGoto(
+        res, final, test, "Failed PSMatrixProduct(%s,%s) (transp = 2)", "a","c"
+    );
+    testAssertWithMessageOrGoto(
+        result != NULL, final, test, "No result for PSMatrixProduct(%s,%s) "
+        "(transp = 2)", "a","c"
+    );
+    rlen = PSMatrixLength(result);
+    testAssertWithMessageOrGoto(
+        rlen == act_l, final, test,
+        "Length of result for PSMatrixProduct(%s,%s) is %d, should be %d",
+        "a", "c", rlen, act_l
+    );
+    res = compareArrays(result, act_expected, act_l, test, "a * c(T)", 0);
+    testAssertWithMessageOrGoto(
+        res, final, test, "Result != expected for PSMatrixProduct(%s,%s)",
+        "a", "c(T)"
+    );
+
+    PSMatrixDelete(result);
+    result = NULL;
+    opts.transpose = 1 | 2;
+    res = PSMatrixProduct(a, b, &result, &opts);
+    testAssertWithMessageOrGoto(
+        res, final, test, "Failed PSMatrixProduct(%s,%s) (transp = 1|2)",
+        "a","b"
+    );
+    testAssertWithMessageOrGoto(
+        result != NULL, final, test, "No result for PSMatrixProduct(%s,%s) "
+        "(transp = 1|2)", "a","b"
+    );
+    rlen = PSMatrixLength(result);
+    testAssertWithMessageOrGoto(
+        rlen == atbt_l, final, test,
+        "Length of result for PSMatrixProduct(%s,%s) is %d, should be %d",
+        "a", "b", rlen, atbt_l
+    );
+    res = compareArrays(result, atbt_expected, atbt_l, test, "a(T) * b(T)", 0);
+    testAssertWithMessageOrGoto(
+        res, final, test, "Result != expected for PSMatrixProduct(%s,%s)",
+        "a(T)", "b(T)"
+    );
+final:
+    PSMatrixDelete(a);
+    PSMatrixDelete(b);
+    PSMatrixDelete(c);
+    PSMatrixDelete(result);
+    return res;
+}
+
+int testMathsMatrixProductMV(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    int res = 1;
+    PSFloat avalues[] = {1, 2, 3, 4, 5, 6};
+    PSFloat bvalues1[] = {7, 8, 9};
+    PSFloat bvalues2[] = {7, 8};
+    PSFloat ab1_expected[] = {50, 122};
+    PSFloat ab2_expected[] = {39, 54, 69};
+    int ab1_l = sizeof(ab1_expected) / sizeof(PSFloat);
+    int ab2_l = sizeof(ab2_expected) / sizeof(PSFloat);
+    int b1len = sizeof(bvalues1) / sizeof(PSFloat);
+    int b2len = sizeof(bvalues2) / sizeof(PSFloat);
+    PSMatrix a = NULL;
+    PSFloat results[50] = {0};
+    PSFloat *res_p = results;
+    a = PSMatrixFromArray(avalues, 2, 2, 3);
+    testAssertWithMessageOrGoto(
+        a != NULL, final, test, "matrix `%s` is NULL%s", "a"
+    );
+    PSMathOpts opts = {.acceleration = PSGlobalAcceleration};
+
+    opts.transpose = 0;
+    res = PSMatrixProductMV(a, bvalues1, b1len, &res_p, &opts);
+    testAssertWithMessageOrGoto(
+        res, final, test, "Failed PSMatrixProductMV(%s,%s) (transp = 0)",
+        "a","b1"
+    );
+    res = compareArrays(res_p, ab1_expected, ab1_l, test, "a * b1", 0);
+    testAssertWithMessageOrGoto(
+        res, final, test, "Result != expected for PSMatrixProductMV(%s,%s)",
+        "a", "b1"
+    );
+
+    memset(res_p, 0, 50 * sizeof(PSFloat));
+    opts.transpose = 1;
+    res = PSMatrixProductMV(a, bvalues2, b2len, &res_p, &opts);
+    testAssertWithMessageOrGoto(
+        res, final, test, "Failed PSMatrixProductMV(%s,%s) (transp = 1)",
+        "a","b2"
+    );
+    res = compareArrays(res_p, ab2_expected, ab2_l, test, "a(T) * b2", 0);
+    testAssertWithMessageOrGoto(
+        res, final, test, "Result != expected for PSMatrixProductMV(%s,%s)",
+        "a(T)", "b2"
+    );
+final:
+    PSMatrixDelete(a);
+    return res;
+}
+int testMathsMatrixProductVM(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    int res = 1;
+    PSFloat avalues[] = {7, 8, 9};
+    PSFloat bvalues[] = {1, 2, 3, 4, 5, 6};
+    PSFloat ab1_expected[] = {50, 122};
+    int ab1_l = sizeof(ab1_expected) / sizeof(PSFloat);
+    int alen = sizeof(avalues) / sizeof(PSFloat);
+    PSMatrix b = NULL, result = NULL;
+    b = PSMatrixFromArray(bvalues, 2, 2, 3);
+    testAssertWithMessageOrGoto(
+        b != NULL, final, test, "matrix `%s` is NULL%s", "b"
+    );
+    PSMathOpts opts = {.acceleration = PSGlobalAcceleration};
+
+    opts.transpose = 2;
+    res = PSMatrixProductVM(avalues, b, alen, &result, &opts);
+    testAssertWithMessageOrGoto(
+        res, final, test, "Failed PSMatrixProductVM(%s,%s) (transp = 2)",
+        "a","b"
+    );
+    int rlen = PSMatrixLength(result);
+    testAssertWithMessageOrGoto(
+        rlen == ab1_l, final, test,
+        "Length of result for PSMatrixProductVM(%s,%s) is %d, should be %d",
+        "a", "b(T)", rlen, ab1_l
+    );
+    res = compareArrays(result, ab1_expected, ab1_l, test, "a * b(T)", 0);
+    testAssertWithMessageOrGoto(
+        res, final, test, "Result != expected for PSMatrixProductVM(%s,%s)",
+        "a", "b(T)"
+    );
+final:
+    PSMatrixDelete(b);
+    PSMatrixDelete(result);
     return res;
 }
 

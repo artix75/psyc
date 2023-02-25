@@ -55,16 +55,43 @@ typedef void (*PSDotProductDebug)(int i, PSFloat a, PSFloat b, PSFloat sum,
                                   struct PSMathOpts *opts);
 typedef PSFloat (*PSFloatFunc) (PSFloat n);
 
+/* This structure can be passed to various operations. Not all of its
+ * properties are used by all operations.
+ * Properties:
+ *  - `acceleration`: see `PSAcceleration`
+ *  - `store_mode`: specifies how results will be stored into destination:
+ *                  - `MATHS_STORE_MODE_NORM`: results will overwrite dest.
+ *                  - `MATHS_STORE_MODE_ADD`: results will be added to dest.
+ *                  - `MATHS_STORE_MODE_SUB`: results will be subtracted from
+ *                     dest.
+ *  - `add_vec`:    some operations (ie. `PSDot`) may use this field to add
+ *                  a vector to results before store them.
+ *  - `after`:      some operations may call this function on results.
+ *  - `min`:        some operations may store minimum result into this pointer
+ *                  or use it by their own computations.
+ *  - `max`:        some operations may store maximum result into this pointer
+ *                  or use it by their own computations.
+ *  - `transpose`   some operations involving PSMatrix could use this in order
+ *                  to transpose one or more matrices. The integer value
+ *                  indicates the (1-based) matrix argument position, ie.
+ *                  1 for first matrix arg, 2 for second matrix arg, etc.
+ *                  More than one matrix can be set (ie. 1 | 2).
+ *  - `tmpdest`:    some operations may use this vector as a cache in order
+ *                  to avoid allocating extra memory, for intermediate
+ *                  computations.
+ *  - `debug_step`: used for debugging by some operations.
+ */
 typedef struct PSMathOpts {
-    int acceleration;
-    int store_mode;
-    PSFloat *add_vec;
-    PSFloatFunc after;
-    PSFloat *min;
-    PSFloat *max;
-    PSFloat *tmpdest;
-    PSDotProductDebug debug_step;
-    void *data;
+    int                 acceleration;
+    int                 store_mode;
+    PSFloat             *add_vec;
+    PSFloatFunc         after;
+    PSFloat             *min;
+    PSFloat             *max;
+    int                 transpose;
+    PSFloat             *tmpdest;
+    PSDotProductDebug   debug_step;
+    void                *data;
 } PSMathOpts;
 
 /****** Utils *****/
@@ -92,6 +119,7 @@ int PSMatrixDim(PSMatrix matrix, int dim);
 int PSMatrixDimensions(PSMatrix matrix, int *dims);
 size_t PSMatrixLength(PSMatrix matrix);
 int PSMatrixStride(PSMatrix matrix, int dim);
+void PSMatrixPrintInfo(PSMatrix matrix, const char *name, int newline);
 PSFloat *PSMatrixGet(PSMatrix matrix, int ndims, uint32_t *len, ...);
 int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt);
 int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,

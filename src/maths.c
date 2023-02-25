@@ -180,6 +180,24 @@ static PSFloat matrixRandomInitializer(PSMatrix matrix, int idx, PSFloat val) {
     return PSNormalizedRandom();
 }
 
+static const char *matrixDimensionsToString(int ndims, int *dims) {
+    static char dimstr[256] = {0};
+    if (dims == NULL || ndims < 0 || ndims > MAX_DIMENSIONS) {
+        dimstr[0] = '\0';
+        return dimstr;
+    }
+    int avail = 255;
+    char *s = dimstr;
+    for (int i = 0; i < ndims; i++) {
+        if (avail <= 0) break;
+        char *sep = (i > 0 ? "," : "");
+        int written = snprintf(s, avail, "%s%d", sep, dims[i]);
+        s += written;
+        avail -= written;
+    }
+    return dimstr;
+}
+
 PSMatrix PSMatrixCreateWithDims(PSFloat init_value,
                                 PSMatrixInitializer initializer,
                                 int ndims, int *dims)
@@ -204,6 +222,11 @@ PSMatrix PSMatrixCreateWithDims(PSFloat init_value,
         }
         len *= d;
         dims[i] = d;
+    }
+    if (len == 0) {
+        PSErr(__func__, "Invalid dimensions: %s",
+              matrixDimensionsToString(ndims, dims));
+        return NULL;
     }
     size_t datasize = ((size_t) len * sizeof(PSFloat));
     size_t size = PSMatrixHeaderSize + datasize;
@@ -294,8 +317,9 @@ PSMatrix PSMatrixFromArray(PSFloat *array, int ndims, ...) {
     PSMatrix matrix = NULL;
     va_list args;
     va_start(args, ndims);
-    matrix = PSMatrixCreateV(0, matrixRandomInitializer, ndims, args);
+    matrix = PSMatrixCreateV(0, NULL, ndims, args);
     va_end(args);
+    if (matrix == NULL) return NULL;
     size_t array_size = PSMatrixLength(matrix) * sizeof(PSFloat);
     memcpy(matrix, array, array_size);
     return matrix;
@@ -436,6 +460,22 @@ int PSMatrixStride(PSMatrix matrix, int dim) {
     return hdr->dims[refdim];
 }
 
+void PSMatrixPrintInfo(PSMatrix matrix, const char *name, int newline) {
+    if (name == NULL) name = "(unnamed)";
+    char *nl = "";
+    if (newline) nl = "\n";
+    if (matrix == NULL) {
+        printf("Matrix %s = (null)%s", name, nl);
+        return;
+    }
+    int dims[MAX_DIMENSIONS] = {0};
+    int ndims = PSMatrixDimensions(matrix, dims);
+    printf(
+        "Matrix %s dimensions = %d, shape = (%s)%s",
+        name, ndims, matrixDimensionsToString(ndims, dims), nl
+    );
+}
+
 PSFloat *PSMatrixGet(PSMatrix matrix, int ndims, uint32_t *len, ...) {
     if (matrix == NULL) return NULL;
     PSMatrixHeader *hdr = PSMatrixGetHeader(matrix);
@@ -450,7 +490,8 @@ PSFloat *PSMatrixGet(PSMatrix matrix, int ndims, uint32_t *len, ...) {
         else stride = hdr->dims[refdim];
         int idx = va_arg(args, int);
         if (idx >= hdr->dims[i]) {
-            PSWarn("%s: index %d (%d) is out of bounds", i, idx, hdr->dims[i]);
+            PSWarn("%s: dim[%d] = %d is out of bounds (%d)",
+                   __func__, i, idx, hdr->dims[i]);
             values = NULL;
             stride = 0;
             break;
@@ -463,12 +504,19 @@ PSFloat *PSMatrixGet(PSMatrix matrix, int ndims, uint32_t *len, ...) {
 }
 
 /* Performs matrix-vector multiplication between matrix `a` and vector `b`.
+ * Argument `len` must be the length of the vector `b`.
  * Results are stored into vector pointed by pointer `result`. If pointer
  * pointed by `result` is NULL, a new vector is automatically allocated
  * by the function itself and its pointer will be stored into `result`.
+ * Length of `b` vector must equal matrix `a` second dimension.
+ * Length of result vector must equal matrix `a` first dimension.
  * By defaults, function uses BLAS to compute the result. Anyway, if BLAS
  * support is missing in PsyC build, function will compute results by
  * using `PSMultiplyVectors` as fallback.
+ * You can set matrix transposition using `transpose` field in the `opt`
+ * argument. In that case, `transpose` will contain the (1-based) indices
+ * of the matrix arguments you want to be transposed:
+ *  - opt->transpose = 1 (transpose matrix `a`)
  * By default, data in result vector will be overwritten. Anyaway, if
  * `MATHS_STORE_MODE_ADD` is set as `store_mode` into `opts`, result will
  * be added to data already present in the result vector.
@@ -481,6 +529,12 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
         return 0;
     }
     PSBLASOrder order = PSBLASRowMajor;
+    int transpose = 0;
+    PSFloat beta = 0.0;
+    if (opts != NULL) {
+        transpose = opts->transpose;
+        if (opts->store_mode == MATHS_STORE_MODE_ADD) beta = 1.0;
+    }
     int dims_a[MAX_DIMENSIONS];
     int ndims = PSMatrixDimensions(a, dims_a);
     if (ndims == 0) {
@@ -493,10 +547,11 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
         return 0;
     }
 #endif
-    int l = dims_a[ndims - 1];
+    int l = (transpose & 1 ? dims_a[0] : dims_a[ndims - 1]);
     if (len != l) {
         PSErr(__func__, "Aligment error: vector len != a dim[%d] -> "
-              "%d != %d", len, l);
+              "%d != %d", (ndims - 1), l, len);
+        PSMatrixPrintInfo(a, "a", 1);
         return 0;
     }
     int nd = ndims - 1, outlen;
@@ -513,33 +568,42 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
     }
     if (ndims == 1) {
         /* Just multiply two vectors */
-        PSMultiplyVectors(a, b, out, len, NULL);
+        PSMultiplyVectors(a, b, out, len, opts);
         return 1;
     }
     int lda = (dims_a[1] > 1 ? dims_a[1] : 1);
     int m = dims_a[0], n = dims_a[1];
-    PSFloat beta = 0.0;
-    if (opts != NULL && opts->store_mode == MATHS_STORE_MODE_ADD)
-        beta = 1.0;
 #ifndef HAS_BLAS
     int do_add = (beta == 1.0);
+    if (transpose & 1) {
+        lda = (dims_a[0] > 1 ? dims_a[0] : 1);
+        m = dims_a[1]
+        n = dims_a[0];
+        a = PSMatrixTranspose(a, 1, opts);
+    }
     for (int i = 0; i < m; i += lda) {
         if (!do_add) out[i] = PSDotProduct(a, b, n, opts);
         else out[i] += PSDotProduct(a, b, n, opts);
     }
     return 1;
 #endif
-    PSGemv(order, 'N', m, n, 1.0, a, lda, b, 1, beta, out, 1);
+    char trans = (transpose & 1) ? 'T' : 'N';
+    PSGemv(order, trans, m, n, 1.0, a, lda, b, 1, beta, out, 1);
     if (PSBLASLastError != NULL) return 0;
     return 1;
 }
 
 /* Performs vector-matrix multiplication between vector `a` and matrix `b`.
+ * Argument `len` must be the length of the vector `a`.
  * Results are stored into matrix pointed by `result`. If pointer
  * pointed by `result` is NULL, a new matrix is automatically allocated
  * by the function itself and its pointer will be stored into `result`.
  * The function uses BLAS to compute the result, so, if BLAS support is
  * missing in PsyC build, function will fail.
+ * You can set matrix transposition using `transpose` field in the `opt`
+ * argument. In that case, `transpose` will contain the (1-based) indices
+ * of the operand arguments you want to be transposed:
+ *  - opt->transpose = 2 (transpose matrix `b`)
  * By default, data in result vector will be overwritten. Anyaway, if
  * `MATHS_STORE_MODE_ADD` is set as `store_mode` into `opts`, result will
  * be added to data already present in the result vector.
@@ -556,14 +620,29 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
         return 0;
     }
     PSBLASOrder order = PSBLASRowMajor;
-    int dims_b[MAX_DIMENSIONS];
+    int mdims_b[MAX_DIMENSIONS];
+    int tdims_b[MAX_DIMENSIONS];
+    int *dims_b = mdims_b;
     int ndims = PSMatrixDimensions(b, dims_b);
     if (ndims == 0) {
         PSErr(__func__, "Invalid matrix");
         return 0;
     }
+    int last_dim = ndims - 1;
     int dimensions[MAX_DIMENSIONS] = {0};
-    if (dims_b[0] != len) {
+    int transpose = 0;
+    PSFloat beta = 0.0;
+    if (opts != NULL) {
+        transpose = opts->transpose;
+        if (opts->store_mode == MATHS_STORE_MODE_ADD) beta = 1.0;
+        if (transpose & 2) {
+            tdims_b[0] = dims_b[last_dim];
+            tdims_b[last_dim] = dims_b[0];
+            dims_b = tdims_b;
+        }
+    }
+    int l = dims_b[0];
+    if (l != len) {
         PSErr(__func__, "Aligment error: b dim[0] != vector length -> "
               "%d != %d", dims_b[0], len);
         return 0;
@@ -600,11 +679,10 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
         *result = out;
         if (out == NULL) return 0;
     }
-    int lda = (dims_b[1] > 1 ? dims_b[1] : 1);
-    int m = dims_b[0], n = dims_b[1];
-    PSFloat beta = 0.0;
-    if (opts != NULL && opts->store_mode == MATHS_STORE_MODE_ADD) beta = 1.0;
-    PSGemv(order, 'N', m, n, 1.0, b, lda, a, 1, beta, out, 1);
+    int lda = (mdims_b[1] > 1 ? mdims_b[1] : 1);
+    int m = mdims_b[0], n = mdims_b[1];
+    char trans = 'N'; /* (transpose & 2) ? 'T' : 'N'; */
+    PSGemv(order, trans, m, n, 1.0, b, lda, a, 1, beta, out, 1);
     if (PSBLASLastError != NULL) return 0;
     return 1;
 }
@@ -616,7 +694,14 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
  * By defaults, function uses BLAS to compute the result. Anyway, if BLAS
  * support is missing in PsyC build and `b` only has one dimension, function
  * will try compute results by using `PSMultiplyVectors` as fallback (for all
- * other cases, it will fail).
+ * other cases, it will fail!).
+ * The `opt` argument can be NULL.
+ * You can set matrix transposition using `transpose` field in the `opt`
+ * argument. In that case, `transpose` will contain the (1-based) indices
+ * of the matrix arguments you want to be transposed:
+ *  - opt->transpose = 1 (transpose matrix `a`)
+ *  - opt->transpose = 2 (transpose matrix `b`)
+ *  - opt->transpose = (1 | 2) (transpose both matrix `a` and `b`)
  * By default, data in result vector will be overwritten. Anyaway, if
  * `MATHS_STORE_MODE_ADD` is set as `store_mode` into `opt`, result will
  * be added to data already present in the result vector.
@@ -626,10 +711,15 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
         PSErr(__func__, "argument result cannot be null");
         return 0;
     }
-    int dims_a[MAX_DIMENSIONS];
-    int dims_b[MAX_DIMENSIONS];
-    int ndims_a = PSMatrixDimensions(a, dims_a);
-    int ndims_b = PSMatrixDimensions(b, dims_b);
+    /* Original matrix dimensions */
+    int mdims_a[MAX_DIMENSIONS];
+    int mdims_b[MAX_DIMENSIONS];
+    /* Eventually transposed matrix dimensions */
+    int tdims_a[MAX_DIMENSIONS];
+    int tdims_b[MAX_DIMENSIONS];
+    /* Number of dimensions */
+    int ndims_a = PSMatrixDimensions(a, mdims_a);
+    int ndims_b = PSMatrixDimensions(b, mdims_b);
     if (ndims_a == 0) {
         PSErr(__func__, "Invalid matrix `a`");
         return 0;
@@ -638,12 +728,51 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
         PSErr(__func__, "Invalid matrix `b`");
         return 0;
     }
+    int last_dim_a = ndims_a - 1, last_dim_b = ndims_b - 1;
+    int *dims_a = mdims_a, *dims_b = mdims_b;
     int lda = 0, ldb = 0, l = 0, i;
     int dimensions[MAX_DIMENSIONS] = {0};
-    l = dims_a[ndims_a - 1];
+    char trans_a = 'N', trans_b = 'N';
+    int transpose = 0;
+    PSFloat beta = 0.0;
+    if (opt != NULL) {
+        transpose = opt->transpose;
+        if (opt->store_mode == MATHS_STORE_MODE_ADD) beta = 1.0;
+    }
+    if (transpose) {
+        if (transpose & 1 && ndims_a > 1) {
+#ifdef HAS_BLAS
+            trans_a = 'T';
+            tdims_a[0] = mdims_a[last_dim_a];
+            tdims_a[last_dim_a] = mdims_a[0];
+            dims_a = tdims_a;
+#else
+            a = PSMatrixTranspose(a);
+            if (a == NULL) {
+                PSErr(__func__, "Failed to transpose matrix `a`");
+                return 0;
+            }
+#endif
+        }
+        if (transpose & 2 && ndims_b > 1) {
+#ifdef HAS_BLAS
+            trans_b = 'T';
+            tdims_b[0] = mdims_b[last_dim_b];
+            tdims_b[last_dim_b] = mdims_b[0];
+            dims_b = tdims_b;
+#else
+            b = PSMatrixTranspose(b);
+            if (a == NULL) {
+                PSErr(__func__, "Failed to transpose matrix `b`");
+                return 0;
+            }
+#endif
+        }
+    }
+    l = dims_a[last_dim_a];
     if (dims_b[0] != l) {
         PSErr(__func__, "Aligment error: b dim[0] != a dim[%d] -> "
-              "%d != %d", (ndims_a - 1), dims_b[0], l);
+              "%d != %d", last_dim_a, dims_b[0], l);
         return 0;
     }
     int nd = ndims_a + ndims_b - 2;
@@ -681,8 +810,6 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
     int a_vector_like = (ndims_a == 1),
         b_vector_like = (ndims_b == 1);
     PSBLASOrder order;
-    PSFloat beta = 0.0;
-    if (opt != NULL && opt->store_mode == MATHS_STORE_MODE_ADD) beta = 1.0;
     if (!a_vector_like && b_vector_like) {
         /* Matrix vector multiplication -- Level 2 BLAS */
 #ifndef HAS_BLAS
@@ -693,17 +820,23 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
         }
         return 1;
 #endif
+        /* Always use original dimensions here, even if `a` in transposed */
+        dims_a = mdims_a;
+        dims_b = mdims_b;
         order = PSBLASRowMajor;
         lda = (dims_a[1] > 1 ? dims_a[1] : 1);
         int bs = PSMatrixStride(b, 0);
         int m = dims_a[0], n = dims_a[1];
-        PSGemv(order, 'N', m, n, 1.0, a, lda, b, bs, beta, out, 1);
+        PSGemv(order, trans_a, m, n, 1.0, a, lda, b, bs, beta, out, 1);
     } else if (a_vector_like && !b_vector_like) {
         /* Vector matrix multiplication -- Level 2 BLAS */
 #ifndef HAS_BLAS
         PSErr(__func__, "BLAS disabled");
         return 0;
 #endif
+        /* Always use original dimensions here, even if `a` in transposed */
+        dims_a = mdims_a;
+        dims_b = mdims_b;
         order = PSBLASRowMajor;
         lda = (dims_b[1] > 1 ? dims_b[1] : 1);
         int as = PSMatrixStride(a, 0);
@@ -716,25 +849,26 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
         return 0;
 #endif
         order = PSBLASRowMajor;
-        char trans1 = 'N', trans2 = 'N';
         int m = dims_a[0];
         int n = dims_b[1];
-        int k = dims_b[0];
-        lda = (dims_a[1] > 1 ? dims_a[1] : 1);
-        ldb = (dims_b[1] > 1 ? dims_b[1] : 1);
+        int k = dims_a[1];
+        if (trans_a == 'N') lda =  (k > 1 ? k : 1);
+        else lda = (m > 1 ? m : 1);
+        if (trans_b == 'N') ldb =  (n > 1 ? n : 1);
+        else ldb = (k > 1 ? k : 1);
         size_t alen = PSMatrixLength(a), blen = PSMatrixLength(b);
         if (alen == blen &&
            dims_a[0] == dims_b[1] &&
            dims_a[1] == dims_b[0] &&
            PSMatrixStride(a, 0) == PSMatrixStride(b, 1) &&
            PSMatrixStride(a, 1) == PSMatrixStride(b, 0) &&
-           (trans1 == 'T' ? 1 : 0) ^ (trans2 == 'T' ? 1 : 0) &&
-           (trans1 == 'N' ? 1 : 0) ^ (trans2 == 'N' ? 1 : 0)) {
+           (trans_a == 'T' ? 1 : 0) ^ (trans_b == 'T' ? 1 : 0) &&
+           (trans_a == 'N' ? 1 : 0) ^ (trans_b == 'N' ? 1 : 0)) {
             PSErr(__func__, "Unsupported BLAS Syrc");
         } else {
             int odim1 = PSMatrixDim(out, 1);
             int ldc = ((odim1 > 1) ? odim1 : 1);
-            PSGemm(order, trans1, trans2, m, n, k, 1.0, a, lda, b, ldb, beta,
+            PSGemm(order, trans_a, trans_b, m, n, k, 1.0, a, lda, b, ldb, beta,
                    out, ldc);
         }
     }
