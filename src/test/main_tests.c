@@ -3362,29 +3362,29 @@ final:
     return res;
 }
 
-int testMathsMatrixProduct(TestCase *tc, Test *test) {
-    UNUSED(tc);
+int testMatrixProduct(Test *test, int acceleration) {
     int res = 1;
-    PSMatrix a = NULL, b = NULL, c = NULL, result = NULL;
-#ifndef HAS_BLAS
-    goto final;
-#endif
+    PSMatrix a = NULL, b = NULL, c = NULL, avec = NULL, result = NULL;
     PSFloat avalues[] = {1, 2, 3, 4, 5, 6};
     PSFloat bvalues[] = {1, 2, 3, 4, 5, 6};
     PSFloat cvalues[] = {1, 2, 3, 4, 5, 6, 3, 2, 1, 6, 5, 4};
+    PSFloat avec_values[] = {7, 8, 9};
     PSFloat ab_expected[] = {22, 28, 49, 64}; /* a * b */
     PSFloat act_expected[] = {14, 32, 10, 28, 32, 77, 28, 73}; // a * c(t)
     PSFloat btb_expected[] = {35, 44, 44, 56};/* b(t) * b */
     PSFloat atbt_expected[] = {9, 19, 29, 12, 26,
                               40, 15, 33, 51}; /* a(t) @ b(t) */
+    PSFloat avat_expected[] = {50, 122};
     int ab_l = sizeof(ab_expected) / sizeof(PSFloat);
     int btb_l = sizeof(btb_expected) / sizeof(PSFloat);
     int act_l = sizeof(act_expected) / sizeof(PSFloat);
     int atbt_l = sizeof(atbt_expected) / sizeof(PSFloat);
+    int avat_l = sizeof(avat_expected) / sizeof(PSFloat);
     int rlen = 0;
     a = PSMatrixFromArray(avalues, 2, 2, 3);
     b = PSMatrixFromArray(bvalues, 2, 3, 2);
     c = PSMatrixFromArray(cvalues, 2, 4, 3);
+    avec = PSMatrixFromArray(avec_values, 1, 3);
     testAssertWithMessageOrGoto(
         a != NULL, final, test, "matrix `%s` is NULL%s", "a"
     );
@@ -3394,28 +3394,36 @@ int testMathsMatrixProduct(TestCase *tc, Test *test) {
     testAssertWithMessageOrGoto(
         c != NULL, final, test, "matrix `%s` is NULL%s", "c"
     );
-    PSMathOpts opts = {.acceleration = PSGlobalAcceleration};
-
+    testAssertWithMessageOrGoto(
+        avec != NULL, final, test, "matrix `%s` is NULL%s", "avec"
+    );
+    const char *acceleration_name = PSGetAccelerationName(acceleration);
+    if (acceleration_name == NULL) acceleration_name = "";
+    PSMathOpts opts = {.acceleration = acceleration};
     opts.transpose = 0;
     res = PSMatrixProduct(a, b, &result, &opts);
     testAssertWithMessageOrGoto(
-        res, final, test, "Failed PSMatrixProduct(%s,%s) (transp = 0)", "a","b"
+        res, final, test,
+        "Failed PSMatrixProduct(%s,%s) (transp = 0, accel = '%s')", "a","b",
+        acceleration_name
     );
     testAssertWithMessageOrGoto(
         result != NULL, final, test, "No result for PSMatrixProduct(%s,%s) "
-        "(transp = 0)", "a","b"
+        "(transp = 0, accel = '%s')", "a","b", acceleration_name
     );
     rlen = PSMatrixLength(result);
     testAssertWithMessageOrGoto(
         rlen == ab_l, final, test,
-        "Length of result for PSMatrixProduct(%s,%s) is %d, should be %d",
-        "a", "b", rlen, ab_l
+        "Length of result for PSMatrixProduct(%s,%s,accel = '%s') is %d, "
+        "should be %d", "a", "b", acceleration_name, rlen, ab_l
     );
+    char comparison_label[255] = {0};
+    snprintf(comparison_label, 254, "a * b (accel = '%s')", acceleration_name);
     res = compareArrays(result, ab_expected, ab_l, test,
-                        "a * b", 0);
+                        comparison_label, 0);
     testAssertWithMessageOrGoto(
-        res, final, test, "Result != expected for PSMatrixProduct(%s,%s)",
-        "a", "b"
+        res, final, test, "Result != expected for PSMatrixProduct(%s,%s,"
+        "accel='%s')", "a", "b", acceleration_name
     );
 
     PSMatrixDelete(result);
@@ -3423,22 +3431,25 @@ int testMathsMatrixProduct(TestCase *tc, Test *test) {
     opts.transpose = 1;
     res = PSMatrixProduct(b, b, &result, &opts);
     testAssertWithMessageOrGoto(
-        res, final, test, "Failed PSMatrixProduct(%s,%s) (transp = 1)", "b","b"
+        res, final, test, "Failed PSMatrixProduct(%s,%s) (transp = 1, "
+        "accel = '%s')", "b","b", acceleration_name
     );
     testAssertWithMessageOrGoto(
         result != NULL, final, test, "No result for PSMatrixProduct(%s,%s) "
-        "(transp = 1)", "b","b"
+        "(transp = 1, accel = '%s')", "b","b", acceleration_name
     );
     rlen = PSMatrixLength(result);
     testAssertWithMessageOrGoto(
         rlen == btb_l, final, test,
-        "Length of result for PSMatrixProduct(%s,%s) is %d, should be %d",
-        "a", "b", rlen, btb_l
+        "Length of result for PSMatrixProduct(%s,%s,accel='%s') is %d, "
+        "should be %d", "a", "b", acceleration_name, rlen, btb_l
     );
-    res = compareArrays(result, btb_expected, btb_l, test, "b(T) * b", 0);
+    snprintf(comparison_label, 254, "b(T) * b (accel = '%s')",
+             acceleration_name);
+    res = compareArrays(result, btb_expected, btb_l, test, comparison_label, 0);
     testAssertWithMessageOrGoto(
-        res, final, test, "Result != expected for PSMatrixProduct(%s,%s)",
-        "b(T)", "b"
+        res, final, test, "Result != expected for PSMatrixProduct(%s,%s,"
+        "accel='%s')", "b(T)", "b", acceleration_name
     );
 
     PSMatrixDelete(result);
@@ -3446,22 +3457,25 @@ int testMathsMatrixProduct(TestCase *tc, Test *test) {
     opts.transpose = 2;
     res = PSMatrixProduct(a, c, &result, &opts);
     testAssertWithMessageOrGoto(
-        res, final, test, "Failed PSMatrixProduct(%s,%s) (transp = 2)", "a","c"
+        res, final, test, "Failed PSMatrixProduct(%s,%s) "
+        "(transp = 2, accel = '%s')", "a","c", acceleration_name
     );
     testAssertWithMessageOrGoto(
         result != NULL, final, test, "No result for PSMatrixProduct(%s,%s) "
-        "(transp = 2)", "a","c"
+        "(transp = 2, accel = '%s')", "a","c", acceleration_name
     );
     rlen = PSMatrixLength(result);
     testAssertWithMessageOrGoto(
         rlen == act_l, final, test,
-        "Length of result for PSMatrixProduct(%s,%s) is %d, should be %d",
-        "a", "c", rlen, act_l
+        "Length of result for PSMatrixProduct(%s,%s,accel='%s') is %d, "
+        "should be %d", "a", "c", acceleration_name, rlen, act_l
     );
-    res = compareArrays(result, act_expected, act_l, test, "a * c(T)", 0);
+    snprintf(comparison_label, 254, "a * c(T) (accel = '%s')",
+             acceleration_name);
+    res = compareArrays(result, act_expected, act_l, test, comparison_label, 0);
     testAssertWithMessageOrGoto(
-        res, final, test, "Result != expected for PSMatrixProduct(%s,%s)",
-        "a", "c(T)"
+        res, final, test, "Result != expected for PSMatrixProduct(%s,%s,"
+        "accel='%s')", "a", "c(T)", acceleration_name
     );
 
     PSMatrixDelete(result);
@@ -3469,34 +3483,64 @@ int testMathsMatrixProduct(TestCase *tc, Test *test) {
     opts.transpose = 1 | 2;
     res = PSMatrixProduct(a, b, &result, &opts);
     testAssertWithMessageOrGoto(
-        res, final, test, "Failed PSMatrixProduct(%s,%s) (transp = 1|2)",
-        "a","b"
+        res, final, test, "Failed PSMatrixProduct(%s,%s) (transp = 1|2, "
+        "accel = '%s')", "a","b", acceleration_name
     );
     testAssertWithMessageOrGoto(
         result != NULL, final, test, "No result for PSMatrixProduct(%s,%s) "
-        "(transp = 1|2)", "a","b"
+        "(transp = 1|2, accel = '%s')", "a","b", acceleration_name
     );
     rlen = PSMatrixLength(result);
     testAssertWithMessageOrGoto(
         rlen == atbt_l, final, test,
-        "Length of result for PSMatrixProduct(%s,%s) is %d, should be %d",
-        "a", "b", rlen, atbt_l
+        "Length of result for PSMatrixProduct(%s,%s,accel='%s') is %d, "
+        "should be %d", "a", "b", acceleration_name, rlen, atbt_l
     );
-    res = compareArrays(result, atbt_expected, atbt_l, test, "a(T) * b(T)", 0);
+    snprintf(comparison_label, 254, "a(T) * b(T) (accel = '%s')",
+             acceleration_name);
+    res = compareArrays(result, atbt_expected, atbt_l, test,
+                        comparison_label, 0);
     testAssertWithMessageOrGoto(
-        res, final, test, "Result != expected for PSMatrixProduct(%s,%s)",
-        "a(T)", "b(T)"
+        res, final, test, "Result != expected for PSMatrixProduct(%s,%s,"
+        "accel='%s')", "a(T)", "b(T)", acceleration_name
+    );
+
+    PSMatrixDelete(result);
+    result = NULL;
+    opts.transpose = 2;
+    res = PSMatrixProduct(avec, a, &result, &opts);
+    testAssertWithMessageOrGoto(
+        res, final, test, "Failed PSMatrixProduct(%s,%s) (transp = 2, "
+        "accel = '%s')", "avec","a(T)", acceleration_name
+    );
+    testAssertWithMessageOrGoto(
+        result != NULL, final, test, "No result for PSMatrixProduct(%s,%s) "
+        "(transp = 2, accel = '%s')", "avec","a(T)", acceleration_name
+    );
+    rlen = PSMatrixLength(result);
+    testAssertWithMessageOrGoto(
+        rlen == avat_l, final, test,
+        "Length of result for PSMatrixProduct(%s,%s,accel='%s') is %d, "
+        "should be %d", "avec", "a(T)", acceleration_name, rlen, avat_l
+    );
+    snprintf(comparison_label, 254, "avec * a(T) (accel = '%s')",
+             acceleration_name);
+    res = compareArrays(result, avat_expected, avat_l, test,
+                        comparison_label, 0);
+    testAssertWithMessageOrGoto(
+        res, final, test, "Result != expected for PSMatrixProduct(%s,%s,"
+        "accel='%s')", "avec", "a(T)", acceleration_name
     );
 final:
     PSMatrixDelete(a);
     PSMatrixDelete(b);
     PSMatrixDelete(c);
+    PSMatrixDelete(avec);
     PSMatrixDelete(result);
     return res;
 }
 
-int testMathsMatrixProductMV(TestCase *tc, Test *test) {
-    UNUSED(tc);
+int testMatrixProductMV(Test *test, int acceleration) {
     int res = 1;
     PSFloat avalues[] = {1, 2, 3, 4, 5, 6};
     PSFloat bvalues1[] = {7, 8, 9};
@@ -3514,38 +3558,44 @@ int testMathsMatrixProductMV(TestCase *tc, Test *test) {
     testAssertWithMessageOrGoto(
         a != NULL, final, test, "matrix `%s` is NULL%s", "a"
     );
-    PSMathOpts opts = {.acceleration = PSGlobalAcceleration};
+    const char *acceleration_name = PSGetAccelerationName(acceleration);
+    if (acceleration_name == NULL) acceleration_name = "";
+    PSMathOpts opts = {.acceleration = acceleration};
 
     opts.transpose = 0;
     res = PSMatrixProductMV(a, bvalues1, b1len, &res_p, &opts);
     testAssertWithMessageOrGoto(
-        res, final, test, "Failed PSMatrixProductMV(%s,%s) (transp = 0)",
-        "a","b1"
+        res, final, test, "Failed PSMatrixProductMV(%s,%s) (transp = 0, "
+        "accel = '%s')", "a","b1", acceleration_name
     );
-    res = compareArrays(res_p, ab1_expected, ab1_l, test, "a * b1", 0);
+    char comparison_label[255] = {0};
+    snprintf(comparison_label, 254, "a * b1 (accel = '%s')", acceleration_name);
+    res = compareArrays(res_p, ab1_expected, ab1_l, test, comparison_label, 0);
     testAssertWithMessageOrGoto(
-        res, final, test, "Result != expected for PSMatrixProductMV(%s,%s)",
-        "a", "b1"
+        res, final, test, "Result != expected for PSMatrixProductMV(%s,%s,"
+        "accel='%s')", "a", "b1", acceleration_name
     );
 
     memset(res_p, 0, 50 * sizeof(PSFloat));
     opts.transpose = 1;
     res = PSMatrixProductMV(a, bvalues2, b2len, &res_p, &opts);
     testAssertWithMessageOrGoto(
-        res, final, test, "Failed PSMatrixProductMV(%s,%s) (transp = 1)",
-        "a","b2"
+        res, final, test, "Failed PSMatrixProductMV(%s,%s) (transp = 1, "
+        "accel = '%s')", "a","b2"
     );
+    snprintf(comparison_label, 254, "a(T) * b2 (accel = '%s')",
+             acceleration_name);
     res = compareArrays(res_p, ab2_expected, ab2_l, test, "a(T) * b2", 0);
     testAssertWithMessageOrGoto(
-        res, final, test, "Result != expected for PSMatrixProductMV(%s,%s)",
-        "a(T)", "b2"
+        res, final, test, "Result != expected for PSMatrixProductMV(%s,%s,"
+        "accel='%s')", "a(T)", "b2", acceleration_name
     );
 final:
     PSMatrixDelete(a);
     return res;
 }
-int testMathsMatrixProductVM(TestCase *tc, Test *test) {
-    UNUSED(tc);
+
+int testMatrixProductVM(Test *test, int acceleration) {
     int res = 1;
     PSFloat avalues[] = {7, 8, 9};
     PSFloat bvalues[] = {1, 2, 3, 4, 5, 6};
@@ -3557,28 +3607,102 @@ int testMathsMatrixProductVM(TestCase *tc, Test *test) {
     testAssertWithMessageOrGoto(
         b != NULL, final, test, "matrix `%s` is NULL%s", "b"
     );
-    PSMathOpts opts = {.acceleration = PSGlobalAcceleration};
+    const char *acceleration_name = PSGetAccelerationName(acceleration);
+    if (acceleration_name == NULL) acceleration_name = "";
+    PSMathOpts opts = {.acceleration = acceleration};
 
     opts.transpose = 2;
     res = PSMatrixProductVM(avalues, b, alen, &result, &opts);
     testAssertWithMessageOrGoto(
-        res, final, test, "Failed PSMatrixProductVM(%s,%s) (transp = 2)",
-        "a","b"
+        res, final, test, "Failed PSMatrixProductVM(%s,%s) (transp = 2, "
+        "accel = '%s')", "a","b", acceleration_name
     );
     int rlen = PSMatrixLength(result);
     testAssertWithMessageOrGoto(
         rlen == ab1_l, final, test,
-        "Length of result for PSMatrixProductVM(%s,%s) is %d, should be %d",
-        "a", "b(T)", rlen, ab1_l
+        "Length of result for PSMatrixProductVM(%s,%s,accel='%s') is %d, "
+        "should be %d", "a", "b(T)", acceleration_name, rlen, ab1_l
     );
-    res = compareArrays(result, ab1_expected, ab1_l, test, "a * b(T)", 0);
+    char comparison_label[255] = {0};
+    snprintf(comparison_label, 254, "a * b(T) (accel = '%s')",
+             acceleration_name);
+    res = compareArrays(result, ab1_expected, ab1_l, test, comparison_label, 0);
     testAssertWithMessageOrGoto(
-        res, final, test, "Result != expected for PSMatrixProductVM(%s,%s)",
-        "a", "b(T)"
+        res, final, test, "Result != expected for PSMatrixProductVM(%s,%s,"
+        "accel='%s')", "a", "b(T)", acceleration_name
     );
 final:
     PSMatrixDelete(b);
     PSMatrixDelete(result);
+    return res;
+}
+
+int testMathsMatrixProduct(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    int res = 1, numtests = 0, acceleration;
+#ifdef HAS_BLAS
+    acceleration = PSAcceleration_BLAS;
+    res = testMatrixProduct(test, acceleration);
+    if (!res) return 0;
+    numtests++;
+#endif
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    acceleration = PSAcceleration_ACF;
+    res = testMatrixProduct(test, acceleration);
+    if (!res) return 0;
+    numtests++;
+#endif
+    acceleration = PSAcceleration_None;
+    res = testMatrixProduct(test, acceleration);
+    if (!res) return 0;
+    numtests++;
+    testAssertWithMessage(numtests > 0, test,
+                          "BLAS disabled and no acceleration method suitable "
+                          "for PSMatrixProduct%s", "");
+    return res;
+}
+
+int testMathsMatrixProductMV(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    int res = 1, numtests = 0, acceleration;
+#ifdef HAS_BLAS
+    acceleration = PSAcceleration_BLAS;
+    res = testMatrixProductMV(test, acceleration);
+    if (!res) return 0;
+    numtests++;
+#endif
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    acceleration = PSAcceleration_ACF;
+    res = testMatrixProductMV(test, acceleration);
+    if (!res) return 0;
+    numtests++;
+#endif
+    acceleration = PSAcceleration_None;
+    res = testMatrixProductMV(test, acceleration);
+    if (!res) return 0;
+    numtests++;
+    return res;
+}
+
+int testMathsMatrixProductVM(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    int res = 1, numtests = 0, acceleration;
+#ifdef HAS_BLAS
+    acceleration = PSAcceleration_BLAS;
+    res = testMatrixProductVM(test, acceleration);
+    if (!res) return 0;
+    numtests++;
+#endif
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    acceleration = PSAcceleration_ACF;
+    res = testMatrixProductVM(test, acceleration);
+    if (!res) return 0;
+    numtests++;
+#endif
+    acceleration = PSAcceleration_None;
+    res = testMatrixProductVM(test, acceleration);
+    if (!res) return 0;
+    numtests++;
     return res;
 }
 

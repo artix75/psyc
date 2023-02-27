@@ -529,24 +529,34 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
         return 0;
     }
     PSBLASOrder order = PSBLASRowMajor;
+    int acceleration = PSGlobalAcceleration;
     int transpose = 0;
     PSFloat beta = 0.0;
     if (opts != NULL) {
         transpose = opts->transpose;
+        acceleration = opts->acceleration;
         if (opts->store_mode == MATHS_STORE_MODE_ADD) beta = 1.0;
     }
+#ifdef HAS_BLAS
+    int use_blas = PSBLASEnabled(acceleration);
+#else
+    int use_blas = 0;
+#endif
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    int use_acf = PSACFEnabled(acceleration);
+#else
+    int use_acf = 0;
+#endif
     int dims_a[MAX_DIMENSIONS];
     int ndims = PSMatrixDimensions(a, dims_a);
     if (ndims == 0) {
         PSErr(__func__, "Invalid matrix");
         return 0;
     }
-#ifndef HAS_BLAS
-    if (ndims > 2) {
+    if (!use_blas && ndims > 2) {
         PSErr(__func__, "BLAS is disabled: max. 2 dimensions allowed");
         return 0;
     }
-#endif
     int l = (transpose & 1 ? dims_a[0] : dims_a[ndims - 1]);
     if (len != l) {
         PSErr(__func__, "Aligment error: vector len != a dim[%d] -> "
@@ -573,20 +583,43 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
     }
     int lda = (dims_a[1] > 1 ? dims_a[1] : 1);
     int m = dims_a[0], n = dims_a[1];
-#ifndef HAS_BLAS
-    int do_add = (beta == 1.0);
-    if (transpose & 1) {
-        lda = (dims_a[0] > 1 ? dims_a[0] : 1);
-        m = dims_a[1]
-        n = dims_a[0];
-        a = PSMatrixTranspose(a, 1, opts);
-    }
-    for (int i = 0; i < m; i += lda) {
-        if (!do_add) out[i] = PSDotProduct(a, b, n, opts);
-        else out[i] += PSDotProduct(a, b, n, opts);
-    }
-    return 1;
+    if (!use_blas) {
+        int do_add = (beta == 1.0);
+        if (transpose & 1) {
+            lda = (dims_a[0] > 1 ? dims_a[0] : 1);
+            m = dims_a[1];
+            n = dims_a[0];
+            a = PSMatrixTranspose(a, 1, opts);
+        }
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+        if (use_acf) {
+            PSFloat *dest = out, *tmpdest = (opts ? opts->tmpdest : NULL);
+            if (do_add) {
+                if (tmpdest == NULL)
+                    tmpdest = calloc(outlen, sizeof(PSFloat));
+                if (tmpdest == NULL) {
+                    PSPrintMemoryErrorMsg();
+                    return 0;
+                }
+                dest = tmpdest;
+            }
+            VDSPMMul(a, b, dest, m, 1, n);
+            if (do_add) {
+                PSSumVectors(dest, out, out, outlen, opts);
+                if (opts == NULL || tmpdest != opts->tmpdest)
+                    free(tmpdest);
+            }
+            return 1;
+        }
 #endif
+        if (opts) opts->store_mode = MATHS_STORE_MODE_NORM;
+        for (int i = 0; i < m; i++) {
+            PSFloat *row = a + (i * n);
+            if (!do_add) out[i] = PSDotProduct(row, b, n, opts);
+            else out[i] += PSDotProduct(row, b, n, opts);
+        }
+        return 1;
+    }
     char trans = (transpose & 1) ? 'T' : 'N';
     PSGemv(order, trans, m, n, 1.0, a, lda, b, 1, beta, out, 1);
     if (PSBLASLastError != NULL) return 0;
@@ -611,10 +644,6 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
 int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
                       PSMathOpts *opts)
 {
-#ifndef HAS_BLAS
-    PSErr(__func__, "BLAS is disabled");
-    return 0;
-#endif
     if (result == NULL) {
         PSErr(__func__, "argument result cannot be null");
         return 0;
@@ -631,9 +660,11 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
     int last_dim = ndims - 1;
     int dimensions[MAX_DIMENSIONS] = {0};
     int transpose = 0;
+    int acceleration = PSGlobalAcceleration;
     PSFloat beta = 0.0;
     if (opts != NULL) {
         transpose = opts->transpose;
+        acceleration = opts->acceleration;
         if (opts->store_mode == MATHS_STORE_MODE_ADD) beta = 1.0;
         if (transpose & 2) {
             tdims_b[0] = dims_b[last_dim];
@@ -641,6 +672,16 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
             dims_b = tdims_b;
         }
     }
+#ifdef HAS_BLAS
+    int use_blas = PSBLASEnabled(acceleration);
+#else
+    int use_blas = 0;
+#endif
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    int use_acf = PSACFEnabled(acceleration);
+#else
+    int use_acf = 0;
+#endif
     int l = dims_b[0];
     if (l != len) {
         PSErr(__func__, "Aligment error: b dim[0] != vector length -> "
@@ -681,6 +722,38 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
     }
     int lda = (mdims_b[1] > 1 ? mdims_b[1] : 1);
     int m = mdims_b[0], n = mdims_b[1];
+    if (!use_blas) {
+        int do_add = (beta == 1.0);
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+        if (use_acf) {
+            PSFloat *dest = out, *tmpdest = (opts ? opts->tmpdest : NULL);
+            int outlen = PSMatrixLength(out);
+            if (do_add) {
+                if (tmpdest == NULL)
+                    tmpdest = calloc(outlen, sizeof(PSFloat));
+                if (tmpdest == NULL) {
+                    PSPrintMemoryErrorMsg();
+                    return 0;
+                }
+                dest = tmpdest;
+            }
+            VDSPMMul(b, a, dest, m, 1, n);
+            if (do_add) {
+                PSSumVectors(dest, out, out, outlen, opts);
+                if (opts == NULL || tmpdest != opts->tmpdest)
+                    free(tmpdest);
+            }
+            return 1;
+        }
+#endif
+        if (opts) opts->store_mode = MATHS_STORE_MODE_NORM;
+        for (int i = 0; i < m; i++) {
+            PSFloat *row = b + (i * n);
+            if (!do_add) out[i] = PSDotProduct(row, a, n, opts);
+            else out[i] += PSDotProduct(row, a, n, opts);
+        }
+        return 1;
+    }
     char trans = 'N'; /* (transpose & 2) ? 'T' : 'N'; */
     PSGemv(order, trans, m, n, 1.0, b, lda, a, 1, beta, out, 1);
     if (PSBLASLastError != NULL) return 0;
@@ -734,39 +807,49 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
     int dimensions[MAX_DIMENSIONS] = {0};
     char trans_a = 'N', trans_b = 'N';
     int transpose = 0;
+    int acceleration = PSGlobalAcceleration;
     PSFloat beta = 0.0;
     if (opt != NULL) {
         transpose = opt->transpose;
+        acceleration = opt->acceleration;
         if (opt->store_mode == MATHS_STORE_MODE_ADD) beta = 1.0;
     }
+#ifdef HAS_BLAS
+    int use_blas = PSBLASEnabled(acceleration);
+#else
+    int use_blas = 0;
+#endif
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    int use_acf = PSACFEnabled(acceleration);
+#else
+    int use_acf = 0;
+#endif
     if (transpose) {
         if (transpose & 1 && ndims_a > 1) {
-#ifdef HAS_BLAS
-            trans_a = 'T';
             tdims_a[0] = mdims_a[last_dim_a];
             tdims_a[last_dim_a] = mdims_a[0];
             dims_a = tdims_a;
-#else
-            a = PSMatrixTranspose(a);
-            if (a == NULL) {
-                PSErr(__func__, "Failed to transpose matrix `a`");
-                return 0;
+            if (use_blas) trans_a = 'T';
+            else {
+                a = PSMatrixTranspose(a, 0, opt);
+                if (a == NULL) {
+                    PSErr(__func__, "Failed to transpose matrix `a`");
+                    return 0;
+                }
             }
-#endif
         }
         if (transpose & 2 && ndims_b > 1) {
-#ifdef HAS_BLAS
-            trans_b = 'T';
             tdims_b[0] = mdims_b[last_dim_b];
             tdims_b[last_dim_b] = mdims_b[0];
             dims_b = tdims_b;
-#else
-            b = PSMatrixTranspose(b);
-            if (a == NULL) {
-                PSErr(__func__, "Failed to transpose matrix `b`");
-                return 0;
+            if (use_blas) trans_b = 'T';
+            else {
+                b = PSMatrixTranspose(b, 0, opt);
+                if (a == NULL) {
+                    PSErr(__func__, "Failed to transpose matrix `b`");
+                    return 0;
+                }
             }
-#endif
         }
     }
     l = dims_a[last_dim_a];
@@ -809,17 +892,10 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
     }
     int a_vector_like = (ndims_a == 1),
         b_vector_like = (ndims_b == 1);
+    int outlen = PSMatrixLength(out);
     PSBLASOrder order;
     if (!a_vector_like && b_vector_like) {
         /* Matrix vector multiplication -- Level 2 BLAS */
-#ifndef HAS_BLAS
-        int do_add = (beta == 1.0);
-        for (int i = 0; i < m; i += lda) {
-            if (!do_add) out[i] = PSDotProduct(a, b, n, NULL);
-            else out[i] += PSDotProduct(a, b, n, NULL);
-        }
-        return 1;
-#endif
         /* Always use original dimensions here, even if `a` in transposed */
         dims_a = mdims_a;
         dims_b = mdims_b;
@@ -827,13 +903,40 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
         lda = (dims_a[1] > 1 ? dims_a[1] : 1);
         int bs = PSMatrixStride(b, 0);
         int m = dims_a[0], n = dims_a[1];
+        if (!use_blas) {
+            int do_add = (beta == 1.0);
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+            if (use_acf) {
+                PSFloat *dest = out, *tmpdest = (opt ? opt->tmpdest : NULL);
+                if (do_add) {
+                    if (tmpdest == NULL)
+                        tmpdest = calloc(outlen, sizeof(PSFloat));
+                    if (tmpdest == NULL) {
+                        PSPrintMemoryErrorMsg();
+                        return 0;
+                    }
+                    dest = tmpdest;
+                }
+                VDSPMMul(a, b, dest, dims_a[0], 1, mdims_a[1]);
+                if (do_add) {
+                    PSSumVectors(dest, out, out, outlen, opt);
+                    if (opt == NULL || tmpdest != opt->tmpdest)
+                        free(tmpdest);
+                }
+                return 1;
+            }
+#endif
+            if (opt) opt->store_mode = MATHS_STORE_MODE_NORM;
+            for (int i = 0; i < m; i++) {
+                PSFloat *row = a + (i * n);
+                if (!do_add) out[i] = PSDotProduct(row, b, n, opt);
+                else out[i] += PSDotProduct(row, b, n, opt);
+            }
+            return 1;
+        }
         PSGemv(order, trans_a, m, n, 1.0, a, lda, b, bs, beta, out, 1);
     } else if (a_vector_like && !b_vector_like) {
         /* Vector matrix multiplication -- Level 2 BLAS */
-#ifndef HAS_BLAS
-        PSErr(__func__, "BLAS disabled");
-        return 0;
-#endif
         /* Always use original dimensions here, even if `a` in transposed */
         dims_a = mdims_a;
         dims_b = mdims_b;
@@ -841,17 +944,86 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
         lda = (dims_b[1] > 1 ? dims_b[1] : 1);
         int as = PSMatrixStride(a, 0);
         int m = dims_b[0], n = dims_b[1];
+        if (!use_blas) {
+            int do_add = (beta == 1.0);
+            /* If b was transposed, we need it back in its original shape*/
+            if (transpose & 2) b = PSMatrixTranspose(b, 0, opt);
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+            if (use_acf) {
+                PSFloat *dest = out, *tmpdest = (opt ? opt->tmpdest : NULL);
+                if (do_add) {
+                    if (tmpdest == NULL)
+                        tmpdest = calloc(outlen, sizeof(PSFloat));
+                    if (tmpdest == NULL) {
+                        PSPrintMemoryErrorMsg();
+                        return 0;
+                    }
+                    dest = tmpdest;
+                }
+                VDSPMMul(b, a, dest, m, 1, n);
+                if (do_add) {
+                    PSSumVectors(dest, out, out, outlen, opt);
+                    if (opt == NULL || tmpdest != opt->tmpdest)
+                        free(tmpdest);
+                }
+                return 1;
+            }
+#endif
+            if (opt) opt->store_mode = MATHS_STORE_MODE_NORM;
+            for (int i = 0; i < m; i++) {
+                PSFloat *row = b + (i * n);
+                if (!do_add) out[i] = PSDotProduct(row, a, n, opt);
+                else out[i] += PSDotProduct(row, a, n, opt);
+            }
+            return 1;
+        }
         PSGemv(order, 'N', m, n, 1.0, b, lda, a, as, beta, out, 1);
     } else {
         /* Matrix matrix multiplication -- Level 3 BLAS */
-#ifndef HAS_BLAS
-        PSErr(__func__, "BLAS disabled");
-        return 0;
-#endif
         order = PSBLASRowMajor;
         int m = dims_a[0];
         int n = dims_b[1];
         int k = dims_a[1];
+        if (!use_blas) {
+            int do_add = (beta == 1.0);
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+            if (use_acf) {
+                PSFloat *dest = out, *tmpdest = (opt ? opt->tmpdest : NULL);
+                if (do_add) {
+                    if (tmpdest == NULL)
+                        tmpdest = calloc(outlen, sizeof(PSFloat));
+                    if (tmpdest == NULL) {
+                        PSPrintMemoryErrorMsg();
+                        return 0;
+                    }
+                    dest = tmpdest;
+                }
+                VDSPMMul(a, b, dest, m, n, k);
+                if (do_add) {
+                    PSSumVectors(dest, out, out, outlen, opt);
+                    if (opt == NULL || tmpdest != opt->tmpdest)
+                        free(tmpdest);
+                }
+                return 1;
+            }
+#endif
+            b = PSMatrixTranspose(b, 0, opt);
+            m = PSMatrixDim(a, 0);
+            n = PSMatrixDim(a, 1);
+            l = PSMatrixDim(b, 0);
+            k = PSMatrixDim(b, 1);
+            if (opt) opt->store_mode = MATHS_STORE_MODE_NORM;
+            for (int i = 0; i < dimensions[0]; i++) {
+                for (int j = 0; j < dimensions[1]; j++) {
+                    int oidx = (i * dimensions[1]) + j;
+                    PSFloat *arow = a + (n * i);
+                    PSFloat *brow = b + (k * j);
+                    if (!do_add) out[oidx] = PSDotProduct(arow, brow, k, opt);
+                    else out[oidx] += PSDotProduct(arow, brow, k, opt);
+                }
+            }
+            return 1;
+        }
         if (trans_a == 'N') lda =  (k > 1 ? k : 1);
         else lda = (m > 1 ? m : 1);
         if (trans_b == 'N') ldb =  (n > 1 ? n : 1);

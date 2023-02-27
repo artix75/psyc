@@ -24,6 +24,13 @@
 
 #define UNUSED(V) ((void) V)
 
+PSMathOpts *PSGetIntermediateMathOpts(PSMathOpts *opts) {
+    static PSMathOpts dfopts = {0};
+    if (opts == NULL) return NULL;
+    dfopts.acceleration = opts->acceleration;
+    return &dfopts;
+}
+
 /* Activation Functions */
 
 PSFloat PSSigmoid(PSFloat val) {
@@ -51,10 +58,11 @@ void PSSigmoidV(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts) {
     uint8_t acceleration = PSGlobalAcceleration;
     if (opts != NULL) acceleration = opts->acceleration;
     if (acceleration != PSAcceleration_None) {
-        PSVectorNeg(vec, dest, len, opts);
-        PSVectorExp(dest, dest, len, opts);
-        PSSumVectorScalar(dest, 1.0, dest, len, opts);
-        PSDivideScalarVector(1.0, dest, dest, len, opts);\
+        PSMathOpts *iopts = PSGetIntermediateMathOpts(opts);
+        PSVectorNeg(vec, dest, len, iopts);
+        PSVectorExp(dest, dest, len, iopts);
+        PSSumVectorScalar(dest, 1.0, dest, len, iopts);
+        PSDivideScalarVector(1.0, dest, dest, len, opts);
         return;
     }
     uint64_t i;
@@ -73,7 +81,8 @@ void PSSigmoidDerivativeV(PSFloat *vec, PSFloat *dest, uint64_t len,
     uint8_t acceleration = PSGlobalAcceleration;
     if (opts != NULL) acceleration = opts->acceleration;
     if (acceleration != PSAcceleration_None) {
-        PSSubtractScalarVector(1.0, vec, dest, len, opts);
+        PSMathOpts *iopts = PSGetIntermediateMathOpts(opts);
+        PSSubtractScalarVector(1.0, vec, dest, len, iopts);
         PSMultiplyVectors(vec, dest, dest, len, opts);
     }
     uint64_t i;
@@ -87,7 +96,8 @@ void PSTanhDerivativeV(PSFloat *vec, PSFloat *dest, uint64_t len,
     uint8_t acceleration = PSGlobalAcceleration;
     if (opts != NULL) acceleration = opts->acceleration;
     if (acceleration != PSAcceleration_None) {
-        PSMultiplyVectors(vec, vec, dest, len, opts);
+        PSMathOpts *iopts = PSGetIntermediateMathOpts(opts);
+        PSMultiplyVectors(vec, vec, dest, len, iopts);
         PSSubtractScalarVector(1.0, dest, dest, len, opts);
     }
     uint64_t i;
@@ -110,11 +120,12 @@ void PSSoftmax(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts) {
         acceleration = opts->acceleration;
         if (opts->max != NULL) max = *(opts->max);
     }
+    PSMathOpts *iopts = PSGetIntermediateMathOpts(opts);
     if (PSACFEnabled(acceleration)) {
         if (max == PSFLOAT_MIN) max = PSVectorMax(vec, NULL, len, opts);
-        PSSubtractVectorScalar(vec, max, dest, len, opts);
-        PSVectorExp(dest, NULL, len, opts);
-        esum = PSSumVectorElements(dest, len, opts);
+        PSSubtractVectorScalar(vec, max, dest, len, iopts);
+        PSVectorExp(dest, NULL, len, iopts);
+        esum = PSSumVectorElements(dest, len, iopts);
         PSDivideVectorScalar(dest, esum, NULL, len, opts);
         return;
     }
