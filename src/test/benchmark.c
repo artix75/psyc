@@ -530,6 +530,64 @@ final:
     return ok;
 }
 
+int mathsMatrixProdBenchmark(PSBenchmarkConfig *cfg, int *num_results,
+                             PSBenchmarkResults *results)
+{
+    PS_BENCHMARK_PREAMBLE(cfg, results);
+    assert(cfg->argc == 3 && cfg->argv != NULL);
+    int *intargs = (int *) cfg->argv;
+    int m = intargs[0], n = intargs[1], k = intargs[2], ok = 1;
+    assert(m > 0);
+    assert(n > 0);
+    assert(k > 0);
+    PSMatrix a = PSMatrixWithGaussianRandom(1, 2, m, n);
+    PSMatrix b = PSMatrixWithGaussianRandom(1, 2, n, k);
+    PSMatrix dest = PSMatrixZeros(2, m, k);
+    if (a == NULL || b == NULL || dest == NULL) {
+        PSPrintMemoryErrorMsg();
+        ok = 0;
+        goto final;
+    }
+    PSBenchmarkResults *res = results;
+    PSMathOpts opts = {0};
+#ifdef HAS_BLAS
+    opts.acceleration = PSAcceleration_BLAS;
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    opts.acceleration |= PSAcceleration_ACF;
+#endif
+    PS_INIT_BENCHMARK(cfg, res, "BLAS");
+    PSBenchmarkMeasure(
+        res, (ok = PSMatrixProduct(a, b, &dest, &opts))
+    );
+    if (!ok) goto final;
+    *num_results += 1;
+    res += 1;
+#endif
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    opts.acceleration = PSAcceleration_ACF;
+    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PSBenchmarkMeasure(
+        res, (ok = PSMatrixProduct(a, b, &dest, &opts))
+    );
+    if (!ok) goto final;
+    *num_results += 1;
+    res += 1;
+#endif
+    opts.acceleration = PSAcceleration_None;
+    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    PSBenchmarkMeasure(
+        res, (ok = PSMatrixProduct(a, b, &dest, &opts))
+    );
+    if (!ok) goto final;
+    *num_results += 1;
+    res += 1;
+final:
+    if (a != NULL) PSMatrixDelete(a);
+    if (b != NULL) PSMatrixDelete(b);
+    if (dest != NULL) PSMatrixDelete(dest);
+    return ok;
+}
+
 int actSigmoidBenchmark(PSBenchmarkConfig *cfg, int *num_results,
                         PSBenchmarkResults *results)
 {
@@ -980,6 +1038,12 @@ PSBenchmarkConfig bechmarks[] = {
      1, INTARGS(10000)},
     {"PSDivideVectors (100000)", &maths_tag, 0, 10, mathsDivVBenchmark,
      1, INTARGS(100000)},
+    {"PSMatrixProduct (100,300,200)", &maths_tag, 0, 10,
+     mathsMatrixProdBenchmark, 3, INTARGS(100, 300, 200)},
+    {"PSMatrixProduct (1000,3000,2000)", &maths_tag, 0, 10,
+     mathsMatrixProdBenchmark, 3, INTARGS(1000, 3000, 2000)},
+    /*{"PSMatrixProduct (1000,10000,5000)", &maths_tag, 0, 10,
+     mathsMatrixProdBenchmark, 3, INTARGS(1000, 10000, 5000)},*/
     {"PSSigmoidV (1000)", &activation_tag, 0, 10, actSigmoidBenchmark,
      1, INTARGS(1000)},
     {"PSSigmoidV (10000)", &activation_tag, 0, 10, actSigmoidBenchmark,
@@ -1115,7 +1179,7 @@ int main(int argc, char **argv) {
             free(results);
             time_t elapsed = PSGetElapsedTimeUS(st, et);
             printf(
-                " -> %d benchmark(s) performed in %s\n",
+                " -> %d benchmark(s) performed in %s\n\n",
                 num_results, PSGetElapsedTimeString(elapsed, 1)
             );
         }
