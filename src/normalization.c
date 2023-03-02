@@ -243,8 +243,8 @@ int PSInitNormalizationLayer(PSLayer *layer, PSLayerDef *ldef) {
     layer->derivative = NULL;
     layer->feedforward = PSNormalizationFeedforward;
     layer->backprop = PSNormalizationBackprop;
-    layer->on_recurrent_states_init = PSInitNormalizationCache;
-    layer->on_recurrent_states_resize = PSResizeNormalizationCache;
+    layer->on_states_init = PSInitNormalizationCache;
+    layer->on_states_resize = PSResizeNormalizationCache;
     return 1;
 memerr:
     PSPrintMemoryErrorMsg();

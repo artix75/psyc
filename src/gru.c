@@ -402,8 +402,8 @@ int PSInitGRULayer(PSNeuralNetwork *network, PSLayer *layer,
     int i, bias_count = size * 3;
     layer->on_delete = PSDeleteGRULayer;
     layer->on_copy = PSGRULayerCopy;
-    layer->on_recurrent_states_init = PSInitGRUStates;
-    layer->on_recurrent_states_resize = PSResizeGRUStates;
+    layer->on_states_init = PSInitGRUStates;
+    layer->on_states_resize = PSResizeGRUStates;
     if (size == 0) {
         PSErr(__func__, "Cannot initialize layer with size = 0");
         return 0;

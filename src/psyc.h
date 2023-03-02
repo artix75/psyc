@@ -115,11 +115,9 @@ typedef int      (*PSPretrainLayerFunction) (struct PSLayer *,
                                              PSFloat *training_data,
                                              int data_size);
 typedef uint64_t (*PSGetParamCountFunction) (struct PSLayer *layer, int type);
-typedef int      (*PSInitRecurrentStatesFunc) (struct PSLayer *layer,
-                                               uint32_t steps,
-                                               int retain_previous);
-typedef int      (*PSResizeRecurrentStatesFunc) (struct PSLayer *layer,
-                                                 uint32_t steps);
+typedef int      (*PSInitStatesFunc) (struct PSLayer *layer, uint32_t steps,
+                                      int retain_previous);
+typedef int      (*PSResizeStatesFunc) (struct PSLayer *layer, uint32_t steps);
 typedef PSFloat  (*PSLossFunction) (PSFloat* x, PSFloat* y, int size,
                                     int onehot_size);
 typedef void     (*PSTrainCallback) (struct PSNeuralNetwork *network,
@@ -265,8 +263,8 @@ typedef struct PSLayer {
     PSCopyLayerCallback         on_copy;
     PSGenericLayerCallback      before_batch_training;
     PSGetParamCountFunction     get_param_count;
-    PSInitRecurrentStatesFunc   on_recurrent_states_init;
-    PSResizeRecurrentStatesFunc on_recurrent_states_resize;
+    PSInitStatesFunc            on_states_init;
+    PSResizeStatesFunc          on_states_resize;
     PSPretrainLayerFunction     pretrain;
     struct PSNeuralNetwork      *network;
     struct PSNeuralNetwork      *pretrainer;

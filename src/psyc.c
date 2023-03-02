@@ -1177,8 +1177,8 @@ int PSInitLayerStates(PSLayer *layer, uint32_t seqlen, int retain_previous) {
         layer->states = NULL;
         PSMatrixDelete(states);
         layer->initial_states = NULL;
-        if (layer->on_recurrent_states_init != NULL)
-            if (!layer->on_recurrent_states_init(layer, 0, 0)) goto err;
+        if (layer->on_states_init != NULL)
+            if (!layer->on_states_init(layer, 0, 0)) goto err;
         return 1;
     }
     hstates = initLayerStates(
@@ -1189,8 +1189,8 @@ int PSInitLayerStates(PSLayer *layer, uint32_t seqlen, int retain_previous) {
     layer->states = hstates;
     PSMatrixDelete(states);
     hstates = NULL;
-    if (layer->on_recurrent_states_init != NULL) {
-        if (!layer->on_recurrent_states_init(layer, seqlen, retain_previous))
+    if (layer->on_states_init != NULL) {
+        if (!layer->on_states_init(layer, seqlen, retain_previous))
             goto err;
     }
     return 1;
@@ -1203,8 +1203,8 @@ err:
 }
 
 /* Resize states sequence for layer `layer`. The function also calls
- * `on_recurrent_states_resize` callback if any, allowing different
- * types of layer to resize their own private data.
+ * `on_states_resize` callback if any, allowing different types of layer to
+ * resize their own private data.
  * Arguments:
  * `seqlen`: new states sequence length.
  * Return value: 1 in case of success, 0 in case of failure. */
@@ -1233,8 +1233,8 @@ int PSResizeLayerStates(PSLayer *layer, uint32_t seqlen) {
         return 0;
     }
     layer->states = hstates;
-    if (layer->on_recurrent_states_resize != NULL)
-        if (!layer->on_recurrent_states_resize(layer, seqlen)) return 0;
+    if (layer->on_states_resize != NULL)
+        if (!layer->on_states_resize(layer, seqlen)) return 0;
     return 1;
 }
 
@@ -2235,8 +2235,8 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
     layer->pretrain = NULL;
     layer->private = NULL;
     layer->before_batch_training = NULL;
-    layer->on_recurrent_states_init = NULL;
-    layer->on_recurrent_states_resize = NULL;
+    layer->on_states_init = NULL;
+    layer->on_states_resize = NULL;
     if (layer->output_depth <= 0) layer->output_depth = 1;
     layer->output_columns = layer_def->output_columns;
     layer->output_rows = layer_def->output_rows;

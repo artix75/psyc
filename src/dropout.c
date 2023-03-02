@@ -215,8 +215,8 @@ int PSInitDropoutLayer(PSNeuralNetwork *network, PSLayer *layer,
     layer->flags |= FLAG_NON_TRAINABLE;
     layer->on_copy = PSDropoutLayerCopy;
     layer->on_delete = PSDeleteDropoutLayer;
-    layer->on_recurrent_states_init = PSInitDropoutMask;
-    layer->on_recurrent_states_resize = PSResizeDropoutMask;
+    layer->on_states_init = PSInitDropoutMask;
+    layer->on_states_resize = PSResizeDropoutMask;
     if (PSIsRecurrent(previous)) layer->flags |= FLAG_RECURRENT;
     layer->size = previous->size;
     if (layer->biases != NULL) free(layer->biases);
