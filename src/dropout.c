@@ -64,7 +64,7 @@ void PSSetDropout(PSLayer *dropout_layer, PSFloat dropout) {
     data->dropout = dropout;
 }
 
-int PSInitDropoutMask(PSLayer *layer, uint32_t steps, int retain_previous) {
+int PSInitDropoutMask(PSLayer *layer, uint32_t seqlen, int retain_previous) {
     UNUSED(retain_previous);
     if (layer == NULL) return 0;
     PSDropoutData *data = PSGetDropoutData(layer);
@@ -72,9 +72,9 @@ int PSInitDropoutMask(PSLayer *layer, uint32_t steps, int retain_previous) {
         PSErr(__func__, "Layer[%d]: missing Dropout data", layer->index);
         return 0;
     }
-    if (steps > 0) {
+    if (seqlen > 0) {
         if (data->dropout_mask != NULL) free(data->dropout_mask);
-        data->dropout_mask = malloc(layer->size * steps * sizeof(PSFloat));
+        data->dropout_mask = malloc(layer->size * seqlen * sizeof(PSFloat));
         if (data->dropout_mask == NULL) {
             PSPrintMemoryErrorMsg();
             return 0;
@@ -86,14 +86,14 @@ int PSInitDropoutMask(PSLayer *layer, uint32_t steps, int retain_previous) {
     return 1;
 }
 
-int PSResizeDropoutMask(PSLayer *layer, uint32_t steps) {
+int PSResizeDropoutMask(PSLayer *layer, uint32_t seqlen) {
     if (layer == NULL) return 0;
     PSDropoutData *data = PSGetDropoutData(layer);
     if (data == NULL) {
         PSErr(__func__, "Layer[%d]: missing Dropout data", layer->index);
         return 0;
     }
-    size_t size = (size_t) layer->size * (size_t) steps * sizeof(PSFloat);
+    size_t size = (size_t) layer->size * (size_t) seqlen * sizeof(PSFloat);
     PSFloat *dropout_mask = realloc(data->dropout_mask, size);
     if (dropout_mask == NULL) {
         free(data->dropout_mask);
@@ -102,10 +102,10 @@ int PSResizeDropoutMask(PSLayer *layer, uint32_t steps) {
         layer->network->status = STATUS_ERROR;
         return 0;
     }
-    int diff = steps - layer->recurrent_states_count;
+    int cur_seqlen = PSStateSequenceLength(layer);
+    int diff = seqlen - cur_seqlen;
     if (diff > 0) {
-        PSFloat *new_segment =
-            dropout_mask + (layer->recurrent_states_count * layer->size);
+        PSFloat *new_segment = dropout_mask + (cur_seqlen * layer->size);
         memset(new_segment, 0, (size_t) diff * layer->size * sizeof(PSFloat));
     }
     data->dropout_mask = dropout_mask;
@@ -117,9 +117,9 @@ PSFloat *PSGetDropoutMask(PSLayer *layer, int t) {
     PSDropoutData *data = PSGetDropoutData(layer);
     if (data == NULL) return NULL;
     PSFloat *mask = data->dropout_mask;
-    if (PSIsRecurrent(layer)) {
+    if (PSUseSequences(layer)) {
         if (t < 0) return NULL;
-        if ((uint32_t) t >= layer->recurrent_states_count) {
+        if (t >= PSStateSequenceLength(layer)) {
             if (!PSResizeDropoutMask(layer, t + 1)) return NULL;
             mask = data->dropout_mask;
             if (mask == NULL) return NULL;
@@ -161,10 +161,10 @@ int PSDropoutLayerCopy(PSLayer *layer, PSLayer *src) {
         return 1;
     }
     dstdata->dropout = srcdata->dropout;
-    int steps = 1;
-    if (PSIsRecurrent(src)) steps = src->recurrent_states_count;
-    if (steps > 0 && srcdata->dropout_mask != NULL) {
-        size_t size = src->size * steps * sizeof(PSFloat);
+    int seqlen = 1;
+    if (PSUseSequences(src)) seqlen = PSStateSequenceLength(layer);
+    if (seqlen > 0 && srcdata->dropout_mask != NULL) {
+        size_t size = src->size * seqlen * sizeof(PSFloat);
         dstdata->dropout_mask = malloc(size);
         if (dstdata == NULL) {
             PSPrintMemoryErrorMsg();
@@ -281,7 +281,7 @@ int PSDropoutFeedforward(PSLayer *layer, ...) {
     PSFloat dropout = PSGetDropout(layer);
     PSMathOpts mopts = {.acceleration = layer->network->acceleration};
     if (net->status != STATUS_TRAINING) {
-        memcpy(outputs, inputs, layer->size * sizeof(PSFloat));
+        PSVectorCopy(outputs, inputs, layer->size);
         PSMultiplyVectorScalar(outputs, dropout, outputs, layer->size, &mopts);
         return 1;
     }

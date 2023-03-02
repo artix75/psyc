@@ -36,7 +36,7 @@
 #include "w2v_training_data.h"
 
 #define BATCHES 1
-#define EPOCHS  240
+#define EPOCHS  1500
 #define EMBED_EPOCHS 4
 #define LEARNING_RATE   0.1
 #define MOMENTUM        0.0
@@ -129,7 +129,7 @@ void printSample(PSNeuralNetwork *network, int input_idx, int len) {
         fprintf(stderr, "ERROR (%s): Invalid input %d\n", __func__, input_idx);
         return;
     }
-    if (!PSResetNetworkRecurrentStates(network, 0, 0)) {
+    if (!PSResetNetworkStateSequences(network, 0, 0)) {
         fprintf(stderr, "ERROR (%s): Failed to reset states\n", __func__);
         return;
     }

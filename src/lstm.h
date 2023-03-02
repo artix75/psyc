@@ -42,11 +42,11 @@ typedef struct {
     PSMatrix output_hidden_weights;
     PSMatrix forget_hidden_weights;
 
-    PSFloat *raw_states;
-    PSFloat *candidates;
-    PSFloat *input_gates;
-    PSFloat *output_gates;
-    PSFloat *forget_gates;
+    PSMatrix raw_states;
+    PSMatrix candidates;
+    PSMatrix input_gates;
+    PSMatrix output_gates;
+    PSMatrix forget_gates;
     PSFloat *initial_raw_states;
     PSFloat *initial_candidates;   /* TODO: Probabily not needed */
     PSFloat *initial_input_gates;  /* TODO: Probabily not needed */

@@ -159,7 +159,7 @@ void printSample(PSNeuralNetwork *network, int input_idx, int len) {
         fprintf(stderr, "ERROR (%s): Invalid input %d\n", __func__, input_idx);
         return;
     }
-    if (!PSResetNetworkRecurrentStates(network, 0, 0)) {
+    if (!PSResetNetworkStateSequences(network, 0, 0)) {
         fprintf(stderr, "ERROR (%s): Failed to reset states\n", __func__);
         return;
     }

@@ -37,9 +37,9 @@ typedef struct {
     PSMatrix update_hidden_weights;
     PSMatrix reset_hidden_weights;
 
-    PSFloat *candidates;
-    PSFloat *update_gates;
-    PSFloat *reset_gates;
+    PSMatrix candidates;
+    PSMatrix update_gates;
+    PSMatrix reset_gates;
     PSFloat *initial_candidates;   /* TODO: Probabily not needed */
     PSFloat *initial_update_gates;  /* TODO: Probabily not needed */
     PSFloat *initial_reset_gates; /* TODO: Probabily not needed */

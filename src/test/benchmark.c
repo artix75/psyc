@@ -259,6 +259,7 @@ int mathsDotBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     }
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
+    opts.argtype[1] = 'V';
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
@@ -317,7 +318,7 @@ int mathsVecProdBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     opts.acceleration = PSAcceleration_BLAS;
     PS_INIT_BENCHMARK(cfg, res, "BLAS");
     PSBenchmarkMeasure(
-        res, (ok = PSVectorProduct(a, b, dest, len_a, len_b, &opts))
+        res, (ok = PSOuterProduct(a, b, dest, len_a, len_b, &opts))
     );
     if (!ok) goto final;
     *num_results += 1;
@@ -327,7 +328,7 @@ int mathsVecProdBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     opts.acceleration = PSAcceleration_ACF;
     PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
     PSBenchmarkMeasure(
-        res, (ok = PSVectorProduct(a, b, dest, len_a, len_b, &opts))
+        res, (ok = PSOuterProduct(a, b, dest, len_a, len_b, &opts))
     );
     if (!ok) goto final;
     *num_results += 1;
@@ -336,7 +337,7 @@ int mathsVecProdBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     opts.acceleration = PSAcceleration_None;
     PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
     PSBenchmarkMeasure(
-        res, (ok = PSVectorProduct(a, b, dest, len_a, len_b, &opts))
+        res, (ok = PSOuterProduct(a, b, dest, len_a, len_b, &opts))
     );
     if (!ok) goto final;
     *num_results += 1;
@@ -609,7 +610,7 @@ int actSigmoidBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     opts.acceleration = PSAcceleration_ACF;
     PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
-    PSBenchmarkMeasure(res, PSSigmoidV(x, dest, size, &opts));
+    PSBenchmarkMeasure(res, PSSigmoid(x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
@@ -617,14 +618,14 @@ int actSigmoidBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     opts.acceleration = PSAcceleration_AVX;
     PS_INIT_BENCHMARK(cfg, res, "AVX");
     opts.acceleration = PSAcceleration_ACF;
-    PSBenchmarkMeasure(res, PSSigmoidV(x, dest, size, &opts));
+    PSBenchmarkMeasure(res, PSSigmoid(x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
     opts.acceleration = PSAcceleration_None;
     PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
     opts.acceleration = PSAcceleration_ACF;
-    PSBenchmarkMeasure(res, PSSigmoidV(x, dest, size, &opts));
+    PSBenchmarkMeasure(res, PSSigmoid(x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 final:
@@ -654,7 +655,7 @@ int actSigmoidDerivBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     opts.acceleration = PSAcceleration_ACF;
     PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
-    PSBenchmarkMeasure(res, PSSigmoidDerivativeV(x, dest, size, &opts));
+    PSBenchmarkMeasure(res, PSSigmoidDerivative(x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
@@ -662,14 +663,14 @@ int actSigmoidDerivBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     opts.acceleration = PSAcceleration_AVX;
     PS_INIT_BENCHMARK(cfg, res, "AVX");
     opts.acceleration = PSAcceleration_ACF;
-    PSBenchmarkMeasure(res, PSSigmoidDerivativeV(x, dest, size, &opts));
+    PSBenchmarkMeasure(res, PSSigmoidDerivative(x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
     opts.acceleration = PSAcceleration_None;
     PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
     opts.acceleration = PSAcceleration_ACF;
-    PSBenchmarkMeasure(res, PSSigmoidDerivativeV(x, dest, size, &opts));
+    PSBenchmarkMeasure(res, PSSigmoidDerivative(x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 final:
@@ -699,7 +700,7 @@ int actTanhBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     opts.acceleration = PSAcceleration_ACF;
     PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
-    PSBenchmarkMeasure(res, PSTanhV(x, dest, size, &opts));
+    PSBenchmarkMeasure(res, PSTanhActivation(x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
@@ -707,14 +708,14 @@ int actTanhBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     opts.acceleration = PSAcceleration_AVX;
     PS_INIT_BENCHMARK(cfg, res, "AVX");
     opts.acceleration = PSAcceleration_ACF;
-    PSBenchmarkMeasure(res, PSTanhV(x, dest, size, &opts));
+    PSBenchmarkMeasure(res, PSTanhActivation(x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
     opts.acceleration = PSAcceleration_None;
     PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
     opts.acceleration = PSAcceleration_ACF;
-    PSBenchmarkMeasure(res, PSTanhV(x, dest, size, &opts));
+    PSBenchmarkMeasure(res, PSTanhActivation(x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 final:
@@ -744,7 +745,7 @@ int actTanhDerivBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     opts.acceleration = PSAcceleration_ACF;
     PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
-    PSBenchmarkMeasure(res, PSTanhDerivativeV(x, dest, size, &opts));
+    PSBenchmarkMeasure(res, PSTanhDerivative(x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
@@ -752,14 +753,14 @@ int actTanhDerivBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     opts.acceleration = PSAcceleration_AVX;
     PS_INIT_BENCHMARK(cfg, res, "AVX");
     opts.acceleration = PSAcceleration_ACF;
-    PSBenchmarkMeasure(res, PSTanhDerivativeV(x, dest, size, &opts));
+    PSBenchmarkMeasure(res, PSTanhDerivative(x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
     opts.acceleration = PSAcceleration_None;
     PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
     opts.acceleration = PSAcceleration_ACF;
-    PSBenchmarkMeasure(res, PSTanhDerivativeV(x, dest, size, &opts));
+    PSBenchmarkMeasure(res, PSTanhDerivative(x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 final:
@@ -789,7 +790,7 @@ int actReluBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     opts.acceleration = PSAcceleration_ACF;
     PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
-    PSBenchmarkMeasure(res, PSReluV(x, dest, size, &opts));
+    PSBenchmarkMeasure(res, PSRelu(x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
@@ -797,14 +798,14 @@ int actReluBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     opts.acceleration = PSAcceleration_AVX;
     PS_INIT_BENCHMARK(cfg, res, "AVX");
     opts.acceleration = PSAcceleration_ACF;
-    PSBenchmarkMeasure(res, PSReluV(x, dest, size, &opts));
+    PSBenchmarkMeasure(res, PSRelu(x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
     opts.acceleration = PSAcceleration_None;
     PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
     opts.acceleration = PSAcceleration_ACF;
-    PSBenchmarkMeasure(res, PSReluV(x, dest, size, &opts));
+    PSBenchmarkMeasure(res, PSRelu(x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 final:
@@ -834,7 +835,7 @@ int actReluDerivBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     opts.acceleration = PSAcceleration_ACF;
     PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
-    PSBenchmarkMeasure(res, PSReluDerivativeV(x, dest, size, &opts));
+    PSBenchmarkMeasure(res, PSReluDerivative(x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
@@ -842,14 +843,14 @@ int actReluDerivBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     opts.acceleration = PSAcceleration_AVX;
     PS_INIT_BENCHMARK(cfg, res, "AVX");
     opts.acceleration = PSAcceleration_ACF;
-    PSBenchmarkMeasure(res, PSReluDerivativeV(x, dest, size, &opts));
+    PSBenchmarkMeasure(res, PSReluDerivative(x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
     opts.acceleration = PSAcceleration_None;
     PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
     opts.acceleration = PSAcceleration_ACF;
-    PSBenchmarkMeasure(res, PSReluDerivativeV(x, dest, size, &opts));
+    PSBenchmarkMeasure(res, PSReluDerivative(x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 final:
@@ -1008,11 +1009,11 @@ PSBenchmarkConfig bechmarks[] = {
      2, INTARGS(1000, 3000)},
     {"PSDot ((1000,50000) * 50000)", &maths_tag, 0, 10, mathsDotBenchmark,
      2, INTARGS(10000, 50000)},
-    {"PSVectorProduct (100,200)", &maths_tag, 0, 10, mathsVecProdBenchmark,
+    {"PSOuterProduct (100,200)", &maths_tag, 0, 10, mathsVecProdBenchmark,
      2, INTARGS(100, 200)},
-    {"PSVectorProduct (1000,3000)", &maths_tag, 0, 10,
+    {"PSOuterProduct (1000,3000)", &maths_tag, 0, 10,
      mathsVecProdBenchmark, 2, INTARGS(1000, 3000)},
-    {"PSVectorProduct (1000,50000)", &maths_tag, 0, 10,
+    {"PSOuterProduct (1000,50000)", &maths_tag, 0, 10,
      mathsVecProdBenchmark, 2, INTARGS(10000, 50000)},
     {"PSSumVectors (1000)", &maths_tag, 0, 10, mathsSumVBenchmark,
      1, INTARGS(1000)},
@@ -1044,41 +1045,41 @@ PSBenchmarkConfig bechmarks[] = {
      mathsMatrixProdBenchmark, 3, INTARGS(1000, 3000, 2000)},
     /*{"PSMatrixProduct (1000,10000,5000)", &maths_tag, 0, 10,
      mathsMatrixProdBenchmark, 3, INTARGS(1000, 10000, 5000)},*/
-    {"PSSigmoidV (1000)", &activation_tag, 0, 10, actSigmoidBenchmark,
+    {"PSSigmoid (1000)", &activation_tag, 0, 10, actSigmoidBenchmark,
      1, INTARGS(1000)},
-    {"PSSigmoidV (10000)", &activation_tag, 0, 10, actSigmoidBenchmark,
+    {"PSSigmoid (10000)", &activation_tag, 0, 10, actSigmoidBenchmark,
      1, INTARGS(10000)},
-    {"PSSigmoidV (100000)", &activation_tag, 0, 10, actSigmoidBenchmark,
+    {"PSSigmoid (100000)", &activation_tag, 0, 10, actSigmoidBenchmark,
      1, INTARGS(100000)},
-    {"PSTanhV (1000)", &activation_tag, 0, 10, actTanhBenchmark,
+    {"PSTanhActivation (1000)", &activation_tag, 0, 10, actTanhBenchmark,
      1, INTARGS(1000)},
-    {"PSTanhV (10000)", &activation_tag, 0, 10, actTanhBenchmark,
+    {"PSTanhActivation (10000)", &activation_tag, 0, 10, actTanhBenchmark,
      1, INTARGS(10000)},
-    {"PSTanhV (100000)", &activation_tag, 0, 10, actTanhBenchmark,
+    {"PSTanhActivation (100000)", &activation_tag, 0, 10, actTanhBenchmark,
      1, INTARGS(100000)},
-    {"PSReluV (1000)", &activation_tag, 0, 10, actReluBenchmark,
+    {"PSRelu (1000)", &activation_tag, 0, 10, actReluBenchmark,
      1, INTARGS(1000)},
-    {"PSReluV (10000)", &activation_tag, 0, 10, actReluBenchmark,
+    {"PSRelu (10000)", &activation_tag, 0, 10, actReluBenchmark,
      1, INTARGS(10000)},
-    {"PSReluV (100000)", &activation_tag, 0, 10, actReluBenchmark,
+    {"PSRelu (100000)", &activation_tag, 0, 10, actReluBenchmark,
      1, INTARGS(100000)},
-    {"PSSigmoidDerivativeV (1000)", &activation_tag, 0, 10,
+    {"PSSigmoidDerivative (1000)", &activation_tag, 0, 10,
       actSigmoidDerivBenchmark, 1, INTARGS(1000)},
-    {"PSSigmoidDerivativeV (10000)", &activation_tag, 0, 10,
+    {"PSSigmoidDerivative (10000)", &activation_tag, 0, 10,
      actSigmoidDerivBenchmark, 1, INTARGS(10000)},
-    {"PSSigmoidDerivativeV (100000)", &activation_tag, 0, 10,
+    {"PSSigmoidDerivative (100000)", &activation_tag, 0, 10,
      actSigmoidDerivBenchmark, 1, INTARGS(100000)},
-    {"PSTanhDerivativeV (1000)", &activation_tag, 0, 10,
+    {"PSTanhDerivative (1000)", &activation_tag, 0, 10,
       actTanhDerivBenchmark, 1, INTARGS(1000)},
-    {"PSTanhDerivativeV (10000)", &activation_tag, 0, 10,
+    {"PSTanhDerivative (10000)", &activation_tag, 0, 10,
      actTanhDerivBenchmark, 1, INTARGS(10000)},
-    {"PSTanhDerivativeV (100000)", &activation_tag, 0, 10,
+    {"PSTanhDerivative (100000)", &activation_tag, 0, 10,
      actTanhDerivBenchmark, 1, INTARGS(100000)},
-    {"PSReluDerivativeV (1000)", &activation_tag, 0, 10,
+    {"PSReluDerivative (1000)", &activation_tag, 0, 10,
       actReluDerivBenchmark, 1, INTARGS(1000)},
-    {"PSReluDerivativeV (10000)", &activation_tag, 0, 10,
+    {"PSReluDerivative (10000)", &activation_tag, 0, 10,
      actReluDerivBenchmark, 1, INTARGS(10000)},
-    {"PSReluDerivativeV (100000)", &activation_tag, 0, 10,
+    {"PSReluDerivative (100000)", &activation_tag, 0, 10,
      actReluDerivBenchmark, 1, INTARGS(100000)},
     {"PSDefaultOptimization (1000)", &optimization_tag, 0, 10,
      optimDefaultBenchmark, 1, INTARGS(1000)},

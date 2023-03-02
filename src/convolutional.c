@@ -91,7 +91,7 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
                             PSGradient *lgradients, ...);
 int PSPoolingBackprop(PSLayer *pooling_layer, PSLayer *convolutional_layer,
                       PSGradient *layer_gradients, ...);
-PSVecActivationFunction PSGetVectorActivationFunc(PSActivationFunction func);
+PSScalarActivationFunction PSGetScalarActivationFunc(PSActivationFunction func);
 int checkLayerForFeedforward(PSLayer *layer);
 PSGradient *createLayerGradients(PSLayer *layer);
 
@@ -599,7 +599,7 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
     layer->size = size;
     layer->neurons = calloc(size, sizeof(PSNeuron*));
     if (layer->neurons == NULL) goto memerr;
-    layer->states = calloc(size, sizeof(PSFloat));
+    layer->states = PSMatrixZeros(2, 1, size);
     if (layer->states == NULL) goto memerr;
     layer->biases = malloc(layer->output_depth * sizeof(PSFloat));
     if (layer->biases == NULL) goto memerr;
@@ -691,7 +691,7 @@ int PSInitPoolingLayer(PSNeuralNetwork *network, PSLayer *layer,
     layer->size = size;
     layer->neurons = malloc(sizeof(PSNeuron*) * size);
     if (layer->neurons == NULL) goto memerr;
-    layer->states = calloc(size, sizeof(PSFloat));
+    layer->states = PSMatrixZeros(2, 1, size);
     if (layer->states == NULL) goto memerr;
     int i, j;
     for (i = 0; i < layer->output_depth; i++) {
@@ -794,18 +794,13 @@ int PSConvolutionalFeedforward(PSLayer *layer, ...) {
                                   feature_size, &mopts);
             }
         }
-        if (layer->activate != NULL) {
-            PSVecActivationFunction activate = PSGetVectorActivationFunc(
-                layer->activate
-            );
-            if (activate == NULL) {
-                PSErr(NULL, "Layer[%d]: invalid activation function");
-                return 0;
-            }
-            activate(outputs, outputs, layer->size, &mopts);
-        }
+        if (layer->activate != NULL)
+            layer->activate(outputs, outputs, layer->size, &mopts);
         return 1;
     }
+    PSScalarActivationFunction activate = NULL;
+    if (layer->activate != NULL)
+        activate = PSGetScalarActivationFunc(layer->activate);
     for (i = 0; i < layer->output_depth; i++) {
         if (do_dump && i > 1) do_dump = 0;
         PSFloat bias = (use_bias ? layer->biases[i] : 0.0);
@@ -877,7 +872,7 @@ int PSConvolutionalFeedforward(PSLayer *layer, ...) {
                 /* weights += (int) region_area; */
             }
             PSFloat state = sum + bias;
-            if (layer->activate != NULL)  state = layer->activate(state);
+            if (activate != NULL) state = activate(state);
             int ok = PSSetState(layer, state, idx, t);
             if (!ok) {
                 PSErr(
@@ -1022,6 +1017,9 @@ int PSPoolingBackprop(PSLayer *pooling_layer, PSLayer *convolutional_layer,
         va_end(args);
     }
     int i, j, row, col, x, y;
+    PSScalarActivationFunction derivative = NULL;
+    if (convolutional_layer->derivative != NULL)
+        derivative = PSGetScalarActivationFunc(convolutional_layer->derivative);
     for (i = 0; i < pooling_layer->output_depth; i++) {
         if (do_dump && i > 1) do_dump = 0;
         row = 0;
@@ -1046,8 +1044,8 @@ int PSPoolingBackprop(PSLayer *pooling_layer, PSLayer *convolutional_layer,
                     );
                     PSFloat s = PSGetState(convolutional_layer, nidx, t);
                     PSFloat dv = (s < pool_state ? 0 : d);
-                    if (dv != 0 && convolutional_layer->derivative != NULL)
-                        dv *= convolutional_layer->derivative(pool_state);
+                    if (dv != 0 && derivative != NULL)
+                        dv *= derivative(pool_state);
                     conv_delta[nidx] = dv;
                 }
             }

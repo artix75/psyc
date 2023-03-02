@@ -82,6 +82,7 @@
 #define FLAG_NO_BIAS        (1 << 3)
 #define FLAG_PRETRAINER     (1 << 4)
 #define FLAG_NON_TRAINABLE  (1 << 5)
+#define FLAG_USE_SEQUENCES  (1 << 6)
 
 /* Training Flags */
 #define TRAINING_NO_SHUFFLE         (1 << 0)
@@ -91,6 +92,9 @@
 
 #define PSIsRecurrent(o) (o->flags & FLAG_RECURRENT)
 #define PSSetRecurrent(o) (o->flags |= FLAG_RECURRENT)
+#define PSUseSequences(o) \
+    (o->flags & (FLAG_RECURRENT | FLAG_USE_SEQUENCES))
+#define PSHandleSequenceAtOnce(o) (PSUseSequences(o) && !PSIsRecurrent(o))
 #define PSLDEF(...) ((PSLayerDef *) &((PSLayerDef) {__VA_ARGS__}))
 #define PSTRAINOPT(...) \
     ((PSTrainingOptions *) &((PSTrainingOptions) {__VA_ARGS__}))
@@ -242,10 +246,9 @@ typedef struct PSLayer {
     PSMatrix                    *weights;
     PSFloat                     *biases;
     PSNeuron                    **neurons;
-    PSFloat                     *states;
-    PSFloat                     *delta;
+    PSMatrix                    states;
+    PSMatrix                    delta;
     PSFloat                     *initial_states;
-    uint32_t                    recurrent_states_count;
     uint32_t                    flags;
     int                         onehot_vector_size;
     int                         output_depth;
@@ -302,19 +305,21 @@ int PSGetOneHotLayerVectorSize(PSLayer *layer);
 uint64_t PSGetLayerParametersCount(PSLayer *layer, int param_type);
 PSLayer *PSGetPreviousLayer(PSLayer *layer);
 PSLayer *PSGetNextLayer(PSLayer *layer);
+PSLayer *PSGetOutputLayer(PSNeuralNetwork *network);
 int PSGetLayerInputSize(PSLayer *layer);
 uint64_t PSGetLayerInputWeightsCount(PSLayer *layer, int per_neuron);
 PSFloat *PSGetNeuronInputWeights(PSNeuron *neuron);
 
-int PSResetLayerRecurrentStates(PSLayer *layer, uint32_t steps,
-                                int retain_previous);
-int PSResetNetworkRecurrentStates(PSNeuralNetwork *network, uint32_t steps,
-                                int retain_previous);
+int PSResetLayerStateSequence(PSLayer *layer, uint32_t steps,
+                              int retain_previous);
+int PSResetNetworkStateSequences(PSNeuralNetwork *network, uint32_t steps,
+                                 int retain_previous);
 PSFloat PSGetState(PSLayer *layer, int index, ...);
 PSFloat *PSGetStates(PSLayer *layer, ...);
 PSFloat PSGetNeuronState(PSNeuron *neuron, ...);
 int PSSetState(PSLayer *layer, PSFloat state, int index, ...);
 int PSSetNeuronState(PSNeuron *neuron, double state, ...);
+int PSStateSequenceLength(PSLayer *layer);
 int PSFeedforward(PSNeuralNetwork *network, PSFloat *values);
 int PSClassify(PSNeuralNetwork *network, PSFloat *values);
 int PSFindLayerMaxState(PSLayer *layer, PSFloat *max_p, int *index_p,...);

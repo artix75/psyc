@@ -20,11 +20,11 @@ default: all
 
 benchmark: $(OBJS) benchmark.o
 	$(CC) -o benchmark $(OBJS) benchmark.o $(LDFLAGS)
-	[ -z "$(BUILD_ONLY)" ] && ./benchmark$(TEST_ARGS) || echo '' > /dev/null
+	@[ -z "$(BUILD_ONLY)" ] && ./benchmark$(TEST_ARGS) || echo '' > /dev/null
 
 main_tests: $(OBJS) main_tests.o
 	$(CC) -o main_tests $(OBJS) main_tests.o $(LDFLAGS)
 
 all: main_tests
-	[ -z "$(BUILD_ONLY)" ] && ./main_tests$(TEST_ARGS) || echo '' > /dev/null
+	@[ -z "$(BUILD_ONLY)" ] && ./main_tests$(TEST_ARGS) || echo '' > /dev/null
         

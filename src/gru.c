@@ -59,13 +59,12 @@ PSGRUCell *PSCreateGRUCell(PSLayer *layer);
 void PSDeleteGRUCell(PSGRUCell *cell);
 static int getGRUStatePointers(PSGRUCell *cell, int type,
                                PSFloat **state_ptr, PSFloat **previous_ptr);
-PSFloat *initRecurrentStates(PSLayer *layer, uint32_t steps,
+PSFloat *initLayerStates(PSLayer *layer, uint32_t steps,
                              int retain_previous, PSFloat *current,
                              PSFloat **previous);
-PSFloat *resizeRecurrentStates(PSLayer *layer, uint32_t steps,
+PSFloat *resizeLayerStates(PSLayer *layer, uint32_t steps,
                                PSFloat *current, PSFloat **previous);
-int PSResizeRecurrentHiddenStates(PSLayer *layer, uint32_t steps);
-PSVecActivationFunction PSGetVectorActivationFunc(PSActivationFunction func);
+int PSResizeLayerStates(PSLayer *layer, uint32_t steps);
 PSActivationFunction PSGetActivationDerivative(PSActivationFunction func);
 PSMatrix PSInitWeights(PSLayer *layer, int rows, int columns,
                        PSLayerDef *ldef, PSFloat range, PSFloat scale);
@@ -74,6 +73,7 @@ PSFloat PSInitParam(int param_type, PSLayerDef *ldef, PSFloat range,
 int PSGRUFeedforward(PSLayer *layer, ...);
 int PSGRUBackprop(PSLayer *layer, PSLayer *previous_layer,
                    PSGradient *lgradients, ...);
+int PSBeforeSequenceFeedforward(PSLayer *layer, int seqlen, int t);
 
 /* GRU functions */
 
@@ -97,12 +97,12 @@ PSFloat *PSGetGRUStates(PSLayer *layer, int t, int type) {
     if (t < 0) return previous_ptr;
     else {
         if (state_ptr == NULL) return NULL;
-        if (t >= (int) layer->recurrent_states_count) {
+        int states_count = PSStateSequenceLength(layer);
+        if (t >= states_count) {
             PSErr(
                 NULL, "GRU %s at step %d is out-of-range: layer %d only "
                 "has %d recurrent hidden states",
-                GRUStateNames[type], t, layer->index,
-                layer->recurrent_states_count
+                GRUStateNames[type], t, layer->index, states_count
             );
             return NULL;
         }
@@ -118,28 +118,43 @@ int PSInitGRUStates(PSLayer *layer, uint32_t steps, int retain_previous) {
         PSErr(__func__, "Layer[%d]: missing GRU cell", layer->index);
         return 0;
     }
-    PSFloat *candidates = initRecurrentStates(
+    if (steps == 0) {
+        if (cell->candidates != NULL) {
+            PSMatrixDelete(cell->candidates);
+            cell->candidates = NULL;
+        }
+        if (cell->update_gates != NULL) {
+            PSMatrixDelete(cell->update_gates);
+            cell->update_gates = NULL;
+        }
+        if (cell->reset_gates != NULL) {
+            PSMatrixDelete(cell->reset_gates);
+            cell->reset_gates = NULL;
+        }
+        return 1;
+    }
+    PSMatrix candidates = initLayerStates(
         layer, steps, retain_previous, cell->candidates,
         &cell->initial_candidates
     );
     if (candidates == NULL) return 0;
-    if (cell->candidates != NULL) free(cell->candidates);
+    if (cell->candidates != NULL) PSMatrixDelete(cell->candidates);
     cell->candidates = candidates;
 
-    PSFloat *update_gates = initRecurrentStates(
+    PSMatrix update_gates = initLayerStates(
         layer, steps, retain_previous, cell->update_gates,
         &cell->initial_update_gates
     );
     if (update_gates == NULL) return 0;
-    if (cell->update_gates != NULL) free(cell->update_gates);
+    if (cell->update_gates != NULL) PSMatrixDelete(cell->update_gates);
     cell->update_gates = update_gates;
 
-    PSFloat *reset_gates = initRecurrentStates(
+    PSMatrix reset_gates = initLayerStates(
         layer, steps, retain_previous, cell->reset_gates,
         &cell->initial_reset_gates
     );
     if (reset_gates == NULL) return 0;
-    if (cell->reset_gates != NULL) free(cell->reset_gates);
+    if (cell->reset_gates != NULL) PSMatrixDelete(cell->reset_gates);
     cell->reset_gates = reset_gates;
 
     return 1;
@@ -152,11 +167,11 @@ int PSResizeGRUStates(PSLayer *layer, uint32_t steps) {
         return 0;
     }
 
-    PSFloat *candidates = resizeRecurrentStates(
+    PSMatrix candidates = resizeLayerStates(
         layer, steps, cell->candidates, &cell->initial_candidates
     );
     if (candidates == NULL) {
-        free(cell->candidates);
+        PSMatrixDelete(cell->candidates);
         cell->candidates = NULL;
         cell->initial_candidates = NULL;
         layer->network->status = STATUS_ERROR;
@@ -164,11 +179,11 @@ int PSResizeGRUStates(PSLayer *layer, uint32_t steps) {
     }
     cell->candidates = candidates;
 
-    PSFloat *update_gates = resizeRecurrentStates(
+    PSMatrix update_gates = resizeLayerStates(
         layer, steps, cell->update_gates, &cell->initial_update_gates
     );
     if (update_gates == NULL) {
-        free(cell->update_gates);
+        PSMatrixDelete(cell->update_gates);
         cell->update_gates = NULL;
         cell->initial_update_gates = NULL;
         layer->network->status = STATUS_ERROR;
@@ -176,11 +191,11 @@ int PSResizeGRUStates(PSLayer *layer, uint32_t steps) {
     }
     cell->update_gates = update_gates;
 
-    PSFloat *reset_gates = resizeRecurrentStates(
+    PSMatrix reset_gates = resizeLayerStates(
         layer, steps, cell->reset_gates, &cell->initial_reset_gates
     );
     if (reset_gates == NULL) {
-        free(cell->reset_gates);
+        PSMatrixDelete(cell->reset_gates);
         cell->reset_gates = NULL;
         cell->initial_reset_gates = NULL;
         layer->network->status = STATUS_ERROR;
@@ -236,12 +251,12 @@ PSFloat getGRUState(PSLayer *layer, int index, int t, int type) {
         if (previous_ptr == NULL) return 0.0;
         else return previous_ptr[index];
     } else {
-        if (t >= (int) layer->recurrent_states_count) {
+        if (t >= (int) PSStateSequenceLength(layer)) {
             PSErr(
                 NULL, "GRU %s %d is out-of-range: layer %d only "
                 "has %d recurrent hidden cell",
                 "of size %d", GRUStateNames[type], t, layer->index,
-                layer->recurrent_states_count
+                PSStateSequenceLength(layer)
             );
             return 0.0;
         }
@@ -264,8 +279,8 @@ int setGRUState(PSLayer *layer, int index, PSFloat state, int t, int type) {
         return 0;
     }
     PSFloat *state_ptr = NULL, *previous_ptr = NULL;
-    if (t >= (int) layer->recurrent_states_count) {
-        if (!PSResizeRecurrentHiddenStates(layer, t + 1)) {
+    if (t >= (int) PSStateSequenceLength(layer)) {
+        if (!PSResizeLayerStates(layer, t + 1)) {
             if (layer->network) layer->network->status = STATUS_ERROR;
             PSErr(
                 NULL, "Could not resize recurrent hidden states for "
@@ -337,9 +352,9 @@ memerr:
 }
 
 void PSDeleteGRUCell(PSGRUCell *cell) {
-    if (cell->candidates != NULL) free(cell->candidates);
-    if (cell->update_gates != NULL) free(cell->update_gates);
-    if (cell->reset_gates != NULL) free(cell->reset_gates);
+    if (cell->candidates != NULL) PSMatrixDelete(cell->candidates);
+    if (cell->update_gates != NULL) PSMatrixDelete(cell->update_gates);
+    if (cell->reset_gates != NULL) PSMatrixDelete(cell->reset_gates);
     free(cell);
 }
 
@@ -356,26 +371,22 @@ int PSGRULayerCopy(PSLayer *layer, PSLayer *src) {
     PSGRUCell *cell = (PSGRUCell *) layer->extra;
     PSGRUCell *srccell = (PSGRUCell *) src->extra;
     if (cell == NULL || srccell == NULL) return 0;
-    size_t states_size = 0;
-    if (srccell->candidates != NULL && src->recurrent_states_count > 0) {
+    int c = PSStateSequenceLength(src);
+    if (srccell->candidates != NULL && c > 0) {
         if (srccell->update_gates == NULL || srccell->reset_gates == NULL) {
             PSErr(NULL, "Layer[%d]: incomplete states", src->index);
             return 0;
         }
-        int c = src->recurrent_states_count;
         if (src->initial_states != NULL) c++;
-        states_size = c * layer->size * sizeof(PSFloat);
-        if (cell->candidates == NULL) cell->candidates = malloc(states_size);
+        if (cell->candidates != NULL) PSMatrixDelete(cell->candidates);
+        cell->candidates = PSMatrixDup(srccell->candidates);
         if (cell->candidates == NULL) goto memerr;
-        memcpy(cell->candidates, srccell->candidates, states_size);
-        if (cell->update_gates == NULL)
-            cell->update_gates = malloc(states_size);
+        if (cell->update_gates != NULL) PSMatrixDelete(cell->update_gates);
+        cell->update_gates = PSMatrixDup(srccell->update_gates);
         if (cell->update_gates == NULL) goto memerr;
-        memcpy(cell->update_gates, srccell->update_gates, states_size);
-        if (cell->reset_gates == NULL)
-            cell->reset_gates = malloc(states_size);
+        if (cell->reset_gates != NULL) PSMatrixDelete(cell->reset_gates);
+        cell->reset_gates = PSMatrixDup(srccell->reset_gates);
         if (cell->reset_gates == NULL) goto memerr;
-        memcpy(cell->reset_gates, srccell->reset_gates, states_size);
     }
     return 1;
 memerr:
@@ -419,7 +430,7 @@ int PSInitGRULayer(PSNeuralNetwork *network, PSLayer *layer,
         for (i = 0; i < bias_count; i++)
             layer->biases[i] = PSInitParam(PARAM_TYPE_BIAS, ldef, 1, 0);
     }
-    layer->delta = calloc(layer->size, sizeof(PSFloat));
+    layer->delta = PSMatrixZeros(2, 1, layer->size);
     if (layer->delta == NULL) goto memerr;
     if (!PSCreateGRUCell(layer)) return 0;
     for (i = 0; i < size; i++) {
@@ -458,25 +469,11 @@ int PSGRUFeedforward(PSLayer *layer, ...) {
     PSFloat *cache = NULL;
     va_list args;
     va_start(args, layer);
-    int times = va_arg(args, int);
+    int steps = va_arg(args, int);
     int t = va_arg(args, int);
     va_end(args);
-    if (times < 1) {
-        PSErr(NULL, "Layer[%d]: times must be >= 1 (found %d)",
-              layer->index, times);
-        return 0;
-    }
-    if (t >= (int) layer->recurrent_states_count) {
-        if (!PSResizeRecurrentHiddenStates(layer, t + 1)) {
-            if (layer->network) layer->network->status = STATUS_ERROR;
-            PSErr(
-                NULL, "Could not resize recurrent hidden states for "
-                "layer %d", layer->index
-            );
-            return 0;
-        }
-    }
-    PSLayer *previous = net->layers[layer->index - 1];
+    if (!PSBeforeSequenceFeedforward(layer, steps, t)) return 0;
+    PSLayer *previous = PSGetPreviousLayer(layer);
     PSLayer *first_recurrent = PSGetFirstRecurrentLayer(net);
     PSGRUCell *cell = PSGetGRUCell(layer);
     if (cell == NULL) return 0;
@@ -485,21 +482,7 @@ int PSGRUFeedforward(PSLayer *layer, ...) {
     int ignore_inputs = 0;
     int prev_t = t - 1, i;
     int use_bias = !(layer->flags & FLAG_NO_BIAS);
-    PSMathOpts dfopts = {.acceleration = net->acceleration};
-    PSMathOpts dpopt[] = {
-        /* Options for candiates */
-        {.acceleration = net->acceleration, .after = PSTanhActivation},
-        /* Options for update gates */
-        {.acceleration = net->acceleration, .after = PSSigmoid},
-        /* Options for reset gates */
-        {.acceleration = net->acceleration, .after = PSSigmoid},
-    };
-    if (use_bias) {
-        dpopt[CANDIDATE_IDX].add_vec = cell->candidate_biases;
-        dpopt[UPDATE_IDX].add_vec = cell->update_biases;
-        dpopt[RESET_IDX].add_vec = cell->reset_biases;
-    }
-    PSMathOpts final_opts = {.acceleration = net->acceleration};
+    PSMathOpts mopts = {.acceleration = net->acceleration};
     PSFloat *prev_states = NULL;
     PSFloat *candidates = getCandidates(layer, t);
     PSFloat *update_gates = getUpdateGates(layer, t);
@@ -520,9 +503,15 @@ int PSGRUFeedforward(PSLayer *layer, ...) {
     if (!PSIsRecurrent(previous) && layer == first_recurrent)
         ignore_inputs = (t > 0);
     int feed_previous_step = (t > 0 || layer->initial_states != NULL);
+    int reset_gates_complete = 0;
     PSFloat *inputs = NULL;
     PSFloat *outputs = PSGetStates(layer, t);
     if (ignore_inputs) goto forward_previous_step;
+    /* Feed inputs:
+     *  candidates = dot(candidate_weights, inputs)
+     *  update_gates = dot(update_weights, inputs)
+     *  reset_gates = dot(reset_weights, inputs)
+     */
     if (onehot) {
         /* Onehot input layers only have one input corresponding to the index
          * of the activated unit. In this case, just take the value of the
@@ -543,16 +532,6 @@ int PSGRUFeedforward(PSLayer *layer, ...) {
             candidates[i] = cell->candidate_weights[offset];
             update_gates[i] = cell->update_weights[offset];
             reset_gates[i] = cell->reset_weights[offset];
-            if (!feed_previous_step) {
-                if (use_bias) {
-                    candidates[i] += cell->candidate_biases[i];
-                    update_gates[i] += cell->update_biases[i];
-                    reset_gates[i] += cell->reset_biases[i];
-                }
-                candidates[i] = PSTanh(candidates[i]);
-                update_gates[i] = PSSigmoid(update_gates[i]);
-                reset_gates[i] = PSSigmoid(reset_gates[i]);
-            }
         }
     } else {
         inputs = PSGetStates(previous, t);
@@ -562,47 +541,76 @@ int PSGRUFeedforward(PSLayer *layer, ...) {
             success = 0;
             goto final;
         }
-        PSMathOpts *c_opts = &dfopts, *ug_opts = &dfopts, *rg_opts = &dfopts;
-        if (!feed_previous_step) {
-            /* Since previous layer state won't be added, directly use
-             * `dpopt` options which will eventually add biases and
-             * apply activation function to PSDot results. */
-            c_opts = &dpopt[CANDIDATE_IDX];
-            ug_opts = &dpopt[UPDATE_IDX];
-            rg_opts = &dpopt[RESET_IDX];
-        }
-        success = PSDot(cell->candidate_weights, inputs, candidates, c_opts) &&
-                  PSDot(cell->update_weights, inputs, update_gates, ug_opts) &&
-                  PSDot(cell->reset_weights, inputs, reset_gates, rg_opts);
+        mopts.argtype[1] = 'V';
+        success = PSDot(cell->candidate_weights, inputs, candidates, &mopts) &&
+                  PSDot(cell->update_weights, inputs, update_gates, &mopts) &&
+                  PSDot(cell->reset_weights, inputs, reset_gates, &mopts);
         if (!success) goto final;
     }
 forward_previous_step:
+    /* Feed previous layer's states:
+     *  update_gates += dot(update_hidden_weights, prev_states)
+     *  reset_gates += dot(reset_hidden_weights, prev_states)
+     */
     if (!feed_previous_step) goto make_outputs;
     prev_states = PSGetStates(layer, prev_t);
     if (prev_states == NULL) goto make_outputs;
-    dpopt[CANDIDATE_IDX].store_mode =
-    dpopt[UPDATE_IDX].store_mode =
-    dpopt[RESET_IDX].store_mode = MATHS_STORE_MODE_ADD;
+    mopts.store_mode = MATHS_STORE_MODE_ADD;
+    mopts.transpose = 0;
+    mopts.argtype[0] = 'M';
+    mopts.argtype[1] = 'V';
     success = (
-        PSDot(cell->update_hidden_weights, prev_states, update_gates,
-                    &dpopt[UPDATE_IDX]) &&
-        PSDot(cell->reset_hidden_weights, prev_states, reset_gates,
-                    &dpopt[RESET_IDX])
+        PSDot(cell->update_hidden_weights, prev_states, update_gates,&mopts) &&
+        PSDot(cell->reset_hidden_weights, prev_states, reset_gates, &mopts)
     );
     if (!success) goto final;
-    PSMultiplyVectors(reset_gates, prev_states, cache, layer->size,
-                      &final_opts);
-    success = PSDot(cell->candidate_hidden_weights, cache, candidates,
-                    &dpopt[CANDIDATE_IDX]);
+    mopts.store_mode = MATHS_STORE_MODE_NORM;
+    if (use_bias) {
+        /*  reset_gates += reset_biases */
+        PSSumVectors(reset_gates, cell->reset_biases, reset_gates,
+            layer->size, &mopts);
+    }
+    /*  reset_gates = sigmoid(reset_gates) */
+    PSSigmoid(reset_gates, NULL, layer->size, &mopts);
+    reset_gates_complete = 1;
+    /* candidates += dot(candidate_hidden_weights,(reset_gates * prev_states))*/
+    PSMultiplyVectors(reset_gates, prev_states, cache, layer->size, &mopts);
+    mopts.store_mode = MATHS_STORE_MODE_ADD;
+    success = PSDot(cell->candidate_hidden_weights, cache, candidates, &mopts);
     if (!success) goto final;
-    /* Produce outputs */
-    PSMultiplyVectors(update_gates, prev_states, outputs, layer->size,
-                      &final_opts);
 make_outputs:
-    PSSubtractScalarVector(1, update_gates, cache, layer->size, &final_opts);
-    if (feed_previous_step) final_opts.store_mode = MATHS_STORE_MODE_ADD;
-    PSMultiplyVectors(candidates, cache, outputs, layer->size,
-                      &final_opts);
+    mopts.store_mode = MATHS_STORE_MODE_NORM;
+    if (use_bias) {
+        /*  candidates += candidate_biases
+         *  update_gates += update_biases */
+        PSSumVectors(candidates, cell->candidate_biases, candidates,
+            layer->size, &mopts);
+        PSSumVectors(update_gates, cell->update_biases, update_gates,
+            layer->size, &mopts);
+        if (!reset_gates_complete) {
+            /* Add reset_biases to reset_gates if forward_previous_step has
+             * been skipped. */
+            PSSumVectors(reset_gates, cell->reset_biases, reset_gates,
+                layer->size, &mopts);
+        }
+    }
+    /* candidates = tanh(candidates), update_gates = sigmoid(update_gates) */
+    PSTanhActivation(candidates, NULL, layer->size, &mopts);
+    PSSigmoid(update_gates, NULL, layer->size, &mopts);
+    if (!reset_gates_complete)
+        PSSigmoid(reset_gates, NULL, layer->size, &mopts);
+    /* Produce outputs */
+    mopts.store_mode = MATHS_STORE_MODE_NORM;
+    if (feed_previous_step) {
+        /* outputs = update_gates * prev_states */
+        PSMultiplyVectors(
+            update_gates, prev_states, outputs, layer->size, &mopts
+        );
+    }
+    PSSubtractScalarVector(1, update_gates, cache, layer->size, &mopts);
+    if (feed_previous_step) mopts.store_mode = MATHS_STORE_MODE_ADD;
+    /* outputs += candidates * (1 - update_gates) */
+    PSMultiplyVectors(candidates, cache, outputs, layer->size, &mopts);
 final:
     free(cache);
     return success;
@@ -641,22 +649,6 @@ int PSGRUBackprop(PSLayer *layer, PSLayer *previous_layer,
         success = 0;
         goto final;
     }
-    PSMatrix tr_update_hidden_weights = PSMatrixTranspose(
-        cell->update_hidden_weights, 0, &mopts
-    );
-    PSMatrix tr_candidate_hidden_weights = PSMatrixTranspose(
-        cell->candidate_hidden_weights, 0, &mopts
-    );
-    PSMatrix tr_reset_hidden_weights = PSMatrixTranspose(
-        cell->reset_hidden_weights, 0, &mopts
-    );
-    if (!tr_update_hidden_weights || !tr_candidate_hidden_weights ||
-        !tr_reset_hidden_weights)
-    {
-        PSErr(NULL, "Layer[%d]: failed to transpose weights", layer->index);
-        success = 0;
-        goto final;
-    }
 
     int input_weight_size = input_size * lsize;
     int hidden_weight_size = lsize * lsize;
@@ -688,16 +680,19 @@ int PSGRUBackprop(PSLayer *layer, PSLayer *previous_layer,
     /* Build delta_c */
     PSSubtractScalarVector(1, update_gates, delta_c, lsize, &mopts);
     PSMultiplyVectors(delta_c, delta, delta_c, lsize, &mopts);
-    PSTanhDerivativeV(candidates, cache, lsize, &mopts);
+    PSTanhDerivative(candidates, cache, lsize, &mopts);
     PSMultiplyVectors(delta_c, cache, delta_c, lsize, &mopts);
 
     /* Build delta_rc and delta_r */
-    success = PSDot(tr_candidate_hidden_weights, delta_c, delta_rc, &mopts);
+    mopts.transpose = 1;
+    mopts.argtype[1] = 'V';
+    success = PSDot(cell->candidate_hidden_weights, delta_c, delta_rc, &mopts);
     if (!success) goto final;
+    mopts.transpose = 0;
     if (has_prev_states) {
         mopts.store_mode = MATHS_STORE_MODE_NORM;
         PSMultiplyVectors(delta_rc, prev_states, delta_r, lsize, &mopts);
-        PSSigmoidDerivativeV(reset_gates, cache, lsize, &mopts);
+        PSSigmoidDerivative(reset_gates, cache, lsize, &mopts);
         PSMultiplyVectors(delta_r, cache, delta_r, lsize, &mopts);
     }
 
@@ -706,7 +701,7 @@ int PSGRUBackprop(PSLayer *layer, PSLayer *previous_layer,
         PSSubtractVectors(prev_states, candidates, delta_u, lsize, &mopts);
     else PSSubtractScalarVector(0, candidates, delta_u, lsize, &mopts);
     PSMultiplyVectors(delta_u, delta, delta_u, lsize, &mopts);
-    PSSigmoidDerivativeV(update_gates, cache, lsize, &mopts);
+    PSSigmoidDerivative(update_gates, cache, lsize, &mopts);
     PSMultiplyVectors(delta_u, cache, delta_u, lsize, &mopts);
 
     /* Update gradient biases */
@@ -746,12 +741,12 @@ int PSGRUBackprop(PSLayer *layer, PSLayer *previous_layer,
             goto final;
         }
         mopts.store_mode = MATHS_STORE_MODE_ADD;
-        PSVectorProduct(delta_c, inputs, gradient_weights_c, lsize,
-                        previous_layer->size, &mopts);
-        PSVectorProduct(delta_u, inputs, gradient_weights_u, lsize,
-                        previous_layer->size, &mopts);
+        PSOuterProduct(delta_c, inputs, gradient_weights_c, lsize,
+                       previous_layer->size, &mopts);
+        PSOuterProduct(delta_u, inputs, gradient_weights_u, lsize,
+                       previous_layer->size, &mopts);
         if (has_prev_states) {
-            PSVectorProduct(delta_r, inputs, gradient_weights_r, lsize,
+            PSOuterProduct(delta_r, inputs, gradient_weights_r, lsize,
                             previous_layer->size, &mopts);
         }
     }
@@ -760,46 +755,38 @@ int PSGRUBackprop(PSLayer *layer, PSLayer *previous_layer,
         mopts.store_mode = MATHS_STORE_MODE_NORM;
         PSMultiplyVectors(reset_gates, prev_states, cache, lsize, &mopts);
         mopts.store_mode = MATHS_STORE_MODE_ADD;
-        PSVectorProduct(delta_c, cache, gradient_hweights_c, lsize,
-                        lsize, &mopts);
-        PSVectorProduct(delta_r, prev_states, gradient_hweights_r, lsize,
-                        lsize, &mopts);
-        PSVectorProduct(delta_u, prev_states, gradient_hweights_u, lsize,
-                        lsize, &mopts);
+        PSOuterProduct(delta_c, cache, gradient_hweights_c, lsize,
+                       lsize, &mopts);
+        PSOuterProduct(delta_r, prev_states, gradient_hweights_r, lsize,
+                       lsize, &mopts);
+        PSOuterProduct(delta_u, prev_states, gradient_hweights_u, lsize,
+                       lsize, &mopts);
         /* Update Delta */
         if (t > 0) {
             mopts.store_mode = MATHS_STORE_MODE_NORM;
             PSMultiplyVectors(delta, update_gates, delta, lsize, &mopts);
             mopts.store_mode = MATHS_STORE_MODE_ADD;
-            success = PSDot(tr_update_hidden_weights, delta_u, delta, &mopts);
+            mopts.transpose = 1;
+            mopts.argtype[1] = 'V';
+            success = PSDot(cell->update_hidden_weights, delta_u,delta,&mopts);
             if (!success) goto final;
             PSMultiplyVectors(delta_rc, reset_gates, delta, lsize, &mopts);
-            success = PSDot(tr_reset_hidden_weights, delta_r, delta, &mopts);
+            success = PSDot(cell->reset_hidden_weights, delta_r, delta, &mopts);
             if (!success) goto final;
         }
     }
     if (previous_layer->delta != NULL) {
         /* Update previous layer delta */
+        PSFloat *prev_delta = previous_layer->delta;
         mopts.store_mode = MATHS_STORE_MODE_NORM;
-        PSMatrix tr_weights_c = PSMatrixTranspose(
-            cell->candidate_weights, 0, &mopts
-        );
-        PSMatrix tr_weights_u = PSMatrixTranspose(
-            cell->update_weights, 0, &mopts
-        );
-        PSMatrix tr_weights_r = PSMatrixTranspose(
-            cell->reset_weights, 0, &mopts
-        );
-        if (!tr_weights_c || !tr_weights_u || !tr_weights_r) {
-            success = 0;
-            goto final;
-        }
-        success = PSDot(tr_weights_c, delta_c, previous_layer->delta, &mopts);
+        mopts.transpose = 1;
+        mopts.argtype[1] = 'V';
+        success = PSDot(cell->candidate_weights, delta_c, prev_delta, &mopts);
         if (!success) goto final;
         mopts.store_mode = MATHS_STORE_MODE_ADD;
         success = (
-            PSDot(tr_weights_u, delta_u, previous_layer->delta, &mopts) &&
-            PSDot(tr_weights_r, delta_r, previous_layer->delta, &mopts)
+            PSDot(cell->update_weights, delta_u, prev_delta, &mopts) &&
+            PSDot(cell->reset_weights, delta_r, prev_delta, &mopts)
         );
         if (!success) goto final;
     }

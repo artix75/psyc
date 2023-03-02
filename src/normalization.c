@@ -46,26 +46,36 @@ PSMatrix PSInitWeights(PSLayer *layer, int rows, int columns,
                        PSLayerDef *ldef, PSFloat range, PSFloat scale);
 PSFloat PSInitParam(int param_type, PSLayerDef *ldef, PSFloat range,
                     PSFloat scale);
+int PSBeforeSequenceFeedforward(PSLayer *layer, int seqlen, int t);
 
 /* Layer functions */
 
-static void deleteNormalizationCache(PSLayer *layer) {
-    if (layer == NULL) return;
-    PSNormalizationLayerCache *cache = GetNormalizationCache(layer);
+static void deleteNormalizationCache(PSNormalizationLayerCache *cache,
+                                     uint32_t seqlen)
+{
     if (cache == NULL) return;
-    int steps = 1;
-    if (PSIsRecurrent(layer)) steps = layer->recurrent_states_count;
-    if (steps <= 0) steps = 1;
-    for (int i = 0; i < steps; i++) {
+    if (seqlen <= 0) seqlen = 1;
+    for (uint32_t i = 0; i < seqlen; i++) {
         PSNormalizationLayerCache *cache_t = cache + i;
+        if (cache_t == NULL) continue;
         free(cache_t->normalized_values);
     }
     free(cache);
+}
+
+static void deleteNormalizationLayerCache(PSLayer *layer) {
+    if (layer == NULL) return;
+    PSNormalizationLayerCache *cache = GetNormalizationCache(layer);
+    if (cache == NULL) return;
+    int seqlen = 1;
+    if (PSUseSequences(layer)) seqlen = PSStateSequenceLength(layer);
+    if (seqlen <= 0) seqlen = 1;
+    deleteNormalizationCache(cache, seqlen);
     layer->private = NULL;
 }
 
 static void deleteNormalizationLayer(PSLayer *layer) {
-    deleteNormalizationCache(layer);
+    deleteNormalizationLayerCache(layer);
     free(layer->extra);
     layer->extra = NULL;
 }
@@ -74,15 +84,15 @@ static int copyNormalizationLayer(PSLayer *layer, PSLayer *src) {
     PSNormalizationLayerCache *dstcache = GetNormalizationCache(layer);
     PSNormalizationLayerCache *srccache = GetNormalizationCache(src);
     if (srccache != NULL) {
-        if (dstcache != NULL) deleteNormalizationCache(layer);
-        uint32_t steps = 1;
-        if (PSIsRecurrent(layer)) {
-            steps = src->recurrent_states_count;
-            if (steps == 0) return 0;
-            if (!PSInitNormalizationCache(layer, steps, 0)) return 0;
+        if (dstcache != NULL) deleteNormalizationLayerCache(layer);
+        uint32_t seqlen = 1;
+        if (PSUseSequences(layer)) {
+            seqlen = PSStateSequenceLength(src);
+            if (seqlen == 0) return 0;
+            if (!PSInitNormalizationCache(layer, seqlen, 0)) return 0;
             dstcache = GetNormalizationCache(layer);
-            memcpy(dstcache, srccache, steps * sizeof(*dstcache));
-            for (uint32_t i = 0; i < steps; i++) {
+            memcpy(dstcache, srccache, seqlen * sizeof(*dstcache));
+            for (uint32_t i = 0; i < seqlen; i++) {
                 PSNormalizationLayerCache *cache_t = dstcache + i;
                 PSNormalizationLayerCache *srccache_t = srccache + i;
                 free(cache_t->normalized_values);
@@ -102,7 +112,7 @@ static int copyNormalizationLayer(PSLayer *layer, PSLayer *src) {
                 }
             }
         }
-    } else deleteNormalizationCache(layer);
+    } else deleteNormalizationLayerCache(layer);
     PSNormalizationLayerSettings *dstsettings =
         PSGetNormalizationSettings(layer);
     PSNormalizationLayerSettings *srcsettings = PSGetNormalizationSettings(src);
@@ -120,65 +130,68 @@ static int copyNormalizationLayer(PSLayer *layer, PSLayer *src) {
     return 1;
 }
 
-PSNormalizationLayerCache *createLocalizationCache(PSLayer *layer,
-                                                   uint32_t steps)
+PSNormalizationLayerCache *createNormalizationCache(PSLayer *layer,
+                                                   uint32_t seqlen)
 {
-    PSNormalizationLayerCache *cache = calloc(steps, sizeof(*cache));
+    PSNormalizationLayerCache *cache = calloc(seqlen, sizeof(*cache));
     if (cache == NULL) {
         PSPrintMemoryErrorMsg();
         return NULL;
     }
-    cache->normalized_values = calloc(layer->size, sizeof(PSFloat));
-    if (cache->normalized_values == NULL) {
-        PSPrintMemoryErrorMsg();
-        free(cache);
-        return NULL;
+    for (uint32_t i = 0; i < seqlen; i++) {
+        PSNormalizationLayerCache *cache_t = cache + i;
+        cache_t->normalized_values = calloc(layer->size, sizeof(PSFloat));
+        if (cache_t == NULL) {
+            PSPrintMemoryErrorMsg();
+            deleteNormalizationCache(cache, i);
+            return NULL;
+        }
     }
     return cache;
 }
 
-int PSInitNormalizationCache(PSLayer *layer, uint32_t steps,
+int PSInitNormalizationCache(PSLayer *layer, uint32_t seqlen,
                              int retain_previous)
 {
     UNUSED(retain_previous);
     if (layer == NULL) return 0;
     PSNormalizationLayerCache *cache = GetNormalizationCache(layer);
-    if (steps > 0) {
-        if (cache != NULL) deleteNormalizationCache(layer);
-        cache = createLocalizationCache(layer, steps);
+    if (seqlen > 0) {
+        if (cache != NULL) deleteNormalizationLayerCache(layer);
+        cache = createNormalizationCache(layer, seqlen);
         if (cache == NULL) return 0;
         layer->private = cache;
     } else if (layer->private != NULL) {
-        deleteNormalizationCache(layer);
+        deleteNormalizationLayerCache(layer);
         layer->private = NULL;
     }
     return 1;
 }
 
-int PSResizeNormalizationCache(PSLayer *layer, uint32_t steps) {
+int PSResizeNormalizationCache(PSLayer *layer, uint32_t seqlen) {
     if (layer == NULL) return 0;
     PSNormalizationLayerCache *cache = GetNormalizationCache(layer);
-    if (cache == NULL) return PSInitNormalizationCache(layer, steps, 0);
-    size_t size = (size_t) steps * sizeof(PSNormalizationLayerCache);
+    if (cache == NULL) return PSInitNormalizationCache(layer, seqlen, 0);
+    size_t size = (size_t) seqlen * sizeof(PSNormalizationLayerCache);
     PSNormalizationLayerCache *new_cache = realloc(cache, size);
     if (new_cache == NULL) goto memerr;
-    int diff = steps - layer->recurrent_states_count;
+    int cur_seqlen = PSStateSequenceLength(layer);
+    int diff = seqlen - cur_seqlen;
     if (diff > 0) {
-        PSNormalizationLayerCache *new_caches =
-            new_cache + layer->recurrent_states_count;
-        memset(new_cache, 0, (size_t) diff * sizeof(*new_cache));
+        PSNormalizationLayerCache *added_caches = new_cache + cur_seqlen;
+        memset(added_caches, 0, (size_t) diff * sizeof(*added_caches));
         for (int i = 0; i < diff; i++) {
-            PSNormalizationLayerCache *new_cache = new_caches + i;
-            new_cache->normalized_values =
-                calloc(layer->size, sizeof(PSFloat));
-            if (new_cache->normalized_values == NULL) goto memerr;
+            PSNormalizationLayerCache *added = added_caches + i;
+            added->normalized_values = calloc(layer->size, sizeof(PSFloat));
+            if (added->normalized_values == NULL) goto memerr;
         }
     }
     layer->private = new_cache;
     return 1;
 memerr:
     PSPrintMemoryErrorMsg();
-    deleteNormalizationCache(layer);
+    if (new_cache != NULL) deleteNormalizationCache(new_cache, seqlen);
+    deleteNormalizationLayerCache(layer);
     layer->private = NULL;
     layer->network->status = STATUS_ERROR;
     return 0;
@@ -217,7 +230,7 @@ int PSInitNormalizationLayer(PSLayer *layer, PSLayerDef *ldef) {
             }
         }
     }
-    PSFloat *states = calloc(layer->size, sizeof(PSFloat));
+    PSMatrix states = PSMatrixZeros(2, 1, layer->size);
     if (states == NULL) goto memerr;
     layer->states = states;
     if (!PSInitNormalizationCache(layer, 1, 0)) return 0;
@@ -241,20 +254,17 @@ memerr:
 /* Feddforward */
 int PSNormalizationFeedforward(PSLayer *layer, ...) {
     if (!checkLayerForFeedforward(layer)) return 0;
-    int t = 0, times = 0, is_recurrent = PSIsRecurrent(layer);
+    int t = 0, seqlen = 0, is_recurrent = PSIsRecurrent(layer),
+        sequence_at_once = PSHandleSequenceAtOnce(layer);
     PSFloat *meandiff = NULL, *tmp = NULL;
     PSLayer *previous = PSGetPreviousLayer(layer);
-    if (is_recurrent) {
+    if (is_recurrent || sequence_at_once) {
         va_list args;
         va_start(args, layer);
-        times = va_arg(args, int);
-        t = va_arg(args, int);
+        seqlen = va_arg(args, int);
+        if (is_recurrent) t = va_arg(args, int);
         va_end(args);
-        if (times < 1) {
-            PSErr(__func__, "Layer[%d]: times must be >= 1 (found %d)",
-                  layer->index, times);
-            return 0;
-        }
+        if (!PSBeforeSequenceFeedforward(layer, seqlen, t)) return 0;
     }
     PSFloat *inputs = PSGetStates(previous, t),
             *outputs = PSGetStates(layer, t);
@@ -268,9 +278,9 @@ int PSNormalizationFeedforward(PSLayer *layer, ...) {
         return 0;
     }
     if (cache == NULL) {
-        uint32_t steps = times;
-        if (steps == 0) steps = 1;
-        if (PSInitNormalizationCache(layer, steps, 0)) return 0;
+        uint32_t slen = seqlen;
+        if (slen == 0) slen = 1;
+        if (PSInitNormalizationCache(layer, slen, 0)) return 0;
     }
     PSNormalizationLayerSettings *settings = PSGetNormalizationSettings(layer);
     if (is_recurrent) cache += t;
@@ -279,11 +289,13 @@ int PSNormalizationFeedforward(PSLayer *layer, ...) {
         cache->normalized_values = malloc(alloc_size);
         if (cache->normalized_values == NULL) goto memerr;
     }
+    /* Normalization */
     PSFloat *normalized = cache->normalized_values;
     meandiff = malloc(alloc_size);
     tmp = malloc(alloc_size);
     if (meandiff == NULL || tmp == NULL) goto memerr;
     PSMathOpts mopts = {.acceleration = layer->network->acceleration};
+    /* Compute, variance and stddev */
     PSFloat mean = PSMean(inputs, layer->size, &mopts);
     PSSubtractVectorScalar(inputs, mean, meandiff, layer->size, &mopts);
     PSMultiplyVectors(meandiff, meandiff, tmp, layer->size, &mopts);
@@ -292,11 +304,13 @@ int PSNormalizationFeedforward(PSLayer *layer, ...) {
     if (settings != NULL) epsilon = settings->epsilon;
     if (epsilon == 0) epsilon = PSDEFAULT_NORM_EPSILON;
     PSFloat stddev = PSSqrt(variance + epsilon);
+    /* Normalize values: (x - mean) / stddtev */
     PSDivideVectorScalar(meandiff, stddev, normalized, layer->size, &mopts);
     cache->mean = mean;
     cache->variance = variance;
     cache->stddev = stddev;
     if (!(layer->flags & FLAG_NON_TRAINABLE)) {
+        /* Apply weights and biases */
         PSMultiplyVectors(normalized, layer->weights[0], outputs, layer->size,
                           &mopts);
         PSSumVectors(outputs, layer->biases, outputs, layer->size, &mopts);

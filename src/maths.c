@@ -114,10 +114,6 @@
         mode = opts->store_mode;\
         debug_step = opts->debug_step;\
         assert(mode >= 0 && mode <= MATHS_STORE_MODE_SUB);\
-        if (opts->after != NULL) {\
-            PSWarn("PSMathOpts `after` is only used by `PSDot` and "\
-                   "`PSVectorProduct`");\
-        }\
     }\
     UNUSED(debug_step);
 
@@ -196,6 +192,22 @@ static const char *matrixDimensionsToString(int ndims, int *dims) {
         avail -= written;
     }
     return dimstr;
+}
+
+static int getShapeType(int nd, int *dims) {
+    if (nd <= 0) return PS_SHAPE_TYPE_NONE;
+    else if (nd == 1) {
+        if (dims[0] > 1) return PS_SHAPE_TYPE_COL;
+        return PS_SHAPE_TYPE_SCALAR;
+    } else if (nd == 2) {
+        if (dims[0] > 1) {
+            if (dims[1] == 1) return PS_SHAPE_TYPE_COL;
+            else return PS_SHAPE_TYPE_MATRIX;
+        }
+        if (dims[1] == 1) return PS_SHAPE_TYPE_SCALAR;
+        return PS_SHAPE_TYPE_ROW;
+    }
+    return PS_SHAPE_TYPE_MATRIX;
 }
 
 PSMatrix PSMatrixCreateWithDims(PSFloat init_value,
@@ -344,6 +356,25 @@ PSMatrix PSMatrixDup(PSMatrix matrix) {
     return clone;
 }
 
+PSMatrix PSMatrixDupShape(PSMatrix matrix) {
+    if (matrix == NULL) return NULL;
+    uint64_t len = PSMatrixLength(matrix);
+    size_t datasize = ((size_t) len * sizeof(PSFloat));
+    size_t size = PSMatrixHeaderSize + datasize;
+    PSMatrixHeader *dst_hdr = malloc(size);
+    if (dst_hdr == NULL) {
+        PSPrintMemoryErrorMsg();
+        return NULL;
+    }
+    PSMatrix clone = (PSMatrix) (dst_hdr + 1);
+    PSMatrixHeader *src_hdr = PSMatrixGetHeader(matrix);
+    memcpy(dst_hdr, src_hdr, PSMatrixHeaderSize);
+    dst_hdr->transposed = NULL;
+    dst_hdr->transposed_from = NULL;
+    memset(clone, 0, datasize);
+    return clone;
+}
+
 int PSMatrixCopy(PSMatrix src, PSMatrix dst) {
     if (src == NULL) {
         PSErr(__func__, "`src` matrix is NULL");
@@ -380,6 +411,11 @@ int PSMatrixCopy(PSMatrix src, PSMatrix dst) {
     }
     memcpy(dst, src, src_len * sizeof(PSFloat));
     return 1;
+}
+
+void PSMatrixClear(PSMatrix matrix) {
+    if (matrix == NULL) return;
+    PSVectorClear(matrix, PSMatrixLength(matrix));
 }
 
 /* Expand matrix `src` by adding `add` to its first dimension. Added data will
@@ -458,6 +494,13 @@ int PSMatrixStride(PSMatrix matrix, int dim) {
     PSMatrixHeader *hdr = PSMatrixGetHeader(matrix);
     if (refdim >= MAX_DIMENSIONS || refdim >= hdr->ndims) return 1;
     return hdr->dims[refdim];
+}
+
+int PSMatrixShapeType(PSMatrix matrix) {
+    if (matrix == NULL) return PS_SHAPE_TYPE_NONE;
+    int dims[MAX_DIMENSIONS];
+    int ndims = PSMatrixDimensions(matrix, dims);
+    return getShapeType(ndims, dims);
 }
 
 void PSMatrixPrintInfo(PSMatrix matrix, const char *name, int newline) {
@@ -541,11 +584,14 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
     int use_blas = PSBLASEnabled(acceleration);
 #else
     int use_blas = 0;
+    UNUSED(acceleration);
 #endif
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     int use_acf = PSACFEnabled(acceleration);
 #else
     int use_acf = 0;
+    UNUSED(acceleration);
+    UNUSED(use_acf);
 #endif
     int dims_a[MAX_DIMENSIONS];
     int ndims = PSMatrixDimensions(a, dims_a);
@@ -560,7 +606,7 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
     int l = (transpose & 1 ? dims_a[0] : dims_a[ndims - 1]);
     if (len != l) {
         PSErr(__func__, "Aligment error: vector len != a dim[%d] -> "
-              "%d != %d", (ndims - 1), l, len);
+              "%d != %d (transpose: %d)", (ndims - 1), l, len, transpose);
         PSMatrixPrintInfo(a, "a", 1);
         return 0;
     }
@@ -589,7 +635,7 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
             lda = (dims_a[0] > 1 ? dims_a[0] : 1);
             m = dims_a[1];
             n = dims_a[0];
-            a = PSMatrixTranspose(a, 1, opts);
+            a = PSMatrixTranspose(a, 0, opts);
         }
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
         if (use_acf) {
@@ -612,11 +658,11 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
             return 1;
         }
 #endif
-        if (opts) opts->store_mode = MATHS_STORE_MODE_NORM;
+        PSMathOpts mopts = {.acceleration = acceleration};
         for (int i = 0; i < m; i++) {
             PSFloat *row = a + (i * n);
-            if (!do_add) out[i] = PSDotProduct(row, b, n, opts);
-            else out[i] += PSDotProduct(row, b, n, opts);
+            if (!do_add) out[i] = PSDotProduct(row, b, n, &mopts);
+            else out[i] += PSDotProduct(row, b, n, &mopts);
         }
         return 1;
     }
@@ -676,16 +722,19 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
     int use_blas = PSBLASEnabled(acceleration);
 #else
     int use_blas = 0;
+    UNUSED(acceleration);
 #endif
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     int use_acf = PSACFEnabled(acceleration);
 #else
     int use_acf = 0;
+    UNUSED(acceleration);
+    UNUSED(use_acf);
 #endif
     int l = dims_b[0];
     if (l != len) {
         PSErr(__func__, "Aligment error: b dim[0] != vector length -> "
-              "%d != %d", dims_b[0], len);
+              "%d != %d (transpose: %d)", dims_b[0], len, transpose);
         return 0;
     }
     int nd = 1 + ndims - 2;
@@ -746,11 +795,11 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
             return 1;
         }
 #endif
-        if (opts) opts->store_mode = MATHS_STORE_MODE_NORM;
+        PSMathOpts mopts = {.acceleration = acceleration};
         for (int i = 0; i < m; i++) {
             PSFloat *row = b + (i * n);
-            if (!do_add) out[i] = PSDotProduct(row, a, n, opts);
-            else out[i] += PSDotProduct(row, a, n, opts);
+            if (!do_add) out[i] = PSDotProduct(row, a, n, &mopts);
+            else out[i] += PSDotProduct(row, a, n, &mopts);
         }
         return 1;
     }
@@ -818,44 +867,64 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
     int use_blas = PSBLASEnabled(acceleration);
 #else
     int use_blas = 0;
+    UNUSED(acceleration);
 #endif
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     int use_acf = PSACFEnabled(acceleration);
 #else
     int use_acf = 0;
+    UNUSED(use_acf);
+    UNUSED(acceleration);
 #endif
-    if (transpose) {
-        if (transpose & 1 && ndims_a > 1) {
-            tdims_a[0] = mdims_a[last_dim_a];
-            tdims_a[last_dim_a] = mdims_a[0];
-            dims_a = tdims_a;
-            if (use_blas) trans_a = 'T';
-            else {
-                a = PSMatrixTranspose(a, 0, opt);
-                if (a == NULL) {
-                    PSErr(__func__, "Failed to transpose matrix `a`");
-                    return 0;
-                }
+    int shape_a = getShapeType(ndims_a, mdims_a);
+    int shape_b = getShapeType(ndims_b, mdims_b);
+    /* TODO: handle scalar shape */
+    int a_vector_like = (
+        shape_a == PS_SHAPE_TYPE_COL || shape_a == PS_SHAPE_TYPE_ROW
+    );
+    int b_vector_like = (
+        shape_b == PS_SHAPE_TYPE_COL || shape_b == PS_SHAPE_TYPE_ROW
+    );
+    int transpose_a = transpose & 1 && ndims_a > 1;/* !a_vector_like; */
+    int transpose_b = transpose & 2 && ndims_b > 1;/* !b_vector_like; */
+    if (transpose_a) {
+        tdims_a[0] = mdims_a[last_dim_a];
+        tdims_a[last_dim_a] = mdims_a[0];
+        dims_a = tdims_a;
+        shape_a = getShapeType(ndims_a, tdims_a);
+        if (use_blas) trans_a = 'T';
+        else {
+            a = PSMatrixTranspose(a, 0, opt);
+            if (a == NULL) {
+                PSErr(__func__, "Failed to transpose matrix `a`");
+                return 0;
             }
         }
-        if (transpose & 2 && ndims_b > 1) {
-            tdims_b[0] = mdims_b[last_dim_b];
-            tdims_b[last_dim_b] = mdims_b[0];
-            dims_b = tdims_b;
-            if (use_blas) trans_b = 'T';
-            else {
-                b = PSMatrixTranspose(b, 0, opt);
-                if (a == NULL) {
-                    PSErr(__func__, "Failed to transpose matrix `b`");
-                    return 0;
-                }
+    }
+    if (transpose_b) {
+        tdims_b[0] = mdims_b[last_dim_b];
+        tdims_b[last_dim_b] = mdims_b[0];
+        dims_b = tdims_b;
+        shape_b = getShapeType(ndims_b, tdims_b);
+        if (use_blas) trans_b = 'T';
+        else {
+            b = PSMatrixTranspose(b, 0, opt);
+            if (a == NULL) {
+                PSErr(__func__, "Failed to transpose matrix `b`");
+                return 0;
             }
         }
     }
     l = dims_a[last_dim_a];
     if (dims_b[0] != l) {
-        PSErr(__func__, "Aligment error: b dim[0] != a dim[%d] -> "
-              "%d != %d", last_dim_a, dims_b[0], l);
+        PSErr(
+            __func__, "Aligment error: `b` dim[0] != `a` dim[%d] -> %d != %d\n"
+            "Matrix a shape: %d,%d %s\n"
+            "Matrix b shape: %d,%d %s",
+            last_dim_a, dims_b[0], l,
+            dims_a[0], dims_a[1], (transpose_a ? "(transp.)" : ""),
+            dims_b[0], dims_b[1], (transpose_b ? "(transp.)" : "")
+        );
         return 0;
     }
     int nd = ndims_a + ndims_b - 2;
@@ -880,8 +949,11 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
         for (i = 0; i < nd; i++) {
             int odim = PSMatrixDim(out, i);
             if (odim != dimensions[i]) {
-                PSErr(__func__, "`result` matrix dimension [%d] is %d, "
-                      "but it should be %d", i, odim, dimensions[i]);
+                PSErr(
+                    __func__, "`result` matrix dimension [%d] is %d, "
+                      "but it should be %d\nResult shape: %d,%d",
+                      i, odim, dimensions[i]
+                );
                 return 0;
             }
         }
@@ -890,8 +962,6 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
         *result = out;
         if (out == NULL) return 0;
     }
-    int a_vector_like = (ndims_a == 1),
-        b_vector_like = (ndims_b == 1);
     int outlen = PSMatrixLength(out);
     PSBLASOrder order;
     if (!a_vector_like && b_vector_like) {
@@ -925,12 +995,14 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
                 }
                 return 1;
             }
+#else
+            UNUSED(outlen);
 #endif
-            if (opt) opt->store_mode = MATHS_STORE_MODE_NORM;
+            PSMathOpts mopts = {.acceleration = acceleration};
             for (int i = 0; i < m; i++) {
                 PSFloat *row = a + (i * n);
-                if (!do_add) out[i] = PSDotProduct(row, b, n, opt);
-                else out[i] += PSDotProduct(row, b, n, opt);
+                if (!do_add) out[i] = PSDotProduct(row, b, n, &mopts);
+                else out[i] += PSDotProduct(row, b, n, &mopts);
             }
             return 1;
         }
@@ -1835,108 +1907,173 @@ PSFloat PSDotSquare(PSFloat *a, uint64_t length, PSMathOpts *opts) {
     return result;
 }
 
-int PSDot(PSMatrix matrix, PSFloat *vector, PSFloat *dest, PSMathOpts *opts) {
-    if (matrix == NULL || vector == NULL || dest == NULL) {
-        if (matrix == NULL) PSErr(__func__, "`matrix` cannot be null");
-        if (vector == NULL) PSErr(__func__, "`vector` cannot be null");
+/* Performs matrix-matrix multiplication, matrix-vector multiplication,
+ * vector-matrix multiplication or vector-vector multiplication,
+ * depending on the value of `argtype` field in opts (default is
+ * matrix-matrix).
+ * Store result is `dest`.
+ * Return value: 1 in case of success, 0 in case of failure. */
+int PSDot(PSMatrix a, PSMatrix b, PSMatrix dest, PSMathOpts *opts) {
+    if (a == NULL || b == NULL || dest == NULL) {
+        if (a == NULL) PSErr(__func__, "`a` cannot be null");
+        if (b == NULL) PSErr(__func__, "`b` cannot be null");
         if (dest == NULL) PSErr(__func__, "`dest` cannot be null");
         return 0;
     }
-    int dims[MAX_DIMENSIONS];
-    int ndims = PSMatrixDimensions(matrix, dims);
-    if (ndims != 2) {
-        PSErr(__func__, "Invalid matrix: only 2D matrix allowed");
-        return 0;
-    }
-    int rows = dims[0], len = dims[1], i;
-    int acceleration = PSGlobalAcceleration;
-    PSFloat *vec2add = NULL, *max = NULL, *tmpdest = NULL;
-    PSFloatFunc after = NULL;
     int store_mode = MATHS_STORE_MODE_NORM;
+    int dims_a[MAX_DIMENSIONS] = {0};
+    int dims_b[MAX_DIMENSIONS] = {0};
+    char df_argtype[] = {'M', 'M', 'M'};
+    char *argtype = df_argtype;
+    int transpose = 0;
+    PSFloat *tmpdest = NULL;
     if (opts != NULL) {
-        acceleration = opts->acceleration;
-        vec2add = opts->add_vec;
-        after = opts->after;
-        max = opts->max;
+        argtype = opts->argtype;
         store_mode = opts->store_mode;
         tmpdest = opts->tmpdest;
+        transpose = opts->transpose;
     }
-    int do_process = (
-        vec2add != NULL || after != NULL || max != NULL
-    );
-    /* TODO: implement "auto" acceleration type selection */
-#ifdef HAS_BLAS
-    if (PSBLASEnabled(acceleration)) {
-        PSFloat *dpdest = dest;
-        if (store_mode && store_mode != MATHS_STORE_MODE_ADD) {
-            dpdest = tmpdest;
-            if (dpdest == NULL) dpdest = malloc(rows * sizeof(PSFloat));
-            if (dpdest == NULL) {
-                PSPrintMemoryErrorMsg();
-                return 0;
-            }
-            do_process = 1;
+    int a_is_vec = argtype[0] == 'V' || argtype[0] == 'v';
+    int b_is_vec = argtype[1] == 'V' || argtype[1] == 'v';
+    if (!a_is_vec && !b_is_vec) {
+        /* matrix-matrix multiplication */
+        PSMatrix tmpmatrix = NULL;
+        PSMatrix *dstptr = &dest;
+        if (store_mode == MATHS_STORE_MODE_SUB) {
+            opts->store_mode = MATHS_STORE_MODE_NORM;
+            tmpmatrix = PSMatrixDupShape(dest);
+            if (tmpmatrix == NULL) return 0;
+            dstptr = &tmpmatrix;
         }
-        int do_free_dpdest = (dpdest != dest && dpdest != tmpdest);
-        if (!PSMatrixProductMV(matrix, vector, len, &dpdest, opts)) {
-            if (do_free_dpdest) free(dpdest);
+        int ok = PSMatrixProduct(a, b, dstptr, opts);
+        if (!ok) {
+            PSMatrixDelete(tmpmatrix);
             return 0;
         }
-        if (do_process) {
-            for (i = 0; i < rows; i++) {
-                if (store_mode == MATHS_STORE_MODE_SUB) dest[i]-=dpdest[i];
-                if (vec2add != NULL) dest[i] += vec2add[i];
-                if (after != NULL) dest[i] = after(dest[i]);
-                if (max != NULL && (i == 0 || dest[i] > *max)) *max = dest[i];
-            }
+        if (store_mode == MATHS_STORE_MODE_SUB) {
+            PSSubtractVectors(dest, tmpmatrix, dest, PSMatrixLength(dest),opts);
+            PSMatrixDelete(tmpmatrix);
         }
-        if (do_free_dpdest) free(dpdest);
+        return 1;
+    } else if (!a_is_vec && b_is_vec) {
+        /* matrix-vector multiplication */
+        PSMatrixDimensions(a, dims_a);
+        int len = (transpose & 1 ? dims_a[0] : dims_a[1]);
+        int do_free_tmpdest = 0;
+        if (len <= 0) {
+            PSErr(__func__, "Could not perform matrix-vector multiplication, "
+                  "destinaton length would be %d", len);
+            return 0;
+        }
+        PSFloat **dstptr = &dest;
+        if (store_mode == MATHS_STORE_MODE_SUB) {
+            opts->store_mode = MATHS_STORE_MODE_NORM;
+            if (tmpdest == NULL) {
+                tmpdest = calloc(len, sizeof(PSFloat));
+                if (tmpdest == NULL) {
+                    PSPrintMemoryErrorMsg();
+                    return 0;
+                }
+                do_free_tmpdest = 1;
+            }
+            dstptr = &tmpdest;
+        }
+        int ok = PSMatrixProductMV(a, b, len, dstptr, opts);
+        if (!ok) {
+            if (do_free_tmpdest) free(tmpdest);
+            return 0;
+        }
+        if (store_mode == MATHS_STORE_MODE_SUB) {
+            PSSubtractVectors(dest, tmpdest, dest, len, opts);
+            if (do_free_tmpdest) free(tmpdest);
+        }
+        return 1;
+    } else if (a_is_vec && !b_is_vec) {
+        /* vector-matrix multiplication */
+        PSMatrixDimensions(b, dims_b);
+        int len = dims_b[1];
+        int do_free_tmpdest = 0;
+        if (len <= 0) {
+            PSErr(__func__, "Could not perform vector-matrix multiplication, "
+                  "destinaton length would be %d", len);
+            return 0;
+        }
+        PSFloat **dstptr = &dest;
+        if (store_mode == MATHS_STORE_MODE_SUB) {
+            opts->store_mode = MATHS_STORE_MODE_NORM;
+            if (tmpdest == NULL) {
+                tmpdest = calloc(len, sizeof(PSFloat));
+                if (tmpdest == NULL) {
+                    PSPrintMemoryErrorMsg();
+                    return 0;
+                }
+                do_free_tmpdest = 1;
+            }
+            dstptr = &tmpdest;
+        }
+        int ok = PSMatrixProductVM(a, b, len, dstptr, opts);
+        if (!ok) {
+            if (do_free_tmpdest) free(tmpdest);
+            return 0;
+        }
+        if (store_mode == MATHS_STORE_MODE_SUB) {
+            PSSubtractVectors(dest, tmpdest, dest, len, opts);
+            if (do_free_tmpdest) free(tmpdest);
+        }
+        return 1;
+    } else {
+        int len = 0;
+        if (opts != NULL) len = opts->vector_len;
+        if (len <= 0) {
+            PSErr(
+                __func__, "opts->vector_len is mandatory and must be > 0 when "
+                "both `a` and `b` are treated as vectors"
+            );
+            return 0;
+        }
+        PSFloat res = PSDotProduct(a, b, len, opts);
+        if (store_mode == MATHS_STORE_MODE_ADD) dest[0] += res;
+        else if (store_mode == MATHS_STORE_MODE_SUB) dest[0] -= res;
+        else dest[0] = res;
         return 1;
     }
-#else
-    UNUSED(tmpdest);
-    UNUSED(acceleration);
-    if (!do_process) do_process = store_mode != MATHS_STORE_MODE_NORM;
-#endif
-    PSFloat *mptr = matrix;
-    for (i = 0; i < rows; i++) {
-        PSFloat dp = PSDotProduct(mptr, vector, len, opts);
-        if (!store_mode) dest[i] = dp;
-        mptr += len;
-        if (!do_process) continue;
-        if (store_mode == MATHS_STORE_MODE_ADD) dest[i] += dp;
-        else if (store_mode == MATHS_STORE_MODE_SUB) dest[i] -= dp;
-        if (vec2add != NULL) dest[i] += vec2add[i];
-        if (after != NULL) dest[i] = after(dest[i]);
-        if (max != NULL && (i == 0 || dest[i] > *max)) *max = dest[i];
-    }
     return 1;
+}
+
+int PSDotMV(PSMatrix a, PSFloat *b, PSFloat *dest, PSMathOpts *opts) {
+    PSMathOpts myopts = *opts;
+    myopts.argtype[0] = 'M';
+    myopts.argtype[1] = 'V';
+    return PSDot(a, b, dest, &myopts);
+}
+
+int PSDotVM(PSFloat *a, PSMatrix b, PSMatrix dest, PSMathOpts *opts) {
+    PSMathOpts myopts = *opts;
+    myopts.argtype[0] = 'V';
+    myopts.argtype[1] = 'M';
+    return PSDot(a, b, dest, &myopts);
 }
 
 /* Multiply every element of vector `a` (having `alen` length) by every
  * element of vector `b` (having `blen` length) and store results into
  * vector `dest` (whose length must be `alen` * `blen`). */
-int PSVectorProduct(PSFloat *a, PSFloat *b, PSFloat *dest,
-                    uint64_t alen, uint64_t blen, PSMathOpts *opts)
+int PSOuterProduct(PSFloat *a, PSFloat *b, PSFloat *dest,
+                   uint64_t alen, uint64_t blen, PSMathOpts *opts)
 {
     if (a == NULL || b == NULL || dest == NULL) {
         PSErr(__func__, "`a`, `vector` and `dest` cannot be null");
         return 0;
     }
-    PSFloat *vec2add = NULL, *max = NULL, *tmpdest = NULL;
-    PSFloatFunc after = NULL;
+    PSFloat *tmpdest = NULL;
     int store_mode = MATHS_STORE_MODE_NORM;
     int acceleration = PSGlobalAcceleration;
     uint64_t i, j;
     if (opts != NULL) {
         acceleration = opts->acceleration;
-        vec2add = opts->add_vec;
-        after = opts->after;
-        max = opts->max;
         store_mode = opts->store_mode;
         tmpdest = opts->tmpdest;
     }
-    int do_process = (vec2add != NULL || after != NULL || max != NULL);
+    int do_process = store_mode != MATHS_STORE_MODE_NORM;
 #if defined(HAS_BLAS) || defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     uint64_t dstlen = alen * blen;
     PSFloat *vpdest = dest;
@@ -1969,7 +2106,6 @@ int PSVectorProduct(PSFloat *a, PSFloat *b, PSFloat *dest,
         goto acceleration_done;
     }
 #else
-    if (!do_process) do_process = store_mode != MATHS_STORE_MODE_NORM;
 #endif
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     if (acf_enabled) {
@@ -1982,9 +2118,6 @@ acceleration_done:
         for (i = 0; i < dstlen; i++) {
             if (store_mode == MATHS_STORE_MODE_ADD) dest[i] += vpdest[i];
             else if (store_mode == MATHS_STORE_MODE_SUB) dest[i]-=vpdest[i];
-            if (vec2add != NULL) dest[i] += vec2add[i];
-            if (after != NULL) dest[i] = after(dest[i]);
-            if (max != NULL && (i == 0 || dest[i] > *max)) *max = dest[i];
         }
     }
     if (do_free_vpdest) free(vpdest);
@@ -2003,9 +2136,6 @@ no_acceleration:
             if (!do_process) continue;
             if (store_mode == MATHS_STORE_MODE_ADD) dest[idx] += product;
             else if (store_mode == MATHS_STORE_MODE_SUB) dest[idx] -= product;
-            if (vec2add != NULL) dest[idx] += vec2add[idx];
-            if (after != NULL) dest[idx] = after(dest[idx]);
-            if (max != NULL && (i == 0 || dest[idx] > *max)) *max = dest[idx];
         }
     }
     return 1;

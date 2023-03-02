@@ -22,31 +22,31 @@
 #include "maths.h"
 
 #ifdef PS_DOUBLE_PRECISION
-#define PSTanhActivation tanh
+#define PSTanhS tanh
 #else
-#define PSTanhActivation tanhf
+#define PSTanhS tanhf
 #endif
 
-#define PSTanhV PSVectorTanh
+#define PSTanhActivation PSVectorTanh
 
-typedef PSFloat  (*PSActivationFunction) (PSFloat);
-typedef void     (*PSVecActivationFunction) (PSFloat *vec, PSFloat *dest,
-                                             uint64_t len, PSMathOpts *opts);
+typedef void     (*PSActivationFunction) (PSFloat *vec, PSFloat *dest,
+                                          uint64_t len, PSMathOpts *opts);
+typedef PSFloat  (*PSScalarActivationFunction) (PSFloat);
 
-PSFloat PSSigmoid(PSFloat val);
-PSFloat PSSigmoidDerivative(PSFloat val);
-PSFloat PSRelu(PSFloat val);
-PSFloat PSReluDerivative(PSFloat val);
-PSFloat PSTanhDerivative(PSFloat val);
+PSFloat PSSigmoidS(PSFloat val);
+PSFloat PSSigmoidDerivativeS(PSFloat val);
+PSFloat PSReluS(PSFloat val);
+PSFloat PSReluDerivativeS(PSFloat val);
+PSFloat PSTanhDerivativeS(PSFloat val);
 
-void PSSigmoidV(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts);
-void PSReluV(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts);
-void PSSigmoidDerivativeV(PSFloat *vec, PSFloat *dest, uint64_t len,
-                          PSMathOpts *opts);
-void PSTanhDerivativeV(PSFloat *vec, PSFloat *dest, uint64_t len,
-                       PSMathOpts *opts);
-void PSReluDerivativeV(PSFloat *vec, PSFloat *dest, uint64_t len,
-                       PSMathOpts *opts);
+void PSSigmoid(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts);
+void PSRelu(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts);
+void PSSigmoidDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
+                         PSMathOpts *opts);
+void PSTanhDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
+                      PSMathOpts *opts);
+void PSReluDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
+                      PSMathOpts *opts);
 void PSSoftmax(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts);
 
 #endif /* __ACTIVATION_H__ */

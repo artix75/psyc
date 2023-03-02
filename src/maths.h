@@ -44,10 +44,18 @@
 #endif
 
 #define PSClipValue(v, min, max) (v > max ? max : (v < min ? min : v))
+#define PSVectorCopy(dest, src, len) memcpy(dest, src, len * sizeof(PSFloat))
+#define PSVectorClear(vec, len) memset(vec, 0, len * sizeof(PSFloat))
 
 #define MATHS_STORE_MODE_NORM 0
 #define MATHS_STORE_MODE_ADD  1
 #define MATHS_STORE_MODE_SUB  2
+
+#define PS_SHAPE_TYPE_NONE   0
+#define PS_SHAPE_TYPE_SCALAR 1
+#define PS_SHAPE_TYPE_ROW    2
+#define PS_SHAPE_TYPE_COL    3
+#define PS_SHAPE_TYPE_MATRIX 4
 
 struct PSMathOpts;
 typedef void (*PSDotProductDebug)(int i, PSFloat a, PSFloat b, PSFloat sum,
@@ -64,18 +72,24 @@ typedef PSFloat (*PSFloatFunc) (PSFloat n);
  *                  - `MATHS_STORE_MODE_ADD`: results will be added to dest.
  *                  - `MATHS_STORE_MODE_SUB`: results will be subtracted from
  *                     dest.
- *  - `add_vec`:    some operations (ie. `PSDot`) may use this field to add
- *                  a vector to results before store them.
- *  - `after`:      some operations may call this function on results.
- *  - `min`:        some operations may store minimum result into this pointer
- *                  or use it by their own computations.
- *  - `max`:        some operations may store maximum result into this pointer
- *                  or use it by their own computations.
  *  - `transpose`   some operations involving PSMatrix could use this in order
  *                  to transpose one or more matrices. The integer value
  *                  indicates the (1-based) matrix argument position, ie.
  *                  1 for first matrix arg, 2 for second matrix arg, etc.
  *                  More than one matrix can be set (ie. 1 | 2).
+ *  - `argtype`     specifies if arguments are `PSMatrix` or `PSFloat *`
+ *                  (vector). Functions using this property (such as `PSDot`),
+ *                  must have PSMatrix arguments and the property can be used
+ *                  to tell the function that one or more arguments must be
+ *                  treated as vectors.
+ *                  - 'M' or 'm': `PSMatrix` matrix
+ *                  - 'V' or 'v': `PSFloat *` vector
+ *                  The index indicated argument position (zero-based), ie:
+ *                  argtype[1] means that second PSMatrix argument has to be
+ *                  trated as vector.
+ *  - `vector_len`  optionally pass vector length to functions that cannot
+ *                  retrieve this info from matrix arguments, ie. when `PSDot`
+ *                  is called with both vectors (`argtype` = {'V', 'V'})
  *  - `tmpdest`:    some operations may use this vector as a cache in order
  *                  to avoid allocating extra memory, for intermediate
  *                  computations.
@@ -84,11 +98,9 @@ typedef PSFloat (*PSFloatFunc) (PSFloat n);
 typedef struct PSMathOpts {
     int                 acceleration;
     int                 store_mode;
-    PSFloat             *add_vec;
-    PSFloatFunc         after;
-    PSFloat             *min;
-    PSFloat             *max;
     int                 transpose;
+    char                argtype[3];
+    int                 vector_len;
     PSFloat             *tmpdest;
     PSDotProductDebug   debug_step;
     void                *data;
@@ -105,6 +117,13 @@ PSFloat PSGaussianRandom(PSFloat mean, PSFloat stddev);
 #define PSMatrixStrideBytes(matrix,i) \
     (PSMatrixStride(matrix,i) * sizeof(PSFloat))
 
+/* Basically, `PSMatrix` can be used as a normal array of `PSFloat`.
+ * Anyway, it privately holds more info that allow it to be used as a
+ * multidimensional matrix, so that matrix operations can be performed on
+ * then (transposition, matrix multiplication, etc.).
+ * Private data is actually allocated just before the memory address pointed
+ * by `PSMatrix`, so you should **NEVER** free PSMatrix by usual `free`,
+ * but you have to call PSMatrixDelete instead. */
 typedef PSFloat *PSMatrix;
 typedef PSFloat (*PSMatrixInitializer)(PSMatrix matrix, int idx, PSFloat n);
 PSMatrix PSMatrixCreate(PSFloat init_value, PSMatrixInitializer initializer,
@@ -119,6 +138,7 @@ int PSMatrixDim(PSMatrix matrix, int dim);
 int PSMatrixDimensions(PSMatrix matrix, int *dims);
 size_t PSMatrixLength(PSMatrix matrix);
 int PSMatrixStride(PSMatrix matrix, int dim);
+int PSMatrixShapeType(PSMatrix matrix);
 void PSMatrixPrintInfo(PSMatrix matrix, const char *name, int newline);
 PSFloat *PSMatrixGet(PSMatrix matrix, int ndims, uint32_t *len, ...);
 int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt);
@@ -129,7 +149,9 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
 PSMatrix PSMatrixTranspose(PSMatrix matrix, int rebuild, PSMathOpts *opts);
 void PSMatrixResetTransposed(PSMatrix matrix);
 PSMatrix PSMatrixDup(PSMatrix matrix);
+PSMatrix PSMatrixDupShape(PSMatrix matrix);
 int PSMatrixCopy(PSMatrix src, PSMatrix dst);
+void PSMatrixClear(PSMatrix matrix);
 void PSMatrixDelete(PSMatrix matrix);
 
 /**** Operations ***/
@@ -176,7 +198,9 @@ PSFloat PSStdDev(PSFloat *a, uint64_t len, PSMathOpts *opts);
 PSFloat PSDotProduct(PSFloat *a, PSFloat *b, uint64_t length, PSMathOpts *opts);
 PSFloat PSDotSquare(PSFloat *a, uint64_t length, PSMathOpts *opts);
 int PSDot(PSMatrix matrix, PSFloat *vector, PSFloat *dest, PSMathOpts *opts);
-int PSVectorProduct(PSFloat *a, PSFloat *b, PSFloat *dest,
+int PSDotMV(PSMatrix a, PSFloat *b, PSFloat *dest, PSMathOpts *opts);
+int PSDotVM(PSFloat *a, PSMatrix b, PSMatrix dest, PSMathOpts *opts);
+int PSOuterProduct(PSFloat *a, PSFloat *b, PSFloat *dest,
                     uint64_t alen, uint64_t blen, PSMathOpts *opts);
 
 #endif /* __PS_MATHS_H__ */

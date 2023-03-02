@@ -1389,9 +1389,9 @@ int testRNNFeedforward(TestCase *test_case, Test *test) {
     if (!testRecurrentNetworkMode(network, ManyToMany, test)) return 0;
 
     PSLayer *output = network->layers[network->size - 1];
-    int i, j;
+    int i, j, seqlen = PSStateSequenceLength(output);
     for (i = 0; i < output->size; i++) {
-        for (j = 0; j < (int) output->recurrent_states_count; j++) {
+        for (j = 0; j < seqlen; j++) {
             PSFloat s = PSGetState(output, i, j);
             s = getRoundedFloat(s);
             PSFloat expected = getRoundedFloat(rnn_expected_output[j][i]);
@@ -1473,7 +1473,7 @@ int testRNNStep(TestCase *test_case, Test *test) {
     PSNeuralNetwork *network = getNetwork(test_case);
     /*int train_data_len = 1 + (RNN_TIMES * 2);*/
     if (!testRecurrentNetworkMode(network, ManyToMany, test)) return 0;
-    PSResetNetworkRecurrentStates(network, 0, 0);
+    PSResetNetworkStateSequences(network, 0, 0);
     PSFloat *training_data = getTestData(test_case);
     PSFloat **sequences = &training_data;
     int elements_count = (int) *training_data;
@@ -1759,8 +1759,8 @@ int testLSTMTrain(TestCase *test_case, Test *test) {
     testAssertNotNull(cell->forget_hidden_weights, test);
     int input_size = (int) PSGetLayerInputWeightsCount(layer, 1);
     testAssert(input_size > 0, test);
+    int times = PSStateSequenceLength(layer);
     for (i = 0; i < layer->size; i++) {
-        int times = (int) layer->recurrent_states_count;
         for (t = 0; t < times; t++) {
             PSFloat h = PSGetState(layer, i, t);
             h = getRoundedFloat(h);
@@ -1770,8 +1770,9 @@ int testLSTMTrain(TestCase *test_case, Test *test) {
                 "Layer[%d] Neuron[%d]->state[%d]: %g != %g",
                 layer->index, i, t, h, expected
             );
-            /*ok = (h == expected);
-             printf("H[%d][%d] = %g (%s)\n", t, i, h, (ok ? "OK" : "FAIL"));*/
+            /*int ok = (h == expected);
+            printf("H[%d][%d] = %g == %g(%s)\n", t, i, h, expected,
+                (ok ? "OK" : "FAIL"));*/
         }
         PSFloat bias = getRoundedFloatDec(cell->candidate_biases[i],precision);
         PSFloat expected = getRoundedFloatDec(expected_bg[i], precision);
@@ -1879,7 +1880,7 @@ int testLSTMTrain(TestCase *test_case, Test *test) {
     PSLayer *out = network->layers[network->size - 1];
 
     for (i = 0; i < out->size; i++) {
-        int times = out->recurrent_states_count;
+        int times = PSStateSequenceLength(out);
         for (t = 0; t < times; t++) {
             PSFloat h = getRoundedFloat(PSGetState(out, i, t));
             PSFloat e = getRoundedFloat(lstm_expected_outputs[t][i]);
@@ -1923,7 +1924,7 @@ int testGRUTrain(TestCase *test_case, Test *test) {
     int input_size = (int) PSGetLayerInputWeightsCount(layer, 1);
     testAssert(input_size > 0, test);
     for (i = 0; i < layer->size; i++) {
-        int times = (int) layer->recurrent_states_count;
+        int times = PSStateSequenceLength(layer);
         for (t = 0; t < times; t++) {
             PSFloat h = PSGetState(layer, i, t);
             h = getRoundedFloatDec(h, 4);
@@ -2017,7 +2018,7 @@ int testGRUTrain(TestCase *test_case, Test *test) {
     PSLayer *out = network->layers[network->size - 1];
 
     for (i = 0; i < out->size; i++) {
-        int times = out->recurrent_states_count;
+        int times = PSStateSequenceLength(out);
         for (t = 0; t < times; t++) {
             PSFloat h = getRoundedFloatDec(PSGetState(out, i, t), 2);
             PSFloat e = getRoundedFloatDec(gru_expected_outputs[t][i], 2);
@@ -2513,6 +2514,7 @@ int testMathsDot(TestCase *tc, Test *test) {
     testAssertNotNull(matrix, test);
     memcpy(matrix, x, 32 * sizeof(PSFloat));
     PSMathOpts opts = {0};
+    opts.argtype[1] = 'V';
     int r, c, ok = 1, failed = 0;
     ok = compareArrays(matrix, x, 32, test, "Matrix data", 0);
     if (!ok) return 0;
@@ -2572,12 +2574,12 @@ int testMathsVecProd(TestCase *tc, Test *test) {
     PSMathOpts opts = {0};
 #ifdef HAS_BLAS
     opts.acceleration = PSAcceleration_BLAS;
-    ok = PSVectorProduct(a, b, res, 2, 3, &opts);
-    testAssertWithMessage(ok, test, "PSVectorProduct (BLAS) failed%s", "");
+    ok = PSOuterProduct(a, b, res, 2, 3, &opts);
+    testAssertWithMessage(ok, test, "PSOuterProduct (BLAS) failed%s", "");
     for (i = 0; i < 6; i++) {
         testAssertWithMessage(
             (res[i] == expected[i]), test,
-            "PSVectorProduct (BLAS): res[%d] != expected[%d] -> %g != %g",
+            "PSOuterProduct (BLAS): res[%d] != expected[%d] -> %g != %g",
             i, i, res[i], expected[i]
         );
         res[i] = 0;
@@ -2585,14 +2587,14 @@ int testMathsVecProd(TestCase *tc, Test *test) {
 #endif
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     opts.acceleration = PSAcceleration_ACF;
-    ok = PSVectorProduct(a, b, res, 2, 3, &opts);
+    ok = PSOuterProduct(a, b, res, 2, 3, &opts);
     testAssertWithMessage(
-        ok, test, "PSVectorProduct (Accelerate Framework) failed%s", ""
+        ok, test, "PSOuterProduct (Accelerate Framework) failed%s", ""
     );
     for (i = 0; i < 6; i++) {
         testAssertWithMessage(
             (res[i] == expected[i]), test,
-            "PSVectorProduct (Accelerate Framework): res[%d] != expected[%d] "
+            "PSOuterProduct (Accelerate Framework): res[%d] != expected[%d] "
             "-> %g != %g",
             i, i, res[i], expected[i]
         );
@@ -2600,12 +2602,12 @@ int testMathsVecProd(TestCase *tc, Test *test) {
     }
 #endif
     opts.acceleration = PSAcceleration_None;
-    ok = PSVectorProduct(a, b, res, 2, 3, &opts);
-    testAssertWithMessage(ok, test, "PSVectorProduct (no accel.) failed%s", "");
+    ok = PSOuterProduct(a, b, res, 2, 3, &opts);
+    testAssertWithMessage(ok, test, "PSOuterProduct (no accel.) failed%s", "");
     for (i = 0; i < 6; i++) {
         testAssertWithMessage(
             (res[i] == expected[i]), test,
-            "PSVectorProduct (no accel.): res[%d] != expected[%d] -> %g != %g",
+            "PSOuterProduct (no accel.): res[%d] != expected[%d] -> %g != %g",
             i, i, res[i], expected[i]
         );
     }
@@ -3711,24 +3713,24 @@ int testActSigmoid(TestCase *tc, Test *test) {
     PSFloat x[6] = {1.0, 8.3, -2.0, -1.0, 0.0, 18.5};
     PSFloat cmp_res[6] = {0};
     PSFloat res[6] = {0};
-    for (int i = 0; i < 6; i++) cmp_res[i] = PSSigmoid(x[i]);
+    for (int i = 0; i < 6; i++) cmp_res[i] = PSSigmoidS(x[i]);
     int ok = 1;
     int decrnd = NORMAL_PRECISION_DEC;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     opts.acceleration = PSAcceleration_ACF;
-    PSSigmoidV(x, res, 6, &opts);
+    PSSigmoid(x, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", decrnd);
     if (!ok) return 0;
 #endif
 #ifdef USE_AVX
     opts.acceleration = PSAcceleration_AVX;
-    PSSigmoidV(x, res, 6, &opts);
+    PSSigmoid(x, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "AVX", decrnd);
     if (!ok) return 0;
 #endif
     opts.acceleration = PSAcceleration_None;
-    PSSigmoidV(x, res, 6, &opts);
+    PSSigmoid(x, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "No Acceleration:", decrnd);
     if (!ok) return 0;
     return ok;
@@ -3739,23 +3741,23 @@ int testActSigmoidDeriv(TestCase *tc, Test *test) {
     PSFloat x[6] = {1.0, 8.3, -2.0, -1.0, 0.0, 18.5};
     PSFloat cmp_res[6] = {0};
     PSFloat res[6] = {0};
-    for (int i = 0; i < 6; i++) cmp_res[i] = PSSigmoidDerivative(x[i]);
+    for (int i = 0; i < 6; i++) cmp_res[i] = PSSigmoidDerivativeS(x[i]);
     int ok = 1;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     opts.acceleration = PSAcceleration_ACF;
-    PSSigmoidDerivativeV(x, res, 6, &opts);
+    PSSigmoidDerivative(x, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0);
     if (!ok) return 0;
 #endif
 #ifdef USE_AVX
     opts.acceleration = PSAcceleration_AVX;
-    PSSigmoidDerivativeV(x, res, 6, &opts);
+    PSSigmoidDerivative(x, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "AVX", 0);
     if (!ok) return 0;
 #endif
     opts.acceleration = PSAcceleration_None;
-    PSSigmoidDerivativeV(x, res, 6, &opts);
+    PSSigmoidDerivative(x, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "No Acceleration:", 0);
     if (!ok) return 0;
     return ok;
@@ -3771,18 +3773,18 @@ int testActTanh(TestCase *tc, Test *test) {
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     opts.acceleration = PSAcceleration_ACF;
-    PSTanhV(x, res, 6, &opts);
+    PSTanhActivation(x, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0);
     if (!ok) return 0;
 #endif
 #ifdef USE_AVX
     opts.acceleration = PSAcceleration_AVX;
-    PSTanhV(x, res, 6, &opts);
+    PSTanhActivation(x, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "AVX", 0);
     if (!ok) return 0;
 #endif
     opts.acceleration = PSAcceleration_None;
-    PSTanhV(x, res, 6, &opts);
+    PSTanhActivation(x, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "No Acceleration:", 0);
     if (!ok) return 0;
     return ok;
@@ -3793,23 +3795,23 @@ int testActTanhDeriv(TestCase *tc, Test *test) {
     PSFloat x[6] = {1.0, 8.3, -2.0, -1.0, 0.0, 18.5};
     PSFloat cmp_res[6] = {0};
     PSFloat res[6] = {0};
-    for (int i = 0; i < 6; i++) cmp_res[i] = PSTanhDerivative(x[i]);
+    for (int i = 0; i < 6; i++) cmp_res[i] = PSTanhDerivativeS(x[i]);
     int ok = 1;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     opts.acceleration = PSAcceleration_ACF;
-    PSTanhDerivativeV(x, res, 6, &opts);
+    PSTanhDerivative(x, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0);
     if (!ok) return 0;
 #endif
 #ifdef USE_AVX
     opts.acceleration = PSAcceleration_AVX;
-    PSTanhDerivativeV(x, res, 6, &opts);
+    PSTanhDerivative(x, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "AVX", 0);
     if (!ok) return 0;
 #endif
     opts.acceleration = PSAcceleration_None;
-    PSTanhDerivativeV(x, res, 6, &opts);
+    PSTanhDerivative(x, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "No Acceleration:", 0);
     if (!ok) return 0;
     return ok;
@@ -3820,23 +3822,23 @@ int testActRelu(TestCase *tc, Test *test) {
     PSFloat x[6] = {1.0, 8.3, -2.0, -1.0, 0.0, 18.5};
     PSFloat cmp_res[6] = {0};
     PSFloat res[6] = {0};
-    for (int i = 0; i < 6; i++) cmp_res[i] = PSRelu(x[i]);
+    for (int i = 0; i < 6; i++) cmp_res[i] = PSReluS(x[i]);
     int ok = 1;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     opts.acceleration = PSAcceleration_ACF;
-    PSReluV(x, res, 6, &opts);
+    PSRelu(x, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0);
     if (!ok) return 0;
 #endif
 #ifdef USE_AVX
     opts.acceleration = PSAcceleration_AVX;
-    PSReluV(x, res, 6, &opts);
+    PSRelu(x, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "AVX", 0);
     if (!ok) return 0;
 #endif
     opts.acceleration = PSAcceleration_None;
-    PSReluV(x, res, 6, &opts);
+    PSRelu(x, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "No Acceleration:", 0);
     if (!ok) return 0;
     return ok;
@@ -3847,23 +3849,23 @@ int testActReluDeriv(TestCase *tc, Test *test) {
     PSFloat x[6] = {1.0, 8.3, -2.0, -1.0, 0.0, 18.5};
     PSFloat cmp_res[6] = {0};
     PSFloat res[6] = {0};
-    for (int i = 0; i < 6; i++) cmp_res[i] = PSReluDerivative(x[i]);
+    for (int i = 0; i < 6; i++) cmp_res[i] = PSReluDerivativeS(x[i]);
     int ok = 1;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     opts.acceleration = PSAcceleration_ACF;
-    PSReluDerivativeV(x, res, 6, &opts);
+    PSReluDerivative(x, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0);
     if (!ok) return 0;
 #endif
 #ifdef USE_AVX
     opts.acceleration = PSAcceleration_AVX;
-    PSReluDerivativeV(x, res, 6, &opts);
+    PSReluDerivative(x, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "AVX", 0);
     if (!ok) return 0;
 #endif
     opts.acceleration = PSAcceleration_None;
-    PSReluDerivativeV(x, res, 6, &opts);
+    PSReluDerivative(x, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "No Acceleration:", 0);
     if (!ok) return 0;
     return ok;

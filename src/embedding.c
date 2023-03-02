@@ -397,7 +397,7 @@ int PSInitEmbeddingLayer(PSLayer *layer, int size, int previous_size,
         memcpy(settings->training_data, ldef->training_data, datasize);
     }
     settings->save_pretrained_to = ldef->save_pretrained_to;
-    layer->states = calloc(size, sizeof(PSFloat));
+    layer->states = PSMatrixZeros(2, 1, size);
     if (layer->states == NULL) goto memerr;
     layer->weights = malloc(sizeof(PSMatrix));
     if (layer->weights == NULL) goto memerr;
