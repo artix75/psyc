@@ -414,11 +414,11 @@ int PSFullFeedforward(PSLayer *layer, ...) {
                 PSFloat *outputs = PSGetStates(layer, i);
                 PSVectorCopy(outputs, layer->biases, layer->size);
             }
-            opts.store_mode = MATHS_STORE_MODE_ADD;
+            opts.store_mode = PS_STORE_MODE_ADD;
         }
         int ok = PSDot(previous->states, weights, layer->states, &opts);
         if (!ok) return 0;
-        opts.store_mode = MATHS_STORE_MODE_NORM;
+        opts.store_mode = PS_STORE_MODE_SET;
         if (layer->activate)
             layer->activate(layer->states, NULL, seqlen * layer->size, &opts);
     }
@@ -3014,13 +3014,13 @@ void PSUpdateGradient(PSGradient *gradient, PSMatrix inputs, PSLayer *layer,
     PSMathOpts opts = {.acceleration = layer->network->acceleration};
     PSFloat *delta_p = layer->delta, *input_p = inputs;
     for (int i = 0; i < seqlen; i++) {
-        opts.store_mode = MATHS_STORE_MODE_ADD;
+        opts.store_mode = PS_STORE_MODE_ADD;
         PSOuterProduct(
             delta_p, input_p, gradient->weights,
             layer->size, previous->size, &opts
         );
         if (use_bias) {
-            opts.store_mode = MATHS_STORE_MODE_NORM;
+            opts.store_mode = PS_STORE_MODE_SET;
             PSSumVectors(
                 delta_p, gradient->biases, gradient->biases, layer->size, &opts
             );
@@ -3044,7 +3044,7 @@ int PSUpdatePreviousLayerDelta(PSLayer *layer, PSLayer *previous,
     PSMathOpts opts = {.acceleration = layer->network->acceleration};
     PSMatrix weights = layer->weights[weights_index];
     PSMatrix delta = layer->delta;
-    opts.store_mode = MATHS_STORE_MODE_ADD;
+    opts.store_mode = PS_STORE_MODE_ADD;
     if (seqlen < 1 || !PSHandleSequenceAtOnce(layer)) seqlen = 1;
     if (seqlen == 1) {
         opts.transpose = 1; /* Transpose weights */
@@ -3101,11 +3101,11 @@ int softmaxLayerBackprop(PSLayer *layer, PSLayer *previous_layer, PSFloat *y,
         for (int i = 0; i < seqlen; i++) {
             PSMultiplyVectors(delta_p, out_p, delta_p, layer->size, &mopts);
             softmax_sum = PSSumVectorElements(delta_p, layer->size, &mopts);
-            mopts.store_mode = MATHS_STORE_MODE_SUB;
+            mopts.store_mode = PS_STORE_MODE_SUB;
             PSMultiplyVectorScalar(
                 out_p, softmax_sum, delta_p, layer->size, &mopts
             );
-            mopts.store_mode = MATHS_STORE_MODE_NORM;
+            mopts.store_mode = PS_STORE_MODE_SET;
             delta_p += layer->size;
             out_p += layer->size;
         }

@@ -47,9 +47,9 @@
 #define PSVectorCopy(dest, src, len) memcpy(dest, src, len * sizeof(PSFloat))
 #define PSVectorClear(vec, len) memset(vec, 0, len * sizeof(PSFloat))
 
-#define MATHS_STORE_MODE_NORM 0
-#define MATHS_STORE_MODE_ADD  1
-#define MATHS_STORE_MODE_SUB  2
+#define PS_STORE_MODE_SET 0
+#define PS_STORE_MODE_ADD 1
+#define PS_STORE_MODE_SUB 2
 
 #define PS_SHAPE_TYPE_NONE   0
 #define PS_SHAPE_TYPE_SCALAR 1
@@ -68,9 +68,9 @@ typedef PSFloat (*PSFloatFunc) (PSFloat n);
  * Properties:
  *  - `acceleration`: see `PSAcceleration`
  *  - `store_mode`: specifies how results will be stored into destination:
- *                  - `MATHS_STORE_MODE_NORM`: results will overwrite dest.
- *                  - `MATHS_STORE_MODE_ADD`: results will be added to dest.
- *                  - `MATHS_STORE_MODE_SUB`: results will be subtracted from
+ *                  - `PS_STORE_MODE_SET`: results will overwrite dest.
+ *                  - `PS_STORE_MODE_ADD`: results will be added to dest.
+ *                  - `PS_STORE_MODE_SUB`: results will be subtracted from
  *                     dest.
  *  - `transpose`   some operations involving PSMatrix could use this in order
  *                  to transpose one or more matrices. The integer value

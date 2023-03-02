@@ -372,10 +372,10 @@ int PSNormalizationBackprop(PSLayer *layer, PSLayer *previous,
             PSSumVectors(gradient->biases, delta, gradient->biases,
                          layer->size, &mopts);
         }
-        mopts.store_mode = MATHS_STORE_MODE_ADD;
+        mopts.store_mode = PS_STORE_MODE_ADD;
         PSMultiplyVectors(delta, normalized, gradient->weights,
                           layer->size, &mopts);
-        mopts.store_mode = MATHS_STORE_MODE_NORM;
+        mopts.store_mode = PS_STORE_MODE_SET;
         PSMultiplyVectors(layer->weights[0], delta, delta_norm,
                           layer->size, &mopts);
     } else delta_norm = delta;
@@ -398,7 +398,7 @@ int PSNormalizationBackprop(PSLayer *layer, PSLayer *previous,
         PSErr(NULL, "Layer[%d]: stddev is zero", layer->index);
         goto final;
     }
-    mopts.store_mode = MATHS_STORE_MODE_NORM;
+    mopts.store_mode = PS_STORE_MODE_SET;
     PSMultiplyVectors(delta_norm, normalized, tmp2, layer->size, &mopts);
     PSMultiplyVectorScalar(delta_norm, layer->size, tmp1, layer->size, &mopts);
     PSFloat dnorm_sum = PSSumVectorElements(delta_norm, layer->size, &mopts);
@@ -407,7 +407,7 @@ int PSNormalizationBackprop(PSLayer *layer, PSLayer *previous,
                            &mopts);
     PSSubtractVectorScalar(tmp1, dnorm_sum, tmp1, layer->size, &mopts);
     PSSubtractVectors(tmp1, tmp2, tmp1, layer->size, &mopts);
-    mopts.store_mode = MATHS_STORE_MODE_ADD;
+    mopts.store_mode = PS_STORE_MODE_ADD;
     PSDivideVectorScalar(tmp1, (layer->size * stddev), previous->delta,
                          layer->size, &mopts);
 final:

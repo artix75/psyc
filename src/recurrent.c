@@ -192,10 +192,10 @@ forward_previous_step:
      * apply `activate` function. */
     prev_states = PSGetStates(layer, prev_t);
     dpopt.tmpdest = hidden_values;
-    dpopt.store_mode = MATHS_STORE_MODE_ADD;
+    dpopt.store_mode = PS_STORE_MODE_ADD;
     if (!PSDot(hidden_weights, prev_states, outputs, &dpopt)) return 0;
 final:
-    dpopt.store_mode = MATHS_STORE_MODE_NORM;
+    dpopt.store_mode = PS_STORE_MODE_SET;
     if (use_bias)
         PSSumVectors(outputs, layer->biases, outputs, layer->size, &dpopt);
     if (layer->activate != NULL)
@@ -237,14 +237,14 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previous_layer,
         PSMatrix new_delta = NULL;
         int is_lowest = (tt == lowest_t);
         /* Update gradient */
-        mopts.store_mode = MATHS_STORE_MODE_NORM;
+        mopts.store_mode = PS_STORE_MODE_SET;
         if (!onehot) {
             PSFloat *prev_layer_outputs = PSGetStates(previous_layer, tt);
             assert(prev_layer_outputs != NULL); /* TODO: emit error */
             if (use_bias) PSSumVectors(
                 delta, gradients->biases, gradients->biases, layer->size,&mopts
             );
-            mopts.store_mode = MATHS_STORE_MODE_ADD;
+            mopts.store_mode = PS_STORE_MODE_ADD;
             PSOuterProduct(
                 delta, prev_layer_outputs, gradients->weights,
                 layer->size, previous_layer->size, &mopts
@@ -265,7 +265,7 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previous_layer,
                 if (new_delta == NULL) return 0;
             }
             /* Update gradients' hidden weights */
-            mopts.store_mode = MATHS_STORE_MODE_ADD;
+            mopts.store_mode = PS_STORE_MODE_ADD;
             PSFloat *previous_states = PSGetStates(layer, prev_t);;
             PSOuterProduct(
                 delta, previous_states, gradient_hidden_weights,
@@ -273,7 +273,7 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previous_layer,
             );
             /* Eventually update new delta. */
             if (update_delta) {
-                mopts.store_mode = MATHS_STORE_MODE_ADD;
+                mopts.store_mode = PS_STORE_MODE_ADD;
                 mopts.transpose = 1;
                 int ok = PSDotMV(hidden_weights, delta, new_delta, &mopts);
                 if (!ok) {
@@ -305,7 +305,7 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previous_layer,
         }
         /* Update previous layer delta */
         if (is_lowest && prev_layer_delta != NULL) {
-            mopts.store_mode = MATHS_STORE_MODE_NORM;
+            mopts.store_mode = PS_STORE_MODE_SET;
             mopts.transpose = 1;
             PSMatrix weights = layer->weights[0];
             int ok = PSDot(weights, layer->delta, previous_layer->delta,&mopts);

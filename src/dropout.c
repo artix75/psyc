@@ -324,7 +324,7 @@ int PSDropoutBackprop(PSLayer *layer, PSLayer *previous_layer,
     }
     PSMathOpts mopts = {
         .acceleration = layer->network->acceleration,
-        .store_mode = MATHS_STORE_MODE_ADD
+        .store_mode = PS_STORE_MODE_ADD
     };
     PSMultiplyVectors(
         layer->delta, dropout_mask, previous_layer->delta, layer->size, &mopts

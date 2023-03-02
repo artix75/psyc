@@ -622,7 +622,7 @@ forward_previous_step:
     prev_states = PSGetStates(layer, prev_t);
     if (prev_states == NULL) goto final;
     prev_z = getRawStates(layer, prev_t);
-    mopts.store_mode = MATHS_STORE_MODE_ADD;
+    mopts.store_mode = PS_STORE_MODE_ADD;
     mopts.transpose = 0;
     mopts.argtype[0] = 'M';
     mopts.argtype[1] = 'V';
@@ -636,7 +636,7 @@ forward_previous_step:
     mopts.argtype[1] = '\0';
     if (!success) goto final;
 final:
-    mopts.store_mode = MATHS_STORE_MODE_NORM;
+    mopts.store_mode = PS_STORE_MODE_SET;
     /* Add biases */
     if (use_bias) {
         PSSumVectors(candidates, cell->candidate_biases, candidates,
@@ -656,10 +656,10 @@ final:
     /* Produce raw states and outputs. */
     PSMultiplyVectors(candidates, input_gates, raw_states, lsize, &mopts);
     if (prev_z != NULL) {
-        mopts.store_mode = MATHS_STORE_MODE_ADD;
+        mopts.store_mode = PS_STORE_MODE_ADD;
         PSMultiplyVectors(prev_z, forget_gates, raw_states, lsize, &mopts);
     }
-    mopts.store_mode = MATHS_STORE_MODE_NORM;
+    mopts.store_mode = PS_STORE_MODE_SET;
     if (layer->activate != NULL) {
         layer->activate(raw_states, outputs, lsize, &mopts);
         PSMultiplyVectors(outputs, output_gates, outputs, lsize, &mopts);
@@ -744,7 +744,7 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previous_layer,
                 goto final;
             }
         }
-        mopts.store_mode = MATHS_STORE_MODE_NORM;
+        mopts.store_mode = PS_STORE_MODE_SET;
         layer->activate(raw_states, actv_z, layer->size, &mopts);
         layer->derivative(actv_z, dz, layer->size, &mopts);
     } else {
@@ -818,7 +818,7 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previous_layer,
             success = 0;
             goto final;
         }
-        mopts.store_mode = MATHS_STORE_MODE_ADD;
+        mopts.store_mode = PS_STORE_MODE_ADD;
         PSOuterProduct(delta_c, inputs, gradient_weights_c,
                        layer->size, previous_layer->size, &mopts);
         PSOuterProduct(delta_i, inputs, gradient_weights_i,
@@ -832,7 +832,7 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previous_layer,
     if (t > 0 || layer->initial_states != NULL) {
         PSFloat *prev_states = PSGetStates(layer, prev_t);
         /* Update gradient hidden weights */
-        mopts.store_mode = MATHS_STORE_MODE_ADD;
+        mopts.store_mode = PS_STORE_MODE_ADD;
         PSOuterProduct(delta_c, prev_states, gradient_hweights_c,
                        layer->size, layer->size, &mopts);
         PSOuterProduct(delta_i, prev_states, gradient_hweights_i,
@@ -843,12 +843,12 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previous_layer,
                        layer->size, layer->size, &mopts);
         /* Update delta */
         if (t > 0) {
-            mopts.store_mode = MATHS_STORE_MODE_NORM;
+            mopts.store_mode = PS_STORE_MODE_SET;
             mopts.transpose = 1;
             success = PSDotMV(cell->candidate_hidden_weights, delta_c,
                               layer->delta, &mopts);
             if (!success) goto final;
-            mopts.store_mode = MATHS_STORE_MODE_ADD;
+            mopts.store_mode = PS_STORE_MODE_ADD;
             success = (
                 PSDotMV(cell->input_hidden_weights, delta_i, layer->delta,
                     &mopts) &&
@@ -866,11 +866,11 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previous_layer,
     if (previous_layer->delta != NULL) {
         /* Update previous layer delta */
         PSMatrix prev_delta = previous_layer->delta;
-        mopts.store_mode = MATHS_STORE_MODE_NORM;
+        mopts.store_mode = PS_STORE_MODE_SET;
         mopts.transpose = 1;
         success = PSDot(cell->candidate_weights, delta_c, prev_delta, &mopts);
         if (!success) goto final;
-        mopts.store_mode = MATHS_STORE_MODE_ADD;
+        mopts.store_mode = PS_STORE_MODE_ADD;
         success = (
             PSDotMV(cell->input_weights, delta_i, prev_delta, &mopts) &&
             PSDotMV(cell->output_weights, delta_o, prev_delta, &mopts) &&

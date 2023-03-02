@@ -26,7 +26,7 @@
 #define AVXGetStepLen(s) AVXComputeStepLength(s, 0, NULL)
 #define AVXGetDotStepLen(s) AVXComputeStepLength(s, 1, NULL)
 
-#define AVX_STORE_MODE_NORM 0
+#define AVX_STORE_MODE_SET 0
 #define AVX_STORE_MODE_ADD  1
 #define AVX_STORE_MODE_SUB  2
 

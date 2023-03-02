@@ -108,12 +108,12 @@
     if (dest == NULL) dest = a;\
     PSDotProductDebug debug_step = NULL;\
     uint64_t i = 0;\
-    int acceleration = PSGlobalAcceleration, mode = MATHS_STORE_MODE_NORM;\
+    int acceleration = PSGlobalAcceleration, mode = PS_STORE_MODE_SET;\
     if (opts != NULL) {\
         acceleration = opts->acceleration;\
         mode = opts->store_mode;\
         debug_step = opts->debug_step;\
-        assert(mode >= 0 && mode <= MATHS_STORE_MODE_SUB);\
+        assert(mode >= 0 && mode <= PS_STORE_MODE_SUB);\
     }\
     UNUSED(debug_step);
 
@@ -561,7 +561,7 @@ PSFloat *PSMatrixGet(PSMatrix matrix, int ndims, uint32_t *len, ...) {
  * of the matrix arguments you want to be transposed:
  *  - opt->transpose = 1 (transpose matrix `a`)
  * By default, data in result vector will be overwritten. Anyaway, if
- * `MATHS_STORE_MODE_ADD` is set as `store_mode` into `opts`, result will
+ * `PS_STORE_MODE_ADD` is set as `store_mode` into `opts`, result will
  * be added to data already present in the result vector.
  * Return value: 1 if operation succeeds, 0 if ti fails. */
 int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
@@ -578,7 +578,7 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
     if (opts != NULL) {
         transpose = opts->transpose;
         acceleration = opts->acceleration;
-        if (opts->store_mode == MATHS_STORE_MODE_ADD) beta = 1.0;
+        if (opts->store_mode == PS_STORE_MODE_ADD) beta = 1.0;
     }
 #ifdef HAS_BLAS
     int use_blas = PSBLASEnabled(acceleration);
@@ -684,7 +684,7 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
  * of the operand arguments you want to be transposed:
  *  - opt->transpose = 2 (transpose matrix `b`)
  * By default, data in result vector will be overwritten. Anyaway, if
- * `MATHS_STORE_MODE_ADD` is set as `store_mode` into `opts`, result will
+ * `PS_STORE_MODE_ADD` is set as `store_mode` into `opts`, result will
  * be added to data already present in the result vector.
  * Return value: 1 if operation succeeds, 0 if ti fails. */
 int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
@@ -711,7 +711,7 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
     if (opts != NULL) {
         transpose = opts->transpose;
         acceleration = opts->acceleration;
-        if (opts->store_mode == MATHS_STORE_MODE_ADD) beta = 1.0;
+        if (opts->store_mode == PS_STORE_MODE_ADD) beta = 1.0;
         if (transpose & 2) {
             tdims_b[0] = dims_b[last_dim];
             tdims_b[last_dim] = dims_b[0];
@@ -825,7 +825,7 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
  *  - opt->transpose = 2 (transpose matrix `b`)
  *  - opt->transpose = (1 | 2) (transpose both matrix `a` and `b`)
  * By default, data in result vector will be overwritten. Anyaway, if
- * `MATHS_STORE_MODE_ADD` is set as `store_mode` into `opt`, result will
+ * `PS_STORE_MODE_ADD` is set as `store_mode` into `opt`, result will
  * be added to data already present in the result vector.
  * Return value: 1 if operation succeeds, 0 if ti fails. */
 int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
@@ -861,7 +861,7 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
     if (opt != NULL) {
         transpose = opt->transpose;
         acceleration = opt->acceleration;
-        if (opt->store_mode == MATHS_STORE_MODE_ADD) beta = 1.0;
+        if (opt->store_mode == PS_STORE_MODE_ADD) beta = 1.0;
     }
 #ifdef HAS_BLAS
     int use_blas = PSBLASEnabled(acceleration);
@@ -1041,7 +1041,7 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
                 return 1;
             }
 #endif
-            if (opt) opt->store_mode = MATHS_STORE_MODE_NORM;
+            if (opt) opt->store_mode = PS_STORE_MODE_SET;
             for (int i = 0; i < m; i++) {
                 PSFloat *row = b + (i * n);
                 if (!do_add) out[i] = PSDotProduct(row, a, n, opt);
@@ -1084,7 +1084,7 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
             n = PSMatrixDim(a, 1);
             l = PSMatrixDim(b, 0);
             k = PSMatrixDim(b, 1);
-            if (opt) opt->store_mode = MATHS_STORE_MODE_NORM;
+            if (opt) opt->store_mode = PS_STORE_MODE_SET;
             for (int i = 0; i < dimensions[0]; i++) {
                 for (int j = 0; j < dimensions[1]; j++) {
                     int oidx = (i * dimensions[1]) + j;
@@ -1206,7 +1206,7 @@ void PSSumVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
     MATHS_OPERATION_PREAMBLE()
     UNUSED(debug_step);
 #ifdef HAS_ACCELERATE_FRAMEWORK
-    if (PSACFEnabled(acceleration) && mode == MATHS_STORE_MODE_NORM) {
+    if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VDSPAddV(a, b, dest, length);
         return;
     }
@@ -1220,13 +1220,13 @@ void PSSumVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
 #endif
     /* No Acceleration */
     switch (mode) {
-        case MATHS_STORE_MODE_NORM:
+        case PS_STORE_MODE_SET:
             for (; i < length; i++) dest[i] = a[i] + b[i];
             break;
-        case MATHS_STORE_MODE_ADD:
+        case PS_STORE_MODE_ADD:
             for (; i < length; i++) dest[i] += a[i] + b[i];
             break;
-        case MATHS_STORE_MODE_SUB:
+        case PS_STORE_MODE_SUB:
             for (; i < length; i++) dest[i] -= a[i] + b[i];
             break;
     }
@@ -1237,7 +1237,7 @@ void PSSubtractVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
 {
     MATHS_OPERATION_PREAMBLE()
 #ifdef HAS_ACCELERATE_FRAMEWORK
-    if (PSACFEnabled(acceleration) && mode == MATHS_STORE_MODE_NORM) {
+    if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VDSPSubV(a, b, dest, length);
         return;
     }
@@ -1250,13 +1250,13 @@ void PSSubtractVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
 #endif
     /* No Acceleration */
     switch (mode) {
-        case MATHS_STORE_MODE_NORM:
+        case PS_STORE_MODE_SET:
             for (; i < length; i++) dest[i] = a[i] - b[i];
             break;
-        case MATHS_STORE_MODE_ADD:
+        case PS_STORE_MODE_ADD:
             for (; i < length; i++) dest[i] += a[i] - b[i];
             break;
-        case MATHS_STORE_MODE_SUB:
+        case PS_STORE_MODE_SUB:
             for (; i < length; i++) dest[i] -= a[i] - b[i];
             break;
     }
@@ -1267,10 +1267,10 @@ void PSMultiplyVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration) && mode != MATHS_STORE_MODE_SUB) {
-        if (mode == MATHS_STORE_MODE_NORM)
+    if (PSACFEnabled(acceleration) && mode != PS_STORE_MODE_SUB) {
+        if (mode == PS_STORE_MODE_SET)
             VDSPMulV(a, b, dest, length);
-        else if (mode == MATHS_STORE_MODE_ADD)
+        else if (mode == PS_STORE_MODE_ADD)
             VDSPMulAddV(a, b, dest, dest, length);
         return;
     }
@@ -1293,13 +1293,13 @@ void PSMultiplyVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
 #endif
     /* No Acceleration */
     switch (mode) {
-        case MATHS_STORE_MODE_NORM:
+        case PS_STORE_MODE_SET:
             for (; i < length; i++) dest[i] = a[i] * b[i];
             break;
-        case MATHS_STORE_MODE_ADD:
+        case PS_STORE_MODE_ADD:
             for (; i < length; i++) dest[i] += a[i] * b[i];
             break;
-        case MATHS_STORE_MODE_SUB:
+        case PS_STORE_MODE_SUB:
             for (; i < length; i++) dest[i] -= a[i] * b[i];
             break;
     }
@@ -1310,7 +1310,7 @@ void PSDivideVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration) && mode == MATHS_STORE_MODE_NORM) {
+    if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VDSPDivV(a, b, dest, length);
         return;
     }
@@ -1333,13 +1333,13 @@ void PSDivideVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
 #endif
     /* No Acceleration */
     switch (mode) {
-        case MATHS_STORE_MODE_NORM:
+        case PS_STORE_MODE_SET:
             for (; i < length; i++) dest[i] = a[i] / b[i];
             break;
-        case MATHS_STORE_MODE_ADD:
+        case PS_STORE_MODE_ADD:
             for (; i < length; i++) dest[i] += a[i] / b[i];
             break;
-        case MATHS_STORE_MODE_SUB:
+        case PS_STORE_MODE_SUB:
             for (; i < length; i++) dest[i] -= a[i] / b[i];
             break;
     }
@@ -1350,7 +1350,7 @@ void PSMultiplyVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration) && mode == MATHS_STORE_MODE_NORM) {
+    if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VDSPMulVS(a, b, dest, length);
         return;
     }
@@ -1364,13 +1364,13 @@ void PSMultiplyVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
 #endif
     /* No Acceleration */
     switch (mode) {
-        case MATHS_STORE_MODE_NORM:
+        case PS_STORE_MODE_SET:
             for (; i < length; i++) dest[i] = a[i] * b;
             break;
-        case MATHS_STORE_MODE_ADD:
+        case PS_STORE_MODE_ADD:
             for (; i < length; i++) dest[i] += a[i] * b;
             break;
-        case MATHS_STORE_MODE_SUB:
+        case PS_STORE_MODE_SUB:
             for (; i < length; i++) dest[i] -= a[i] * b;
             break;
     }
@@ -1381,7 +1381,7 @@ void PSSumVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration) && mode == MATHS_STORE_MODE_NORM) {
+    if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VDSPAddVS(a, b, dest, length);
         return;
     }
@@ -1395,13 +1395,13 @@ void PSSumVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
 #endif
     /* No Acceleration */
     switch (mode) {
-        case MATHS_STORE_MODE_NORM:
+        case PS_STORE_MODE_SET:
             for (; i < length; i++) dest[i] = a[i] + b;
             break;
-        case MATHS_STORE_MODE_ADD:
+        case PS_STORE_MODE_ADD:
             for (; i < length; i++) dest[i] += a[i] + b;
             break;
-        case MATHS_STORE_MODE_SUB:
+        case PS_STORE_MODE_SUB:
             for (; i < length; i++) dest[i] -= a[i] + b;
             break;
     }
@@ -1412,7 +1412,7 @@ void PSSubtractVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration) && mode == MATHS_STORE_MODE_NORM) {
+    if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         PSFloat invb = b * -1;
         VDSPAddVS(a, invb, dest, length);
         return;
@@ -1425,13 +1425,13 @@ void PSSubtractVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
 #endif
     /* No Acceleration */
     switch (mode) {
-        case MATHS_STORE_MODE_NORM:
+        case PS_STORE_MODE_SET:
             for (; i < length; i++) dest[i] = a[i]- b;
             break;
-        case MATHS_STORE_MODE_ADD:
+        case PS_STORE_MODE_ADD:
             for (; i < length; i++) dest[i] += a[i] - b;
             break;
-        case MATHS_STORE_MODE_SUB:
+        case PS_STORE_MODE_SUB:
             for (; i < length; i++) dest[i] -= a[i] - b;
             break;
     }
@@ -1442,7 +1442,7 @@ void PSSubtractScalarVector(PSFloat b, PSFloat *a, PSFloat *dest,
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration) && mode == MATHS_STORE_MODE_NORM) {
+    if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         PSFloat invb = b * -1;
         VDSPAddVS(a, invb, dest, length);
         VDSPNeg(dest, dest, length);
@@ -1456,13 +1456,13 @@ void PSSubtractScalarVector(PSFloat b, PSFloat *a, PSFloat *dest,
 #endif
     /* No Acceleration */
     switch (mode) {
-        case MATHS_STORE_MODE_NORM:
+        case PS_STORE_MODE_SET:
             for (; i < length; i++) dest[i] = b - a[i];
             break;
-        case MATHS_STORE_MODE_ADD:
+        case PS_STORE_MODE_ADD:
             for (; i < length; i++) dest[i] += b - a[i];
             break;
-        case MATHS_STORE_MODE_SUB:
+        case PS_STORE_MODE_SUB:
             for (; i < length; i++) dest[i] -= b - a[i];
             break;
     }
@@ -1473,7 +1473,7 @@ void PSDivideVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration) && mode == MATHS_STORE_MODE_NORM) {
+    if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VDSPDivVS(a, b, dest, length);
         return;
     }
@@ -1487,13 +1487,13 @@ void PSDivideVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
 #endif
     /* No Acceleration */
     switch (mode) {
-        case MATHS_STORE_MODE_NORM:
+        case PS_STORE_MODE_SET:
             for (; i < length; i++) dest[i] = a[i] / b;
             break;
-        case MATHS_STORE_MODE_ADD:
+        case PS_STORE_MODE_ADD:
             for (; i < length; i++) dest[i] += a[i] / b;
             break;
-        case MATHS_STORE_MODE_SUB:
+        case PS_STORE_MODE_SUB:
             for (; i < length; i++) dest[i] -= a[i] / b;
             break;
     }
@@ -1504,7 +1504,7 @@ void PSDivideScalarVector(PSFloat b, PSFloat *a, PSFloat *dest,
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration) && mode == MATHS_STORE_MODE_NORM) {
+    if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VDSPDivSV(b, a, dest, length);
         return;
     }
@@ -1518,13 +1518,13 @@ void PSDivideScalarVector(PSFloat b, PSFloat *a, PSFloat *dest,
 #endif
     /* No Acceleration */
     switch (mode) {
-        case MATHS_STORE_MODE_NORM:
+        case PS_STORE_MODE_SET:
             for (; i < length; i++) dest[i] = b / a[i];
             break;
-        case MATHS_STORE_MODE_ADD:
+        case PS_STORE_MODE_ADD:
             for (; i < length; i++) dest[i] += b / a[i];
             break;
-        case MATHS_STORE_MODE_SUB:
+        case PS_STORE_MODE_SUB:
             for (; i < length; i++) dest[i] -= b / a[i];
             break;
     }
@@ -1534,7 +1534,7 @@ void PSVectorTanh(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration) && mode == MATHS_STORE_MODE_NORM) {
+    if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VVTanh(a, dest, length);
         return;
     }
@@ -1543,13 +1543,13 @@ void PSVectorTanh(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
 #endif
     /* No Acceleration */
     switch (mode) {
-        case MATHS_STORE_MODE_NORM:
+        case PS_STORE_MODE_SET:
             for (; i < length; i++) dest[i] = PSTanh(a[i]);
             break;
-        case MATHS_STORE_MODE_ADD:
+        case PS_STORE_MODE_ADD:
             for (; i < length; i++) dest[i] += PSTanh(a[i]);
             break;
-        case MATHS_STORE_MODE_SUB:
+        case PS_STORE_MODE_SUB:
             for (; i < length; i++) dest[i] -= PSTanh(a[i]);
             break;
     }
@@ -1559,7 +1559,7 @@ void PSVectorExp(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration) && mode == MATHS_STORE_MODE_NORM) {
+    if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VVExp(a, dest, length);
         return;
     }
@@ -1568,13 +1568,13 @@ void PSVectorExp(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
 #endif
     /* No Acceleration */
     switch (mode) {
-        case MATHS_STORE_MODE_NORM:
+        case PS_STORE_MODE_SET:
             for (; i < length; i++) dest[i] = PSExp(a[i]);
             break;
-        case MATHS_STORE_MODE_ADD:
+        case PS_STORE_MODE_ADD:
             for (; i < length; i++) dest[i] += PSExp(a[i]);
             break;
-        case MATHS_STORE_MODE_SUB:
+        case PS_STORE_MODE_SUB:
             for (; i < length; i++) dest[i] -= PSExp(a[i]);
             break;
     }
@@ -1584,7 +1584,7 @@ void PSVectorSqrt(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration) && mode == MATHS_STORE_MODE_NORM) {
+    if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VVSqrt(a, dest, length);
         return;
     }
@@ -1593,13 +1593,13 @@ void PSVectorSqrt(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
 #endif
     /* No Acceleration */
     switch (mode) {
-        case MATHS_STORE_MODE_NORM:
+        case PS_STORE_MODE_SET:
             for (; i < length; i++) dest[i] = PSSqrt(a[i]);
             break;
-        case MATHS_STORE_MODE_ADD:
+        case PS_STORE_MODE_ADD:
             for (; i < length; i++) dest[i] += PSSqrt(a[i]);
             break;
-        case MATHS_STORE_MODE_SUB:
+        case PS_STORE_MODE_SUB:
             for (; i < length; i++) dest[i] -= PSSqrt(a[i]);
             break;
     }
@@ -1609,7 +1609,7 @@ void PSVectorNeg(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration) && mode == MATHS_STORE_MODE_NORM) {
+    if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VDSPNeg(a, dest, length);
         return;
     }
@@ -1623,13 +1623,13 @@ void PSVectorNeg(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
 #endif
     /* No Acceleration */
     switch (mode) {
-        case MATHS_STORE_MODE_NORM:
+        case PS_STORE_MODE_SET:
             for (; i < length; i++) dest[i] = -(a[i]);
             break;
-        case MATHS_STORE_MODE_ADD:
+        case PS_STORE_MODE_ADD:
             for (; i < length; i++) dest[i] += -(a[i]);
             break;
-        case MATHS_STORE_MODE_SUB:
+        case PS_STORE_MODE_SUB:
             for (; i < length; i++) dest[i] -= -(a[i]);
             break;
     }
@@ -1639,7 +1639,7 @@ void PSVectorAbs(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration) && mode == MATHS_STORE_MODE_NORM) {
+    if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VDSPAbs(a, dest, length);
         return;
     }
@@ -1648,13 +1648,13 @@ void PSVectorAbs(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
 #endif
     /* No Acceleration */
     switch (mode) {
-        case MATHS_STORE_MODE_NORM:
+        case PS_STORE_MODE_SET:
             for (; i < length; i++) dest[i] = PSAbs(a[i]);
             break;
-        case MATHS_STORE_MODE_ADD:
+        case PS_STORE_MODE_ADD:
             for (; i < length; i++) dest[i] += PSAbs(a[i]);
             break;
-        case MATHS_STORE_MODE_SUB:
+        case PS_STORE_MODE_SUB:
             for (; i < length; i++) dest[i] -= PSAbs(a[i]);
             break;
     }
@@ -1665,7 +1665,7 @@ void PSVectorClip(PSFloat *a, PSFloat min, PSFloat max, PSFloat *dest,
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration) && mode == MATHS_STORE_MODE_NORM) {
+    if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VDSPClip(a, min, max, dest, length);
         return;
     }
@@ -1679,13 +1679,13 @@ void PSVectorClip(PSFloat *a, PSFloat min, PSFloat max, PSFloat *dest,
 #endif
     /* No Acceleration */
     switch (mode) {
-        case MATHS_STORE_MODE_NORM:
+        case PS_STORE_MODE_SET:
             for (; i < length; i++) dest[i] = PSClipValue(a[i], min, max);
             break;
-        case MATHS_STORE_MODE_ADD:
+        case PS_STORE_MODE_ADD:
             for (; i < length; i++) dest[i] += PSClipValue(a[i], min, max);
             break;
-        case MATHS_STORE_MODE_SUB:
+        case PS_STORE_MODE_SUB:
             for (; i < length; i++) dest[i] -= PSClipValue(a[i], min, max);
             break;
     }
@@ -1696,7 +1696,7 @@ void PSVectorThreshold(PSFloat *a, PSFloat min, PSFloat *dest,
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration) && mode == MATHS_STORE_MODE_NORM) {
+    if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VDSPThres(a, min, dest, length);
         return;
     }
@@ -1710,13 +1710,13 @@ void PSVectorThreshold(PSFloat *a, PSFloat min, PSFloat *dest,
 #endif
     /* No Acceleration */
     switch (mode) {
-        case MATHS_STORE_MODE_NORM:
+        case PS_STORE_MODE_SET:
             for (; i < length; i++) dest[i]=PSClipValue(a[i],min,PSFLOAT_MAX);
             break;
-        case MATHS_STORE_MODE_ADD:
+        case PS_STORE_MODE_ADD:
             for (; i < length; i++) dest[i]+=PSClipValue(a[i],min,PSFLOAT_MAX);
             break;
-        case MATHS_STORE_MODE_SUB:
+        case PS_STORE_MODE_SUB:
             for (; i < length; i++) dest[i]-=PSClipValue(a[i],min,PSFLOAT_MAX);
             break;
     }
@@ -1727,7 +1727,7 @@ void PSVectorMapWithLimit(PSFloat *a, PSFloat limit, PSFloat mapper,
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration) && mode == MATHS_STORE_MODE_NORM) {
+    if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VDSPVLim(a, limit, mapper, dest, length);
         return;
     }
@@ -1920,7 +1920,7 @@ int PSDot(PSMatrix a, PSMatrix b, PSMatrix dest, PSMathOpts *opts) {
         if (dest == NULL) PSErr(__func__, "`dest` cannot be null");
         return 0;
     }
-    int store_mode = MATHS_STORE_MODE_NORM;
+    int store_mode = PS_STORE_MODE_SET;
     int dims_a[MAX_DIMENSIONS] = {0};
     int dims_b[MAX_DIMENSIONS] = {0};
     char df_argtype[] = {'M', 'M', 'M'};
@@ -1939,8 +1939,8 @@ int PSDot(PSMatrix a, PSMatrix b, PSMatrix dest, PSMathOpts *opts) {
         /* matrix-matrix multiplication */
         PSMatrix tmpmatrix = NULL;
         PSMatrix *dstptr = &dest;
-        if (store_mode == MATHS_STORE_MODE_SUB) {
-            opts->store_mode = MATHS_STORE_MODE_NORM;
+        if (store_mode == PS_STORE_MODE_SUB) {
+            opts->store_mode = PS_STORE_MODE_SET;
             tmpmatrix = PSMatrixDupShape(dest);
             if (tmpmatrix == NULL) return 0;
             dstptr = &tmpmatrix;
@@ -1950,7 +1950,7 @@ int PSDot(PSMatrix a, PSMatrix b, PSMatrix dest, PSMathOpts *opts) {
             PSMatrixDelete(tmpmatrix);
             return 0;
         }
-        if (store_mode == MATHS_STORE_MODE_SUB) {
+        if (store_mode == PS_STORE_MODE_SUB) {
             PSSubtractVectors(dest, tmpmatrix, dest, PSMatrixLength(dest),opts);
             PSMatrixDelete(tmpmatrix);
         }
@@ -1966,8 +1966,8 @@ int PSDot(PSMatrix a, PSMatrix b, PSMatrix dest, PSMathOpts *opts) {
             return 0;
         }
         PSFloat **dstptr = &dest;
-        if (store_mode == MATHS_STORE_MODE_SUB) {
-            opts->store_mode = MATHS_STORE_MODE_NORM;
+        if (store_mode == PS_STORE_MODE_SUB) {
+            opts->store_mode = PS_STORE_MODE_SET;
             if (tmpdest == NULL) {
                 tmpdest = calloc(len, sizeof(PSFloat));
                 if (tmpdest == NULL) {
@@ -1983,7 +1983,7 @@ int PSDot(PSMatrix a, PSMatrix b, PSMatrix dest, PSMathOpts *opts) {
             if (do_free_tmpdest) free(tmpdest);
             return 0;
         }
-        if (store_mode == MATHS_STORE_MODE_SUB) {
+        if (store_mode == PS_STORE_MODE_SUB) {
             PSSubtractVectors(dest, tmpdest, dest, len, opts);
             if (do_free_tmpdest) free(tmpdest);
         }
@@ -1999,8 +1999,8 @@ int PSDot(PSMatrix a, PSMatrix b, PSMatrix dest, PSMathOpts *opts) {
             return 0;
         }
         PSFloat **dstptr = &dest;
-        if (store_mode == MATHS_STORE_MODE_SUB) {
-            opts->store_mode = MATHS_STORE_MODE_NORM;
+        if (store_mode == PS_STORE_MODE_SUB) {
+            opts->store_mode = PS_STORE_MODE_SET;
             if (tmpdest == NULL) {
                 tmpdest = calloc(len, sizeof(PSFloat));
                 if (tmpdest == NULL) {
@@ -2016,7 +2016,7 @@ int PSDot(PSMatrix a, PSMatrix b, PSMatrix dest, PSMathOpts *opts) {
             if (do_free_tmpdest) free(tmpdest);
             return 0;
         }
-        if (store_mode == MATHS_STORE_MODE_SUB) {
+        if (store_mode == PS_STORE_MODE_SUB) {
             PSSubtractVectors(dest, tmpdest, dest, len, opts);
             if (do_free_tmpdest) free(tmpdest);
         }
@@ -2032,8 +2032,8 @@ int PSDot(PSMatrix a, PSMatrix b, PSMatrix dest, PSMathOpts *opts) {
             return 0;
         }
         PSFloat res = PSDotProduct(a, b, len, opts);
-        if (store_mode == MATHS_STORE_MODE_ADD) dest[0] += res;
-        else if (store_mode == MATHS_STORE_MODE_SUB) dest[0] -= res;
+        if (store_mode == PS_STORE_MODE_ADD) dest[0] += res;
+        else if (store_mode == PS_STORE_MODE_SUB) dest[0] -= res;
         else dest[0] = res;
         return 1;
     }
@@ -2065,7 +2065,7 @@ int PSOuterProduct(PSFloat *a, PSFloat *b, PSFloat *dest,
         return 0;
     }
     PSFloat *tmpdest = NULL;
-    int store_mode = MATHS_STORE_MODE_NORM;
+    int store_mode = PS_STORE_MODE_SET;
     int acceleration = PSGlobalAcceleration;
     uint64_t i, j;
     if (opts != NULL) {
@@ -2073,7 +2073,7 @@ int PSOuterProduct(PSFloat *a, PSFloat *b, PSFloat *dest,
         store_mode = opts->store_mode;
         tmpdest = opts->tmpdest;
     }
-    int do_process = store_mode != MATHS_STORE_MODE_NORM;
+    int do_process = store_mode != PS_STORE_MODE_SET;
 #if defined(HAS_BLAS) || defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     uint64_t dstlen = alen * blen;
     PSFloat *vpdest = dest;
@@ -2081,7 +2081,7 @@ int PSOuterProduct(PSFloat *a, PSFloat *b, PSFloat *dest,
         acf_enabled = PSACFEnabled(acceleration),
         do_free_vpdest = 0, use_acceleration = (blas_enabled || acf_enabled);
     if (!use_acceleration) goto no_acceleration;
-    if (store_mode && store_mode != MATHS_STORE_MODE_ADD && !blas_enabled) {
+    if (store_mode && store_mode != PS_STORE_MODE_ADD && !blas_enabled) {
         vpdest = tmpdest;
         if (vpdest == NULL) vpdest = malloc(dstlen * sizeof(PSFloat));
         if (vpdest == NULL) {
@@ -2096,9 +2096,9 @@ int PSOuterProduct(PSFloat *a, PSFloat *b, PSFloat *dest,
         char trans1 = 'N', trans2 = 'N';
         int m = 1, lda = 1, ldb = blen, ldc = blen;
         PSFloat beta = 0.0;
-        if (store_mode == MATHS_STORE_MODE_ADD) {
+        if (store_mode == PS_STORE_MODE_ADD) {
             beta = 1.0;
-            store_mode = MATHS_STORE_MODE_NORM;
+            store_mode = PS_STORE_MODE_SET;
         }
         PSGemm(order, trans1, trans2, alen, blen, m, 1.0, a, lda, b, ldb, beta,
                vpdest, ldc);
@@ -2116,8 +2116,8 @@ int PSOuterProduct(PSFloat *a, PSFloat *b, PSFloat *dest,
 acceleration_done:
     if (do_process) {
         for (i = 0; i < dstlen; i++) {
-            if (store_mode == MATHS_STORE_MODE_ADD) dest[i] += vpdest[i];
-            else if (store_mode == MATHS_STORE_MODE_SUB) dest[i]-=vpdest[i];
+            if (store_mode == PS_STORE_MODE_ADD) dest[i] += vpdest[i];
+            else if (store_mode == PS_STORE_MODE_SUB) dest[i]-=vpdest[i];
         }
     }
     if (do_free_vpdest) free(vpdest);
@@ -2125,7 +2125,7 @@ acceleration_done:
 #else
     UNUSED(tmpdest);
     UNUSED(acceleration);
-    if (!do_process) do_process = store_mode != MATHS_STORE_MODE_NORM;
+    if (!do_process) do_process = store_mode != PS_STORE_MODE_SET;
 #endif
 no_acceleration:
     for (i = 0; i < alen; i++) {
@@ -2134,8 +2134,8 @@ no_acceleration:
             PSFloat product = (a[i] * b[j]);
             if (!store_mode) dest[idx] = product;
             if (!do_process) continue;
-            if (store_mode == MATHS_STORE_MODE_ADD) dest[idx] += product;
-            else if (store_mode == MATHS_STORE_MODE_SUB) dest[idx] -= product;
+            if (store_mode == PS_STORE_MODE_ADD) dest[idx] += product;
+            else if (store_mode == PS_STORE_MODE_SUB) dest[idx] -= product;
         }
     }
     return 1;

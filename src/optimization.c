@@ -59,14 +59,14 @@ int PSDefaultOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
         PSMathOpts mopts = {.acceleration = acceleration};
         if (has_momentum) {
             assert(mgrads != NULL);
-            mopts.store_mode = MATHS_STORE_MODE_NORM;
+            mopts.store_mode = PS_STORE_MODE_SET;
             PSMultiplyVectorScalar(mgrads, momentum, mgrads, len, &mopts);
-            mopts.store_mode = MATHS_STORE_MODE_SUB;
+            mopts.store_mode = PS_STORE_MODE_SUB;
             PSMultiplyVectorScalar(grads, rate, mgrads, len, &mopts);
-            mopts.store_mode = MATHS_STORE_MODE_NORM;
+            mopts.store_mode = PS_STORE_MODE_SET;
             PSSumVectors(params, mgrads, params, len, &mopts);
         } else {
-            mopts.store_mode = MATHS_STORE_MODE_ADD;
+            mopts.store_mode = PS_STORE_MODE_ADD;
             PSMultiplyVectorScalar(grads, -rate, params, len, &mopts);
         }
     }
@@ -109,15 +109,15 @@ int PSNesterovOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
         }
         PSMathOpts mopts = {.acceleration = acceleration};
         memcpy(tmp, mgrads, len * sizeof(mgrads));
-        mopts.store_mode = MATHS_STORE_MODE_NORM;
+        mopts.store_mode = PS_STORE_MODE_SET;
         PSMultiplyVectorScalar(mgrads, momentum, mgrads, len, &mopts);
-        mopts.store_mode = MATHS_STORE_MODE_ADD;
+        mopts.store_mode = PS_STORE_MODE_ADD;
         PSMultiplyVectorScalar(grads, rate, mgrads, len, &mopts);
-        mopts.store_mode = MATHS_STORE_MODE_NORM;
+        mopts.store_mode = PS_STORE_MODE_SET;
         PSMultiplyVectorScalar(tmp, momentum, tmp, len, &mopts);
-        mopts.store_mode = MATHS_STORE_MODE_SUB;
+        mopts.store_mode = PS_STORE_MODE_SUB;
         PSMultiplyVectorScalar(mgrads, (1.0 + momentum), tmp, len, &mopts);
-        mopts.store_mode = MATHS_STORE_MODE_NORM;
+        mopts.store_mode = PS_STORE_MODE_SET;
         PSSumVectors(params, tmp, params, len, &mopts);
     }
     if (tmpalloc != NULL) free(tmpalloc);
@@ -196,13 +196,13 @@ int PSAdaDeltaOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
             goto final;
         }
         /**mgrads = rho * *mgrads + (1 - rho) * grad * grad;*/
-        mopts.store_mode = MATHS_STORE_MODE_NORM;
+        mopts.store_mode = PS_STORE_MODE_SET;
         PSMultiplyVectors(grads, grads, tmp, len, &mopts);
         PSMultiplyVectorScalar(mgrads, rho, mgrads, len, &mopts);
-        mopts.store_mode = MATHS_STORE_MODE_ADD;
+        mopts.store_mode = PS_STORE_MODE_ADD;
         PSMultiplyVectorScalar(tmp, (1 - rho), mgrads, len, &mopts);
         /*dx = - PSSqrt((*xgrads + eps) / (*mgrads + eps)) * grad;*/
-        mopts.store_mode = MATHS_STORE_MODE_NORM;
+        mopts.store_mode = PS_STORE_MODE_SET;
         PSSumVectorScalar(xgrads, eps, xtmp, len, &mopts);
         PSSumVectorScalar(mgrads, eps, mtmp, len, &mopts);
         PSDivideVectors(xtmp, mtmp, dx, len, &mopts);
@@ -212,10 +212,10 @@ int PSAdaDeltaOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
         /* *xgrads = rho * *xgrads + (1 - rho) * dx *dx; */
         PSMultiplyVectors(dx, dx, dxsqr, len, &mopts);
         PSMultiplyVectorScalar(xgrads, rho, xgrads, len, &mopts);
-        mopts.store_mode = MATHS_STORE_MODE_ADD;
+        mopts.store_mode = PS_STORE_MODE_ADD;
         PSMultiplyVectorScalar(dxsqr, (1 - rho), xgrads, len, &mopts);
         /* param + dx */
-        mopts.store_mode = MATHS_STORE_MODE_NORM;
+        mopts.store_mode = PS_STORE_MODE_SET;
         PSSumVectors(params, dx, params, len, &mopts);
         free(dxsqr);
     }
@@ -268,13 +268,13 @@ int PSWindowGradOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
         }
         PSMathOpts mopts = {.acceleration = acceleration};
         /* m = rho * m + (1 - rho) * grad * grad */
-        mopts.store_mode = MATHS_STORE_MODE_NORM;
+        mopts.store_mode = PS_STORE_MODE_SET;
         PSMultiplyVectorScalar(mgrads, rho, mgrads, len, &mopts);
         PSMultiplyVectors(grads, grads, tmp, len, &mopts);
-        mopts.store_mode = MATHS_STORE_MODE_ADD;
+        mopts.store_mode = PS_STORE_MODE_ADD;
         PSMultiplyVectorScalar(tmp, (1 - rho), mgrads, len, &mopts);
         /* dx = - rate / PSSqrt(mgrads[i] + eps) * grads[i] */
-        mopts.store_mode = MATHS_STORE_MODE_NORM;
+        mopts.store_mode = PS_STORE_MODE_SET;
         PSSumVectorScalar(mgrads, eps, tmp, len, &mopts);
         PSVectorSqrt(tmp, tmp, len, &mopts);
         PSDivideScalarVector(-rate, tmp, tmp, len, &mopts);
@@ -327,9 +327,9 @@ int PSAdaGradOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
         }
         PSMathOpts mopts = {.acceleration = acceleration};
         /* mgrads[i] += grads[i] * grads[i] */
-        mopts.store_mode = MATHS_STORE_MODE_ADD;
+        mopts.store_mode = PS_STORE_MODE_ADD;
         PSMultiplyVectors(grads, grads, mgrads, len, &mopts);
-        mopts.store_mode = MATHS_STORE_MODE_NORM;
+        mopts.store_mode = PS_STORE_MODE_SET;
         /* dx = - rate / PSSqrt(mgrads[i] + eps) * grads[i] */
         PSSumVectorScalar(mgrads, eps, tmp, len, &mopts);
         PSVectorSqrt(tmp, tmp, len, &mopts);
@@ -425,15 +425,15 @@ int PSAdamOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
         PSMathOpts mopts = {.acceleration = acceleration};*/
 
         /* mgrads[i] * beta1 + (1 - beta1) * grads[i] */
-        /*mopts.store_mode = MATHS_STORE_MODE_NORM;
+        /*mopts.store_mode = PS_STORE_MODE_SET;
         PSMultiplyVectorScalar(mgrads, beta1, mgrads, len, &mopts);
-        mopts.store_mode = MATHS_STORE_MODE_ADD;
+        mopts.store_mode = PS_STORE_MODE_ADD;
         PSMultiplyVectorScalar(grads, (1 - beta1), mgrads, len, &mopts);*/
         /* xgrads[i] = xgrads[i] * beta2 + (1 - beta2) * grads[i] * grads[i] */
-        /*mopts.store_mode = MATHS_STORE_MODE_NORM;
+        /*mopts.store_mode = PS_STORE_MODE_SET;
         PSMultiplyVectorScalar(xgrads, beta2, xgrads, len, &mopts);
         PSMultiplyVectors(grads, grads, tmp, len, &mopts);
-        mopts.store_mode = MATHS_STORE_MODE_ADD;
+        mopts.store_mode = PS_STORE_MODE_ADD;
         PSMultiplyVectorScalar(tmp, (1 - beta2), xgrads, len, &mopts);*/
         /* correct1 = mgrads[i] * (1 - PSPow(beta1, iteration)) */
 

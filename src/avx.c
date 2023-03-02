@@ -217,7 +217,7 @@ PSFloat AVXDotProduct(PSFloat *x, PSFloat *y, int size, int *count) {
 }
 
 void AVX128StoreWithMode(PSFloat *dest, AVX128 src, int mode) {
-    if (mode != AVX_STORE_MODE_NORM) {
+    if (mode != AVX_STORE_MODE_SET) {
         AVX128 temp = AVX128LoadUnalign(dest);
         if (mode == AVX_STORE_MODE_ADD) src = AVX128Add(temp, src);
         else if (mode == AVX_STORE_MODE_SUB) src = AVX128Sub(temp, src);
@@ -226,7 +226,7 @@ void AVX128StoreWithMode(PSFloat *dest, AVX128 src, int mode) {
 }
 
 void AVX256StoreWithMode(PSFloat *dest, AVX256 src, int mode) {
-    if (mode != AVX_STORE_MODE_NORM) {
+    if (mode != AVX_STORE_MODE_SET) {
         AVX256 temp = AVX256LoadUnalign(dest);
         if (mode == AVX_STORE_MODE_ADD) src = AVX256Add(temp, src);
         else if (mode == AVX_STORE_MODE_SUB) src = AVX256Sub(temp, src);
@@ -243,7 +243,7 @@ void AVX256StoreWithMode(PSFloat *dest, AVX256 src, int mode) {
  * stored:
  *  - AVX_STORE_MODE_ADD: the result will be added to values of `dest`.
  *  - AVX_STORE_MODE_SUB: the result will be subtracted from values of `dest`.
- *  - AVX_STORE_MODE_NORM: the result will directly stored into `dest`.
+ *  - AVX_STORE_MODE_SET: the result will directly stored into `dest`.
  * Return value: count of elements in `x` that were multiplied. */
 int AVXMultiplyValue(PSFloat *x, PSFloat value, int size, PSFloat *dest,
                        int mode)
@@ -275,7 +275,7 @@ int AVXMultiplyValue(PSFloat *x, PSFloat value, int size, PSFloat *dest,
  * stored:
  *  - AVX_STORE_MODE_ADD: the result will be added to values of `dest`.
  *  - AVX_STORE_MODE_SUB: the result will be subtracted from values of `dest`.
- *  - AVX_STORE_MODE_NORM: the result will directly stored into `dest`.
+ *  - AVX_STORE_MODE_SET: the result will directly stored into `dest`.
  * Return value: count of elements in `x` that were multiplied. */
 int AVXAddValue(PSFloat *x, PSFloat value, int size, PSFloat *dest, int mode) {
     int regbits = 0;
@@ -305,7 +305,7 @@ int AVXAddValue(PSFloat *x, PSFloat value, int size, PSFloat *dest, int mode) {
  * stored:
  *  - AVX_STORE_MODE_ADD: the result will be added to values of `dest`.
  *  - AVX_STORE_MODE_SUB: the result will be subtracted from values of `dest`.
- *  - AVX_STORE_MODE_NORM: the result will directly stored into `dest`.
+ *  - AVX_STORE_MODE_SET: the result will directly stored into `dest`.
  * Return value: count of elements in `x` that were multiplied. */
 int AVXDivideValue(PSFloat *x, PSFloat value, int size, PSFloat *dest,
                    int mode)
@@ -337,7 +337,7 @@ int AVXDivideValue(PSFloat *x, PSFloat value, int size, PSFloat *dest,
  * stored:
  *  - AVX_STORE_MODE_ADD: the result will be added to values of `dest`.
  *  - AVX_STORE_MODE_SUB: the result will be subtracted from values of `dest`.
- *  - AVX_STORE_MODE_NORM: the result will directly stored into `dest`.
+ *  - AVX_STORE_MODE_SET: the result will directly stored into `dest`.
  * Return value: count of elements in `x` that were multiplied. */
 int AVXValueDivide(PSFloat value, PSFloat *x, int size, PSFloat *dest,
                    int mode)
@@ -370,7 +370,7 @@ int AVXValueDivide(PSFloat value, PSFloat *x, int size, PSFloat *dest,
  * stored:
  *  - AVX_STORE_MODE_ADD: the result will be added to values of `dest`.
  *  - AVX_STORE_MODE_SUB: the result will be subtracted from values of `dest`.
- *  - AVX_STORE_MODE_NORM: the result will directly stored into `dest`.
+ *  - AVX_STORE_MODE_SET: the result will directly stored into `dest`.
  * Return value: count of elements in `x` that were multiplied. */
 int AVXMultiply(PSFloat *x, PSFloat *y, int size, PSFloat *dest, int mode) {
     int regbits = 0;
@@ -401,7 +401,7 @@ int AVXMultiply(PSFloat *x, PSFloat *y, int size, PSFloat *dest, int mode) {
  * stored:
  *  - AVX_STORE_MODE_ADD: the result will be added to values of `dest`.
  *  - AVX_STORE_MODE_SUB: the result will be subtracted from values of `dest`.
- *  - AVX_STORE_MODE_NORM: the result will directly stored into `dest`.
+ *  - AVX_STORE_MODE_SET: the result will directly stored into `dest`.
  * Return value: count of elements in `x` that were multiplied. */
 int AVXDivide(PSFloat *x, PSFloat *y, int size, PSFloat *dest, int mode) {
     int regbits = 0;
@@ -431,7 +431,7 @@ int AVXDivide(PSFloat *x, PSFloat *y, int size, PSFloat *dest, int mode) {
  * stored:
  *  - AVX_STORE_MODE_ADD: the result will be added to values of `dest`.
  *  - AVX_STORE_MODE_SUB: the result will be subtracted from values of `dest`.
- *  - AVX_STORE_MODE_NORM: the result will directly stored into `dest`.
+ *  - AVX_STORE_MODE_SET: the result will directly stored into `dest`.
  * Return value: count of elements in `x` that were added to `y`. */
 int AVXSum(PSFloat *x, PSFloat *y, int size, PSFloat *dest, int mode) {
     int regbits = 0;
@@ -462,7 +462,7 @@ int AVXSum(PSFloat *x, PSFloat *y, int size, PSFloat *dest, int mode) {
  * stored:
  *  - AVX_STORE_MODE_ADD: the result will be added to values of `dest`.
  *  - AVX_STORE_MODE_SUB: the result will be subtracted from values of `dest`.
- *  - AVX_STORE_MODE_NORM: the result will directly stored into `dest`.
+ *  - AVX_STORE_MODE_SET: the result will directly stored into `dest`.
  * Return value: count of elements in `y` that were subtracted from `x`. */
 int AVXDiff(PSFloat *x, PSFloat *y, int size, PSFloat *dest, int mode) {
     int regbits = 0;
