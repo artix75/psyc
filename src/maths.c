@@ -611,8 +611,10 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
         return 0;
     }
     int nd = ndims - 1, outlen;
-    if (nd == 1 || nd == 0) outlen = (ndims == 2 ? dims_a[0] : len);
-    else if (nd == 2) outlen = dims_a[0] * len;
+    int ld = (transpose & 1 ? dims_a[nd] : dims_a[0]);
+    if (nd == 0) outlen = 1;
+    else if (nd == 1) outlen = ld;
+    else if (nd == 2) outlen = dims_a[ld] * len;
     else {
         PSErr(__func__, "Invalid output dimensions: %d", nd);
         return 0;
@@ -623,8 +625,7 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
         if (out == NULL) return 0;
     }
     if (ndims == 1) {
-        /* Just multiply two vectors */
-        PSMultiplyVectors(a, b, out, len, opts);
+        out[0] = PSDotProduct(a, b, len, opts);
         return 1;
     }
     int lda = (dims_a[1] > 1 ? dims_a[1] : 1);
@@ -1804,6 +1805,7 @@ PSFloat PSMean(PSFloat *a, uint64_t length, PSMathOpts *opts) {
 }
 
 PSFloat PSVariance(PSFloat *a, uint64_t len, PSMathOpts *opts) {
+    if (len == 0) return 0;
     PSFloat var = 0.0;
     PSFloat *cache = NULL;
     PSFloat mean = PSMean(a, len, opts);

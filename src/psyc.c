@@ -4083,6 +4083,7 @@ float validate(PSNeuralNetwork *network, PSFloat *test_data, int data_size,
                     max_seqlen = output_seqlen;
                 int label_data_size = y_size * steps_to_check;
                 int last_label_idx = (label_data_size - 1);
+                if (label_data_size <= 0) goto err;
                 PSFloat outputs[label_data_size];
                 for (j = 0; j < label_data_size; j++) {
                     int is_last_label = (j == last_label_idx);
