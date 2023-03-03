@@ -74,6 +74,9 @@ int PSGRUFeedforward(PSLayer *layer, ...);
 int PSGRUBackprop(PSLayer *layer, PSLayer *previous_layer,
                    PSGradient *lgradients, ...);
 int PSBeforeSequenceFeedforward(PSLayer *layer, int seqlen, int t);
+int PSOnehotInputsFeedforward(PSLayer *layer, int weights_index,
+                              PSFloat *outputs, int t, int apply_biases,
+                              int do_activate);
 
 /* GRU functions */
 
@@ -478,9 +481,8 @@ int PSGRUFeedforward(PSLayer *layer, ...) {
     PSGRUCell *cell = PSGetGRUCell(layer);
     if (cell == NULL) return 0;
     int onehot = previous->flags & FLAG_ONEHOT;
-    int vector_size = 0, vector_idx = -1;
     int ignore_inputs = 0;
-    int prev_t = t - 1, i;
+    int prev_t = t - 1;
     int use_bias = !(layer->flags & FLAG_NO_BIAS);
     PSMathOpts mopts = {.acceleration = net->acceleration};
     PSFloat *prev_states = NULL;
@@ -517,22 +519,14 @@ int PSGRUFeedforward(PSLayer *layer, ...) {
          * of the activated unit. In this case, just take the value of the
          * corresponding weight, since the input should always be considered
          * as it would be 1 */
-        vector_size = PSGetOneHotLayerVectorSize(previous);
-        vector_idx = (int) PSGetState(previous, 0, t);
-        success = vector_size > 0;
-        if (!success) goto final;
-        if (vector_idx >= vector_size) {
-            PSErr(NULL, "Layer[%d]: invalid vector index %d (max. %d)!",
-                        previous->index, vector_idx, vector_size - 1);
-            success = 0;
-            goto final;
-        }
-        for (i = 0; i < layer->size; i++) {
-	    int offset = (i * vector_size) + vector_idx;
-            candidates[i] = cell->candidate_weights[offset];
-            update_gates[i] = cell->update_weights[offset];
-            reset_gates[i] = cell->reset_weights[offset];
-        }
+        success = (
+            PSOnehotInputsFeedforward(layer, CANDIDATE_IDX, cell->candidates,
+                t, 0, 0) &&
+            PSOnehotInputsFeedforward(layer, UPDATE_IDX, cell->update_gates,
+                t, 0, 0) &&
+            PSOnehotInputsFeedforward(layer, RESET_IDX, cell->reset_gates,
+                t, 0, 0)
+        );
     } else {
         inputs = PSGetStates(previous, t);
         if (inputs == NULL) {

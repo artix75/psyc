@@ -110,7 +110,7 @@ void handler(int sig) {
             PSAbortTraining(network);
             exit(1);
         }
-    }
+    } else exit(1);
 }
 
 int randomChoice(PSFloat *weights, int count) {
@@ -223,7 +223,7 @@ int main(int argc, char** argv) {
     int return_status = 0;
     UNUSED(disable_avx); /* Actually not used if USE_AVX macro not defined */
 
-    PSNeuralNetwork *network = PSCreateNetwork("RNN Demo");
+    network = PSCreateNetwork("RNN Demo");
     if (network == NULL) {
         fprintf(stderr, "Could not create network!\n");
         return 1;
@@ -414,10 +414,10 @@ int main(int argc, char** argv) {
     PSTrain(network, training_data, TRAIN_DATA_LEN, training_data,
             TRAIN_DATA_LEN, &options);
 
-    if (TEST_DATA_LEN > 0) {
+    /*if (TEST_DATA_LEN > 0) {
         printf("Test Data len: %d\n", TEST_DATA_LEN);
         PSTest(network, test_data, TEST_DATA_LEN);
-    }
+    }*/
     if (print_sample) printSample(network, 0, sample_len);
     if (pretrained_file == NULL)
         PSSaveNetwork(network, "/tmp/pretrained.lstm.psmodel");

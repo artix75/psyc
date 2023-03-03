@@ -274,7 +274,8 @@ void handleLayerFeedforwardDebug(PSLayer *layer, const char *func,
  * corresponding weight, since the input should always be considered
  * as it would be 1 */
 int PSOnehotInputsFeedforward(PSLayer *layer, int weights_index,
-                              int apply_biases, int do_activate, int t)
+                              PSFloat *outputs, int t, int apply_biases,
+                              int do_activate)
 {
     PSLayer *previous = PSGetPreviousLayer(layer);
     if (previous == NULL) {
@@ -313,6 +314,7 @@ int PSOnehotInputsFeedforward(PSLayer *layer, int weights_index,
               layer->index, weights_index);
         goto no_transposition;
     }
+    PSFloat *out;
     for (int s = 0; s < seqlen; s++) {
         int tidx = s + t;
         int onehot_idx = (int) PSGetState(previous, 0, tidx);
@@ -324,17 +326,17 @@ int PSOnehotInputsFeedforward(PSLayer *layer, int weights_index,
             );
             return 0;
         }
-        PSFloat *outputs = PSGetStates(layer, tidx);
-        if (outputs == NULL) {
-            PSErr(NULL, "Layer[%d] has no outputs", layer->index);
+        if (outputs == NULL) out = PSGetStates(layer, tidx);
+        else out = outputs + (t * layer->size);
+        if (out == NULL) {
+            PSErr(NULL, "Layer[%d] has no outputs at %d", layer->index, tidx);
             return 0;
         }
         PSFloat *states = tweights + (onehot_idx * layer->size);
-        PSVectorCopy(outputs, states, layer->size);
+        PSVectorCopy(out, states, layer->size);
         if (use_bias)
-            PSSumVectors(outputs, layer->biases, outputs, layer->size, &opts);
-        if (do_activate)
-            layer->activate(outputs, NULL, layer->size, &opts);
+            PSSumVectors(out, layer->biases, out, layer->size, &opts);
+        if (do_activate) layer->activate(out, NULL, layer->size, &opts);
     }
     return 1;
 
@@ -385,7 +387,7 @@ int PSFullFeedforward(PSLayer *layer, ...) {
     }
     if (previous->flags & FLAG_ONEHOT) {
         /* Onehot inputs */
-        if (!PSOnehotInputsFeedforward(layer, 0, 1, 1, t)) return 0;
+        if (!PSOnehotInputsFeedforward(layer, 0, NULL, t, 1, 1)) return 0;
         goto final;
     }
     PSMatrix weights = layer->weights[0];

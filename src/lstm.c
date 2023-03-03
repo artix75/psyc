@@ -72,7 +72,6 @@ static int getLSTMStatePointers(PSLSTMCell *cell, int type,
 int checkLayerForFeedforward(PSLayer *layer);
 PSLSTMCell *PSCreateLSTMCell(PSLayer *layer);
 void PSDeleteLSTMCell(PSLSTMCell *cell);
-
 PSFloat applyGradientOnParameter(
     int param_type, PSTrainingOptions *options, PSFloat grad, PSFloat param,
     PSGradient *mg, PSGradient *xg, PSFloat rate, int iteration,
@@ -89,6 +88,9 @@ PSMatrix PSInitWeights(PSLayer *layer, int rows, int columns,
 PSFloat PSInitParam(int param_type, PSLayerDef *ldef, PSFloat range,
                     PSFloat scale);
 int PSBeforeSequenceFeedforward(PSLayer *layer, int seqlen, int t);
+int PSOnehotInputsFeedforward(PSLayer *layer, int weights_index,
+                              PSFloat *outputs, int t, int apply_biases,
+                              int do_activate);
 
 /* LSTM functions */
 
@@ -557,9 +559,9 @@ int PSLSTMFeedforward(PSLayer *layer, ...) {
     PSLSTMCell *cell = PSGetLSTMCell(layer);
     if (cell == NULL) return 0;
     int onehot = previous->flags & FLAG_ONEHOT;
-    int vector_size = 0, vector_idx = -1, lsize = layer->size;
+    int lsize = layer->size;
     int ignore_inputs = 0;
-    int prev_t = t - 1, i;
+    int prev_t = t - 1;
     int use_bias = !(layer->flags & FLAG_NO_BIAS);
     int success = 1;
     PSMathOpts mopts = {.acceleration = net->acceleration};
@@ -584,25 +586,17 @@ int PSLSTMFeedforward(PSLayer *layer, ...) {
     PSFloat *outputs = PSGetStates(layer, t);
     if (ignore_inputs) goto forward_previous_step;
     if (onehot) {
-        /* Onehot input layers only have one input corresponding to the index
-         * of the activated unit. In this case, just take the value of the
-         * corresponding weight, since the input should always be considered
-         * as it would be 1 */
-        vector_size = PSGetOneHotLayerVectorSize(previous);
-        vector_idx = (int) PSGetState(previous, 0, t);
-        if (vector_size == 0) return 0;
-        if (vector_idx >= vector_size) {
-            PSErr(NULL, "Layer[%d]: invalid vector index %d (max. %d)!",
-                        previous->index, vector_idx, vector_size - 1);
-            return 0;
-        }
-        for (i = 0; i < layer->size; i++) {
-	    int offset = (i * vector_size) + vector_idx;
-            candidates[i] = cell->candidate_weights[offset];
-            input_gates[i] = cell->input_weights[offset];
-            output_gates[i] = cell->output_weights[offset];
-            forget_gates[i] = cell->forget_weights[offset];
-        }
+        success = (
+            PSOnehotInputsFeedforward(layer, CANDIDATE_IDX, cell->candidates,
+                t, 0, 0) &&
+            PSOnehotInputsFeedforward(layer, INPUT_IDX, cell->input_gates,
+                t, 0, 0) &&
+            PSOnehotInputsFeedforward(layer, OUTPUT_IDX, cell->output_gates,
+                t, 0, 0) &&
+            PSOnehotInputsFeedforward(layer, FORGET_IDX, cell->forget_gates,
+                t, 0, 0)
+        );
+        if (!success) goto final;
     } else {
         inputs = PSGetStates(previous, t);
         if (inputs == NULL) {

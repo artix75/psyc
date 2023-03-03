@@ -44,7 +44,8 @@ int PSBeforeSequenceFeedforward(PSLayer *layer, int seqlen, int t);
 
 int checkLayerForFeedforward(PSLayer *layer);
 int PSOnehotInputsFeedforward(PSLayer *layer, int weights_index,
-                              int apply_biases, int do_activate, int t);
+                              PSFloat *outputs, int t, int apply_biases,
+                              int do_activate);
 PSMatrix PSInitWeights(PSLayer *layer, int rows, int columns,
                        PSLayerDef *ldef, PSFloat range, PSFloat scale);
 PSFloat PSInitParam(int param_type, PSLayerDef *ldef, PSFloat range,
@@ -174,7 +175,7 @@ int PSRecurrentFeedforward(PSLayer *layer, ...) {
      * states, also eventually add biases and activate states with `activate`
      * function. */
     if (onehot) {
-        if (!PSOnehotInputsFeedforward(layer, 0, 0, 0, t)) return 0;
+        if (!PSOnehotInputsFeedforward(layer, 0, NULL, t, 0, 0)) return 0;
     } else {
         inputs = PSGetStates(previous, t);
         if (inputs == NULL) {
