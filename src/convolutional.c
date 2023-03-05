@@ -177,13 +177,14 @@ static PSFloat *col2im(PSFloat *input, int channels, int width, int height,
     if (output_h <= 0 || output_w <= 0) goto invalid_size;
     PSFloat *output = dest;
     if (output == NULL) {
-        output = malloc(outsize * sizeof(PSFloat));
+        output = calloc(outsize, sizeof(PSFloat));
         if (output == NULL) {
             PSPrintMemoryErrorMsg();
             return NULL;
         }
     } else {
         if (dest_size != outsize) goto invalid_size;
+        memset(output, 0, outsize * sizeof(PSFloat));
     }
     int channel_size = height * width;
     PSFloat *output_p = output;
@@ -202,7 +203,7 @@ static PSFloat *col2im(PSFloat *input, int channels, int width, int height,
                         while (output_col-- > 0) {
                             if (input_col >= 0 && input_col < width) {
                                 int oidx = (input_row * width + input_col);
-                                output_p[oidx] = *input_p;
+                                output_p[oidx] += *input_p;
                             }
                             input_p++;
                             input_col += stride;
@@ -403,6 +404,7 @@ static int BLASConvolutionalBackprop(PSLayer *layer, PSGradient *gradient) {
     ldb = n;
     PSGemm(PSBLASRowMajor, 'T', 'N', m, n, k, 1.0, w2c, lda, delta, ldb,
            0.0, i2c, n);
+    success = (PSBLASLastError == NULL);
     if (!success) goto final;
     PSFloat *prev_delta = col2im(
         i2c, settings->input_depth, settings->input_width,
