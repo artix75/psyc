@@ -2371,8 +2371,8 @@ PSLayer *PSAddPoolingLayer(PSNeuralNetwork *network, PSLayerDef *ldef) {
 void PSDeleteLayer(PSLayer* layer) {
     if (layer == NULL) return;
     int size = layer->size, i;
-    if (layer->neurons == NULL) size = 0;
     for (i = 0; i < size; i++) {
+        if (layer->neurons == NULL) break;
         PSNeuron* neuron = layer->neurons[i];
         if (neuron == NULL) continue;
         if (layer->type != Convolutional) PSDeleteNeuron(neuron);
@@ -3451,7 +3451,7 @@ PSGradient **backprop(PSNeuralNetwork *network, PSFloat *x, PSFloat *y,
         PSLayerType prev_ltype = previous_layer->type;
         ok = (
             FullyConnected == ltype || Embedding == ltype ||
-            Dropout == ltype ||
+            Dropout == ltype || Normalization == ltype ||
             (Pooling == ltype && Convolutional == prev_ltype) ||
             Convolutional == ltype
         );

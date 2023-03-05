@@ -35,6 +35,7 @@ int PSDropoutFeedforward(PSLayer *layer, ...);
 int PSDropoutBackprop(PSLayer *layer, PSLayer *previous_layer,
                       PSGradient *gradients, ...);
 int checkLayerForFeedforward(PSLayer *layer);
+int PSBeforeSequenceFeedforward(PSLayer *layer, int seqlen, int t);
 
 /* Dropout Layer functions */
 
@@ -179,6 +180,7 @@ void PSDeleteDropoutLayer(PSLayer *layer) {
     if (layer == NULL) return;
     PSDropoutData *data = PSGetDropoutData(layer);
     deleteDropoutData(data);
+    layer->extra = NULL;
 }
 
 int PSInitDropoutLayer(PSNeuralNetwork *network, PSLayer *layer,
@@ -199,10 +201,7 @@ int PSInitDropoutLayer(PSNeuralNetwork *network, PSLayer *layer,
         return 0;
     }
     PSFloat dropout = 0.0;
-    if (layer_def != NULL) {
-        dropout = layer_def->dropout;
-        return 0;
-    }
+    if (layer_def != NULL) dropout = layer_def->dropout;
     if (dropout <= 0.0) {
         PSErr(NULL, "Dropout property is mandatory for Dropout layer");
         return 0;
@@ -229,7 +228,7 @@ int PSInitDropoutLayer(PSNeuralNetwork *network, PSLayer *layer,
         free(layer->weights);
     }
     layer->weights = NULL;
-    layer->delta = calloc(layer->size, sizeof(PSFloat));
+    layer->delta = PSMatrixZeros(2, 1, layer->size);
     if (layer->delta == NULL) {
         PSPrintMemoryErrorMsg();
         return 0;
@@ -242,8 +241,11 @@ int PSInitDropoutLayer(PSNeuralNetwork *network, PSLayer *layer,
     data->dropout = dropout;
     layer->extra = data;
     /* TODO: Allocate neurons? */
+    layer->neurons = NULL;
     layer->activate = NULL;
     layer->derivative = NULL;
+    layer->states = PSMatrixZeros(2, 1, layer->size);
+    layer->delta = PSMatrixZeros(2, 1, layer->size);
     layer->feedforward = PSDropoutFeedforward;
     layer->backprop = PSDropoutBackprop;
     return 1;
@@ -254,19 +256,16 @@ int PSInitDropoutLayer(PSNeuralNetwork *network, PSLayer *layer,
 int PSDropoutFeedforward(PSLayer *layer, ...) {
     if (!checkLayerForFeedforward(layer)) return 0;
     PSNeuralNetwork *net = layer->network;
-    int success = 1, i, t = 0, times = 0, is_recurrent = PSIsRecurrent(layer);
+    int success = 1, i, t = 0, seqlen = 1, is_recurrent = PSIsRecurrent(layer),
+        handles_seq = PSHandleSequenceAtOnce(layer);
     PSLayer *previous = PSGetPreviousLayer(layer);
-    if (is_recurrent) {
+    if (is_recurrent || handles_seq) {
         va_list args;
         va_start(args, layer);
-        times = va_arg(args, int);
-        t = va_arg(args, int);
+        seqlen = va_arg(args, int);
+        if (is_recurrent) t = va_arg(args, int);
         va_end(args);
-        if (times < 1) {
-            PSErr(__func__, "Layer[%d]: times must be >= 1 (found %d)",
-                  layer->index, times);
-            return 0;
-        }
+        if (!PSBeforeSequenceFeedforward(layer, seqlen, t)) return 0;
     }
     PSFloat *inputs = PSGetStates(previous, t),
             *outputs = PSGetStates(layer, t);
@@ -290,7 +289,9 @@ int PSDropoutFeedforward(PSLayer *layer, ...) {
         PSErr(NULL, "Layer[%d]: Dropout layer has no dropout mask");
         return 0;
     }
-    for (i = 0; i < layer->size; i++) {
+    int len = layer->size;
+    if (handles_seq && seqlen > 1) len *= seqlen;
+    for (i = 0; i < len; i++) {
         PSFloat r = PSNormalizedRandom();
         PSFloat input = inputs[i];
         int dropped = (r < dropout);
@@ -310,24 +311,28 @@ int PSDropoutBackprop(PSLayer *layer, PSLayer *previous_layer,
     if (previous_layer == NULL) return 0;
     if (previous_layer->delta == NULL) return 1;
     if (layer->delta == NULL) return 0;
-    int is_recurrent = PSIsRecurrent(layer), t = 0, success = 1;
+    int is_recurrent = PSIsRecurrent(layer), t = 0, seqlen = 1, success = 1;
+    int handles_seq = PSHandleSequenceAtOnce(layer);
     if (is_recurrent) {
         va_list args;
         va_start(args, gradients);
         t = va_arg(args, int);
         va_end(args);
-    }
+    } else if (handles_seq) seqlen = PSStateSequenceLength(layer);
     PSFloat *dropout_mask = PSGetDropoutMask(layer, t);
     if (dropout_mask == NULL) {
         PSErr(NULL, "Layer[%d]: Dropout layer has no dropout mask");
         return 0;
     }
+    if (seqlen < 1) seqlen = 1;
+    int len = layer->size;
+    if (handles_seq) len *= seqlen;
     PSMathOpts mopts = {
         .acceleration = layer->network->acceleration,
         .store_mode = PS_STORE_MODE_ADD
     };
     PSMultiplyVectors(
-        layer->delta, dropout_mask, previous_layer->delta, layer->size, &mopts
+        layer->delta, dropout_mask, previous_layer->delta, len, &mopts
     );
     return success;
 }

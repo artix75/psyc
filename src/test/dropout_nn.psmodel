@@ -1,0 +1,15 @@
+--v0.9.0:git=b45cc545/249-seq2seq;float_size=4;archbits=64;avx=0;accelerate=1,sys=Darwin,22.2.0,arm64;global_flags=0;acceleration=254;savetime=1678019791
+model:0,2,0,0,0,0,0,0,0,-1,0
+layers:4
+layer[0]:0,2,0,activation=sigmoid,output_depth=1,output_cols=0,output_rows=0
+layer[1]:0,4,0,activation=sigmoid,output_depth=1,output_cols=0,output_rows=0
+layer[2]:7,4,32,activation=null,output_depth=1,output_cols=0,output_rows=0,dropout=0.9
+layer[3]:5,2,0,activation=null,output_depth=1,output_cols=0,output_rows=0
+--- Layer[1] Biases: 4 ---
+-0.733376086,0.617471755,-0.752391517,0.38224864
+--- Layer[1] Weights: 1,8 ---
+-1.61863148,-0.965021849,0.361137152,1.77245212,0.796982765,-0.648317933,0.84243232,-0.034654405
+--- Layer[3] Biases: 2 ---
+-0.428308189,1.3538661
+--- Layer[3] Weights: 1,8 ---
+0.272789836,-0.390222341,-1.51596558,0.961203396,0.632438779,0.243224308,-1.42839777,-0.922793806

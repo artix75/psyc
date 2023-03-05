@@ -121,6 +121,11 @@
 
 #define MAX_DIMENSIONS 3
 
+/* Forward declarations and external functions */
+
+int writeSerializedFloatArray(FILE *out, int count, char *sep, int opts,
+                              PSFloat *array);
+
 /**** Utils ****/
 static unsigned char randomSeeded = 0;
 
@@ -2160,4 +2165,11 @@ void PSVectorFill(PSFloat *vec, PSFloat val, uint64_t len, PSMathOpts *opts) {
         return;
     }
     for (uint64_t i = 0; i < len; i++) vec[i] = val;
+}
+
+void PSVectorPrint(PSFloat *vec, int len, char* sep) {
+    if (vec == NULL) return;
+    if (sep == NULL) sep = ",";
+    writeSerializedFloatArray(stdout, len, sep, 0, vec);
+    printf("\n");
 }

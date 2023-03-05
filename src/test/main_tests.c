@@ -49,6 +49,8 @@
 #define CONVOLUTIONAL_TRAINED_NETWORK "../../resources/pretrained.cnn.data"
 #define RECURRENT_NETWORK "rnn.data"
 #define NORMALIZATION_NETWORK "normalization_nn.psmodel"
+#define NORMALIZATION_NETWORK_BP "normalization_nn_bp.psmodel"
+#define DROPOUT_NETWORK "dropout_nn.psmodel"
 #define TEST_IMAGE_FILE "../../resources/t10k-images-idx3-ubyte.gz"
 #define TEST_LABEL_FILE "../../resources/t10k-labels-idx1-ubyte.gz"
 #define TEST_IMAGE_SIZE 28
@@ -88,6 +90,7 @@ TestCase *recurrentNetworkTests;
 TestCase *LSTMNetworkTests;
 TestCase *GRUNetworkTests;
 TestCase *NormalizationNetworkTests;
+TestCase *DropoutNetworkTests;
 
 #ifdef USE_AVX
 TestCase *AVXTests;
@@ -188,6 +191,11 @@ int testGRUTrain(TestCase *test_case, Test *test);
 
 int testNormalizationLoad(TestCase *test_case, Test *test);
 int testNormalizationFeedforward(TestCase *test_case, Test *test);
+int testNormalizationBackprop(TestCase *test_case, Test *test);
+
+int testDropoutLoad(TestCase *test_case, Test *test);
+int testDropoutFeedforward(TestCase *test_case, Test *test);
+int testDropoutBackprop(TestCase *test_case, Test *test);
 
 
 /* psyc.c function prototypes */
@@ -201,6 +209,11 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
                                 PSTrainingOptions* opts, PSFloat rate,
                                 PSGradient **memory_gradients1,
                                 PSGradient **memory_gradients2, ...);
+
+PSFloat *PSGetDropoutMask(PSLayer *layer, int t);
+
+static int compareArrays(PSFloat *arr, PSFloat *exp, int len, Test* test,
+                         char *descr, int rounding);
 
 int testlen = 0;
 
@@ -434,17 +447,17 @@ static int arrayMaxIndex(PSFloat *array, int len) {
 static int avx_tests = 1, maths_tests = 1, activation_tests = 1,
            optimization_tests = 1, fullnet_tests = 1, convnet_tests = 1,
            rnn_tests = 1, lstm_tests = 1, gru_tests = 1,
-           normalization_tests = 1;
+           normalization_tests = 1, dropout_tests = 1;
 
 static int *test_ptrs[] = {
     &avx_tests, &maths_tests, &activation_tests, &optimization_tests,
     &fullnet_tests, &convnet_tests, &rnn_tests, &lstm_tests, &gru_tests,
-    &normalization_tests
+    &normalization_tests, &dropout_tests
 };
 
 static char*test_ids[] = {
     "avx", "maths", "activation", "optimization", "fully-connected",
-    "convolutional", "rnn", "lstm", "gru", "normalization"
+    "convolutional", "rnn", "lstm", "gru", "normalization", "dropout"
 };
 
 static void printTestList(void) {
@@ -707,10 +720,28 @@ int main(int argc, char** argv) {
         addTest(NormalizationNetworkTests, "Load", NULL, testNormalizationLoad);
         addTest(NormalizationNetworkTests, "Feedforward", NULL,
                testNormalizationFeedforward);
+        addTest(NormalizationNetworkTests, "Backprop", NULL,
+               testNormalizationBackprop);
+        addTest(NormalizationNetworkTests, "Save", NULL, testGenericSave);
         performTests(NormalizationNetworkTests);
         tot_tests += NormalizationNetworkTests->count;
         tot_failed += NormalizationNetworkTests->failed_count;
         deleteTest(NormalizationNetworkTests);
+    }
+    if (dropout_tests) {
+        DropoutNetworkTests = createTest("Dropout Network");
+        DropoutNetworkTests->setup = genericSetup;
+        DropoutNetworkTests->teardown = genericTeardown;
+        addTest(DropoutNetworkTests, "Load", NULL, testDropoutLoad);
+        addTest(DropoutNetworkTests, "Feedforward", NULL,
+               testDropoutFeedforward);
+        addTest(DropoutNetworkTests, "Backprop", NULL,
+               testDropoutBackprop);
+        addTest(DropoutNetworkTests, "Save", NULL, testGenericSave);
+        performTests(DropoutNetworkTests);
+        tot_tests += DropoutNetworkTests->count;
+        tot_failed += DropoutNetworkTests->failed_count;
+        deleteTest(DropoutNetworkTests);
     }
     gettimeofday(&end_t, NULL);
     time_t elapsed = PSGetElapsedTimeUS(start_t, end_t);
@@ -2047,6 +2078,7 @@ int testNormalizationLoad(TestCase *test_case, Test *test) {
     testAssertNotNull(softmax, test);
     testAssert(softmax->type == SoftMax, test);
     testAssert(softmax->size == 2, test);
+    testAssert(!(normlayer->flags & FLAG_NON_TRAINABLE), test);
     if (!PSIsNetworkBuilt(network)) {
         int built = PSBuildNetwork(network);
         testAssert(built, test);
@@ -2072,6 +2104,221 @@ int testNormalizationFeedforward(TestCase *test_case, Test *test) {
         );
     }
     return 1;
+}
+
+int testNormalizationBackprop(TestCase *test_case, Test *test) {
+    UNUSED(test_case);
+    static PSFloat x[] = {90.3487, 198.1253, 18.3623, 162.5884, 0, 0};
+    static PSFloat expected_softmax[] = {0.00236786,0.997632};
+    static PSFloat y[] = {1.0, 0.0};
+    static PSFloat expected_normdelta[] = {
+        -2.04090834,0.0250784121,0.65737313,1.57224989
+    };
+    static PSFloat expected_prevdelta[] = {
+        -2.4473462e-36,4.01267542e-23,6.9116731e-22,-0
+    };
+    static PSFloat expected_wgrads[] = {
+        1.17828763,-0.0144786425,-0.37952444,2.72314405
+    };
+    int ok = 1;
+    PSGradient **gradients = NULL;
+    PSNeuralNetwork *network = PSCreateNetwork("Normalization Backprop");
+    testAssertNotNull(network, test);
+    ok = PSLoadNetwork(network, NORMALIZATION_NETWORK_BP);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "Could not load network from '%s'",
+        NORMALIZATION_NETWORK_BP
+    );
+    ok = PSBuildNetwork(network);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "Could not build network '%s'", network->name
+    );
+    ok = PSFeedforward(network, x);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "Feedforward failed to network %s", network->name
+    );
+    PSLayer *outlayer = network->layers[network->size - 1];
+    testAssertNotNull(outlayer, test);
+    PSFloat *outstates = PSGetStates(outlayer, 0);
+    testAssertNotNull(outstates, test);
+    PSLayer *normlayer = network->layers[2];
+    testAssertNotNull(normlayer, test);
+    ok = compareArrays(outstates, expected_softmax, outlayer->size, test,
+                       "output states", 4);
+    if (!ok) goto final;
+    gradients = backprop(network, x, y, NULL, NULL);
+    ok = gradients != NULL;
+    testAssertWithMessageOrGoto(
+        ok, final, test, "Backprop failed for network %s", network->name
+    );
+    PSMatrix normdelta = normlayer->delta;
+    testAssertWithMessageOrGoto(
+        normdelta != NULL, final, test,
+        "Normalization Layer[%d] has no delta", normlayer->index
+    );
+    ok = compareArrays(normdelta, expected_normdelta, normlayer->size, test,
+                       "normalization delta", 4);
+    if (!ok) goto final;
+    PSLayer *prev = PSGetPreviousLayer(normlayer);
+    testAssertNotNull(prev, test);
+    PSMatrix prevdelta = prev->delta;
+    testAssertWithMessageOrGoto(
+        prevdelta != NULL, final, test,
+        " Layer[%d] has no delta", prev->index
+    );
+    ok = compareArrays(prevdelta, expected_prevdelta, prev->size, test,
+                       "previous layer delta",4);
+    if (!ok) goto final;
+    testAssertNotNull(normlayer->weights, test);
+    PSMatrix weights = normlayer->weights[0];
+    PSFloat *biases = normlayer->biases;
+    testAssertWithMessageOrGoto(
+        weights != NULL, final, test,
+        "Normalization Layer[%d] has no weights", normlayer->index
+    );
+    testAssertWithMessageOrGoto(
+        biases != NULL, final, test,
+        "Normalization Layer[%d] has no biases", normlayer->index
+    );
+    int wlen = PSMatrixLength(weights);
+    testAssertWithMessageOrGoto(
+        wlen == normlayer->size, final, test,
+        "Normalization weights should match layer size: %d != %d",
+        wlen, normlayer->size
+    );
+    PSGradient *normgrads = gradients[normlayer->index - 1];
+    testAssertNotNull(normgrads, test);
+    testAssertWithMessageOrGoto(
+        normgrads->weight_count == (uint64_t)normlayer->size, final, test,
+        "Normalization gradient weights should match layer size: %d != %d",
+        normgrads->weight_count, normlayer->size
+    );
+    testAssertWithMessageOrGoto(
+        normgrads->bias_count == (uint64_t)normlayer->size, final, test,
+        "Normalization gradient biases should match layer size: %d != %d",
+        normgrads->bias_count, normlayer->size
+    );
+    testAssertWithMessageOrGoto(
+        normgrads->weights != NULL, final, test,
+        "Normalization layer[%d] has no gradient weights", normlayer->index
+    );
+    testAssertWithMessageOrGoto(
+        normgrads->biases != NULL, final, test,
+        "Normalization layer[%d] has no gradient weights", normlayer->index
+    );
+    ok = compareArrays(normgrads->biases, normdelta, normlayer->size, test,
+                       "normalization biases", 4);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "Normalization gradient biases should match "
+        "normalization delta%s",""
+    );
+    ok = compareArrays(normgrads->weights, expected_wgrads, wlen, test,
+                       "normalization weights", 4);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "Normalization gradient weights mismatch%s", ""
+    );
+final:
+    if (network != NULL) {
+        if (gradients != NULL) PSDeleteNetworkGradients(gradients, network);
+        PSDeleteNetwork(network);
+    }
+    return ok;
+}
+
+int testDropoutLoad(TestCase *test_case, Test *test) {
+    PSNeuralNetwork *network = getNetwork(test_case);
+    int loaded = PSLoadNetwork(network, DROPOUT_NETWORK);
+    testAssertWithMessage(loaded, test, "Failed to load %s",
+                          DROPOUT_NETWORK);
+    PSLayer *dropout_layer = network->layers[2];
+    PSLayer *softmax = network->layers[network->size - 1];
+    testAssertNotNull(dropout_layer, test);
+    testAssert(dropout_layer->type == Dropout, test);
+    testAssert(dropout_layer->size == 4, test);
+    testAssertNotNull(softmax, test);
+    testAssert(softmax->type == SoftMax, test);
+    testAssert(softmax->size == 2, test);
+    PSFloat dropout = PSGetDropout(dropout_layer);
+    dropout = getRoundedFloatDec(dropout, 1);
+    PSFloat expected = getRoundedFloatDec(0.9, 1);
+    testAssertWithMessage(
+        dropout == expected, test, "Dropout should be %g, got %g",
+        expected, dropout
+    );
+    if (!PSIsNetworkBuilt(network)) {
+        int built = PSBuildNetwork(network);
+        testAssert(built, test);
+    }
+    return 1;
+}
+
+int testDropoutFeedforward(TestCase *test_case, Test *test) {
+    static PSFloat data[] = {90.3487, 198.1253};
+    int ok = 1;
+    PSNeuralNetwork *network = getNetwork(test_case);
+    testAssertNotNull(network, test);
+    ok = PSFeedforward(network, data);
+    testAssert(ok, test);
+    PSLayer *dropout_layer = network->layers[2];
+    PSFloat dropout = PSGetDropout(dropout_layer);
+    PSLayer *prev = PSGetPreviousLayer(dropout_layer);
+    testAssertNotNull(prev, test);
+    PSFloat *prev_states = PSGetStates(prev, 0);
+    testAssertNotNull(prev_states, test);
+    PSFloat *dropout_states = PSGetStates(dropout_layer, 0);
+    testAssertNotNull(dropout_states, test);
+    for (int i = 0; i < dropout_layer->size; i++) {
+        PSFloat prev_state = prev_states[i];
+        PSFloat dropped_out = dropout_states[i];
+        testAssertWithMessage(
+            dropped_out == (prev_state * dropout), test,
+            "dropped out state[%d] expected to be %g (%g * %g), "
+            "got %g", i, (prev_state * dropout), prev_state, dropout,
+            dropped_out
+        );
+    }
+    return ok;
+}
+
+int testDropoutBackprop(TestCase *test_case, Test *test) {
+    static PSFloat x[] = {90.3487, 198.1253};
+    static PSFloat y[] = {1.0, 0.0};
+    PSGradient **gradients = NULL;
+    int ok = 1;
+    PSNeuralNetwork *network = getNetwork(test_case);
+    testAssertNotNull(network, test);
+    PSLayer *dropout_layer = network->layers[2];
+    PSLayer *prev = PSGetPreviousLayer(dropout_layer);
+    testAssertNotNull(prev, test);
+    int old_status = network->status;
+    network->status = STATUS_TRAINING;
+    gradients = backprop(network, x, y, NULL, NULL);
+    ok = gradients != NULL;
+    testAssertWithMessageOrGoto(
+        ok, final, test, "Backprop failed for network %s", network->name
+    );
+    PSMatrix prevdelta = prev->delta;
+    testAssertWithMessageOrGoto(
+        prevdelta != NULL, final, test,
+        "Layer[%d] has no delta", prev->index
+    );
+    PSFloat *dropout_mask = PSGetDropoutMask(dropout_layer, 0);
+    testAssertWithMessageOrGoto(
+        dropout_mask != NULL, final, test,
+        "Dropout Layer[%d] has no dropout mask", dropout_layer->index
+    );
+    for (int i = 0; i < dropout_layer->size; i++) {
+        int dropped_out = dropout_mask[i]  == 0;
+        if (!dropped_out) continue;
+        testAssertWithMessageOrGoto(
+            prevdelta[i] == 0.0, final, test, "Layer[%d] delta[%d] expected "
+            "to be 0.0, got: %g", prev->index, i, prevdelta[i]
+        );
+    }
+final:
+    network->status = old_status;
+    if (gradients != NULL) PSDeleteNetworkGradients(gradients, network);
+    return ok;
 }
 
 int testGenericClone(TestCase *test_case, Test *test) {
