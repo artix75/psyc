@@ -136,6 +136,7 @@ int testMathsAbs(TestCase *tc, Test *test);
 int testMathsMean(TestCase *tc, Test *test);
 int testMathsVar(TestCase *tc, Test *test);
 int testMathsStd(TestCase *tc, Test *test);
+int testMathVectorFill(TestCase *tc, Test *test);
 int testMathsMatrixCopy(TestCase *tc, Test *test);
 int testMathsMatrixDup(TestCase *tc, Test *test);
 int testMathsMatrixTranspose(TestCase *tc, Test *test);
@@ -574,6 +575,7 @@ int main(int argc, char** argv) {
         addTest(mathsTests, "Mean", NULL, testMathsMean);
         addTest(mathsTests, "Variance", NULL, testMathsVar);
         addTest(mathsTests, "StdDev", NULL, testMathsStd);
+        addTest(mathsTests, "Vector Fill", NULL, testMathVectorFill);
         addTest(mathsTests, "Matrix Copy", NULL, testMathsMatrixCopy);
         addTest(mathsTests, "Matrix Dup.", NULL, testMathsMatrixDup);
         addTest(mathsTests, "Matrix Expand", NULL, testMathsMatrixExpand);
@@ -1221,6 +1223,7 @@ int testConvFeedforward(TestCase *test_case, Test *test) {
 
 int testConvBackprop(TestCase *test_case, Test *test) {
     PSNeuralNetwork *network = getNetwork(test_case);
+    testAssert(network->acceleration == PSGlobalAcceleration, test);
     PSFloat *test_data = getTestData(test_case);
     int input_size = network->layers[0]->size;
     PSFloat *x = test_data;
@@ -3184,6 +3187,35 @@ int testMathsStd(TestCase *tc, Test *test) {
         stddev, expected
     );
     return 1;
+}
+
+int testMathVectorFill(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    int res = 1, i;
+    PSFloat vec[10] = {0};
+    PSFloat filler = 3.1234;
+    PSMathOpts opts = {0};
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    opts.acceleration = PSAcceleration_ACF;
+    PSVectorFill(vec, filler, 10, &opts);
+    for (i = 0; i < 10; i++) {
+        testAssertWithMessage(
+            vec[i] == filler, test, "(ACF) vec[%d] != filler: %g != %g",
+            i, vec[i], filler
+        );
+    }
+    memset(vec, 0, 10 * sizeof(PSFloat));
+#endif
+    opts.acceleration = PSAcceleration_None;
+    PSVectorFill(vec, filler, 10, &opts);
+    for (i = 0; i < 10; i++) {
+        testAssertWithMessage(
+            vec[i] == filler, test, "(No accel.) vec[%d] != filler: %g != %g",
+            i, vec[i], filler
+        );
+    }
+    memset(vec, 0, 10 * sizeof(PSFloat));
+    return res;
 }
 
 int testMathsMatrixCopy(TestCase *tc, Test *test) {

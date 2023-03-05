@@ -197,6 +197,7 @@ PSFloat PSVariance(PSFloat *a, uint64_t len, PSMathOpts *opts);
 PSFloat PSStdDev(PSFloat *a, uint64_t len, PSMathOpts *opts);
 PSFloat PSDotProduct(PSFloat *a, PSFloat *b, uint64_t length, PSMathOpts *opts);
 PSFloat PSDotSquare(PSFloat *a, uint64_t length, PSMathOpts *opts);
+void PSVectorFill(PSFloat *vec, PSFloat val, uint64_t len, PSMathOpts *opts);
 int PSDot(PSMatrix matrix, PSFloat *vector, PSFloat *dest, PSMathOpts *opts);
 int PSDotMV(PSMatrix a, PSFloat *b, PSFloat *dest, PSMathOpts *opts);
 int PSDotVM(PSFloat *a, PSMatrix b, PSMatrix dest, PSMathOpts *opts);

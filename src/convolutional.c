@@ -342,6 +342,7 @@ static int BLASConvolutionalBackprop(PSLayer *layer, PSGradient *gradient) {
         PSErr(__func__, "Layer[%d] has no private data");
         return 0;
     }
+    PSMathOpts opts = {.acceleration = layer->network->acceleration};
     PSFloat *delta = layer->delta;
     int use_bias = !(layer->flags & FLAG_NO_BIAS);
     int feature_size = layer->size / layer->output_depth;
@@ -356,7 +357,7 @@ static int BLASConvolutionalBackprop(PSLayer *layer, PSGradient *gradient) {
                 PSPrintMemoryErrorMsg();
                 goto final;
             }
-            for (int i = 0; i < feature_size; i++) privdata->bias_mul[i] = 1.0;
+            PSVectorFill(privdata->bias_mul, 1.0, feature_size, &opts);
         }
         PSGemv(PSBLASRowMajor, 'N', layer->output_depth, feature_size, 1.0,
                delta, feature_size, privdata->bias_mul, 1, 1.0,

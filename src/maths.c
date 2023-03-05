@@ -63,6 +63,7 @@
 #define VDSPVLim(a, limit, i, dest, len) vDSP_vlimD(a, 1, &limit, &i,\
     dest, 1, len)
 #define VDSPMean(a, res, len) vDSP_meanvD(a, 1, &res, len)
+#define VDSPFill(val, a, len) vDSP_vfillD(&val, a, 1, len)
 #define VVSqrt(a,dest,len) vvsqrt(dest, a, (int *)&len)
 #define VVTanh(a,dest,len) vvtanh(dest, a, (int *)&len)
 #define VVExp(a,dest,len)  vvexp(dest, a, (int *)&len)
@@ -95,6 +96,7 @@
 #define VDSPVLim(a, limit, i, dest, len) vDSP_vlim(a, 1, &limit, &i,\
     dest, 1, len)
 #define VDSPMean(a, res, len) vDSP_meanv(a, 1, &res, len)
+#define VDSPFill(val, a, len) vDSP_vfill(&val, a, 1, len)
 #define VVSqrt(a,dest,len) vvsqrtf(dest, a, (int *)&len)
 #define VVTanh(a,dest,len) vvtanhf(dest, a, (int *)&len)
 #define VVExp(a,dest,len)  vvexpf(dest, a, (int *)&len)
@@ -2141,4 +2143,21 @@ no_acceleration:
         }
     }
     return 1;
+}
+
+void PSVectorFill(PSFloat *vec, PSFloat val, uint64_t len, PSMathOpts *opts) {
+    if (len == 0 || vec == NULL) return;
+    int acceleration = PSGlobalAcceleration;
+    if (opts != NULL) acceleration = opts->acceleration;
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    if (PSACFEnabled(acceleration)) {
+        VDSPFill(val, vec, len);
+        return;
+    }
+#endif
+    if (val == 0.0) {
+        PSVectorClear(vec, len);
+        return;
+    }
+    for (uint64_t i = 0; i < len; i++) vec[i] = val;
 }
