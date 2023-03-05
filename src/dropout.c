@@ -120,19 +120,22 @@ PSFloat *PSGetDropoutMask(PSLayer *layer, int t) {
     PSFloat *mask = data->dropout_mask;
     if (PSUseSequences(layer)) {
         if (t < 0) return NULL;
-        if (t >= PSStateSequenceLength(layer)) {
+        int cur_seqlen = PSStateSequenceLength(layer);
+        if (t >= cur_seqlen) {
             if (!PSResizeDropoutMask(layer, t + 1)) return NULL;
+            mask = data->dropout_mask;
+            if (mask == NULL) return NULL;
+        } else if (mask == NULL) {
+            if (!PSInitDropoutMask(layer, cur_seqlen, 0)) return NULL;
             mask = data->dropout_mask;
             if (mask == NULL) return NULL;
         }
         mask += (t * layer->size);
-    } else {
+    } else if (mask == NULL) {
+        mask = malloc(layer->size * sizeof(PSFloat));
         if (mask == NULL) {
-            mask = malloc(layer->size * sizeof(PSFloat));
-            if (mask == NULL) {
-                PSPrintMemoryErrorMsg();
-                return NULL;
-            }
+            PSPrintMemoryErrorMsg();
+            return NULL;
         }
         data->dropout_mask = mask;
     }
@@ -142,7 +145,7 @@ PSFloat *PSGetDropoutMask(PSLayer *layer, int t) {
 
 static void deleteDropoutData(PSDropoutData *data) {
     if (data == NULL) return;
-    if (data->dropout_mask != NULL) free(data->dropout_mask);
+    free(data->dropout_mask);
     free(data);
 }
 
@@ -212,6 +215,9 @@ int PSInitDropoutLayer(PSNeuralNetwork *network, PSLayer *layer,
     }
     if (dropout > 1.0) dropout = 1.0;
     layer->flags |= FLAG_NON_TRAINABLE;
+    if (PSIsRecurrent(previous)) layer->flags |= FLAG_RECURRENT;
+    if (PSHandleSequenceAtOnce(previous))
+        layer->flags |= FLAG_USE_SEQUENCES;
     layer->on_copy = PSDropoutLayerCopy;
     layer->on_delete = PSDeleteDropoutLayer;
     layer->on_states_init = PSInitDropoutMask;
@@ -256,7 +262,7 @@ int PSInitDropoutLayer(PSNeuralNetwork *network, PSLayer *layer,
 int PSDropoutFeedforward(PSLayer *layer, ...) {
     if (!checkLayerForFeedforward(layer)) return 0;
     PSNeuralNetwork *net = layer->network;
-    int success = 1, i, t = 0, seqlen = 1, is_recurrent = PSIsRecurrent(layer),
+    int success = 1, t = 0, seqlen = 1, is_recurrent = PSIsRecurrent(layer),
         handles_seq = PSHandleSequenceAtOnce(layer);
     PSLayer *previous = PSGetPreviousLayer(layer);
     if (is_recurrent || handles_seq) {
@@ -279,9 +285,11 @@ int PSDropoutFeedforward(PSLayer *layer, ...) {
     }
     PSFloat dropout = PSGetDropout(layer);
     PSMathOpts mopts = {.acceleration = layer->network->acceleration};
+    uint64_t len = layer->size;
+    if (handles_seq && seqlen > 1) len *= seqlen;
     if (net->status != STATUS_TRAINING) {
-        PSVectorCopy(outputs, inputs, layer->size);
-        PSMultiplyVectorScalar(outputs, dropout, outputs, layer->size, &mopts);
+        PSVectorCopy(outputs, inputs, len);
+        PSMultiplyVectorScalar(outputs, dropout, outputs, len, &mopts);
         return 1;
     }
     PSFloat *dropout_mask = PSGetDropoutMask(layer, t);
@@ -289,9 +297,7 @@ int PSDropoutFeedforward(PSLayer *layer, ...) {
         PSErr(NULL, "Layer[%d]: Dropout layer has no dropout mask");
         return 0;
     }
-    int len = layer->size;
-    if (handles_seq && seqlen > 1) len *= seqlen;
-    for (i = 0; i < len; i++) {
+    for (uint64_t i = 0; i < len; i++) {
         PSFloat r = PSNormalizedRandom();
         PSFloat input = inputs[i];
         int dropped = (r < dropout);
@@ -325,8 +331,8 @@ int PSDropoutBackprop(PSLayer *layer, PSLayer *previous_layer,
         return 0;
     }
     if (seqlen < 1) seqlen = 1;
-    int len = layer->size;
-    if (handles_seq) len *= seqlen;
+    uint64_t len = layer->size;
+    if (handles_seq && seqlen > 1) len *= seqlen;
     PSMathOpts mopts = {
         .acceleration = layer->network->acceleration,
         .store_mode = PS_STORE_MODE_ADD
