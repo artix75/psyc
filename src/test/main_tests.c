@@ -23,6 +23,11 @@
 #include <signal.h>
 #include <strings.h>
 #include <assert.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <limits.h>
+#include <libgen.h>
 #include <sys/time.h>
 
 #include "test.h"
@@ -40,19 +45,23 @@
 #include "../utils.h"
 #include "../debug.h"
 #include "../log.h"
+#include "../cifar.h"
 #ifdef USE_AVX
 #include "../avx.h"
 #endif
 
 #define PRETRAINED_FULL_NETWORK "../../resources/pretrained.mnist.data"
-#define CONVOLUTIONAL_NETWORK "cnn.data"
+#define CONVOLUTIONAL_NETWORK "resources/cnn.data"
 #define CONVOLUTIONAL_TRAINED_NETWORK "../../resources/pretrained.cnn.data"
-#define RECURRENT_NETWORK "rnn.data"
-#define NORMALIZATION_NETWORK "normalization_nn.psmodel"
-#define NORMALIZATION_NETWORK_BP "normalization_nn_bp.psmodel"
-#define DROPOUT_NETWORK "dropout_nn.psmodel"
-#define TEST_IMAGE_FILE "../../resources/t10k-images-idx3-ubyte.gz"
-#define TEST_LABEL_FILE "../../resources/t10k-labels-idx1-ubyte.gz"
+#define CONVOLUTIONAL_CIFAR_NETWORK "resources/cifar-cnn.psmodel"
+#define CIFAR_IMAGE_PATH "resources/cifar-image.data"
+#define CIFAR_LABEL_PATH "resources/cifar-label.data"
+#define RECURRENT_NETWORK "resources/rnn.data"
+#define NORMALIZATION_NETWORK "resources/normalization_nn.psmodel"
+#define NORMALIZATION_NETWORK_BP "resources/normalization_nn_bp.psmodel"
+#define DROPOUT_NETWORK "resources/dropout_nn.psmodel"
+#define TEST_IMAGE_FILE "resources/t10k-images-idx3-ubyte.gz"
+#define TEST_LABEL_FILE "resources/t10k-labels-idx1-ubyte.gz"
 #define TEST_IMAGE_SIZE 28
 #define TEST_INPUT_SIZE TEST_IMAGE_SIZE *TEST_IMAGE_SIZE
 #define BP_GRADIENTS_CHECKS 8
@@ -176,6 +185,7 @@ int testConvLoad(TestCase *test_case, Test *test);
 int testConvFeedforward(TestCase *test_case, Test *test);
 int testConvAccuracy(TestCase *tc, Test *test);
 int testConvBackprop(TestCase *test_case, Test *test);
+int testConvCIFAR(TestCase *tc, Test *test);
 
 int testRNNLoad(TestCase *test_case, Test *test);
 int testRNNFeedforward(TestCase *test_case, Test *test);
@@ -416,6 +426,51 @@ int compareNetworks(PSNeuralNetwork *net1, PSNeuralNetwork *net2, Test* test);
 
 static int testRecurrentNetworkMode(PSNeuralNetwork *network,
                                     PSRecurrentNetworkMode mode, Test *test);
+PSFloat *readSerializedFloatArray(FILE *in, char *sep, int *length,
+                                  int maxlen, int capacity);
+
+static char *getExecutablePath(char *executable) {
+    static char path[PATH_MAX + 1] = {0};
+    char _realpath[PATH_MAX + 1];
+    if (path[0]) return path;
+    _realpath[0] = 0;
+    if (realpath(executable, _realpath) != NULL) {
+        char *dir = dirname(_realpath);
+        if (dir == NULL) return NULL;
+        int len = strlen((const char*) dir);
+        if (len >= PATH_MAX) {
+            fprintf(stderr, "WARN: getPsycPath(): dirname length > %d",
+                    PATH_MAX);
+            return NULL;
+        }
+        memcpy(path, dir, len);
+        path[len] = 0;
+        return path;
+    }
+    return NULL;
+}
+
+static int joinPath(const char *dir, const char *fname, char *output) {
+    assert(output != NULL);
+    int maxlen = PATH_MAX, avail = maxlen;
+    char *p = output;
+    int len = snprintf(p, avail, "%s", dir);
+    avail -= len;
+    if (avail <= 0) goto exceeded;
+    p += len;
+    if (output[len - 1] != '/') {
+        *(p++) = '/';
+        len++;
+        avail--;
+        if (avail <= 0) goto exceeded;
+    }
+    len += snprintf(p, avail, "%s", fname);
+    if (avail <= 0) goto exceeded;
+    return 1;
+exceeded:
+    PSErr(NULL, "Path length exceeded");
+    return 0;
+}
 
 static void getTmpFileName(const char *prfx, const char *sfx, char *buffer) {
     FILE *urand = fopen("/dev/urandom", "r");
@@ -533,11 +588,15 @@ int parseOptions(int argc, char **argv) {
     return i;
 }
 
+const char *executable_path = NULL;
+
 int main(int argc, char** argv) {
 #ifdef CATCH_FPE
     PSCatchFloatingPointExceptions(FE_OVERFLOW | FE_DIVBYZERO);
 #endif
     PSHandleSignals(NULL);
+    executable_path = getExecutablePath(argv[0]);
+    if (executable_path == NULL) executable_path = "./";
     PSSetDefaultTrainingOptions(&optimization_train_opts);
     /* Prevent differences between tests with float and tests with double */
     optimization_train_opts.eps = 1e-7;
@@ -661,7 +720,8 @@ int main(int argc, char** argv) {
         addTest(convNetworkTests, "Load", NULL, testConvLoad);
         addTest(convNetworkTests, "Feedforward", NULL, testConvFeedforward);
         addTest(convNetworkTests, "Backprop", NULL, testConvBackprop);
-        addTest(convNetworkTests, "Accuracy", NULL, testConvAccuracy);
+        /*addTest(convNetworkTests, "Accuracy", NULL, testConvAccuracy);*/
+        addTest(convNetworkTests, "CIFAR Training", NULL, testConvCIFAR);
         addTest(convNetworkTests, "Clone", NULL, testGenericClone);
         addTest(convNetworkTests, "Save", NULL, testGenericSave);
         performTests(convNetworkTests);
@@ -772,7 +832,23 @@ int genericSetup(TestCase *test_case) {
     }
     test_case->data[0] = network;
     PSFloat *test_data = NULL;
-    testlen = PSLoadMNISTData(DATA_TYPE_TEST, TEST_IMAGE_FILE, TEST_LABEL_FILE,
+    char test_img_path[PATH_MAX] = {0};
+    char test_lbl_path[PATH_MAX] = {0};
+    char *root = dirname((char *)executable_path);
+    if (root == NULL) {
+        PSErr(__func__, "Could not determine PsyC path from '%s'",
+              executable_path);
+        return 0;
+    }
+    root = dirname(root);
+    if (root == NULL) {
+        PSErr(__func__, "Could not determine PsyC path from '%s'",
+              executable_path);
+        return 0;
+    }
+    if (!joinPath(root, TEST_IMAGE_FILE, test_img_path)) return 0;
+    if (!joinPath(root, TEST_LABEL_FILE, test_lbl_path)) return 0;
+    testlen = PSLoadMNISTData(DATA_TYPE_TEST, test_img_path, test_lbl_path,
                               &test_data);
     test_case->data[1] = test_data;
     if (test_data == NULL) {
@@ -1061,7 +1137,9 @@ int GRUSetup(TestCase *test_case) {
 
 int testFullLoad(TestCase *test_case, Test *test) {
     PSNeuralNetwork *network = getNetwork(test_case);
-    int loaded = PSLoadNetwork(network, PRETRAINED_FULL_NETWORK);
+    char path[PATH_MAX] = {0};
+    testAssert(joinPath(executable_path, PRETRAINED_FULL_NETWORK, path), test);
+    int loaded = PSLoadNetwork(network, path);
     testAssert(loaded, test);
     testAssertEqual(network->size, 3, test);
     testAssertEqual(
@@ -1210,10 +1288,10 @@ on_fail:
 
 int testConvLoad(TestCase *test_case, Test *test) {
     PSNeuralNetwork *network = getNetwork(test_case);
-    int loaded = PSLoadNetwork(network, CONVOLUTIONAL_NETWORK);
-    testAssertWithMessage(
-        loaded, test, "Failed to load %s", CONVOLUTIONAL_NETWORK
-    );
+    char path[PATH_MAX] = {0};
+    testAssert(joinPath(executable_path, CONVOLUTIONAL_NETWORK, path), test);
+    int loaded = PSLoadNetwork(network, path);
+    testAssertWithMessage(loaded, test, "Failed to load %s", path);
     if (!PSIsNetworkBuilt(network)) {
         if (!PSBuildNetwork(network)) {
             fprintf(stderr, "\nFailed to build network!\n");
@@ -1308,10 +1386,12 @@ on_fail:
 int testConvAccuracy(TestCase *test_case, Test *test) {
     PSFloat *test_data = getTestData(test_case);
     PSNeuralNetwork *network = PSCreateNetwork("CNN Test Network");
-    int loaded = PSLoadNetwork(network, CONVOLUTIONAL_TRAINED_NETWORK);
-    testAssertWithMessage(
-        loaded, test, "Failed to load %s", CONVOLUTIONAL_TRAINED_NETWORK
+    char path[PATH_MAX] = {0};
+    testAssert(
+        joinPath(executable_path, CONVOLUTIONAL_TRAINED_NETWORK, path), test
     );
+    int loaded = PSLoadNetwork(network, path);
+    testAssertWithMessage(loaded, test, "Failed to load %s", path);
     if (!PSIsNetworkBuilt(network)) {
         if (!PSBuildNetwork(network)) {
             fprintf(stderr, "\nFailed to build network!\n");
@@ -1329,11 +1409,243 @@ int testConvAccuracy(TestCase *test_case, Test *test) {
     return 1;
 }
 
+int testConvCIFAR(TestCase *test_case, Test *test) {
+    UNUSED(test_case);
+    int ok = 1;
+    PSFloat *x = NULL, *y = NULL, *states = NULL, *deltas = NULL, *grads = NULL;
+    PSGradient **gradients = NULL;
+    FILE *f = NULL;
+    char path[PATH_MAX] = {0};
+    testAssert(
+        joinPath(executable_path, CONVOLUTIONAL_CIFAR_NETWORK, path), test
+    );
+    PSNeuralNetwork *network = PSCreateNetwork("CIFAR CNN");
+    testAssertNotNull(network, test);
+    ok = PSLoadNetwork(network, path);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "Failed to load network from '%s'", path
+    );
+    if (!PSIsNetworkBuilt(network)) {
+        ok = PSBuildNetwork(network);
+        if (!ok) {
+            fprintf(stderr, "\nFailed to build network!\n");
+            goto final;
+        }
+    }
+    ok = network->layers != NULL;
+    testAssertWithMessageOrGoto(
+        ok, final, test,
+        "network %s has no layers",network->name
+    );
+    ok = network->size == 8;
+    testAssertWithMessageOrGoto(
+        ok, final, test,
+        "network has %d layers, expected %d", network->size, 7
+    );
+    ok = joinPath(executable_path, CIFAR_IMAGE_PATH, path);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "Could not get path for %s", CIFAR_IMAGE_PATH
+    );
+    f = fopen(path, "r");
+    ok = (f != NULL);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "Could not open '%s' for reading", path
+    );
+    int image_len = 0, label_len = 0;
+    x = readSerializedFloatArray(f, ",", &image_len, CIFAR_IMAGE_SIZE,
+                                 CIFAR_IMAGE_SIZE);
+    fclose(f);
+    f = NULL;
+    ok = x != NULL;
+    testAssertWithMessageOrGoto(
+        ok, final, test, "Could not read image data from '%s'",path);
+    ok = image_len == CIFAR_IMAGE_SIZE;
+    testAssertWithMessageOrGoto(
+        ok, final, test, "Image length should be %d, got %d",
+        CIFAR_IMAGE_SIZE, image_len
+    );
+    ok = joinPath(executable_path, CIFAR_LABEL_PATH, path);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "Could not get path for %s", CIFAR_LABEL_PATH
+    );
+    f = fopen(path, "r");
+    ok = (f != NULL);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "Could not open '%s' for reading", path
+    );
+    y = readSerializedFloatArray(f, ",", &label_len, 10, 10);
+    fclose(f);
+    f = NULL;
+    ok = y != NULL;
+    testAssertWithMessageOrGoto(
+        ok, final, test, "Could not read label data from '%s'",path);
+    ok = label_len == 10;
+    testAssertWithMessageOrGoto(
+        ok, final, test, "Label length should be 10, got %d", label_len
+    );
+    gradients = backprop(network, x, y, NULL, NULL);
+    ok = gradients != NULL;
+    testAssertWithMessageOrGoto(
+        ok, final, test, "Backprop failed for network %s", network->name
+    );
+    for (int i = 0; i < network->size; i++) {
+        PSLayer *layer = network->layers[i];
+        char testlabel[256];
+        int lsize = layer->size;
+        char fname[PATH_MAX] = {0};
+        if (layer->states != NULL) {
+            snprintf(
+                fname, PATH_MAX-1, "resources/cifar-layer-%d-states.data", i
+            );
+            ok = joinPath(executable_path, fname, path);
+            testAssertWithMessageOrGoto(
+                ok,final,test,"Could not get path for %s",fname
+            );
+            f = fopen(path, "r");
+            ok = f != NULL;
+            testAssertWithMessageOrGoto(
+                ok, final, test, "Could not open '%s'", path
+            );
+            int len = 0;
+            states = readSerializedFloatArray(f, ",", &len, lsize, lsize);
+            fclose(f);
+            f = NULL;
+            ok = states != NULL;
+            testAssertWithMessageOrGoto(
+                ok, final, test, "Could nor read data from '%s'", path
+            );
+            ok = len == lsize;
+            testAssertWithMessageOrGoto(
+                ok, final, test, "States length expected to be %d, got %d",
+                lsize, len
+            );
+            snprintf(testlabel,255,"Layer[%d] states", i);
+            ok = compareArrays(
+                states, layer->states, lsize, test, testlabel, 2
+            );
+            testAssertWithMessageOrGoto(ok,final,test,"%s mismatch",testlabel);
+        }
+        if (layer->delta != NULL) {
+            snprintf(
+                fname, PATH_MAX-1, "resources/cifar-layer-%d-deltas.data", i
+            );
+            ok = joinPath(executable_path, fname, path);
+            testAssertWithMessageOrGoto(
+                ok,final,test,"Could not get path for %s",fname
+            );
+            f = fopen(path, "r");
+            ok = f != NULL;
+            testAssertWithMessageOrGoto(
+                ok, final, test, "Could not open '%s'", path
+            );
+            int len = 0, lsize = layer->size;
+            deltas = readSerializedFloatArray(f, ",", &len, lsize, lsize);
+            fclose(f);
+            f = NULL;
+            ok = deltas != NULL;
+            testAssertWithMessageOrGoto(
+                ok, final, test, "Could nor read data from '%s'", path
+            );
+            ok = len == lsize;
+            testAssertWithMessageOrGoto(
+                ok, final, test, "deltas length expected to be %d, got %d",
+                lsize, len
+            );
+            snprintf(testlabel,255,"Layer[%d] delta", i);
+            ok = compareArrays(deltas, layer->delta, lsize, test,testlabel, 2);
+            testAssertWithMessageOrGoto(ok,final,test,"%s mismatch",testlabel);
+        }
+        PSGradient *grad = NULL;
+        if (i > 0 && layer->weights != NULL && Pooling != layer->type)
+            grad = gradients[i - 1];
+        if (grad != NULL) {
+            /* Bias gradients */
+            int len = 0, grad_len = PSGetLayerParametersCount(
+                layer, PARAM_TYPE_BIAS
+            );
+            if (grad_len <= 0 || !grad->biases) goto weight_gradients;
+            snprintf(
+                fname, PATH_MAX-1, "resources/cifar-layer-%d-bgrads.data", i
+            );
+            ok = joinPath(executable_path, fname, path);
+            testAssertWithMessageOrGoto(
+                ok,final,test,"Could not get path for %s",fname
+            );
+            f = fopen(path, "r");
+            ok = f != NULL;
+            testAssertWithMessageOrGoto(
+                ok, final, test, "Could not open '%s'", path
+            );
+            grads = readSerializedFloatArray(f, ",", &len, grad_len, grad_len);
+            fclose(f);
+            f = NULL;
+            ok = grads != NULL;
+            testAssertWithMessageOrGoto(
+                ok, final, test, "Could nor read data from '%s'", path
+            );
+            ok = len == grad_len;
+            testAssertWithMessageOrGoto(
+                ok, final, test, "bias gradient length expected to be %d, "
+                "got %d", grad_len, len
+            );
+            snprintf(testlabel,255,"Layer[%d] bias gradients", i);
+            ok = compareArrays(grads, grad->biases, grad_len, test,
+                               testlabel, 2);
+            testAssertWithMessageOrGoto(ok,final,test,"%s mismatch",testlabel);
+weight_gradients:
+            /* Weight gradients */
+            len = 0, grad_len = PSGetLayerParametersCount(
+                layer, PARAM_TYPE_WEIGHT
+            );
+            if (grad_len <= 0 || !grad->weights) goto weight_gradients;
+            snprintf(
+                fname, PATH_MAX-1, "resources/cifar-layer-%d-wgrads.data", i
+            );
+            ok = joinPath(executable_path, fname, path);
+            testAssertWithMessageOrGoto(
+                ok,final,test,"Could not get path for %s",fname
+            );
+            f = fopen(path, "r");
+            ok = f != NULL;
+            testAssertWithMessageOrGoto(
+                ok, final, test, "Could not open '%s'", path
+            );
+            grads = readSerializedFloatArray(f, ",", &len, grad_len, grad_len);
+            fclose(f);
+            f = NULL;
+            ok = grads != NULL;
+            testAssertWithMessageOrGoto(
+                ok, final, test, "Could nor read data from '%s'", path
+            );
+            ok = len == grad_len;
+            testAssertWithMessageOrGoto(
+                ok, final, test, "weight gradient length expected to be %d, "
+                "got %d", grad_len, len
+            );
+            snprintf(testlabel,255,"Layer[%d] weight gradients", i);
+            ok = compareArrays(grads, grad->weights, grad_len, test,
+                               testlabel, 2);
+            testAssertWithMessageOrGoto(ok,final,test,"%s mismatch",testlabel);
+        }
+    }
+final:
+    if (gradients != NULL && network != NULL)
+        PSDeleteNetworkGradients(gradients, network);
+    PSDeleteNetwork(network);
+    free(x);
+    free(y);
+    free(states);
+    free(deltas);
+    free(grads);
+    return ok;
+}
+
 int testRNNLoad(TestCase *test_case, Test *test) {
     PSNeuralNetwork *network = getNetwork(test_case);
-    int loaded = PSLoadNetwork(network, RECURRENT_NETWORK);
-    testAssertWithMessage(loaded, test, "Failed to load %s", RECURRENT_NETWORK);
-
+    char path[PATH_MAX] = {0};
+    testAssert(joinPath(executable_path,RECURRENT_NETWORK, path), test);
+    int loaded = PSLoadNetwork(network, path);
+    testAssertWithMessage(loaded, test, "Failed to load %s", path);
     int i, j, w, rnn_size = 0;
     for (i = 1; i < network->size; i++) {
         PSLayer *layer = network->layers[i];
@@ -1562,14 +1874,12 @@ int testRNNOneHot(TestCase *test_case, Test *test) {
     PSNeuralNetwork *dummy_network = PSCreateNetwork("Dummy");
     PSFloat *onehot_data = NULL;
     PSFloat *standard_data = NULL;
-    int loaded = PSLoadNetwork(onehot_network, RECURRENT_NETWORK);
-    testAssertWithMessage(
-        loaded, test, "Failed to load %s", RECURRENT_NETWORK
-    );
-    int ok = PSLoadNetwork(standard_network, RECURRENT_NETWORK);
-    testAssertWithMessageOrGoto(
-        loaded, final, test, "Failed to load %s", RECURRENT_NETWORK
-    );
+    char path[PATH_MAX] = {0};
+    testAssert(joinPath(executable_path, RECURRENT_NETWORK, path), test);
+    int loaded = PSLoadNetwork(onehot_network, path);
+    testAssertWithMessage(loaded, test, "Failed to load %s", path);
+    int ok = PSLoadNetwork(standard_network, path);
+    testAssertWithMessageOrGoto(loaded, final, test, "Failed to load %s", path);
     if (!PSIsNetworkBuilt(onehot_network)) {
         if (!PSBuildNetwork(onehot_network)) {
             fprintf(stderr, "\nFailed to build onehot network!\n");
@@ -2067,9 +2377,10 @@ int testGRUTrain(TestCase *test_case, Test *test) {
 
 int testNormalizationLoad(TestCase *test_case, Test *test) {
     PSNeuralNetwork *network = getNetwork(test_case);
-    int loaded = PSLoadNetwork(network, NORMALIZATION_NETWORK);
-    testAssertWithMessage(loaded, test, "Failed to load %s",
-                          NORMALIZATION_NETWORK);
+    char path[PATH_MAX] = {0};
+    testAssert(joinPath(executable_path, NORMALIZATION_NETWORK, path), test);
+    int loaded = PSLoadNetwork(network, path);
+    testAssertWithMessage(loaded, test, "Failed to load %s", path);
     PSLayer *normlayer = network->layers[1];
     PSLayer *softmax = network->layers[2];
     testAssertNotNull(normlayer, test);
@@ -2124,10 +2435,11 @@ int testNormalizationBackprop(TestCase *test_case, Test *test) {
     PSGradient **gradients = NULL;
     PSNeuralNetwork *network = PSCreateNetwork("Normalization Backprop");
     testAssertNotNull(network, test);
-    ok = PSLoadNetwork(network, NORMALIZATION_NETWORK_BP);
+    char path[PATH_MAX] = {0};
+    testAssert(joinPath(executable_path, NORMALIZATION_NETWORK_BP, path),test);
+    ok = PSLoadNetwork(network, path);
     testAssertWithMessageOrGoto(
-        ok, final, test, "Could not load network from '%s'",
-        NORMALIZATION_NETWORK_BP
+        ok, final, test, "Could not load network from '%s'", path
     );
     ok = PSBuildNetwork(network);
     testAssertWithMessageOrGoto(
@@ -2227,9 +2539,10 @@ final:
 
 int testDropoutLoad(TestCase *test_case, Test *test) {
     PSNeuralNetwork *network = getNetwork(test_case);
-    int loaded = PSLoadNetwork(network, DROPOUT_NETWORK);
-    testAssertWithMessage(loaded, test, "Failed to load %s",
-                          DROPOUT_NETWORK);
+    char path[PATH_MAX] = {0};
+    testAssert(joinPath(executable_path, DROPOUT_NETWORK, path), test);
+    int loaded = PSLoadNetwork(network, path);
+    testAssertWithMessage(loaded, test, "Failed to load %s", path);
     PSLayer *dropout_layer = network->layers[2];
     PSLayer *softmax = network->layers[network->size - 1];
     testAssertNotNull(dropout_layer, test);

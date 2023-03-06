@@ -471,6 +471,56 @@ int writeSerializedFloatArray(FILE *out, int count, char *sep, int opts,
     return len;
 }
 
+PSFloat *readSerializedFloatArray(FILE *in, char *sep, int *length,
+                                  int maxlen, int capacity)
+{
+    PSFloat *array = NULL;
+    if (length == NULL) {
+        PSErr(__func__, "`length` cannot be NULL");
+        return NULL;
+    }
+    *length = 0;
+    if (capacity <= 0) capacity = 1;
+    if (sep == NULL) sep = ",";
+    int seplen = strlen(sep);
+    if (seplen == 0) {
+        PSErr(__func__, "`sep` is empty");
+    }
+    int arraylen = capacity;
+    array = calloc(arraylen, sizeof(PSFloat));
+    if (array == NULL) {
+        PSPrintMemoryErrorMsg();
+        return NULL;
+    }
+    char fmt[256];
+    char matched_sep[512] = {0};
+    snprintf(fmt, 255, "%s%%%d[%s]", PSFLOAT_FORMAT, 511, sep);
+    int matched = 0;
+    PSFloat val = 0;
+    while ((matched = fscanf(in, fmt, &val, matched_sep))) {
+        int idx = *length;
+        if (idx >= arraylen) {
+            arraylen += capacity;
+            PSFloat *new_array = realloc(array, arraylen * sizeof(PSFloat));
+            if (new_array == NULL) {
+                PSPrintMemoryErrorMsg();
+                free(array);
+                return NULL;
+            }
+            array = new_array;
+        }
+        array[idx] = val;
+        *length += 1;
+        if (matched < 2) break;
+        if (maxlen > 0 && *length >= maxlen) break;
+    }
+    if (arraylen > *length) {
+        memset(array + *length, 0, (arraylen - *length) * sizeof(PSFloat));
+    }
+final:
+    return array;
+}
+
 int writeGradients(PSNeuralNetwork *network, PSGradient **gradients,
                    int opts, FILE *f)
 {

@@ -138,7 +138,7 @@ static void toLowerCase(char *str) {
 }
 
 static char *getPsycPath(char *executable) {
-    static char path[PATH_MAX + 1] = "\x0";
+    static char path[PATH_MAX + 1] = {0};
     char _realpath[PATH_MAX + 1];
     if (path[0]) return path;
     _realpath[0] = 0;

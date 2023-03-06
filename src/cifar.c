@@ -70,7 +70,7 @@ int PSLoadCIFARData(int type, int classes, const char *dataset_path,
     qsort(datafiles, fcount, 255, compareFilenames);
     if (max_files > 0 && max_files < fcount) fcount = max_files;
 
-    int datasize = (fcount *img_count * (classes + CIFAR_IMAGE_BYTESIZE));
+    int datasize = (fcount * img_count * (classes + CIFAR_IMAGE_BYTESIZE));
     dataset_size = datasize * sizeof(PSFloat);
     *data = calloc(dataset_size, 1);
     if (*data == NULL) return 0;
