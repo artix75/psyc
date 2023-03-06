@@ -1154,6 +1154,7 @@ int testFullLoad(TestCase *test_case, Test *test) {
     testAssertNotNull(network->layers[1]->biases, test);
     testAssertNotNull(network->layers[1]->weights, test);
     testAssertNotNull(network->layers[1]->weights[0], test);
+    network->acceleration = PSGlobalAcceleration;
     PSFloat expected_biases[2][2] = {
         {-1.1618, -2.3288},
         {-6.0822, 0.8330}
@@ -1292,6 +1293,7 @@ int testConvLoad(TestCase *test_case, Test *test) {
     testAssert(joinPath(executable_path, CONVOLUTIONAL_NETWORK, path), test);
     int loaded = PSLoadNetwork(network, path);
     testAssertWithMessage(loaded, test, "Failed to load %s", path);
+    network->acceleration = PSGlobalAcceleration;
     if (!PSIsNetworkBuilt(network)) {
         if (!PSBuildNetwork(network)) {
             fprintf(stderr, "\nFailed to build network!\n");
@@ -1392,6 +1394,7 @@ int testConvAccuracy(TestCase *test_case, Test *test) {
     );
     int loaded = PSLoadNetwork(network, path);
     testAssertWithMessage(loaded, test, "Failed to load %s", path);
+    network->acceleration = PSGlobalAcceleration;
     if (!PSIsNetworkBuilt(network)) {
         if (!PSBuildNetwork(network)) {
             fprintf(stderr, "\nFailed to build network!\n");
@@ -1483,6 +1486,7 @@ int testConvCIFAR(TestCase *test_case, Test *test) {
     testAssertWithMessageOrGoto(
         ok, final, test, "Label length should be 10, got %d", label_len
     );
+    network->acceleration = PSGlobalAcceleration;
     gradients = backprop(network, x, y, NULL, NULL);
     ok = gradients != NULL;
     testAssertWithMessageOrGoto(
@@ -1646,6 +1650,7 @@ int testRNNLoad(TestCase *test_case, Test *test) {
     testAssert(joinPath(executable_path,RECURRENT_NETWORK, path), test);
     int loaded = PSLoadNetwork(network, path);
     testAssertWithMessage(loaded, test, "Failed to load %s", path);
+    network->acceleration = PSGlobalAcceleration;
     int i, j, w, rnn_size = 0;
     for (i = 1; i < network->size; i++) {
         PSLayer *layer = network->layers[i];
@@ -1878,6 +1883,7 @@ int testRNNOneHot(TestCase *test_case, Test *test) {
     testAssert(joinPath(executable_path, RECURRENT_NETWORK, path), test);
     int loaded = PSLoadNetwork(onehot_network, path);
     testAssertWithMessage(loaded, test, "Failed to load %s", path);
+    onehot_network->acceleration = PSGlobalAcceleration;
     int ok = PSLoadNetwork(standard_network, path);
     testAssertWithMessageOrGoto(loaded, final, test, "Failed to load %s", path);
     if (!PSIsNetworkBuilt(onehot_network)) {
@@ -1892,6 +1898,7 @@ int testRNNOneHot(TestCase *test_case, Test *test) {
             return 0;
         }
     }
+    standard_network->acceleration = PSGlobalAcceleration;
     PSRecurrentNetworkMode onehot_rnn_mode =
         PSGetRecurrentNetworkMode(onehot_network);
     PSRecurrentNetworkMode std_rnn_mode =
@@ -2381,6 +2388,7 @@ int testNormalizationLoad(TestCase *test_case, Test *test) {
     testAssert(joinPath(executable_path, NORMALIZATION_NETWORK, path), test);
     int loaded = PSLoadNetwork(network, path);
     testAssertWithMessage(loaded, test, "Failed to load %s", path);
+    network->acceleration = PSGlobalAcceleration;
     PSLayer *normlayer = network->layers[1];
     PSLayer *softmax = network->layers[2];
     testAssertNotNull(normlayer, test);
@@ -2441,6 +2449,7 @@ int testNormalizationBackprop(TestCase *test_case, Test *test) {
     testAssertWithMessageOrGoto(
         ok, final, test, "Could not load network from '%s'", path
     );
+    network->acceleration = PSGlobalAcceleration;
     ok = PSBuildNetwork(network);
     testAssertWithMessageOrGoto(
         ok, final, test, "Could not build network '%s'", network->name
@@ -2543,6 +2552,7 @@ int testDropoutLoad(TestCase *test_case, Test *test) {
     testAssert(joinPath(executable_path, DROPOUT_NETWORK, path), test);
     int loaded = PSLoadNetwork(network, path);
     testAssertWithMessage(loaded, test, "Failed to load %s", path);
+    network->acceleration = PSGlobalAcceleration;
     PSLayer *dropout_layer = network->layers[2];
     PSLayer *softmax = network->layers[network->size - 1];
     testAssertNotNull(dropout_layer, test);
