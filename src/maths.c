@@ -2082,15 +2082,15 @@ int PSOuterProduct(PSFloat *a, PSFloat *b, PSFloat *dest,
         store_mode = opts->store_mode;
         tmpdest = opts->tmpdest;
     }
-    int do_process = store_mode != PS_STORE_MODE_SET;
-#if defined(HAS_BLAS) || defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     uint64_t dstlen = alen * blen;
+    int postprocess = store_mode != PS_STORE_MODE_SET;
+#if defined(HAS_BLAS) || defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     PSFloat *vpdest = dest;
     int blas_enabled = PSBLASEnabled(acceleration),
         acf_enabled = PSACFEnabled(acceleration),
         do_free_vpdest = 0, use_acceleration = (blas_enabled || acf_enabled);
     if (!use_acceleration) goto no_acceleration;
-    if (store_mode && store_mode != PS_STORE_MODE_ADD && !blas_enabled) {
+    if (store_mode && (store_mode == PS_STORE_MODE_SUB || !blas_enabled)) {
         vpdest = tmpdest;
         if (vpdest == NULL) vpdest = malloc(dstlen * sizeof(PSFloat));
         if (vpdest == NULL) {
@@ -2101,6 +2101,7 @@ int PSOuterProduct(PSFloat *a, PSFloat *b, PSFloat *dest,
     }
 #ifdef HAS_BLAS
     if (blas_enabled) {
+        postprocess = (store_mode == PS_STORE_MODE_SUB);
         PSBLASOrder order = PSBLASRowMajor;
         char trans1 = 'N', trans2 = 'N';
         int m = 1, lda = 1, ldb = blen, ldc = blen;
@@ -2114,7 +2115,6 @@ int PSOuterProduct(PSFloat *a, PSFloat *b, PSFloat *dest,
         if (PSBLASLastError != NULL) return 0;
         goto acceleration_done;
     }
-#else
 #endif
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     if (acf_enabled) {
@@ -2123,26 +2123,27 @@ int PSOuterProduct(PSFloat *a, PSFloat *b, PSFloat *dest,
     }
 #endif
 acceleration_done:
-    if (do_process) {
-        for (i = 0; i < dstlen; i++) {
-            if (store_mode == PS_STORE_MODE_ADD) dest[i] += vpdest[i];
-            else if (store_mode == PS_STORE_MODE_SUB) dest[i]-=vpdest[i];
-        }
+    if (postprocess) {
+        PSMathOpts ppopts = {.acceleration = acceleration};
+        if (store_mode == PS_STORE_MODE_ADD)
+            PSSumVectors(dest, vpdest, dest, dstlen, &ppopts);
+        else if (store_mode == PS_STORE_MODE_SUB)
+            PSSubtractVectors(dest, vpdest, dest, dstlen, &ppopts);
     }
     if (do_free_vpdest) free(vpdest);
     return 1;
 #else
     UNUSED(tmpdest);
     UNUSED(acceleration);
-    if (!do_process) do_process = store_mode != PS_STORE_MODE_SET;
 #endif
 no_acceleration:
+    if (!postprocess) postprocess = store_mode != PS_STORE_MODE_SET;
     for (i = 0; i < alen; i++) {
         for (j = 0; j < blen; j++) {
             uint64_t idx = (blen * i) + j;
             PSFloat product = (a[i] * b[j]);
             if (!store_mode) dest[idx] = product;
-            if (!do_process) continue;
+            if (!postprocess) continue;
             if (store_mode == PS_STORE_MODE_ADD) dest[idx] += product;
             else if (store_mode == PS_STORE_MODE_SUB) dest[idx] -= product;
         }
@@ -2159,6 +2160,8 @@ void PSVectorFill(PSFloat *vec, PSFloat val, uint64_t len, PSMathOpts *opts) {
         VDSPFill(val, vec, len);
         return;
     }
+#else
+    UNUSED(acceleration);
 #endif
     if (val == 0.0) {
         PSVectorClear(vec, len);

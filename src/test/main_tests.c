@@ -163,6 +163,7 @@ int testActTanh(TestCase *tc, Test *test);
 int testActTanhDeriv(TestCase *tc, Test *test);
 int testActRelu(TestCase *tc, Test *test);
 int testActReluDeriv(TestCase *tc, Test *test);
+int testActSoftmax(TestCase *tc, Test *test);
 
 int testDefaultOptimization(TestCase *tc, Test *test);
 int testMomentumOptimization(TestCase *tc, Test *test);
@@ -626,7 +627,7 @@ int main(int argc, char** argv) {
         mathsTests = createTest("Maths");
         addTest(mathsTests, "Dot Product", NULL, testMathsDotProduct);
         addTest(mathsTests, "Dot (Matrix-Vec.)", NULL, testMathsDot);
-        addTest(mathsTests, "Vector Product", NULL, testMathsVecProd);
+        addTest(mathsTests, "Outer Product", NULL, testMathsVecProd);
         addTest(mathsTests, "Sum vectors", NULL, testMathsSumV);
         addTest(mathsTests, "Sub vectors", NULL, testMathsSubV);
         addTest(mathsTests, "Mul. vectors", NULL, testMathsMulV);
@@ -671,6 +672,7 @@ int main(int argc, char** argv) {
         addTest(activationTests, "Tanh der.", NULL, testActTanhDeriv);
         addTest(activationTests, "ReLU", NULL, testActRelu);
         addTest(activationTests, "ReLU der.", NULL, testActReluDeriv);
+        addTest(activationTests, "Softmax", NULL, testActSoftmax);
         performTests(activationTests);
         tot_tests += activationTests->count;
         tot_failed += activationTests->failed_count;
@@ -1135,6 +1137,266 @@ int GRUSetup(TestCase *test_case) {
     return 1;
 }
 
+int NetworkBackpropTest(Test *test, char *model_file, char *data_file_prefix,
+                        char *training_data_file, char *labels_data_file,
+                        int training_data_len, int label_data_len,
+                        char *model_name, int expected_size, int acceleration)
+{
+    assert(test != NULL);
+    assert(model_file != NULL);
+    assert(data_file_prefix != NULL);
+    assert(training_data_file != NULL);
+    assert(labels_data_file != NULL);
+    int ok = 1;
+    const char *acceleration_name = NULL;
+    if (acceleration == PSGlobalAcceleration) acceleration_name = "Default";
+    else acceleration_name = PSGetAccelerationName(acceleration);
+    PSFloat *x = NULL, *y = NULL, *states = NULL, *deltas = NULL, *grads = NULL;
+    PSGradient **gradients = NULL;
+    FILE *f = NULL;
+    char path[PATH_MAX] = {0};
+    testAssert(
+        joinPath(executable_path, model_file, path), test
+    );
+    if (model_name != NULL) model_name = "Backprop Model";
+    PSNeuralNetwork *network = PSCreateNetwork(model_name);
+    testAssertNotNull(network, test);
+    ok = PSLoadNetwork(network, path);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "Failed to load network from '%s'", path
+    );
+    if (!PSIsNetworkBuilt(network)) {
+        ok = PSBuildNetwork(network);
+        if (!ok) {
+            fprintf(stderr, "\nFailed to build network!\n");
+            goto final;
+        }
+    }
+    ok = network->layers != NULL;
+    testAssertWithMessageOrGoto(
+        ok, final, test,
+        "network %s has no layers",network->name
+    );
+    if (expected_size > 0) {
+        ok = network->size == expected_size;
+        testAssertWithMessageOrGoto(
+            ok, final, test,
+            "network has %d layers, expected %d", network->size, expected_size
+        );
+    }
+    ok = joinPath(executable_path, training_data_file, path);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "Could not get path for %s", training_data_file
+    );
+    f = fopen(path, "r");
+    ok = (f != NULL);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "Could not open '%s' for reading", path
+    );
+    int image_len = 0, label_len = 0;
+    x = readSerializedFloatArray(f, ",", &image_len, training_data_len,
+                                 training_data_len);
+    fclose(f);
+    f = NULL;
+    ok = x != NULL;
+    testAssertWithMessageOrGoto(
+        ok, final, test, "Could not read image data from '%s'",path);
+    if (training_data_len > 0) {
+        ok = image_len == training_data_len;
+        testAssertWithMessageOrGoto(
+            ok, final, test, "Image length should be %d, got %d",
+            training_data_len, image_len
+        );
+    }
+    ok = joinPath(executable_path, labels_data_file, path);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "Could not get path for %s", labels_data_file
+    );
+    f = fopen(path, "r");
+    ok = (f != NULL);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "Could not open '%s' for reading", path
+    );
+    y = readSerializedFloatArray(f, ",", &label_len, label_len, label_len);
+    fclose(f);
+    f = NULL;
+    ok = y != NULL;
+    testAssertWithMessageOrGoto(
+        ok, final, test, "Could not read label data from '%s'",path);
+    if (label_data_len > 0) {
+        ok = label_len == label_data_len;
+        testAssertWithMessageOrGoto(
+            ok, final, test, "Label length should be %d, got %d",
+            label_data_len, label_len
+        );
+    }
+    network->acceleration = acceleration;
+    gradients = backprop(network, x, y, NULL, NULL);
+    ok = gradients != NULL;
+    testAssertWithMessageOrGoto(
+        ok, final, test, "Backprop failed for network %s (acceleration: %s)",
+        network->name, acceleration_name
+    );
+    for (int i = 0; i < network->size; i++) {
+        PSLayer *layer = network->layers[i];
+        char testlabel[1024];
+        int lsize = layer->size;
+        char fname[PATH_MAX] = {0};
+        if (layer->states != NULL) {
+            snprintf(
+                fname, PATH_MAX-1, "resources/%s-layer-%d-states.data",
+                data_file_prefix, i
+            );
+            ok = joinPath(executable_path, fname, path);
+            testAssertWithMessageOrGoto(
+                ok,final,test,"Could not get path for %s",fname
+            );
+            f = fopen(path, "r");
+            ok = f != NULL;
+            testAssertWithMessageOrGoto(
+                ok, final, test, "Could not open '%s'", path
+            );
+            int len = 0;
+            states = readSerializedFloatArray(f, ",", &len, lsize, lsize);
+            fclose(f);
+            f = NULL;
+            ok = states != NULL;
+            testAssertWithMessageOrGoto(
+                ok, final, test, "Could nor read data from '%s'", path
+            );
+            ok = len == lsize;
+            testAssertWithMessageOrGoto(
+                ok, final, test, "States length expected to be %d, got %d",
+                lsize, len
+            );
+            snprintf(testlabel, 1023, "Layer[%d] states (accel. %s)", i,
+                     acceleration_name);
+            ok = compareArrays(
+                states, layer->states, lsize, test, testlabel, 2
+            );
+            testAssertWithMessageOrGoto(ok,final,test,"%s mismatch",testlabel);
+        }
+        if (layer->delta != NULL) {
+            snprintf(
+                fname, PATH_MAX-1, "resources/%s-layer-%d-deltas.data",
+                data_file_prefix, i
+            );
+            ok = joinPath(executable_path, fname, path);
+            testAssertWithMessageOrGoto(
+                ok,final,test,"Could not get path for %s",fname
+            );
+            f = fopen(path, "r");
+            ok = f != NULL;
+            testAssertWithMessageOrGoto(
+                ok, final, test, "Could not open '%s'", path
+            );
+            int len = 0, lsize = layer->size;
+            deltas = readSerializedFloatArray(f, ",", &len, lsize, lsize);
+            fclose(f);
+            f = NULL;
+            ok = deltas != NULL;
+            testAssertWithMessageOrGoto(
+                ok, final, test, "Could nor read data from '%s'", path
+            );
+            ok = len == lsize;
+            testAssertWithMessageOrGoto(
+                ok, final, test, "deltas length expected to be %d, got %d",
+                lsize, len
+            );
+            snprintf(testlabel, 1023, "Layer[%d] delta (accel. %s)", i,
+                     acceleration_name);
+            ok = compareArrays(deltas, layer->delta, lsize, test,testlabel, 2);
+            testAssertWithMessageOrGoto(ok,final,test,"%s mismatch",testlabel);
+        }
+        PSGradient *grad = NULL;
+        if (i > 0 && layer->weights != NULL && Pooling != layer->type)
+            grad = gradients[i - 1];
+        if (grad != NULL) {
+            /* Bias gradients */
+            int len = 0, grad_len = PSGetLayerParametersCount(
+                layer, PARAM_TYPE_BIAS
+            );
+            if (grad_len <= 0 || !grad->biases) goto weight_gradients;
+            snprintf(
+                fname, PATH_MAX-1, "resources/%s-layer-%d-bgrads.data",
+                data_file_prefix, i
+            );
+            ok = joinPath(executable_path, fname, path);
+            testAssertWithMessageOrGoto(
+                ok,final,test,"Could not get path for %s",fname
+            );
+            f = fopen(path, "r");
+            ok = f != NULL;
+            testAssertWithMessageOrGoto(
+                ok, final, test, "Could not open '%s'", path
+            );
+            grads = readSerializedFloatArray(f, ",", &len, grad_len, grad_len);
+            fclose(f);
+            f = NULL;
+            ok = grads != NULL;
+            testAssertWithMessageOrGoto(
+                ok, final, test, "Could nor read data from '%s'", path
+            );
+            ok = len == grad_len;
+            testAssertWithMessageOrGoto(
+                ok, final, test, "bias gradient length expected to be %d, "
+                "got %d", grad_len, len
+            );
+            snprintf(testlabel, 1023, "Layer[%d] bias gradients (accel. %s)", i,
+                     acceleration_name);
+            ok = compareArrays(grads, grad->biases, grad_len, test,
+                               testlabel, 2);
+            testAssertWithMessageOrGoto(ok,final,test,"%s mismatch",testlabel);
+weight_gradients:
+            /* Weight gradients */
+            len = 0, grad_len = PSGetLayerParametersCount(
+                layer, PARAM_TYPE_WEIGHT
+            );
+            if (grad_len <= 0 || !grad->weights) goto weight_gradients;
+            snprintf(
+                fname, PATH_MAX-1, "resources/%s-layer-%d-wgrads.data",
+                data_file_prefix, i
+            );
+            ok = joinPath(executable_path, fname, path);
+            testAssertWithMessageOrGoto(
+                ok,final,test,"Could not get path for %s",fname
+            );
+            f = fopen(path, "r");
+            ok = f != NULL;
+            testAssertWithMessageOrGoto(
+                ok, final, test, "Could not open '%s'", path
+            );
+            grads = readSerializedFloatArray(f, ",", &len, grad_len, grad_len);
+            fclose(f);
+            f = NULL;
+            ok = grads != NULL;
+            testAssertWithMessageOrGoto(
+                ok, final, test, "Could nor read data from '%s'", path
+            );
+            ok = len == grad_len;
+            testAssertWithMessageOrGoto(
+                ok, final, test, "weight gradient length expected to be %d, "
+                "got %d", grad_len, len
+            );
+            snprintf(testlabel, 1023, "Layer[%d] weight gradients (accel. %s)",
+                     i, acceleration_name);
+            ok = compareArrays(grads, grad->weights, grad_len, test,
+                               testlabel, 2);
+            testAssertWithMessageOrGoto(ok,final,test,"%s mismatch",testlabel);
+        }
+    }
+final:
+    if (gradients != NULL && network != NULL)
+        PSDeleteNetworkGradients(gradients, network);
+    PSDeleteNetwork(network);
+    free(x);
+    free(y);
+    free(states);
+    free(deltas);
+    free(grads);
+    return ok;
+}
+
 int testFullLoad(TestCase *test_case, Test *test) {
     PSNeuralNetwork *network = getNetwork(test_case);
     char path[PATH_MAX] = {0};
@@ -1414,233 +1676,36 @@ int testConvAccuracy(TestCase *test_case, Test *test) {
 
 int testConvCIFAR(TestCase *test_case, Test *test) {
     UNUSED(test_case);
-    int ok = 1;
-    PSFloat *x = NULL, *y = NULL, *states = NULL, *deltas = NULL, *grads = NULL;
-    PSGradient **gradients = NULL;
-    FILE *f = NULL;
-    char path[PATH_MAX] = {0};
-    testAssert(
-        joinPath(executable_path, CONVOLUTIONAL_CIFAR_NETWORK, path), test
-    );
-    PSNeuralNetwork *network = PSCreateNetwork("CIFAR CNN");
-    testAssertNotNull(network, test);
-    ok = PSLoadNetwork(network, path);
-    testAssertWithMessageOrGoto(
-        ok, final, test, "Failed to load network from '%s'", path
-    );
-    if (!PSIsNetworkBuilt(network)) {
-        ok = PSBuildNetwork(network);
-        if (!ok) {
-            fprintf(stderr, "\nFailed to build network!\n");
-            goto final;
-        }
-    }
-    ok = network->layers != NULL;
-    testAssertWithMessageOrGoto(
-        ok, final, test,
-        "network %s has no layers",network->name
-    );
-    ok = network->size == 8;
-    testAssertWithMessageOrGoto(
-        ok, final, test,
-        "network has %d layers, expected %d", network->size, 7
-    );
-    ok = joinPath(executable_path, CIFAR_IMAGE_PATH, path);
-    testAssertWithMessageOrGoto(
-        ok, final, test, "Could not get path for %s", CIFAR_IMAGE_PATH
-    );
-    f = fopen(path, "r");
-    ok = (f != NULL);
-    testAssertWithMessageOrGoto(
-        ok, final, test, "Could not open '%s' for reading", path
-    );
-    int image_len = 0, label_len = 0;
-    x = readSerializedFloatArray(f, ",", &image_len, CIFAR_IMAGE_SIZE,
-                                 CIFAR_IMAGE_SIZE);
-    fclose(f);
-    f = NULL;
-    ok = x != NULL;
-    testAssertWithMessageOrGoto(
-        ok, final, test, "Could not read image data from '%s'",path);
-    ok = image_len == CIFAR_IMAGE_SIZE;
-    testAssertWithMessageOrGoto(
-        ok, final, test, "Image length should be %d, got %d",
-        CIFAR_IMAGE_SIZE, image_len
-    );
-    ok = joinPath(executable_path, CIFAR_LABEL_PATH, path);
-    testAssertWithMessageOrGoto(
-        ok, final, test, "Could not get path for %s", CIFAR_LABEL_PATH
-    );
-    f = fopen(path, "r");
-    ok = (f != NULL);
-    testAssertWithMessageOrGoto(
-        ok, final, test, "Could not open '%s' for reading", path
-    );
-    y = readSerializedFloatArray(f, ",", &label_len, 10, 10);
-    fclose(f);
-    f = NULL;
-    ok = y != NULL;
-    testAssertWithMessageOrGoto(
-        ok, final, test, "Could not read label data from '%s'",path);
-    ok = label_len == 10;
-    testAssertWithMessageOrGoto(
-        ok, final, test, "Label length should be 10, got %d", label_len
-    );
-    network->acceleration = PSGlobalAcceleration;
-    gradients = backprop(network, x, y, NULL, NULL);
-    ok = gradients != NULL;
-    testAssertWithMessageOrGoto(
-        ok, final, test, "Backprop failed for network %s", network->name
-    );
-    for (int i = 0; i < network->size; i++) {
-        PSLayer *layer = network->layers[i];
-        char testlabel[256];
-        int lsize = layer->size;
-        char fname[PATH_MAX] = {0};
-        if (layer->states != NULL) {
-            snprintf(
-                fname, PATH_MAX-1, "resources/cifar-layer-%d-states.data", i
-            );
-            ok = joinPath(executable_path, fname, path);
-            testAssertWithMessageOrGoto(
-                ok,final,test,"Could not get path for %s",fname
-            );
-            f = fopen(path, "r");
-            ok = f != NULL;
-            testAssertWithMessageOrGoto(
-                ok, final, test, "Could not open '%s'", path
-            );
-            int len = 0;
-            states = readSerializedFloatArray(f, ",", &len, lsize, lsize);
-            fclose(f);
-            f = NULL;
-            ok = states != NULL;
-            testAssertWithMessageOrGoto(
-                ok, final, test, "Could nor read data from '%s'", path
-            );
-            ok = len == lsize;
-            testAssertWithMessageOrGoto(
-                ok, final, test, "States length expected to be %d, got %d",
-                lsize, len
-            );
-            snprintf(testlabel,255,"Layer[%d] states", i);
-            ok = compareArrays(
-                states, layer->states, lsize, test, testlabel, 2
-            );
-            testAssertWithMessageOrGoto(ok,final,test,"%s mismatch",testlabel);
-        }
-        if (layer->delta != NULL) {
-            snprintf(
-                fname, PATH_MAX-1, "resources/cifar-layer-%d-deltas.data", i
-            );
-            ok = joinPath(executable_path, fname, path);
-            testAssertWithMessageOrGoto(
-                ok,final,test,"Could not get path for %s",fname
-            );
-            f = fopen(path, "r");
-            ok = f != NULL;
-            testAssertWithMessageOrGoto(
-                ok, final, test, "Could not open '%s'", path
-            );
-            int len = 0, lsize = layer->size;
-            deltas = readSerializedFloatArray(f, ",", &len, lsize, lsize);
-            fclose(f);
-            f = NULL;
-            ok = deltas != NULL;
-            testAssertWithMessageOrGoto(
-                ok, final, test, "Could nor read data from '%s'", path
-            );
-            ok = len == lsize;
-            testAssertWithMessageOrGoto(
-                ok, final, test, "deltas length expected to be %d, got %d",
-                lsize, len
-            );
-            snprintf(testlabel,255,"Layer[%d] delta", i);
-            ok = compareArrays(deltas, layer->delta, lsize, test,testlabel, 2);
-            testAssertWithMessageOrGoto(ok,final,test,"%s mismatch",testlabel);
-        }
-        PSGradient *grad = NULL;
-        if (i > 0 && layer->weights != NULL && Pooling != layer->type)
-            grad = gradients[i - 1];
-        if (grad != NULL) {
-            /* Bias gradients */
-            int len = 0, grad_len = PSGetLayerParametersCount(
-                layer, PARAM_TYPE_BIAS
-            );
-            if (grad_len <= 0 || !grad->biases) goto weight_gradients;
-            snprintf(
-                fname, PATH_MAX-1, "resources/cifar-layer-%d-bgrads.data", i
-            );
-            ok = joinPath(executable_path, fname, path);
-            testAssertWithMessageOrGoto(
-                ok,final,test,"Could not get path for %s",fname
-            );
-            f = fopen(path, "r");
-            ok = f != NULL;
-            testAssertWithMessageOrGoto(
-                ok, final, test, "Could not open '%s'", path
-            );
-            grads = readSerializedFloatArray(f, ",", &len, grad_len, grad_len);
-            fclose(f);
-            f = NULL;
-            ok = grads != NULL;
-            testAssertWithMessageOrGoto(
-                ok, final, test, "Could nor read data from '%s'", path
-            );
-            ok = len == grad_len;
-            testAssertWithMessageOrGoto(
-                ok, final, test, "bias gradient length expected to be %d, "
-                "got %d", grad_len, len
-            );
-            snprintf(testlabel,255,"Layer[%d] bias gradients", i);
-            ok = compareArrays(grads, grad->biases, grad_len, test,
-                               testlabel, 2);
-            testAssertWithMessageOrGoto(ok,final,test,"%s mismatch",testlabel);
-weight_gradients:
-            /* Weight gradients */
-            len = 0, grad_len = PSGetLayerParametersCount(
-                layer, PARAM_TYPE_WEIGHT
-            );
-            if (grad_len <= 0 || !grad->weights) goto weight_gradients;
-            snprintf(
-                fname, PATH_MAX-1, "resources/cifar-layer-%d-wgrads.data", i
-            );
-            ok = joinPath(executable_path, fname, path);
-            testAssertWithMessageOrGoto(
-                ok,final,test,"Could not get path for %s",fname
-            );
-            f = fopen(path, "r");
-            ok = f != NULL;
-            testAssertWithMessageOrGoto(
-                ok, final, test, "Could not open '%s'", path
-            );
-            grads = readSerializedFloatArray(f, ",", &len, grad_len, grad_len);
-            fclose(f);
-            f = NULL;
-            ok = grads != NULL;
-            testAssertWithMessageOrGoto(
-                ok, final, test, "Could nor read data from '%s'", path
-            );
-            ok = len == grad_len;
-            testAssertWithMessageOrGoto(
-                ok, final, test, "weight gradient length expected to be %d, "
-                "got %d", grad_len, len
-            );
-            snprintf(testlabel,255,"Layer[%d] weight gradients", i);
-            ok = compareArrays(grads, grad->weights, grad_len, test,
-                               testlabel, 2);
-            testAssertWithMessageOrGoto(ok,final,test,"%s mismatch",testlabel);
-        }
-    }
-final:
-    if (gradients != NULL && network != NULL)
-        PSDeleteNetworkGradients(gradients, network);
-    PSDeleteNetwork(network);
-    free(x);
-    free(y);
-    free(states);
-    free(deltas);
-    free(grads);
+    int ok = NetworkBackpropTest(test, CONVOLUTIONAL_CIFAR_NETWORK,
+                                 "cifar", CIFAR_IMAGE_PATH, CIFAR_LABEL_PATH,
+                                 CIFAR_IMAGE_SIZE, 10, "CIFAR CNN", 8,
+                                 PSGlobalAcceleration);
+    if (!ok) return 0;
+#ifdef HAS_BLAS
+    ok = NetworkBackpropTest(test, CONVOLUTIONAL_CIFAR_NETWORK,
+                             "cifar", CIFAR_IMAGE_PATH, CIFAR_LABEL_PATH,
+                              CIFAR_IMAGE_SIZE, 10, "CIFAR CNN", 8,
+                              PSAcceleration_BLAS);
+    if (!ok) return 0;
+#endif
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    ok = NetworkBackpropTest(test, CONVOLUTIONAL_CIFAR_NETWORK,
+                             "cifar", CIFAR_IMAGE_PATH, CIFAR_LABEL_PATH,
+                              CIFAR_IMAGE_SIZE, 10, "CIFAR CNN", 8,
+                              PSAcceleration_ACF);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    ok = NetworkBackpropTest(test, CONVOLUTIONAL_CIFAR_NETWORK,
+                             "cifar", CIFAR_IMAGE_PATH, CIFAR_LABEL_PATH,
+                              CIFAR_IMAGE_SIZE, 10, "CIFAR CNN", 8,
+                              PSAcceleration_AVX);
+    if (!ok) return 0;
+#endif
+    ok = NetworkBackpropTest(test, CONVOLUTIONAL_CIFAR_NETWORK,
+                             "cifar", CIFAR_IMAGE_PATH, CIFAR_LABEL_PATH,
+                              CIFAR_IMAGE_SIZE, 10, "CIFAR CNN", 8,
+                              PSAcceleration_None);
     return ok;
 }
 
@@ -3160,6 +3225,7 @@ int testMathsVecProd(TestCase *tc, Test *test) {
 #endif
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     opts.acceleration = PSAcceleration_ACF;
+    PSVectorClear(res, 6);
     ok = PSOuterProduct(a, b, res, 2, 3, &opts);
     testAssertWithMessage(
         ok, test, "PSOuterProduct (Accelerate Framework) failed%s", ""
@@ -3175,6 +3241,7 @@ int testMathsVecProd(TestCase *tc, Test *test) {
     }
 #endif
     opts.acceleration = PSAcceleration_None;
+    PSVectorClear(res, 6);
     ok = PSOuterProduct(a, b, res, 2, 3, &opts);
     testAssertWithMessage(ok, test, "PSOuterProduct (no accel.) failed%s", "");
     for (i = 0; i < 6; i++) {
@@ -4469,6 +4536,34 @@ int testActReluDeriv(TestCase *tc, Test *test) {
     opts.acceleration = PSAcceleration_None;
     PSReluDerivative(x, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "No Acceleration:", 0);
+    if (!ok) return 0;
+    return ok;
+}
+
+int testActSoftmax(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat x[3] = {0.3, 0.5, 0.1};
+    PSFloat expected[3] = {
+        0.3289329222889067, 0.4017595785333554, 0.2693074991777379
+    };
+    PSFloat res[3] = {0};
+    int ok = 1;
+    PSMathOpts opts = {0};
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    opts.acceleration = PSAcceleration_ACF;
+    PSSoftmax(x, res, 3, &opts);
+    ok = compareArrays(res, expected, 6, test, "Accelerate Framework", 4);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    opts.acceleration = PSAcceleration_AVX;
+    PSSoftmax(x, res, 3, &opts);
+    ok = compareArrays(res, expected, 6, test, "AVX", 5);
+    if (!ok) return 0;
+#endif
+    opts.acceleration = PSAcceleration_None;
+    PSSoftmax(x, res, 3, &opts);
+    ok = compareArrays(res, expected, 6, test, "No Acceleration:", 5);
     if (!ok) return 0;
     return ok;
 }
