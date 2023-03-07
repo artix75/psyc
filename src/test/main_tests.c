@@ -1140,7 +1140,8 @@ int GRUSetup(TestCase *test_case) {
 int NetworkBackpropTest(Test *test, char *model_file, char *data_file_prefix,
                         char *training_data_file, char *labels_data_file,
                         int training_data_len, int label_data_len,
-                        char *model_name, int expected_size, int acceleration)
+                        char *model_name, PSTrainingOptions *topts,
+                        int rounding, int expected_size, int acceleration)
 {
     assert(test != NULL);
     assert(model_file != NULL);
@@ -1231,7 +1232,7 @@ int NetworkBackpropTest(Test *test, char *model_file, char *data_file_prefix,
         );
     }
     network->acceleration = acceleration;
-    gradients = backprop(network, x, y, NULL, NULL);
+    gradients = backprop(network, x, y, topts, NULL);
     ok = gradients != NULL;
     testAssertWithMessageOrGoto(
         ok, final, test, "Backprop failed for network %s (acceleration: %s)",
@@ -1272,7 +1273,7 @@ int NetworkBackpropTest(Test *test, char *model_file, char *data_file_prefix,
             snprintf(testlabel, 1023, "Layer[%d] states (accel. %s)", i,
                      acceleration_name);
             ok = compareArrays(
-                states, layer->states, lsize, test, testlabel, 2
+                layer->states, states, lsize, test, testlabel, rounding
             );
             testAssertWithMessageOrGoto(ok,final,test,"%s mismatch",testlabel);
         }
@@ -1305,7 +1306,8 @@ int NetworkBackpropTest(Test *test, char *model_file, char *data_file_prefix,
             );
             snprintf(testlabel, 1023, "Layer[%d] delta (accel. %s)", i,
                      acceleration_name);
-            ok = compareArrays(deltas, layer->delta, lsize, test,testlabel, 2);
+            ok = compareArrays(layer->delta, deltas, lsize, test,testlabel,
+                               rounding);
             testAssertWithMessageOrGoto(ok,final,test,"%s mismatch",testlabel);
         }
         PSGradient *grad = NULL;
@@ -1344,8 +1346,8 @@ int NetworkBackpropTest(Test *test, char *model_file, char *data_file_prefix,
             );
             snprintf(testlabel, 1023, "Layer[%d] bias gradients (accel. %s)", i,
                      acceleration_name);
-            ok = compareArrays(grads, grad->biases, grad_len, test,
-                               testlabel, 2);
+            ok = compareArrays(grad->biases, grads, grad_len, test,
+                               testlabel, rounding);
             testAssertWithMessageOrGoto(ok,final,test,"%s mismatch",testlabel);
 weight_gradients:
             /* Weight gradients */
@@ -1380,8 +1382,8 @@ weight_gradients:
             );
             snprintf(testlabel, 1023, "Layer[%d] weight gradients (accel. %s)",
                      i, acceleration_name);
-            ok = compareArrays(grads, grad->weights, grad_len, test,
-                               testlabel, 2);
+            ok = compareArrays(grad->weights, grads, grad_len, test,
+                               testlabel, rounding);
             testAssertWithMessageOrGoto(ok,final,test,"%s mismatch",testlabel);
         }
     }
@@ -1678,33 +1680,33 @@ int testConvCIFAR(TestCase *test_case, Test *test) {
     UNUSED(test_case);
     int ok = NetworkBackpropTest(test, CONVOLUTIONAL_CIFAR_NETWORK,
                                  "cifar", CIFAR_IMAGE_PATH, CIFAR_LABEL_PATH,
-                                 CIFAR_IMAGE_SIZE, 10, "CIFAR CNN", 8,
+                                 CIFAR_IMAGE_SIZE, 10, "CIFAR CNN", NULL, 2, 8,
                                  PSGlobalAcceleration);
     if (!ok) return 0;
 #ifdef HAS_BLAS
     ok = NetworkBackpropTest(test, CONVOLUTIONAL_CIFAR_NETWORK,
                              "cifar", CIFAR_IMAGE_PATH, CIFAR_LABEL_PATH,
-                              CIFAR_IMAGE_SIZE, 10, "CIFAR CNN", 8,
+                              CIFAR_IMAGE_SIZE, 10, "CIFAR CNN", NULL, 2, 8,
                               PSAcceleration_BLAS);
     if (!ok) return 0;
 #endif
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     ok = NetworkBackpropTest(test, CONVOLUTIONAL_CIFAR_NETWORK,
                              "cifar", CIFAR_IMAGE_PATH, CIFAR_LABEL_PATH,
-                              CIFAR_IMAGE_SIZE, 10, "CIFAR CNN", 8,
+                              CIFAR_IMAGE_SIZE, 10, "CIFAR CNN", NULL, 2, 8,
                               PSAcceleration_ACF);
     if (!ok) return 0;
 #endif
 #ifdef USE_AVX
     ok = NetworkBackpropTest(test, CONVOLUTIONAL_CIFAR_NETWORK,
                              "cifar", CIFAR_IMAGE_PATH, CIFAR_LABEL_PATH,
-                              CIFAR_IMAGE_SIZE, 10, "CIFAR CNN", 8,
+                              CIFAR_IMAGE_SIZE, 10, "CIFAR CNN", NULL, 2, 8,
                               PSAcceleration_AVX);
     if (!ok) return 0;
 #endif
     ok = NetworkBackpropTest(test, CONVOLUTIONAL_CIFAR_NETWORK,
                              "cifar", CIFAR_IMAGE_PATH, CIFAR_LABEL_PATH,
-                              CIFAR_IMAGE_SIZE, 10, "CIFAR CNN", 8,
+                              CIFAR_IMAGE_SIZE, 10, "CIFAR CNN", NULL, 2, 8,
                               PSAcceleration_None);
     return ok;
 }
@@ -1820,7 +1822,7 @@ int testRNNFeedforward(TestCase *test_case, Test *test) {
     return 1;
 }
 
-int testRNNBackprop(TestCase *test_case, Test *test) {
+int testRNNBackpropOld(TestCase *test_case, Test *test) {
     PSNeuralNetwork *network = getNetwork(test_case);
     if (!PSIsNetworkBuilt(network)) {
         if (!PSBuildNetwork(network)) {
@@ -1883,6 +1885,52 @@ int testRNNBackprop(TestCase *test_case, Test *test) {
 on_fail:
     PSDeleteNetworkGradients(gradients, network);
     return 0;
+}
+
+int testRNNBackprop(TestCase *test_case, Test *test) {
+    UNUSED(test_case);
+    char *network_file = "resources/basic-rnn.psmodel";
+    char *inputs_file = "resources/rnn-inputs.data";
+    char *labels_file = "resources/rnn-labels.data";
+    int input_len = 26;
+    int label_len = 25;
+    int train_flags = (TRAINING_EPOCH_AS_SEQUENCE | TRAINING_NO_SHUFFLE);
+    PSTrainingOptions opts = {
+        .bptt_truncate = 0,
+        .flags = train_flags,
+        .clip = 5
+    };
+    int ok = NetworkBackpropTest(test, network_file,
+                                 "rnn", inputs_file, labels_file,
+                                 input_len, label_len, "RNN", &opts, 3, 3,
+                                 PSGlobalAcceleration);
+    if (!ok) return 0;
+#ifdef HAS_BLAS
+    ok = NetworkBackpropTest(test, network_file,
+                             "rnn", inputs_file, labels_file,
+                              input_len, label_len, "RNN", &opts, 3, 3,
+                              PSAcceleration_BLAS);
+    if (!ok) return 0;
+#endif
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    ok = NetworkBackpropTest(test, network_file,
+                             "rnn", inputs_file, labels_file,
+                              input_len, label_len, "RNN", &opts, 3, 3,
+                              PSAcceleration_ACF);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    ok = NetworkBackpropTest(test, network_file,
+                             "rnn", inputs_file, labels_file,
+                              input_len, label_len, "RNN", &opts, 3, 3,
+                              PSAcceleration_AVX);
+    if (!ok) return 0;
+#endif
+    ok = NetworkBackpropTest(test, network_file,
+                             "rnn", inputs_file, labels_file,
+                              input_len, label_len, "RNN", &opts, 3, 3,
+                              PSAcceleration_None);
+    return ok;
 }
 
 int testRNNStep(TestCase *test_case, Test *test) {

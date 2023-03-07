@@ -659,7 +659,8 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
             }
             VDSPMMul(a, b, dest, m, 1, n);
             if (do_add) {
-                PSSumVectors(dest, out, out, outlen, opts);
+                PSMathOpts sumopts = {.acceleration = acceleration};
+                PSSumVectors(out, dest, out, outlen, &sumopts);
                 if (opts == NULL || tmpdest != opts->tmpdest)
                     free(tmpdest);
             }
@@ -796,7 +797,8 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
             }
             VDSPMMul(b, a, dest, m, 1, n);
             if (do_add) {
-                PSSumVectors(dest, out, out, outlen, opts);
+                PSMathOpts sumopts = {.acceleration = acceleration};
+                PSSumVectors(dest, out, out, outlen, &sumopts);
                 if (opts == NULL || tmpdest != opts->tmpdest)
                     free(tmpdest);
             }
@@ -997,7 +999,8 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
                 }
                 VDSPMMul(a, b, dest, dims_a[0], 1, mdims_a[1]);
                 if (do_add) {
-                    PSSumVectors(dest, out, out, outlen, opt);
+                    PSMathOpts sumopts = {.acceleration = acceleration};
+                    PSSumVectors(dest, out, out, outlen, &sumopts);
                     if (opt == NULL || tmpdest != opt->tmpdest)
                         free(tmpdest);
                 }
