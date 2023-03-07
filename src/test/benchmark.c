@@ -24,6 +24,7 @@
 #include <signal.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include <sys/utsname.h>
 
 #include "../psyc.h"
 #include "../convolutional.h"
@@ -37,6 +38,7 @@
 #include "../activation.h"
 #include "../optimization.h"
 #include "../utils.h"
+#include "../cifar.h"
 #include "../debug.h"
 #include "../log.h"
 #ifdef USE_AVX
@@ -102,6 +104,9 @@ typedef struct PSBenchmarkConfig {
     void *argv;
 } PSBenchmarkConfig;
 
+PSGradient **backprop(PSNeuralNetwork *network, PSFloat *x, PSFloat *y,
+                      PSTrainingOptions *opts, PSGradient **gradients);
+
 static int compareResults(const void * a, const void * b) {
     assert(a != NULL);
     assert(b != NULL);
@@ -161,6 +166,7 @@ static int *tagEnabledPointerByID(char *id) {
     size_t i;
     for (i = 0; i < (sizeof(tag_ids) / sizeof(char*)); i++) {
         char *tag_id = tag_ids[i];
+        if (tag_id == NULL) continue;
         if (strcasecmp(tag_id, id) == 0) {
             ptr = tag_ptrs[i];
             break;
@@ -183,8 +189,72 @@ static void disableAllTags(void) {
     size_t i;
     for (i = 0; i < (sizeof(tag_ptrs) / sizeof(int*)); i++) {
         int *ptr = tag_ptrs[i];
+        if (ptr == NULL) continue;
         *ptr = 0;
     }
+}
+
+static PSNeuralNetwork *makeCIFARLikeCNN(void) {
+    PSNeuralNetwork *network = PSCreateNetwork("CIFAR CNN");
+    if (network == NULL) return NULL;
+    PSLayer *l = NULL;
+    l = PSAddLayer(network, FullyConnected, CIFAR_IMAGE_SIZE, PSLDEF(
+        .output_depth = 3,
+        .output_columns = 32,
+        .output_rows = 32
+    ));
+    if (!l) goto fail;
+    l = PSAddConvolutionalLayer(network, PSLDEF(
+        .output_depth = 16,
+        .filter_width = 5,
+        .filter_height = 5,
+        .padding = 2,
+        .stride = 1,
+        .activation = PSRelu
+    ));
+    if (!l) goto fail;
+    l = PSAddPoolingLayer(network, PSLDEF(
+        .stride = 2,
+        .filter_width = 2,
+        .filter_height = 2
+    ));
+    if (!l) goto fail;
+    l = PSAddConvolutionalLayer(network, PSLDEF(
+        .output_depth = 20,
+        .filter_width = 5,
+        .filter_height = 5,
+        .padding = 2,
+        .stride = 1,
+        .activation = PSRelu
+    ));
+    if (!l) goto fail;
+    l = PSAddPoolingLayer(network, PSLDEF(
+        .stride = 2,
+        .filter_width = 2,
+        .filter_height = 2
+    ));
+    if (!l) goto fail;
+    l = PSAddConvolutionalLayer(network, PSLDEF(
+        .output_depth = 20,
+        .filter_width = 5,
+        .filter_height = 5,
+        .padding = 2,
+        .stride = 1,
+        .activation = PSRelu
+    ));
+    if (!l) goto fail;
+    l = PSAddPoolingLayer(network, PSLDEF(
+        .stride = 2,
+        .filter_width = 2,
+        .filter_height = 2
+    ));
+    if (!l) goto fail;
+    l = PSAddLayer(network, SoftMax, 10, NULL);
+    if (!l) goto fail;
+    return network;
+fail:
+    if (network != NULL) PSDeleteNetwork(network);
+    return NULL;
 }
 
 /* Benchmark functions */
@@ -994,6 +1064,87 @@ final:
     return ok;
 }
 
+int cifarCNNFeedforwardBenchmark(PSBenchmarkConfig *cfg, int *num_results,
+                                 PSBenchmarkResults *results)
+{
+    PS_BENCHMARK_PREAMBLE(cfg, results);
+    int ok = 1;
+    PSMatrix x = NULL;
+    PSNeuralNetwork *network = makeCIFARLikeCNN();
+    PSGradient **gradients = NULL;
+    ok = network != NULL;
+    if (!ok) goto final;
+    x = PSMatrixWithGaussianRandom(1, 1, CIFAR_IMAGE_SIZE);
+    ok = (x != NULL);
+    if (!ok) goto final;
+    PSFloat y[10] = {0};
+    y[9] = 1.0;
+    if (!PSIsNetworkBuilt(network)) PSBuildNetwork(network);
+    ok = PSIsNetworkBuilt(network);
+    if (!ok) {
+        PSErr(__func__, "Could not build network");
+        goto final;
+    }
+    PSBenchmarkResults *res = results;
+    network->acceleration = PSGlobalAcceleration;
+    PS_INIT_BENCHMARK(cfg, res, "Default Acceleration");
+    PSBenchmarkMeasure(res, (
+        gradients = backprop(network, x, y, NULL, NULL)
+    ));
+    ok = gradients != NULL;
+    if (!ok) goto final;
+    *num_results += 1;
+    res += 1;
+#if HAS_BLAS
+    network->acceleration = PSAcceleration_BLAS;
+    PS_INIT_BENCHMARK(cfg, res, "BLAS");
+    PSBenchmarkMeasure(res, (
+        gradients = backprop(network, x, y, NULL, NULL)
+    ));
+    ok = gradients != NULL;
+    if (!ok) goto final;
+    *num_results += 1;
+    res += 1;
+#endif
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    network->acceleration = PSAcceleration_ACF;
+    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PSBenchmarkMeasure(res, (
+        gradients = backprop(network, x, y, NULL, NULL)
+    ));
+    ok = gradients != NULL;
+    if (!ok) goto final;
+    *num_results += 1;
+    res += 1;
+#endif
+#ifdef USE_AVX
+    network->acceleration = PSAcceleration_AVX;
+    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    PSBenchmarkMeasure(res, (
+        gradients = backprop(network, x, y, NULL, NULL)
+    ));
+    ok = gradients != NULL;
+    if (!ok) goto final;
+    *num_results += 1;
+    res += 1;
+#endif
+    network->acceleration = PSAcceleration_None;
+    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    PSBenchmarkMeasure(res, (
+        gradients = backprop(network, x, y, NULL, NULL)
+    ));
+    ok = gradients != NULL;
+    if (!ok) goto final;
+    *num_results += 1;
+    res += 1;
+final:
+    if (gradients != NULL && network != NULL)
+        PSDeleteNetworkGradients(gradients, network);
+    if (network != NULL) PSDeleteNetwork(network);
+    PSMatrixDelete(x);
+    return ok;
+}
+
 /* Benchmark configurations */
 PSBenchmarkConfig bechmarks[] = {
     /*{"Dummy", NULL, 3, 1, dummyBenchmark, 0, NULL},*/
@@ -1093,19 +1244,22 @@ PSBenchmarkConfig bechmarks[] = {
      fullnetFeedforwardBenchmark, 2, INTARGS(5000,10000)},
     {"FullyConnected Feed (10000,20000)", &fullnet_tag, 0, 10,
      fullnetFeedforwardBenchmark, 2, INTARGS(10000,20000)},
+    {"Convolutional Backprop", &convnet_tag, 0, 10,
+     cifarCNNFeedforwardBenchmark, 0, NULL},
 };
 
-/* Main functions */
+/* Main function */
+/*int max_test_size = 0;*/
 
 void printHelp(char *executable) {
     fprintf(stderr, "Usage: %s [OPTIONS] [TEST_ID, ...]\n", executable);
     fprintf(stderr, "\nOPTIONS:\n\n");
+    /*fprintf(stderr, "   --max-size SIZE         Limit max. test size\n");*/
     fprintf(stderr, "   --skip TEST_ID          Skip test (can be used "
         "multiple times\n");
     fprintf(stderr, "   --list-tests            List all test IDS\n");
     fprintf(stderr, "   -h, --help              Print this help\n");
 }
-
 
 int parseOptions(int argc, char **argv) {
     int i, is_last = 0, last_arg_idx = argc - 1;
@@ -1115,6 +1269,9 @@ int parseOptions(int argc, char **argv) {
         if (strcmp("--skip", arg) == 0 && !is_last) {
             char *test_id = argv[++i];
             if (!setTagEnabledStatus(test_id, 0)) exit(1);
+        /*} else if (strcmp("--max-size", arg) == 0 && !is_last) {
+            max_test_size = atoi(argv[++i]);
+            if (max_test_size < 0) max_test_size = 0;*/
         } else if (strcmp("--list-tests", arg) == 0) {
             printTagList();
             exit(1);
@@ -1133,19 +1290,48 @@ int parseOptions(int argc, char **argv) {
 }
 
 int main(int argc, char **argv) {
+#ifdef CATCH_FPE
+    PSCatchFloatingPointExceptions(FE_OVERFLOW | FE_DIVBYZERO);
+#endif
+    PSHandleSignals(NULL);
     int return_val = 0;
     int tot_benchmarks = sizeof(bechmarks) / sizeof(PSBenchmarkConfig),
         performed_benchmarks = 0, i;
     int argidx = parseOptions(argc, argv), all_disabled = 0;
     while (argidx < argc) {
         if (!all_disabled) disableAllTags();
+        all_disabled = 1;
         char *test_id = argv[argidx++];
         if (!setTagEnabledStatus(test_id, 1)) return 1;
     }
-#ifdef CATCH_FPE
-    PSCatchFloatingPointExceptions(FE_OVERFLOW | FE_DIVBYZERO);
+    struct utsname sysinfo;
+    uname(&sysinfo);
+    char os[31] = {0};
+    snprintf(os, 30, "%s %s %s", sysinfo.sysname, sysinfo.release,
+        sysinfo.machine);
+    printf(
+        PSCOLOR_BOLD PSCOLOR_CYAN
+        "============ PsyC Benchmarks ============\n"
+        PSCOLOR_RESET
+    );
+    printf("%-20s %30s\n", "Version:", PSYC_VERSION);
+    printf("%-20s %30s\n", "OS:", os);
+    printf("%-20s %30d\n", "Arch:", (sizeof(long) == 8 ? 64 : 32));
+    printf("Default Accelerations:\n");
+    if (PSAVXEnabled(PSGlobalAcceleration))
+        printf(" - AVX\n");
+    if (PSACFEnabled(PSGlobalAcceleration))
+        printf(" - Apple Accelerate Framework\n");
+    if (PSBLASEnabled(PSGlobalAcceleration)) {
+        printf(" - BLAS");
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+        printf(" (Apple Accelerate Framework)");
+#elif defined(HAS_GSL_CBLAS)
+        printf(" (GNU Scientific Library)");
 #endif
-    PSHandleSignals(NULL);
+        printf("\n");
+    }
+    printf("\n");
     for (i = 0; i < tot_benchmarks; i++) {
         PSBenchmarkConfig *cfg = &(bechmarks[i]);
         if (cfg->tag != NULL && !(*cfg->tag)) continue;
