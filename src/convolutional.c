@@ -267,8 +267,8 @@ invalid_size:
 
 /* Accelerated convolution with BLAS */
 
-static int BLASConvolve(PSLayer *layer, PSFloat *inputs, int input_size,
-                        PSFloat *outputs)
+static int AcceleratedConvolve(PSLayer *layer, PSFloat *inputs, int input_size,
+                               PSFloat *outputs)
 {
     if (inputs == NULL) {
         PSErr(__func__, "NULL inputs");
@@ -320,15 +320,13 @@ static int BLASConvolve(PSLayer *layer, PSFloat *inputs, int input_size,
     int n = layer->size / layer->output_depth;
     int k = settings->filter_width * settings->filter_height *
             settings->input_depth;
-    int lda = k, ldb = n;
-    PSGemm(PSBLASRowMajor, 'N', 'N', m, n, k, 1.0, w2c, lda, i2c, ldb, 0.0,
-           outputs, n);
-    success = (PSBLASLastError == NULL);
+    PSMathOpts opts = {.acceleration = layer->network->acceleration};
+    success = PSMatMul(w2c, i2c, outputs, m, n, k, &opts);
 final:
     return success;
 }
 
-static int BLASConvolutionalBackprop(PSLayer *layer, PSGradient *gradient) {
+static int AcceleratyedConvBackprop(PSLayer *layer, PSGradient *gradient) {
     int success = 1;
     PSLayer *previous = PSGetPreviousLayer(layer);
     if (previous == NULL) return 0;
@@ -359,10 +357,14 @@ static int BLASConvolutionalBackprop(PSLayer *layer, PSGradient *gradient) {
             }
             PSVectorFill(privdata->bias_mul, 1.0, feature_size, &opts);
         }
-        PSGemv(PSBLASRowMajor, 'N', layer->output_depth, feature_size, 1.0,
-               delta, feature_size, privdata->bias_mul, 1, 1.0,
-               gradient->biases, 1);
-        success = (PSBLASLastError == NULL);
+        PSMathOpts mmopts = {
+            .acceleration = layer->network->acceleration,
+            .store_mode = PS_STORE_MODE_ADD
+        };
+        success = PSMatMul(
+            delta, privdata->bias_mul, gradient->biases, layer->output_depth, 1,
+            feature_size, &mmopts
+        );
         if (!success) goto final;
     }
     int i2c_size = privdata->im2col_size;
@@ -381,11 +383,12 @@ static int BLASConvolutionalBackprop(PSLayer *layer, PSGradient *gradient) {
     }
     /* Update gradient weights */
     int m = layer->output_depth, n = ksize, k = feature_size;
-    int lda = k;
-    int ldb = k;
-    PSGemm(PSBLASRowMajor, 'N', 'T', m, n, k, 1.0, delta, lda, i2c, ldb,
-           1.0, gradient->weights, n);
-    success = (PSBLASLastError == NULL);
+    PSMathOpts mmopts = {
+        .acceleration = layer->network->acceleration,
+        .store_mode = PS_STORE_MODE_ADD,
+        .transpose = 2
+    };
+    success = PSMatMul(delta, i2c, gradient->weights, m, n, k, &mmopts);
     if (!success) goto final;
     if (previous->delta == NULL) goto final;
     /* Update previous layer delta */
@@ -401,11 +404,9 @@ static int BLASConvolutionalBackprop(PSLayer *layer, PSGradient *gradient) {
     m = ksize;
     n = feature_size;
     k = layer->output_depth;
-    lda = m;
-    ldb = n;
-    PSGemm(PSBLASRowMajor, 'T', 'N', m, n, k, 1.0, w2c, lda, delta, ldb,
-           0.0, i2c, n);
-    success = (PSBLASLastError == NULL);
+    mmopts.transpose = 1;
+    mmopts.store_mode = PS_STORE_MODE_SET;
+    success = PSMatMul(w2c, delta, i2c, m, n, k, &mmopts);
     if (!success) goto final;
     PSFloat *prev_delta = col2im(
         i2c, settings->input_depth, settings->input_width,
@@ -767,15 +768,13 @@ int PSConvolutionalFeedforward(PSLayer *layer, ...) {
     int feature_size = layer->size / layer->output_depth;
     int use_bias = !(layer->flags & FLAG_NO_BIAS);
     int input_w = settings->input_width, input_h = settings->input_height;
-    int use_blas_acceleration = (
-        PSIsAccelerationAvailable(PSAcceleration_BLAS) &&
-        PSBLASEnabled(net->acceleration) &&
-        !is_recurrent
+    int use_acceleration = (
+        net->acceleration != PSAcceleration_None && !is_recurrent
     );
     int previous_feature_size = 0;
     if (previous->output_depth == 0) previous->output_depth = 1;
     previous_feature_size = previous->size / previous->output_depth;
-    if (use_blas_acceleration) {
+    if (use_acceleration) {
         PSMathOpts mopts = {.acceleration = net->acceleration};
         PSFloat *inputs = PSGetStates(previous, t);
         PSFloat *outputs = PSGetStates(layer, t);
@@ -783,7 +782,7 @@ int PSConvolutionalFeedforward(PSLayer *layer, ...) {
             PSErr(NULL, "Layer[%d]: missing inputs and/or outputs");
             goto failed;
         }
-        int ok = BLASConvolve(layer, inputs, previous->size, outputs);
+        int ok = AcceleratedConvolve(layer, inputs, previous->size, outputs);
         if (!ok) {
             PSErr(NULL, "Layer[%d]: convolutional layer failed feedforward",
                   layer->index);
@@ -1064,13 +1063,11 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
     if (net == NULL) return 0;
     if (gradient == NULL) return 0;
     int is_recurrent = PSIsRecurrent(convolutional_layer), t = 0;
-    int use_blas_acceleration = (
-        PSIsAccelerationAvailable(PSAcceleration_BLAS) &&
-        PSBLASEnabled(net->acceleration) &&
-        !is_recurrent
+    int use_acceleration = (
+        net->acceleration != PSAcceleration_None && !is_recurrent
     );
-    if (use_blas_acceleration) {
-        if (!BLASConvolutionalBackprop(convolutional_layer, gradient)) {
+    if (use_acceleration) {
+        if (!AcceleratyedConvBackprop(convolutional_layer, gradient)) {
             PSErr(NULL, "Layer[%d]: failed backprop using BLAS acceleration",
                   convolutional_layer->index);
             return 0;

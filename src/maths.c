@@ -567,7 +567,7 @@ PSFloat *PSMatrixGet(PSMatrix matrix, int ndims, uint32_t *len, ...) {
  * argument. In that case, `transpose` will contain the (1-based) indices
  * of the matrix arguments you want to be transposed:
  *  - opt->transpose = 1 (transpose matrix `a`)
- * By default, data in result vector will be overwritten. Anyaway, if
+ * By default, data in result vector will be overwritten. Anyway, if
  * `PS_STORE_MODE_ADD` is set as `store_mode` into `opts`, result will
  * be added to data already present in the result vector.
  * Return value: 1 if operation succeeds, 0 if ti fails. */
@@ -692,7 +692,7 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
  * argument. In that case, `transpose` will contain the (1-based) indices
  * of the operand arguments you want to be transposed:
  *  - opt->transpose = 2 (transpose matrix `b`)
- * By default, data in result vector will be overwritten. Anyaway, if
+ * By default, data in result vector will be overwritten. Anyway, if
  * `PS_STORE_MODE_ADD` is set as `store_mode` into `opts`, result will
  * be added to data already present in the result vector.
  * Return value: 1 if operation succeeds, 0 if ti fails. */
@@ -834,7 +834,7 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
  *  - opt->transpose = 1 (transpose matrix `a`)
  *  - opt->transpose = 2 (transpose matrix `b`)
  *  - opt->transpose = (1 | 2) (transpose both matrix `a` and `b`)
- * By default, data in result vector will be overwritten. Anyaway, if
+ * By default, data in result vector will be overwritten. Anyway, if
  * `PS_STORE_MODE_ADD` is set as `store_mode` into `opt`, result will
  * be added to data already present in the result vector.
  * Return value: 1 if operation succeeds, 0 if ti fails. */
@@ -1924,7 +1924,11 @@ PSFloat PSDotSquare(PSFloat *a, uint64_t length, PSMathOpts *opts) {
  * depending on the value of `argtype` field in opts (default is
  * matrix-matrix).
  * Store result is `dest`.
- * Return value: 1 in case of success, 0 in case of failure. */
+ * Return value: 1 in case of success, 0 in case of failure.
+ * NOTE: if `argtype` for both `a` and `b` is 'V', the function will compute
+ * the dot product of the two vectors, assuming that they have the same size.
+ * If you need to perform matrix multiplication on two PSFloat arrays,
+ * use `PSMatMul` instead. */
 int PSDot(PSMatrix a, PSMatrix b, PSMatrix dest, PSMathOpts *opts) {
     if (a == NULL || b == NULL || dest == NULL) {
         if (a == NULL) PSErr(__func__, "`a` cannot be null");
@@ -2178,4 +2182,199 @@ void PSVectorPrint(PSFloat *vec, int len, char* sep) {
     if (sep == NULL) sep = ",";
     writeSerializedFloatArray(stdout, len, sep, 0, vec);
     printf("\n");
+}
+
+/* Create a transposed version of `vec`, considering it a matrix with a shape
+ * of `ndims` dimensions.
+ * Use variadic arguments to set up-to 3 dimensions in the shape,
+ * (ie rows, columns for 2-D array).
+ * Return value: the transposed array, with size of dim1*dim12*dim3, or NULL
+ * if something gose wrong.
+ * NOTES:
+ * - Variadic dimensions refer to original matrix shape, and not to the
+ *   resulting transposed matrix.
+ * - If you need to transpose a `PSMatrix`, use `PSMatrixTranspose` insetad. */
+PSFloat *PSVectorTranspose(PSFloat *vec, int acceleration, int ndims, ...) {
+    if (ndims == 1) return vec;
+    else if (ndims > MAX_DIMENSIONS) {
+        PSErr(__func__, "`ndims` must be <= %d", MAX_DIMENSIONS);
+        return NULL;
+    } else if (ndims <= 0) {
+        PSErr(__func__, "`ndims` must be > 0");
+        return NULL;
+    }
+    int dims[MAX_DIMENSIONS] = {0};
+    uint64_t x, y, z, idx, i, veclen = 1;
+    va_list args;
+    va_start(args, ndims);
+    for (i = 0; i < (uint64_t) ndims; i++) {
+        dims[i] = va_arg(args, int);
+        veclen *= dims[i];
+    }
+    va_end(args);
+    if (veclen <= 0) {
+        PSErr(__func__, "Invalid dimensions: eachdimension must be > 0");
+        return NULL;
+    }
+    PSFloat *transposed = malloc(veclen * sizeof(PSFloat));
+    if (transposed == NULL) {
+        PSPrintMemoryErrorMsg();
+        return NULL;
+    }
+    int ncols = 0, nrows = 0, dlen = 0, t_ncols = 0, t_dlen = 0;
+    if (ndims == 3) {
+        nrows = dims[1];
+        ncols = dims[2];
+        t_ncols = dims[0];
+        t_dlen = dims[0] * dims[1];
+        dlen = nrows * ncols;
+        for (i = 0; i < veclen; i++) {
+            z = i % dlen % ncols;
+            y = (i / ncols) % nrows;
+            x = i / dlen;
+            idx = (z * t_dlen) + (y * t_ncols) + x;
+            transposed[idx] = vec[i];
+        }
+    } else if (ndims == 2) {
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+        if (PSACFEnabled(acceleration)) {
+            /* Use Apple Accelerate Framework */
+            VDSPMTransp(vec, transposed, dims[1], dims[0]);
+            goto final;
+        }
+#else
+        UNUSED(acceleration);
+#endif
+        ncols = dims[1];
+        t_ncols = dims[0];
+        for (i = 0; i < veclen; i++) {
+            y = i % ncols;
+            x = i / ncols;
+            idx = (y * t_ncols) + x;
+            transposed[idx] = vec[i];
+        }
+    }
+final:
+    return transposed;
+}
+
+/* Perform matrix multiplication between vectors (PSFloat arrays) `a` and `b`.
+ * If you need to perform matrix multiplication with involve at least one
+ * `PSMatrix`, then use `PSMatrixProduct` (matrix-matrix), `PSMatrixProductMV`
+ * (matrix-vector) or `PSMatrixProductVM` (vector-matrix) instead.
+ * You can set matrix transposition using `transpose` field in the `opt`
+ * argument. In that case, `transpose` will contain the (1-based) indices
+ * of the vector arguments you want to be transposed:
+ *  - opt->transpose = 1 (transpose `a`)
+ * Results will be stored in `dest`, that must be at least `m` * `n` long.
+ * By default, data in result vector will be overwritten. Anyway, if
+ * `PS_STORE_MODE_ADD` is set as `store_mode` into `opts`, result will
+ * be added to data already present in the result vector.
+ * Other arguments:
+ *  - `m`: number of rows in `a` and result `dest`
+ *  - `n`: number of columns in `b` and `dest`.
+ *  - `k`: number of columns in `a` and rows in `n`.
+ * NOTE: if you set transposition for `a` or `b`, `m`,`n` and `k` will
+ * refer to rows and columns of the transposed matrix.
+ * Return value: 1 in case of success, 0 in case of failure. */
+int PSMatMul(PSFloat *a, PSFloat *b, PSFloat *dest, int m, int n, int k,
+             PSMathOpts *opts)
+{
+    if (a == NULL || b == NULL || dest == NULL) {
+        PSErr(__func__, "argument `a`,`b` and `dest` cannot be null");
+        return 0;
+    }
+    int transpose = 0;
+    int acceleration = PSGlobalAcceleration;
+    int store_mode = PS_STORE_MODE_SET;
+    if (opts != NULL) {
+        transpose = opts->transpose;
+        acceleration = opts->acceleration;
+        store_mode = opts->store_mode;
+    }
+    int transpose_a = transpose & 1;
+    int transpose_b = transpose & 2;
+#ifdef HAS_BLAS
+    int use_blas = PSBLASEnabled(acceleration);
+#else
+    int use_blas = 0;
+    UNUSED(acceleration);
+#endif
+    if (use_blas) {
+        char trans_a = 'N', trans_b = 'N';
+        int lda = k, ldb = n, ldc = n;
+        if (transpose_a) {
+            trans_a = 'T';
+            lda = m;
+        }
+        if (transpose_b) {
+            trans_b = 'T';
+            ldb = k;
+        }
+        PSFloat beta = (store_mode == PS_STORE_MODE_ADD ? 1.0 : 0.0);
+        PSGemm(PSBLASRowMajor, trans_a, trans_b, m, n, k, 1.0, a, lda, b, ldb,
+               beta, dest, ldc);
+        return (PSBLASLastError == NULL);
+    }
+    PSMathOpts mopts = {.acceleration = acceleration};
+    int do_add = (store_mode == PS_STORE_MODE_ADD), success = 1;
+    PSFloat *transposed_a = NULL, *transposed_b = NULL, *orig_b = b;
+    if (transpose_a) {
+        transposed_a = PSVectorTranspose(a, acceleration, 2, k, m);
+        if (transposed_a == NULL) return 0;
+        a = transposed_a;
+    }
+    if (transpose_b) {
+        transposed_b = PSVectorTranspose(b, acceleration, 2, n, k);
+        if (transposed_b == NULL) return 0;
+        b = transposed_b;
+    }
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    if (PSACFEnabled(acceleration)) {
+        int outlen = m * n;
+        PSFloat *out = dest, *tmpdest = (opts ? opts->tmpdest : NULL);
+        if (do_add) {
+            if (tmpdest == NULL)
+                tmpdest = calloc(outlen, sizeof(PSFloat));
+            if (tmpdest == NULL) {
+                PSPrintMemoryErrorMsg();
+                return 0;
+            }
+            out = tmpdest;
+        }
+        VDSPMMul(a, b, out, m, n, k);
+        if (do_add) {
+            PSSumVectors(dest, out, dest, outlen, &mopts);
+            if (opts == NULL || tmpdest != opts->tmpdest)
+                free(tmpdest);
+        }
+        goto final;
+    }
+#endif
+    int a_rows = m, a_cols = k, b_rows = k, b_cols = n, out_rows, out_cols;
+    if (transpose_b) b = orig_b;
+    else {
+        transposed_b = PSVectorTranspose(b, acceleration, 2, k, n);
+        b = transposed_b;
+    }
+    out_rows = a_rows;
+    out_cols = b_cols;
+    if (a_cols != b_rows) {
+        PSErr(__func__, "Aligment error: a columns != b rows -> %d != %d",
+              a_cols, b_rows);
+    }
+    k = b_rows;
+    for (int i = 0; i < out_rows; i++) {
+        for (int j = 0; j < out_cols; j++) {
+            int oidx = (i * out_cols) + j;
+            PSFloat *arow = a + (a_cols * i);
+            PSFloat *brow = b + (k * j);
+            if (!do_add) dest[oidx] = PSDotProduct(arow, brow, k, &mopts);
+            else dest[oidx] += PSDotProduct(arow, brow, k, &mopts);
+        }
+    }
+final:
+    free(transposed_a);
+    free(transposed_b);
+    return success;
 }

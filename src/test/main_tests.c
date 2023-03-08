@@ -149,6 +149,7 @@ int testMathsMean(TestCase *tc, Test *test);
 int testMathsVar(TestCase *tc, Test *test);
 int testMathsStd(TestCase *tc, Test *test);
 int testMathVectorFill(TestCase *tc, Test *test);
+int testMathsMatMul(TestCase *tc, Test *test);
 int testMathsMatrixCopy(TestCase *tc, Test *test);
 int testMathsMatrixDup(TestCase *tc, Test *test);
 int testMathsMatrixTranspose(TestCase *tc, Test *test);
@@ -650,6 +651,7 @@ int main(int argc, char** argv) {
         addTest(mathsTests, "Variance", NULL, testMathsVar);
         addTest(mathsTests, "StdDev", NULL, testMathsStd);
         addTest(mathsTests, "Vector Fill", NULL, testMathVectorFill);
+        addTest(mathsTests, "MatMul (vectors)", NULL, testMathsMatMul);
         addTest(mathsTests, "Matrix Copy", NULL, testMathsMatrixCopy);
         addTest(mathsTests, "Matrix Dup.", NULL, testMathsMatrixDup);
         addTest(mathsTests, "Matrix Expand", NULL, testMathsMatrixExpand);
@@ -724,7 +726,7 @@ int main(int argc, char** argv) {
         addTest(convNetworkTests, "Feedforward", NULL, testConvFeedforward);
         addTest(convNetworkTests, "Backprop", NULL, testConvBackprop);
         /*addTest(convNetworkTests, "Accuracy", NULL, testConvAccuracy);*/
-        addTest(convNetworkTests, "CIFAR Training", NULL, testConvCIFAR);
+        addTest(convNetworkTests, "CIFAR Backprop", NULL, testConvCIFAR);
         addTest(convNetworkTests, "Clone", NULL, testGenericClone);
         addTest(convNetworkTests, "Save", NULL, testGenericSave);
         performTests(convNetworkTests);
@@ -4470,6 +4472,148 @@ int testMathsMatrixProductVM(TestCase *tc, Test *test) {
     res = testMatrixProductVM(test, acceleration);
     if (!res) return 0;
     numtests++;
+    return res;
+}
+
+int testMatMul(Test *test, int acceleration) {
+    int res = 1;
+    PSFloat *result = calloc(100, sizeof(PSFloat));
+    if (result == NULL) {
+        PSPrintMemoryErrorMsg();
+        return 0;
+    }
+    PSFloat avalues[] = {1, 2, 3, 4, 5, 6}; /* shape: 2, 3 */
+    PSFloat bvalues[] = {1, 2, 3, 4, 5, 6}; /* shape: 3, 2 */
+    PSFloat cvalues[] = {1, 2, 3, 4, 5, 6, 3, 2, 1, 6, 5, 4}; /* shape:4,3 */
+    /*PSFloat avec_values[] = {7, 8, 9};*/ /* shape: 1, 3 */
+    PSFloat ab_expected[] = {22, 28, 49, 64}; /* a * b */
+    PSFloat act_expected[] = {14, 32, 10, 28, 32, 77, 28, 73}; // a * c(t)
+    PSFloat btb_expected[] = {35, 44, 44, 56};/* b(t) * b */
+    PSFloat atbt_expected[] = {9, 19, 29, 12, 26,
+                              40, 15, 33, 51}; /* a(t) @ b(t) */
+    /*PSFloat avat_expected[] = {50, 122};*/
+    int ab_l = sizeof(ab_expected) / sizeof(PSFloat);
+    int btb_l = sizeof(btb_expected) / sizeof(PSFloat);
+    int act_l = sizeof(act_expected) / sizeof(PSFloat);
+    int atbt_l = sizeof(atbt_expected) / sizeof(PSFloat);
+    /*int avat_l = sizeof(avat_expected) / sizeof(PSFloat);*/
+    const char *acceleration_name = PSGetAccelerationName(acceleration);
+    if (acceleration_name == NULL) acceleration_name = "";
+    PSMathOpts opts = {.acceleration = acceleration};
+    opts.transpose = 0;
+    int m, n, k;
+    int a_shape[] = {2,3};
+    int b_shape[] = {3,2};
+    int c_shape[] = {4,3};
+    /*int avec_shape[] = {3};*/
+    m = a_shape[0], n = b_shape[1], k = a_shape[1];
+    res = PSMatMul(avalues, bvalues, result, m, n, k, &opts);
+    testAssertWithMessageOrGoto(
+        res, final, test,
+        "Failed PSMatMul(%s,%s) (transp = 0, accel = '%s')", "a","b",
+        acceleration_name
+    );
+    char comparison_label[255] = {0};
+    snprintf(comparison_label, 254, "a * b (accel = '%s')", acceleration_name);
+    res = compareArrays(result, ab_expected, ab_l, test,
+                        comparison_label, 0);
+    testAssertWithMessageOrGoto(
+        res, final, test, "Result != expected for PSMatMul(%s,%s,"
+        "accel='%s')", "a", "b", acceleration_name
+    );
+
+    PSVectorClear(result, 100);
+    opts.transpose = 1;
+    m = b_shape[1], n = b_shape[1], k = b_shape[0];
+    res = PSMatMul(bvalues, bvalues, result, m, n, k, &opts);
+    testAssertWithMessageOrGoto(
+        res, final, test, "Failed PSMatMul(%s,%s) (transp = 1, "
+        "accel = '%s')", "b","b", acceleration_name
+    );
+    snprintf(comparison_label, 254, "b(T) * b (accel = '%s')",
+             acceleration_name);
+    res = compareArrays(result, btb_expected, btb_l, test, comparison_label, 0);
+    testAssertWithMessageOrGoto(
+        res, final, test, "Result != expected for PSMatMul(%s,%s,"
+        "accel='%s')", "b(T)", "b", acceleration_name
+    );
+
+    PSVectorClear(result, 100);
+    opts.transpose = 2;
+    m = a_shape[0], n = c_shape[0], k = a_shape[1];
+    res = PSMatMul(avalues, cvalues, result, m, n, k, &opts);
+    testAssertWithMessageOrGoto(
+        res, final, test, "Failed PSMatMul(%s,%s) "
+        "(transp = 2, accel = '%s')", "a","c", acceleration_name
+    );
+    snprintf(comparison_label, 254, "a * c(T) (accel = '%s')",
+             acceleration_name);
+    res = compareArrays(result, act_expected, act_l, test, comparison_label, 0);
+    testAssertWithMessageOrGoto(
+        res, final, test, "Result != expected for PSMatMul(%s,%s,"
+        "accel='%s')", "a", "c(T)", acceleration_name
+    );
+
+    PSVectorClear(result, 100);
+    opts.transpose = 1 | 2;
+    m = a_shape[1], n = b_shape[0], k = a_shape[0];
+    res = PSMatMul(avalues, bvalues, result, m, n, k, &opts);
+    testAssertWithMessageOrGoto(
+        res, final, test, "Failed PSMatMul(%s,%s) (transp = 1|2, "
+        "accel = '%s')", "a","b", acceleration_name
+    );
+    snprintf(comparison_label, 254, "a(T) * b(T) (accel = '%s')",
+             acceleration_name);
+    res = compareArrays(result, atbt_expected, atbt_l, test,
+                        comparison_label, 0);
+    testAssertWithMessageOrGoto(
+        res, final, test, "Result != expected for PSMatMul(%s,%s,"
+        "accel='%s')", "a(T)", "b(T)", acceleration_name
+    );
+
+    /*PSVectorClear(result, 100);
+    opts.transpose = 2;
+    m = 1, n = a_shape[0], k = 3;
+    res = PSMatMul(avec_values, avalues, result, m, n, k, &opts);
+    testAssertWithMessageOrGoto(
+        res, final, test, "Failed PSMatMul(%s,%s) (transp = 2, "
+        "accel = '%s')", "avec","a(T)", acceleration_name
+    );
+    snprintf(comparison_label, 254, "avec * a(T) (accel = '%s')",
+             acceleration_name);
+    res = compareArrays(result, avat_expected, avat_l, test,
+                        comparison_label, 0);
+    testAssertWithMessageOrGoto(
+        res, final, test, "Result != expected for PSMatMul(%s,%s,"
+        "accel='%s')", "avec", "a(T)", acceleration_name
+    );*/
+final:
+    free(result);
+    return res;
+}
+
+int testMathsMatMul(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    int res = 1, numtests = 0, acceleration;
+#ifdef HAS_BLAS
+    acceleration = PSAcceleration_BLAS;
+    res = testMatMul(test, acceleration);
+    if (!res) return 0;
+    numtests++;
+#endif
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    acceleration = PSAcceleration_ACF;
+    res = testMatMul(test, acceleration);
+    if (!res) return 0;
+    numtests++;
+#endif
+    acceleration = PSAcceleration_None;
+    res = testMatMul(test, acceleration);
+    if (!res) return 0;
+    numtests++;
+    testAssertWithMessage(numtests > 0, test,
+                          "BLAS disabled and no acceleration method suitable "
+                          "for PSMatMul%s", "");
     return res;
 }
 
