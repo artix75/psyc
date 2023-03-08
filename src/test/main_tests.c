@@ -198,6 +198,7 @@ int testLSTMLoad(TestCase *test_case, Test *test);
 int testLSTMTrain(TestCase *test_case, Test *test);
 int testGRULoad(TestCase *test_case, Test *test);
 int testGRUTrain(TestCase *test_case, Test *test);
+int testGRUBackprop(TestCase *test_case, Test *test);
 
 
 int testNormalizationLoad(TestCase *test_case, Test *test);
@@ -768,6 +769,7 @@ int main(int argc, char** argv) {
         GRUNetworkTests->teardown = RNNTeardown;
         /* addTest(GRUNetworkTests, "Load", NULL, testGRULoad); */
         addTest(GRUNetworkTests, "Train", NULL, testGRUTrain);
+        addTest(GRUNetworkTests, "Backprop", NULL, testGRUBackprop);
         addTest(GRUNetworkTests, "Clone", NULL, testGenericClone);
         addTest(GRUNetworkTests, "Save", NULL, testGenericSave);
         performTests(GRUNetworkTests);
@@ -2493,6 +2495,52 @@ int testGRUTrain(TestCase *test_case, Test *test) {
         }
     }
     return 1;
+}
+
+int testGRUBackprop(TestCase *test_case, Test *test) {
+    UNUSED(test_case);
+    char *network_file = "resources/basic-gru.psmodel";
+    char *inputs_file = "resources/gru-inputs.data";
+    char *labels_file = "resources/gru-labels.data";
+    int input_len = 26;
+    int label_len = 25;
+    int train_flags = (TRAINING_EPOCH_AS_SEQUENCE | TRAINING_NO_SHUFFLE);
+    PSTrainingOptions opts = {
+        .bptt_truncate = 0,
+        .flags = train_flags,
+        .clip = 5
+    };
+    int ok = NetworkBackpropTest(test, network_file,
+                                 "gru", inputs_file, labels_file,
+                                 input_len, label_len, "GRU", &opts, 3, 3,
+                                 PSGlobalAcceleration);
+    if (!ok) return 0;
+#ifdef HAS_BLAS
+    ok = NetworkBackpropTest(test, network_file,
+                             "gru", inputs_file, labels_file,
+                              input_len, label_len, "GRU", &opts, 3, 3,
+                              PSAcceleration_BLAS);
+    if (!ok) return 0;
+#endif
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    ok = NetworkBackpropTest(test, network_file,
+                             "gru", inputs_file, labels_file,
+                              input_len, label_len, "GRU", &opts, 3, 3,
+                              PSAcceleration_ACF);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    ok = NetworkBackpropTest(test, network_file,
+                             "gru", inputs_file, labels_file,
+                              input_len, label_len, "GRU", &opts, 3, 3,
+                              PSAcceleration_AVX);
+    if (!ok) return 0;
+#endif
+    ok = NetworkBackpropTest(test, network_file,
+                             "gru", inputs_file, labels_file,
+                              input_len, label_len, "GRU", &opts, 3, 3,
+                              PSAcceleration_None);
+    return ok;
 }
 
 int testNormalizationLoad(TestCase *test_case, Test *test) {
