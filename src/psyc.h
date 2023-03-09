@@ -27,7 +27,7 @@
 #include "activation.h"
 #include "optimization.h"
 
-#define PSYC_VERSION      "0.9.0"
+#define PSYC_VERSION      "0.9.1"
 
 #define LAYER_TYPES     10
 
