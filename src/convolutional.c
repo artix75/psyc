@@ -726,6 +726,13 @@ memerr:
 int PSConvolutionalFeedforward(PSLayer *layer, ...) {
     PSNeuralNetwork *net = NULL;
     if (!checkLayerForFeedforward(layer)) goto failed;
+    if (PSHandleSequenceAtOnce(layer)) {
+        PSErr(
+            NULL, "Layer[%d]: sequence input not currently supported in "
+            "convolutonal layers: remove FLAG_USE_SEQUENCES.", layer->index
+        );
+        return 0;
+    }
     net = layer->network;
     int do_dump =
         (net->training != NULL && net->training->debug_dump_to != NULL);
@@ -894,6 +901,13 @@ failed:
 
 int PSPool(PSLayer *layer, ...) {
     PSNeuralNetwork *net = layer->network;
+    if (PSHandleSequenceAtOnce(layer)) {
+        PSErr(
+            NULL, "Layer[%d]: sequence input not currently supported in "
+            "pooling layers: remove FLAG_USE_SEQUENCES.", layer->index
+        );
+        return 0;
+    }
     if (layer->neurons == NULL) {
         PSErr(NULL, "Layer[%d] has no neurons!", layer->index);
         return 0;
