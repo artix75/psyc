@@ -2255,6 +2255,7 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
             PSErr(__func__, "Could not allocate network layers!");
             return NULL;
         }
+        if (layer->flags & FLAG_ONEHOT) network->flags |= FLAG_ONEHOT;
         if (network->flags & FLAG_ONEHOT) {
             layer->flags |= FLAG_ONEHOT;
             layer->onehot_vector_size = size;
