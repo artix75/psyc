@@ -2177,15 +2177,13 @@ int initGenericLayer(PSLayer *layer, int size, int previous_size,
             layer->derivative = PSSigmoidDerivative;
         }
         layer->feedforward = PSFullFeedforward;
-        layer->backprop = PSFullBackprop;
     } else {
         layer->activate = NULL;
         layer->derivative = NULL;
         layer->feedforward = softmaxFeedforward;
-        layer->backprop = NULL; /* Softmax layer should always be output
-                                 * layer. */
         layer->network->loss = PSCrossEntropyLoss;
     }
+    layer->backprop = PSFullBackprop;
     return 1;
 memerr:
     PSPrintMemoryErrorMsg();
@@ -2452,7 +2450,7 @@ int feedforwardThroughTime(PSNeuralNetwork *network, PSFloat *values,
      * input layer. */
     if (values == NULL) {
         if (first->index == 0) {
-            PSErr(NULL, "Recurrent network with sequence input cannot have"
+            PSErr(NULL, "Recurrent network with sequence input cannot "
                   " receive NULL values");
             return 0;
         }
@@ -2967,8 +2965,9 @@ int PSBeforeLayerBackprop(PSLayer *layer, PSLayer *previous, int *step,
 {
     assert(inputs != NULL);
     assert(outputs != NULL);
+    if (previous == NULL) previous = PSGetPreviousLayer(layer);
     int is_recurrent = PSIsRecurrent(layer),
-        prev_is_recurrent = PSIsRecurrent(previous),
+        prev_is_recurrent = (previous != NULL && PSIsRecurrent(previous)),
         handle_seq = PSHandleSequenceAtOnce(layer),
         t = 0, prev_t = 0, slen = 1;
     *outputs = NULL;
@@ -2989,18 +2988,19 @@ int PSBeforeLayerBackprop(PSLayer *layer, PSLayer *previous, int *step,
         slen = PSStateSequenceLength(layer);
         assert(slen > 0);
         *outputs = layer->states;
-        *inputs = previous->states;
+        if (previous != NULL) *inputs = previous->states;
+        else *inputs = NULL;
         if (PSMatrixDim(layer->delta, 0) != slen)
             if (!resetLayerDeltas(layer, 1)) return 0;
     }
     if (*outputs == NULL && !handle_seq) *outputs = PSGetStates(layer, t);
-    if (*inputs == NULL && !handle_seq)
+    if (*inputs == NULL && previous != NULL && !handle_seq)
         *inputs = PSGetStates(previous, prev_t);
     if (*outputs == NULL) {
         PSErr(NULL, "Layer[%d]: NULL outputs", layer->index);
         return 0;
     }
-    if (*inputs == NULL) {
+    if (*inputs == NULL && previous != NULL) {
         PSErr(NULL, "Layer[%d]: NULL inputs", previous->index);
         return 0;
     }
@@ -3060,20 +3060,17 @@ int PSUpdatePreviousLayerDelta(PSLayer *layer, PSLayer *previous,
     return ok;
 }
 
-int softmaxLayerBackprop(PSLayer *layer, PSLayer *previous_layer, PSFloat *y,
-                         PSGradient *gradient, ...)
-{
+int computeSoftmaxOutputDelta(PSLayer *layer, PSFloat *y, ...) {
     PSNeuralNetwork *network = layer->network;
     assert(layer->type == SoftMax);
     int t = 0, ok = 1, handle_seq = PSHandleSequenceAtOnce(layer),
         seqlen = 1;
     int apply_derivative = outputDerivativeNeeded(network);
     int onehot = (layer->flags & FLAG_ONEHOT);
-    int use_bias = !(layer->flags & FLAG_NO_BIAS);
     PSFloat *outputs = NULL, *inputs = NULL;
     va_list args;
-    va_start(args, gradient);
-    ok = PSBeforeLayerBackprop(layer, previous_layer, &t, &seqlen, &outputs,
+    va_start(args, y);
+    ok = PSBeforeLayerBackprop(layer, NULL, &t, &seqlen, &outputs,
                                &inputs, args);
     va_end(args);
     if (!ok) return 0;
@@ -3113,19 +3110,10 @@ int softmaxLayerBackprop(PSLayer *layer, PSLayer *previous_layer, PSFloat *y,
             out_p += layer->size;
         }
     }
-    /* Update gradients */
-    PSUpdateGradient(gradient, inputs, layer, previous_layer, use_bias, seqlen);
-    /* Update previous layer delta */
-    if (previous_layer->delta != NULL) {
-        if (!PSUpdatePreviousLayerDelta(layer, previous_layer, 0, seqlen))
-            return 0;
-    }
     return 1;
 }
 
-int outputLayerBackprop(PSLayer *layer, PSLayer *previous_layer,
-                        PSFloat *y, PSGradient *gradient, ...)
-{
+int computeOutputDelta(PSLayer *layer, PSFloat *y, ...) {
     PSNeuralNetwork *network = layer->network;
     int handle_seq = PSHandleSequenceAtOnce(layer);
     int is_softmax = layer->type == SoftMax;
@@ -3133,17 +3121,17 @@ int outputLayerBackprop(PSLayer *layer, PSLayer *previous_layer,
     PSFloat *outputs = NULL, *inputs = NULL;
     /* Checks */
     va_list args;
-    va_start(args, gradient);
-    ok = PSBeforeLayerBackprop(layer, previous_layer, &t, &seqlen, &outputs,
-                               &inputs, args);
+    va_start(args, y);
+    ok = PSBeforeLayerBackprop(layer, NULL, &t, &seqlen,&outputs,&inputs,args);
     va_end(args);
     if (!ok) return 0;
-    if (is_softmax)
-        return softmaxLayerBackprop(layer, previous_layer, y, gradient, t);
-    int apply_derivative = outputDerivativeNeeded(network);
+    if (is_softmax) return computeSoftmaxOutputDelta(layer, y, t);
     int onehot = (layer->flags & FLAG_ONEHOT);
-    int use_bias = !(layer->flags & FLAG_NO_BIAS);
     PSMatrix delta = layer->delta;
+    if (delta == NULL) {
+        PSErr(NULL, "Output layer[%d] has no delta");
+        return 0;
+    }
     uint64_t delta_len = PSMatrixLength(delta);
     PSMathOpts mopts = {.acceleration = network->acceleration};
     /* Compute delta */
@@ -3157,19 +3145,6 @@ int outputLayerBackprop(PSLayer *layer, PSLayer *previous_layer,
             delta_p[oidx] -= 1;
             delta_p += layer->size;
         }
-    }
-    if (apply_derivative && layer->derivative != NULL) {
-        ok = PSApplyDerivative(
-            layer->derivative, delta, outputs, delta_len, &mopts
-        );
-        if (!ok) return 0;
-    }
-    /* Update gradients */
-    PSUpdateGradient(gradient, inputs, layer, previous_layer, use_bias, seqlen);
-    /* Update previous layer delta */
-    if (previous_layer->delta != NULL) {
-        if (!PSUpdatePreviousLayerDelta(layer, previous_layer, 0, seqlen))
-            return 0;
     }
     return 1;
 }
@@ -3290,7 +3265,6 @@ int backpropThroughTime(PSNeuralNetwork *network, PSFloat *y,
     for (t = last_t; t >= 0; t--) {
         int lowest_t = t - bptt_truncate;
         if (lowest_t < 0) lowest_t = 0;
-        PSLayer *previous_layer = NULL;
         if (recurrent_output) {
             /* Backpropagate starting from output layer. */
             PSFloat *timestep_y = NULL;
@@ -3298,36 +3272,23 @@ int backpropThroughTime(PSNeuralNetwork *network, PSFloat *y,
                 int timestep_offset = t * ysize;
                 timestep_y = y + timestep_offset;
             } else timestep_y = eos_labels;
-            PSGradient *lgradients =
-                gradients[netsize - 2];/* No gradients for inputs*/
-            previous_layer = network->layers[output_layer->index - 1];
-            /* If BPTT is truncated, delta value from previous iteration
-             * is not cumulated since it has been already backpropagated
-             * to previous timesteps during previous iteration.
-             * So, reset previous layer deltas. */
-            if (do_truncate && Recurrent == previous_layer->type)
-                resetLayerDeltas(previous_layer, 0);
-            ok = outputLayerBackprop(
-                output_layer, previous_layer, timestep_y, lgradients, t
-            );
+            ok = computeOutputDelta(output_layer, timestep_y, t);
             if (!ok) goto final;
-        } else previous_layer = last_recurrent;
-
-        /*  Cycle through other layers */
-        for (i = previous_layer->index; i > 0; i--) {
+        }
+        /*  Cycle through layers */
+        for (i = output_layer->index; i > 0; i--) {
             PSLayer *layer = network->layers[i];
-            previous_layer = network->layers[i - 1];
+            PSLayer *previous_layer = network->layers[i - 1];
             if (layer->pretrained) break;
             PSGradient *lgradients = gradients[i - 1];
-            if (!PSIsRecurrent(layer)) break;
+            /*if (!PSIsRecurrent(layer)) break;*/ /* TODO: why this?? */
             PSLayerType ltype = layer->type;
-            int is_recurrent = (Recurrent == ltype);
             int is_lstm = (LSTM == ltype);
             int is_gru = (GRU == ltype);
-            if (!is_recurrent && !is_lstm && !is_gru) continue;
+            /*if (!is_recurrent && !is_lstm && !is_gru) continue;*/ //Why this?
 
             /*  Apply derivative on layer deltas */
-            if (!is_lstm && !is_gru) {
+            if (layer->derivative != NULL && !is_lstm && !is_gru) {
                 delta = layer->delta;
                 PSMathOpts mopts = {
                     .acceleration = layer->network->acceleration
@@ -3338,6 +3299,10 @@ int backpropThroughTime(PSNeuralNetwork *network, PSFloat *y,
                 );
                 if (!ok) return 0;
             }
+            /* If BPTT is truncated, delta value from previous iteration
+             * is not cumulated since it has been already backpropagated
+             * to previous timesteps during previous iteration.
+             * So, reset previous layer deltas. */
             if (do_truncate && Recurrent == previous_layer->type)
                 resetLayerDeltas(previous_layer, 0);
             ok = layer->backprop(
@@ -3372,11 +3337,6 @@ PSGradient **backprop(PSNeuralNetwork *network, PSFloat *x, PSFloat *y,
     if (gradients == NULL) return NULL;
     int netsize = network->size, is_recurrent = PSIsRecurrent(network);
     PSLayer *output_layer = network->layers[netsize - 1];
-    if (output_layer->type != FullyConnected && output_layer->type != SoftMax){
-        PSErr(NULL, "Output layer must be FullyConnected or SoftMax");
-        ok = 0;
-        goto final;
-    }
     PSGradient *lgradients = gradients[netsize - 2]; /* No gradient for
                                                         inputs */
     PSLayer *previous_layer = NULL;
@@ -3425,11 +3385,10 @@ PSGradient **backprop(PSNeuralNetwork *network, PSFloat *x, PSFloat *y,
             goto final;
         }
     } else {
-        previous_layer = network->layers[output_layer->index - 1];
-        ok = outputLayerBackprop(output_layer, previous_layer, y, lgradients);
+        ok = computeOutputDelta(output_layer, y);
         if (!ok) goto final;
     }
-    for (i = previous_layer->index; i > 0; i--) {
+    for (i = output_layer->index; i > 0; i--) {
         PSLayer *layer = network->layers[i];
         previous_layer = network->layers[i - 1];
         if (layer->pretrained) break;
@@ -3454,7 +3413,7 @@ PSGradient **backprop(PSNeuralNetwork *network, PSFloat *x, PSFloat *y,
             FullyConnected == ltype || Embedding == ltype ||
             Dropout == ltype || Normalization == ltype ||
             (Pooling == ltype && Convolutional == prev_ltype) ||
-            Convolutional == ltype
+            Convolutional == ltype || SoftMax == ltype
         );
         if (!ok) {
             PSErr(NULL, "Backprop from %s to %s not supported!\n",
