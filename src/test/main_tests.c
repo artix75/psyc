@@ -3979,7 +3979,7 @@ int testMathsStd(TestCase *tc, Test *test) {
 #endif
 #ifdef USE_AVX
     opts.acceleration = PSAcceleration_AVX;
-    stddev = PSstddev(x, 6, &opts);
+    stddev = PSStdDev(x, 6, &opts);
     stddev = getRoundedFloatDec(stddev, 4);
     testAssertWithMessage(
         (stddev == expected), test, "StdDev (AVX) != Expected: %g != %g",
