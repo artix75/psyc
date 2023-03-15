@@ -2616,6 +2616,25 @@ int PSFeedforward(PSNeuralNetwork *network, PSFloat *values) {
     return feedforward(network, values, 0);
 }
 
+/* Feedforward `inputs` to `network` and get the index of the maximum state
+ * from the output layer. */
+int PSClassify(PSNeuralNetwork *network, PSFloat *inputs) {
+    int ok = PSFeedforward(network, inputs);
+    if (!ok) {
+        PSErr(__func__, "Feedforward failed");
+        return -1;
+    };
+    PSLayer *out = PSGetOutputLayer(network);
+    int max_idx = 0, seqlen = PSStateSequenceLength(out),
+        t = (int) seqlen - 1;
+    if (t < 0) t = 0;
+    if (!PSFindLayerMaxState(out, NULL, &max_idx, t)) {
+        PSErr(__func__, "Failed to find neuron with max value");
+        return -1;
+    }
+    return max_idx;
+}
+
 PSGradient *createLayerGradients(PSLayer *layer) {
     if (layer == NULL) return NULL;
     if (layer->type == Pooling || layer->type == Dropout) return NULL;
@@ -2658,23 +2677,6 @@ PSGradient *createLayerGradients(PSLayer *layer) {
         gradients->tmp = malloc(max_count * sizeof(PSFloat));
     }
     return gradients;
-}
-
-int PSClassify(PSNeuralNetwork *network, PSFloat *inputs) {
-    int ok = PSFeedforward(network, inputs);
-    if (!ok) {
-        PSErr(__func__, "Feedforward failed");
-        return -1;
-    };
-    PSLayer *out = PSGetOutputLayer(network);
-    int max_idx = 0, seqlen = PSStateSequenceLength(out),
-        t = (int) seqlen - 1;
-    if (t < 0) t = 0;
-    if (!PSFindLayerMaxState(out, NULL, &max_idx, t)) {
-        PSErr(__func__, "Failed to find neuron with max value");
-        return -1;
-    }
-    return max_idx;
 }
 
 PSGradient **createGradients(PSNeuralNetwork *network) {

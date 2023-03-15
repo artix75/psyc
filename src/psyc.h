@@ -69,7 +69,7 @@
 #define TRAINING_PHASE_BACKPROP     2
 #define TRAINING_PHASE_UPDATE_GRAD  3
 
-#define PS_NULL_VALUE -9999999.99
+#define PS_NULL_VALUE PSFLOAT_MIN
 
 /* Layer/Network Flags */
 #define FLAG_NONE 0

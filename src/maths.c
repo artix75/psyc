@@ -148,6 +148,43 @@ PSFloat PSGaussianRandom(PSFloat mean, PSFloat stddev) {
     return (r > 0.5 ? y : x);
 }
 
+unsigned int PSRandomInt(unsigned int range, PSFloat *weights, int *err,
+                         PSMathOpts *opts)
+{
+    if (!randomSeeded) {
+        randomSeeded = 1;
+        srand(time(NULL));
+    }
+    if (err != NULL) *err = 0;
+    if (range == 0) return 0;
+    if (weights == NULL) {
+        if (range > RAND_MAX) {
+            PSFloat r = PSNormalizedRandom() * (PSFloat) range;
+            return (int) r;
+        } else return rand() % range;
+    } else {
+        PSFloat cumulated_weights[range];
+        if (!PSCumulativeSum(weights, cumulated_weights, range)) {
+            if (err != NULL) *err = 1;
+            return 0;
+        }
+        PSFloat last = cumulated_weights[range - 1];
+        PSMathOpts mopts = {.acceleration = PSGlobalAcceleration};
+        if (opts != NULL) mopts.acceleration = opts->acceleration;
+        PSDivideVectorScalar(
+            cumulated_weights, last, cumulated_weights, range, &mopts
+        );
+        PSFloat r = PSNormalizedRandom();
+        unsigned int idx = 0;
+        for (; idx < range; idx++) {
+            if (cumulated_weights[idx] <= r) continue;
+            break;
+        }
+        if (idx >= range) idx = range - 1;
+        return idx;
+    }
+}
+
 /**** PSMatrix ****/
 
 #define PSMatrixGetHeader(matrix) \
@@ -1794,6 +1831,19 @@ PSFloat PSSumVectorElements(PSFloat *a, uint64_t length, PSMathOpts *opts) {
     uint64_t i;
     for (i = 0; i < length; i++) sum += a[i];
     return sum;
+}
+
+int PSCumulativeSum(PSFloat *a, PSFloat *dest, uint64_t length) {
+    if (a == NULL || dest == NULL) {
+        PSErr(__func__, "`a` and `dest` cannot be null");
+        return 0;
+    }
+    PSFloat sum = 0.0;
+    for (uint64_t i = 0; i < length; i++) {
+        sum += a[i];
+        dest[i] = sum;
+    }
+    return 1;
 }
 
 PSFloat PSMean(PSFloat *a, uint64_t length, PSMathOpts *opts) {

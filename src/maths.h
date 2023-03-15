@@ -110,6 +110,8 @@ typedef struct PSMathOpts {
 
 PSFloat PSNormalizedRandom();
 PSFloat PSGaussianRandom(PSFloat mean, PSFloat stddev);
+unsigned int PSRandomInt(unsigned int range, PSFloat *weights, int *err,
+                         PSMathOpts *opts);
 
 /**** PSMatrix ****/
 
@@ -192,6 +194,7 @@ void PSVectorMapWithLimit(PSFloat *a, PSFloat limit, PSFloat mapper,
 PSFloat PSVectorMax(PSFloat *a, uint64_t *index, uint64_t length,
                     PSMathOpts *opts);
 PSFloat PSSumVectorElements(PSFloat *a, uint64_t length, PSMathOpts *opts);
+int PSCumulativeSum(PSFloat *a, PSFloat *dest, uint64_t length);
 PSFloat PSMean(PSFloat *a, uint64_t length, PSMathOpts *opts);
 PSFloat PSVariance(PSFloat *a, uint64_t len, PSMathOpts *opts);
 PSFloat PSStdDev(PSFloat *a, uint64_t len, PSMathOpts *opts);
