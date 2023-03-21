@@ -485,6 +485,7 @@ PSFloat *readSerializedFloatArray(FILE *in, char *sep, int *length,
     int seplen = strlen(sep);
     if (seplen == 0) {
         PSErr(__func__, "`sep` is empty");
+        return NULL;
     }
     int arraylen = capacity;
     array = calloc(arraylen, sizeof(PSFloat));

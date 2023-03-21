@@ -251,7 +251,6 @@ int PSInitDropoutLayer(PSNeuralNetwork *network, PSLayer *layer,
     layer->activate = NULL;
     layer->derivative = NULL;
     layer->states = PSMatrixZeros(2, 1, layer->size);
-    layer->delta = PSMatrixZeros(2, 1, layer->size);
     layer->feedforward = PSDropoutFeedforward;
     layer->backprop = PSDropoutBackprop;
     return 1;

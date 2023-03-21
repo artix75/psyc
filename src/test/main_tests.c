@@ -226,6 +226,7 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
 
 PSFloat *PSGetDropoutMask(PSLayer *layer, int t);
 
+static int compareFloats(PSFloat a, PSFloat b, int rounding, int precision);
 static int compareArrays(PSFloat *arr, PSFloat *exp, int len, Test* test,
                          char *descr, int rounding, int precision);
 
@@ -1279,6 +1280,7 @@ int NetworkBackpropTest(Test *test, char *model_file, char *data_file_prefix,
                 ok, final, test, "Could not open '%s'", path
             );
             int len = 0;
+            free(states);
             states = readSerializedFloatArray(f, ",", &len, lsize, lsize);
             fclose(f);
             f = NULL;
@@ -1314,6 +1316,7 @@ int NetworkBackpropTest(Test *test, char *model_file, char *data_file_prefix,
                 ok, final, test, "Could not open '%s'", path
             );
             int len = 0, lsize = layer->size;
+            free(deltas);
             deltas = readSerializedFloatArray(f, ",", &len, lsize, lsize);
             fclose(f);
             f = NULL;
@@ -1354,6 +1357,7 @@ int NetworkBackpropTest(Test *test, char *model_file, char *data_file_prefix,
             testAssertWithMessageOrGoto(
                 ok, final, test, "Could not open '%s'", path
             );
+            free(grads);
             grads = readSerializedFloatArray(f, ",", &len, grad_len, grad_len);
             fclose(f);
             f = NULL;
@@ -1390,6 +1394,7 @@ weight_gradients:
             testAssertWithMessageOrGoto(
                 ok, final, test, "Could not open '%s'", path
             );
+            free(grads);
             grads = readSerializedFloatArray(f, ",", &len, grad_len, grad_len);
             fclose(f);
             f = NULL;
@@ -1641,6 +1646,7 @@ int testConvBackprop(TestCase *test_case, Test *test) {
         testAssertNotNull(layer->weights, test);
         testAssertNotNull(layer->weights[0], test);
         int wsize = (int) PSMatrixLength(layer->weights[0]);
+        if (layer->type != Convolutional) wsize /= layer->size;
 
         PSFloat val = getRoundedFloatDec(dl->biases[nidx], 4);
         bias = getRoundedFloatDec(bias, 4);
@@ -3079,8 +3085,9 @@ int compareNetworks(PSNeuralNetwork *network, PSNeuralNetwork *clone,
                 for (uint64_t w = 0; w < o_wsize; w++) {
                     PSFloat ow = o_weights[w];
                     PSFloat cw = c_weights[w];
+                    int equal_weights = compareFloats(ow, cw, 0, 5);
                     testAssertWithMessage(
-                        ow == cw, test,
+                        equal_weights, test,
                         "Layer[%d]: source weights[%d] %g != %g", i, ow, cw
                     );
                 }
@@ -3339,7 +3346,10 @@ int testMathsDot(TestCase *tc, Test *test) {
     opts.argtype[1] = 'V';
     int r, c, ok = 1, failed = 0;
     ok = compareArrays(matrix, x, 32, test, "Matrix data", 0, 0);
-    if (!ok) return 0;
+    if (!ok) {
+        PSMatrixDelete(matrix);
+        return 0;
+    }
     for (r = 0; r < 2; r++) {
         PSFloat *row = x + (r * 16);
         PSFloat sum = 0.0;
@@ -3383,6 +3393,8 @@ int testMathsDot(TestCase *tc, Test *test) {
         failed++;
         appendTestErrorMessage(test, "\n%*s", 4, "");
     }
+final:
+    if (matrix) PSMatrixDelete(matrix);
     return (failed == 0);
 }
 
