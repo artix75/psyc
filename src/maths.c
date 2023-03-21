@@ -1529,7 +1529,6 @@ void PSDivideVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
 #if defined(USE_AVX)
     if (PSAVXEnabled(acceleration)) {
         AVXIterativeDivValue(length, a, b, dest, i, 0, 0, mode);
-        return;
     }
 #else
     UNUSED(acceleration);
