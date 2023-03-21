@@ -104,6 +104,7 @@ int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
         neuron->bias = layer->biases + i;
         layer->neurons[i] = neuron;
         neuron->layer = layer;
+        neuron->extra = NULL;
     }
     layer->flags |= FLAG_RECURRENT;
     if (layer->activate == NULL) {

@@ -108,7 +108,7 @@ int PSNesterovOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
             tmp = tmpalloc;
         }
         PSMathOpts mopts = {.acceleration = acceleration};
-        memcpy(tmp, mgrads, len * sizeof(mgrads));
+        PSVectorCopy(tmp, mgrads, len);
         mopts.store_mode = PS_STORE_MODE_SET;
         PSMultiplyVectorScalar(mgrads, momentum, mgrads, len, &mopts);
         mopts.store_mode = PS_STORE_MODE_ADD;
