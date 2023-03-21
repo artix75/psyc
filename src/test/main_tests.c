@@ -842,20 +842,34 @@ int genericSetup(TestCase *test_case) {
     PSFloat *test_data = NULL;
     char test_img_path[PATH_MAX] = {0};
     char test_lbl_path[PATH_MAX] = {0};
-    char *root = dirname((char *)executable_path);
+    char *path_dup = strdup(executable_path);
+    if (path_dup == NULL) {
+        PSPrintMemoryErrorMsg();
+        return 0;
+    }
+    char *root = dirname(path_dup);
     if (root == NULL) {
         PSErr(__func__, "Could not determine PsyC path from '%s'",
               executable_path);
+        free(path_dup);
         return 0;
     }
     root = dirname(root);
     if (root == NULL) {
         PSErr(__func__, "Could not determine PsyC path from '%s'",
               executable_path);
+        free(path_dup);
         return 0;
     }
-    if (!joinPath(root, TEST_IMAGE_FILE, test_img_path)) return 0;
-    if (!joinPath(root, TEST_LABEL_FILE, test_lbl_path)) return 0;
+    if (!joinPath(root, TEST_IMAGE_FILE, test_img_path)) {
+        free(path_dup);
+        return 0;
+    }
+    if (!joinPath(root, TEST_LABEL_FILE, test_lbl_path)) {
+        free(path_dup);
+        return 0;
+    }
+    free(path_dup);
     testlen = PSLoadMNISTData(DATA_TYPE_TEST, test_img_path, test_lbl_path,
                               &test_data);
     test_case->data[1] = test_data;
