@@ -4864,18 +4864,18 @@ int testActSoftmax(TestCase *tc, Test *test) {
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     opts.acceleration = PSAcceleration_ACF;
     PSSoftmax(x, res, 3, &opts);
-    ok = compareArrays(res, expected, 6, test, "Accelerate Framework", 4, 0);
+    ok = compareArrays(res, expected, 3, test, "Accelerate Framework", 4, 0);
     if (!ok) return 0;
 #endif
 #ifdef USE_AVX
     opts.acceleration = PSAcceleration_AVX;
     PSSoftmax(x, res, 3, &opts);
-    ok = compareArrays(res, expected, 6, test, "AVX", 5, 0);
+    ok = compareArrays(res, expected, 3, test, "AVX", 5, 0);
     if (!ok) return 0;
 #endif
     opts.acceleration = PSAcceleration_None;
     PSSoftmax(x, res, 3, &opts);
-    ok = compareArrays(res, expected, 6, test, "No Acceleration:", 5, 0);
+    ok = compareArrays(res, expected, 3, test, "No Acceleration:", 5, 0);
     if (!ok) return 0;
     return ok;
 }

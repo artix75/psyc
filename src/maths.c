@@ -1474,7 +1474,7 @@ void PSSubtractVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
     /* No Acceleration */
     switch (mode) {
         case PS_STORE_MODE_SET:
-            for (; i < length; i++) dest[i] = a[i]- b;
+            for (; i < length; i++) dest[i] = a[i] - b;
             break;
         case PS_STORE_MODE_ADD:
             for (; i < length; i++) dest[i] += a[i] - b;
@@ -1529,6 +1529,7 @@ void PSDivideVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
 #if defined(USE_AVX)
     if (PSAVXEnabled(acceleration)) {
         AVXIterativeDivValue(length, a, b, dest, i, 0, 0, mode);
+        return;
     }
 #else
     UNUSED(acceleration);

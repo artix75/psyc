@@ -123,7 +123,7 @@ void PSSoftmax(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts) {
         PSSubtractVectorScalar(vec, max, dest, len, &mopts);
         PSVectorExp(dest, NULL, len, &mopts);
         esum = PSSumVectorElements(dest, len, &mopts);
-        PSDivideVectorScalar(dest, esum, NULL, len, &mopts);
+        PSDivideVectorScalar(dest, esum, dest, len, &mopts);
         return;
     }
     uint64_t i;
