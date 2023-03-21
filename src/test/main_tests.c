@@ -50,9 +50,9 @@
 #include "../avx.h"
 #endif
 
-#define PRETRAINED_FULL_NETWORK "../../resources/pretrained.mnist.data"
+#define PRETRAINED_FULL_NETWORK "resources/pretrained.mnist.psmodel"
 #define CONVOLUTIONAL_NETWORK "resources/cnn.data"
-#define CONVOLUTIONAL_TRAINED_NETWORK "../../resources/pretrained.cnn.data"
+#define CONVOLUTIONAL_TRAINED_NETWORK "resources/pretrained.cnn.psmodel"
 #define CONVOLUTIONAL_CIFAR_NETWORK "resources/cifar-cnn.psmodel"
 #define CIFAR_IMAGE_PATH "resources/cifar-image.data"
 #define CIFAR_LABEL_PATH "resources/cifar-label.data"
