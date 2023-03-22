@@ -196,10 +196,8 @@
 #define AVXIterativeSum(size, x, y, dest, i, mode) do {\
     int avx_step_len = AVXGetStepLen(size);\
     int avx_steps = (avx_step_len > 0 ? size / avx_step_len : 0), avx_step;\
-    int x_is_dest = (x == dest);\
     for (avx_step = 0; avx_step < avx_steps; avx_step++) {\
-        int doffs = (x_is_dest ? i : 0);\
-        int c = AVXSum(x + i, y + i, avx_step_len, dest + doffs, mode);\
+        int c = AVXSum(x + i, y + i, avx_step_len, dest + i, mode);\
         assert(c == avx_step_len);\
         i += avx_step_len;\
     }\
@@ -210,10 +208,8 @@
 #define AVXIterativeDiff(size, x, y, dest, i, mode) do {\
     int avx_step_len = AVXGetStepLen(size);\
     int avx_steps = (avx_step_len > 0 ? size / avx_step_len : 0), avx_step;\
-    int x_is_dest = (x == dest);\
     for (avx_step = 0; avx_step < avx_steps; avx_step++) {\
-        int doffs = (x_is_dest ? i : 0);\
-        int c = AVXDiff(x + i, y + i, avx_step_len, dest + doffs, mode);\
+        int c = AVXDiff(x + i, y + i, avx_step_len, dest + i, mode);\
         assert(c == avx_step_len);\
         i += avx_step_len;\
     }\
@@ -224,10 +220,8 @@
 #define AVXIterativeNeg(size, x, dest, i, mode) do {\
     int avx_step_len = AVXGetStepLen(size);\
     int avx_steps = (avx_step_len > 0 ? size / avx_step_len : 0), avx_step;\
-    int x_is_dest = (x == dest);\
     for (avx_step = 0; avx_step < avx_steps; avx_step++) {\
-        int doffs = (x_is_dest ? i : 0);\
-        int c = AVXNegate(x + i, dest + doffs, avx_step_len, mode);\
+        int c = AVXNegate(x + i, dest + i, avx_step_len, mode);\
         assert(c == avx_step_len);\
         i += avx_step_len;\
     }\
@@ -238,10 +232,8 @@
 #define AVXIterativeClip(size, x, min, max, dest, i, mode) do {\
     int avx_step_len = AVXGetStepLen(size);\
     int avx_steps = (avx_step_len > 0 ? size / avx_step_len : 0), avx_step;\
-    int x_is_dest = (x == dest);\
     for (avx_step = 0; avx_step < avx_steps; avx_step++) {\
-        int doffs = (x_is_dest ? i : 0);\
-        int c = AVXClip(x + i,min, max, dest + doffs, avx_step_len, mode);\
+        int c = AVXClip(x + i,min, max, dest + i, avx_step_len, mode);\
         assert(c == avx_step_len);\
         i += avx_step_len;\
     }\

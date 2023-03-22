@@ -1330,8 +1330,8 @@ void PSMultiplyVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
             avx_step_len > 0 ? length / avx_step_len : 0
         ), avx_step;
         for (avx_step = 0; avx_step < avx_steps; avx_step++) {
-            PSFloat *x = a + i, *y = b + i;
-            int c = AVXMultiply(x, y, length, dest, mode);
+            PSFloat *x = a + i, *y = b + i, *d = dest + i;
+            int c = AVXMultiply(x, y, length, d, mode);
             assert((uint64_t) c == avx_step_len);
             i += avx_step_len;
         }
@@ -1370,8 +1370,8 @@ void PSDivideVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
             avx_step_len > 0 ? length / avx_step_len : 0
         ), avx_step;
         for (avx_step = 0; avx_step < avx_steps; avx_step++) {
-            PSFloat *x = a + i, *y = b + i;
-            int c = AVXDivide(x, y, length, dest, mode);
+            PSFloat *x = a + i, *y = b + i, *d = dest + i;
+            int c = AVXDivide(x, y, length, d, mode);
             assert((uint64_t) c == avx_step_len);
             i += avx_step_len;
         }

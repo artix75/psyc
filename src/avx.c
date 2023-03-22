@@ -234,7 +234,7 @@ void AVX256StoreWithMode(PSFloat *dest, AVX256 src, int mode) {
     AVX256StoreUnalign(dest, src);
 }
 
-/* Simulatenously multiply values in array `x` with `value` using AVX.
+/* Simulatenously multiply values in array `x` by `value` using AVX.
  * Argument `size` is the size of the array. Since only multiple of AVX
  * vectors will be computed, only a part of the array could be used for
  * computation.
