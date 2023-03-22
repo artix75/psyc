@@ -1551,7 +1551,8 @@ void PSDivideScalarVector(PSFloat b, PSFloat *a, PSFloat *dest,
                           uint64_t length, PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE();
-#if defined(HAS_ACCELERATE_FRAMEWORK)
+#if defined(HAS_ACCELERATE_FRAMEWORK) && defined(__arm64__)
+    /* This seems to lead to nan in x86 arch., so only use it with arm64 */
     if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VDSPDivSV(b, a, dest, length);
         return;
