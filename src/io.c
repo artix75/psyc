@@ -93,6 +93,7 @@ int getLossFunctionIndex(PSLossFunction function);
 PSLossFunction getLossFunctionAtIndex(int index);
 void PSPrintLayerInfo(PSLayer *layer);
 const char *PSGetActivationName(PSActivationFunction func);
+PSFloat *PSSetSequenceStart(PSNeuralNetwork *network, PSFloat *start, int len);
 
 PSFloat string2float(char *str, int *valid) {
     char *endptr = NULL;
@@ -1598,8 +1599,8 @@ int PSLoadNetwork(PSNeuralNetwork *network, const char* filepath) {
     int v0 = 0, v1 = 0, v2 = 0;
     int epochs = 0, batch_count = 0, elements = 0, status = STATUS_UNTRAINED,
         batch_size = 0, rnn_mode = NonRecurrent,
-        max_recurrent_output_steps = MAX_RECURRENT_OUTPUT_STEPS,
-        eos_recurrent_output_index = -1, is_built = 0,
+        max_sequence_len = MAX_SEQUENCE_LENGTH,
+        sequence_end = -1, is_built = 0,
         acceleration = PSGlobalAcceleration;
     int ok = 1, has_model_def = 0;
     char sep[2];
@@ -1657,8 +1658,8 @@ scan_model_def:
                 case 5:  elements = val; break;
                 case 6:  batch_size = val; break;
                 case 7:  rnn_mode = (PSRecurrentNetworkMode) val; break;
-                case 8:  max_recurrent_output_steps = val; break;
-                case 9:  eos_recurrent_output_index = val; break;
+                case 8:  max_sequence_len = val; break;
+                case 9:  sequence_end = val; break;
                 case 10: is_built = val; break;
                 case 11: acceleration = val; break;
                 default:
@@ -1667,19 +1668,9 @@ scan_model_def:
         }
         if (rnn_mode != NonRecurrent)
             PSSetRecurrentNetworkMode(network, rnn_mode);
-        if (max_recurrent_output_steps > 0 || eos_recurrent_output_index >= 0) {
-            if (network->rnn_options == NULL) {
-                network->rnn_options =
-                    calloc(1, sizeof(PSRecurrentNetworkOptions));
-                if (network->rnn_options == NULL) {
-                    PSPrintMemoryErrorMsg();
-                    return 0;
-                }
-            }
-            network->rnn_options->sequence_stop_criterion.max_steps =
-                max_recurrent_output_steps;
-            network->rnn_options->sequence_stop_criterion.eos =
-                eos_recurrent_output_index;
+        if (max_sequence_len > 0 || sequence_end >= 0) {
+            network->sequence_settings.max_length = max_sequence_len;
+            network->sequence_settings.end = sequence_end;
         }
         network->status = status;
         if (status != STATUS_UNTRAINED) {
@@ -1729,6 +1720,24 @@ scan_model_def:
     if (!ok) goto final;
 
     if (verbose) printf("\n");
+    if (scanFileNoMatch(f, "sequence_start:")) {
+        int seqstartlen = 0;
+        PSFloat *seqstart = readSerializedFloatArray(
+            f, ",\n", &seqstartlen, 0, network->input_size
+        );
+        ok = seqstart != NULL && (uint32_t)seqstartlen == network->input_size;
+        if (!ok) {
+            free(seqstart);
+            loadErr(filepath, f, "Invalid sequence_start");
+            goto final;
+        }
+        if (!PSSetSequenceStart(network, seqstart, seqstartlen)) {
+            ok = 0;
+            free(seqstart);
+            loadErr(filepath, NULL, "Failed to set sequence start");
+            goto final;
+        }
+    }
     /* Check for traing data */
     if (scanFileNoMatch(f, MODEL_TRAINING_DATA_SEP)) {
         /* Model file has training data */
@@ -1846,12 +1855,9 @@ int PSSaveNetwork(PSNeuralNetwork *network, const char* filepath) {
         current_element = network->training->current_element;
         batch_size = network->training->batch_size;
     }
-    PSRecurrentNetworkMode rnn_mode = PSGetRecurrentNetworkMode(network);
-    int max_steps = 0, eos = -1;
-    if (network->rnn_options != NULL) {
-        max_steps = network->rnn_options->sequence_stop_criterion.max_steps;
-        eos = network->rnn_options->sequence_stop_criterion.eos;
-    }
+    PSRecurrentNetworkMode rnn_mode = network->rnn_mode;
+    int max_steps = network->sequence_settings.max_length;
+    int eos = network->sequence_settings.end;
     fprintf(f, "model:%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n", network->flags,
             loss_function, current_epoch, current_batch, network->status,
             current_element, batch_size, (int) rnn_mode,
@@ -1866,6 +1872,13 @@ int PSSaveNetwork(PSNeuralNetwork *network, const char* filepath) {
         PSLayerType ltype = layer->type;
         if (Pooling == ltype || layer->type == Dropout) continue;
         if (!writeLayerParameters(layer, opts, f, __func__)) return 0;
+    }
+    if (network->sequence_settings.start != NULL) {
+        fprintf(f, "sequence_start:");
+        ok = writeSerializedFloatArray(f, network->input_size, ",", 0,
+                                       network->sequence_settings.start);
+        if (!ok) return 0;
+        fprintf(f, "\n");
     }
     PSTrainingOptions *topts = PSGetNetworkTrainingOptions(network);
     PSGradient **memg1 = NULL, **memg2 = NULL;

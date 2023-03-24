@@ -41,7 +41,7 @@
 #endif
 
 #define DEFAULT_RECURRENT_MODE ManyToMany
-#define MAX_RECURRENT_OUTPUT_STEPS 10
+#define MAX_SEQUENCE_LENGTH 10
 #define DEFAULT_EOS_INDEX   -1
 
 #define STATUS_UNTRAINED    0
@@ -83,12 +83,17 @@
 #define FLAG_PRETRAINER     (1 << 4)
 #define FLAG_NON_TRAINABLE  (1 << 5)
 #define FLAG_USE_SEQUENCES  (1 << 6)
+#define FLAG_AUTOREGRESSION (1 << 7)
+#define FLAG_RANDREGRESSION (1 << 8)
 
 /* Training Flags */
-#define TRAINING_NO_SHUFFLE         (1 << 0)
-#define TRAINING_ADJUST_RATE        (1 << 1)
-#define TRAINING_WEIGHT_DECAY       (1 << 2)
-#define TRAINING_EPOCH_AS_SEQUENCE  (1 << 3)
+#define TRAINING_NO_SHUFFLE             (1 << 0)
+#define TRAINING_ADJUST_RATE            (1 << 1)
+#define TRAINING_WEIGHT_DECAY           (1 << 2)
+#define TRAINING_EPOCH_AS_SEQUENCE      (1 << 3)
+#define TRAINING_FLAG_SELFSUPERVISED    (1 << 4)
+#define TRAINING_FLAG_AUTOREGRESSION    (1 << 7)
+#define TRAINING_FLAG_TEACHER_FORCING   (1 << 8)
 
 #define PSIsRecurrent(o) (o->flags & FLAG_RECURRENT)
 #define PSSetRecurrent(o) (o->flags |= FLAG_RECURRENT)
@@ -187,15 +192,16 @@ typedef enum {
     OneToMany
 } PSRecurrentNetworkMode;
 
-typedef struct {
-    int max_steps;
-    int eos;
-} PSSequenceStopCriterion;
+typedef struct PSSequenceSettings {
+    int         max_length;
+    PSFloat     *start;
+    int         end;
+} PSSequenceSettings;
 
-typedef struct {
-    PSRecurrentNetworkMode  mode;
-    PSSequenceStopCriterion sequence_stop_criterion;
-} PSRecurrentNetworkOptions;
+typedef struct PSForwardOptions {
+    int                 flags;
+    PSSequenceSettings  *sequence_settings;
+} PSForwardOptions;
 
 typedef struct PSTrainingOptions {
     int                     epochs;
@@ -280,7 +286,8 @@ typedef struct PSNeuralNetwork {
     uint8_t                     status;
     uint32_t                    input_size;
     uint32_t                    output_size;
-    PSRecurrentNetworkOptions   *rnn_options;
+    PSSequenceSettings          sequence_settings;
+    PSRecurrentNetworkMode      rnn_mode;
     PSTrainingInfo              *training;
     PSTrainCallback             onEpochTrained;
     PSTrainCallback             onBatchTrained;
@@ -319,6 +326,8 @@ int PSSetState(PSLayer *layer, PSFloat state, int index, ...);
 int PSSetNeuronState(PSNeuron *neuron, double state, ...);
 int PSStateSequenceLength(PSLayer *layer);
 int PSFeedforward(PSNeuralNetwork *network, PSFloat *values);
+int PSAutoregression(PSNeuralNetwork *network, PSFloat *inputs,
+                     int randomized, PSSequenceSettings *sequence_settings);
 int PSClassify(PSNeuralNetwork *network, PSFloat *values);
 int PSFindLayerMaxState(PSLayer *layer, PSFloat *max_p, int *index_p,...);
 
@@ -344,13 +353,10 @@ char *PSGetLayerTypeLabel(PSLayer *layer);
 int PSIsNetworkBuilt(PSNeuralNetwork *network);
 int PSBuildNetwork(PSNeuralNetwork *network);
 int PSRebuildNetwork(PSNeuralNetwork *network);
-char *PSGetRecurrentModeLabel(PSRecurrentNetworkMode mode);
 void PSPrintNetworkInfo(PSNeuralNetwork *network);
 int PSDumpNetworkStates(PSNeuralNetwork *network, const char* filename);
 int PSDumpNetworkDeltas(PSNeuralNetwork *network, const char* filename);
-void PSSetDefaultRNNOptions(PSRecurrentNetworkOptions *opts);
 void PSSetDefaultTrainingOptions(PSTrainingOptions *options);
-PSRecurrentNetworkMode PSGetRecurrentNetworkMode(PSNeuralNetwork *network);
 int PSSetRecurrentNetworkMode(
     PSNeuralNetwork *network, PSRecurrentNetworkMode mode
 );

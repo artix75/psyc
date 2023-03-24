@@ -229,6 +229,7 @@ PSFloat *PSGetDropoutMask(PSLayer *layer, int t);
 static int compareFloats(PSFloat a, PSFloat b, int rounding, int precision);
 static int compareArrays(PSFloat *arr, PSFloat *exp, int len, Test* test,
                          char *descr, int rounding, int precision);
+char *PSGetRecurrentModeLabel(PSRecurrentNetworkMode mode);
 
 int testlen = 0;
 
@@ -959,7 +960,7 @@ int RNNSetup(TestCase *test_case) {
             return 0;
         }
     }
-    PSRecurrentNetworkMode rnn_mode = PSGetRecurrentNetworkMode(network);
+    PSRecurrentNetworkMode rnn_mode = network->rnn_mode;
     if (rnn_mode != ManyToMany) {
         fprintf(
             stderr, "\nInvalid Recurrent Network Mode: '%s'\n",
@@ -2040,10 +2041,8 @@ int testRNNOneHot(TestCase *test_case, Test *test) {
         }
     }
     standard_network->acceleration = PSGlobalAcceleration;
-    PSRecurrentNetworkMode onehot_rnn_mode =
-        PSGetRecurrentNetworkMode(onehot_network);
-    PSRecurrentNetworkMode std_rnn_mode =
-        PSGetRecurrentNetworkMode(standard_network);
+    PSRecurrentNetworkMode onehot_rnn_mode = onehot_network->rnn_mode;
+    PSRecurrentNetworkMode std_rnn_mode = standard_network->rnn_mode;
     ok = (onehot_rnn_mode == ManyToMany);
     testAssertWithMessageOrGoto(
         ok, final, test, "OneHot recurrent network mode is: '%s'",
@@ -2928,20 +2927,12 @@ int compareNetworks(PSNeuralNetwork *network, PSNeuralNetwork *clone,
                 *src_last_recurrent_layer = PSGetLastRecurrentLayer(network),
                 *clone_first_recurrent_layer = PSGetFirstRecurrentLayer(clone),
                 *clone_last_recurrent_layer = PSGetLastRecurrentLayer(clone);
-        PSRecurrentNetworkMode srcmode = PSGetRecurrentNetworkMode(network),
-                               clonemode = PSGetRecurrentNetworkMode(clone);
-        PSRecurrentNetworkOptions *src_rnn_opts = network->rnn_options,
-                                  *clone_rnn_opts = clone->rnn_options;
-        int src_max_steps = 0, clone_max_steps = 0, src_eos = -1,
-            clone_eos = -1;
-        if (src_rnn_opts) {
-            src_max_steps = src_rnn_opts->sequence_stop_criterion.max_steps;
-            src_eos = src_rnn_opts->sequence_stop_criterion.eos;
-        }
-        if (clone_rnn_opts) {
-            clone_max_steps = clone_rnn_opts->sequence_stop_criterion.max_steps;
-            clone_eos = clone_rnn_opts->sequence_stop_criterion.eos;
-        }
+        PSRecurrentNetworkMode srcmode = network->rnn_mode,
+                               clonemode = clone->rnn_mode;
+        int src_max_steps = network->sequence_settings.max_length,
+            clone_max_steps = clone->sequence_settings.max_length,
+            src_eos = network->sequence_settings.end,
+            clone_eos = clone->sequence_settings.end;
         testAssertWithMessage(
             (srcmode == clonemode), test,
             "Recurrent source mode: '%s', Recurrent clone mode: '%s'",
@@ -2950,14 +2941,14 @@ int compareNetworks(PSNeuralNetwork *network, PSNeuralNetwork *clone,
         );
         testAssertWithMessage(
             (src_max_steps == clone_max_steps), test,
-             "network->rnn_options.sequence_stop_criterion.max_steps != "
-             "clone->rnn_options.sequence_stop_criterion.max_steps: %d != %d",
+             "network->sequence_settings.max_length != "
+             "clone->sequence_settings.max_length: %d != %d",
              src_max_steps, clone_max_steps
         );
         testAssertWithMessage(
             (src_eos == clone_eos), test,
-             "network->rnn_options.sequence_stop_criterion.eos != "
-             "clone->rnn_options.sequence_stop_criterion.eos: %d != %d ",
+             "network->sequence_settings.end != "
+             "clone->sequence_settings.end: %d != %d ",
              src_eos, clone_eos
         );
         if (src_first_recurrent_layer == NULL)
@@ -3104,8 +3095,7 @@ static int testRecurrentNetworkMode(PSNeuralNetwork *network,
 {
     testAssertNotNull(network, test);
     if (network->size == 0) return 1;
-    PSRecurrentNetworkMode network_rnn_mode =
-        PSGetRecurrentNetworkMode(network);
+    PSRecurrentNetworkMode network_rnn_mode = network->rnn_mode;
     testAssertWithMessage(
         network_rnn_mode == mode, test,
         "Recurrent network mode %s != expected %s",
