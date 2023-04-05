@@ -209,7 +209,7 @@ int PSAdaDeltaOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
         PSVectorSqrt(tmp, tmp, len, &mopts);
         PSMultiplyVectors(tmp, grads, tmp, len, &mopts);
         PSVectorNeg(tmp, dx, len, &mopts);
-        /* *xgrads = rho * *xgrads + (1 - rho) * dx *dx; */
+        /* *xgrads = rho * *xgrads + (1 - rho) * dx * dx; */
         PSMultiplyVectors(dx, dx, dxsqr, len, &mopts);
         PSMultiplyVectorScalar(xgrads, rho, xgrads, len, &mopts);
         mopts.store_mode = PS_STORE_MODE_ADD;
@@ -389,7 +389,7 @@ int PSAdamOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
             xgrads[i] = xgrads[i] * beta2 + (1 - beta2) * grads[i] * grads[i];
             correct1 = mgrads[i] * (1 - PSPow(beta1, iteration));
             correct2 = xgrads[i] * (1 - PSPow(beta2, iteration));
-            dx =  - rate *correct1 / (PSSqrt(correct2) + eps);
+            dx =  - rate * correct1 / (PSSqrt(correct2) + eps);
             params[i] += dx;
         }
     } else {

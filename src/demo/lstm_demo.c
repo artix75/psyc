@@ -149,7 +149,7 @@ void printSample(PSNeuralNetwork *network, int input_idx, int len) {
     char *last_word = word;
     printf("%s", word);
     while (c-- >= 0) {
-        int ok = PSFeedforward(network, data);
+        int ok = PSForward(network, data);
         if (!ok) {
             network->status = oldstatus;
             fprintf(

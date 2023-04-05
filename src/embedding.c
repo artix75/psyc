@@ -52,7 +52,7 @@ PSFloat PSInitParam(int param_type, PSLayerDef *ldef, PSFloat range,
 PSActivationFunction PSGetActivationDerivative(PSActivationFunction func);
 int PSFullBackprop(PSLayer *layer, PSLayer *previous_layer,
                  PSGradient *gradient, ...);
-int PSFullFeedforward(PSLayer *layer, ...);
+int PSFullForward(PSLayer *layer, ...);
 PSFloat *PSGetInputsFromTrainingData(PSFloat *training_data, int data_size,
                                      int num_elements, int input_size,
                                      int label_size, int recurrent_input,
@@ -430,7 +430,7 @@ int PSInitEmbeddingLayer(PSLayer *layer, int size, int previous_size,
         neuron->layer = layer;
         layer->neurons[i] = neuron;
     }
-    layer->feedforward = PSFullFeedforward;
+    layer->forward = PSFullForward;
     layer->backprop = PSFullBackprop;
     layer->pretrain = PSPretrainEmbeddingLayer;
     return 1;

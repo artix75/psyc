@@ -36,17 +36,17 @@ typedef struct {
 } PSNormalizationLayerCache;
 
 /* Forward declarations */
-int PSNormalizationFeedforward(PSLayer *layer, ...);
+int PSNormalizationForward(PSLayer *layer, ...);
 int PSNormalizationBackprop(PSLayer *layer, PSLayer *previous,
                             PSGradient *gradient, ...);
 int PSInitNormalizationCache(PSLayer *layer, uint32_t steps,
                              int retain_previous);
-int checkLayerForFeedforward(PSLayer *layer);
+int checkLayerForForward(PSLayer *layer);
 PSMatrix PSInitWeights(PSLayer *layer, int rows, int columns,
                        PSLayerDef *ldef, PSFloat range, PSFloat scale);
 PSFloat PSInitParam(int param_type, PSLayerDef *ldef, PSFloat range,
                     PSFloat scale);
-int PSBeforeSequenceFeedforward(PSLayer *layer, int seqlen, int t);
+int PSBeforeSequenceForward(PSLayer *layer, int seqlen, int t);
 
 /* Layer functions */
 
@@ -117,7 +117,10 @@ static int copyNormalizationLayer(PSLayer *layer, PSLayer *src) {
         PSGetNormalizationSettings(layer);
     PSNormalizationLayerSettings *srcsettings = PSGetNormalizationSettings(src);
     if (srcsettings != NULL) {
-        if (dstsettings == NULL) dstsettings = malloc(sizeof(*dstsettings));
+        if (dstsettings == NULL) {
+            dstsettings = malloc(sizeof(*dstsettings));
+            layer->extra = dstsettings;
+        }
         if (dstsettings == NULL) {
             PSPrintMemoryErrorMsg();
             return 0;
@@ -241,7 +244,7 @@ int PSInitNormalizationLayer(PSLayer *layer, PSLayerDef *ldef) {
     layer->extra = settings;
     layer->activate = NULL;
     layer->derivative = NULL;
-    layer->feedforward = PSNormalizationFeedforward;
+    layer->forward = PSNormalizationForward;
     layer->backprop = PSNormalizationBackprop;
     layer->on_states_init = PSInitNormalizationCache;
     layer->on_states_resize = PSResizeNormalizationCache;
@@ -252,8 +255,8 @@ memerr:
 }
 
 /* Feddforward */
-int PSNormalizationFeedforward(PSLayer *layer, ...) {
-    if (!checkLayerForFeedforward(layer)) return 0;
+int PSNormalizationForward(PSLayer *layer, ...) {
+    if (!checkLayerForForward(layer)) return 0;
     int t = 0, seqlen = 1, is_recurrent = PSIsRecurrent(layer),
         sequence_at_once = PSHandleSequenceAtOnce(layer);
     PSFloat *meandiff = NULL, *tmp = NULL;
@@ -264,7 +267,7 @@ int PSNormalizationFeedforward(PSLayer *layer, ...) {
         seqlen = va_arg(args, int);
         if (is_recurrent) t = va_arg(args, int);
         va_end(args);
-        if (!PSBeforeSequenceFeedforward(layer, seqlen, t)) return 0;
+        if (!PSBeforeSequenceForward(layer, seqlen, t)) return 0;
     }
     PSFloat *inputs = PSGetStates(previous, t),
             *outputs = PSGetStates(layer, t);
@@ -324,6 +327,8 @@ int PSNormalizationFeedforward(PSLayer *layer, ...) {
         } else memcpy(output_p, normalized, alloc_size);
         free(meandiff);
         free(tmp);
+        meandiff = NULL;
+        tmp = NULL;
         input_p += layer->size;
         output_p += layer->size;
     }

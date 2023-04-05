@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
     for (i = 0; i < INPUTS_SIZE; i++) {
         values[i] = normalized_rand();
     }
-    PSFeedforward(network, values);
+    PSForward(network, values);
 
     PSDeleteNetwork(network);
 

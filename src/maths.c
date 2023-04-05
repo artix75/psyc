@@ -141,9 +141,9 @@ PSFloat PSNormalizedRandom() {
 PSFloat PSGaussianRandom(PSFloat mean, PSFloat stddev) {
     PSFloat theta = 2 * M_PI * PSNormalizedRandom();
     PSFloat rho = PSSqrt(-2 * PSMathLog(1 - PSNormalizedRandom()));
-    PSFloat scale = stddev *rho;
-    PSFloat x = mean + scale *cos(theta);
-    PSFloat y = mean + scale *sin(theta);
+    PSFloat scale = stddev * rho;
+    PSFloat x = mean + scale * cos(theta);
+    PSFloat y = mean + scale * sin(theta);
     PSFloat r = PSNormalizedRandom();
     return (r > 0.5 ? y : x);
 }
@@ -2193,6 +2193,7 @@ acceleration_done:
 #else
     UNUSED(tmpdest);
     UNUSED(acceleration);
+    UNUSED(dstlen);
 #endif
 no_acceleration:
     if (!postprocess) postprocess = store_mode != PS_STORE_MODE_SET;

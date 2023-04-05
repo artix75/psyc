@@ -37,21 +37,21 @@
 int PSResizeRecurrentHiddenStates(PSLayer *layer, uint32_t steps);
 int PSRecurrentBackprop(PSLayer *layer, PSLayer *previous_layer,
                         PSGradient *lgradients, ...);
-int PSRecurrentFeedforward(PSLayer *layer, ...);
-int PSBeforeSequenceFeedforward(PSLayer *layer, int seqlen, int t);
+int PSRecurrentForward(PSLayer *layer, ...);
+int PSBeforeSequenceForward(PSLayer *layer, int seqlen, int t);
 
 /* External functions */
 
-int checkLayerForFeedforward(PSLayer *layer);
-int PSOnehotInputsFeedforward(PSLayer *layer, int weights_index,
+int checkLayerForForward(PSLayer *layer);
+int PSOnehotInputsForward(PSLayer *layer, int weights_index,
                               PSFloat *outputs, int t, int apply_biases,
                               int do_activate);
 PSMatrix PSInitWeights(PSLayer *layer, int rows, int columns,
                        PSLayerDef *ldef, PSFloat range, PSFloat scale);
 PSFloat PSInitParam(int param_type, PSLayerDef *ldef, PSFloat range,
                     PSFloat scale);
-void handleLayerFeedforwardDebug(PSLayer *layer, const char *func,
-                                 PSMathOpts *opts);
+void handleLayerForwardDebug(PSLayer *layer, const char *func,
+                             PSMathOpts *opts);
 int PSApplyDerivative(PSActivationFunction derivative, PSFloat *delta,
                       PSFloat *outputs, int size, PSMathOpts *opts);
 /* Recurrent network functions */
@@ -111,7 +111,7 @@ int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
         layer->activate = PSTanhActivation;
         layer->derivative = PSTanhDerivative;
     }
-    layer->feedforward = PSRecurrentFeedforward;
+    layer->forward = PSRecurrentForward;
     layer->backprop = PSRecurrentBackprop;
     network->flags |= FLAG_RECURRENT;
     return 1;
@@ -134,13 +134,13 @@ PSFloat *PSGetRecurrentNeuronHiddenWeights(PSNeuron *neuron) {
     return neuron->layer->weights[1] + widx;
 }
 
-/* Feedforward Functions */
+/* Forward Functions */
 
-int PSRecurrentFeedforward(PSLayer *layer, ...) {
-    if (!checkLayerForFeedforward(layer)) return 0;
+int PSRecurrentForward(PSLayer *layer, ...) {
+    if (!checkLayerForForward(layer)) return 0;
     PSNeuralNetwork *network = layer->network;
     PSMathOpts dpopt = {.acceleration = network->acceleration};
-    handleLayerFeedforwardDebug(layer, __func__, &dpopt);
+    handleLayerForwardDebug(layer, __func__, &dpopt);
     PSLayer *previous = network->layers[layer->index - 1];
     va_list args;
     va_start(args, layer);
@@ -148,7 +148,7 @@ int PSRecurrentFeedforward(PSLayer *layer, ...) {
     int t = va_arg(args, int);
     va_end(args);
     /* Checks */
-    if (!PSBeforeSequenceFeedforward(layer, steps, t)) return 0;
+    if (!PSBeforeSequenceForward(layer, steps, t)) return 0;
     PSFloat *hidden_values = (PSFloat *) layer->extra;
     PSLayer *first_recurrent = PSGetFirstRecurrentLayer(network);
     int onehot = previous->flags & FLAG_ONEHOT;
@@ -176,7 +176,7 @@ int PSRecurrentFeedforward(PSLayer *layer, ...) {
      * states, also eventually add biases and activate states with `activate`
      * function. */
     if (onehot) {
-        if (!PSOnehotInputsFeedforward(layer, 0, NULL, t, 0, 0)) return 0;
+        if (!PSOnehotInputsForward(layer, 0, NULL, t, 0, 0)) return 0;
     } else {
         inputs = PSGetStates(previous, t);
         if (inputs == NULL) {

@@ -31,11 +31,11 @@ typedef struct PSDropoutData {
 
 /* Forward declarations */
 
-int PSDropoutFeedforward(PSLayer *layer, ...);
+int PSDropoutForward(PSLayer *layer, ...);
 int PSDropoutBackprop(PSLayer *layer, PSLayer *previous_layer,
                       PSGradient *gradients, ...);
-int checkLayerForFeedforward(PSLayer *layer);
-int PSBeforeSequenceFeedforward(PSLayer *layer, int seqlen, int t);
+int checkLayerForForward(PSLayer *layer);
+int PSBeforeSequenceForward(PSLayer *layer, int seqlen, int t);
 
 /* Dropout Layer functions */
 
@@ -251,15 +251,15 @@ int PSInitDropoutLayer(PSNeuralNetwork *network, PSLayer *layer,
     layer->activate = NULL;
     layer->derivative = NULL;
     layer->states = PSMatrixZeros(2, 1, layer->size);
-    layer->feedforward = PSDropoutFeedforward;
+    layer->forward = PSDropoutForward;
     layer->backprop = PSDropoutBackprop;
     return 1;
 }
 
-/* Feedforward */
+/* Forward */
 
-int PSDropoutFeedforward(PSLayer *layer, ...) {
-    if (!checkLayerForFeedforward(layer)) return 0;
+int PSDropoutForward(PSLayer *layer, ...) {
+    if (!checkLayerForForward(layer)) return 0;
     PSNeuralNetwork *net = layer->network;
     int success = 1, t = 0, seqlen = 1, is_recurrent = PSIsRecurrent(layer),
         handles_seq = PSHandleSequenceAtOnce(layer);
@@ -270,7 +270,7 @@ int PSDropoutFeedforward(PSLayer *layer, ...) {
         seqlen = va_arg(args, int);
         if (is_recurrent) t = va_arg(args, int);
         va_end(args);
-        if (!PSBeforeSequenceFeedforward(layer, seqlen, t)) return 0;
+        if (!PSBeforeSequenceForward(layer, seqlen, t)) return 0;
     }
     PSFloat *inputs = PSGetStates(previous, t),
             *outputs = PSGetStates(layer, t);

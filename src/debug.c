@@ -325,7 +325,8 @@ void segvHandler(int sig, siginfo_t *info, void *secret) {
                 "Symbol: %s (base: %p)\n"
                 "Module: %s (base %p)\n"
                 "$ xxd -r -p /tmp/dump.hex /tmp/dump.bin\n"
-                "$ objdump --adjust-vma=%p -D -b binary -m i386:x86-64 /tmp/dump.bin\n"
+                "$ objdump --adjust-vma=%p -D -b binary -m i386:x86-64 "
+                "/tmp/dump.bin\n"
                 "------\n",
                 info.dli_sname, info.dli_saddr, info.dli_fname, info.dli_fbase,
                 info.dli_saddr);
@@ -461,8 +462,8 @@ void PSTrainingDebugDumpStep(PSDebugStepInfo *info, char *format, ...) {
     if (network->training->current_epoch > 0) return;
     int training_phase = info->training_phase;
     char *phase_name = NULL;
-    if (training_phase == TRAINING_PHASE_FEEDFORWARD)
-        phase_name = "feedforward";
+    if (training_phase == TRAINING_PHASE_FORWARD)
+        phase_name = "forward";
     else if (training_phase == TRAINING_PHASE_BACKPROP) phase_name = "backprop";
     else phase_name = "unknown";
     fprintf(
@@ -524,7 +525,7 @@ void PSTrainingDebugDumpGradient(PSNeuralNetwork *network,
     if (!is_avx) last_widx = weight_size - 1;
     else {
         int avx_steps = weight_size / avx_len;
-        last_widx = (avx_steps *avx_len) - 1;
+        last_widx = (avx_steps * avx_len) - 1;
     }
     fprintf(network->training->debug_dump_to, ",weight_range=(%d,%d)",
         weight_idx, last_widx);
@@ -613,7 +614,62 @@ void PSTrainingDebugDumpHeader(PSNeuralNetwork *network,
     );
 }
 
-int PSDumpGradients(PSNeuralNetwork *network, PSGradient **gradients,
+static int dumpNetworkGradients(PSNeuralNetwork *network,
+                                PSGradient **gradients,
+                                FILE *f, PSTrainingOptions *opts)
+{
+    int success = 1;
+    PSFloat clip_h = 0.0, clip_l = 0.0;
+    int i, j, apply_clip = 0;
+    if (opts != NULL) {
+        if ((apply_clip = (opts->clip != 0.0))) {
+            clip_h = PSAbs(opts->clip);
+            clip_l = clip_h * -1;
+        }
+    }
+    for (i = 0; i < network->size; i++) {
+        PSLayer *layer = network->layers[i];
+        DumpLayerInfo(layer, f, 0);
+        if (i == 0) {
+            fprintf(f, ",weight_gradients=(),bias_gradients=()\n");
+            continue;
+        }
+        PSGradient *lgradients = gradients[i - 1];
+        if (lgradients == NULL) {
+            fprintf(f, ",weight_gradients=(),bias_gradients=()\n");
+            continue;
+        }
+        if (lgradients->weight_count > 0 && lgradients->weights == NULL) {
+            PSErr(NULL, "gradients[%d]: missing weights", (i - 1));
+            success = 0;
+            goto final;
+        }
+        fprintf(f, ",weight_gradients=(");
+        for(j = 0; (uint64_t) j < lgradients->weight_count; j++) {
+            PSFloat wg = lgradients->weights[j];
+            if (apply_clip) wg = PSClipValue(wg, clip_l, clip_h);
+            if (j > 0) fprintf(f, ",");
+            writeSerializedFloat(f, wg, 0);
+        }
+        if (lgradients->bias_count > 0 && lgradients->biases == NULL) {
+            PSErr(NULL, "gradients[%d]: missing biases", (i - 1));
+            success = 0;
+            goto final;
+        }
+        fprintf(f, "),bias_gradients=(");
+        for(j = 0; (uint64_t) j < lgradients->bias_count; j++) {
+            if (j > 0) fprintf(f, ",");
+            PSFloat bg = lgradients->biases[j];
+            if (apply_clip) bg = PSClipValue(bg, clip_l, clip_h);
+            writeSerializedFloat(f, bg, 0);
+        }
+        fprintf(f, ")\n");
+    }
+final:
+    return success;
+}
+
+int PSDumpGradients(PSNeuralNetwork *network, PSGradient ***gradients,
                     const char* filename, PSTrainingOptions *opts)
 {
     assert(network != NULL);
@@ -675,51 +731,15 @@ int PSDumpGradients(PSNeuralNetwork *network, PSGradient **gradients,
         fprintf(stderr, "Cannot open %s for writing!\n", filename);
         return 0;
     }
-    PSFloat clip_h = 0.0, clip_l = 0.0;
-    int i, j, apply_clip = 0;
-    if (opts != NULL) {
-        if ((apply_clip = (opts->clip != 0.0))) {
-            clip_h = PSAbs(opts->clip);
-            clip_l = clip_h * -1;
-        }
-    }
-    for (i = 0; i < network->size; i++) {
-        PSLayer *layer = network->layers[i];
-        DumpLayerInfo(layer, f, 0);
-        if (i == 0) {
-            fprintf(f, ",weight_gradients=(),bias_gradients=()\n");
-            continue;
-        }
-        PSGradient *lgradients = gradients[i - 1];
-        if (lgradients == NULL) {
-            fprintf(f, ",weight_gradients=(),bias_gradients=()\n");
-            continue;
-        }
-        if (lgradients->weight_count > 0 && lgradients->weights == NULL) {
-            PSErr(NULL, "gradients[%d]: missing weights", (i - 1));
-            success = 0;
-            goto final;
-        }
-        fprintf(f, ",weight_gradients=(");
-        for(j = 0; (uint64_t) j < lgradients->weight_count; j++) {
-            PSFloat wg = lgradients->weights[j];
-            if (apply_clip) wg = PSClipValue(wg, clip_l, clip_h);
-            if (j > 0) fprintf(f, ",");
-            writeSerializedFloat(f, wg, 0);
-        }
-        if (lgradients->bias_count > 0 && lgradients->biases == NULL) {
-            PSErr(NULL, "gradients[%d]: missing biases", (i - 1));
-            success = 0;
-            goto final;
-        }
-        fprintf(f, "),bias_gradients=(");
-        for(j = 0; (uint64_t) j < lgradients->bias_count; j++) {
-            if (j > 0) fprintf(f, ",");
-            PSFloat bg = lgradients->biases[j];
-            if (apply_clip) bg = PSClipValue(bg, clip_l, clip_h);
-            writeSerializedFloat(f, bg, 0);
-        }
-        fprintf(f, ")\n");
+    PSNeuralNetwork *current = network;
+    int count = PSGetNetworkChainLength(network), nidx = 0;
+    if (count > 1) current = PSGetNetworkChainHead(network);
+    success = (current != NULL);
+    if (!success) goto final;
+    while (current != NULL) {
+        success = dumpNetworkGradients(current, gradients[nidx++], f, opts);
+        if (!success) goto final;
+        current = current->next;
     }
 final:
     fclose(f);

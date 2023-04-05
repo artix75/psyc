@@ -54,7 +54,7 @@ static char *GRUStateNames[] = {
 
 /* Forward declarations */
 
-int checkLayerForFeedforward(PSLayer *layer);
+int checkLayerForForward(PSLayer *layer);
 PSGRUCell *PSCreateGRUCell(PSLayer *layer);
 void PSDeleteGRUCell(PSGRUCell *cell);
 static int getGRUStatePointers(PSGRUCell *cell, int type,
@@ -70,11 +70,11 @@ PSMatrix PSInitWeights(PSLayer *layer, int rows, int columns,
                        PSLayerDef *ldef, PSFloat range, PSFloat scale);
 PSFloat PSInitParam(int param_type, PSLayerDef *ldef, PSFloat range,
                     PSFloat scale);
-int PSGRUFeedforward(PSLayer *layer, ...);
+int PSGRUForward(PSLayer *layer, ...);
 int PSGRUBackprop(PSLayer *layer, PSLayer *previous_layer,
                    PSGradient *lgradients, ...);
-int PSBeforeSequenceFeedforward(PSLayer *layer, int seqlen, int t);
-int PSOnehotInputsFeedforward(PSLayer *layer, int weights_index,
+int PSBeforeSequenceForward(PSLayer *layer, int seqlen, int t);
+int PSOnehotInputsForward(PSLayer *layer, int weights_index,
                               PSFloat *outputs, int t, int apply_biases,
                               int do_activate);
 
@@ -454,7 +454,7 @@ int PSInitGRULayer(PSNeuralNetwork *network, PSLayer *layer,
         layer->activate = PSTanhActivation;
         layer->derivative = PSTanhDerivative;
     }
-    layer->feedforward = PSGRUFeedforward;
+    layer->forward = PSGRUForward;
     layer->backprop = PSGRUBackprop;
     network->flags |= FLAG_RECURRENT;
     return 1;
@@ -463,10 +463,10 @@ memerr:
     return 0;
 }
 
-/* Feedforward Functions */
+/* Forward Functions */
 
-int PSGRUFeedforward(PSLayer *layer, ...) {
-    if (!checkLayerForFeedforward(layer)) return 0;
+int PSGRUForward(PSLayer *layer, ...) {
+    if (!checkLayerForForward(layer)) return 0;
     PSNeuralNetwork *net = layer->network;
     int success = 1;
     PSFloat *cache = NULL;
@@ -475,7 +475,7 @@ int PSGRUFeedforward(PSLayer *layer, ...) {
     int steps = va_arg(args, int);
     int t = va_arg(args, int);
     va_end(args);
-    if (!PSBeforeSequenceFeedforward(layer, steps, t)) return 0;
+    if (!PSBeforeSequenceForward(layer, steps, t)) return 0;
     PSLayer *previous = PSGetPreviousLayer(layer);
     PSLayer *first_recurrent = PSGetFirstRecurrentLayer(net);
     PSGRUCell *cell = PSGetGRUCell(layer);
@@ -520,11 +520,11 @@ int PSGRUFeedforward(PSLayer *layer, ...) {
          * corresponding weight, since the input should always be considered
          * as it would be 1 */
         success = (
-            PSOnehotInputsFeedforward(layer, CANDIDATE_IDX, cell->candidates,
+            PSOnehotInputsForward(layer, CANDIDATE_IDX, cell->candidates,
                 t, 0, 0) &&
-            PSOnehotInputsFeedforward(layer, UPDATE_IDX, cell->update_gates,
+            PSOnehotInputsForward(layer, UPDATE_IDX, cell->update_gates,
                 t, 0, 0) &&
-            PSOnehotInputsFeedforward(layer, RESET_IDX, cell->reset_gates,
+            PSOnehotInputsForward(layer, RESET_IDX, cell->reset_gates,
                 t, 0, 0)
         );
     } else {

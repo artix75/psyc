@@ -179,18 +179,18 @@ int testL1Regularization(TestCase *tc, Test *test);
 int testL2Regularization(TestCase *tc, Test *test);
 
 int testFullLoad(TestCase *test_case, Test *test);
-int testFullFeedforward(TestCase *test_case, Test *test);
+int testFullForward(TestCase *test_case, Test *test);
 int testFullAccuracy(TestCase *tc, Test *test);
 int testFullBackprop(TestCase *test_case, Test *test);
 
 int testConvLoad(TestCase *test_case, Test *test);
-int testConvFeedforward(TestCase *test_case, Test *test);
+int testConvForward(TestCase *test_case, Test *test);
 int testConvAccuracy(TestCase *tc, Test *test);
 int testConvBackprop(TestCase *test_case, Test *test);
 int testConvCIFAR(TestCase *tc, Test *test);
 
 int testRNNLoad(TestCase *test_case, Test *test);
-int testRNNFeedforward(TestCase *test_case, Test *test);
+int testRNNForward(TestCase *test_case, Test *test);
 int testRNNBackprop(TestCase *test_case, Test *test);
 int testRNNStep(TestCase *tc, Test *test);
 int testRNNOneHot(TestCase *tc, Test *test);
@@ -204,18 +204,18 @@ int testGRUBackprop(TestCase *test_case, Test *test);
 
 
 int testNormalizationLoad(TestCase *test_case, Test *test);
-int testNormalizationFeedforward(TestCase *test_case, Test *test);
+int testNormalizationForward(TestCase *test_case, Test *test);
 int testNormalizationBackprop(TestCase *test_case, Test *test);
 
 int testDropoutLoad(TestCase *test_case, Test *test);
-int testDropoutFeedforward(TestCase *test_case, Test *test);
+int testDropoutForward(TestCase *test_case, Test *test);
 int testDropoutBackprop(TestCase *test_case, Test *test);
 
 
 /* psyc.c function prototypes */
 
-PSGradient **backprop(PSNeuralNetwork *network, PSFloat *x, PSFloat *y,
-                      PSTrainingOptions *opts, PSGradient **gradients);
+PSGradient ***backprop(PSNeuralNetwork *network, PSFloat *x, PSFloat *y,
+                       PSTrainingOptions *opts, PSGradient **gradients);
 
 PSFloat updateNetworkParameters(PSNeuralNetwork *network,
                                 PSFloat *training_data,
@@ -235,7 +235,7 @@ int testlen = 0;
 
 int pretrained_mnist_layers_size[PRETRAINED_MNIST_NETSIZE] = {784,30,10};
 
-PSFloat fullNetworkFeedForwardResults[] = {
+PSFloat fullNetworkForwardResults[] = {
     0.000000,
     0.000000,
     0.000003,
@@ -248,7 +248,7 @@ PSFloat fullNetworkFeedForwardResults[] = {
     0.000000
 };
 
-PSFloat convNetworkFeedForwardResults[] = {
+PSFloat convNetworkForwardResults[] = {
     0.961797,
     0.000264,
     0.004449,
@@ -710,7 +710,7 @@ int main(int argc, char** argv) {
         fullNetworkTests->setup = genericSetup;
         fullNetworkTests->teardown = genericTeardown;
         addTest(fullNetworkTests, "Load", NULL, testFullLoad);
-        addTest(fullNetworkTests, "Feedforward", NULL, testFullFeedforward);
+        addTest(fullNetworkTests, "Forward", NULL, testFullForward);
         addTest(fullNetworkTests, "Accuracy", NULL, testFullAccuracy);
         addTest(fullNetworkTests, "Backprop", NULL, testFullBackprop);
         addTest(fullNetworkTests, "Clone", NULL, testGenericClone);
@@ -726,7 +726,7 @@ int main(int argc, char** argv) {
         convNetworkTests->setup = genericSetup;
         convNetworkTests->teardown = genericTeardown;
         addTest(convNetworkTests, "Load", NULL, testConvLoad);
-        addTest(convNetworkTests, "Feedforward", NULL, testConvFeedforward);
+        addTest(convNetworkTests, "Forward", NULL, testConvForward);
         addTest(convNetworkTests, "Backprop", NULL, testConvBackprop);
         /*addTest(convNetworkTests, "Accuracy", NULL, testConvAccuracy);*/
         addTest(convNetworkTests, "CIFAR Backprop", NULL, testConvCIFAR);
@@ -743,7 +743,7 @@ int main(int argc, char** argv) {
         recurrentNetworkTests->setup = RNNSetup;
         recurrentNetworkTests->teardown = RNNTeardown;
         addTest(recurrentNetworkTests, "Load", NULL, testRNNLoad);
-        addTest(recurrentNetworkTests, "Feedforward", NULL, testRNNFeedforward);
+        addTest(recurrentNetworkTests, "Forward", NULL, testRNNForward);
         addTest(recurrentNetworkTests, "Backprop", NULL, testRNNBackprop);
         addTest(recurrentNetworkTests, "Step", NULL, testRNNStep);
         addTest(recurrentNetworkTests, "Clone", NULL, testGenericClone);
@@ -788,8 +788,8 @@ int main(int argc, char** argv) {
         NormalizationNetworkTests->setup = genericSetup;
         NormalizationNetworkTests->teardown = genericTeardown;
         addTest(NormalizationNetworkTests, "Load", NULL, testNormalizationLoad);
-        addTest(NormalizationNetworkTests, "Feedforward", NULL,
-               testNormalizationFeedforward);
+        addTest(NormalizationNetworkTests, "Forward", NULL,
+               testNormalizationForward);
         addTest(NormalizationNetworkTests, "Backprop", NULL,
                testNormalizationBackprop);
         addTest(NormalizationNetworkTests, "Save", NULL, testGenericSave);
@@ -803,8 +803,8 @@ int main(int argc, char** argv) {
         DropoutNetworkTests->setup = genericSetup;
         DropoutNetworkTests->teardown = genericTeardown;
         addTest(DropoutNetworkTests, "Load", NULL, testDropoutLoad);
-        addTest(DropoutNetworkTests, "Feedforward", NULL,
-               testDropoutFeedforward);
+        addTest(DropoutNetworkTests, "Forward", NULL,
+               testDropoutForward);
         addTest(DropoutNetworkTests, "Backprop", NULL,
                testDropoutBackprop);
         addTest(DropoutNetworkTests, "Save", NULL, testGenericSave);
@@ -1176,7 +1176,7 @@ int NetworkBackpropTest(Test *test, char *model_file, char *data_file_prefix,
     if (acceleration == PSGlobalAcceleration) acceleration_name = "Default";
     else acceleration_name = PSGetAccelerationName(acceleration);
     PSFloat *x = NULL, *y = NULL, *states = NULL, *deltas = NULL, *grads = NULL;
-    PSGradient **gradients = NULL;
+    PSGradient ***gradients = NULL;
     FILE *f = NULL;
     char path[PATH_MAX] = {0};
     testAssert(
@@ -1261,6 +1261,12 @@ int NetworkBackpropTest(Test *test, char *model_file, char *data_file_prefix,
         ok, final, test, "Backprop failed for network %s (acceleration: %s)",
         network->name, acceleration_name
     );
+    PSGradient **netgradients = gradients[0];
+    ok = netgradients != NULL;
+    testAssertWithMessageOrGoto(
+        ok, final, test, "Gradients[0] is NULL",
+        network->name, acceleration_name
+    );
     for (int i = 0; i < network->size; i++) {
         PSLayer *layer = network->layers[i];
         char testlabel[1024];
@@ -1338,7 +1344,7 @@ int NetworkBackpropTest(Test *test, char *model_file, char *data_file_prefix,
         }
         PSGradient *grad = NULL;
         if (i > 0 && layer->weights != NULL && Pooling != layer->type)
-            grad = gradients[i - 1];
+            grad = netgradients[i - 1];
         if (grad != NULL) {
             /* Bias gradients */
             int len = 0, grad_len = PSGetLayerParametersCount(
@@ -1417,7 +1423,7 @@ weight_gradients:
     }
 final:
     if (gradients != NULL && network != NULL)
-        PSDeleteNetworkGradients(gradients, network);
+        PSDeleteGradientsChain(gradients, network);
     PSDeleteNetwork(network);
     free(x);
     free(y);
@@ -1478,7 +1484,7 @@ int testFullLoad(TestCase *test_case, Test *test) {
     return 1;
 }
 
-int testFullFeedforward(TestCase *test_case, Test *test) {
+int testFullForward(TestCase *test_case, Test *test) {
     PSNeuralNetwork *network = getNetwork(test_case);
     if (!PSIsNetworkBuilt(network)) {
         if (!PSBuildNetwork(network)) {
@@ -1487,13 +1493,13 @@ int testFullFeedforward(TestCase *test_case, Test *test) {
         }
     }
     PSFloat *test_data = getTestData(test_case);
-    PSFeedforward(network, test_data);
+    PSForward(network, test_data);
 
     PSLayer *output = network->layers[network->size - 1];
     int i, res = 1;
     for (i = 0; i < output->size; i++) {
         PSFloat a = PSGetState(output, i);
-        PSFloat expected = fullNetworkFeedForwardResults[i];
+        PSFloat expected = fullNetworkForwardResults[i];
         a = getRoundedFloat(a);
         expected = getRoundedFloat(expected);
         testAssertWithMessage(
@@ -1527,7 +1533,9 @@ int testFullBackprop(TestCase *test_case, Test *test) {
     int input_size = network->layers[0]->size;
     PSFloat *x = test_data;
     PSFloat *y = test_data + input_size;
-    PSGradient **gradients = backprop(network, x, y, NULL, NULL);
+    PSGradient ***grads = backprop(network, x, y, NULL, NULL);
+    testAssertNotNull(grads, test);
+    PSGradient **gradients = grads[0];
     testAssertNotNull(gradients, test);
     int i;
     for (i = 0; i < BP_GRADIENTS_CHECKS; i++) {
@@ -1605,15 +1613,15 @@ int testConvLoad(TestCase *test_case, Test *test) {
     return 1;
 }
 
-int testConvFeedforward(TestCase *test_case, Test *test) {
+int testConvForward(TestCase *test_case, Test *test) {
     PSNeuralNetwork *network = getNetwork(test_case);
     PSFloat *test_data = getTestData(test_case);
-    PSFeedforward(network, test_data);
+    PSForward(network, test_data);
     PSLayer *output = network->layers[network->size - 1];
     int i;
     for (i = 0; i < output->size; i++) {
         PSFloat a = PSGetState(output, i);
-        PSFloat expected = convNetworkFeedForwardResults[i];
+        PSFloat expected = convNetworkForwardResults[i];
         a = getRoundedFloat(a);
         expected = getRoundedFloat(expected);
         testAssertWithMessage(
@@ -1631,7 +1639,9 @@ int testConvBackprop(TestCase *test_case, Test *test) {
     int input_size = network->layers[0]->size;
     PSFloat *x = test_data;
     PSFloat *y = test_data + input_size;
-    PSGradient **gradients = backprop(network, x, y, NULL, NULL);
+    PSGradient ***grads = backprop(network, x, y, NULL, NULL);
+    testAssertNotNull(grads, test);
+    PSGradient **gradients = grads[0];
     testAssertNotNull(gradients, test);
     for (int i = 0; i < BP_CONV_GRADIENTS_CHECKS; i++) {
         int lidx = (int) (backpropConvGradients[i][0]);
@@ -1671,10 +1681,10 @@ int testConvBackprop(TestCase *test_case, Test *test) {
             lidx - 1, nidx, widx2, val, w2
         );
     }
-    PSDeleteNetworkGradients(gradients, network);
+    PSDeleteGradientsChain(grads, network);
     return 1;
 on_fail:
-    PSDeleteNetworkGradients(gradients, network);
+    PSDeleteGradientsChain(grads, network);
     return 0;
 }
 
@@ -1694,7 +1704,7 @@ int testConvAccuracy(TestCase *test_case, Test *test) {
             return 0;
         }
     }
-    PSFeedforward(network, test_data);
+    PSForward(network, test_data);
     PSFloat accuracy = PSTest(network, test_data, testlen), expected = 98.0;
     PSDeleteNetwork(network);
     accuracy = PSRound(accuracy * 100.0);
@@ -1824,7 +1834,7 @@ int testRNNLoad(TestCase *test_case, Test *test) {
     return 1;
 }
 
-int testRNNFeedforward(TestCase *test_case, Test *test) {
+int testRNNForward(TestCase *test_case, Test *test) {
     PSNeuralNetwork *network = getNetwork(test_case);
     if (!PSIsNetworkBuilt(network)) {
         if (!PSBuildNetwork(network)) {
@@ -1832,7 +1842,7 @@ int testRNNFeedforward(TestCase *test_case, Test *test) {
             return 0;
         }
     }
-    PSFeedforward(network, rnn_inputs);
+    PSForward(network, rnn_inputs);
     if (!testRecurrentNetworkMode(network, ManyToMany, test)) return 0;
 
     PSLayer *output = network->layers[network->size - 1];
@@ -1865,8 +1875,9 @@ int testRNNBackpropOld(TestCase *test_case, Test *test) {
     PSTrainingOptions opts = {
         .bptt_truncate = 4
     };
-    PSGradient **gradients =
-        backprop(network, rnn_inputs, rnn_labels, &opts, NULL);
+    PSGradient ***grads =backprop(network, rnn_inputs, rnn_labels, &opts, NULL);
+    testAssertNotNull(grads, test);
+    PSGradient **gradients = grads[0];
     testAssertNotNull(gradients, test);
     int dsize = network->size - 1;
     for (i = 0; i < dsize; i++) {
@@ -1909,10 +1920,10 @@ int testRNNBackpropOld(TestCase *test_case, Test *test) {
             }
         }
     }
-    PSDeleteNetworkGradients(gradients, network);
+    PSDeleteGradientsChain(grads, network);
     return 1;
 on_fail:
-    PSDeleteNetworkGradients(gradients, network);
+    PSDeleteGradientsChain(grads, network);
     return 0;
 }
 
@@ -2637,11 +2648,11 @@ int testNormalizationLoad(TestCase *test_case, Test *test) {
     return 1;
 }
 
-int testNormalizationFeedforward(TestCase *test_case, Test *test) {
+int testNormalizationForward(TestCase *test_case, Test *test) {
     static PSFloat data[] = {90.3487, 198.1253, 18.3623, 162.5884, 0, 0};
     static PSFloat normalized[] = {-0.3909, 1.1689, -1.4326, 0.6546};
     PSNeuralNetwork *network = getNetwork(test_case);
-    PSFeedforward(network, data);
+    PSForward(network, data);
     PSLayer *normlayer = network->layers[1];
     testAssertNotNull(normlayer, test);
     PSFloat *states = PSGetStates(normlayer, 0);
@@ -2672,7 +2683,7 @@ int testNormalizationBackprop(TestCase *test_case, Test *test) {
         1.17828763,-0.0144786425,-0.37952444,2.72314405
     };
     int ok = 1;
-    PSGradient **gradients = NULL;
+    PSGradient ***grads = NULL;
     PSNeuralNetwork *network = PSCreateNetwork("Normalization Backprop");
     testAssertNotNull(network, test);
     char path[PATH_MAX] = {0};
@@ -2686,9 +2697,9 @@ int testNormalizationBackprop(TestCase *test_case, Test *test) {
     testAssertWithMessageOrGoto(
         ok, final, test, "Could not build network '%s'", network->name
     );
-    ok = PSFeedforward(network, x);
+    ok = PSForward(network, x);
     testAssertWithMessageOrGoto(
-        ok, final, test, "Feedforward failed to network %s", network->name
+        ok, final, test, "Forward failed to network %s", network->name
     );
     PSLayer *outlayer = network->layers[network->size - 1];
     testAssertNotNull(outlayer, test);
@@ -2699,10 +2710,15 @@ int testNormalizationBackprop(TestCase *test_case, Test *test) {
     ok = compareArrays(outstates, expected_softmax, outlayer->size, test,
                        "output states", 4, 0);
     if (!ok) goto final;
-    gradients = backprop(network, x, y, NULL, NULL);
-    ok = gradients != NULL;
+    grads = backprop(network, x, y, NULL, NULL);
+    ok = grads != NULL;
     testAssertWithMessageOrGoto(
         ok, final, test, "Backprop failed for network %s", network->name
+    );
+    PSGradient **gradients = grads[0];
+    ok = gradients != NULL;
+    testAssertWithMessageOrGoto(
+        ok, final, test, "Gradients[0] is NULL", network->name
     );
     PSMatrix normdelta = normlayer->delta;
     testAssertWithMessageOrGoto(
@@ -2772,7 +2788,7 @@ int testNormalizationBackprop(TestCase *test_case, Test *test) {
     );
 final:
     if (network != NULL) {
-        if (gradients != NULL) PSDeleteNetworkGradients(gradients, network);
+        if (grads != NULL) PSDeleteGradientsChain(grads, network);
         PSDeleteNetwork(network);
     }
     return ok;
@@ -2807,12 +2823,12 @@ int testDropoutLoad(TestCase *test_case, Test *test) {
     return 1;
 }
 
-int testDropoutFeedforward(TestCase *test_case, Test *test) {
+int testDropoutForward(TestCase *test_case, Test *test) {
     static PSFloat data[] = {90.3487, 198.1253};
     int ok = 1;
     PSNeuralNetwork *network = getNetwork(test_case);
     testAssertNotNull(network, test);
-    ok = PSFeedforward(network, data);
+    ok = PSForward(network, data);
     testAssert(ok, test);
     PSLayer *dropout_layer = network->layers[2];
     PSFloat dropout = PSGetDropout(dropout_layer);
@@ -2838,7 +2854,7 @@ int testDropoutFeedforward(TestCase *test_case, Test *test) {
 int testDropoutBackprop(TestCase *test_case, Test *test) {
     static PSFloat x[] = {90.3487, 198.1253};
     static PSFloat y[] = {1.0, 0.0};
-    PSGradient **gradients = NULL;
+    PSGradient ***grads = NULL;
     int ok = 1;
     PSNeuralNetwork *network = getNetwork(test_case);
     testAssertNotNull(network, test);
@@ -2847,10 +2863,15 @@ int testDropoutBackprop(TestCase *test_case, Test *test) {
     testAssertNotNull(prev, test);
     int old_status = network->status;
     network->status = STATUS_TRAINING;
-    gradients = backprop(network, x, y, NULL, NULL);
-    ok = gradients != NULL;
+    grads = backprop(network, x, y, NULL, NULL);
+    ok = grads != NULL;
     testAssertWithMessageOrGoto(
         ok, final, test, "Backprop failed for network %s", network->name
+    );
+    PSGradient **gradients = grads[0];
+    ok = gradients != NULL;
+    testAssertWithMessageOrGoto(
+        ok, final, test, "Gradients[0] is NULL", network->name
     );
     PSMatrix prevdelta = prev->delta;
     testAssertWithMessageOrGoto(
@@ -2872,7 +2893,7 @@ int testDropoutBackprop(TestCase *test_case, Test *test) {
     }
 final:
     network->status = old_status;
-    if (gradients != NULL) PSDeleteNetworkGradients(gradients, network);
+    if (grads != NULL) PSDeleteGradientsChain(grads, network);
     return ok;
 }
 

@@ -85,14 +85,14 @@ typedef struct {
 /* Forward declarations */
 
 PSActivationFunction PSGetActivationDerivative(PSActivationFunction func);
-int PSConvolutionalFeedforward(PSLayer *layer, ...);
+int PSConvolutionalForward(PSLayer *layer, ...);
 int PSPool(PSLayer *layer, ...);
 int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
                             PSGradient *lgradients, ...);
 int PSPoolingBackprop(PSLayer *pooling_layer, PSLayer *convolutional_layer,
                       PSGradient *layer_gradients, ...);
 PSScalarActivationFunction PSGetScalarActivationFunc(PSActivationFunction func);
-int checkLayerForFeedforward(PSLayer *layer);
+int checkLayerForForward(PSLayer *layer);
 PSGradient *createLayerGradients(PSLayer *layer);
 
 /* Helper functions */
@@ -640,7 +640,7 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
             layer->neurons[idx] = neuron;
         }
     }
-    layer->feedforward = PSConvolutionalFeedforward;
+    layer->forward = PSConvolutionalForward;
     layer->backprop = PSConvolutionalBackprop;
     return 1;
 memerr:
@@ -713,7 +713,7 @@ int PSInitPoolingLayer(PSNeuralNetwork *network, PSLayer *layer,
     }
     layer->activate = NULL;
     layer->derivative = NULL;
-    layer->feedforward = PSPool;
+    layer->forward = PSPool;
     layer->backprop = PSPoolingBackprop;
     return 1;
 memerr:
@@ -721,11 +721,11 @@ memerr:
     return 0;
 }
 
-/* Feedforward Functions */
+/* Forward Functions */
 
-int PSConvolutionalFeedforward(PSLayer *layer, ...) {
+int PSConvolutionalForward(PSLayer *layer, ...) {
     PSNeuralNetwork *net = NULL;
-    if (!checkLayerForFeedforward(layer)) goto failed;
+    if (!checkLayerForForward(layer)) goto failed;
     if (PSHandleSequenceAtOnce(layer)) {
         PSErr(
             NULL, "Layer[%d]: sequence input not currently supported in "
@@ -740,7 +740,7 @@ int PSConvolutionalFeedforward(PSLayer *layer, ...) {
         .network = net,
         .layer = layer,
         .func = __func__,
-        .training_phase = TRAINING_PHASE_FEEDFORWARD
+        .training_phase = TRAINING_PHASE_FORWARD
     };
     PSLayer *previous = net->layers[layer->index - 1];
     if (previous == NULL) {
@@ -791,7 +791,7 @@ int PSConvolutionalFeedforward(PSLayer *layer, ...) {
         }
         int ok = AcceleratedConvolve(layer, inputs, previous->size, outputs);
         if (!ok) {
-            PSErr(NULL, "Layer[%d]: convolutional layer failed feedforward",
+            PSErr(NULL, "Layer[%d]: convolutional layer failed forward",
                   layer->index);
             goto failed;
         }
@@ -913,7 +913,7 @@ int PSPool(PSLayer *layer, ...) {
         return 0;
     }
     if (layer->index == 0) {
-        PSErr(NULL, "Cannot feedforward on layer 0!");
+        PSErr(NULL, "Cannot forward on layer 0!");
         return 0;
     }
     PSLayer *previous = net->layers[layer->index - 1];
@@ -934,7 +934,7 @@ int PSPool(PSLayer *layer, ...) {
         .network = net,
         .layer = layer,
         .func = __func__,
-        .training_phase = TRAINING_PHASE_FEEDFORWARD
+        .training_phase = TRAINING_PHASE_FORWARD
     };
     int is_recurrent = PSIsRecurrent(layer), times = 0, t = 0;
     if (is_recurrent) {
@@ -967,7 +967,7 @@ int PSPool(PSLayer *layer, ...) {
             PSFloat max = 0.0;
             for (y = r_row; y < max_y; y++) {
                 for (x = r_col; x < max_x; x++) {
-                    int nidx = ((y * input_w) + x) + (prev_size *i);
+                    int nidx = ((y * input_w) + x) + (prev_size * i);
                     PSFloat a = PSGetState(previous, nidx, t);
                     if (a > max) max = a;
                     if (do_dump) DumpPoolStep(
@@ -1053,7 +1053,7 @@ int PSPoolingBackprop(PSLayer *pooling_layer, PSLayer *convolutional_layer,
             /* PSFloat max = 0; */
             for (y = r_row; y < max_y; y++) {
                 for (x = r_col; x < max_x; x++) {
-                    int nidx = ((y * input_w) + x) + (prev_feat_size *i);
+                    int nidx = ((y * input_w) + x) + (prev_feat_size * i);
                     if (do_dump) DumpPoolBackpropStep(
                         col, row, r_col, r_row, max_x, max_y,
                         convolutional_layer, i, nidx, x, y

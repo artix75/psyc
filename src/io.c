@@ -1058,7 +1058,7 @@ static int loadLayerDefinitions(PSNeuralNetwork *network, char *vers,
             }
         }
         if (!empty) {
-            //TODO: perform checks
+            /* TODO: perform checks */
             continue;
         }
         ltype = (PSLayerType) type;
@@ -1072,7 +1072,7 @@ static int loadLayerDefinitions(PSNeuralNetwork *network, char *vers,
 }
 
 static int loadLegacyLayersParameters(PSNeuralNetwork *network,
-                                      const char * filepath,
+                                      const char *filepath,
                                       FILE *f, int verbose)
 {
     int i;
@@ -1153,7 +1153,7 @@ static int loadLegacyLayersParameters(PSNeuralNetwork *network,
                 input_size = PSMatrixLength(cell->candidate_weights) / lsize;
                 wsize = (input_size + layer->size) * 4;
             }
-            //if (Convolutional == layer->type) weights = layer->weights[j];
+            /* if (Convolutional == layer->type) weights = layer->weights[j];*/
             for (uint64_t k = 0; k < wsize; k++) {
                 if (Convolutional == layer->type) widx = k;
                 else widx = k + (j * input_size);
@@ -1444,7 +1444,7 @@ static int loadLegacyGradients(PSNeuralNetwork *network, const char * filepath,
     return 1;
 }
 
-static int loadGradients(PSNeuralNetwork *network, const char * filepath,
+static int loadGradients(PSNeuralNetwork *network, const char *filepath,
                          FILE *f, PSGradient **gradients, int i)
 {
     for (int j = 1; j < network->size; j++) {
@@ -1584,161 +1584,65 @@ int PSSaveLayer(PSLayer *layer, const char *filepath, int save_definition) {
     return saved;
 }
 
-int PSLoadNetwork(PSNeuralNetwork *network, const char* filepath) {
-    if (network == NULL) return 0;
-    FILE *f = fopen(filepath, "r");
-    PSInfo("Loading network from %s", filepath);
-    if (f == NULL) {
-        PSErr(__func__, "Could not open '%s'", filepath);
-        return 0;
-    }
-    int netsize, i;
-    int empty = (network->size == 0);
-    int verbose = PSLogLevel == PSLOGLEVEL_DEBUG;
-    char vers[20] = "0.0.0";
-    int v0 = 0, v1 = 0, v2 = 0;
+int loadModelDefinition(PSNeuralNetwork *network, FILE *f, char *vers) {
+    int ok = 1;
+    int idx = 0, val = 0;
     int epochs = 0, batch_count = 0, elements = 0, status = STATUS_UNTRAINED,
         batch_size = 0, rnn_mode = NonRecurrent,
         max_sequence_len = MAX_SEQUENCE_LENGTH,
         sequence_end = -1, is_built = 0,
         acceleration = PSGlobalAcceleration;
-    int ok = 1, has_model_def = 0;
     char sep[2];
     sep[0] = '\0';
-    /* Search for header */
-    if (scanFile(f, "--v%d.%d.%d", 3, NULL, &v0, &v1, &v2)) {
-        sprintf(vers, "%d.%d.%d", v0, v1, v2);
-        PSInfo("Model PsyC version is %s (current: %s).", vers, PSYC_VERSION);
-        ok = (PSCompareVersion(vers, PSYC_VERSION) <= 0);
-        if (!ok) {
-            PSErr(
-                __func__,
-                "File version is higher than current PsyC version: %s > %s\n"
-                "PsyC %s (or higher) is required to open '%s'",
-                vers, PSYC_VERSION, vers, filepath
-            );
-            goto final;
-        }
-        /* Older versions directly print model definition after version */
-        has_model_def = scanFileNoMatch(f, ",");
-        if (has_model_def) goto scan_model_def;
-        else if (scanFileNoMatch(f, ":")) {
-            /* Scan header info */
-            PSModelFileHeader header = {{0}};
-            ok = scanModelFileHeader(f, &header, filepath);
-            if (!ok) {
-                loadErr(filepath, NULL, "Invalid file header");
-                goto final;
-            }
-            ok = scanFileNoMatch(f, "model:");
-            if (!ok) {
-                loadErr(filepath, f, "Missing `model:` definition");
-                goto final;
-            }
-            if (verbose) {
-                PSInfo("Info for file '%s':", filepath);
-                printModelHeaderInfo(&header);
-            }
-            has_model_def = 1;
+    while (scanFile(f, "%d%1[,\n]", 2, NULL, &val, sep)) {
+        switch (idx++) {
+            case 0:  network->flags |= val; break;
+            case 1:  network->loss = getLossFunctionAtIndex(val); break;
+            case 2:  epochs = val; break;
+            case 3:  batch_count = val; break;
+            case 4:  status = val; break;
+            case 5:  elements = val; break;
+            case 6:  batch_size = val; break;
+            case 7:  rnn_mode = (PSRecurrentNetworkMode) val; break;
+            case 8:  max_sequence_len = val; break;
+            case 9:  sequence_end = val; break;
+            case 10: is_built = val; break;
+            case 11: acceleration = val; break;
+            default: break;
         }
     }
-scan_model_def:
-    if (has_model_def) {
-        int idx = 0, val = 0;
-        while (scanFile(f, "%d%1[,\n]", 2, NULL, &val, sep)) {
-            switch (idx++) {
-                case 0:
-                    network->flags |= val; break;
-                case 1:
-                    network->loss = getLossFunctionAtIndex(val);
-                    break;
-                case 2:  epochs = val; break;
-                case 3:  batch_count = val; break;
-                case 4:  status = val; break;
-                case 5:  elements = val; break;
-                case 6:  batch_size = val; break;
-                case 7:  rnn_mode = (PSRecurrentNetworkMode) val; break;
-                case 8:  max_sequence_len = val; break;
-                case 9:  sequence_end = val; break;
-                case 10: is_built = val; break;
-                case 11: acceleration = val; break;
-                default:
-                    break;
-            }
+    UNUSED(is_built);
+    if (rnn_mode != NonRecurrent)
+        PSSetRecurrentNetworkMode(network, rnn_mode);
+    if (max_sequence_len > 0 || sequence_end >= 0) {
+        network->sequence_settings.max_length = max_sequence_len;
+        network->sequence_settings.end = sequence_end;
+    }
+    network->status = status;
+    if (status != STATUS_UNTRAINED) {
+        if (network->training == NULL) {
+            network->training = malloc(sizeof(PSTrainingInfo));
+            network->training->requested_action = ACTION_NONE;
+            network->training->debug_dump_to = NULL;
         }
-        if (rnn_mode != NonRecurrent)
-            PSSetRecurrentNetworkMode(network, rnn_mode);
-        if (max_sequence_len > 0 || sequence_end >= 0) {
-            network->sequence_settings.max_length = max_sequence_len;
-            network->sequence_settings.end = sequence_end;
-        }
-        network->status = status;
-        if (status != STATUS_UNTRAINED) {
-            if (network->training == NULL) {
-                network->training = malloc(sizeof(PSTrainingInfo));
-                network->training->requested_action = ACTION_NONE;
-                network->training->debug_dump_to = NULL;
-            }
-            network->training->current_epoch = epochs;
-            network->training->current_batch = batch_count;
-            network->training->current_element = elements;
-            network->training->batch_size = batch_size;
-        }
-        if (PSCompareVersion(vers, "0.4.0") >= 0) {
-            PSEnableAcceleration(&(network->acceleration), acceleration);
-            if (acceleration != network->acceleration)
-                PSWarn("Could not enable all saved accelerations");
-        } else if (network->flags & FLAG_ACCEL_DISABLED)
-            network->acceleration = 0;
+        network->training->current_epoch = epochs;
+        network->training->current_batch = batch_count;
+        network->training->current_element = elements;
+        network->training->batch_size = batch_size;
     }
-    int legacy_model = (PSCompareVersion(vers, "0.9.0") < 0);
-    if (!legacy_model) ok = scanFile(f, "layers:%d\n", 1, NULL, &netsize);
-    else ok = scanFile(f, "%d:", 1, NULL, &netsize);
-    if (!ok) {
-        loadErr(filepath, f, "Missing network size definition");
-        goto final;
-    }
-    if (netsize == 0) {
-        loadErr(filepath, NULL, "Empty network model!");
-        ok = 0;
-        goto final;
-    }
-    if (!empty && network->size != netsize) {
-        loadErr(filepath, NULL, "Network size differs!");
-        ok = 0;
-        goto final;
-    }
-    if (legacy_model)
-        ok = loadLegacyLayerDefinitions(network,vers,netsize,empty,filepath, f);
-    else ok = loadLayerDefinitions(network, vers, netsize, empty, filepath, f);
-    if (!ok) goto final;
-    /* Load layer parameters */
-    if (legacy_model)
-        ok = loadLegacyLayersParameters(network, filepath, f, verbose);
-    else
-        ok = loadLayersParameters(network, filepath, f, verbose);
-    if (!ok) goto final;
+    if (PSCompareVersion(vers, "0.4.0") >= 0) {
+        PSEnableAcceleration(&(network->acceleration), acceleration);
+        if (acceleration != network->acceleration)
+            PSWarn("Could not enable all saved accelerations");
+    } else if (network->flags & FLAG_ACCEL_DISABLED)
+        network->acceleration = 0;
+    return ok;
+}
 
-    if (verbose) printf("\n");
-    if (scanFileNoMatch(f, "sequence_start:")) {
-        int seqstartlen = 0;
-        PSFloat *seqstart = readSerializedFloatArray(
-            f, ",\n", &seqstartlen, 0, network->input_size
-        );
-        ok = seqstart != NULL && (uint32_t)seqstartlen == network->input_size;
-        if (!ok) {
-            free(seqstart);
-            loadErr(filepath, f, "Invalid sequence_start");
-            goto final;
-        }
-        if (!PSSetSequenceStart(network, seqstart, seqstartlen)) {
-            ok = 0;
-            free(seqstart);
-            loadErr(filepath, NULL, "Failed to set sequence start");
-            goto final;
-        }
-    }
-    /* Check for traing data */
+int loadNetworkTrainingData(PSNeuralNetwork *network, FILE *f,
+                            const char* filepath, int legacy_model)
+{
+    int ok = 1;
     if (scanFileNoMatch(f, MODEL_TRAINING_DATA_SEP)) {
         /* Model file has training data */
         int numgradients = 0;
@@ -1782,7 +1686,7 @@ scan_model_def:
         }
         ok = scanTrainingOptions(f, topts, filepath);
         if (!ok) goto final;
-        for (i = 0; i < numgradients; i++) {
+        for (int i = 0; i < numgradients; i++) {
             PSGradient **memg = NULL;
             if (i == 0) memg = memg1;
             else if (i == 1) memg = memg2;
@@ -1806,47 +1710,200 @@ scan_model_def:
             }
         }
     }
-    if (is_built) PSBuildNetwork(network);
+final:
+    return ok;
+}
+
+int loadLegacyModel(PSNeuralNetwork *network, FILE *f, const char* filepath,
+                    char *vers, int has_model_def, int empty)
+{
+    int netsize, ok = 1;
+    int verbose = PSLogLevel == PSLOGLEVEL_DEBUG;
+    if (has_model_def) {
+        ok = loadModelDefinition(network, f, vers);
+        if (!ok) return 0;
+    }
+    ok = scanFile(f, "%d:", 1, NULL, &netsize);
+    if (!ok) {
+        loadErr(filepath, f, "Missing network size definition");
+        goto final;
+    }
+    if (netsize == 0) {
+        loadErr(filepath, NULL, "Empty network model!");
+        ok = 0;
+        goto final;
+    }
+    if (!empty && network->size != netsize) {
+        loadErr(filepath, NULL, "Network size differs!");
+        ok = 0;
+        goto final;
+    }
+    ok = loadLegacyLayerDefinitions(network, vers, netsize, empty, filepath,f);
+    if (!ok) goto final;
+    ok = loadLegacyLayersParameters(network, filepath, f, verbose);
+    if (verbose) printf("\n");
+    if (!ok) goto final;
+    /* Check for traing data */
+    ok = loadNetworkTrainingData(network, f, filepath, 1);
+    if (!ok) goto final;
+    PSBuildNetwork(network);
+final:
+    return ok;
+}
+
+int readNetwork(PSNeuralNetwork *network, FILE *f, const char* filepath,
+                char *vers, int empty)
+{
+    int ok = 1, netsize = 0;
+    int verbose = PSLogLevel == PSLOGLEVEL_DEBUG;
+    ok = loadModelDefinition(network, f, vers);
+    ok = scanFile(f, "layers:%d\n", 1, NULL, &netsize);
+    if (!ok) {
+        loadErr(filepath, f, "Missing network size definition");
+        goto final;
+    }
+    if (netsize == 0) {
+        loadErr(filepath, NULL, "Empty network model!");
+        ok = 0;
+        goto final;
+    }
+    if (!empty && network->size != netsize) {
+        loadErr(filepath, NULL, "Network size differs!");
+        ok = 0;
+        goto final;
+    }
+    ok = loadLayerDefinitions(network, vers, netsize, empty, filepath, f);
+    if (!ok) goto final;
+    ok = loadLayersParameters(network, filepath, f, verbose);
+    if (verbose) printf("\n");
+    if (!ok) goto final;
+    if (scanFileNoMatch(f, "sequence_start:")) {
+        int seqstartlen = 0;
+        PSFloat *seqstart = readSerializedFloatArray(
+            f, ",\n", &seqstartlen, 0, network->input_size
+        );
+        ok = seqstart != NULL && (uint32_t)seqstartlen == network->input_size;
+        if (!ok) {
+            free(seqstart);
+            loadErr(filepath, f, "Invalid sequence_start");
+            goto final;
+        }
+        if (!PSSetSequenceStart(network, seqstart, seqstartlen)) {
+            ok = 0;
+            free(seqstart);
+            loadErr(filepath, NULL, "Failed to set sequence start");
+            goto final;
+        }
+    }
+    /* Check for traing data */
+    ok = loadNetworkTrainingData(network, f, filepath, 0);
+    if (!ok) goto final;
+    PSBuildNetwork(network);
+final:
+    return ok;
+}
+
+int PSLoadNetwork(PSNeuralNetwork *network, const char* filepath) {
+    if (network == NULL) return 0;
+    FILE *f = fopen(filepath, "r");
+    PSInfo("Loading network from %s", filepath);
+    if (f == NULL) {
+        PSErr(__func__, "Could not open '%s'", filepath);
+        return 0;
+    }
+    int verbose = PSLogLevel == PSLOGLEVEL_DEBUG;
+    int empty = network->size == 0;
+    char vers[20] = "0.0.0";
+    int v0 = 0, v1 = 0, v2 = 0;
+    int ok = 1, has_model_def = 0, legacy_model = 0;
+    char sep[2];
+    sep[0] = '\0';
+    /* Search for header */
+    if (scanFile(f, "--v%d.%d.%d", 3, NULL, &v0, &v1, &v2)) {
+        sprintf(vers, "%d.%d.%d", v0, v1, v2);
+        PSInfo("Model PsyC version is %s (current: %s).", vers, PSYC_VERSION);
+        ok = (PSCompareVersion(vers, PSYC_VERSION) <= 0);
+        if (!ok) {
+            PSErr(
+                __func__,
+                "File version is higher than current PsyC version: %s > %s\n"
+                "PsyC %s (or higher) is required to open '%s'",
+                vers, PSYC_VERSION, vers, filepath
+            );
+            goto final;
+        }
+        /* Older versions directly print model definition after version */
+        has_model_def = scanFileNoMatch(f, ",");
+        if (has_model_def) legacy_model = 1;
+        else if (scanFileNoMatch(f, ":")) {
+            /* Scan header info */
+            PSModelFileHeader header = {{0}};
+            ok = scanModelFileHeader(f, &header, filepath);
+            if (!ok) {
+                loadErr(filepath, NULL, "Invalid file header");
+                goto final;
+            }
+            if (verbose) {
+                PSInfo("Info for file '%s':", filepath);
+                printModelHeaderInfo(&header);
+            }
+        }
+    }
+    if (!legacy_model) legacy_model = (PSCompareVersion(vers, "0.9.0") < 0);
+    if (legacy_model)
+        return loadLegacyModel(network,f,filepath,vers,has_model_def,empty);
+    ok = scanFileNoMatch(f, "model:");
+    if (!ok) {
+        loadErr(filepath, f, "Missing `model:` definition");
+        goto final;
+    }
+    ok = readNetwork(network, f, filepath, vers, empty);
+    if (!ok) goto final;
+    int network_count = 1, loaded_networks = 1;
+    if (!empty) network_count = PSGetNetworkChainLength(network);
+    PSNeuralNetwork *current = network;
+    while (scanFileNoMatch(f, "model:")) {
+        if (!empty) {
+            current = network->next;
+            ok = (current != NULL);
+            if (!ok) {
+                loadErr(
+                    filepath, f, "Non-empty model only has %d network(s), "
+                    "but model file still has networks to load",
+                    network_count
+                );
+                goto final;
+            }
+        } else {
+            current = PSCreateNetwork(NULL);
+            ok = current != NULL;
+            if (!ok) {
+                PSPrintMemoryErrorMsg();
+                goto final;
+            }
+        }
+        ok = readNetwork(current, f, filepath, vers, empty);
+        if (!ok) {
+            if (empty) PSDeleteNetwork(current);
+            goto final;
+        }
+        if (empty) {
+            ok = PSAddNetwork(network, current);
+            if (!ok) {
+                loadErr(filepath, NULL, "failed to add network");
+                PSDeleteNetwork(current);
+                goto final;
+            }
+        }
+        loaded_networks++;
+    }
 final:
     if (f != NULL) fclose(f);
     return ok;
 }
 
-int PSSaveNetwork(PSNeuralNetwork *network, const char* filepath) {
-    if (network->size == 0) {
-        PSErr(__func__, "Empty network!");
-        return 0;
-    }
-    FILE *f = fopen(filepath, "w");
-    PSInfo("Saving network to %s", filepath);
-    if (f == NULL) {
-        PSErr(__func__, "Cannot open %s for writing!", filepath);
-        return 0;
-    }
-    int i, opts = 0, ok = 1;
-    int loss_function = getLossFunctionIndex(network->loss);
-    /*  Header */
-    static struct utsname sysinfo;
-    static int sysinfo_read = 0;
-    if (!sysinfo_read) {
-       uname(&sysinfo);
-       sysinfo_read = 1;
-    }
-    int avx_available = (
-        PSIsAccelerationAvailable(PSAcceleration_AVX) ? 1 : 0
-    );
-    int acf_available = (
-        PSIsAccelerationAvailable(PSAcceleration_ACF) ? 1 : 0
-    );
-    fprintf(
-        f, "--v%s:git=%s/%s-%s;float_size=%zu;archbits=%d;avx=%d;"
-        "accelerate=%d,sys=%s,%s,%s;global_flags=%d;acceleration=%d;"
-        "savetime=%ld\n",
-        PSYC_VERSION, PSYC_GIT_SHA, PSYC_GIT_DIRTY, PSYC_GIT_BRANCH,
-        sizeof(PSFloat), ((sizeof(long) == 8) ? 64 : 32), avx_available,
-        acf_available, sysinfo.sysname, sysinfo.release, sysinfo.machine,
-        PSGlobalFlags, PSGlobalAcceleration, time(NULL)
-    );
+static int writeNetwork(PSNeuralNetwork *network, FILE *f) {
+    int ok = 1, opts = 0, i;
     int current_epoch = 0, current_batch = 0, current_element = 0,
         batch_size = 0;
     if (network->training != NULL) {
@@ -1858,6 +1915,7 @@ int PSSaveNetwork(PSNeuralNetwork *network, const char* filepath) {
     PSRecurrentNetworkMode rnn_mode = network->rnn_mode;
     int max_steps = network->sequence_settings.max_length;
     int eos = network->sequence_settings.end;
+    int loss_function = getLossFunctionIndex(network->loss);
     fprintf(f, "model:%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n", network->flags,
             loss_function, current_epoch, current_batch, network->status,
             current_element, batch_size, (int) rnn_mode,
@@ -1915,17 +1973,57 @@ int PSSaveNetwork(PSNeuralNetwork *network, const char* filepath) {
         if (numgradients > 0) {
             if (memg1 == NULL) {
                 PSErr(__func__, "Training memory gradient 1 is NULL");
-                ok = 0; goto final;
+                return 0;
             }
             fprintf(f, "memory_gradients[0]:\n");
-            ok = writeGradients(network, memg1, opts, f);
-            if (!ok) goto final;
+            if (!writeGradients(network, memg1, opts, f)) return 0;
             if (memg2 != NULL) {
                 fprintf(f, "memory_gradients[1]:\n");
-                ok = writeGradients(network, memg2, opts, f);
-                if (!ok) goto final;
+                if (!writeGradients(network, memg2, opts, f)) return 0;
             }
         }
+    }
+    return 1;
+}
+
+int PSSaveNetwork(PSNeuralNetwork *network, const char* filepath) {
+    if (network->size == 0) {
+        PSErr(__func__, "Empty network!");
+        return 0;
+    }
+    FILE *f = fopen(filepath, "w");
+    PSInfo("Saving network to %s", filepath);
+    if (f == NULL) {
+        PSErr(__func__, "Cannot open %s for writing!", filepath);
+        return 0;
+    }
+    int ok = 1;
+    /*  Header */
+    static struct utsname sysinfo;
+    static int sysinfo_read = 0;
+    if (!sysinfo_read) {
+       uname(&sysinfo);
+       sysinfo_read = 1;
+    }
+    int avx_available = (
+        PSIsAccelerationAvailable(PSAcceleration_AVX) ? 1 : 0
+    );
+    int acf_available = (
+        PSIsAccelerationAvailable(PSAcceleration_ACF) ? 1 : 0
+    );
+    fprintf(
+        f, "--v%s:git=%s/%s-%s;float_size=%zu;archbits=%d;avx=%d;"
+        "accelerate=%d,sys=%s,%s,%s;global_flags=%d;acceleration=%d;"
+        "savetime=%ld\n",
+        PSYC_VERSION, PSYC_GIT_SHA, PSYC_GIT_DIRTY, PSYC_GIT_BRANCH,
+        sizeof(PSFloat), ((sizeof(long) == 8) ? 64 : 32), avx_available,
+        acf_available, sysinfo.sysname, sysinfo.release, sysinfo.machine,
+        PSGlobalFlags, PSGlobalAcceleration, time(NULL)
+    );
+    while (network != NULL) {
+        ok = writeNetwork(network, f);
+        if (!ok) goto final;
+        network = network->next;
     }
 final:
     fclose(f);

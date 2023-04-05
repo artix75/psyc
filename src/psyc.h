@@ -65,7 +65,7 @@
 #define INIT_MODE_ZERO      2
 #define INIT_MODE_VALUE     3
 
-#define TRAINING_PHASE_FEEDFORWARD  1
+#define TRAINING_PHASE_FORWARD      1
 #define TRAINING_PHASE_BACKPROP     2
 #define TRAINING_PHASE_UPDATE_GRAD  3
 
@@ -100,6 +100,8 @@
 #define PSUseSequences(o) \
     (o->flags & (FLAG_RECURRENT | FLAG_USE_SEQUENCES))
 #define PSHandleSequenceAtOnce(o) (PSUseSequences(o) && !PSIsRecurrent(o))
+#define PSIsNetworkChain(network) \
+    (network->previous != NULL || network->next != NULL)
 #define PSLDEF(...) ((PSLayerDef *) &((PSLayerDef) {__VA_ARGS__}))
 #define PSTRAINOPT(...) \
     ((PSTrainingOptions *) &((PSTrainingOptions) {__VA_ARGS__}))
@@ -109,7 +111,7 @@ struct PSLayer;
 struct PSGradient;
 struct PSTrainingOptions;
 
-typedef int      (*PSFeedforwardFunction) (struct PSLayer *layer, ...);
+typedef int      (*PSForwardFunction)  (struct PSLayer *layer, ...);
 typedef int      (*PSBackpropFunction) (struct PSLayer *layer,
                                         struct PSLayer *previousLayer,
                                         struct PSGradient *layer_gradients,
@@ -261,7 +263,7 @@ typedef struct PSLayer {
     int                         pretrained;
     void                        *extra;
     void                        *private;
-    PSFeedforwardFunction       feedforward;
+    PSForwardFunction           forward;
     PSBackpropFunction          backprop;
     PSActivationFunction        activate;
     PSActivationFunction        derivative;
@@ -279,6 +281,7 @@ typedef struct PSLayer {
 typedef struct PSNeuralNetwork {
     const char                  *name;
     int                         size;
+    int                         index;
     PSLayer                     **layers;
     PSLossFunction              loss;
     uint32_t                    flags;
@@ -286,6 +289,8 @@ typedef struct PSNeuralNetwork {
     uint8_t                     status;
     uint32_t                    input_size;
     uint32_t                    output_size;
+    struct PSNeuralNetwork      *previous;
+    struct PSNeuralNetwork      *next;
     PSSequenceSettings          sequence_settings;
     PSRecurrentNetworkMode      rnn_mode;
     PSTrainingInfo              *training;
@@ -295,6 +300,7 @@ typedef struct PSNeuralNetwork {
 } PSNeuralNetwork;
 
 PSNeuralNetwork *PSCreateNetwork(const char* name);
+int PSAddNetwork(PSNeuralNetwork *parent, PSNeuralNetwork *network);
 PSNeuralNetwork *PSCloneNetwork(PSNeuralNetwork *network, int layout_only);
 int PSLoadNetwork(PSNeuralNetwork *network, const char* filename);
 int PSSaveNetwork(PSNeuralNetwork *network, const char* filename);
@@ -325,7 +331,7 @@ PSFloat PSGetNeuronState(PSNeuron *neuron, ...);
 int PSSetState(PSLayer *layer, PSFloat state, int index, ...);
 int PSSetNeuronState(PSNeuron *neuron, double state, ...);
 int PSStateSequenceLength(PSLayer *layer);
-int PSFeedforward(PSNeuralNetwork *network, PSFloat *values);
+int PSForward(PSNeuralNetwork *network, PSFloat *values);
 int PSAutoregression(PSNeuralNetwork *network, PSFloat *inputs,
                      int randomized, PSSequenceSettings *sequence_settings);
 int PSClassify(PSNeuralNetwork *network, PSFloat *values);
@@ -335,8 +341,9 @@ void PSResetTransposedWeights(PSNeuralNetwork *network);
 void PSDeleteNetwork(PSNeuralNetwork *network);
 void PSDeleteLayer(PSLayer *layer);
 void PSDeleteNeuron(PSNeuron *neuron);
-void PSDeleteGradients(PSGradient *gradients);
+void PSDeleteGradient(PSGradient *gradient);
 void PSDeleteNetworkGradients(PSGradient **gradients, PSNeuralNetwork *net);
+void PSDeleteGradientsChain(PSGradient ***gradients, PSNeuralNetwork *network);
 void PSTrain(PSNeuralNetwork *network,
              PSFloat *training_data,
              int data_size,
@@ -362,6 +369,10 @@ int PSSetRecurrentNetworkMode(
 );
 PSLayer *PSGetFirstRecurrentLayer(PSNeuralNetwork *network);
 PSLayer *PSGetLastRecurrentLayer(PSNeuralNetwork *network);
+int PSGetNetworkChainLength(PSNeuralNetwork *network);
+PSNeuralNetwork *PSGetNetworkAtIndex(PSNeuralNetwork *entrypoint, int index);
+PSNeuralNetwork *PSGetNetworkChainHead(PSNeuralNetwork *network);
+PSNeuralNetwork *PSGetNetworkChainTail(PSNeuralNetwork *network);
 
 /*  Loss functions */
 

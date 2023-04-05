@@ -66,10 +66,10 @@ static char *LSTMStateNames[] = {
 PSActivationFunction PSGetActivationDerivative(PSActivationFunction func);
 int PSLSTMBackprop(PSLayer *layer, PSLayer *previousLayer,
                    PSGradient *lgradients, ...);
-int PSLSTMFeedforward(PSLayer *layer, ...);
+int PSLSTMForward(PSLayer *layer, ...);
 static int getLSTMStatePointers(PSLSTMCell *cell, int type,
                                 PSFloat **state_ptr, PSFloat **previous_ptr);
-int checkLayerForFeedforward(PSLayer *layer);
+int checkLayerForForward(PSLayer *layer);
 PSLSTMCell *PSCreateLSTMCell(PSLayer *layer);
 void PSDeleteLSTMCell(PSLSTMCell *cell);
 PSFloat applyGradientOnParameter(
@@ -87,8 +87,8 @@ PSMatrix PSInitWeights(PSLayer *layer, int rows, int columns,
                        PSLayerDef *ldef, PSFloat range, PSFloat scale);
 PSFloat PSInitParam(int param_type, PSLayerDef *ldef, PSFloat range,
                     PSFloat scale);
-int PSBeforeSequenceFeedforward(PSLayer *layer, int seqlen, int t);
-int PSOnehotInputsFeedforward(PSLayer *layer, int weights_index,
+int PSBeforeSequenceForward(PSLayer *layer, int seqlen, int t);
+int PSOnehotInputsForward(PSLayer *layer, int weights_index,
                               PSFloat *outputs, int t, int apply_biases,
                               int do_activate);
 
@@ -534,7 +534,7 @@ int PSInitLSTMLayer(PSNeuralNetwork *network, PSLayer *layer,
         layer->activate = PSTanhActivation;
         layer->derivative = PSTanhDerivative;
     }
-    layer->feedforward = PSLSTMFeedforward;
+    layer->forward = PSLSTMForward;
     layer->backprop = PSLSTMBackprop;
     network->flags |= FLAG_RECURRENT;
     return 1;
@@ -543,17 +543,17 @@ memerr:
     return 0;
 }
 
-/* Feedforward Functions */
+/* Forward Functions */
 
-int PSLSTMFeedforward(PSLayer *layer, ...) {
-    if (!checkLayerForFeedforward(layer)) return 0;
+int PSLSTMForward(PSLayer *layer, ...) {
+    if (!checkLayerForForward(layer)) return 0;
     PSNeuralNetwork *net = layer->network;
     va_list args;
     va_start(args, layer);
     int steps = va_arg(args, int);
     int t = va_arg(args, int);
     va_end(args);
-    if (!PSBeforeSequenceFeedforward(layer, steps, t)) return 0;
+    if (!PSBeforeSequenceForward(layer, steps, t)) return 0;
     PSLayer *previous = net->layers[layer->index - 1];
     PSLayer *first_recurrent = PSGetFirstRecurrentLayer(net);
     PSLSTMCell *cell = PSGetLSTMCell(layer);
@@ -587,13 +587,13 @@ int PSLSTMFeedforward(PSLayer *layer, ...) {
     if (ignore_inputs) goto forward_previous_step;
     if (onehot) {
         success = (
-            PSOnehotInputsFeedforward(layer, CANDIDATE_IDX, cell->candidates,
+            PSOnehotInputsForward(layer, CANDIDATE_IDX, cell->candidates,
                 t, 0, 0) &&
-            PSOnehotInputsFeedforward(layer, INPUT_IDX, cell->input_gates,
+            PSOnehotInputsForward(layer, INPUT_IDX, cell->input_gates,
                 t, 0, 0) &&
-            PSOnehotInputsFeedforward(layer, OUTPUT_IDX, cell->output_gates,
+            PSOnehotInputsForward(layer, OUTPUT_IDX, cell->output_gates,
                 t, 0, 0) &&
-            PSOnehotInputsFeedforward(layer, FORGET_IDX, cell->forget_gates,
+            PSOnehotInputsForward(layer, FORGET_IDX, cell->forget_gates,
                 t, 0, 0)
         );
         if (!success) goto final;

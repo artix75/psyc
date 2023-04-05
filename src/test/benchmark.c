@@ -1004,8 +1004,8 @@ final:
     return ok;
 }
 
-int fullnetFeedforwardBenchmark(PSBenchmarkConfig *cfg, int *num_results,
-                                PSBenchmarkResults *results)
+int fullnetForwardBenchmark(PSBenchmarkConfig *cfg, int *num_results,
+                            PSBenchmarkResults *results)
 {
     PS_BENCHMARK_PREAMBLE(cfg, results);
     assert(cfg->argc == 2 && cfg->argv != NULL);
@@ -1034,7 +1034,7 @@ int fullnetFeedforwardBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     network->acceleration = PSAcceleration_ACF;
     PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
     PSBenchmarkMeasure(res, (
-        ok = PSFeedforward(network, x)
+        ok = PSForward(network, x)
     ));
     if (!ok) goto final;
     *num_results += 1;
@@ -1044,7 +1044,7 @@ int fullnetFeedforwardBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     network->acceleration = PSAcceleration_AVX;
     PS_INIT_BENCHMARK(cfg, res, "AVX");
     PSBenchmarkMeasure(res, (
-        ok = PSFeedforward(network, x)
+        ok = PSForward(network, x)
     ));
     if (!ok) goto final;
     *num_results += 1;
@@ -1053,7 +1053,7 @@ int fullnetFeedforwardBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     network->acceleration = PSAcceleration_None;
     PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
     PSBenchmarkMeasure(res, (
-        ok = PSFeedforward(network, x)
+        ok = PSForward(network, x)
     ));
     if (!ok) goto final;
     *num_results += 1;
@@ -1064,8 +1064,8 @@ final:
     return ok;
 }
 
-int cifarCNNFeedforwardBenchmark(PSBenchmarkConfig *cfg, int *num_results,
-                                 PSBenchmarkResults *results)
+int cifarCNNBackpropBenchmark(PSBenchmarkConfig *cfg, int *num_results,
+                              PSBenchmarkResults *results)
 {
     PS_BENCHMARK_PREAMBLE(cfg, results);
     int ok = 1;
@@ -1238,14 +1238,14 @@ PSBenchmarkConfig bechmarks[] = {
      optimDefaultBenchmark, 1, INTARGS(10000)},
     {"PSDefaultOptimization (100000)", &optimization_tag, 0, 10,
      optimDefaultBenchmark, 1, INTARGS(100000)},
-    {"FullyConnected Feed (500,1000)", &fullnet_tag, 0, 10,
-     fullnetFeedforwardBenchmark, 2, INTARGS(500,1000)},
-    {"FullyConnected Feed (5000,10000)", &fullnet_tag, 0, 10,
-     fullnetFeedforwardBenchmark, 2, INTARGS(5000,10000)},
-    {"FullyConnected Feed (10000,20000)", &fullnet_tag, 0, 10,
-     fullnetFeedforwardBenchmark, 2, INTARGS(10000,20000)},
+    {"FullyConnected Forward (500,1000)", &fullnet_tag, 0, 10,
+     fullnetForwardBenchmark, 2, INTARGS(500,1000)},
+    {"FullyConnected Forward (5000,10000)", &fullnet_tag, 0, 10,
+     fullnetForwardBenchmark, 2, INTARGS(5000,10000)},
+    {"FullyConnected Forward (10000,20000)", &fullnet_tag, 0, 10,
+     fullnetForwardBenchmark, 2, INTARGS(10000,20000)},
     {"Convolutional Backprop", &convnet_tag, 0, 10,
-     cifarCNNFeedforwardBenchmark, 0, NULL},
+     cifarCNNBackpropBenchmark, 0, NULL},
 };
 
 /* Main function */
