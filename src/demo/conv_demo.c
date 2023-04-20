@@ -153,7 +153,7 @@ int main(int argc, char** argv) {
 
     if (testlen > 0 && test_data != NULL) {
         printf("Test Data len: %d\n", testlen);
-        PSTest(network, test_data, testlen);
+        PSTest(network, test_data, testlen, NULL);
     }
     if (pretrained_file == NULL)
         PSSaveNetwork(network, "/tmp/pretrained.cnn.psmodel");

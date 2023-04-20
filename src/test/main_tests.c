@@ -977,7 +977,7 @@ int RNNSetup(TestCase *test_case) {
     test_case->data[0] = network;
     int train_data_len = 1 + (RNN_TIMES * 2);
     int labels_offset = 1 + RNN_TIMES;
-    PSFloat *training_data = malloc(train_data_len *sizeof(PSFloat));
+    PSFloat *training_data = malloc(train_data_len * sizeof(PSFloat));
     PSFloat *p = training_data;
     if (training_data == NULL) {
         fprintf(stderr, "\nCould not allocate memory!\n");
@@ -1518,7 +1518,8 @@ int testFullAccuracy(TestCase *test_case, Test *test) {
             return 0;
         }
     }
-    PSFloat accuracy = PSTest(network, test_data, testlen), expected = 95.0;
+    PSFloat accuracy = PSTest(network, test_data, testlen, NULL),
+            expected = 95.0;
     accuracy = PSRound(accuracy * 100.0);
     testAssertWithMessage(
         (accuracy == expected), test, "Accuracy %g != from expected (%g)",
@@ -1580,10 +1581,10 @@ int testFullBackprop(TestCase *test_case, Test *test) {
             lidx - 1, nidx, widx2, val, w2
         );
     }
-    PSDeleteNetworkGradients(gradients, network);
+    PSDeleteGradientsChain(grads, network);
     return 1;
 on_fail:
-    PSDeleteNetworkGradients(gradients, network);
+    PSDeleteGradientsChain(grads, network);
     return 0;
 }
 
@@ -1705,7 +1706,8 @@ int testConvAccuracy(TestCase *test_case, Test *test) {
         }
     }
     PSForward(network, test_data);
-    PSFloat accuracy = PSTest(network, test_data, testlen), expected = 98.0;
+    PSFloat accuracy = PSTest(network, test_data, testlen, NULL),
+            expected = 98.0;
     PSDeleteNetwork(network);
     accuracy = PSRound(accuracy * 100.0);
     testAssertWithMessage(
@@ -2197,10 +2199,10 @@ int testRNNOneHot(TestCase *test_case, Test *test) {
         return 0;
     }
     PSFloat onehot_accuracy = PSTest(
-        onehot_network, onehot_data, onehot_datalen
+        onehot_network, onehot_data, onehot_datalen, NULL
     );
     PSFloat std_accuracy = PSTest(
-        standard_network, standard_data, standard_datalen
+        standard_network, standard_data, standard_datalen, NULL
     );
     ok = (onehot_network->status != STATUS_ERROR);
     testAssertWithMessageOrGoto(
@@ -4205,7 +4207,7 @@ int testMathsMatrixExpand(TestCase *tc, Test *test) {
         "Current length is %lld, expected: %d",
         curlen, (2 * 4)
     );
-    expanded = PSMatrixExpand(src, 1);
+    expanded = PSMatrixExpand(src, 1, 0);
     testAssertWithMessageOrGoto(
         expanded != NULL, fail, test, "PSMatrixExpand returned NULL%s",""
     );

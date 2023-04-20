@@ -416,7 +416,7 @@ int main(int argc, char** argv) {
 
     /*if (TEST_DATA_LEN > 0) {
         printf("Test Data len: %d\n", TEST_DATA_LEN);
-        PSTest(network, test_data, TEST_DATA_LEN);
+        PSTest(network, test_data, TEST_DATA_LEN, NULL);
     }*/
     if (print_sample) printSample(network, 0, sample_len);
     if (pretrained_file == NULL)

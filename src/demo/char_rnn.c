@@ -57,6 +57,7 @@
 #define CLIP 5.0
 #define OPTIMIZATION PSAdaGradOptimization
 #define HIDDEN_SIZE 100
+#define DEFAULT_OUTPUT_FILE "/tmp/pretrained.char_rnn.psmodel"
 
 #define UNUSED(V) ((void) V)
 
@@ -75,6 +76,7 @@ PSLayerType recurrent_ltype = Recurrent;
 int catch_fpe = 0;
 int log_sequences = 0;
 char *load_model_file = NULL;
+char *output_path = DEFAULT_OUTPUT_FILE;
 
 void printSample(PSNeuralNetwork *network, int input_idx, int len);
 char *getOptimizationName(PSOptimization optimization);
@@ -220,6 +222,7 @@ void printHelp(char *executable) {
     printf("Usage %s [OPTIONS]\n", executable);
     printf("    OPTIONS:\n");
     printf("        -l, --load MODEL_FILE           Load model\n");
+    printf("        -s, --load MODEL_FILE           Save model\n");
     printf("        --learning-rate RATE            Learnig Rate "
         "(def. %g)\n", LEARNING_RATE);
     printf("        --lstm                          Use LSTM instead of RNN\n");
@@ -321,6 +324,10 @@ void parseOptions(int argc, char **argv) {
             }
             load_model_file = argv[++i];
             continue;
+        } else if ((strcmp("--save", arg) == 0 || strcmp("-s", arg) == 0) &&
+                   !last_arg)
+        {
+             output_path = argv[++i];
         } else if (strcmp("--colors", arg) == 0) {
             PSLogEnableColor();
         } else if (strcmp("--help", arg) == 0 || strcmp("-h", arg) == 0) {
@@ -436,6 +443,8 @@ int main(int argc, char **argv) {
     if (PSLogColorEnabled()) printf(PSCOLOR_RESET);
     PSTrain(network, training_data, TRAIN_DATA_LEN, test_data, test_data_len,
             &opts);
+    if (output_path != NULL)
+        PSSaveNetwork(network, output_path);
 final:
     PSDeleteNetwork(network);
     return (ok ? 0 : 1);

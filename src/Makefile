@@ -67,6 +67,8 @@ uninstall:
 	rm -rvf $(INCLUDEDIR)/psyc
 
 show-build-info:
+	@echo "CC=$(CC)"
+	@echo "IS_CLANG=$(IS_CLANG)"
 	@echo "PREFIX=$(PREFIX)"
 	@echo "AVX=$(AVX)"
 	@echo "HAS_BLAS=$(HAS_BLAS)"

@@ -254,7 +254,6 @@ int PSResizeLSTMStates(PSLayer *layer, uint32_t steps) {
         return 0;
     }
     cell->forget_gates = forget_gates;
-
     PSMatrix raw_states = resizeLayerStates(
         layer, steps, cell->raw_states, &cell->initial_raw_states
     );
@@ -862,7 +861,7 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previous_layer,
         PSMatrix prev_delta = previous_layer->delta;
         mopts.store_mode = PS_STORE_MODE_SET;
         mopts.transpose = 1;
-        success = PSDot(cell->candidate_weights, delta_c, prev_delta, &mopts);
+        success = PSDotMV(cell->candidate_weights, delta_c, prev_delta, &mopts);
         if (!success) goto final;
         mopts.store_mode = PS_STORE_MODE_ADD;
         success = (

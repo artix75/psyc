@@ -1,9 +1,15 @@
 SHELL=/bin/bash
 CC=gcc
+IS_CLANG := $(shell sh -c '$(CC) --version | grep clang > /dev/null && echo yes')
 OPTIMIZATION?=-O2
 OPT=$(OPTIMIZATION)
 CSTD=gnu99 -pedantic
-CFLAGS=-std=$(CSTD) -Wall -W -Wno-missing-field-initializers -Wno-unknown-pragmas -Wno-unused-label -Wno-string-compare -Wno-unused-command-line-argument $(OPT)
+CFLAGS=-std=$(CSTD) -Wall -W -Wno-missing-field-initializers -Wno-unknown-pragmas -Wno-unused-label
+ifeq (yes, $(IS_CLANG))
+        CFLAGS+=-Wno-string-compare
+        CFLAGS+=-Wno-unused-command-line-argument
+endif
+CFLAGS+=$(OPT)
 LDFLAGS=-lz -lm -ldl
 PREFIX?=/usr/local
 LIBDIR=$(PREFIX)/lib

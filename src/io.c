@@ -1752,7 +1752,7 @@ final:
 }
 
 int readNetwork(PSNeuralNetwork *network, FILE *f, const char* filepath,
-                char *vers, int empty)
+                char *vers, int empty, PSNeuralNetwork *parent)
 {
     int ok = 1, netsize = 0;
     int verbose = PSLogLevel == PSLOGLEVEL_DEBUG;
@@ -1777,6 +1777,56 @@ int readNetwork(PSNeuralNetwork *network, FILE *f, const char* filepath,
     ok = loadLayersParameters(network, filepath, f, verbose);
     if (verbose) printf("\n");
     if (!ok) goto final;
+    PSNeuralNetworkLink link = {0};
+    PSNeuralNetworkLink *prev_link = NULL;
+    if (parent != NULL && empty) {
+        link.layer = NULL;
+        link.previous_layer = NULL;
+        if (scanFileNoMatch(f, "network_link:")) {
+            int layer_idx = -1, prev_net_idx = -1, prev_layer_idx = -1;
+            ok = scanFile(f, "%d,%d,%d\n", 3, NULL, &layer_idx, &prev_net_idx,
+                          &prev_layer_idx);
+            if (!ok) {
+                loadErr(filepath, f, "Invalid network_link definition");
+                goto final;
+            }
+            ok = layer_idx >= 0 || layer_idx < network->size;
+            if (!ok) {
+                loadErr(filepath, f, "Invalid layer index: %d", layer_idx);
+                goto final;
+            }
+            link.layer = network->layers[layer_idx];
+            ok = link.layer != NULL;
+            if (!ok) {
+                loadErr(filepath, f, "Invalid layer at %d", layer_idx);
+                goto final;
+            }
+            PSNeuralNetwork *prevn = PSGetNetworkAtIndex(parent, prev_net_idx);
+            ok = prevn != NULL;
+            if (!ok) {
+                loadErr(filepath, f, "No previous network at index %d",
+                        prev_net_idx);
+                goto final;
+            }
+            ok = prev_layer_idx >= 0 && prev_layer_idx < prevn->size;
+            if (!ok) {
+                loadErr(filepath, f, "Invalid layer index: %d", prev_layer_idx);
+                goto final;
+            }
+            link.previous_layer = prevn->layers[prev_layer_idx];
+            ok = link.previous_layer != NULL;
+            if (!ok) {
+                loadErr(filepath, f, "Invalid layer at %d", prev_layer_idx);
+                goto final;
+            }
+            prev_link = &link;
+        }
+        ok = PSAddNetwork(parent, network, prev_link);
+        if (!ok) {
+            loadErr(filepath, NULL, "failed to add network");
+            goto final;
+        }
+    }
     if (scanFileNoMatch(f, "sequence_start:")) {
         int seqstartlen = 0;
         PSFloat *seqstart = readSerializedFloatArray(
@@ -1795,7 +1845,7 @@ int readNetwork(PSNeuralNetwork *network, FILE *f, const char* filepath,
             goto final;
         }
     }
-    /* Check for traing data */
+    /* Check for training data */
     ok = loadNetworkTrainingData(network, f, filepath, 0);
     if (!ok) goto final;
     PSBuildNetwork(network);
@@ -1816,8 +1866,6 @@ int PSLoadNetwork(PSNeuralNetwork *network, const char* filepath) {
     char vers[20] = "0.0.0";
     int v0 = 0, v1 = 0, v2 = 0;
     int ok = 1, has_model_def = 0, legacy_model = 0;
-    char sep[2];
-    sep[0] = '\0';
     /* Search for header */
     if (scanFile(f, "--v%d.%d.%d", 3, NULL, &v0, &v1, &v2)) {
         sprintf(vers, "%d.%d.%d", v0, v1, v2);
@@ -1850,14 +1898,16 @@ int PSLoadNetwork(PSNeuralNetwork *network, const char* filepath) {
         }
     }
     if (!legacy_model) legacy_model = (PSCompareVersion(vers, "0.9.0") < 0);
-    if (legacy_model)
-        return loadLegacyModel(network,f,filepath,vers,has_model_def,empty);
+    if (legacy_model) {
+        ok = loadLegacyModel(network,f,filepath,vers,has_model_def,empty);
+        goto final;
+    }
     ok = scanFileNoMatch(f, "model:");
     if (!ok) {
         loadErr(filepath, f, "Missing `model:` definition");
         goto final;
     }
-    ok = readNetwork(network, f, filepath, vers, empty);
+    ok = readNetwork(network, f, filepath, vers, empty, NULL);
     if (!ok) goto final;
     int network_count = 1, loaded_networks = 1;
     if (!empty) network_count = PSGetNetworkChainLength(network);
@@ -1882,18 +1932,10 @@ int PSLoadNetwork(PSNeuralNetwork *network, const char* filepath) {
                 goto final;
             }
         }
-        ok = readNetwork(current, f, filepath, vers, empty);
+        ok = readNetwork(current, f, filepath, vers, empty, network);
         if (!ok) {
             if (empty) PSDeleteNetwork(current);
             goto final;
-        }
-        if (empty) {
-            ok = PSAddNetwork(network, current);
-            if (!ok) {
-                loadErr(filepath, NULL, "failed to add network");
-                PSDeleteNetwork(current);
-                goto final;
-            }
         }
         loaded_networks++;
     }
@@ -1930,6 +1972,21 @@ static int writeNetwork(PSNeuralNetwork *network, FILE *f) {
         PSLayerType ltype = layer->type;
         if (Pooling == ltype || layer->type == Dropout) continue;
         if (!writeLayerParameters(layer, opts, f, __func__)) return 0;
+    }
+    if (network->previous != NULL && network->previous_network_link != NULL) {
+        PSNeuralNetworkLink *link = network->previous_network_link;
+        if (link->layer == NULL || link->previous_layer == NULL ||
+            link->layer->network == NULL ||
+            link->previous_layer->network == NULL ||
+            link->layer->network != network)
+        {
+            PSErr(NULL, "invalid previous_network_link for network %d",
+                  network->index);
+            return 0;
+        }
+        fprintf(f, "network_link:%d,%d,%d\n",
+                link->layer->index, link->previous_layer->network->index,
+                link->previous_layer->index);
     }
     if (network->sequence_settings.start != NULL) {
         fprintf(f, "sequence_start:");

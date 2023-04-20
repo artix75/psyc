@@ -775,12 +775,12 @@ int PSGRUBackprop(PSLayer *layer, PSLayer *previous_layer,
         mopts.store_mode = PS_STORE_MODE_SET;
         mopts.transpose = 1;
         mopts.argtype[1] = 'V';
-        success = PSDot(cell->candidate_weights, delta_c, prev_delta, &mopts);
+        success = PSDotMV(cell->candidate_weights, delta_c, prev_delta, &mopts);
         if (!success) goto final;
         mopts.store_mode = PS_STORE_MODE_ADD;
         success = (
-            PSDot(cell->update_weights, delta_u, prev_delta, &mopts) &&
-            PSDot(cell->reset_weights, delta_r, prev_delta, &mopts)
+            PSDotMV(cell->update_weights, delta_u, prev_delta, &mopts) &&
+            PSDotMV(cell->reset_weights, delta_r, prev_delta, &mopts)
         );
         if (!success) goto final;
     }

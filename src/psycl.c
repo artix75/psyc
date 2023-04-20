@@ -1223,7 +1223,7 @@ int main(int argc, char **argv) {
         free(training_data);
     }
     if (test_data != NULL) {
-        PSTest(network, test_data, testlen);
+        PSTest(network, test_data, testlen, NULL);
         free(test_data);
     }
 

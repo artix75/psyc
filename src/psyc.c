@@ -106,7 +106,7 @@ static size_t loss_functions_count = sizeof(loss_functions) /
 char *getLossFunctionName(PSLossFunction function);
 char *getNetworkStatusLabel(PSNeuralNetwork *network);
 float validate(PSNeuralNetwork *network, PSFloat *test_data, int data_size,
-               int log);
+               PSTrainingOptions *opts, int log);
 int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
                              PSLayerDef *ldef);
 int PSInitPoolingLayer(PSNeuralNetwork *network, PSLayer *layer,
@@ -136,6 +136,9 @@ int writeSerializedFloat(FILE *out, PSFloat fnum, int opts);
 int PSBeforeSequenceForward(PSLayer *layer, int seqlen, int t);
 char *PSGetRecurrentModeLabel(PSRecurrentNetworkMode mode);
 int updateNetworkChain(PSNeuralNetwork *head);
+int useAutoRegression(PSNeuralNetwork *network,
+                      PSForwardOptions *forward_opts,
+                      PSTrainingOptions *training_opts);
 
 /* Miscellaneous functions */
 
@@ -512,14 +515,105 @@ static void shuffleSequences(PSFloat **sequences, int size) {
     }
 }
 
-static PSFloat **getRecurrentSequences(PSNeuralNetwork *network, PSFloat *data,
-                                       int sequence_count, int xsize,
-                                       int ysize)
+static int parseSequenceData(PSNeuralNetwork *network, PSFloat *data,
+                             int sequence_index, int flags, int backprop,
+                             int *x_seqlen, PSFloat **x,
+                             int *y_seqlen, PSFloat **y)
 {
-    int recurrent_input = PSIsRecurrent(network->layers[0]),
-        recurrent_output = PSIsRecurrent(network->layers[network->size-1]), i;
-    if (!recurrent_input && !recurrent_output) {
-        PSErr(NULL, "Network has no recurrent input nor recurrent output");
+    int datalen = 0, xlen = 0, ylen = 0;
+    if (x_seqlen != NULL) *x_seqlen = 0;
+    if (y_seqlen != NULL) *y_seqlen = 0;
+    if (x != NULL) *x = NULL;
+    if (y!= NULL) *y = NULL;
+    PSNeuralNetwork *input_net = network, *output_net = network;
+    int netcount = PSGetNetworkChainLength(network);
+    if (netcount > 1) {
+        input_net = PSGetNetworkChainHead(network);
+        output_net = PSGetNetworkChainTail(network);
+        assert(input_net != NULL && output_net != NULL);
+    }
+    PSLayer *input_layer = input_net->layers[0],
+            *output_layer = output_net->layers[output_net->size - 1];
+    assert(input_layer != NULL && output_layer != NULL);
+    int input_seq = PSUseSequences(input_layer),
+        output_seq = PSUseSequences(output_layer);
+    if (!input_seq && !output_seq) return 0;
+    int input_size = input_layer->size, output_size = output_layer->size;
+    if (output_layer->flags & FLAG_ONEHOT) output_size = 1;
+    int autoregression = output_net->flags & FLAG_AUTOREGRESSION;
+    int seq2seq = backprop && (flags & TRAINING_FLAG_SEQ2SEQ);
+    if (seq2seq && !autoregression) return 0;
+    else if (!seq2seq && autoregression) seq2seq = 1;
+    if (!input_seq && seq2seq) return 0;
+    int seqlen_nelems = (seq2seq ? 2 : 1),
+        selfsupervised = flags & TRAINING_FLAG_SELFSUPERVISED;
+    PSFloat *xsize_p = NULL, *ysize_p = NULL, *xp = NULL, *yp = NULL;
+    if (input_seq) {
+        xsize_p = data;
+        xlen = (int) *xsize_p;
+        xp = xsize_p + 1;
+    } else {
+        xlen = 1;
+        xp = data;
+    }
+    if (xsize_p != NULL && xlen <= 0) {
+        PSErr(
+            NULL, "Sequence[%d] Invalid length %d at data offset %d",
+            sequence_index, xlen, (int) (xsize_p - data)
+        );
+        return 0;
+    }
+    if (x_seqlen != NULL) *x_seqlen = xlen;
+    if (x != NULL) *x = xp;
+    int xdatalen = (xlen * input_size), ydatalen = 0;
+    if (backprop) {
+        if (seq2seq && !selfsupervised) {
+            /* x_seqlen[1] | X[xdatalen] | y_seqlen[1] | Y[ydatalen] */
+            ysize_p = data + 1 + xdatalen;
+            yp = ysize_p + 1;
+        } else if (!input_seq) {
+            /* X[xdatalen] | y_seqlen[1] | Y[ydatalen] */
+            ysize_p = data + xdatalen;
+            yp = ysize_p + 1;
+        }
+        if (ysize_p != NULL) {
+            ylen = (int) *ysize_p;
+            if (ylen <= 0) {
+                PSErr(
+                    NULL, "Sequence[%d] Invalid length %d at data offset %d",
+                    sequence_index, ylen, (int) (ysize_p - data)
+                );
+                return 0;
+            }
+        } else {
+            ylen = xlen;
+            yp = data + 1 + xdatalen;
+        }
+        ydatalen = ylen * output_size;
+        if (y_seqlen != NULL) *y_seqlen = ylen;
+        if (y != NULL) *y = yp;
+    }
+    datalen = xdatalen + ydatalen + seqlen_nelems;
+    return datalen;
+}
+
+static PSFloat **getDatasetSequences(PSNeuralNetwork *network, PSFloat *data,
+                                     int sequence_count, int flags)
+{
+    PSNeuralNetwork *input_net = network, *output_net = network;
+    int netcount = PSGetNetworkChainLength(network);
+    if (netcount > 1) {
+        input_net = PSGetNetworkChainHead(network);
+        output_net = PSGetNetworkChainTail(network);
+        assert(input_net != NULL && output_net != NULL);
+    }
+    PSLayer *input_layer = input_net->layers[0],
+            *output_layer = output_net->layers[output_net->size - 1];
+    assert(input_layer != NULL && output_layer != NULL);
+    int input_is_seq = PSUseSequences(input_layer),
+        output_is_seq = PSUseSequences(output_layer);
+    if (!input_is_seq && !output_is_seq) {
+        PSErr(NULL, "Network uses not sequences");
         return NULL;
     }
     PSFloat **sequences = malloc(sizeof(PSFloat *) * sequence_count);
@@ -527,24 +621,19 @@ static PSFloat **getRecurrentSequences(PSNeuralNetwork *network, PSFloat *data,
         PSErr(NULL, "Could not allocate memory for recurrent sequences!");
         return NULL;
     }
-    PSFloat *p = data;
-    for (i = 0; i < sequence_count; i++) {
-        PSFloat *size_p = (recurrent_input ? p : p + xsize);
-        int sequence_size = (int) *size_p;
-        if (sequence_size <= 0) {
-            PSErr(
-                NULL, "Sequence[%d] Invalid length %d at data offset %d",
-                i, sequence_size, (int) (size_p - data)
-            );
-            free(sequences);
-            return NULL;
-        }
-        int xmul = (recurrent_input ? sequence_size : 1),
-            ymul = (recurrent_output ? sequence_size : 1);
-        sequences[i] = p++;
-        p += ((xmul * xsize) + (ymul * ysize));
+    PSFloat *seqdata = data;
+    for (int i = 0; i < sequence_count; i++) {
+        int datalen = parseSequenceData(
+            network, seqdata, i, flags, 1, NULL, NULL, NULL, NULL
+        );
+        if (datalen <= 0) goto fail;
+        sequences[i] = seqdata;
+        seqdata += datalen;
     }
     return sequences;
+fail:
+    free(sequences);
+    return NULL;
 }
 
 PSFloat *PSGetInputsFromTrainingData(PSFloat *training_data, int data_size,
@@ -865,6 +954,13 @@ PSLayer *PSGetNextLayer(PSLayer *layer) {
 PSLayer *PSGetOutputLayer(PSNeuralNetwork *network) {
     if (network == NULL || network->layers == NULL || network->size == 0)
         return NULL;
+    if (PSIsNetworkChain(network)) {
+        network = PSGetNetworkChainTail(network);
+        if (network == NULL) {
+            PSErr(__func__, "broken network chain");
+            return NULL;
+        }
+    }
     return network->layers[network->size - 1];
 }
 
@@ -970,6 +1066,10 @@ void PSPrintNetworkInfo(PSNeuralNetwork *network) {
     if (network == NULL) return;
     const char *name = network->name;
     if (name == NULL || !strlen(name)) name = "UNNAMED NETWORK";
+    int count = PSGetNetworkChainLength(network),
+        print_chain = (count > 1);
+    if (print_chain)
+        printf(PSCOLOR_BOLD "Network[%d]\n" PSCOLOR_RESET, network->index);
     printInfoRow("Name", "\"%s\"", name);
     printInfoRow("Size", "%d", network->size);
     int is_recurrent = PSIsRecurrent(network);
@@ -1100,7 +1200,10 @@ PSMatrix initLayerStates(PSLayer *layer, uint32_t seqlen,
      * current sequence states must be retained as 'initial state'.
      * This is done by adding one further row to states matrix that will
      * hold the 'initial' vector from previous last vector. */
-    int cur_seqlen = PSStateSequenceLength(layer);
+    int cur_seqlen =  0;
+    if (current == layer->states)
+        cur_seqlen = PSStateSequenceLength(layer);
+    else if (current != NULL) cur_seqlen = PSMatrixDim(current, 0);
     if (cur_seqlen <= 0) retain_previous = 0;
     int nrows = seqlen + (retain_previous ? 1 : 0);
     PSMatrix states = PSMatrixZeros(2, nrows, layer->size);
@@ -1138,8 +1241,18 @@ PSMatrix resizeLayerStates(PSLayer *layer, uint32_t seqlen,
                            PSMatrix current, PSFloat **previous)
 {
     assert(previous != NULL);
-    int nrows = seqlen;
-    int cur_seqlen = PSStateSequenceLength(layer), cur_nrows = cur_seqlen;
+    int nrows = seqlen, cur_seqlen, cur_nrows;
+    if (current == layer->states)
+        cur_seqlen = PSStateSequenceLength(layer);
+    else {
+        if (current == NULL) {
+            *previous = NULL;
+            return NULL;
+        }
+        cur_seqlen = PSMatrixDim(current, 0);
+        if (*previous != NULL) cur_seqlen--;
+    }
+    cur_nrows = cur_seqlen;
     if (layer->initial_states != NULL) {
         /* If layer has initial states, they're located in the last sequence's
          * element: states[seqlen] (in this case, states matrix number of rows
@@ -1153,7 +1266,7 @@ PSMatrix resizeLayerStates(PSLayer *layer, uint32_t seqlen,
         *previous = layer->initial_states;
         return current;
     }
-    PSMatrix states = PSMatrixExpand(current, steps2add);
+    PSMatrix states = PSMatrixExpand(current, steps2add, 0);
     if (states == NULL) {
         PSErr(NULL, "Layer[%d]: failed to resize states");
         return NULL;
@@ -1429,6 +1542,15 @@ PSFloat *PSGetStates(PSLayer *layer, ...) {
     return layer->states;
 }
 
+PSFloat *PSGetOutputs(PSLayer *layer) {
+    if (layer == NULL) return NULL;
+    if (PSUseSequences(layer)) {
+        int seqlen = PSStateSequenceLength(layer);
+        return PSGetStates(layer, seqlen - 1);
+    }
+    return PSGetStates(layer, 0);
+}
+
 PSFloat PSGetNeuronState(PSNeuron *neuron, ...) {
     if (neuron->layer == NULL) return 0.0;
     if (PSUseSequences(neuron->layer)) {
@@ -1457,6 +1579,46 @@ int PSIsNetworkBuilt(PSNeuralNetwork *network) {
     PSNetworkContext *ctx = getNetworkContext(network);
     if (ctx == NULL) return 0;
     return ctx->built;
+}
+
+static int discoverFirstLastRecurrentLayers(PSNeuralNetwork *network,
+                                            PSLayer **first_recurrent,
+                                            PSLayer **last_recurrent)
+{
+    PSLayer *first = PSGetFirstRecurrentLayer(network),
+            *last = PSGetLastRecurrentLayer(network);
+    if (first != NULL && last != NULL) {
+        if (first_recurrent != NULL) *first_recurrent = first;
+        if (last_recurrent != NULL) *last_recurrent = last;
+    }
+    if (first_recurrent != NULL) *first_recurrent = NULL;
+    if (last_recurrent != NULL) *last_recurrent = NULL;
+    PSLayer *last_rec = NULL;
+    for (int i = 0; i < network->size; i++) {
+        PSLayer *layer = network->layers[i];
+        assert(layer != NULL);
+        if (PSIsRecurrent(layer)) {
+            last_rec = layer;
+            if (first == NULL) {
+                first = layer;
+                setNetworkContext(network, first_recurrent_layer, first);
+                continue;
+            }
+        }
+    }
+    if (last == NULL) {
+        if (last_rec != NULL) {
+            last = last_rec;
+            setNetworkContext(network, last_recurrent_layer, last);
+        } else {
+            if (first_recurrent != NULL) *first_recurrent = first;
+            PSErr(NULL, "Unable to determine last recurrent layer");
+            return 0;
+        }
+    }
+    if (first_recurrent != NULL) *first_recurrent = first;
+    if (last_recurrent != NULL) *last_recurrent = last;
+    return 1;
 }
 
 static void updateNetworkForRecurrentMode(PSNeuralNetwork *network,
@@ -1576,6 +1738,18 @@ int PSBuildNetwork(PSNeuralNetwork *network) {
         updateNetworkChain(head);
     }
     ctx->built = 1;
+    if (network->previous == NULL) {
+        PSNeuralNetwork *cur = network->next;
+        while (cur != NULL) {
+            int built = PSBuildNetwork(cur);
+            if (!built) {
+                PSErr(__func__, "Failed to build network[%d]\n",
+                      network->index);
+                return 0;
+            }
+            cur = cur->next;
+        }
+    }
     return 1;
 }
 
@@ -1645,6 +1819,7 @@ PSNeuralNetwork *PSCreateNetwork(const char* name) {
     network->onBatchTrained = NULL;
     network->previous = NULL;
     network->next = NULL;
+    network->previous_network_link = NULL;
     network->rnn_mode = NonRecurrent;
     PSSequenceSettings *sequence_settings = &(network->sequence_settings);
     memset(sequence_settings, 0, sizeof(PSSequenceSettings));
@@ -1656,12 +1831,86 @@ memory_err:
     return NULL;
 }
 
+PSNeuralNetworkLink *findLinkToPreviousNetwork(PSNeuralNetwork *network,
+                                               PSNeuralNetwork *previous)
+{
+    if (network == NULL || previous == NULL) return NULL;
+    PSNeuralNetworkLink *link = NULL;
+    int i, j, prev_output_idx = previous->size - 1;
+    if (prev_output_idx < 0) {
+        PSErr(NULL, "Network %s is empty", previous->name);
+        return NULL;
+    }
+    PSLayer *input_layer = NULL, *output_layer = NULL;
+    for (i = 0; i < network->size; i++) {
+        int is_input = (i == 0);
+        PSLayer *layer = network->layers[i];
+        int input_size = layer->size, onehot_size = 0;
+        if (is_input && layer->flags & FLAG_ONEHOT)
+            onehot_size = PSGetOneHotLayerVectorSize(layer);
+        for (j = prev_output_idx; j >= 0; j--) {
+            PSLayer *prev_layer = previous->layers[j];
+            int output_size = prev_layer->size;
+            if (input_size == output_size || onehot_size == output_size) {
+                input_layer = layer;
+                output_layer = prev_layer;
+                break;
+            }
+        }
+    }
+    if (input_layer != NULL && output_layer != NULL) {
+        link = malloc(sizeof(*link));
+        if (link == NULL) {
+            PSPrintMemoryErrorMsg();
+            return NULL;
+        }
+        link->layer = input_layer;
+        link->previous_layer = output_layer;
+    }
+    return link;
+}
+
+int checkNeuralNetworkLink(PSNeuralNetworkLink *link) {
+    if (link == NULL) return 0;
+    PSLayer *input_layer = link->layer;
+    PSLayer *output_layer = link->previous_layer;
+    if (input_layer == NULL) {
+        PSErr(NULL, "missing layer in PSNeuralNetworkLink");
+        return 0;
+    }
+    if (output_layer == NULL) {
+        PSErr(NULL, "missing previous_layer in PSNeuralNetworkLink");
+        return 0;
+    }
+    PSNeuralNetwork *input_network = input_layer->network;
+    PSNeuralNetwork *output_network = output_layer->network;
+    if (input_network == NULL) {
+        PSErr(NULL, "PSNeuralNetworkLink layer has no network");
+        return 0;
+    }
+    if (output_network == NULL) {
+        PSErr(NULL, "PSNeuralNetworkLink previous_layer has no network");
+        return 0;
+    }
+    if (output_network->index >= input_network->index) {
+        PSErr(NULL, "PSNeuralNetworkLink previous_layer's network must "
+              "precede layer's network");
+        return 0;
+    }
+    int ok = (input_layer->size == output_layer->size);
+    if (!ok && input_layer->index == 0 && input_layer->flags & FLAG_ONEHOT) {
+        int onehot_vector_size = PSGetOneHotLayerVectorSize(input_layer);
+        ok = (onehot_vector_size == output_layer->size);
+    }
+    return ok;
+}
+
 int updateNetworkChain(PSNeuralNetwork *head) {
     if (head == NULL) return 0;
     while (head->previous != NULL) head = head->previous;
     PSNeuralNetwork *cur = head, *last = NULL;
-    int count = 1;
-    while (cur->next != NULL) {
+    int count = 0;
+    while (cur != NULL) {
         count++;
         PSNetworkContext *ctx = getNetworkContext(cur);
         if (ctx == NULL) {
@@ -1676,8 +1925,7 @@ int updateNetworkChain(PSNeuralNetwork *head) {
         cur = cur->next;
     }
     cur = last;
-    while (cur != NULL && cur->previous != NULL) {
-        cur = cur->previous;
+    while (cur != NULL) {
         PSNetworkContext *ctx = getNetworkContext(cur);
         if (ctx == NULL) {
             ctx = cur->context = calloc(1, sizeof(*ctx));
@@ -1688,11 +1936,13 @@ int updateNetworkChain(PSNeuralNetwork *head) {
         }
         setNetworkContext(cur, last_network, last);
         setNetworkContext(cur, network_chain_length, count);
+        cur = cur->previous;
     }
     return 1;
 }
 
-int PSAddNetwork(PSNeuralNetwork *parent, PSNeuralNetwork *network) {
+int PSAddNetwork(PSNeuralNetwork *parent, PSNeuralNetwork *network,
+                 PSNeuralNetworkLink *link) {
     if (parent == NULL || network == NULL) {
         PSErr(__func__, "`parent` and `network` cannot be null");
         return 0;
@@ -1711,11 +1961,37 @@ int PSAddNetwork(PSNeuralNetwork *parent, PSNeuralNetwork *network) {
     network->index = prev->index + 1;
     network->previous = prev;
     prev->next = network;
+    if (link == NULL) {
+        link = findLinkToPreviousNetwork(network, prev);
+        if (link == NULL) {
+            PSErr(__func__, "could not automatically find link from "
+                  "network %d to network %d", network->index, network->index-1);
+            goto fail;
+        }
+        network->previous_network_link = link;
+    } else {
+        if (!checkNeuralNetworkLink(link)) {
+            PSErr(__func__, "provided network link is not valid");
+            goto fail;
+        }
+        network->previous_network_link = malloc(sizeof(*link));
+        if (network->previous_network_link == NULL) {
+            PSPrintMemoryErrorMsg();
+            goto fail;
+        }
+        memcpy(network->previous_network_link, link, sizeof(*link));
+    }
     if (!updateNetworkChain(parent)) {
         PSErr(__func__, "broken network chain");
-        return 0;
+        goto fail;
     }
     return 1;
+fail:
+    network->previous = NULL;
+    prev->next = NULL;
+    free(network->previous_network_link);
+    network->previous_network_link = NULL;
+    return 0;
 }
 
 int cloneNetworkChain(PSNeuralNetwork *network, PSNeuralNetwork *clone,
@@ -1730,11 +2006,71 @@ int cloneNetworkChain(PSNeuralNetwork *network, PSNeuralNetwork *clone,
         }
         clone_next = PSCloneNetwork(next, layout_only);
         if (clone_next == NULL) return 0;
-        int added = PSAddNetwork(clone, clone_next);
-        if (!added) {
-            PSErr("PSCloneNetwork", "unable to clone network %d", next->index);
+        PSNeuralNetworkLink *link = next->previous_network_link,
+                            *clone_link = NULL;
+        if (link != NULL) {
+            if (link->layer == NULL || link->previous_layer == NULL ||
+                link->previous_layer->network == NULL)
+            {
+                PSErr("PSCloneNetwork", "invalid link in network %d",
+                      next->index);
+                PSDeleteNetwork(clone_next);
+                return 0;
+            }
+            if (link->layer->index >= clone_next->size ||
+                clone_next->layers[link->layer->index] == NULL)
+            {
+                PSErr("PSCloneNetwork", "missing layer %d in cloned network %d",
+                      link->layer->index, next->index);
+                PSDeleteNetwork(clone_next);
+                return 0;
+            }
+            PSNeuralNetwork *prev_network = NULL, *cur = clone;
+            int prev_net_idx = link->previous_layer->network->index;
+            while (prev_net_idx >= 0) {
+                if (cur->index == prev_net_idx--) {
+                    prev_network = cur;
+                    break;
+                }
+                cur = cur->previous;
+                if (cur == NULL) break;
+            }
+            if (prev_network == NULL) {
+                PSErr("PSCloneNetwork", "could not find linked network %d",
+                      prev_net_idx);
+                PSDeleteNetwork(clone_next);
+                return 0;
+            }
+            if (link->previous_layer->index >= prev_network->size ||
+                prev_network->layers[link->previous_layer->index] == NULL)
+            {
+                PSErr("PSCloneNetwork", "missing layer %d in cloned network %d",
+                      link->previous_layer->index, prev_network->index);
+                PSDeleteNetwork(clone_next);
+                return 0;
+            }
+            clone_link = malloc(sizeof(*clone_link));
+            if (clone_link == NULL) {
+                PSPrintMemoryErrorMsg();
+                PSDeleteNetwork(clone_next);
+                return 0;
+            }
+        }
+        if (clone_link == NULL) {
+            PSErr("PSCloneNetwork", "could not make link for cloned network %d",
+                  next->index);
+            PSDeleteNetwork(clone_next);
             return 0;
         }
+        int added = PSAddNetwork(clone, clone_next, clone_link);
+        if (!added) {
+            PSErr("PSCloneNetwork", "unable to add cloned network %d",
+                  next->index);
+            PSDeleteNetwork(clone_next);
+            free(clone_link);
+            return 0;
+        }
+        free(clone_link);
     }
     return 1;
 }
@@ -2239,12 +2575,14 @@ void PSDeleteNetwork(PSNeuralNetwork *network) {
     if (network->training != NULL) free(network->training);
     PSNeuralNetwork *next = network->next;
     PSNeuralNetwork *prev = network->previous;
+    PSNeuralNetworkLink *link = network->previous_network_link;
     free(network);
     if (prev != NULL && prev->next == network) prev->next = NULL;
     if (next != NULL && next->previous == network) {
         next->previous = NULL;
         PSDeleteNetwork(next);
     }
+    free(link);
 }
 
 void PSDeleteNeuron(PSNeuron *neuron) {
@@ -2423,6 +2761,7 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
     layer->before_batch_training = NULL;
     layer->on_states_init = NULL;
     layer->on_states_resize = NULL;
+    layer->get_input_from_link = NULL;
     if (layer->output_depth <= 0) layer->output_depth = 1;
     layer->output_columns = layer_def->output_columns;
     layer->output_rows = layer_def->output_rows;
@@ -2625,28 +2964,8 @@ int forwardThroughTime(PSNeuralNetwork *network, PSFloat *inputs,
     if (first == NULL || last == NULL) {
         /* First recurrent layer or last recurrent layer may be not set,
          * so let's discover them now. */
-        PSLayer *last_recurrent = NULL;
-        for (i = 0; i < network->size; i++) {
-            PSLayer *layer = network->layers[i];
-            assert(layer != NULL);
-            if (PSIsRecurrent(layer)) {
-                last_recurrent = layer;
-                if (first == NULL) {
-                    first = layer;
-                    setNetworkContext(network, first_recurrent_layer, first);
-                    continue;
-                }
-            }
-        }
-        if (last == NULL) {
-            if (last_recurrent != NULL) {
-                last = last_recurrent;
-                setNetworkContext(network, last_recurrent_layer, last);
-            } else {
-                PSErr(NULL, "Unable to determine last recurrent layer");
-                return 0;
-            }
-        }
+        if (!discoverFirstLastRecurrentLayers(network, &first, &last))
+            return 0;
     }
     int input_size = input_layer->size, last_layer_idx = last->index,
         start_idx = first->index;
@@ -2666,9 +2985,7 @@ int forwardThroughTime(PSNeuralNetwork *network, PSFloat *inputs,
         timesteps == 0 ||
         inputs == NULL ||
         !recurrent_input ||
-        (network->flags & FLAG_AUTOREGRESSION) ||
-        (training_opts && training_opts->flags & FLAG_AUTOREGRESSION) ||
-        (forward_opts && forward_opts->flags & FLAG_AUTOREGRESSION)
+        useAutoRegression(network, forward_opts, training_opts)
     );
     int randomized_autoregression = 0, autoregression_feed_output = 0;
     if (autoregression) {
@@ -2678,14 +2995,14 @@ int forwardThroughTime(PSNeuralNetwork *network, PSFloat *inputs,
                 training_opts->flags & TRAINING_FLAG_TEACHER_FORCING
             );
             if (teacher_forcing) autoregression = 0;
-        } else end = sequence_settings->end;
+        } else if (sequence_settings != NULL) end = sequence_settings->end;
     }
     if (autoregression) {
         PSFloat *start = NULL;
         start = sequence_settings->start;
         int maxlen = sequence_settings->max_length;
         if (maxlen <= 0) maxlen = MAX_SEQUENCE_LENGTH;
-        if (timesteps <= 0) {
+        if (timesteps <= 0 || inputs == NULL) {
             if (timesteps <= 0) timesteps = 1;
             seqlen = 1;
         }
@@ -2696,7 +3013,7 @@ int forwardThroughTime(PSNeuralNetwork *network, PSFloat *inputs,
         autogression_since = seqlen - 1;
         if (!backprop) timesteps = maxlen;
         if (recurrent_input) {
-            tmpinputs = PSVectorZero(maxlen * input_size);
+            tmpinputs = PSVectorZero(timesteps * input_size);
             if (tmpinputs == NULL) {
                 PSPrintMemoryErrorMsg();
                 return 0;
@@ -2704,6 +3021,8 @@ int forwardThroughTime(PSNeuralNetwork *network, PSFloat *inputs,
             if (inputs == NULL) {
                 if (start != NULL) PSVectorCopy(tmpinputs, start, first->size);
                 inputs = tmpinputs;
+            } else {
+                PSVectorCopy(tmpinputs, inputs, first->size * seqlen);
             }
             randomized_autoregression = (
                 network->flags & FLAG_RANDREGRESSION ||
@@ -2773,7 +3092,8 @@ forward_steps:
             }
             if (end >= 0 && max_idx == end) break;
             if (autoregression_feed_output && tmpinputs != NULL) {
-                inputs = tmpinputs;
+                int next_t = t + 1;
+                inputs = tmpinputs + next_t;
                 if (first->flags & FLAG_ONEHOT) *inputs = (PSFloat) max_idx;
                 else {
                     if (output_states == NULL)
@@ -2794,7 +3114,97 @@ final:
     return ok;
 }
 
-int networkForward(PSNeuralNetwork *network, PSFloat *inputs, int backprop,
+int useAutoRegression(PSNeuralNetwork *network,
+                      PSForwardOptions *forward_opts,
+                      PSTrainingOptions *training_opts)
+{
+    if (!PSUseSequences(network)) return 0;
+    if (!PSUseSequences(network->layers[network->size - 1])) return 0;
+    if (network->flags & FLAG_AUTOREGRESSION) return 1;
+    else if (forward_opts != NULL)
+        return forward_opts->flags & FLAG_AUTOREGRESSION;
+    else if (training_opts != NULL && network->next == NULL)
+        return training_opts->flags & FLAG_AUTOREGRESSION;
+    return 0;
+}
+
+int beforeNetworkForward(PSNeuralNetwork *network, PSFloat **inputs_p,
+                         int backprop, void *opts)
+{
+    PSFloat *inputs = *inputs_p, *network_inputs = *inputs_p;
+    PSTrainingOptions *train_opts = NULL;
+    PSForwardOptions *forward_opts = NULL;
+    if (backprop) train_opts = opts;
+    else forward_opts = opts;
+    int is_input_network = network->previous == NULL,
+        autoregression = useAutoRegression(network, forward_opts, train_opts);
+    if (inputs == NULL) {
+        if (!autoregression || (backprop && is_input_network)) {
+            PSErr(__func__, "No inputs");
+            return 0;
+        }
+    }
+    if (!is_input_network) {
+        PSNeuralNetwork *prev = network->previous;
+        network_inputs = NULL;
+        PSNeuralNetworkLink *link = network->previous_network_link;
+        if (link == NULL) {
+            link = findLinkToPreviousNetwork(network, prev);
+            network->previous_network_link = link;
+        }
+        if (link == NULL || !link->layer || !link->previous_layer) {
+            PSErr(__func__, "broken network chain: missing or invalid link in "
+                  "network %d", network->index);
+            if (link != NULL) free(link);
+            network->previous_network_link = NULL;
+            return 0;
+        }
+        int do_feed_input = (
+            link->layer->index == 0 &&
+            link->layer->size == link->previous_layer->size
+        );
+        PSFloat *outputs = NULL;
+        int input_whole_seq = PSHandleSequenceAtOnce(link->layer);
+        int seqlen = 1;
+        if (!input_whole_seq) {
+            outputs = PSGetOutputs(link->previous_layer);
+        } else {
+            seqlen = PSStateSequenceLength(link->previous_layer);
+            outputs = PSGetStates(link->previous_layer);
+        }
+        if (do_feed_input) *inputs_p = outputs;
+        else {
+            /* TODO (S2S): return 0 if network doesn't support autogression ? */
+            if (outputs == NULL) {
+                PSErr(__func__, "no outputs from network %d, layer %d",
+                      link->previous_layer->network->index,
+                      link->previous_layer->index);
+                return 0;
+            }
+            if (link->layer->get_input_from_link != NULL) {
+                if (!link->layer->get_input_from_link(link->previous_layer))
+                    return 0;
+            } else {
+                if (PSUseSequences(link->layer)) {
+                    if (!PSResetLayerStateSequence(link->layer, seqlen, 0))
+                        return 0;
+                }
+                if (link->layer->states == NULL) {
+                    PSErr(__func__, "Network %d layer %d has no states",
+                          network->index, link->layer->index);
+                    return 0;
+                }
+                PSVectorCopy(link->layer->states, outputs,
+                             link->layer->size * seqlen);
+            }
+        }
+        *inputs_p = network_inputs;
+    }
+    return 1;
+}
+
+int networkForward(PSNeuralNetwork *network, PSFloat *inputs,
+                   PSFloat *global_inputs, int backprop,
                    void *opts)
 {
     if (network == NULL) return 0;
@@ -2803,67 +3213,130 @@ int networkForward(PSNeuralNetwork *network, PSFloat *inputs, int backprop,
         return 0;
     }
     if (!PSIsNetworkBuilt(network)) {
-        PSErr(__func__, "Network is not built!");
+        PSErr(__func__, "Network is not built!", network->index);
         return 0;
     }
-    if (inputs == NULL) {
-        PSErr(__func__, "Null inputs");
-        return 0;
-    }
+    PSForwardOptions *forward_opts = NULL;
+    PSTrainingOptions *train_opts = NULL;
+    if (backprop) train_opts = opts;
+    else forward_opts = opts;
     int is_recurrent = PSIsRecurrent(network), recurrent_input = 0, i,
         ok = 1, seqlen = 0, first_idx = 0, output_idx = network->size - 1,
-        input_is_seq = 0;
+        input_is_seq = 0, is_input_network = network->previous == NULL,
+        use_seq = PSUseSequences(network);
     PSLayer *input_layer = network->layers[0],
             *output_layer = network->layers[output_idx],
             *first_recurrent = NULL,
             *last_recurrent = NULL;
-    PSTrainingOptions *training_opts = NULL;
-    if (backprop) training_opts = (PSTrainingOptions *) opts;
-    if (is_recurrent) {
-        int retain_previous = 1;
-        if (backprop) {
-            retain_previous = (
-                training_opts != NULL &&
-                (training_opts->flags & TRAINING_EPOCH_AS_SEQUENCE)
+    int autoregression = useAutoRegression(network, forward_opts, train_opts);
+    if (inputs == NULL && !autoregression) {
+        PSErr(__func__, "Null inputs");
+        return 0;
+    }
+    PSFloat *tmpinputs = NULL;
+    if (use_seq) {
+        int retain_previous = 0;
+        if (is_recurrent) {
+            retain_previous = 1;
+            if (backprop && is_input_network) {
+                retain_previous = (
+                    train_opts != NULL &&
+                    (train_opts->flags & TRAINING_EPOCH_AS_SEQUENCE)
+                );
+                if (retain_previous && network->training != NULL)
+                    retain_previous = (network->training->current_batch > 0);
+            }
+            first_recurrent = PSGetFirstRecurrentLayer(network);
+            last_recurrent = PSGetLastRecurrentLayer(network);
+            recurrent_input = PSIsRecurrent(input_layer);
+        } else if (input_layer->flags & FLAG_USE_SEQUENCES) {
+            input_is_seq = 1;
+        }
+        if (is_input_network && inputs != NULL) {
+            if (recurrent_input || input_is_seq) {
+                /* Read seqlen from first element in `inputs`. */
+                seqlen = (int) inputs[0];
+            } else if (backprop && PSIsRecurrent(output_layer)) {
+                /* If forward is called from backprop and network has
+                 * recurrent output but non-recurrent input (OneToMany),
+                 * we should read the seqlen that are the first element
+                 * of labels (y) that follows inputs. */
+                PSFloat *y = inputs + network->input_size;
+                seqlen = y[0];
+            } else {
+                PSErr(__func__, "cannot determine input sequence length");
+                ok = 0;
+                goto final;
+            }
+        } else if (!is_input_network && backprop && global_inputs != NULL) {
+            int seq2seq = (
+                train_opts && (train_opts->flags & TRAINING_FLAG_SEQ2SEQ)
             );
-            if (retain_previous && network->training != NULL)
-                retain_previous = (network->training->current_batch > 0);
+            /* TODO (S2S): only check seq2seq or also autoregression ?? */
+            if (autoregression || seq2seq) {
+                int training_flags = (train_opts ? train_opts->flags : 0);
+                PSFloat *y = NULL;
+                int datalen = parseSequenceData(
+                    network, global_inputs, 0, training_flags, 1,
+                    NULL, NULL, &seqlen, &y
+                );
+                ok = (datalen > 0);
+                if (!ok) {
+                    PSErr(__func__, "could not retrieve training prediction "
+                          "sequence count");
+                    goto final;
+                }
+                int teacher_forcing = (
+                    inputs == NULL && network->next == NULL &&
+                    train_opts != NULL &&
+                    train_opts->flags & TRAINING_FLAG_TEACHER_FORCING
+                );
+                if (teacher_forcing && seqlen > 0) {
+                    int input_size = input_layer->size,
+                        ysize = input_size * seqlen,
+                        /* Make room for <start> */
+                        full_ysize = input_size * ++seqlen,
+                        /* Add one float for sequence length */
+                        datasize = (full_ysize + 1) * sizeof(PSFloat);
+                    PSFloat *start = (&(network->sequence_settings))->start;
+                    tmpinputs = malloc(datasize);
+                    ok = (tmpinputs != NULL);
+                    if (!ok) {
+                        PSPrintMemoryErrorMsg();
+                        goto final;
+                    }
+                    PSFloat *yseq = tmpinputs;
+                    *(yseq++) = (PSFloat) seqlen;
+                    if (start != NULL)
+                        PSVectorCopy(yseq, start, input_size);
+                    else PSVectorClear(yseq, input_size);
+                    PSVectorCopy(yseq + input_size, y, ysize);
+                    inputs = tmpinputs;
+                }
+            }
         }
-        /* TODO: WARN: In non-backprop mode retain_previous will be always 0! */
-        first_recurrent = PSGetFirstRecurrentLayer(network);
-        last_recurrent = PSGetLastRecurrentLayer(network);
-        if ((recurrent_input = PSIsRecurrent(input_layer))) {
-            /* Read seqlen from first element in `inputs`. */
-            seqlen = (int) inputs[0];
-        } else if (backprop && PSIsRecurrent(output_layer)) {
-            /* If forward is called from backprop and network has
-             * recurrent output but non-recurrent input (OneToMany),
-             * we should read the seqlen that are the first element
-             * of labels (y) that follows inputs. */
-            PSFloat *y = inputs + network->input_size;
-            seqlen = y[0];
+        if (is_recurrent) { /* TODO (S2S): only for recurrent input? */
+            int steps = seqlen;
+            if (steps <= 0) steps = 1;
+            ok = PSResetNetworkStateSequences(network, steps, retain_previous);
+            if (!ok) {
+                PSErr(NULL, "Failed to reset network recurrent states");
+                goto final;
+            }
         }
-        int steps = seqlen;
-        if (steps < 0) steps = 0;
-        if (!PSResetNetworkStateSequences(network, steps, retain_previous)) {
-            network->status = STATUS_ERROR;
-            PSErr(NULL, "Failed to reset network recurrent states");
-            return 0;
-        }
-    } else if (input_layer->flags & FLAG_USE_SEQUENCES) {
-        input_is_seq = 1;
-        seqlen = (int) inputs[0];
     }
     if (recurrent_input) {
-        if (seqlen <= 0) {
+        if (seqlen <= 0 && !autoregression) {
             PSErr(
                 __func__, "Recurrent sequence length must be > 0 (found %d)",
                 seqlen
             );
-            return 0;
+            ok = 0;
+            goto final;
         }
-        ok = forwardThroughTime(network, inputs + 1, seqlen, backprop, opts);
-        if (!ok) return 0;
+        PSFloat *rnn_inputs = (inputs != NULL ? inputs + 1 : NULL);
+        ok = forwardThroughTime(network, rnn_inputs, seqlen, backprop, opts);
+        if (!ok) goto final;
         if (last_recurrent == NULL && PSIsRecurrent(output_layer)){
             setNetworkContext(network, last_recurrent_layer, output_layer);
             return ok;
@@ -2873,42 +3346,53 @@ int networkForward(PSNeuralNetwork *network, PSFloat *inputs, int backprop,
             else first_idx = last_recurrent_idx;
         }
     } else if (input_is_seq) {
-        if (seqlen <= 0) {
+        ok = seqlen > 0;
+        if (!ok) {
             PSErr(
                 __func__, "Sequence length must be > 0 (found %d)",
                 seqlen
             );
-            return 0;
+            goto final;
         }
         ok = inputLayerForward(network, inputs, seqlen);
     } else {
         ok = inputLayerForward(network, inputs);
-        if (!ok) return 0;
+        if (!ok) goto final;
     }
     for (i = (first_idx + 1); i < network->size; i++) {
         PSLayer *layer = network->layers[i];
-        if (layer == NULL) {
+        ok = layer != NULL;
+        if (!ok) {
             PSErr(__func__, "Layer %d is NULL!", i);
-            return 0;
+            goto final;
         }
-        if (is_recurrent && layer == first_recurrent)
-            return forwardThroughTime(network, NULL, seqlen, backprop, opts);
-        if (layer->forward == NULL) {
+        if (is_recurrent && layer == first_recurrent) {
+            ok = forwardThroughTime(network, NULL, seqlen, backprop, opts);
+            goto final;
+        }
+        ok = layer->forward != NULL;
+        if (!ok) {
             PSErr(__func__, "Layer %d forward function is NULL", i);
-            return 0;
+            goto final;
         }
         ok = layer->forward(layer);
-        if (!ok) return 0;
+        if (!ok) goto final;
     }
-    return 1;
+final:
+    if (tmpinputs != NULL) free(tmpinputs);
+    if (!ok) network->status = STATUS_ERROR;
+    return ok;
 }
 
 int forward(PSNeuralNetwork *network, PSFloat *inputs, int backprop, void *opts)
 {
     int ok = 1;
     if (network == NULL) return 0;
+    PSFloat *global_inputs = inputs;
     while (network != NULL) {
-        ok = networkForward(network, inputs, backprop, opts);
+        ok = beforeNetworkForward(network, &inputs, backprop, opts);
+        if (!ok) return 0;
+        ok = networkForward(network, inputs, global_inputs, backprop, opts);
         if (!ok) return 0;
         network = network->next;
     }
@@ -3216,20 +3700,51 @@ static int resetDeltas(PSNeuralNetwork *network) {
     return 1;
 }
 
+static int propagateDeltaFromNextNetwork(PSNeuralNetwork *network) {
+    if (network->next == NULL) return 0;
+    PSNeuralNetworkLink *link = network->next->previous_network_link;
+    int ok = link != NULL;
+    if (!ok) {
+        PSErr(NULL, "Network %d has not previous_network_link",
+              network->next->index);
+        return 0;
+    }
+    ok = (link->layer != NULL && link->previous_layer != NULL);
+    if (!ok) {
+        PSErr(NULL, "Network %d has invalid previous_network_link",
+              network->next->index);
+        return 0;
+    }
+    if (link->previous_layer->network != network) {
+        PSErr(NULL, "Network %d linked to another network (%d)",
+              network->next->index, link->previous_layer->network->index);
+        return 0;
+    }
+    if (link->previous_layer->delta != NULL) {
+        PSMatrixDelete(link->previous_layer->delta);
+        link->previous_layer->delta = NULL;
+    }
+    link->previous_layer->delta = PSMatrixDup(link->layer->delta);
+    return 1;
+}
+
 void beforeBatchTraining(PSNeuralNetwork *network) {
     if (network == NULL || network->layers == NULL) return;
     int i, j;
-    for (i = 0; i < network->size; i++) {
-        PSLayer *layer = network->layers[i];
-        if (layer == NULL) continue;
-        if (layer->weights != NULL) {
-            for (j = 0; j < layer->weight_types_count; j++) {
-                PSMatrix weights = layer->weights[j];
-                PSMatrixResetTransposed(weights);
+    while (network) {
+        for (i = 0; i < network->size; i++) {
+            PSLayer *layer = network->layers[i];
+            if (layer == NULL) continue;
+            if (layer->weights != NULL) {
+                for (j = 0; j < layer->weight_types_count; j++) {
+                    PSMatrix weights = layer->weights[j];
+                    PSMatrixResetTransposed(weights);
+                }
             }
+            if (layer->before_batch_training != NULL)
+                layer->before_batch_training(layer);
         }
-        if (layer->before_batch_training != NULL)
-            layer->before_batch_training(layer);
+        network = network->next;
     }
 }
 
@@ -3440,7 +3955,8 @@ int PSUpdatePreviousLayerDelta(PSLayer *layer, PSLayer *previous,
         ok = PSDot(delta, weights, previous->delta, &opts);
     }
     if (!ok)
-        PSErr(NULL, "Layer[%d]: failed backprop (PSDot)", layer->index);
+        PSErr(NULL, "Layer[%d]: failed backprop (PSDot) (seqlen = %d)",
+              layer->index);
     return ok;
 }
 
@@ -3591,11 +4107,12 @@ int backpropThroughTime(PSNeuralNetwork *network, PSFloat *y,
         setNetworkContext(network, last_recurrent_layer, last_recurrent);
     int last_t = timesteps - 1;
     int recurrent_output = (last_recurrent == output_layer);
+    int is_output_network = (network->next == NULL);
     int bptt_truncate = (opts != NULL ? opts->bptt_truncate : BPTT_TRUNCATE);
     if (bptt_truncate < 0) bptt_truncate = 0;
     int onehot, osize, ysize, i, t, ok = 1;
     PSFloat *eos_labels = NULL;
-    if (recurrent_output) {
+    if (recurrent_output && is_output_network) {
         ok = (y != NULL);
         if (!ok) {
             PSErr(NULL, "Label values for recurrent output layer are NULL");
@@ -3613,18 +4130,17 @@ int backpropThroughTime(PSNeuralNetwork *network, PSFloat *y,
         }
         ok = (hidden_states_count == timesteps);
         if (!ok) {
-            PSErr(NULL, "Hidden states count %ddiffers from timesteps %d",
+            PSErr(NULL, "Hidden states count %d differs from timesteps %d",
                   hidden_states_count, timesteps);
             return 0;
         }
     }
     int do_truncate = bptt_truncate > 0;
-    if (recurrent_output) resetDeltas(network);
     PSFloat *delta;
     for (t = last_t; t >= 0; t--) {
         int lowest_t = t - bptt_truncate;
         if (lowest_t < 0) lowest_t = 0;
-        if (recurrent_output) {
+        if (recurrent_output && is_output_network) {
             /* Backpropagate starting from output layer. */
             int timestep_offset = t * ysize;
             PSFloat *timestep_y = y + timestep_offset;
@@ -3672,33 +4188,71 @@ final:
     return ok;
 }
 
-PSGradient **networkBackprop(PSNeuralNetwork *network, PSFloat *x, PSFloat *y,
+PSGradient **networkBackprop(PSNeuralNetwork *network, PSFloat *y,
                              PSTrainingOptions *opts, PSGradient **gradients)
 {
     if (network == NULL) return NULL;
     int i, ok = 1;
+    PSFloat *tmpy = NULL;
     PSGradient **new_gradients = NULL;
     if (gradients == NULL) {
         gradients = createNetworkGradients(network);
         new_gradients = gradients;
     }
     if (gradients == NULL) return NULL;
-    int netsize = network->size, is_recurrent = PSIsRecurrent(network);
+    int netsize = network->size, is_recurrent = PSIsRecurrent(network),
+        seqlen = 0;
     PSLayer *output_layer = network->layers[netsize - 1];
     PSGradient *lgradients = gradients[netsize - 2]; /* No gradient for
                                                         inputs */
+    int teacher_forcing = (
+        y != NULL && network->next == NULL &&
+        PSUseSequences(network) && PSUseSequences(network->layers[0]) &&
+        opts != NULL && opts->flags & TRAINING_FLAG_TEACHER_FORCING
+    );
+    if (teacher_forcing && PSUseSequences(output_layer)) {
+        seqlen = PSStateSequenceLength(network->layers[0]);
+        if (seqlen > 0) {
+            int onehot_labels = output_layer->flags & FLAG_ONEHOT;
+            int osize = (onehot_labels ? 1 : output_layer->size);
+            tmpy = malloc(osize * seqlen * sizeof(PSFloat));
+            ok = (tmpy != NULL);
+            if (!ok) {
+                PSPrintMemoryErrorMsg();
+                goto final;
+            }
+            PSVectorCopy(tmpy, y, osize * (seqlen - 1));
+            int end = network->sequence_settings.end;
+            if (end < 0) end = 0;
+            if (onehot_labels) tmpy[seqlen - 1] = (PSFloat) end;
+            else {
+                if (end >= osize) {
+                    ok = 0;
+                    PSErr(NULL, "network sequence_settings.end (%d) exceeds "
+                          "output layer size (%d)", end, osize);
+                    goto final;
+                }
+                PSFloat *last_item = tmpy + ((seqlen - 1) * osize);
+                PSVectorClear(last_item, osize);
+                last_item[end] = 1;
+            }
+            y = tmpy;
+        }
+    }
     PSLayer *previous_layer = NULL;
     ok = resetDeltas(network);
     if (!ok) {
         PSErr(NULL, "Failed to reset network deltas");
         goto final;
     }
+    if (network->next != NULL) {
+        ok = propagateDeltaFromNextNetwork(network);
+        if (!ok) goto final;
+    }
     if (is_recurrent && PSIsRecurrent(output_layer)) {
         PSLayer *input_layer = network->layers[0];
         PSLayer *first_recurrent = PSGetFirstRecurrentLayer(network);
-        int timesteps = 0;
-        if (PSIsRecurrent(input_layer)) timesteps = (int) *x;
-        else timesteps = (int) *(y++);
+        int timesteps = seqlen ? seqlen : PSStateSequenceLength(output_layer);
         if (timesteps == 0) {
             PSErr(
                 NULL, "Recurrent timesteps must be > 0 (found %d)",
@@ -3778,6 +4332,7 @@ PSGradient **networkBackprop(PSNeuralNetwork *network, PSFloat *x, PSFloat *y,
         if (!ok) goto final;
     }
 final:
+    if (tmpy != NULL) free(tmpy);
     if (!ok) {
         if (new_gradients != NULL)
             PSDeleteNetworkGradients(new_gradients, network);
@@ -3806,8 +4361,10 @@ PSGradient ***backprop(PSNeuralNetwork *network, PSFloat *x, PSFloat *y,
         new_gradients = gradients;
     }
     if (gradients == NULL) return NULL;
+    /* Forward pass */
     ok = forward(network, x, 1, opts);
     if (!ok) goto final;
+    /* Backward pass */
     int num_networks = 1;
     if (PSIsNetworkChain(network)) {
         num_networks = PSGetNetworkChainLength(network);
@@ -3818,13 +4375,14 @@ PSGradient ***backprop(PSNeuralNetwork *network, PSFloat *x, PSFloat *y,
         if (!ok) goto final;
         int idx = num_networks - 1;
         while (current != NULL) {
-            PSGradient **grads = gradients[idx], **res = NULL;
-            res = networkBackprop(network, x, y, opts, grads);
+            PSGradient **grads = gradients[idx--], **res = NULL;
+            res = networkBackprop(current, y, opts, grads);
             ok = (res != NULL && res == grads);
             if (!ok) goto final;
+            current = current->previous;
         }
     } else {
-        PSGradient **grads = networkBackprop(network, x, y, opts, gradients[0]);
+        PSGradient **grads = networkBackprop(network, y, opts, gradients[0]);
         ok = (grads != NULL && grads == gradients[0]);
     }
 final:
@@ -3941,21 +4499,35 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
                                 PSGradient **memory_gradients2, ...)
 {
     assert(network->previous == NULL);
-    int i, j, netsize = network->size, gradsize = 0, netidx = 0,
-        seqlen = 0, iteration = 0, apply_clip = 0;
+    int i, j, gradsize = 0, netidx = 0, x_seqlen = 0, y_seqlen = 0,
+        iteration = 0, apply_clip = 0;
     assert(batch_size > 0);
     PSFloat *x = NULL; /* Training element */
     PSFloat *y = NULL; /* Labels */
     PSFloat l1 = 0.0, l2 = 0.0, l1_loss = 0.0, l2_loss = 0.0, momentum = 0.0,
             clip_max = 0.0, clip_min = 0.0;
-    int training_data_size = network->input_size;
-    int label_data_size = network->output_size;
+    PSNeuralNetwork *output_network = network;
     int num_networks = PSGetNetworkChainLength(network);
     if (num_networks < 1) {
         PSErr(NULL, "broken network chain");
         network->status = STATUS_ERROR;
         return STATUS_ERROR_LOSS;
+    } else if (num_networks > 1) {
+        output_network = PSGetNetworkChainTail(network);
+        if (output_network == NULL) {
+            PSErr(NULL, "broken network chain");
+            network->status = STATUS_ERROR;
+            return STATUS_ERROR_LOSS;
+        }
     }
+    PSLayer *output_layer = PSGetOutputLayer(network);
+    if (output_layer == NULL) {
+        PSErr(NULL, "no output layer");
+        network->status = STATUS_ERROR;
+        return STATUS_ERROR_LOSS;
+    }
+    int training_data_size = network->input_size;
+    int label_data_size = output_layer->size;
     /* Create gradients for the current batch. */
     PSGradient ***gradients = createGradients(network);
     if (gradients == NULL) {
@@ -3964,8 +4536,7 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
     }
     PSGradient ***bp_gradients = NULL;
     PSFloat **sequences = NULL;
-    int is_recurrent = PSIsRecurrent(network),
-        input_is_seq = 0, output_is_seq = 0;
+    int is_recurrent = PSIsRecurrent(network), output_is_seq = 0;
     if (is_recurrent || PSUseSequences(network)) {
         va_list args;
         va_start(args, memory_gradients2);
@@ -3976,20 +4547,16 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
             network->status = STATUS_ERROR;
             goto final;
         }
-        if (is_recurrent) {
-            input_is_seq = PSIsRecurrent(network->layers[0]);
-            output_is_seq =
-                PSIsRecurrent(network->layers[network->size - 1]);
-        } else {
-            input_is_seq = PSHandleSequenceAtOnce(network->layers[0]);
-            output_is_seq =
-                PSHandleSequenceAtOnce(network->layers[network->size - 1]);
-        }
+        if (is_recurrent)
+            output_is_seq = PSIsRecurrent(output_layer);
+        else
+            output_is_seq = PSHandleSequenceAtOnce(output_layer);
     }
     UNUSED(elements_count); /* TODO: remove elements_count arg if not needed */
     PSOptimization optimization = PSDefaultOptimization;
-    int use_weight_decay = 0, divide_grads_by_batches = 0;
+    int use_weight_decay = 0, divide_grads_by_batches = 0, training_flags = 0;
     if (opts != NULL) {
+        training_flags = opts->flags;
         optimization = opts->optimization;
         if (optimization == NULL) optimization = PSDefaultOptimization;
         divide_grads_by_batches =  (
@@ -4049,10 +4616,12 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
      * from the backpropagation of the error. Then, sum the backpropagation
      * gradients to the batch's gradients. */
     for (i = 0; i < batch_size; i++) {
+        int curelem = 0;
         if (network->training != NULL) {
             network->training->current_element =
                 (network->training->current_batch * batch_size) + i;
             iteration = network->training->current_element + 1;
+            curelem = network->training->current_element;
         }
         /* Backpropagate the error through the network layers and get
          * gradients for the current element. */
@@ -4065,15 +4634,14 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
         } else {
             /* Recurrent network or network handling sequences*/
             x = sequences[i];
-            if (input_is_seq) {
-                seqlen = (int) *x;
-                if (seqlen == 0) {
-                    PSErr(__func__, "Sequence len must b > 0. (batch = %d)", i);
-                    network->status = STATUS_ERROR;
-                    goto final;
-                }
-                y = x + 1 + (seqlen * training_data_size);
-            } else y = x + training_data_size;
+            int datalen = parseSequenceData(
+                network, x, curelem, training_flags, 1,
+                &x_seqlen, NULL, &y_seqlen, &y
+            );
+            if (datalen <= 0 || x_seqlen <= 0 || y_seqlen <= 0) {
+                network->status = STATUS_ERROR;
+                goto final;
+            }
         }
         bp_gradients = backprop(network, x, y, opts, bp_dest_gradients);
         if (bp_gradients == NULL) {
@@ -4115,7 +4683,7 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
         PSGradient **grads = gradients[netidx];
         if (grads == NULL) {
             PSErr(NULL, "no gradients found for network[%d] (%s)", netidx,
-                  (network->name != NULL ? network->name : "UNNAMED"));
+                  (net->name != NULL ? net->name : "UNNAMED"));
             network->status = STATUS_ERROR;
             goto final;
         }
@@ -4126,7 +4694,7 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
             if (lgradients == NULL) continue;
             if (memory_gradients1 != NULL) mgradients = memory_gradients1[i];
             if (memory_gradients2 != NULL) xgradients = memory_gradients2[i];
-            PSLayer *layer = network->layers[i + 1];
+            PSLayer *layer = net->layers[i + 1];
             if (layer->pretrained) continue;
             /* Update Biases */
             if (!(layer->flags & FLAG_NO_BIAS)) {
@@ -4201,26 +4769,26 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
 final:
     PSDeleteGradientsChain(gradients, network);
     if (network->status == STATUS_ERROR) return STATUS_ERROR_LOSS;
-    PSLayer *out = network->layers[netsize - 1];
-    int onehot = out->flags & FLAG_ONEHOT;
+    int onehot = output_layer->flags & FLAG_ONEHOT;
     if (onehot) label_data_size = 1;
-    if (output_is_seq) label_data_size *= seqlen;
+    if (output_is_seq) label_data_size *= y_seqlen;
     PSFloat outputs[label_data_size];
     for (i = 0; i < label_data_size; i++) {
         if (onehot) {
             int idx = (int) *(y + i);
-            outputs[i] = PSGetState(out, idx, i);
+            outputs[i] = PSGetState(output_layer, idx, i);
         } else {
-            if (!output_is_seq) outputs[i] = PSGetState(out, i);
-            else i = fetchSequenceOutputState(out, outputs, i, 0);
+            if (!output_is_seq) outputs[i] = PSGetState(output_layer, i);
+            else i = fetchSequenceOutputState(output_layer, outputs, i, 0);
         }
     }
     if (opts == NULL) l1 = l2 = 0.0;
     if (l1 != 0.0) l1_loss *= (opts->l1_decay / batch_size);
     if (l2 != 0.0) l2_loss = (0.5 * (opts->l2_decay / batch_size) * l2_loss);
-    int onehot_size = (onehot ? out->size : 0);
-    PSFloat loss =  network->loss(outputs, y, label_data_size, onehot_size);
-    if (output_is_seq && seqlen > 0) loss /= seqlen;
+    int onehot_size = (onehot ? output_layer->size : 0);
+    PSFloat loss =
+        output_network->loss(outputs, y, label_data_size, onehot_size);
+    if (output_is_seq && y_seqlen > 0) loss /= y_seqlen;
     return loss + l1_loss + l2_loss;
 }
 
@@ -4248,12 +4816,25 @@ PSFloat gradientDescent(PSNeuralNetwork *network,
     int batches_count = elements_count / batch_size;
     PSFloat **sequences = NULL, **sequence_head = NULL;
     int flags = 0, do_validate = 0;
+    int is_network_chain = PSIsNetworkChain(network);
     if (options != NULL) flags = options->flags;
-    if (PSIsRecurrent(network)) {
-        PSLayer *out = network->layers[network->size - 1];
-        int o_size = (out->flags & FLAG_ONEHOT ? 1 : network->output_size);
-        sequences = getRecurrentSequences(
-            network, training_data, elements_count, network->input_size, o_size
+    if (PSIsRecurrent(network) || PSHandleSequenceAtOnce(network)) {
+        PSLayer *out = PSGetOutputLayer(network);
+        if (out == NULL) {
+            PSErr(NULL, "no output layer");
+            network->status = STATUS_ERROR;
+            return STATUS_ERROR_LOSS;
+        }
+        PSNeuralNetwork *outnet = network;
+        if (is_network_chain) {
+            outnet = PSGetNetworkChainTail(network);
+            if (outnet == NULL) {
+                network->status = STATUS_ERROR;
+                return STATUS_ERROR_LOSS;
+            }
+        }
+        sequences = getDatasetSequences(
+            network, training_data, elements_count, flags
         );
         if (sequences == NULL) {
             network->status = STATUS_ERROR;
@@ -4320,8 +4901,8 @@ PSFloat gradientDescent(PSNeuralNetwork *network,
         );
         err += batch_err;
         if (network->status == STATUS_ERROR) {
-            PSErr(NULL, "SGD failed at batch %d for network '%s'", i,
-                  (network->name != NULL ? network->name : "UNNAMED")
+            PSErr(NULL, "Gradient descent failed at batch %d for network '%s'", 
+                  i, (network->name != NULL ? network->name : "UNNAMED")
             );
             goto final;
         }
@@ -4337,7 +4918,9 @@ PSFloat gradientDescent(PSNeuralNetwork *network,
                     PSLogTrainingProgress(network, epochs, batches_count, 1,
                         "validating %d element(s)...",
                         test_data_size / element_size);
-                    acc = validate(network, test_data, test_data_size, 0);
+                    acc = validate(
+                        network, test_data, test_data_size, options, 0
+                    );
                     tot_acc += acc;
                     avg_acc = tot_acc / (PSFloat) ++validations;
                 }
@@ -4375,7 +4958,7 @@ final:
 }
 
 float validate(PSNeuralNetwork *network, PSFloat *test_data, int data_size,
-               int log)
+               PSTrainingOptions *opts, int log)
 {
     int i, j;
     unsigned char previous_status = network->status;
@@ -4391,6 +4974,7 @@ float validate(PSNeuralNetwork *network, PSFloat *test_data, int data_size,
     int element_size = input_size + output_size;
     int elements_count;
     int reads_input_sequence = 0, emits_output_sequence = 0;
+    int flags = (opts != NULL ? opts->flags : 0);
     PSFloat **sequences = NULL;
     if (PSUseSequences(network)) {
         /*  First training data number for Recurrent networks must indicate */
@@ -4399,8 +4983,8 @@ float validate(PSNeuralNetwork *network, PSFloat *test_data, int data_size,
         data_size--;
         reads_input_sequence = PSUseSequences(network->layers[0]);
         emits_output_sequence = PSUseSequences(output_layer);
-        sequences = getRecurrentSequences(
-            network, test_data, elements_count, input_size, y_size
+        sequences = getDatasetSequences(
+            network, test_data, elements_count, flags
         );
         if (sequences == NULL) goto err;
     } else elements_count = data_size / element_size;
@@ -4559,6 +5143,41 @@ void PSSetDefaultTrainingOptions(PSTrainingOptions *options) {
     if (options->batch_size <= 0) options->batch_size = 1;
 }
 
+int isSequence2SequenceAvailable(PSNeuralNetwork *network, char **err) {
+    if (network == NULL) return 0;
+    PSNeuralNetwork *input_network = network, *output_network = network;
+    int count = PSGetNetworkChainLength(network);
+    if (err != NULL) *err = NULL;
+    if (count > 1) {
+        input_network = PSGetNetworkChainHead(network);
+        output_network = PSGetNetworkChainTail(network);
+        if (input_network == NULL || output_network == NULL) {
+            if (err != NULL) *err = "broken network chain";
+            return 0;
+        }
+    }
+    PSLayer *input_layer = input_network->layers[0];
+    PSLayer *output_layer = output_network->layers[output_network->size - 1];
+    if (input_layer == NULL || output_layer == NULL) {
+        if (err != NULL) *err = "could not determine input and output layers";
+        return 0;
+    }
+    if (!PSUseSequences(input_layer)) {
+        if (err != NULL) *err = "input layer does not accept sequences";
+        return 0;
+    }
+    if (!PSUseSequences(output_layer)) {
+        if (err != NULL) *err = "output layer does not produce sequences";
+        return 0;
+    }
+    if (!(output_network->flags & FLAG_AUTOREGRESSION)) {
+        if (err != NULL)
+            *err = "no FLAG_AUTOREGRESSION in output network's flags";
+        return 0;
+    }
+    return 1;
+}
+
 int PSPretrainLayers(PSNeuralNetwork *network, PSFloat *training_data,
                      int data_size)
 {
@@ -4583,6 +5202,40 @@ int PSPretrainLayers(PSNeuralNetwork *network, PSFloat *training_data,
     return 1;
 }
 
+/* Train `network` over `training_data`. Training epochs, batch size,
+ * optimization, and other optimizer settings are defined into optional
+ * `options`.
+ * Arguments:
+ *  - `network`: The neural network to be trained (mandatory)
+ *  - `training_data`: an array of `PSFloat` containing the tarining dataset
+ *     (ie. inputs, expected predictions)
+ *  - `data_size`: length of `training_data` array.
+ *  - `test_data`: optional dataset that can be used for testing purpose
+ *  - `test_size`: length of `test_data` array.
+ *  - `options`: optional training options (see `PSTrainingOptions`).
+ *               If NULL, the training process will use default options.
+ * Training/test data layout:
+ *  - For normal feedforward networks, the array must contain alternating
+ *    inputs/predictions pairs, one pair for each element to be trained.
+ *    So, each training/test element pair must contain:
+ *      - Input values, having the same length of the network's input layer
+ *      - Prediction values, having the same length of the network's output
+ *        layer. If output layer has the `FLAG_ONEHOT` flag, predictions length
+ *        muse be 1, and it must contain the index of the expected maximum
+ *        state.
+ *    Total number of traing elements is given by:
+ *      array size / (input_size + output_size)
+ *  - For recurrent network or networks using sequences, layout can have
+ *    different forms.
+ *    Regardless of that, first element of the array must contain the total
+ *    number of training/test elements.
+ *    For each training/test sequence, the sequence length must be specified.
+ *    Different forms can be:
+ *    - Many-to-many: the default mode for recurrent networks that produce
+ *      sequences having the same length of the input sequence.
+ *      In this case, the first element of the sequence segment is the
+ *      sequence length, followed by inputs/predictions pair.
+ */
 void PSTrain(PSNeuralNetwork *network,
              PSFloat *training_data,
              int data_size,
@@ -4603,22 +5256,6 @@ void PSTrain(PSNeuralNetwork *network,
         network->status = STATUS_ERROR;
         return;
     }
-    PSTrainingOptions default_options = {0};
-    if (options == NULL) {
-        options = &default_options;
-        PSSetDefaultTrainingOptions(options);
-    }
-    checkTrainingOptions(options);
-    epochs = options->epochs;
-    batch_size = options->batch_size;
-    learning_rate = options->learning_rate;
-    if (learning_rate <= 0.0) {
-        PSErr(__func__, "learning_rate must be > 0.0");
-        return;
-    }
-    if (batch_size <= 0) batch_size = options->batch_size = 1;
-    if (epochs <= 0) epochs = options->epochs = 1;
-    int element_size = network->input_size + network->output_size;
     PSNetworkContext *ctx = getNetworkContext(network);
     if (ctx == NULL) {
         PSErr(__func__, "Missing network context");
@@ -4638,8 +5275,35 @@ void PSTrain(PSNeuralNetwork *network,
             return;
         }
     }
+    PSTrainingOptions default_options = {0};
+    if (options == NULL) {
+        options = &default_options;
+        PSSetDefaultTrainingOptions(options);
+    }
+    checkTrainingOptions(options);
+    epochs = options->epochs;
+    batch_size = options->batch_size;
+    learning_rate = options->learning_rate;
+    if (learning_rate <= 0.0) {
+        PSErr(__func__, "learning_rate must be > 0.0");
+        return;
+    }
+    if (batch_size <= 0) batch_size = options->batch_size = 1;
+    if (epochs <= 0) epochs = options->epochs = 1;
     training_ctx = ctx->training_context;
     training_ctx->options = *options;
+    int network_count = PSGetNetworkChainLength(network);
+    PSNeuralNetwork *input_network = network, *output_network = network;
+    if (network_count > 1) {
+        input_network = PSGetNetworkChainHead(network);
+        output_network = PSGetNetworkChainTail(network);
+        if (input_network == NULL || output_network == NULL) {
+            PSErr(__func__, "broken network chain");
+        }
+    }
+    int input_size = input_network->input_size,
+        output_size = output_network->output_size;
+    int element_size = input_size + output_size;
     /* Eventually pretrain layers (if pretrainable layers are found) */
     if (!PSPretrainLayers(network, training_data, data_size)) {
         network->status = STATUS_ERROR;
@@ -4648,14 +5312,37 @@ void PSTrain(PSNeuralNetwork *network,
         return;
     }
     int is_recurrent = PSIsRecurrent(network);
-    if (is_recurrent) {
+    int handle_seq = PSHandleSequenceAtOnce(network);
+    int use_sequences = is_recurrent || handle_seq;
+    if (use_sequences) {
         /*  First training data number for Recurrent networks must indicate */
         /*  the data elements count */
         elements_count = (int) *(training_data++);
         data_size--;
     } else elements_count = data_size / element_size;
+    if (options->flags & TRAINING_FLAG_SEQ2SEQ) {
+        char *err = NULL;
+        if (!isSequence2SequenceAvailable(network, &err)) {
+            PSErr(__func__, "Sequence-to-sequence (TRAINING_FLAG_SEQ2SEQ) is "
+                  "not available for this model: %s", err);
+            return;
+        }
+    }
     const char *name = network->name != NULL ? network->name : "UNNAMED";
-    PSLog(PSLOGLEVEL_NOTICE, "Training network \"%s\"\n", name);
+    if (network_count == 1)
+        PSLog(PSLOGLEVEL_NOTICE, "Training network \"%s\"\n", name);
+    else {
+        PSLog(PSLOGLEVEL_NOTICE, "Training multi-network model\n");
+        PSInfo("Number of networks:         %d", network_count);
+        const char *input_name = (
+            input_network->name != NULL ? input_network->name : "UNNAMED"
+        );
+        const char *output_name = (
+            output_network->name != NULL ? output_network->name : "UNNAMED"
+        );
+        PSInfo("Input network:              \"%s\"", input_name);
+        PSInfo("Output network:             \"%s\"", output_name);
+    }
     PSInfo("Training data elements:     %d", elements_count);
     PSInfo("Batch Size:                 %d", batch_size);
     PSInfo("Learning Rate:              %g", learning_rate);
@@ -4687,14 +5374,16 @@ void PSTrain(PSNeuralNetwork *network,
         options->flags |= TRAINING_NO_SHUFFLE;
     }
     if (single_seq) PSInfo("Single sequence:            yes");
-    PSInfo("Data shuffle (SGD):         %s", (!no_shuffle ? "yes" : "no"));
+    PSInfo("Data shuffle:               %s", (!no_shuffle ? "yes" : "no"));
     if (is_recurrent)
         PSInfo("BPTT Truncate:              %d", options->bptt_truncate);
     if (network->layers[network->size - 1]->flags & FLAG_ONEHOT)
         PSInfo("Onehot Labels:              yes");
+    if (options->flags & TRAINING_FLAG_TEACHER_FORCING)
+        PSInfo("Teacher forcing:            yes");
     char *loss_func_name = NULL;
-    if (network->loss != NULL) {
-        loss_func_name = getLossFunctionName(network->loss);
+    if (output_network->loss != NULL) {
+        loss_func_name = getLossFunctionName(output_network->loss);
         PSInfo("Loss Function:              %s", loss_func_name);
     }
     /* Start training */
@@ -4754,7 +5443,7 @@ void PSTrain(PSNeuralNetwork *network,
         if (test_data != NULL && network->status == STATUS_TRAINING) {
             PSLogTrainingProgress(network, epochs, batches_count, 1,
                 "validating...");
-            acc = validate(network, test_data, test_size, 0);
+            acc = validate(network, test_data, test_size, options, 0);
             sprintf(accuracy_msg, ", acc = %.2f,", acc);
         }
         gettimeofday(&epoch_et, NULL);
@@ -4783,9 +5472,11 @@ void PSTrain(PSNeuralNetwork *network,
     if (network->status == STATUS_TRAINING) network->status = STATUS_TRAINED;
 }
 
-float PSTest(PSNeuralNetwork *network, PSFloat *test_data, int data_size) {
+float PSTest(PSNeuralNetwork *network, PSFloat *test_data, int data_size,
+             PSTrainingOptions *options)
+{
     int do_log = (PSLogLevel <= PSLOGLEVEL_INFO);
-    return validate(network, test_data, data_size, do_log);
+    return validate(network, test_data, data_size, options, do_log);
 }
 
 void PSPauseTraining(PSNeuralNetwork *network) {

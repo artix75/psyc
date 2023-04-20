@@ -469,38 +469,28 @@ void PSMatrixClear(PSMatrix matrix) {
  * it could lead to memory leaks in case of a NULL return value. Also beware of
  * the fact that the original variable holding `src` could point to freed
  * memry after function returns. */
-PSMatrix PSMatrixExpand(PSMatrix src, int add) {
+PSMatrix PSMatrixExpand(PSMatrix src, int add, int keep_src) {
     if (src == NULL) return NULL;
     if (add <= 0) return src;
     PSMatrix matrix = NULL;
     PSMatrixHeader *src_hdr = PSMatrixGetHeader(src);
     if (src_hdr->transposed_from != NULL) {
-        matrix = PSMatrixExpand(src_hdr->transposed_from, add);
+        matrix = PSMatrixExpand(src_hdr->transposed_from, add, keep_src);
         if (matrix == NULL) return NULL;
         PSMathOpts opts = {.acceleration = PSGlobalAcceleration};
         return PSMatrixTranspose(matrix, 1, &opts);
     }
-    if (src_hdr->transposed != NULL) {
-        PSMatrixDelete(src_hdr->transposed);
-        src_hdr->transposed = NULL;
-    }
-    int new_dim = src_hdr->dims[0] + add;
-    uint64_t cur_len = src_hdr->length, new_len = (uint64_t) new_dim;
-    for (int i = 1; i < src_hdr->ndims; i++) new_len *= src_hdr->dims[i];
-    size_t datasize = ((size_t) new_len * sizeof(PSFloat));
-    size_t size = PSMatrixHeaderSize + datasize;
-    PSMatrixHeader *new_hdr = realloc(src_hdr, size);
-    if (new_hdr == NULL) {
+    int new_dims[MAX_DIMENSIONS] = {0};
+    int ndims = PSMatrixDimensions(src, new_dims);
+    int curlen = PSMatrixLength(src);
+    new_dims[0] += add;
+    matrix = PSMatrixCreateWithDims(0.0, NULL, ndims, new_dims);
+    if (matrix == NULL) {
         PSPrintMemoryErrorMsg();
         return NULL;
     }
-    new_hdr->dims[0] = new_dim;
-    new_hdr->length = new_len;
-    new_hdr->transposed = NULL;
-    new_hdr->transposed_from = NULL;
-    matrix = (PSMatrix) (new_hdr + 1);
-    size_t added_size = ((size_t)(new_len - cur_len) * sizeof(PSFloat));
-    memset(((PSFloat *) matrix) + cur_len, 0, added_size);
+    PSVectorCopy(matrix, src, curlen);
+    if (!keep_src) PSMatrixDelete(src);
     return matrix;
 }
 
@@ -548,6 +538,7 @@ int PSMatrixShapeType(PSMatrix matrix) {
 }
 
 void PSMatrixPrintInfo(PSMatrix matrix, const char *name, int newline) {
+    if (matrix == NULL) return;
     if (name == NULL) name = "(unnamed)";
     char *nl = "";
     if (newline) nl = "\n";
@@ -561,6 +552,55 @@ void PSMatrixPrintInfo(PSMatrix matrix, const char *name, int newline) {
         "Matrix %s dimensions = %d, shape = (%s)%s",
         name, ndims, matrixDimensionsToString(ndims, dims), nl
     );
+}
+
+void PSMatrixPrint(PSMatrix matrix, const char *sep, int print_shape) {
+    if (matrix == NULL) return;
+    if (sep == NULL) sep = ",";
+    int shape[MAX_DIMENSIONS];
+    int ndims = PSMatrixDimensions(matrix, shape), i, j, k;
+    int last_dim = ndims - 1;
+    if (print_shape)
+        printf("Matrix (shape = %s):\n", matrixDimensionsToString(ndims,shape));
+    int index[MAX_DIMENSIONS] = {0};
+    int prev_index[MAX_DIMENSIONS];
+    for (j = 0; j < ndims; j++) prev_index[j] = -1;
+    int strides[MAX_DIMENSIONS] = {0};
+    for (j = 0; j < ndims; j++) {
+        strides[j] = 1;
+        for (k = j + 1; k < ndims; k++) strides[j] *= shape[k];
+    }
+    int len = PSMatrixLength(matrix);
+    for (i = 0; i < len; i++) {
+        PSFloat val = matrix[i];
+        for (j = 0; j < ndims; j++) {
+            index[j] = (i / strides[j]) % shape[j];
+            if (j < last_dim && index[j] == 0 && index[j] != prev_index[j]) {
+                printf("%*s\n", (j * 2) + 1, "[");
+            }
+        }
+        if (index[last_dim] == 0) {
+            printf("%-*c[", last_dim * 2, ' ');
+        } else printf("%s", sep);
+        printf("%g", val);
+        if (index[last_dim] == shape[last_dim] - 1) {
+            const char *row_sep = sep;
+            if (last_dim > 0) {
+                int last_row_idx = shape[last_dim - 1] - 1;
+                if (index[last_dim - 1] == last_row_idx) row_sep = "";
+            }
+            printf("]%s\n", row_sep);
+            for (j = last_dim - 1; j >= 0; j--) {
+                int last_idx = shape[j] - 1;
+                row_sep = (i == len - 1 ? "" : sep);
+                if (index[j] == last_idx)
+                    printf("%*s%s\n", (j * 2) + 1, "]", row_sep);
+                else break;
+            }
+        }
+        memcpy(prev_index, index, MAX_DIMENSIONS * sizeof(int));
+    }
+    printf("\n");
 }
 
 PSFloat *PSMatrixGet(PSMatrix matrix, int ndims, uint32_t *len, ...) {
@@ -577,8 +617,8 @@ PSFloat *PSMatrixGet(PSMatrix matrix, int ndims, uint32_t *len, ...) {
         else stride = hdr->dims[refdim];
         int idx = va_arg(args, int);
         if (idx >= hdr->dims[i]) {
-            PSWarn("%s: dim[%d] = %d is out of bounds (%d)",
-                   __func__, i, idx, hdr->dims[i]);
+            PSWarn("%s: index %d is out of bounds for dim[%d] (%d)",
+                   __func__, idx, i, hdr->dims[i]);
             values = NULL;
             stride = 0;
             break;
