@@ -60,6 +60,7 @@
 #define NORMALIZATION_NETWORK "resources/normalization_nn.psmodel"
 #define NORMALIZATION_NETWORK_BP "resources/normalization_nn_bp.psmodel"
 #define DROPOUT_NETWORK "resources/dropout_nn.psmodel"
+#define ENCDEC_BASIC_NETWORK "resources/encoder-decoder.basic.psmodel"
 #define TEST_IMAGE_FILE "resources/t10k-images-idx3-ubyte.gz"
 #define TEST_LABEL_FILE "resources/t10k-labels-idx1-ubyte.gz"
 #define TEST_IMAGE_SIZE 28
@@ -100,6 +101,7 @@ TestCase *LSTMNetworkTests;
 TestCase *GRUNetworkTests;
 TestCase *NormalizationNetworkTests;
 TestCase *DropoutNetworkTests;
+TestCase *EncoderDecoderTests;
 
 #ifdef USE_AVX
 TestCase *AVXTests;
@@ -115,6 +117,8 @@ int RNNSetup (TestCase *test_case);
 int RNNTeardown (TestCase *test_case);
 int LSTMSetup (TestCase *test_case);
 int GRUSetup(TestCase *test_case);
+int encoderDecoderSetup(TestCase *test_case);
+int encoderDecoderTeardown(TestCase *test_case);
 
 int testGenericClone(TestCase *test_case, Test *test);
 int testGenericSave(TestCase *test_case, Test *test);
@@ -210,6 +214,12 @@ int testNormalizationBackprop(TestCase *test_case, Test *test);
 int testDropoutLoad(TestCase *test_case, Test *test);
 int testDropoutForward(TestCase *test_case, Test *test);
 int testDropoutBackprop(TestCase *test_case, Test *test);
+
+int testEncodedDecoderLoad(TestCase *test_case, Test *test);
+int testEncodedDecoderSave(TestCase *test_case, Test *test);
+int testEncodedDecoderClone(TestCase *test_case, Test *test);
+int testEncodedDecoderPredict(TestCase *test_case, Test *test);
+int testEncodedDecoderBackprop(TestCase *test_case, Test *test);
 
 
 /* psyc.c function prototypes */
@@ -429,6 +439,7 @@ PSFloat gru_expected_br[2] = {0.00974497, 0.04311221};
 PSTrainingOptions optimization_train_opts = {0};
 
 int compareNetworks(PSNeuralNetwork *net1, PSNeuralNetwork *net2, Test* test);
+int compareNetworkChain(PSNeuralNetwork *net1, PSNeuralNetwork *net2, Test* test);
 
 static int testRecurrentNetworkMode(PSNeuralNetwork *network,
                                     PSRecurrentNetworkMode mode, Test *test);
@@ -508,17 +519,18 @@ static int arrayMaxIndex(PSFloat *array, int len) {
 static int avx_tests = 1, maths_tests = 1, activation_tests = 1,
            optimization_tests = 1, fullnet_tests = 1, convnet_tests = 1,
            rnn_tests = 1, lstm_tests = 1, gru_tests = 1,
-           normalization_tests = 1, dropout_tests = 1;
+           normalization_tests = 1, dropout_tests = 1, encdec_tests = 1;
 
 static int *test_ptrs[] = {
     &avx_tests, &maths_tests, &activation_tests, &optimization_tests,
     &fullnet_tests, &convnet_tests, &rnn_tests, &lstm_tests, &gru_tests,
-    &normalization_tests, &dropout_tests
+    &normalization_tests, &dropout_tests, &encdec_tests
 };
 
 static char*test_ids[] = {
     "avx", "maths", "activation", "optimization", "fully-connected",
-    "convolutional", "rnn", "lstm", "gru", "normalization", "dropout"
+    "convolutional", "rnn", "lstm", "gru", "normalization", "dropout",
+    "encoder_decoder"
 };
 
 static void printTestList(void) {
@@ -812,6 +824,22 @@ int main(int argc, char** argv) {
         tot_tests += DropoutNetworkTests->count;
         tot_failed += DropoutNetworkTests->failed_count;
         deleteTest(DropoutNetworkTests);
+    }
+    if (encdec_tests) {
+        EncoderDecoderTests = createTest("Encoder-Decoder");
+        EncoderDecoderTests->setup = encoderDecoderSetup;
+        EncoderDecoderTests->teardown = encoderDecoderTeardown;
+        addTest(EncoderDecoderTests, "Load", NULL, testEncodedDecoderLoad);
+        addTest(EncoderDecoderTests, "Save", NULL, testEncodedDecoderSave);
+        addTest(EncoderDecoderTests, "Clone", NULL, testEncodedDecoderClone);
+        addTest(EncoderDecoderTests, "Predict", NULL,
+            testEncodedDecoderPredict);
+        addTest(EncoderDecoderTests, "Backprop", NULL,
+            testEncodedDecoderBackprop);
+        performTests(EncoderDecoderTests);
+        tot_tests += EncoderDecoderTests->count;
+        tot_failed += EncoderDecoderTests->failed_count;
+        deleteTest(EncoderDecoderTests);
     }
     gettimeofday(&end_t, NULL);
     time_t elapsed = PSGetElapsedTimeUS(start_t, end_t);
@@ -2899,6 +2927,196 @@ final:
     return ok;
 }
 
+int encoderDecoderSetup(TestCase *test_case) {
+    PSNeuralNetwork *network = PSCreateNetwork("Encoder-Decoder");
+    if (network == NULL) {
+        PSErr(NULL, "\nCould not create network!");
+        return 0;
+    }
+    test_case->data = malloc(2 * sizeof(void*));
+    if (test_case->data == NULL) {
+        fprintf(stderr, "\nCould not allocate memory!\n");
+        return 0;
+    }
+    test_case->data[0] = network;
+    test_case->data[1] = NULL;
+    return 1;
+}
+
+int encoderDecoderTeardown(TestCase *test_case) {
+    PSNeuralNetwork *network = getNetwork(test_case);
+    if (network) PSDeleteNetwork(network);
+    return 1;
+}
+
+int testEncodedDecoderLoad(TestCase *test_case, Test *test) {
+    PSNeuralNetwork *network = getNetwork(test_case);
+    testAssertNotNull(network, test);
+    char path[PATH_MAX] = {0};
+    testAssert(
+        joinPath(executable_path, ENCDEC_BASIC_NETWORK, path), test
+    );
+    int ok = PSLoadNetwork(network, path);
+    testAssert(ok, test);
+    testAssert(PSGetNetworkChainLength(network) == 2, test);
+    return ok;
+}
+int testEncodedDecoderSave(TestCase *test_case, Test *test) {
+    PSNeuralNetwork *network = getNetwork(test_case);
+    testAssertNotNull(network, test);
+    testAssert(network->size > 0, test);
+    testAssert(PSGetNetworkChainLength(network) == 2, test);
+    const char *fpath = "/tmp/psyc-enc-dec-test.psmodel";
+    int ok = PSSaveNetwork(network, fpath);
+    testAssert(ok, test);
+    PSNeuralNetwork *loaded = PSCreateNetwork(NULL);
+    testAssertNotNull(loaded, test);
+    ok = PSLoadNetwork(loaded, fpath);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "Failed to load network from '%s'", fpath
+    );
+    ok = compareNetworkChain(network, loaded, test);
+final:
+    if (loaded != NULL) PSDeleteNetwork(loaded);
+    return ok;
+}
+
+int testEncodedDecoderClone(TestCase *test_case, Test *test) {
+    PSNeuralNetwork *network = getNetwork(test_case);
+    testAssertNotNull(network, test);
+    testAssert(network->size > 0, test);
+    testAssert(PSGetNetworkChainLength(network) == 2, test);
+    PSNeuralNetwork *clone = PSCloneNetwork(network, 0);
+    testAssertNotNull(clone, test);
+    int ok = compareNetworkChain(network, clone, test);
+final:
+    if (clone != NULL) PSDeleteNetwork(clone);
+    return ok;
+}
+
+int testEncodedDecoderPredict(TestCase *test_case, Test *test) {
+    int ok = 1;
+    PSNeuralNetwork *network = getNetwork(test_case);
+    testAssertNotNull(network, test);
+    testAssert(network->size > 0, test);
+    testAssert(PSGetNetworkChainLength(network) == 2, test);
+    PSFloat x[] = {2, 2, 1};
+    PSFloat expected[2][4] = {
+          {0.00577807,0.0132289,0.978728,0.00226505},
+          {0.998611,0.000101474,0.00128536,2.34558e-06}
+    };
+    PSNeuralNetwork *decoder = network->next;
+    testAssertNotNull(decoder, test);
+    decoder->sequence_settings.end = 0;
+    ok = PSAutoregression(network, x, 0, NULL);
+    testAssert(ok, test);
+    PSLayer *out = PSGetOutputLayer(network);
+    testAssertNotNull(out, test);
+    testAssert(out->network == decoder, test);
+    int seqlen = PSStateSequenceLength(out), t;
+    testAssert(seqlen == 2, test);
+    for (t = 0; t < seqlen; t++) {
+        PSFloat *states = PSGetStates(out, t);
+        testAssertWithMessage(states != NULL, test, "NULL states at t[%d]", t);
+        ok = compareArrays(states, expected[t], out->size, test,
+                           NULL, 0, 4);
+    }
+    return ok;
+}
+
+Test *encDecBackpropTest = NULL;
+static int beforeDecoderForward(PSNeuralNetwork *decoder,
+                                PSFloat *inputs, int seqlen, int backprop,
+                                void *opts)
+{
+    UNUSED(inputs);
+    UNUSED(seqlen);
+    UNUSED(backprop);
+    UNUSED(opts);
+    assert(encDecBackpropTest != NULL);
+    Test *test = encDecBackpropTest;
+    int ok = 1;
+    PSNeuralNetworkLink *link = decoder->previous_network_link;
+    testAssertNotNull(link, test);
+    testAssertNotNull(link->layer, test);
+    testAssertNotNull(link->previous_layer, test);
+    testAssertWithMessage(link->layer->initial_states != NULL, test,
+                          "Decoder layer[%d] has no initial_states",
+                          link->layer->index);
+    PSFloat *encoder_output_states = PSGetOutputs(link->previous_layer);
+    testAssertWithMessage(encoder_output_states != NULL, test,
+                          "Missing Encoder layer[%d] output states",
+                          link->layer->index);
+    ok = compareArrays(link->layer->initial_states, encoder_output_states,
+                       link->layer->size, test, "Decoder initial states",0,0);
+    return ok;
+}
+
+int beforeEncoderBackprop(PSNeuralNetwork *encoder, PSFloat *y,
+                          PSTrainingOptions *opts, PSGradient **gradients)
+{
+    UNUSED(y);
+    UNUSED(opts);
+    UNUSED(gradients);
+    assert(encDecBackpropTest != NULL);
+    Test *test = encDecBackpropTest;
+    int ok = 1;
+    PSNeuralNetwork *decoder = encoder->next;
+    testAssertNotNull(decoder, test);
+    PSNeuralNetworkLink *link = decoder->previous_network_link;
+    testAssertNotNull(link, test);
+    testAssertNotNull(link->layer, test);
+    testAssertNotNull(link->previous_layer, test);
+    testAssertWithMessage(link->layer->delta != NULL, test,
+                          "Decoder layer[%d] has no delta",
+                          link->layer->index);
+    testAssertWithMessage(link->previous_layer->delta != NULL, test,
+                          "Encoder layer[%d] has no delta",
+                          link->previous_layer->index);
+    ok = compareArrays(link->layer->delta, link->previous_layer->delta,
+                       link->layer->size, test, "Decoder delta",0,0);
+    return ok;
+}
+
+int testEncodedDecoderBackprop(TestCase *test_case, Test *test) {
+    encDecBackpropTest = test;
+    int ok = 1;
+    int elements_count = 1;
+    PSFloat training_data[] = {
+        2, 2, 1, 1, 2,
+    };
+    PSNeuralNetwork *network = getNetwork(test_case);
+    testAssertNotNull(network, test);
+    testAssert(network->size > 0, test);
+    testAssert(PSGetNetworkChainLength(network) == 2, test);
+    PSNeuralNetwork *decoder = network->next;
+    testAssertNotNull(decoder, test);
+    decoder->sequence_settings.end = -1;
+    PSLayer *out = PSGetOutputLayer(network);
+    testAssertNotNull(out, test);
+    testAssert(out->flags & FLAG_ONEHOT, test);
+    PSTrainingOptions opts = {
+        .flags = TRAINING_FLAG_TEACHER_FORCING | TRAINING_FLAG_SEQ2SEQ,
+        .epochs = 1,
+        .learning_rate = 0.3,
+        .batch_size = 1,
+        .bptt_truncate = 0,
+    };
+    network->beforeBackprop = beforeEncoderBackprop;
+    decoder->beforeForward = beforeDecoderForward;
+    PSFloat *seq[] = {NULL};
+    seq[0] = training_data;
+    PSFloat loss = updateNetworkParameters(
+        network, training_data, 1, elements_count,
+        &opts, 0.3, NULL, NULL, seq
+    );
+    UNUSED(loss);
+    ok = (network->status != STATUS_ERROR);
+    if (ok) ok = (decoder->status != STATUS_ERROR);
+    encDecBackpropTest = NULL;
+    return ok;
+}
+
 int testGenericClone(TestCase *test_case, Test *test) {
     PSNeuralNetwork *network = getNetwork(test_case);
     PSNeuralNetwork *clone = PSCloneNetwork(network, 0);
@@ -3112,6 +3330,22 @@ int compareNetworks(PSNeuralNetwork *network, PSNeuralNetwork *clone,
     return ok;
 }
 
+int compareNetworkChain(PSNeuralNetwork *network, PSNeuralNetwork *clone,
+                        Test* test)
+{
+    int ok = 1;
+    PSNeuralNetwork *n1 = network, *n2 = clone;
+    while (n1 != NULL && n2 != NULL) {
+        ok = compareNetworks(n1, n2, test);
+        if (!ok) break;
+        n1 = n1->next;
+        n2 = n2->next;
+    }
+    testAssertNull(n1, test);
+    testAssertNull(n2, test);
+    return ok;
+}
+
 static int testRecurrentNetworkMode(PSNeuralNetwork *network,
                                     PSRecurrentNetworkMode mode,
                                     Test *test)
@@ -3251,7 +3485,7 @@ static int compareArrays(PSFloat *arr, PSFloat *exp, int len, Test* test,
                 ok, test, "%s: value[%d] != expected[%d] -> %.*g != %.*g",
                 descr, i, i, PSFLOAT_DIG, value, PSFLOAT_DIG, expected
             );
-            return ok;
+            continue;
         }
         if (rounding > 0) {
             value = getRoundedFloatDec(value, rounding);

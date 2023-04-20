@@ -136,6 +136,14 @@ typedef void     (*PSTrainCallback) (struct PSNeuralNetwork *network,
                                      float accuracy, PSFloat *rate,
                                      PSFloat *training_data);
 typedef int      (*PSLinkDataRetriever) (struct PSLayer *layer);
+typedef int      (*PSBeforeForwardCallback) (struct PSNeuralNetwork *network,
+                                             PSFloat *inputs,
+                                             int seqlen, int backprop,
+                                             void *opts);
+typedef int      (*PSBeforeBackpropCallback) (struct PSNeuralNetwork *network,
+                                              PSFloat *y,
+                                              struct PSTrainingOptions *opts,
+                                              struct PSGradient **gradients);
 typedef void     (*PSSignalHandler) (int);
 
 typedef struct PSLayerDef {
@@ -304,6 +312,8 @@ typedef struct PSNeuralNetwork {
     PSSequenceSettings          sequence_settings;
     PSRecurrentNetworkMode      rnn_mode;
     PSTrainingInfo              *training;
+    PSBeforeForwardCallback     beforeForward;
+    PSBeforeBackpropCallback    beforeBackprop;
     PSTrainCallback             onEpochTrained;
     PSTrainCallback             onBatchTrained;
     void                        *context;

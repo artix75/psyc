@@ -1815,6 +1815,8 @@ PSNeuralNetwork *PSCreateNetwork(const char* name) {
     network->acceleration = PSGlobalAcceleration;
     network->loss = PSQuadraticLoss;
     network->training = NULL;
+    network->beforeForward = NULL;
+    network->beforeBackprop = NULL;
     network->onEpochTrained = NULL;
     network->onBatchTrained = NULL;
     network->previous = NULL;
@@ -1951,13 +1953,13 @@ int PSAddNetwork(PSNeuralNetwork *parent, PSNeuralNetwork *network,
         PSErr(__func__, "`network` already has previous network");
         return 0;
     }
-    if (parent->next != NULL) {
-        PSErr(__func__, "`parent` already has next network");
-        return 0;
-    }
     PSNeuralNetwork *prev = parent;
     while (prev->next != NULL) prev = prev->next;
     while (parent->previous != NULL) parent = parent->previous;
+    if (prev->next != NULL) {
+        PSErr(__func__, "previous network already has next network");
+        return 0;
+    }
     network->index = prev->index + 1;
     network->previous = prev;
     prev->next = network;
@@ -2055,6 +2057,9 @@ int cloneNetworkChain(PSNeuralNetwork *network, PSNeuralNetwork *clone,
                 PSDeleteNetwork(clone_next);
                 return 0;
             }
+            clone_link->layer = clone_next->layers[link->layer->index];
+            clone_link->previous_layer =
+                prev_network->layers[link->previous_layer->index];
         }
         if (clone_link == NULL) {
             PSErr("PSCloneNetwork", "could not make link for cloned network %d",
@@ -2071,6 +2076,7 @@ int cloneNetworkChain(PSNeuralNetwork *network, PSNeuralNetwork *clone,
             return 0;
         }
         free(clone_link);
+        next = next->next;
     }
     return 1;
 }
@@ -3325,6 +3331,10 @@ int networkForward(PSNeuralNetwork *network, PSFloat *inputs,
             }
         }
     }
+    if (network->beforeForward != NULL) {
+        ok = network->beforeForward(network, inputs, seqlen, backprop, opts);
+        if (!ok) goto final;
+    }
     if (recurrent_input) {
         if (seqlen <= 0 && !autoregression) {
             PSErr(
@@ -4247,6 +4257,10 @@ PSGradient **networkBackprop(PSNeuralNetwork *network, PSFloat *y,
     }
     if (network->next != NULL) {
         ok = propagateDeltaFromNextNetwork(network);
+        if (!ok) goto final;
+    }
+    if (network->beforeBackprop != NULL) {
+        ok = network->beforeBackprop(network, y, opts, gradients);
         if (!ok) goto final;
     }
     if (is_recurrent && PSIsRecurrent(output_layer)) {
