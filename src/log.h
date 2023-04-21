@@ -19,6 +19,7 @@
 #define __LOG_H__
 #include <stdlib.h>
 #include <stdio.h>
+#include "psyc.h"
 
 #define PSLOGLEVEL_DEBUG     0
 #define PSLOGLEVEL_INFO      1
@@ -61,6 +62,8 @@ void PSDebug(const char *format, ...);
 void PSInfo(const char *format, ...);
 void PSWarn(const char *format, ...);
 void PSErr(const char *tag, const char *format, ...);
+void PSErrNN(const char *tag, PSNeuralNetwork *network, PSLayer *layer,
+             const char *format, ...);
 const char* PSLogLevelName(int level);
 int PSLogLevelByName(const char *name);
 int PSGetMaxLogLevel(void);

@@ -110,6 +110,41 @@ void PSErr(const char *tag, const char *format, ...) {
     PSLog(PSLOGLEVEL_ERROR, "\n");
 }
 
+void PSErrNN(const char *tag, PSNeuralNetwork *network, PSLayer *layer,
+             const char *format, ...)
+{
+    if (PSLogLevel > PSLOGLEVEL_ERROR) return;
+    PSLog(PSLOGLEVEL_ERROR, "ERROR");
+    int null_network = network == NULL;
+    if (null_network && layer != NULL) network = layer->network;
+    if (tag != NULL) PSLog(PSLOGLEVEL_ERROR, " [%s]: ", tag);
+    else PSLog(PSLOGLEVEL_ERROR, ": ");
+    if (network != NULL || layer != NULL) {
+        int printed_network = 1, printed_layer = 0;
+        if (PSGetNetworkChainLength(network) > 1)
+            PSLog(PSLOGLEVEL_ERROR, "Network[%d]", network->index);
+        else if (network && !null_network && network->name != NULL) {
+            char *ellipsis = "";
+            if (strlen(network->name) > 15)
+                ellipsis = "...";
+            PSLog(PSLOGLEVEL_ERROR, "Network \"%.15s%s\"", network->name,
+                  ellipsis);
+        } else printed_network = 0;
+        if (layer != NULL) {
+            if (printed_network) PSLog(PSLOGLEVEL_ERROR, ", ");
+            PSLog(PSLOGLEVEL_ERROR, "Layer[%d]", layer->index);
+            printed_layer = 1;
+        }
+        if (printed_network || printed_layer)
+            PSLog(PSLOGLEVEL_ERROR, ": ");
+    }
+    va_list args;
+    va_start(args, format);
+    PSVLog(PSLOGLEVEL_ERROR, format, args);
+    va_end(args);
+    PSLog(PSLOGLEVEL_ERROR, "\n");
+}
+
 const char* PSLogLevelName(int level) {
     if (level >= (int)log_levels_count) level = log_levels_count - 1;
     return logLevels[level];
