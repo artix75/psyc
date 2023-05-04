@@ -33,6 +33,7 @@
 #include "gru.h"
 #include "dropout.h"
 #include "normalization.h"
+#include "attention.h"
 #include "log.h"
 #include "buildinfo.h"
 #include "optimization.h"
@@ -94,6 +95,7 @@ PSLossFunction getLossFunctionAtIndex(int index);
 void PSPrintLayerInfo(PSLayer *layer);
 const char *PSGetActivationName(PSActivationFunction func);
 PSFloat *PSSetSequenceStart(PSNeuralNetwork *network, PSFloat *start, int len);
+PSLayer *PSMakeLayerPlaceholder(int layer_index, int network_index);
 
 PSFloat string2float(char *str, int *valid) {
     char *endptr = NULL;
@@ -595,6 +597,27 @@ void writeLayerDefinition(PSLayer *layer, FILE *f) {
         if (normsettings != NULL) eps = normsettings->epsilon;
         if (eps == 0) eps = PSDEFAULT_NORM_EPSILON;
         fprintf(f, ",epsilon=" PSFLOAT_FORMAT, eps);
+    } else if (Attention == layer->type) {
+        fprintf(f,",attention_type=%d,causal=%d,n_heads=%d,attention_scale=%g"
+                "trainable_params=%d",
+                PSGetAttentionType(layer), PSIsCausalAttention(layer),
+                PSGetAttentionHeadCount(layer),
+                PSGetAttentionScale(layer),
+                PSGetAttnetionTrainableParameters(layer));
+        PSLayer *qprovider = NULL, *kprovider = NULL, *vprovider = NULL;
+        PSGetAttentionProviders(layer, &qprovider, &kprovider, &vprovider);
+        if (qprovider != NULL && qprovider->network != NULL) {
+            fprintf(f, ",query_provider=%d:%d", qprovider->network->index,
+                    qprovider->index);
+        }
+        if (kprovider != NULL && kprovider->network != NULL) {
+            fprintf(f, ",keys_provider=%d:%d", kprovider->network->index,
+                    kprovider->index);
+        }
+        if (vprovider != NULL && vprovider->network != NULL) {
+            fprintf(f, ",values_provider=%d:%d", vprovider->network->index,
+                    vprovider->index);
+        }
     }
     if (layer->pretrain != NULL)
         fprintf(f, ",pretrained=%d", layer->pretrained);
@@ -620,6 +643,7 @@ int writeLayerParameters(PSLayer *layer, int opts, FILE *f, const char *func) {
         }
         fprintf(f, "\n");
     }
+    int partial_trainable_parameters = (layer->type == Attention);
     fprintf(f, "--- Layer[%d] Weights: %d,%d ---\n",
             i, layer->weight_types_count, weights_count);
     if (layer->weight_types_count > 0) {
@@ -630,7 +654,12 @@ int writeLayerParameters(PSLayer *layer, int opts, FILE *f, const char *func) {
         }
         for (j = 0; j < layer->weight_types_count; j++) {
             PSMatrix weights = layer->weights[j];
-            if (weights == NULL) {
+            int ok = (weights != NULL);
+            if (!ok && partial_trainable_parameters) {
+                fprintf(f, "---\n");
+                continue;
+            }
+            if (!ok) {
                 PSErr(func, "Layer[%d]: weights[%d] are NULL", i, j);
                 fclose(f);
                 return 0;
@@ -1048,6 +1077,93 @@ static int loadLayerDefinitions(PSNeuralNetwork *network, char *vers,
                     loadErr(filepath, f, "Invalid epsilon");
                     return 0;
                 }
+            } else if (strcmp("attention_type", propname) == 0) {
+                int attention_type = PSInvalidAttention;
+                ok = scanFile(f, "%d%1[,\n]", 2, NULL, &attention_type, sep);
+                if (ok) ok = (
+                    attention_type >= 0 && attention_type <= PSAdditiveAttention
+                );
+                if (!ok) {
+                    loadErr(filepath, f, "Invalid attention_type");
+                    return 0;
+                }
+                ldef.attention_type = (PSAttentionType) attention_type;
+            } else if (strcmp("n_heads", propname) == 0) {
+                ok = scanFile(f, "%d%1[,\n]", 2, NULL,
+                              &(ldef.attention_heads), sep);
+                if (!ok) {
+                    loadErr(filepath, f, "Invalid n_heads");
+                    return 0;
+                }
+            } else if (strcmp("causal", propname) == 0) {
+                ok = scanFile(f, "%1[,\n]", 2, NULL,
+                              &(ldef.causal_attention), sep);
+                if (!ok) {
+                    loadErr(filepath, f, "Invalid causal value");
+                    return 0;
+                }
+            } else if (strcmp("attention_scale", propname) == 0) {
+                ok = scanFile(f, PSFLOAT_FORMAT "%1[,\n]", 2, NULL,
+                              &(ldef.attention_scale), sep);
+                if (!ok) {
+                    loadErr(filepath, f, "Invalid attention_scale");
+                    return 0;
+                }
+            } else if (strcmp("query_provider", propname) == 0) {
+                int nidx = -1, lidx = -1;
+                ok = scanFile(f, "%d:%d", 2, NULL, &nidx, &lidx);
+                if (!ok) {
+                    loadErr(filepath, f, "Invalid query_provider value");
+                    return 0;
+                }
+                PSLayer *provider = PSGetLayerByIndex(network, lidx, nidx);
+                if (provider == NULL)
+                    provider = PSMakeLayerPlaceholder(lidx, nidx);
+                if (provider == NULL) {
+                    loadErr(filepath, f, "Invalid query_provider %d:%d",
+                            nidx, lidx);
+                    return 0;
+                }
+                ldef.query_provider = provider;
+            } else if (strcmp("keys_provider", propname) == 0) {
+                int nidx = -1, lidx = -1;
+                ok = scanFile(f, "%d:%d", 2, NULL, &nidx, &lidx);
+                if (!ok) {
+                    loadErr(filepath, f, "Invalid keys_provider value");
+                    return 0;
+                }
+                PSLayer *provider = PSGetLayerByIndex(network, lidx, nidx);
+                if (provider == NULL)
+                    provider = PSMakeLayerPlaceholder(lidx, nidx);
+                if (provider == NULL) {
+                    loadErr(filepath, f, "Invalid keys_provider %d:%d",
+                            nidx, lidx);
+                    return 0;
+                }
+                ldef.keys_provider = provider;
+            } else if (strcmp("values_provider", propname) == 0) {
+                int nidx = -1, lidx = -1;
+                ok = scanFile(f, "%d:%d", 2, NULL, &nidx, &lidx);
+                if (!ok) {
+                    loadErr(filepath, f, "Invalid values_provider value");
+                    return 0;
+                }
+                PSLayer *provider = PSGetLayerByIndex(network, lidx, nidx);
+                if (provider == NULL)
+                    provider = PSMakeLayerPlaceholder(lidx, nidx);
+                if (provider == NULL) {
+                    loadErr(filepath, f, "Invalid values_provider %d:%d",
+                            nidx, lidx);
+                    return 0;
+                }
+                ldef.values_provider = provider;
+            } else if (strcmp("trainable_params", propname) == 0) {
+                ok = scanFile(f, "%d%1[,\n]", 2, NULL,
+                              &(ldef.trainable_parameters), sep);
+                if (!ok) {
+                    loadErr(filepath, f, "Invalid trainable_params");
+                    return 0;
+                }
             } else {
                 ok = scanFile(f, "%*[^,\n]%1[,\n]", 1, NULL, sep);
                 if (!ok) {
@@ -1303,13 +1419,17 @@ static int loadLayerParameters(PSLayer *layer, const char *filepath, FILE *f,
         ok = 0;
         return 0;
     }
+    int partial_trainable_parameters = (layer->type == Attention);
     for (int j = 0; j < layer->weight_types_count; j++) {
         PSMatrix weights = layer->weights[j];
-        if (weights == NULL) {
+        ok = (weights != NULL);
+        if (!ok && partial_trainable_parameters)
+            ok = scanFileNoMatch(f, "---\n");
+        if (!ok) {
             loadErr(filepath, NULL, "Layer[%d]: weights[%d] is NULL", j);
             ok = 0;
             return 0;
-        }
+        } else if (weights == NULL) continue;
         uint64_t wlen = PSMatrixLength(weights), widx;
         for (widx = 0; widx < wlen; widx++) {
             char *fmt = PSFLOAT_FORMAT ",";
@@ -1848,7 +1968,7 @@ int readNetwork(PSNeuralNetwork *network, FILE *f, const char* filepath,
     /* Check for training data */
     ok = loadNetworkTrainingData(network, f, filepath, 0);
     if (!ok) goto final;
-    PSBuildNetwork(network);
+    ok = PSBuildNetwork(network);
 final:
     return ok;
 }

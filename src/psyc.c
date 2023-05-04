@@ -39,8 +39,10 @@
 #include "gru.h"
 #include "embedding.h"
 #include "dropout.h"
+#include "attention.h"
 #include "debug.h"
 
+#define LAYER_PLACEHOLDER_TYPE -1
 #define STATUS_ERROR_LOSS ((PSFloat) FLT_MIN)
 #define BPTT_TRUNCATE   4
 
@@ -124,6 +126,7 @@ int PSInitDropoutLayer(PSNeuralNetwork *network, PSLayer *layer,
 int PSInitEmbeddingLayer(PSLayer *layer, int size, int previous_size,
                          PSLayerDef *ldef);
 int PSInitNormalizationLayer(PSLayer *layer, PSLayerDef *ldef);
+int PSInitAttentiontionLayer(PSLayer *layer, PSLayerDef *ldef);
 int PSDumpGradients(PSNeuralNetwork *network, PSGradient ***gradients,
                     const char* filename, PSTrainingOptions *opts);
 PSGradient **cloneNetworkGradients(PSGradient **gradients,
@@ -139,6 +142,7 @@ int updateNetworkChain(PSNeuralNetwork *head);
 int useAutoRegression(PSNeuralNetwork *network,
                       PSForwardOptions *forward_opts,
                       PSTrainingOptions *training_opts);
+PSLayer *PSResolveLayerPlaceholder(PSLayer *placeholder, PSNeuralNetwork *net);
 
 /* Miscellaneous functions */
 
@@ -803,6 +807,8 @@ char *PSGetLabelForType(PSLayerType type) {
             return "Embedding";
         case Normalization:
             return "Normalization";
+        case Attention:
+            return "Attention";
     }
     return "UNKOWN";
 }
@@ -964,6 +970,32 @@ PSLayer *PSGetOutputLayer(PSNeuralNetwork *network) {
     return network->layers[network->size - 1];
 }
 
+PSLayer *PSGetLayerByIndex(PSNeuralNetwork *network, int layer_index,
+                            int network_index)
+{
+    if (network == NULL) return NULL;
+    if (PSIsNetworkChain(network)) {
+        int network_count = PSGetNetworkChainLength(network);
+        network = PSGetNetworkChainHead(network);
+        if (network == NULL || network_count <= 0) {
+            PSErrNN(__func__, network, NULL, "broken network chain");
+            return NULL;
+        }
+        if (network_index < 0) {
+            network_index = network_count + network_index;
+        }
+        if (network_index < 0 || network_index >= network_count) return NULL;
+        PSNeuralNetwork *current = network;
+        while (current != NULL && current->index != network_index)
+            current = current->next;
+        if (current == NULL) return NULL;
+        network = current;
+    }
+    if (layer_index < 0) layer_index = network->size + layer_index;
+    if (layer_index < 0 || layer_index >= network->size) return NULL;
+    return network->layers[layer_index];
+}
+
 int PSGetLayerInputSize(PSLayer *layer) {
     PSLayer *previous = PSGetPreviousLayer(layer);
     if (previous == NULL) return 0;
@@ -1035,6 +1067,14 @@ void PSPrintLayerInfo(PSLayer *layer) {
         }
     } else if (ltype == FullyConnected && layer->output_depth > 1) {
        printf(", depth = %d", layer->output_depth);
+    } else if (ltype == Attention) {
+        PSAttentionType type = PSGetAttentionType(layer);
+        if (type == PSAdditiveAttention)
+            printf(", attention type = additive");
+        else if (type == PSDotAttention)
+            printf(", attention type = dot");
+        int nheads = PSGetAttentionHeadCount(layer);
+        if (nheads > 1) printf(", heads = %d", nheads);
     } else if (ltype == Embedding) {
         int vocab_size = PSGetEmbeddingVocabularySize(layer);
         if (vocab_size > 0)
@@ -1172,6 +1212,18 @@ PSFloat PSCrossEntropyLoss(PSFloat *outputs, PSFloat *desired, int size,
 }
 
 /* Neural Network Functions */
+
+void PSSetNetworkStatus(PSNeuralNetwork *network, int status, int *old) {
+    if (network == NULL) return;
+    if (old != NULL) *old = network->status;
+    network->status = status;
+    if (PSIsNetworkChain(network)) {
+        PSNeuralNetwork *head = PSGetNetworkChainHead(network);
+        if (head != NULL && head != network) {
+            head->status = status;
+        }
+    }
+}
 
 int PSStateSequenceLength(PSLayer *layer) {
     if (layer == NULL || layer->states == NULL) return 0;
@@ -1690,8 +1742,19 @@ int PSBuildNetwork(PSNeuralNetwork *network) {
     for (i = 0; i < network->size; i++) {
         PSLayer *layer = network->layers[i];
         if (layer == NULL) {
-            PSErr(__func__, "Layer[%d] is null", i);
+            PSErrNN(__func__, network, layer, "null layer");
             return 0;
+        }
+        if ((signed) layer->type == LAYER_PLACEHOLDER_TYPE) {
+            layer->index = i;
+            network->layers[i] = PSResolveLayerPlaceholder(layer, network);
+            if (network->layers[i] == NULL) {
+                PSErrNN(__func__, network, layer,
+                        "could not resolve layer placeholder");
+                return 0;
+            }
+        } else if (layer->build != NULL) {
+            if (!layer->build(layer)) return 0;
         }
         if (PSHandleSequenceAtOnce(layer)) {
             if (first_whole_seq_layer < 0) first_whole_seq_layer = i;
@@ -2398,6 +2461,20 @@ broken_chain:
     return NULL;
 }
 
+int PSNetworkChainContains(PSNeuralNetwork *chain, PSNeuralNetwork *network) {
+    if (!PSIsNetworkChain(chain)) return chain == network;
+    PSNeuralNetwork *current = PSGetNetworkChainHead(chain);
+    if (current == NULL) {
+        PSErrNN(__func__, chain, NULL, "broken network chain");
+        return 0;
+    }
+    while (current != NULL) {
+        if (current == network) return 1;
+        current = current->next;
+    }
+    return 0;
+}
+
 static void DumpNetworkHeader(PSNeuralNetwork *network, FILE *dump_file) {
     fprintf(dump_file, "psyc:version=%s\n", PSYC_VERSION);
     const char *name = network->name;
@@ -2756,6 +2833,7 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
     layer->derivative = PSGetActivationDerivative(layer->activate);
     layer->on_delete = NULL;
     layer->on_copy = NULL;
+    layer->build = NULL;
     layer->get_param_count = NULL;
     layer->weight_types_count = 0;
     layer->onehot_vector_size = size;
@@ -2842,6 +2920,8 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
                                            layer_def);
     } else if (type == Normalization) {
         initialized = PSInitNormalizationLayer(layer, layer_def);
+    } else if (type == Attention) {
+        initialized = PSInitAttentiontionLayer(layer, layer_def);
     } else PSErr(__func__, "Invalid layer type %d", type);
     if (!initialized) goto fail;
     if (layer->index > 0 && layer->delta == NULL) {
@@ -2925,6 +3005,46 @@ void PSDeleteLayer(PSLayer* layer) {
     if (layer->states != NULL) PSMatrixDelete(layer->states);
     if (layer->pretrainer != NULL) PSDeleteNetwork(layer->pretrainer);
     free(layer);
+}
+
+int PSIsLayerPlaceholder(PSLayer *layer) {
+    if (layer == NULL) return 0;
+    return (signed) layer->type == LAYER_PLACEHOLDER_TYPE;
+}
+
+PSLayer *PSResolveLayerPlaceholder(PSLayer *placeholder, PSNeuralNetwork *net) {
+    if (placeholder == NULL) return NULL;
+    if ((signed)placeholder->type != LAYER_PLACEHOLDER_TYPE)
+        return placeholder;
+    if (net == NULL) {
+        PSErr(__func__, "`net` argument is NULL");
+        return NULL;
+    }
+    int *indices = (int *) placeholder->extra;
+    if (indices == NULL) {
+        PSErr(__func__, "invalid layer placeholder");
+        return NULL;
+    }
+    return PSGetLayerByIndex(net, indices[0], indices[1]);
+}
+
+PSLayer *PSMakeLayerPlaceholder(int layer_index, int network_index) {
+    int *indices = malloc(2 * sizeof(int));
+    if (indices == NULL) {
+        PSPrintMemoryErrorMsg();
+        return NULL;
+    }
+    PSLayer *placeholder = calloc(1, sizeof(PSLayer *));
+    if (placeholder == NULL) {
+        free(indices);
+        PSPrintMemoryErrorMsg();
+        return NULL;
+    }
+    indices[0] = layer_index;
+    indices[1] = network_index;
+    placeholder->type = LAYER_PLACEHOLDER_TYPE;
+    placeholder->extra = indices;
+    return placeholder;
 }
 
 int inputLayerForward(PSNeuralNetwork *network, PSFloat *inputs, ...) {

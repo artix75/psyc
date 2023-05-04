@@ -64,7 +64,7 @@ endif
 
 endif
 
-OBJS=$(SRCPATH)psyc.o $(SRCPATH)config.o $(SRCPATH)io.o $(SRCPATH)utils.o $(SRCPATH)log.o $(SRCPATH)maths.o $(SRCPATH)activation.o $(SRCPATH)blas.o $(SRCPATH)optimization.o $(SRCPATH)convolutional.o $(SRCPATH)recurrent.o $(SRCPATH)lstm.o $(SRCPATH)gru.o $(SRCPATH)dropout.o $(SRCPATH)embedding.o $(SRCPATH)normalization.o $(SRCPATH)mnist.o $(SRCPATH)debug.o $(SRCPATH)cifar.o
+OBJS=$(SRCPATH)psyc.o $(SRCPATH)config.o $(SRCPATH)io.o $(SRCPATH)utils.o $(SRCPATH)log.o $(SRCPATH)maths.o $(SRCPATH)activation.o $(SRCPATH)blas.o $(SRCPATH)optimization.o $(SRCPATH)convolutional.o $(SRCPATH)recurrent.o $(SRCPATH)lstm.o $(SRCPATH)gru.o $(SRCPATH)dropout.o $(SRCPATH)embedding.o $(SRCPATH)normalization.o $(SRCPATH)attention.o $(SRCPATH)mnist.o $(SRCPATH)debug.o $(SRCPATH)cifar.o
 
 ifeq ($(AVX),on)
 	CFLAGS+=-DUSE_AVX -mavx2 -mfma

@@ -60,6 +60,7 @@ void PSLog(int level, const char *format, ...);
 void PSVLog(int level, const char *format, va_list args);
 void PSDebug(const char *format, ...);
 void PSInfo(const char *format, ...);
+void PSNotice(const char *format, ...);
 void PSWarn(const char *format, ...);
 void PSErr(const char *tag, const char *format, ...);
 void PSErrNN(const char *tag, PSNeuralNetwork *network, PSLayer *layer,

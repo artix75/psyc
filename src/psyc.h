@@ -29,7 +29,7 @@
 
 #define PSYC_VERSION      "0.9.1"
 
-#define LAYER_TYPES     10
+#define LAYER_TYPES     11
 
 #define DEFAULT_RHO     0.95
 #define DEFAULT_BETA1   0.9
@@ -85,6 +85,7 @@
 #define FLAG_USE_SEQUENCES  (1 << 6)
 #define FLAG_AUTOREGRESSION (1 << 7)
 #define FLAG_RANDREGRESSION (1 << 8)
+#define FLAG_SELF_ATTENTION (1 << 16)
 
 /* Training Flags */
 #define TRAINING_NO_SHUFFLE             (1 << 0)
@@ -119,6 +120,7 @@ typedef int      (*PSBackpropFunction) (struct PSLayer *layer,
                                         struct PSGradient *layer_gradients,
                                         ...);
 typedef void     (*PSGenericLayerCallback) (struct PSLayer *layer);
+typedef int      (*PSBooleanLayerCallback) (struct PSLayer *layer);
 typedef int      (*PSCopyLayerCallback) (struct PSLayer *, struct PSLayer *);
 typedef int      (*PSPretrainLayerFunction) (struct PSLayer *,
                                              PSFloat *training_data,
@@ -175,6 +177,16 @@ typedef struct PSLayerDef {
     PSFloat *training_data;
     int training_data_size;
     struct PSTrainingOptions *pretraining_options;
+    /* Attention Layer */
+    int attention_type;
+    struct PSLayer *query_provider;
+    struct PSLayer *keys_provider;
+    struct PSLayer *values_provider;
+    PSFloat attention_scale;
+    int attention_heads;
+    int causal_attention;
+    int self_attention;
+    int trainable_parameters;
 } PSLayerDef;
 
 typedef struct PSGradient {
@@ -195,7 +207,8 @@ typedef enum {
     GRU,
     Dropout,
     Embedding,
-    Normalization
+    Normalization,
+    Attention
 } PSLayerType;
 
 typedef enum {
@@ -280,6 +293,7 @@ typedef struct PSLayer {
     PSActivationFunction        derivative;
     PSGenericLayerCallback      on_delete;
     PSCopyLayerCallback         on_copy;
+    PSBooleanLayerCallback      build;
     PSGenericLayerCallback      before_batch_training;
     PSGetParamCountFunction     get_param_count;
     PSInitStatesFunc            on_states_init;
@@ -327,6 +341,7 @@ int PSLoadNetwork(PSNeuralNetwork *network, const char* filename);
 int PSSaveNetwork(PSNeuralNetwork *network, const char* filename);
 int PSLoadLayer(PSLayer *layer, const char *filepath);
 int PSSaveLayer(PSLayer *layer, const char *filepath, int save_definition);
+void PSSetNetworkStatus(PSNeuralNetwork *network, int status, int *old);
 PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
                     PSLayerDef *layer_def);
 PSLayer *PSAddConvolutionalLayer(PSNeuralNetwork *network, PSLayerDef *ldef);
@@ -338,6 +353,8 @@ uint64_t PSGetLayerParametersCount(PSLayer *layer, int param_type);
 PSLayer *PSGetPreviousLayer(PSLayer *layer);
 PSLayer *PSGetNextLayer(PSLayer *layer);
 PSLayer *PSGetOutputLayer(PSNeuralNetwork *network);
+PSLayer *PSGetLayerByIndex(PSNeuralNetwork *network, int layer_index,
+                            int network_index);
 int PSGetLayerInputSize(PSLayer *layer);
 uint64_t PSGetLayerInputWeightsCount(PSLayer *layer, int per_neuron);
 PSFloat *PSGetNeuronInputWeights(PSNeuron *neuron);
@@ -396,6 +413,7 @@ int PSGetNetworkChainLength(PSNeuralNetwork *network);
 PSNeuralNetwork *PSGetNetworkAtIndex(PSNeuralNetwork *entrypoint, int index);
 PSNeuralNetwork *PSGetNetworkChainHead(PSNeuralNetwork *network);
 PSNeuralNetwork *PSGetNetworkChainTail(PSNeuralNetwork *network);
+int PSNetworkChainContains(PSNeuralNetwork *chain, PSNeuralNetwork *network);
 
 /*  Loss functions */
 

@@ -19,6 +19,7 @@
 #define __PS_MATHS_H__
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <stdint.h>
 #include <math.h>
 #include "types.h"
@@ -131,6 +132,9 @@ typedef PSFloat *PSMatrix;
 typedef PSFloat (*PSMatrixInitializer)(PSMatrix matrix, int idx, PSFloat n);
 PSMatrix PSMatrixCreate(PSFloat init_value, PSMatrixInitializer initializer,
                         int ndims, ...);
+PSMatrix PSMatrixCreateWithShape(PSFloat init_value,
+                                 PSMatrixInitializer initializer,
+                                 int ndims, int *shape);
 PSMatrix PSMatrixZeros(int ndims, ...);
 PSMatrix PSMatrixRandom(int ndims, ...);
 PSMatrix PSMatrixWithGaussianRandom(PSFloat stddev, int ndims, ...);
@@ -139,10 +143,12 @@ PSMatrix PSMatrixExpand(PSMatrix src, int add, int keep_src);
 int PSMatrixNumDims(PSMatrix matrix);
 int PSMatrixDim(PSMatrix matrix, int dim);
 int PSMatrixDimensions(PSMatrix matrix, int *dims);
-size_t PSMatrixLength(PSMatrix matrix);
+uint64_t PSMatrixLength(PSMatrix matrix);
 int PSMatrixStride(PSMatrix matrix, int dim);
 int PSMatrixShapeType(PSMatrix matrix);
 void PSMatrixPrintInfo(PSMatrix matrix, const char *name, int newline);
+int PSMatrixWrite(PSMatrix matrix, const char *sep, char bracket,
+                  int indent, FILE *out);
 void PSMatrixPrint(PSMatrix matrix, const char *sep, int print_shape);
 PSFloat *PSMatrixGet(PSMatrix matrix, int ndims, uint32_t *len, ...);
 int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt);
@@ -150,6 +156,10 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
                       PSMathOpts *opts);
 int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
                       PSMathOpts *opts);
+PSMatrix PSMatrixReshape(PSMatrix matrix, int num_dims, ...);
+PSMatrix PSMatrixFlatten(PSMatrix matrix);
+PSMatrix *PSMatrixSplit(PSMatrix matrix, int num_slices, int axis,
+                        PSMathOpts *opts);
 PSMatrix PSMatrixTranspose(PSMatrix matrix, int rebuild, PSMathOpts *opts);
 void PSMatrixResetTransposed(PSMatrix matrix);
 PSMatrix PSMatrixDup(PSMatrix matrix);
@@ -207,10 +217,12 @@ void PSVectorPrint(PSFloat *vec, int len, char* sep);
 PSFloat *PSVectorTranspose(PSFloat *vec, int acceleration, int ndims, ...);
 int PSMatMul(PSFloat *a, PSFloat *b, PSFloat *dest, int m, int n, int k,
              PSMathOpts *opts);
-int PSDot(PSMatrix matrix, PSFloat *vector, PSFloat *dest, PSMathOpts *opts);
+int PSDot(PSMatrix a, PSMatrix b, PSFloat *dest, PSMathOpts *opts);
 int PSDotMV(PSMatrix a, PSFloat *b, PSFloat *dest, PSMathOpts *opts);
 int PSDotVM(PSFloat *a, PSMatrix b, PSMatrix dest, PSMathOpts *opts);
 int PSOuterProduct(PSFloat *a, PSFloat *b, PSFloat *dest,
                     uint64_t alen, uint64_t blen, PSMathOpts *opts);
+PSMatrix PSDiagonalMask(int size);
+PSFloat **PSVectorSplit(PSFloat *vec, int len, int num_slices);
 
 #endif /* __PS_MATHS_H__ */

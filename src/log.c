@@ -88,6 +88,15 @@ void PSInfo(const char *format, ...) {
     PSLog(PSLOGLEVEL_INFO, "\n");
 }
 
+void PSNotice(const char *format, ...) {
+    if (PSLogLevel > PSLOGLEVEL_NOTICE) return;
+    va_list args;
+    va_start(args, format);
+    PSVLog(PSLOGLEVEL_NOTICE, format, args);
+    va_end(args);
+    PSLog(PSLOGLEVEL_NOTICE, "\n");
+}
+
 void PSWarn(const char *format, ...) {
     if (PSLogLevel > PSLOGLEVEL_WARN) return;
     PSLog(PSLOGLEVEL_WARN, "WARN: ");
