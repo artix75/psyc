@@ -46,7 +46,7 @@ PSFloat PSGetAttentionScale(PSLayer *layer);
 int PSGetAttentionHeadCount(PSLayer *layer);
 int PSGetAttentionProviders(PSLayer *layer, PSLayer **query_provider,
                             PSLayer **keys_provider, PSLayer **values_provider);
-int PSGetAttnetionTrainableParameters(PSLayer *layer);
+int PSGetAttentionTrainableParameters(PSLayer *layer);
 int PSIsCausalAttention(PSLayer *layer);
 int PSSetAttentionQueryProvider(PSLayer *layer, PSLayer *provider);
 

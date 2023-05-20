@@ -88,7 +88,7 @@ typedef PSFloat (*PSFloatFunc) (PSFloat n);
  *                  - 'V' or 'v': `PSFloat *` vector
  *                  The index indicated argument position (zero-based), ie:
  *                  argtype[1] means that second PSMatrix argument has to be
- *                  trated as vector.
+ *                  treated as vector.
  *  - `vector_len`  optionally pass vector length to functions that cannot
  *                  retrieve this info from matrix arguments, ie. when `PSDot`
  *                  is called with both vectors (`argtype` = {'V', 'V'})
@@ -223,6 +223,8 @@ int PSDotVM(PSFloat *a, PSMatrix b, PSMatrix dest, PSMathOpts *opts);
 int PSOuterProduct(PSFloat *a, PSFloat *b, PSFloat *dest,
                     uint64_t alen, uint64_t blen, PSMathOpts *opts);
 PSMatrix PSDiagonalMask(int size);
+PSMatrix PSDiagonalFlatten(PSMatrix matrix);
+PSMatrix PSDiagonalFlattenVector(PSFloat *vec, uint64_t len);
 PSFloat **PSVectorSplit(PSFloat *vec, int len, int num_slices);
 
 #endif /* __PS_MATHS_H__ */

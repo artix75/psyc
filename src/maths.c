@@ -527,7 +527,9 @@ int PSMatrixStride(PSMatrix matrix, int dim) {
     int refdim = dim + 1;
     PSMatrixHeader *hdr = PSMatrixGetHeader(matrix);
     if (refdim >= MAX_DIMENSIONS || refdim >= hdr->ndims) return 1;
-    return hdr->dims[refdim];
+    int stride = 1;
+    while (refdim < hdr->ndims) stride *= hdr->dims[refdim++];
+    return stride;
 }
 
 int PSMatrixShapeType(PSMatrix matrix) {
@@ -1002,7 +1004,8 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
         return 0;
     }
     PSMatrix out = *result;
-    if (out != NULL) {
+    int outlen = 0;
+    if (out != NULL && (opts == NULL || opts->argtype[1] != 'V')) {
         PSMatrixHeader *hdr = PSMatrixGetHeader(out);
         if (hdr->ndims != nd) {
             PSErr(
@@ -1019,10 +1022,16 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
                 return 0;
             }
         }
+        outlen = PSMatrixLength(out);
     } else {
         out = PSMatrixCreateWithShape(0, NULL, nd, dimensions);
         *result = out;
         if (out == NULL) return 0;
+        outlen = PSMatrixLength(out);
+    }
+    if (outlen == 0) {
+        outlen = 1;
+        for (int i = 0; i < nd; i++) outlen *= dimensions[i];
     }
     int lda = (mdims_b[1] > 1 ? mdims_b[1] : 1);
     int m = mdims_b[0], n = mdims_b[1];
@@ -1031,7 +1040,6 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
         if (use_acf) {
             PSFloat *dest = out, *tmpdest = (opts ? opts->tmpdest : NULL);
-            int outlen = PSMatrixLength(out);
             if (do_add) {
                 if (tmpdest == NULL)
                     tmpdest = calloc(outlen, sizeof(PSFloat));
@@ -1194,8 +1202,9 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
         PSErr(__func__, "Invalid output dimensions: %d", nd);
         return 0;
     }
+    int outlen = 0;
     PSMatrix out = *result;
-    if (out != NULL) {
+    if (out != NULL && (opt == NULL || opt->argtype[2] != 'V')) {
         PSMatrixHeader *hdr = PSMatrixGetHeader(out);
         if (hdr->ndims != nd) {
             PSErr(
@@ -1215,12 +1224,17 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
                 return 0;
             }
         }
+        outlen = PSMatrixLength(out);
     } else {
         out = PSMatrixCreateWithShape(0, NULL, nd, dimensions);
         *result = out;
         if (out == NULL) return 0;
+        outlen = PSMatrixLength(out);
     }
-    int outlen = PSMatrixLength(out);
+    if (outlen == 0) {
+        outlen = 1;
+        for (int i = 0; i < nd; i++) outlen *= dimensions[i];
+    }
     PSBLASOrder order;
     if (!a_vector_like && b_vector_like) {
         /* Matrix vector multiplication -- Level 2 BLAS */
@@ -1273,7 +1287,6 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
         dims_b = mdims_b;
         order = PSBLASRowMajor;
         lda = (dims_b[1] > 1 ? dims_b[1] : 1);
-        int as = PSMatrixStride(a, 0);
         int m = dims_b[0], n = dims_b[1];
         if (!use_blas) {
             int do_add = (beta == 1.0);
@@ -1308,7 +1321,8 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
             }
             return 1;
         }
-        PSGemv(order, 'N', m, n, 1.0, b, lda, a, as, beta, out, 1);
+        char trans = (transpose & 2) ? 'N' : 'T'; /* 'N'; */
+        PSGemv(order, trans, m, n, 1.0, b, lda, a, 1, beta, out, 1);
     } else {
         /* Matrix matrix multiplication -- Level 3 BLAS */
         order = PSBLASRowMajor;
@@ -2775,6 +2789,28 @@ PSMatrix PSDiagonalMask(int size) {
         }
     }
     return mask;
+}
+
+PSMatrix PSDiagonalFlattenVector(PSFloat *vec, uint64_t len) {
+    if (vec == NULL || len == 0) return NULL;
+    PSMatrix result = PSMatrixZeros(2, len, len);
+    if (result == NULL) {
+        PSErr(__func__, "could not create result matrix");
+        return NULL;
+    }
+    PSFloat *res_p = result;
+    for (uint64_t i = 0; i < len; i++) {
+        res_p[i] = vec[i];
+        res_p += len;
+    }
+    return result;
+}
+
+PSMatrix PSDiagonalFlatten(PSMatrix matrix) {
+    if (matrix == NULL) return NULL;
+    uint64_t len = PSMatrixLength(matrix);
+    if (len == 0) return NULL;
+    return PSDiagonalFlattenVector(matrix, len);
 }
 
 PSFloat **PSVectorSplit(PSFloat *vec, int len, int num_slices) {

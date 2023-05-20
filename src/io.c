@@ -603,7 +603,7 @@ void writeLayerDefinition(PSLayer *layer, FILE *f) {
                 PSGetAttentionType(layer), PSIsCausalAttention(layer),
                 PSGetAttentionHeadCount(layer),
                 PSGetAttentionScale(layer),
-                PSGetAttnetionTrainableParameters(layer));
+                PSGetAttentionTrainableParameters(layer));
         PSLayer *qprovider = NULL, *kprovider = NULL, *vprovider = NULL;
         PSGetAttentionProviders(layer, &qprovider, &kprovider, &vprovider);
         if (qprovider != NULL && qprovider->network != NULL) {

@@ -229,7 +229,8 @@ int checkLayerForForward(PSLayer *layer) {
     if (layer == NULL) return 0;
     int trainable = !(layer->flags & FLAG_NON_TRAINABLE);
     int needs_neurons = (
-        Dropout != layer->type && Normalization != layer->type
+        Dropout != layer->type && Normalization != layer->type &&
+        Attention != layer->type
     );
     if (layer->neurons == NULL && needs_neurons) {
         PSErr(NULL, "Layer[%d] has no neurons!", layer->index);
@@ -253,8 +254,13 @@ int checkLayerForForward(PSLayer *layer) {
             PSErr(NULL, "Layer[%d]: layer has no weights", layer->index);
             return 0;
         }
+        int trainable_params = 0xFFFF;
+        if (layer->type == Attention)
+            trainable_params = PSGetAttentionTrainableParameters(layer);
         for (int i = 0; i < layer->weight_types_count; i++) {
-            if (layer->weights[i] == NULL) {
+            int ok = layer->weights[i] != NULL;
+            if (!ok) ok = !(trainable_params & (1 << i));
+            if (!ok) {
                 PSErr(NULL, "Layer[%d]: weights[%d] are NULL", layer->index, i);
                 return 0;
             }
@@ -2191,6 +2197,14 @@ PSNeuralNetwork *PSCloneNetwork(PSNeuralNetwork *network, int layout_only) {
             ldef.filter_width = csettings->filter_width;
             ldef.filter_height = csettings->filter_height;
         }
+        if (Attention == type) {
+            ldef.attention_type = PSGetAttentionType(layer);
+            ldef.attention_heads = PSGetAttentionHeadCount(layer);
+            ldef.causal_attention = PSIsCausalAttention(layer);
+            ldef.attention_scale = PSGetAttentionScale(layer);
+            ldef.trainable_parameters =
+                PSGetAttentionTrainableParameters(layer);
+        }
         ldef.pretrained = layer->pretrained;
         PSLayer *cloned_layer = PSAddLayer(clone, type, layer->size, &ldef);
         if (cloned_layer == NULL) {
@@ -2230,6 +2244,7 @@ PSNeuralNetwork *PSCloneNetwork(PSNeuralNetwork *network, int layout_only) {
                 }
                 for (j = 0; j < layer->weight_types_count; j++) {
                     if (layer->weights[j] == NULL) {
+                        if (type == Attention) continue;
                         PSErr(__func__, "Layer[%d]: weights[%d] are NULL",
                              layer->index, j);
                         goto err;
@@ -3868,6 +3883,7 @@ void beforeBatchTraining(PSNeuralNetwork *network) {
             if (layer->weights != NULL) {
                 for (j = 0; j < layer->weight_types_count; j++) {
                     PSMatrix weights = layer->weights[j];
+                    if (weights == NULL) continue;
                     PSMatrixResetTransposed(weights);
                 }
             }
@@ -3887,6 +3903,7 @@ void PSResetTransposedWeights(PSNeuralNetwork *network) {
         if (layer->weights == NULL) continue;
         for (j = 0; j < layer->weight_types_count; j++) {
             PSMatrix weights = layer->weights[j];
+            if (weights == NULL) continue;
             PSMatrixResetTransposed(weights);
         }
     }
@@ -4038,32 +4055,60 @@ int PSBeforeLayerBackprop(PSLayer *layer, PSLayer *previous, int *step,
     return 1;
 }
 
-void PSUpdateGradient(PSGradient *gradient, PSMatrix inputs, PSLayer *layer,
-                      PSLayer *previous, int use_bias, int seqlen)
+void PSUpdateGradientData(PSFloat *gradient_weights, PSFloat *gradient_biases,
+                          PSFloat *inputs, PSFloat *delta,
+                          int size, int input_size,
+                          int seqlen, int acceleration)
 {
     if (seqlen < 1) seqlen = 1;
-    else if (!PSHandleSequenceAtOnce(layer)) seqlen = 1;
-    PSMathOpts opts = {.acceleration = layer->network->acceleration};
-    PSFloat *delta_p = layer->delta, *input_p = inputs;
+    PSMathOpts opts = {.acceleration = acceleration};
+    PSFloat *delta_p = delta, *input_p = inputs;
     for (int i = 0; i < seqlen; i++) {
         opts.store_mode = PS_STORE_MODE_ADD;
         PSOuterProduct(
-            delta_p, input_p, gradient->weights,
-            layer->size, previous->size, &opts
+            delta_p, input_p, gradient_weights,
+            size, input_size, &opts
         );
-        if (use_bias) {
+        if (gradient_biases != NULL) {
             opts.store_mode = PS_STORE_MODE_SET;
             PSSumVectors(
-                delta_p, gradient->biases, gradient->biases, layer->size, &opts
+                delta_p, gradient_biases, gradient_biases, size, &opts
             );
         };
-        delta_p += layer->size;
-        input_p += layer->size;
+        delta_p += size;
+        input_p += input_size;
     }
 }
 
+int PSUpdateDelta(PSMatrix destdelta, PSMatrix srcdelta, PSMatrix weights,
+                  int seqlen, int acceleration)
+{
+    int ok;
+    PSMathOpts opts = {.acceleration = acceleration};
+    opts.store_mode = PS_STORE_MODE_ADD;
+    if (seqlen < 1) seqlen = 1;
+    if (seqlen == 1) {
+        opts.transpose = 1; /* Transpose weights */
+        ok = PSDotMV(weights, srcdelta, destdelta, &opts);
+    } else {
+        ok = PSDot(srcdelta, weights, destdelta, &opts);
+    }
+    return ok;
+}
+
+void PSUpdateGradient(PSGradient *gradient, PSMatrix inputs, PSLayer *layer,
+                      PSLayer *previous, int use_bias, int seqlen)
+{
+    if (seqlen < 1 || !PSHandleSequenceAtOnce(layer)) seqlen = 1;
+    PSFloat *gweights = gradient->weights, *gbias = NULL;
+    if (use_bias) gbias = gradient->biases;
+    PSUpdateGradientData(gweights, gbias, inputs, layer->delta,
+                         layer->size, previous->size, seqlen,
+                         layer->network->acceleration);
+}
+
 int PSUpdatePreviousLayerDelta(PSLayer *layer, PSLayer *previous,
-                              int weights_index, int seqlen)
+                               int weights_index, int seqlen)
 {
     if (layer->weights == NULL ||
         weights_index >= layer->weight_types_count ||
@@ -4072,22 +4117,31 @@ int PSUpdatePreviousLayerDelta(PSLayer *layer, PSLayer *previous,
         PSErr(NULL, "Layer[%d] NULL weights", layer->index);
         return 0;
     }
-    int ok;
-    PSMathOpts opts = {.acceleration = layer->network->acceleration};
-    PSMatrix weights = layer->weights[weights_index];
-    PSMatrix delta = layer->delta;
-    opts.store_mode = PS_STORE_MODE_ADD;
     if (seqlen < 1 || !PSHandleSequenceAtOnce(layer)) seqlen = 1;
-    if (seqlen == 1) {
-        opts.transpose = 1; /* Transpose weights */
-        ok = PSDotMV(weights, delta, previous->delta, &opts);
-    } else {
-        ok = PSDot(delta, weights, previous->delta, &opts);
-    }
+    PSMatrix weights = layer->weights[weights_index];
+    int ok = PSUpdateDelta(previous->delta, layer->delta, weights,
+                  seqlen, layer->network->acceleration);
+
     if (!ok)
         PSErr(NULL, "Layer[%d]: failed backprop (PSDot) (seqlen = %d)",
               layer->index);
     return ok;
+}
+
+int PSSoftmaxBackward(PSFloat *softmax_out, PSFloat *delta, PSFloat *dest,
+                      uint64_t len, int acceleration)
+{
+    PSMatrix diagonal = PSDiagonalFlattenVector(softmax_out, len);
+    if (diagonal == NULL) return 0;
+    int success = 1;
+    PSMathOpts opts = {.acceleration = acceleration};
+    opts.argtype[1] = 'V';
+    PSFloat dotprod = PSDotProduct(softmax_out, softmax_out, len, &opts);
+    PSSubtractVectorScalar(diagonal, dotprod, diagonal, len*len, &opts);
+    success = PSMatrixProductVM(delta, diagonal, len, &dest, &opts);
+final:
+    PSMatrixDelete(diagonal);
+    return success;
 }
 
 int computeSoftmaxOutputDelta(PSLayer *layer, PSFloat *y, ...) {
@@ -4851,9 +4905,11 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
             }
             /* Update Weights */
             uint64_t wgrad_offset = 0;
+            int partially_trainable = (layer->type == Attention);
             for (j = 0; j < layer->weight_types_count; j++) {
                 PSMatrix weights = layer->weights[j];
                 if (weights == NULL) {
+                    if (partially_trainable) continue;
                     PSErr(
                         __func__, "Layer[%d]: weights[%d] is NULL",
                         layer->index, j
