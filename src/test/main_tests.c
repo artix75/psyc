@@ -38,6 +38,7 @@
 #include "../lstm.h"
 #include "../gru.h"
 #include "../normalization.h"
+#include "../operator_layer.h"
 #include "../mnist.h"
 #include "../maths.h"
 #include "../activation.h"
@@ -60,6 +61,9 @@
 #define NORMALIZATION_NETWORK "resources/normalization_nn.psmodel"
 #define NORMALIZATION_NETWORK_BP "resources/normalization_nn_bp.psmodel"
 #define DROPOUT_NETWORK "resources/dropout_nn.psmodel"
+#define OP_CONCAT_NETWORK "resources/concatenate-operator-layer.psmodel"
+#define OP_ADD_NETWORK "resources/add-operator-layer.psmodel"
+#define OP_MUL_NETWORK "resources/multiply-operator-layer.psmodel"
 #define ENCDEC_BASIC_NETWORK "resources/encoder-decoder.basic.psmodel"
 #define TEST_IMAGE_FILE "resources/t10k-images-idx3-ubyte.gz"
 #define TEST_LABEL_FILE "resources/t10k-labels-idx1-ubyte.gz"
@@ -101,6 +105,9 @@ TestCase *LSTMNetworkTests;
 TestCase *GRUNetworkTests;
 TestCase *NormalizationNetworkTests;
 TestCase *DropoutNetworkTests;
+TestCase *ConcatOperatorLayerTests;
+TestCase *AddOperatorLayerTests;
+TestCase *MulOperatorLayerTests;
 TestCase *EncoderDecoderTests;
 
 #ifdef USE_AVX
@@ -221,6 +228,18 @@ int testEncodedDecoderClone(TestCase *test_case, Test *test);
 int testEncodedDecoderPredict(TestCase *test_case, Test *test);
 int testEncodedDecoderBackprop(TestCase *test_case, Test *test);
 
+int testConcatOperatorLoad(TestCase *test_case, Test *test);
+int testConcatOperatorForward(TestCase *test_case, Test *test);
+int testConcatOperatorBackprop(TestCase *test_case, Test *test);
+
+int testAddOperatorLoad(TestCase *test_case, Test *test);
+int testAddOperatorForward(TestCase *test_case, Test *test);
+int testAddOperatorBackprop(TestCase *test_case, Test *test);
+
+int testMulOperatorLoad(TestCase *test_case, Test *test);
+int testMulOperatorForward(TestCase *test_case, Test *test);
+int testMulOperatorBackprop(TestCase *test_case, Test *test);
+
 
 /* psyc.c function prototypes */
 
@@ -240,6 +259,8 @@ static int compareFloats(PSFloat a, PSFloat b, int rounding, int precision);
 static int compareArrays(PSFloat *arr, PSFloat *exp, int len, Test* test,
                          char *descr, int rounding, int precision);
 char *PSGetRecurrentModeLabel(PSRecurrentNetworkMode mode);
+int PSUpdateDelta(PSMatrix destdelta, PSMatrix srcdelta, PSMatrix weights,
+                  int seqlen, int acceleration);
 
 int testlen = 0;
 
@@ -519,18 +540,20 @@ static int arrayMaxIndex(PSFloat *array, int len) {
 static int avx_tests = 1, maths_tests = 1, activation_tests = 1,
            optimization_tests = 1, fullnet_tests = 1, convnet_tests = 1,
            rnn_tests = 1, lstm_tests = 1, gru_tests = 1,
-           normalization_tests = 1, dropout_tests = 1, encdec_tests = 1;
+           normalization_tests = 1, dropout_tests = 1, encdec_tests = 1,
+           concat_op_tests = 1, add_op_tests = 1, mul_op_tests = 1;
 
 static int *test_ptrs[] = {
     &avx_tests, &maths_tests, &activation_tests, &optimization_tests,
     &fullnet_tests, &convnet_tests, &rnn_tests, &lstm_tests, &gru_tests,
-    &normalization_tests, &dropout_tests, &encdec_tests
+    &normalization_tests, &dropout_tests, &concat_op_tests, &add_op_tests,
+    &mul_op_tests, &encdec_tests
 };
 
 static char*test_ids[] = {
     "avx", "maths", "activation", "optimization", "fully-connected",
     "convolutional", "rnn", "lstm", "gru", "normalization", "dropout",
-    "encoder_decoder"
+    "concatenate-layer", "add-layer", "multiply-layer", "encoder_decoder",
 };
 
 static void printTestList(void) {
@@ -824,6 +847,51 @@ int main(int argc, char** argv) {
         tot_tests += DropoutNetworkTests->count;
         tot_failed += DropoutNetworkTests->failed_count;
         deleteTest(DropoutNetworkTests);
+    }
+    if (concat_op_tests) {
+        ConcatOperatorLayerTests = createTest("Concatenate Operator Layer");
+        ConcatOperatorLayerTests->setup = genericSetup;
+        ConcatOperatorLayerTests->teardown = genericTeardown;
+        addTest(ConcatOperatorLayerTests, "Load", NULL, testConcatOperatorLoad);
+        addTest(ConcatOperatorLayerTests, "Forward", NULL,
+                testConcatOperatorForward);
+        addTest(ConcatOperatorLayerTests, "Backprop", NULL,
+                testConcatOperatorBackprop);
+        addTest(ConcatOperatorLayerTests, "Save", NULL, testGenericSave);
+        performTests(ConcatOperatorLayerTests);
+        tot_tests += ConcatOperatorLayerTests->count;
+        tot_failed += ConcatOperatorLayerTests->failed_count;
+        deleteTest(ConcatOperatorLayerTests);
+    }
+    if (add_op_tests) {
+        AddOperatorLayerTests = createTest("Add Operator Layer");
+        AddOperatorLayerTests->setup = genericSetup;
+        AddOperatorLayerTests->teardown = genericTeardown;
+        addTest(AddOperatorLayerTests, "Load", NULL, testAddOperatorLoad);
+        addTest(AddOperatorLayerTests, "Forward", NULL,
+                testAddOperatorForward);
+        addTest(AddOperatorLayerTests, "Backprop", NULL,
+                testAddOperatorBackprop);
+        addTest(AddOperatorLayerTests, "Save", NULL, testGenericSave);
+        performTests(AddOperatorLayerTests);
+        tot_tests += AddOperatorLayerTests->count;
+        tot_failed += AddOperatorLayerTests->failed_count;
+        deleteTest(AddOperatorLayerTests);
+    }
+    if (add_op_tests) {
+        MulOperatorLayerTests = createTest("Multiply Operator Layer");
+        MulOperatorLayerTests->setup = genericSetup;
+        MulOperatorLayerTests->teardown = genericTeardown;
+        addTest(MulOperatorLayerTests, "Load", NULL, testMulOperatorLoad);
+        addTest(MulOperatorLayerTests, "Forward", NULL,
+                testMulOperatorForward);
+        addTest(MulOperatorLayerTests, "Backprop", NULL,
+                testMulOperatorBackprop);
+        addTest(MulOperatorLayerTests, "Save", NULL, testGenericSave);
+        performTests(MulOperatorLayerTests);
+        tot_tests += MulOperatorLayerTests->count;
+        tot_failed += MulOperatorLayerTests->failed_count;
+        deleteTest(MulOperatorLayerTests);
     }
     if (encdec_tests) {
         EncoderDecoderTests = createTest("Encoder-Decoder");
@@ -2927,6 +2995,305 @@ final:
     return ok;
 }
 
+int testConcatOperatorLoad(TestCase *test_case, Test *test) {
+    PSNeuralNetwork *network = getNetwork(test_case);
+    testAssertNotNull(network, test);
+    char path[PATH_MAX] = {0};
+    testAssert(joinPath(executable_path, OP_CONCAT_NETWORK, path), test);
+    int loaded = PSLoadNetwork(network, path);
+    testAssertWithMessage(loaded, test, "Failed to load %s", path);
+    network->acceleration = PSGlobalAcceleration;
+    PSLayer *oplayer = network->layers[3];
+    testAssertNotNull(oplayer, test);
+    testAssert(oplayer->type == OperatorLayer, test);
+    PSOperatorType op = PSGetOperatorLayerType(oplayer);
+    testAssert(op == PSConcatenateOperator, test);
+    int expected_size = network->layers[1]->size + network->layers[2]->size,
+        providers_count;
+    testAssert(expected_size == oplayer->size, test);
+    PSLayer **providers = PSGetOperatorLayerProviders(oplayer,&providers_count);
+    testAssertNotNull(providers, test);
+    testAssert(providers_count == 2, test);
+    testAssert(providers[0] == network->layers[1], test);
+    testAssert(providers[1] == network->layers[2], test);
+    if (!PSIsNetworkBuilt(network)) {
+        int built = PSBuildNetwork(network);
+        testAssert(built, test);
+    }
+    return 1;
+}
+
+int testConcatOperatorForward(TestCase *test_case, Test *test) {
+    int ok = 1;
+    PSNeuralNetwork *network = getNetwork(test_case);
+    testAssertNotNull(network, test);
+    PSFloat inputs[] = {0.932902753, 1.48698103, -0.75523293};
+    ok = PSForward(network, inputs);
+    testAssert(ok, test);
+    PSLayer *op_layer = network->layers[3], *l1 = network->layers[1],
+            *l2 = network->layers[2];
+    PSFloat *concatenated = PSGetStates(op_layer, 0);
+    testAssertNotNull(concatenated, test);
+    PSFloat *l1_out = PSGetStates(l1, 0);
+    testAssertNotNull(l1_out, test);
+    PSFloat *l2_out = PSGetStates(l2, 0);
+    testAssertNotNull(l2_out, test);
+    ok = compareArrays(concatenated, l1_out, l1->size, test,
+                       NULL, 0, 0);
+    if (!ok) return 0;
+    ok = compareArrays(concatenated + l1->size, l2_out, l2->size, test,
+                       NULL, 0, 0);
+    return ok;
+}
+
+int testConcatOperatorBackprop(TestCase *test_case, Test *test) {
+    int ok = 1;
+    PSNeuralNetwork *network = getNetwork(test_case);
+    testAssertNotNull(network, test);
+    PSMatrix l1_delta = NULL;
+    PSLayer *op_layer = network->layers[3], *l1 = network->layers[1],
+            *l2 = network->layers[2];
+    PSFloat x[] = {0.932902753, 1.48698103, -0.75523293};
+    PSFloat y[network->output_size];
+    for (uint32_t i = 0; i < network->output_size; i++)
+        y[i] = PSGaussianRandom(0, 1);
+    PSGradient ***grads = backprop(network, x, y, NULL, NULL);
+    testAssertNotNull(grads, test);
+    testAssertWithMessageOrGoto(
+        l1->delta != NULL, final, test, "layer[%d] delta is null", 1
+    );
+    testAssertWithMessageOrGoto(
+        l2->delta != NULL, final, test, "layer[%d] delta is null", 2
+    );
+    testAssertWithMessageOrGoto(
+        op_layer->delta != NULL, final, test, "layer[%d] delta is null", 3
+    );
+    l1_delta = PSMatrixDupShape(l1->delta);
+    testAssertWithMessageOrGoto(
+        l1_delta != NULL, final, test, "could not duplicate layer[%d] delta "
+        "shape", 1
+    );
+    ok = PSUpdateDelta(l1_delta, l2->delta, l2->weights[0], 1,
+                       network->acceleration);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "could not compute delta propagated from layer[%d] "
+        "to layer[%d]", 2, 1
+    );
+    PSMathOpts opts = {.acceleration = network->acceleration};
+    PSSubtractVectors(l1->delta, l1_delta, l1_delta, l1->size, &opts);
+    ok = compareArrays(op_layer->delta, l1_delta, l1->size, test,
+                       NULL, 0, 4);
+    if (!ok) return 0;
+    ok = compareArrays(op_layer->delta + l1->size, l2->delta, l2->size, test,
+                       NULL, 0, 4);
+final:
+    if (grads != NULL) PSDeleteGradientsChain(grads, network);
+    PSMatrixDelete(l1_delta);
+    return ok;
+}
+
+int testAddOperatorLoad(TestCase *test_case, Test *test) {
+    PSNeuralNetwork *network = getNetwork(test_case);
+    testAssertNotNull(network, test);
+    char path[PATH_MAX] = {0};
+    testAssert(joinPath(executable_path, OP_ADD_NETWORK, path), test);
+    int loaded = PSLoadNetwork(network, path);
+    testAssertWithMessage(loaded, test, "Failed to load %s", path);
+    network->acceleration = PSGlobalAcceleration;
+    PSLayer *oplayer = network->layers[3];
+    testAssertNotNull(oplayer, test);
+    testAssert(oplayer->type == OperatorLayer, test);
+    PSOperatorType op = PSGetOperatorLayerType(oplayer);
+    testAssert(op == PSAddOperator, test);
+    int expected_size = network->layers[1]->size, providers_count;
+    testAssert(expected_size == oplayer->size, test);
+    testAssert(expected_size == network->layers[2]->size, test);
+    PSLayer **providers = PSGetOperatorLayerProviders(oplayer,&providers_count);
+    testAssertNotNull(providers, test);
+    testAssert(providers_count == 2, test);
+    testAssert(providers[0] == network->layers[1], test);
+    testAssert(providers[1] == network->layers[2], test);
+    if (!PSIsNetworkBuilt(network)) {
+        int built = PSBuildNetwork(network);
+        testAssert(built, test);
+    }
+    return 1;
+}
+
+int testAddOperatorForward(TestCase *test_case, Test *test) {
+    int ok = 1;
+    PSNeuralNetwork *network = getNetwork(test_case);
+    testAssertNotNull(network, test);
+    PSFloat inputs[] = {0.932902753, 1.48698103, -0.75523293};
+    ok = PSForward(network, inputs);
+    testAssert(ok, test);
+    PSLayer *op_layer = network->layers[3], *l1 = network->layers[1],
+            *l2 = network->layers[2];
+    PSFloat *opstates = PSGetStates(op_layer, 0);
+    testAssertNotNull(opstates, test);
+    PSFloat *l1_out = PSGetStates(l1, 0);
+    testAssertNotNull(l1_out, test);
+    PSFloat *l2_out = PSGetStates(l2, 0);
+    testAssertNotNull(l2_out, test);
+    for (int i = 0; i < op_layer->size; i++) {
+        PSFloat l1state = l1_out[i];
+        PSFloat l2state = l2_out[i];
+        PSFloat opstate = opstates[i];
+        PSFloat expected = l1state + l2state;
+        ok = compareFloats(opstate, expected, 0, 4);
+        testAssertWithMessage(
+            ok, test, "Operator layer state[%d] != expected: %g != %g "
+            "(%g + %g)", i, opstate, expected, l1state, l2state
+        );
+    }
+    return ok;
+}
+
+int testAddOperatorBackprop(TestCase *test_case, Test *test) {
+    int ok = 1;
+    PSNeuralNetwork *network = getNetwork(test_case);
+    testAssertNotNull(network, test);
+    PSMatrix l1_delta = NULL;
+    PSLayer *op_layer = network->layers[3], *l1 = network->layers[1],
+            *l2 = network->layers[2];
+    PSFloat x[] = {0.932902753, 1.48698103, -0.75523293};
+    PSFloat y[network->output_size];
+    for (uint32_t i = 0; i < network->output_size; i++)
+        y[i] = PSGaussianRandom(0, 1);
+    PSGradient ***grads = backprop(network, x, y, NULL, NULL);
+    testAssertNotNull(grads, test);
+    testAssertWithMessageOrGoto(
+        l1->delta != NULL, final, test, "layer[%d] delta is null", 1
+    );
+    testAssertWithMessageOrGoto(
+        l2->delta != NULL, final, test, "layer[%d] delta is null", 2
+    );
+    testAssertWithMessageOrGoto(
+        op_layer->delta != NULL, final, test, "layer[%d] delta is null", 3
+    );
+    l1_delta = PSMatrixDupShape(l1->delta);
+    testAssertWithMessageOrGoto(
+        l1_delta != NULL, final, test, "could not duplicate layer[%d] delta "
+        "shape", 1
+    );
+    ok = PSUpdateDelta(l1_delta, l2->delta, l2->weights[0], 1,
+                       network->acceleration);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "could not compute delta propagated from layer[%d] "
+        "to layer[%d]", 2, 1
+    );
+    PSMathOpts opts = {.acceleration = network->acceleration};
+    PSSubtractVectors(l1->delta, l1_delta, l1_delta, l1->size, &opts);
+    ok = compareArrays(l1_delta, l2->delta, l1->size, test,
+                       NULL, 0, 4);
+    if (!ok) return 0;
+final:
+    if (grads != NULL) PSDeleteGradientsChain(grads, network);
+    PSMatrixDelete(l1_delta);
+    return ok;
+}
+
+int testMulOperatorLoad(TestCase *test_case, Test *test) {
+    PSNeuralNetwork *network = getNetwork(test_case);
+    testAssertNotNull(network, test);
+    char path[PATH_MAX] = {0};
+    testAssert(joinPath(executable_path, OP_MUL_NETWORK, path), test);
+    int loaded = PSLoadNetwork(network, path);
+    testAssertWithMessage(loaded, test, "Failed to load %s", path);
+    network->acceleration = PSGlobalAcceleration;
+    PSLayer *oplayer = network->layers[3];
+    testAssertNotNull(oplayer, test);
+    testAssert(oplayer->type == OperatorLayer, test);
+    PSOperatorType op = PSGetOperatorLayerType(oplayer);
+    testAssert(op == PSMultiplyOperator, test);
+    int expected_size = network->layers[1]->size, providers_count;
+    testAssert(expected_size == oplayer->size, test);
+    testAssert(expected_size == network->layers[2]->size, test);
+    PSLayer **providers = PSGetOperatorLayerProviders(oplayer,&providers_count);
+    testAssertNotNull(providers, test);
+    testAssert(providers_count == 2, test);
+    testAssert(providers[0] == network->layers[1], test);
+    testAssert(providers[1] == network->layers[2], test);
+    if (!PSIsNetworkBuilt(network)) {
+        int built = PSBuildNetwork(network);
+        testAssert(built, test);
+    }
+    return 1;
+}
+
+int testMulOperatorForward(TestCase *test_case, Test *test) {
+    int ok = 1;
+    PSNeuralNetwork *network = getNetwork(test_case);
+    testAssertNotNull(network, test);
+    PSFloat inputs[] = {0.932902753, 1.48698103, -0.75523293};
+    ok = PSForward(network, inputs);
+    testAssert(ok, test);
+    PSLayer *op_layer = network->layers[3], *l1 = network->layers[1],
+            *l2 = network->layers[2];
+    PSFloat *opstates = PSGetStates(op_layer, 0);
+    testAssertNotNull(opstates, test);
+    PSFloat *l1_out = PSGetStates(l1, 0);
+    testAssertNotNull(l1_out, test);
+    PSFloat *l2_out = PSGetStates(l2, 0);
+    testAssertNotNull(l2_out, test);
+    for (int i = 0; i < op_layer->size; i++) {
+        PSFloat l1state = l1_out[i];
+        PSFloat l2state = l2_out[i];
+        PSFloat opstate = opstates[i];
+        PSFloat expected = l1state * l2state;
+        ok = compareFloats(opstate, expected, 0, 4);
+        testAssertWithMessage(
+            ok, test, "Operator layer state[%d] != expected: %g != %g "
+            "(%g * %g)", i, opstate, expected, l1state, l2state
+        );
+    }
+    return ok;
+}
+
+int testMulOperatorBackprop(TestCase *test_case, Test *test) {
+    int ok = 1;
+    PSNeuralNetwork *network = getNetwork(test_case);
+    testAssertNotNull(network, test);
+    PSMatrix l1_delta = NULL;
+    PSLayer *op_layer = network->layers[3], *l1 = network->layers[1],
+            *l2 = network->layers[2];
+    PSFloat x[] = {0.932902753, 1.48698103, -0.75523293};
+    PSFloat y[] = {-1.19145763, -0.723464847, 0.460539848};
+    PSFloat l1_expct[] = {-0.423889, 0.112024, 4.51742, -1.43311, -1.15413};
+    PSFloat l2_expct[] = {-0.0644108, -0.0631921, 1.18236, -2.13912, -1.77627};
+    PSGradient ***grads = backprop(network, x, y, NULL, NULL);
+    testAssertNotNull(grads, test);
+    testAssertWithMessageOrGoto(
+        l1->delta != NULL, final, test, "layer[%d] delta is null", 1
+    );
+    testAssertWithMessageOrGoto(
+        l2->delta != NULL, final, test, "layer[%d] delta is null", 2
+    );
+    testAssertWithMessageOrGoto(
+        op_layer->delta != NULL, final, test, "layer[%d] delta is null", 3
+    );
+    l1_delta = PSMatrixDupShape(l1->delta);
+    testAssertWithMessageOrGoto(
+        l1_delta != NULL, final, test, "could not duplicate layer[%d] delta "
+        "shape", 1
+    );
+    ok = PSUpdateDelta(l1_delta, l2->delta, l2->weights[0], 1,
+                       network->acceleration);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "could not compute delta propagated from layer[%d] "
+        "to layer[%d]", 2, 1
+    );
+    PSMathOpts opts = {.acceleration = network->acceleration};
+    PSSubtractVectors(l1->delta, l1_delta, l1_delta, l1->size, &opts);
+    ok = compareArrays(l1_delta, l1_expct, l1->size, test, "L1 DELTA: ", 0, 4);
+    if (!ok) goto final;
+    ok = compareArrays(l2->delta, l2_expct, l2->size, test, "L2 DELTA", 0, 4);
+final:
+    if (grads != NULL) PSDeleteGradientsChain(grads, network);
+    PSMatrixDelete(l1_delta);
+    return ok;
+}
+
 int encoderDecoderSetup(TestCase *test_case) {
     PSNeuralNetwork *network = PSCreateNetwork("Encoder-Decoder");
     if (network == NULL) {
@@ -3241,6 +3608,13 @@ int compareNetworks(PSNeuralNetwork *network, PSNeuralNetwork *clone,
             "Layer[%d]: Source size %d != Clone size %d",
             i, o_size, c_size
         );
+        int o_flags = orig_l->flags;
+        int c_flags = clone_l->flags;
+        testAssertWithMessage(
+            (o_flags == c_flags), test,
+            "Layer[%d]: Source flags %d != Clone flags %d",
+            i, o_flags, c_flags
+        );
         if (Dropout == orig_l->type) {
             PSFloat o_dropout = PSGetDropout(orig_l);
             PSFloat c_dropout = PSGetDropout(clone_l);
@@ -3251,15 +3625,53 @@ int compareNetworks(PSNeuralNetwork *network, PSNeuralNetwork *clone,
             );
             continue;
         }
+        if (OperatorLayer == orig_l->type) {
+            PSOperatorType orig_op = PSGetOperatorLayerType(orig_l);
+            PSOperatorType clone_op = PSGetOperatorLayerType(clone_l);
+            testAssertWithMessage(
+                orig_op == clone_op, test,
+                "Layer[%d]: Source operator != Clone operator -> %d (%s) != "
+                "%d (%s)", i, orig_op, PSGetOperatorLayerTypeLabel(orig_op),
+                clone_op, PSGetOperatorLayerTypeLabel(clone_op)
+            );
+            int orig_providers_c = 0, clone_providers_c = 0;
+            PSLayer **orig_providers = NULL, **clone_providers = NULL;
+            orig_providers = PSGetOperatorLayerProviders(
+                orig_l, &orig_providers_c
+            );
+            clone_providers = PSGetOperatorLayerProviders(
+                clone_l, &clone_providers_c
+            );
+            testAssertWithMessage(
+                orig_providers_c == clone_providers_c, test,
+                "Layer[%d]: Source providers count != Clone providers count > "
+                "%d != %d", i, orig_providers_c, clone_providers_c
+            );
+            testAssertNotNull(orig_providers, test);
+            testAssertNotNull(clone_providers, test);
+            for (int j = 0; j < orig_providers_c; j++) {
+                PSLayer *orig_prv = orig_providers[j];
+                PSLayer *clone_prv = clone_providers[j];
+                testAssertNotNull(orig_prv, test);
+                testAssertNotNull(clone_prv, test);
+                testAssertNotNull(orig_prv->network, test);
+                testAssertNotNull(clone_prv->network, test);
+                testAssertWithMessage(
+                    orig_prv->network->index == clone_prv->network->index,
+                    test, "Layer[%d]: Source provider[%d] network[%d] != "
+                    "Clone provider network[%d]", i, j,
+                    orig_prv->network->index, clone_prv->network->index
+                );
+                testAssertWithMessage(
+                    orig_prv->index == clone_prv->index,
+                    test, "Layer[%d]: Source provider[%d] index[%d] != "
+                    "Clone provider index[%d]", i, j, orig_prv->index,
+                    clone_prv->index
+                );
+            }
+        }
         if (i == 0) continue;
         if (otype == Pooling) continue;
-        int o_flags = orig_l->flags;
-        int c_flags = clone_l->flags;
-        testAssertWithMessage(
-            (o_flags == c_flags), test,
-            "Layer[%d]: Source flags %d != Clone flags %d",
-            i, o_flags, c_flags
-        );
         testAssertWithMessage(
             (orig_l->weight_types_count == clone_l->weight_types_count), test,
             "Layer[%d]: Source weight_types_count %d != Clone %d",

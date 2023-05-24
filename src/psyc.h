@@ -29,7 +29,7 @@
 
 #define PSYC_VERSION      "0.9.1"
 
-#define LAYER_TYPES     11
+#define LAYER_TYPES     13
 
 #define DEFAULT_RHO     0.95
 #define DEFAULT_BETA1   0.9
@@ -187,6 +187,10 @@ typedef struct PSLayerDef {
     int causal_attention;
     int self_attention;
     int trainable_parameters;
+    /* OperatorLayer */
+    int operator;
+    int providers_count;
+    struct PSLayer **providers;
 } PSLayerDef;
 
 typedef struct PSGradient {
@@ -208,7 +212,9 @@ typedef enum {
     Dropout,
     Embedding,
     Normalization,
-    Attention
+    Attention,
+    OperatorLayer,
+    Linear
 } PSLayerType;
 
 typedef enum {

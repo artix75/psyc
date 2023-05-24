@@ -40,6 +40,7 @@
 #include "embedding.h"
 #include "dropout.h"
 #include "attention.h"
+#include "operator_layer.h"
 #include "debug.h"
 
 #define LAYER_PLACEHOLDER_TYPE -1
@@ -127,6 +128,7 @@ int PSInitEmbeddingLayer(PSLayer *layer, int size, int previous_size,
                          PSLayerDef *ldef);
 int PSInitNormalizationLayer(PSLayer *layer, PSLayerDef *ldef);
 int PSInitAttentiontionLayer(PSLayer *layer, PSLayerDef *ldef);
+int PSInitOperatorLayer(PSLayer *layer, PSLayerDef *ldef);
 int PSDumpGradients(PSNeuralNetwork *network, PSGradient ***gradients,
                     const char* filename, PSTrainingOptions *opts);
 PSGradient **cloneNetworkGradients(PSGradient **gradients,
@@ -230,7 +232,7 @@ int checkLayerForForward(PSLayer *layer) {
     int trainable = !(layer->flags & FLAG_NON_TRAINABLE);
     int needs_neurons = (
         Dropout != layer->type && Normalization != layer->type &&
-        Attention != layer->type
+        Attention != layer->type && layer->type != OperatorLayer
     );
     if (layer->neurons == NULL && needs_neurons) {
         PSErr(NULL, "Layer[%d] has no neurons!", layer->index);
@@ -266,7 +268,9 @@ int checkLayerForForward(PSLayer *layer) {
             }
         }
     } else {
-        if (layer->type != Pooling && layer->type != Dropout) {
+        if (layer->type != Pooling && layer->type != Dropout &&
+            layer->type != OperatorLayer)
+        {
             PSErr(NULL, "Layer[%d]: weights required for layer type %s",
                   PSGetLabelForType(layer->type));
             return 0;
@@ -815,6 +819,10 @@ char *PSGetLabelForType(PSLayerType type) {
             return "Normalization";
         case Attention:
             return "Attention";
+        case OperatorLayer:
+            return "Operator Layer";
+        case Linear:
+            return "Linear";
     }
     return "UNKOWN";
 }
@@ -1085,6 +1093,9 @@ void PSPrintLayerInfo(PSLayer *layer) {
         int vocab_size = PSGetEmbeddingVocabularySize(layer);
         if (vocab_size > 0)
             printf(", vocabulary_size = %d", vocab_size);
+    } else if (ltype == OperatorLayer) {
+        PSOperatorType op = PSGetOperatorLayerType(layer);
+        printf(", operator = %s", PSGetOperatorLayerTypeLabel(op));
     }
     const char *activation = PSGetActivationName(layer->activate);
     if (layer->index > 0 && activation != NULL)
@@ -2794,9 +2805,13 @@ int initGenericLayer(PSLayer *layer, int size, int previous_size,
         layer->neurons[i] = neuron;
     }
     if (layer->type != SoftMax) {
-        if (layer->activate == NULL) {
+        int is_linear = layer->type == Linear;
+        if (layer->activate == NULL && !is_linear) {
             layer->activate = PSSigmoid;
             layer->derivative = PSSigmoidDerivative;
+        } else if (is_linear) {
+            layer->activate = NULL;
+            layer->derivative = NULL;
         }
         layer->forward = PSFullForward;
     } else {
@@ -2912,7 +2927,7 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
         PSAbortLayer(network, layer);
         return NULL;
     }
-    if (type == FullyConnected || type == SoftMax) {
+    if (type == FullyConnected || type == SoftMax || type == Linear) {
         initialized = initGenericLayer(layer, size, previous_size, layer_def);
     } else if (type == Convolutional) {
         initialized = PSInitConvolutionalLayer(network, layer, layer_def);
@@ -2937,6 +2952,8 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
         initialized = PSInitNormalizationLayer(layer, layer_def);
     } else if (type == Attention) {
         initialized = PSInitAttentiontionLayer(layer, layer_def);
+    } else if (type == OperatorLayer) {
+        initialized = PSInitOperatorLayer(layer, layer_def);
     } else PSErr(__func__, "Invalid layer type %d", type);
     if (!initialized) goto fail;
     if (layer->index > 0 && layer->delta == NULL) {
@@ -3049,7 +3066,7 @@ PSLayer *PSMakeLayerPlaceholder(int layer_index, int network_index) {
         PSPrintMemoryErrorMsg();
         return NULL;
     }
-    PSLayer *placeholder = calloc(1, sizeof(PSLayer *));
+    PSLayer *placeholder = calloc(1, sizeof(*placeholder));
     if (placeholder == NULL) {
         free(indices);
         PSPrintMemoryErrorMsg();
@@ -4500,7 +4517,9 @@ PSGradient **networkBackprop(PSNeuralNetwork *network, PSFloat *y,
             FullyConnected == ltype || Embedding == ltype ||
             Dropout == ltype || Normalization == ltype ||
             (Pooling == ltype && Convolutional == prev_ltype) ||
-            Convolutional == ltype || SoftMax == ltype
+            Convolutional == ltype || SoftMax == ltype ||
+            Attention == ltype || OperatorLayer == ltype ||
+            Linear == ltype
         );
         if (!ok) {
             PSErr(NULL, "Backprop from %s to %s not supported!\n",

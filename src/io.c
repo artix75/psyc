@@ -34,6 +34,7 @@
 #include "dropout.h"
 #include "normalization.h"
 #include "attention.h"
+#include "operator_layer.h"
 #include "log.h"
 #include "buildinfo.h"
 #include "optimization.h"
@@ -564,7 +565,7 @@ int writeGradients(PSNeuralNetwork *network, PSGradient **gradients,
     return 1;
 }
 
-void writeLayerDefinition(PSLayer *layer, FILE *f) {
+int writeLayerDefinition(PSLayer *layer, FILE *f) {
     char *activation = (char *) PSGetActivationName(layer->activate);
     if (activation == NULL) activation = "null";
     fprintf(
@@ -618,10 +619,31 @@ void writeLayerDefinition(PSLayer *layer, FILE *f) {
             fprintf(f, ",values_provider=%d:%d", vprovider->network->index,
                     vprovider->index);
         }
+    } else if (OperatorLayer == layer->type) {
+        fprintf(f, ",operator=%d", PSGetOperatorLayerType(layer));
+        int prvcount = 0;
+        PSLayer **providers = PSGetOperatorLayerProviders(layer, &prvcount);
+        fprintf(f, ",providers_count=%d", prvcount);
+        if (providers != NULL && prvcount > 0) {
+            fprintf(f, ",providers=");
+            for (int i = 0; i < prvcount; i++) {
+                PSLayer *provider = providers[i];
+                if (provider == NULL) {
+                    PSErrNN(NULL, NULL, layer, "provider[%d] is null", i);
+                    return 0;
+                }
+                if (provider->network == NULL) return 0;
+                fprintf(
+                    f, "%s%d:%d", (i > 0 ? "-" : ""), provider->network->index,
+                    provider->index
+                );
+            }
+        }
     }
     if (layer->pretrain != NULL)
         fprintf(f, ",pretrained=%d", layer->pretrained);
     fprintf(f, "\n");
+    return 1;
 }
 
 int writeLayerParameters(PSLayer *layer, int opts, FILE *f, const char *func) {
@@ -917,6 +939,7 @@ static int loadLayerDefinitions(PSNeuralNetwork *network, char *vers,
     for (int i = 0; i < netsize; i++) {
         int idx = 0, lsize = 0, lflags = 0, type = 0;
         PSLayerType ltype = FullyConnected;
+        PSLayer *providers[PS_MAX_PROVIDERS];
         char sep[2] = {0};
         char propname[31];
         int ok = scanFile(
@@ -1163,6 +1186,48 @@ static int loadLayerDefinitions(PSNeuralNetwork *network, char *vers,
                 if (!ok) {
                     loadErr(filepath, f, "Invalid trainable_params");
                     return 0;
+                }
+            } else if (strcmp("operator", propname) == 0) {
+                ok = scanFile(f, "%d%1[,\n]", 2, NULL,
+                              &(ldef.operator), sep);
+                if (!ok) {
+                    loadErr(filepath, f, "Invalid operator");
+                    return 0;
+                }
+            } else if (strcmp("providers_count", propname) == 0) {
+                ok = scanFile(f, "%d%1[,\n]", 2, NULL,
+                              &(ldef.providers_count), sep);
+                if (!ok || ldef.providers_count < 0) {
+                    loadErr(filepath, f, "Invalid providers_count");
+                    return 0;
+                } else if (ldef.providers_count > PS_MAX_PROVIDERS) {
+                    loadErr(filepath, f, "providers_count must be <= %d",
+                            PS_MAX_PROVIDERS);
+                    return 0;
+                }
+            } else if (strcmp("providers", propname) == 0) {
+                if (ldef.providers_count <= 0) {
+                    loadErr(filepath, f, "providers_count must be > 0");
+                    return 0;
+                }
+                for (int j = 0; j < ldef.providers_count; j++) {
+                    int nidx = -1, lidx = -1;
+                    ok = scanFile(f, "%d:%d%1[-\n]", 3, NULL,
+                                  &nidx, &lidx, sep);
+                    if (!ok) {
+                        loadErr(filepath, f, "invalid provider[%d]", j);
+                        return 0;
+                    }
+                    PSLayer *provider = PSGetLayerByIndex(network, lidx, nidx);
+                    /*if (provider == NULL)
+                        provider = PSMakeLayerPlaceholder(lidx, nidx);*/
+                    if (provider == NULL) {
+                        loadErr(filepath, f, "invalid provider[%d]: %d:%d",
+                                j, nidx, lidx);
+                        return 0;
+                    }
+                    providers[j] = provider;
+                    ldef.providers = providers;
                 }
             } else {
                 ok = scanFile(f, "%*[^,\n]%1[,\n]", 1, NULL, sep);
@@ -1698,8 +1763,9 @@ int PSSaveLayer(PSLayer *layer, const char *filepath, int save_definition) {
         PSErr(__func__, "Cannot open %s for writing!", filepath);
         return 0;
     }
-    if (save_definition) writeLayerDefinition(layer, f);
-    int saved = writeLayerParameters(layer, 0, f, __func__);
+    int saved = 1;
+    if (save_definition) saved = writeLayerDefinition(layer, f);
+    if (saved) saved = writeLayerParameters(layer, 0, f, __func__);
     fclose(f);
     return saved;
 }
@@ -2085,7 +2151,7 @@ static int writeNetwork(PSNeuralNetwork *network, FILE *f) {
     fprintf(f, "layers:%d\n", network->size);
     for (i = 0; i < network->size; i++) {
         PSLayer *layer = network->layers[i];
-        writeLayerDefinition(layer, f);
+        if (!writeLayerDefinition(layer, f)) return 0;
     }
     for (i = 1; i < network->size; i++) {
         PSLayer *layer = network->layers[i];
