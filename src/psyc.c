@@ -5110,7 +5110,7 @@ PSFloat gradientDescent(PSNeuralNetwork *network,
         );
         err += batch_err;
         if (network->status == STATUS_ERROR) {
-            PSErr(NULL, "Gradient descent failed at batch %d for network '%s'", 
+            PSErr(NULL, "Gradient descent failed at batch %d for network '%s'",
                   i, (network->name != NULL ? network->name : "UNNAMED")
             );
             goto final;
@@ -5657,7 +5657,7 @@ void PSTrain(PSNeuralNetwork *network,
         }
         gettimeofday(&epoch_et, NULL);
         time_t elapsed_t = PSGetElapsedTimeUS(epoch_st, epoch_et);
-        char * elapsed_str = PSGetElapsedTimeString(elapsed_t, 0);
+        char *elapsed_str = PSGetElapsedTimeString(elapsed_t, 0);
         if (i > 0 && err > prev_err && adjust_rate)
             learning_rate *= 0.5;
         if (network->onEpochTrained != NULL)

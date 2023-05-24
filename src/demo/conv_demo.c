@@ -112,11 +112,11 @@ int main(int argc, char** argv) {
                 printf("WARNING: no dataset remained for evaluation!\n");
                 eval_dataset_len = remaining;
             }
-            datalen = train_dataset_len *element_size;
+            datalen = train_dataset_len * element_size;
             if (eval_dataset_len == 0) validation_data = NULL;
             else {
                 validation_data = training_data + datalen;
-                valdlen = eval_dataset_len *element_size;
+                valdlen = eval_dataset_len * element_size;
             }
         }
 

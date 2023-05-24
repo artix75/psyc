@@ -1533,7 +1533,7 @@ static int loadLayersParameters(PSNeuralNetwork *network,
     return 1;
 }
 
-static int loadLegacyGradients(PSNeuralNetwork *network, const char * filepath,
+static int loadLegacyGradients(PSNeuralNetwork *network, const char *filepath,
                                FILE *f, PSGradient **gradients, int i)
 {
     char *lstm_fmt = PSFLOAT_FORMAT "," PSFLOAT_FORMAT "," PSFLOAT_FORMAT

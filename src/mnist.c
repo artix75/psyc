@@ -215,13 +215,13 @@ int PSLoadMNISTData(int type, const char *images_file, const char *labels_file,
     rows = le2be(rows);
     cols = le2be(cols);
     if (do_log) printf("Image size: %dx%d\n", rows, cols);
-    int img_area = rows *cols;
+    int img_area = rows * cols;
     if (img_area == 0) {
         PSErr(__func__, "Invalid image size!");
         data = NULL;
         goto final;
     }
-    data_len = (img_area *image_count) + (label_count * 10);
+    data_len = (img_area * image_count) + (label_count * 10);
     *data = malloc(data_len * sizeof(PSFloat));
     PSFloat *data_p = *data;
     for (i = 0; i < (int) image_count; i++) {

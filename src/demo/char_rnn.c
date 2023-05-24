@@ -384,7 +384,7 @@ int main(int argc, char **argv) {
     int ok = 1;
     smooth_loss =
         -PSMathLog(1.0 / (PSFloat) VOCABULARY_SIZE)*(PSFloat)seq_length;
-    PSNeuralNetwork * network = PSCreateNetwork("Char RNN");
+    PSNeuralNetwork *network = PSCreateNetwork("Char RNN");
     if (network == NULL) {
         fprintf(stderr, "FATAL: Could not create network\n");
         return 1;

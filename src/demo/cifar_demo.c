@@ -531,11 +531,11 @@ int main(int argc, char** argv) {
                 eval_dataset_len = remaining;
             }
             printf("Evaluation dataset length: %d\n", eval_dataset_len);
-            datalen = train_dataset_len *element_size;
+            datalen = train_dataset_len * element_size;
             if (eval_dataset_len == 0) validation_data = NULL;
             else {
                 validation_data = training_data + datalen;
-                valdlen = eval_dataset_len *element_size;
+                valdlen = eval_dataset_len * element_size;
                 int validation_elements_count = valdlen / element_size;
                 element_count = datalen / element_size;
                 printf("Evaluation elements: %d\n", validation_elements_count);

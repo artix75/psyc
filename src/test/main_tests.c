@@ -1883,7 +1883,7 @@ int testRNNLoad(TestCase *test_case, Test *test) {
                 (uint64_t) RNN_INPUT_SIZE, input_weight_count
             );
             testAssertWithMessage(
-                (hidden_weight_count == (uint64_t)(layer->size * layer->size)), 
+                (hidden_weight_count == (uint64_t)(layer->size * layer->size)),
                 test,
                 "Expected RNN Layer hidden weight count is %llu, got %llu",
                 (uint64_t) (layer->size * layer->size), hidden_weight_count

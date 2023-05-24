@@ -105,7 +105,7 @@ int AVXComputeStepLength(int size, int allow_multiple_vectors, int *bits) {
     int num_vectors = size / reglen;
     assert(num_vectors <= MAX_AVX_VECTORS);
     while (num_vectors > 1 && (num_vectors % 2) != 0) num_vectors--;
-    size = num_vectors *reglen; /* Ensure vector_len is multiple of reglen */
+    size = num_vectors * reglen; /* Ensure vector_len is multiple of reglen */
     return size;
 }
 
