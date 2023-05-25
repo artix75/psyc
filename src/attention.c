@@ -151,6 +151,7 @@ static int copyAttentionLayer(PSLayer *layer, PSLayer *src) {
             PSPrintMemoryErrorMsg();
             return 0;
         }
+        layer->extra = settings;
         memcpy(settings, srcsettings, sizeof(*srcsettings));
         settings->query_provider = NULL;
         settings->keys_provider = NULL;
@@ -253,7 +254,7 @@ static int copyAttentionLayer(PSLayer *layer, PSLayer *src) {
                 return 0;
             }
         }
-        if (srcsettings->num_heads > 0) {
+        if (srcsettings && srcsettings->num_heads > 0) {
             PSMatrix *head_ptrs[] = {
                 srcdata->q_heads, data->q_heads,
                 srcdata->k_heads, data->k_heads,
@@ -272,7 +273,10 @@ static int copyAttentionLayer(PSLayer *layer, PSLayer *src) {
                 }
                 for (int h = 0; h < srcsettings->num_heads; h++) {
                     dsthead[h] = PSMatrixDup(srchead[h]);
-                    if (dsthead[h] == NULL && srchead[h] != NULL) return 0;
+                    if (dsthead[h] == NULL && srchead[h] != NULL) {
+                        deleteHeads(dsthead, srcsettings->num_heads, 0);
+                        return 0;
+                    }
                 }
             }
         }
@@ -401,7 +405,7 @@ static int initOrResizeCachedQueryHeads(PSLayer *layer, int steps, int init) {
             PSErrNN(NULL, NULL, layer, "missing cache for query heads");
             goto final;
         }
-        data->q_heads = calloc(num_heads, sizeof(PSMatrix *));
+        data->q_heads = calloc(num_heads, sizeof(PSMatrix));
         success = (data->q_heads != NULL);
         if (!success) {
             PSPrintMemoryErrorMsg();
@@ -582,7 +586,7 @@ int PSResizeAttentionStates(PSLayer *layer, uint32_t steps) {
         if (!initOrResizeAttentionData(layer, mptr, steps, 0, name))
             return 0;
     }
-    if (settings->num_heads > 0) {
+    if (settings != NULL && settings->num_heads > 0) {
         if (PSHandleSequenceAtOnce(layer)) {
             deleteHeads(data->q_heads, settings->num_heads, 0);
             data->q_heads = NULL;
@@ -749,6 +753,7 @@ PSFloat *PSGetAttentionQuery(PSLayer *layer, int t) {
             PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
             return NULL;
         }
+        layer->private = data;
     }
     PSFloat *query = NULL;
     PSLayer *provider = getQueryProvider(layer);
@@ -846,6 +851,7 @@ PSMatrix PSGetAttentionKeys(PSLayer *layer) {
             PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
             return NULL;
         }
+        layer->private = data;
     }
     int trainable = hasTrainableKeys(layer);
     PSMatrix keys = data->keys;
@@ -898,6 +904,7 @@ PSMatrix PSGetAttentionValues(PSLayer *layer) {
             PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
             return NULL;
         }
+        layer->private = data;
     }
     values = data->values;
     if (values != NULL) return values;
@@ -1728,6 +1735,7 @@ int PSInitAttentiontionLayer(PSLayer *layer, PSLayerDef *ldef) {
     layer->on_states_resize = PSResizeAttentionStates;
     PSAttentionSettings *settings = calloc(1, sizeof(*settings));
     if (settings == NULL) goto memerr;
+    layer->extra = settings;
     settings->type = PSAdditiveAttention;
     settings->scale = 0.0;
     settings->num_heads = 0;
@@ -1788,7 +1796,6 @@ int PSInitAttentiontionLayer(PSLayer *layer, PSLayerDef *ldef) {
         PSErrNN(NULL, NULL, layer, "invalid values_provider");
         goto final;
     }
-    layer->extra = settings;
     layer->size = settings->keys_provider->size;
     if (settings->num_heads > 1 && layer->size % settings->num_heads != 0) {
         PSErrNN(NULL, NULL, layer, "invalid num_heads %d: layer size %d must "
@@ -1798,6 +1805,7 @@ int PSInitAttentiontionLayer(PSLayer *layer, PSLayerDef *ldef) {
     }
     PSAttentionData *data = calloc(1, sizeof(*data));
     if (data == NULL) goto memerr;
+    layer->private = data;
     int param_types = ATTENTION_WEIGHT_TYPES_COUNT;
     layer->weight_types_count = param_types;
     layer->weights = calloc(param_types, sizeof(PSMatrix));
@@ -1821,7 +1829,6 @@ int PSInitAttentiontionLayer(PSLayer *layer, PSLayerDef *ldef) {
         }
     }
     if (trainable_count == 0) layer->flags |= FLAG_NON_TRAINABLE;
-    layer->private = data;
     if (!PSUseSequences(layer)) {
         if (PSHandleSequenceAtOnce(layer->network))
             layer->flags |= FLAG_USE_SEQUENCES;

@@ -888,6 +888,7 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
         }
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
         if (use_acf) {
+            if (outlen == 0) return 0;
             PSFloat *dest = out, *tmpdest = (opts ? opts->tmpdest : NULL);
             if (do_add) {
                 if (tmpdest == NULL)
@@ -1039,6 +1040,7 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
         int do_add = (beta == 1.0);
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
         if (use_acf) {
+            if (outlen == 0) return 0;
             PSFloat *dest = out, *tmpdest = (opts ? opts->tmpdest : NULL);
             if (do_add) {
                 if (tmpdest == NULL)
@@ -1249,6 +1251,7 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
             int do_add = (beta == 1.0);
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
             if (use_acf) {
+                if (outlen == 0) return 0;
                 PSFloat *dest = out, *tmpdest = (opt ? opt->tmpdest : NULL);
                 if (do_add) {
                     if (tmpdest == NULL)
@@ -1294,6 +1297,7 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
             if (transpose & 2) b = PSMatrixTranspose(b, 0, opt);
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
             if (use_acf) {
+                if (outlen == 0) return 0;
                 PSFloat *dest = out, *tmpdest = (opt ? opt->tmpdest : NULL);
                 if (do_add) {
                     if (tmpdest == NULL)
@@ -1333,6 +1337,7 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
             int do_add = (beta == 1.0);
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
             if (use_acf) {
+                if (outlen == 0) return 0;
                 PSFloat *dest = out, *tmpdest = (opt ? opt->tmpdest : NULL);
                 if (do_add) {
                     if (tmpdest == NULL)
@@ -1477,6 +1482,8 @@ PSMatrix *PSMatrixSplit(PSMatrix matrix, int num_slices, int axis,
     int do_transpose = axis != 0;
     if (do_transpose) {
         matrix = PSMatrixTranspose(matrix, 0, opts);
+        success = (matrix != NULL);
+        if (!success) goto final;
         PSMatrixDimensions(matrix, shape);
     }
     int elem_size = 1;
@@ -2727,6 +2734,7 @@ int PSMatMul(PSFloat *a, PSFloat *b, PSFloat *dest, int m, int n, int k,
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     if (PSACFEnabled(acceleration)) {
         int outlen = m * n;
+        if (outlen == 0) return 0;
         PSFloat *out = dest, *tmpdest = (opts ? opts->tmpdest : NULL);
         if (do_add) {
             if (tmpdest == NULL)

@@ -68,6 +68,7 @@ static int copyOperatorLayer(PSLayer *layer, PSLayer *src) {
             return 0;
         }
         memcpy(dstsettings, srcsettings, sizeof(*dstsettings));
+        layer->extra = dstsettings;
         if (srcsettings->providers_count == 0) dstsettings->providers = NULL;
         else {
             dstsettings->providers =

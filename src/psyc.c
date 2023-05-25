@@ -3501,10 +3501,10 @@ int networkForward(PSNeuralNetwork *network, PSFloat *inputs,
         if (!ok) goto final;
         if (last_recurrent == NULL && PSIsRecurrent(output_layer)){
             setNetworkContext(network, last_recurrent_layer, output_layer);
-            return ok;
+            goto final;
         } else if (last_recurrent != NULL) {
             int last_recurrent_idx = last_recurrent->index;
-            if (last_recurrent_idx >= output_idx) return ok;
+            if (last_recurrent_idx >= output_idx) goto final;
             else first_idx = last_recurrent_idx;
         }
     } else if (input_is_seq) {
