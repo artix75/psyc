@@ -599,7 +599,7 @@ int writeLayerDefinition(PSLayer *layer, FILE *f) {
         if (eps == 0) eps = PSDEFAULT_NORM_EPSILON;
         fprintf(f, ",epsilon=" PSFLOAT_FORMAT, eps);
     } else if (Attention == layer->type) {
-        fprintf(f,",attention_type=%d,causal=%d,n_heads=%d,attention_scale=%g"
+        fprintf(f,",attention_type=%d,causal=%d,n_heads=%d,attention_scale=%g,"
                 "trainable_params=%d",
                 PSGetAttentionType(layer), PSIsCausalAttention(layer),
                 PSGetAttentionHeadCount(layer),
