@@ -196,7 +196,7 @@ memerr:
     if (new_cache != NULL) deleteNormalizationCache(new_cache, seqlen);
     deleteNormalizationLayerCache(layer);
     layer->private = NULL;
-    layer->network->status = STATUS_ERROR;
+    PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
     return 0;
 }
 

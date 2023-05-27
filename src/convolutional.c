@@ -888,14 +888,14 @@ int PSConvolutionalForward(PSLayer *layer, ...) {
                     NULL, "Failed to set state on layer %d, neuron %d",
                     layer->index, idx
                 );
-                if (layer->network) layer->network->status = STATUS_ERROR;
+                PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
                 return 0;
             }
         }
     }
     return 1;
 failed:
-    net->status = STATUS_ERROR;
+    PSSetNetworkStatus(net, STATUS_ERROR, NULL);
     return 0;
 }
 
@@ -982,7 +982,7 @@ int PSPool(PSLayer *layer, ...) {
                     NULL, "Failed to set state on layer %d, neuron %d",
                     layer->index, idx
                 );
-                if (layer->network) layer->network->status = STATUS_ERROR;
+                PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
                 return 0;
             }
         }

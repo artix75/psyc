@@ -108,6 +108,8 @@
 #define PSTRAINOPT(...) \
     ((PSTrainingOptions *) &((PSTrainingOptions) {__VA_ARGS__}))
 #define PSDisablePretraining(layer) (layer->pretrain = NULL)
+#define PSIsNetworkTraining(network) \
+    (PSGetNetworkStatus(network) == STATUS_TRAINING)
 
 struct PSNeuralNetwork;
 struct PSLayer;
@@ -348,6 +350,7 @@ int PSSaveNetwork(PSNeuralNetwork *network, const char* filename);
 int PSLoadLayer(PSLayer *layer, const char *filepath);
 int PSSaveLayer(PSLayer *layer, const char *filepath, int save_definition);
 void PSSetNetworkStatus(PSNeuralNetwork *network, int status, int *old);
+int PSGetNetworkStatus(PSNeuralNetwork *network);
 PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
                     PSLayerDef *layer_def);
 PSLayer *PSAddConvolutionalLayer(PSNeuralNetwork *network, PSLayerDef *ldef);

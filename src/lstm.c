@@ -214,7 +214,7 @@ int PSResizeLSTMStates(PSLayer *layer, uint32_t steps) {
         PSMatrixDelete(cell->candidates);
         cell->candidates = NULL;
         cell->initial_candidates = NULL;
-        layer->network->status = STATUS_ERROR;
+        PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
         return 0;
     }
     cell->candidates = candidates;
@@ -226,7 +226,7 @@ int PSResizeLSTMStates(PSLayer *layer, uint32_t steps) {
         PSMatrixDelete(cell->input_gates);
         cell->input_gates = NULL;
         cell->initial_input_gates = NULL;
-        layer->network->status = STATUS_ERROR;
+        PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
         return 0;
     }
     cell->input_gates = input_gates;
@@ -238,7 +238,7 @@ int PSResizeLSTMStates(PSLayer *layer, uint32_t steps) {
         PSMatrixDelete(cell->output_gates);
         cell->output_gates = NULL;
         cell->initial_output_gates = NULL;
-        layer->network->status = STATUS_ERROR;
+        PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
         return 0;
     }
     cell->output_gates = output_gates;
@@ -250,7 +250,7 @@ int PSResizeLSTMStates(PSLayer *layer, uint32_t steps) {
         PSMatrixDelete(cell->forget_gates);
         cell->forget_gates = NULL;
         cell->initial_forget_gates = NULL;
-        layer->network->status = STATUS_ERROR;
+        PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
         return 0;
     }
     cell->forget_gates = forget_gates;
@@ -261,7 +261,7 @@ int PSResizeLSTMStates(PSLayer *layer, uint32_t steps) {
         PSMatrixDelete(cell->raw_states);
         cell->raw_states = NULL;
         cell->initial_raw_states = NULL;
-        layer->network->status = STATUS_ERROR;
+        PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
         return 0;
     }
     cell->raw_states = raw_states;
@@ -350,7 +350,8 @@ int setLSTMState(PSLayer *layer, int index, PSFloat state, int t, int type) {
     PSFloat *state_ptr = NULL, *previous_ptr = NULL;
     if (t >= (int) PSStateSequenceLength(layer)) {
         if (!PSResizeLayerStates(layer, t + 1)) {
-            if (layer->network) layer->network->status = STATUS_ERROR;
+            if (layer->network)
+                PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
             PSErr(
                 NULL, "Could not resize recurrent hidden states for "
                 "layer %d", layer->index

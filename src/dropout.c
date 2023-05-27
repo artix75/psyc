@@ -100,7 +100,7 @@ int PSResizeDropoutMask(PSLayer *layer, uint32_t seqlen) {
         free(data->dropout_mask);
         data->dropout_mask = NULL;
         PSPrintMemoryErrorMsg();
-        layer->network->status = STATUS_ERROR;
+        PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
         return 0;
     }
     int cur_seqlen = PSStateSequenceLength(layer);

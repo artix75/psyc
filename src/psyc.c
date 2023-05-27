@@ -855,7 +855,7 @@ PSLossFunction getLossFunctionAtIndex(int index) {
 
 char *getNetworkStatusLabel(PSNeuralNetwork *network) {
     if (network == NULL) return "";
-    int status = network->status;
+    int status = PSGetNetworkStatus(network);
     switch (status) {
     case STATUS_UNTRAINED:
         return "untrained";
@@ -929,6 +929,8 @@ uint64_t PSGetLayerParametersCount(PSLayer *layer, int param_type) {
             if (Convolutional == layer->type) bias_count = layer->output_depth;
             else if (LSTM == layer->type) bias_count = layer->size * 4;
             else if (GRU == layer->type) bias_count = layer->size * 3;
+            else if (Attention == layer->type)
+                bias_count = (PS_SCORES_IDX * layer->size) + 1;
             else bias_count = layer->size;
             count += bias_count;
         }
@@ -1242,6 +1244,13 @@ void PSSetNetworkStatus(PSNeuralNetwork *network, int status, int *old) {
     }
 }
 
+int PSGetNetworkStatus(PSNeuralNetwork *network) {
+    if (network == NULL) return 0;
+    if (PSIsNetworkChain(network)) network = PSGetNetworkChainHead(network);
+    if (network == NULL) return 0;
+    return network->status;
+}
+
 int PSStateSequenceLength(PSLayer *layer) {
     if (layer == NULL || layer->states == NULL) return 0;
     int len = PSMatrixDim(layer->states, 0);
@@ -1396,7 +1405,7 @@ err:
     if (hstates != NULL) PSMatrixDelete(hstates);
     if (layer->states != NULL) PSMatrixDelete(layer->states);
     layer->states = NULL;
-    layer->network->status = STATUS_ERROR;
+    PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
     return 0;
 }
 
@@ -1427,7 +1436,7 @@ int PSResizeLayerStates(PSLayer *layer, uint32_t seqlen) {
         PSMatrixDelete(states);
         layer->states = NULL;
         layer->initial_states = NULL;
-        layer->network->status = STATUS_ERROR;
+        PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
         return 0;
     }
     layer->states = hstates;
@@ -1475,7 +1484,8 @@ int PSBeforeSequenceForward(PSLayer *layer, int seqlen, int t) {
         /* Recurrent layers may need to resize their sequence steps before
          * forward phase if step `t` is beyond current sequence length. */
         if (!PSResizeLayerStates(layer, t + 1)) {
-            if (layer->network != NULL) layer->network->status = STATUS_ERROR;
+            if (layer->network != NULL)
+                PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
             PSErr(
                 NULL, "Could not resize recurrent hidden states for "
                 "layer %d", layer->index
@@ -1517,7 +1527,8 @@ int PSSetState(PSLayer *layer, PSFloat state, int index, ...) {
         int seqlen = PSStateSequenceLength(layer);
         if (t >= (int) seqlen) {
             if (!PSResizeLayerStates(layer, t + 1)) {
-                if (layer->network) layer->network->status = STATUS_ERROR;
+                if (layer->network)
+                    PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
                 PSErr(
                     __func__, "Could not resize states sequence for "
                     "layer %d", layer->index
@@ -3542,7 +3553,7 @@ int networkForward(PSNeuralNetwork *network, PSFloat *inputs,
     }
 final:
     if (tmpinputs != NULL) free(tmpinputs);
-    if (!ok) network->status = STATUS_ERROR;
+    if (!ok) PSSetNetworkStatus(network, STATUS_ERROR, NULL);
     return ok;
 }
 
@@ -3605,7 +3616,8 @@ int PSClassify(PSNeuralNetwork *network, PSFloat *inputs) {
 
 PSGradient *createLayerGradient(PSLayer *layer) {
     if (layer == NULL) return NULL;
-    if (layer->type == Pooling || layer->type == Dropout) return NULL;
+    if (layer->type == Pooling || layer->type == Dropout ||
+        layer->type == OperatorLayer) return NULL;
     PSGradient *gradient = malloc(sizeof(*gradient));
     if (gradient == NULL) {
         PSPrintMemoryErrorMsg();
@@ -3661,9 +3673,9 @@ PSGradient **createNetworkGradients(PSNeuralNetwork *network) {
         int idx = i - 1;
         gradients[idx] = createLayerGradient(layer);
         if (gradients[idx] == NULL && layer->type != Pooling &&
-            layer->type != Dropout)
+            layer->type != Dropout && layer->type != OperatorLayer)
         {
-            PSPrintMemoryErrorMsg();
+            PSErrNN(NULL, NULL, layer, "could not create gradients");
             PSDeleteNetworkGradients(gradients, network);
             return NULL;
         }
@@ -3886,8 +3898,14 @@ static int propagateDeltaFromNextNetwork(PSNeuralNetwork *network) {
         PSMatrixDelete(link->previous_layer->delta);
         link->previous_layer->delta = NULL;
     }
-    link->previous_layer->delta = PSMatrixDup(link->layer->delta);
-    return 1;
+    if (LSTM == link->previous_layer->type && link->layer->type != LSTM) {
+        link->previous_layer->delta =
+            PSMatrixZeros(2, 1, link->previous_layer->size * 2);
+        if (link->previous_layer->delta == NULL) return 0;
+        PSVectorCopy(link->previous_layer->delta, link->layer->delta,
+                     link->previous_layer->size);
+    } else link->previous_layer->delta = PSMatrixDup(link->layer->delta);
+    return link->previous_layer->delta != NULL;
 }
 
 void beforeBatchTraining(PSNeuralNetwork *network) {
@@ -4064,7 +4082,7 @@ int PSBeforeLayerBackprop(PSLayer *layer, PSLayer *previous, int *step,
         return 0;
     }
     if (*inputs == NULL && previous != NULL) {
-        PSErr(NULL, "Layer[%d]: NULL inputs", previous->index);
+        PSErrNN(NULL, NULL, layer, "NULL inputs");
         return 0;
     }
     if (seqlen != NULL) *seqlen = slen;
@@ -4717,20 +4735,20 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
     int num_networks = PSGetNetworkChainLength(network);
     if (num_networks < 1) {
         PSErr(NULL, "broken network chain");
-        network->status = STATUS_ERROR;
+        PSSetNetworkStatus(network, STATUS_ERROR, NULL);
         return STATUS_ERROR_LOSS;
     } else if (num_networks > 1) {
         output_network = PSGetNetworkChainTail(network);
         if (output_network == NULL) {
             PSErr(NULL, "broken network chain");
-            network->status = STATUS_ERROR;
+            PSSetNetworkStatus(network, STATUS_ERROR, NULL);
             return STATUS_ERROR_LOSS;
         }
     }
     PSLayer *output_layer = PSGetOutputLayer(network);
     if (output_layer == NULL) {
         PSErr(NULL, "no output layer");
-        network->status = STATUS_ERROR;
+        PSSetNetworkStatus(network, STATUS_ERROR, NULL);
         return STATUS_ERROR_LOSS;
     }
     int training_data_size = network->input_size;
@@ -4738,7 +4756,7 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
     /* Create gradients for the current batch. */
     PSGradient ***gradients = createGradients(network);
     if (gradients == NULL) {
-        network->status = STATUS_ERROR;
+        PSSetNetworkStatus(network, STATUS_ERROR, NULL);
         return STATUS_ERROR_LOSS;
     }
     PSGradient ***bp_gradients = NULL;
@@ -4751,7 +4769,7 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
         va_end(args);
         if (sequences == NULL) {
             PSErr(__func__, "Sequences argument is NULL");
-            network->status = STATUS_ERROR;
+            PSSetNetworkStatus(network, STATUS_ERROR, NULL);
             goto final;
         }
         if (is_recurrent)
@@ -4785,14 +4803,14 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
     int use_optimization = (optimization != PSDefaultOptimization);
     if (apply_momentum || use_optimization) {
         if (memory_gradients1 == NULL) {
-            network->status = STATUS_ERROR;
+            PSSetNetworkStatus(network, STATUS_ERROR, NULL);
             goto final;
         }
         if (optimization == PSAdaDeltaOptimization ||
             optimization == PSAdamOptimization)
         {
             if (memory_gradients2 == NULL) {
-                network->status = STATUS_ERROR;
+                PSSetNetworkStatus(network, STATUS_ERROR, NULL);
                 goto final;
             }
         }
@@ -4846,7 +4864,7 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
                 &x_seqlen, NULL, &y_seqlen, &y
             );
             if (datalen <= 0 || x_seqlen <= 0 || y_seqlen <= 0) {
-                network->status = STATUS_ERROR;
+                PSSetNetworkStatus(network, STATUS_ERROR, NULL);
                 goto final;
             }
         }
@@ -4855,7 +4873,7 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
             PSErr(NULL, "Backpropagation failed for network '%s'",
                  (network->name != NULL ? network->name : "UNNAMED")
             );
-            network->status = STATUS_ERROR;
+            PSSetNetworkStatus(network, STATUS_ERROR, NULL);
             goto final;
         }
         if (apply_clip) {
@@ -4869,7 +4887,7 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
                 PSDeleteNetworkGradients(srcgrads, cur);
                 bp_gradients[netidx] = NULL;
                 if (!ok) {
-                    network->status = STATUS_ERROR;
+                    PSSetNetworkStatus(network, STATUS_ERROR, NULL);
                     goto final;
                 }
                 netidx++;
@@ -4878,7 +4896,7 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
         }
         if (PSDumpGradientsPath != NULL)
             PSDumpGradients(network, gradients, NULL, opts);
-        if (network->status == STATUS_PAUSED) break;
+        if (PSGetNetworkStatus(network) == STATUS_PAUSED) break;
     }
 
     PSNeuralNetwork *net = network;
@@ -4891,7 +4909,7 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
         if (grads == NULL) {
             PSErr(NULL, "no gradients found for network[%d] (%s)", netidx,
                   (net->name != NULL ? net->name : "UNNAMED"));
-            network->status = STATUS_ERROR;
+            PSSetNetworkStatus(network, STATUS_ERROR, NULL);
             goto final;
         }
         for (i = 0; i < gradsize; i++) {
@@ -4914,11 +4932,8 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
                     lgradients->bias_count, rate, iteration, mopts.acceleration
                 );
                 if (!ok) {
-                    PSErr(
-                        __func__, "Layer[%d]: failed to update biases",
-                        layer->index
-                    );
-                    network->status = STATUS_ERROR;
+                    PSErrNN(__func__, NULL, layer, "failed to update biases");
+                    PSSetNetworkStatus(network, STATUS_ERROR, NULL);
                     goto final;
                 }
             }
@@ -4933,7 +4948,7 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
                         __func__, "Layer[%d]: weights[%d] is NULL",
                         layer->index, j
                     );
-                    network->status = STATUS_ERROR;
+                    PSSetNetworkStatus(network, STATUS_ERROR, NULL);
                     goto final;
                 }
                 uint64_t wlen = PSMatrixLength(weights);
@@ -4949,7 +4964,7 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
                             __func__, "Layer[%d]: failed to apply L1/L2 "
                             "regularization", layer->index
                         );
-                        network->status = STATUS_ERROR;
+                        PSSetNetworkStatus(network, STATUS_ERROR, NULL);
                         goto final;
                     }
                 }
@@ -4966,7 +4981,7 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
                         __func__, "Layer[%d]: failed to update weights[%d]",
                         layer->index, j
                     );
-                    network->status = STATUS_ERROR;
+                    PSSetNetworkStatus(network, STATUS_ERROR, NULL);
                     goto final;
                 }
                 wgrad_offset += wlen;
@@ -4977,7 +4992,7 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
     }
 final:
     PSDeleteGradientsChain(gradients, network);
-    if (network->status == STATUS_ERROR) return STATUS_ERROR_LOSS;
+    if (PSGetNetworkStatus(network) == STATUS_ERROR) return STATUS_ERROR_LOSS;
     int onehot = output_layer->flags & FLAG_ONEHOT;
     if (onehot) label_data_size = 1;
     if (output_is_seq) label_data_size *= y_seqlen;
@@ -5019,7 +5034,7 @@ PSFloat gradientDescent(PSNeuralNetwork *network,
 {
     PSTrainingContext *training_ctx = getTrainingContext(network);
     if (training_ctx == NULL) {
-        network->status = STATUS_ERROR;
+        PSSetNetworkStatus(network, STATUS_ERROR, NULL);
         return STATUS_ERROR_LOSS;
     }
     int batches_count = elements_count / batch_size;
@@ -5031,14 +5046,14 @@ PSFloat gradientDescent(PSNeuralNetwork *network,
         PSLayer *out = PSGetOutputLayer(network);
         if (out == NULL) {
             PSErr(NULL, "no output layer");
-            network->status = STATUS_ERROR;
+            PSSetNetworkStatus(network, STATUS_ERROR, NULL);
             return STATUS_ERROR_LOSS;
         }
         PSNeuralNetwork *outnet = network;
         if (is_network_chain) {
             outnet = PSGetNetworkChainTail(network);
             if (outnet == NULL) {
-                network->status = STATUS_ERROR;
+                PSSetNetworkStatus(network, STATUS_ERROR, NULL);
                 return STATUS_ERROR_LOSS;
             }
         }
@@ -5046,7 +5061,7 @@ PSFloat gradientDescent(PSNeuralNetwork *network,
             network, training_data, elements_count, flags
         );
         if (sequences == NULL) {
-            network->status = STATUS_ERROR;
+            PSSetNetworkStatus(network, STATUS_ERROR, NULL);
             return STATUS_ERROR_LOSS;
         }
         if (!(flags & TRAINING_NO_SHUFFLE))
@@ -5066,7 +5081,7 @@ PSFloat gradientDescent(PSNeuralNetwork *network,
             if (memory_gradients1 == NULL) {
                 memory_gradients1 = createNetworkGradients(network);
                 if (memory_gradients1 == NULL) {
-                    network->status = STATUS_ERROR;
+                    PSSetNetworkStatus(network, STATUS_ERROR, NULL);
                     goto final;
                 }
                 training_ctx->memory_gradients1 = memory_gradients1;
@@ -5078,7 +5093,7 @@ PSFloat gradientDescent(PSNeuralNetwork *network,
             if (memory_gradients2 == NULL) {
                 memory_gradients2 = createNetworkGradients(network);
                 if (memory_gradients2 == NULL) {
-                    network->status = STATUS_ERROR;
+                    PSSetNetworkStatus(network, STATUS_ERROR, NULL);
                     goto final;
                 }
                 training_ctx->memory_gradients2 = memory_gradients2;
@@ -5109,7 +5124,7 @@ PSFloat gradientDescent(PSNeuralNetwork *network,
             learning_rate, memory_gradients1, memory_gradients2, sequence_head
         );
         err += batch_err;
-        if (network->status == STATUS_ERROR) {
+        if (PSGetNetworkStatus(network) == STATUS_ERROR) {
             PSErr(NULL, "Gradient descent failed at batch %d for network '%s'",
                   i, (network->name != NULL ? network->name : "UNNAMED")
             );
@@ -5142,7 +5157,7 @@ PSFloat gradientDescent(PSNeuralNetwork *network,
                     avg_err, elapsed_str);
             }
         } else PSLogTrainingProgress(network, epochs, batches_count, 1, NULL);
-        if (network->status == STATUS_ERROR) {
+        if (PSGetNetworkStatus(network) == STATUS_ERROR) {
             if (sequences != NULL) free(sequences);
             return STATUS_ERROR_LOSS;
         }
@@ -5157,7 +5172,7 @@ PSFloat gradientDescent(PSNeuralNetwork *network,
         else sequence_head += batch_size;
         int action = network->training->requested_action;
         if (action == ACTION_ABORT) {
-            network->status = action;
+            PSSetNetworkStatus(network, action, NULL);
             break;
         }
     }
@@ -5170,7 +5185,7 @@ float validate(PSNeuralNetwork *network, PSFloat *test_data, int data_size,
                PSTrainingOptions *opts, int log)
 {
     int i, j;
-    unsigned char previous_status = network->status;
+    unsigned char previous_status = PSGetNetworkStatus(network);
     char *errmsg = NULL;
     float accuracy = 0.0f;
     int correct_results = 0;
@@ -5199,7 +5214,7 @@ float validate(PSNeuralNetwork *network, PSFloat *test_data, int data_size,
     } else elements_count = data_size / element_size;
     /* PSFloat outputs[output_size]; */
     if (log) printf("Test data elements: %d\n", elements_count);
-    network->status = STATUS_VALIDATING;
+    PSSetNetworkStatus(network, STATUS_VALIDATING, NULL);
     time_t start_t, end_t;
     char timestr[80];
     struct tm *tminfo;
@@ -5315,16 +5330,16 @@ float validate(PSNeuralNetwork *network, PSFloat *test_data, int data_size,
         free(sequences);
         if (log) printf("Accuracy: %.2f\n", accuracy);
     }
-    network->status = previous_status;
+    PSSetNetworkStatus(network, previous_status, NULL);
     return accuracy;
 err:
     if (errmsg == NULL) {
-        if (network->status == STATUS_VALIDATING)
+        if (PSGetNetworkStatus(network) == STATUS_VALIDATING)
             errmsg = "An error occurred while validating, aborting!";
         else
             errmsg = "Failed to validate network!";
     }
-    network->status = STATUS_ERROR;
+    PSSetNetworkStatus(network, STATUS_ERROR, NULL);
     fprintf(stderr, "\n");
     PSErr(NULL, "%s", errmsg);
     return STATUS_ERROR_LOSS;
@@ -5391,22 +5406,22 @@ int PSPretrainLayers(PSNeuralNetwork *network, PSFloat *training_data,
                      int data_size)
 {
     if (network->flags & FLAG_PRETRAINER) return 1;
-    int original_status = network->status;
+    int original_status = PSGetNetworkStatus(network);
     for (int i = 0; i < network->size; i++) {
         PSLayer *layer = network->layers[i];
         if (layer == NULL) continue;
         if (!isPretrainableLayer(layer)) continue;
         if (layer->pretrained) continue;
         PSInfo("Pretraining layer[%d] (%s)", i, PSGetLayerTypeLabel(layer));
-        network->status = STATUS_PRETRAINING;
+        PSSetNetworkStatus(network, STATUS_PRETRAINING, NULL);
         int trained = layer->pretrain(layer, training_data, data_size);
         if (!trained) {
-            network->status = STATUS_ERROR;
+            PSSetNetworkStatus(network, STATUS_ERROR, NULL);
             return 0;
         }
         PSInfo("Successfully pretrained layer[%d] (%s)",
                i, PSGetLayerTypeLabel(layer));
-        network->status = original_status;
+        PSSetNetworkStatus(network, original_status, NULL);
     }
     return 1;
 }
@@ -5456,30 +5471,30 @@ void PSTrain(PSNeuralNetwork *network,
     PSFloat learning_rate = 0.0;
     if (!PSIsNetworkBuilt(network)) {
         if (!PSBuildNetwork(network)) {
-            network->status = STATUS_ERROR;
+            PSSetNetworkStatus(network, STATUS_ERROR, NULL);
             return;
         }
     }
     int valid = PSCheckNetwork(network);
     if (!valid) {
-        network->status = STATUS_ERROR;
+        PSSetNetworkStatus(network, STATUS_ERROR, NULL);
         return;
     }
     PSNetworkContext *ctx = getNetworkContext(network);
     if (ctx == NULL) {
         PSErr(__func__, "Missing network context");
-        network->status = STATUS_ERROR;
+        PSSetNetworkStatus(network, STATUS_ERROR, NULL);
         return;
     }
     PSTrainingContext *training_ctx = ctx->training_context;
-    if (training_ctx != NULL && network->status == STATUS_UNTRAINED) {
+    if (training_ctx && PSGetNetworkStatus(network) == STATUS_UNTRAINED) {
         deleteTrainingContext(training_ctx, network);
         ctx->training_context = training_ctx = NULL;
     }
     if (training_ctx == NULL) {
         ctx->training_context = calloc(1, sizeof(PSTrainingContext));
         if (ctx->training_context == NULL) {
-            network->status = STATUS_ERROR;
+            PSSetNetworkStatus(network, STATUS_ERROR, NULL);
             PSPrintMemoryErrorMsg();
             return;
         }
@@ -5515,7 +5530,7 @@ void PSTrain(PSNeuralNetwork *network,
     int element_size = input_size + output_size;
     /* Eventually pretrain layers (if pretrainable layers are found) */
     if (!PSPretrainLayers(network, training_data, data_size)) {
-        network->status = STATUS_ERROR;
+        PSSetNetworkStatus(network, STATUS_ERROR, NULL);
         PSErr(__func__, "Failed to pretrain network '%s'",
               network->name != NULL ? network->name : "UNNAMED");
         return;
@@ -5596,8 +5611,8 @@ void PSTrain(PSNeuralNetwork *network,
         PSInfo("Loss Function:              %s", loss_func_name);
     }
     /* Start training */
-    int was_paused = (network->status == STATUS_PAUSED);
-    network->status = STATUS_TRAINING;
+    int was_paused = (PSGetNetworkStatus(network) == STATUS_PAUSED);
+    PSSetNetworkStatus(network, STATUS_TRAINING, NULL);
     time_t start_t, end_t;
     char timestr[80];
     struct tm *tminfo;
@@ -5630,7 +5645,7 @@ void PSTrain(PSNeuralNetwork *network,
         network->training->current_epoch = i;
         if (is_recurrent) {
             if (!PSResetNetworkStateSequences(network, 0, 0)) {
-                network->status = STATUS_ERROR;
+                PSSetNetworkStatus(network, STATUS_ERROR, NULL);
                 PSErr(__func__, "Failed to reset network recurrent states");
                 return;
             }
@@ -5640,7 +5655,7 @@ void PSTrain(PSNeuralNetwork *network,
                                       elements_count, learning_rate,
                                       batch_size, options, epochs,
                                       test_data, test_size);
-        if (network->status == STATUS_ERROR) {
+        if (PSGetNetworkStatus(network) == STATUS_ERROR) {
             PSLog(
                 PSLOGLEVEL_ERROR, "\nAn error occurred while training, "
                 "aborting!\n"
@@ -5649,7 +5664,7 @@ void PSTrain(PSNeuralNetwork *network,
         }
         char accuracy_msg[255] = "";
         int batches_count = elements_count / batch_size;
-        if (test_data != NULL && network->status == STATUS_TRAINING) {
+        if (test_data  && PSGetNetworkStatus(network) == STATUS_TRAINING) {
             PSLogTrainingProgress(network, epochs, batches_count, 1,
                 "validating...");
             acc = validate(network, test_data, test_size, options, 0);
@@ -5670,7 +5685,7 @@ void PSTrain(PSNeuralNetwork *network,
         fflush(stdout);
         int action = network->training->requested_action;
         if (action == ACTION_ABORT || action == ACTION_PAUSE) {
-            network->status = action;
+            PSSetNetworkStatus(network, action, NULL);
             break;
         }
     }
@@ -5678,7 +5693,13 @@ void PSTrain(PSNeuralNetwork *network,
     fflush(stdout);
     PSLog(PSLOGLEVEL_SUCCESS, "\nCompleted in %ld sec.\n", end_t - start_t);
     network->training->ended_at = end_t;
-    if (network->status == STATUS_TRAINING) network->status = STATUS_TRAINED;
+    if (PSGetNetworkStatus(network) == STATUS_TRAINING)
+        PSSetNetworkStatus(network, STATUS_TRAINED, NULL);
+    PSNeuralNetwork *current = input_network;
+    if (current != NULL) {
+        PSResetNetworkStateSequences(current, 0, 0);
+        current = current->next;
+    }
 }
 
 float PSTest(PSNeuralNetwork *network, PSFloat *test_data, int data_size,

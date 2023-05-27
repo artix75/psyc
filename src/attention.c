@@ -24,6 +24,7 @@
 #include "maths.h"
 #include "config.h"
 
+#define UNUSED(V) ((void) V)
 #define ATTENTION_WEIGHT_TYPES_COUNT 5
 #define PSGetAttentionSettings(layer) ((PSAttentionSettings *) layer->extra)
 #define PSGetAttentionData(layer) ((PSAttentionData *) layer->private)
@@ -432,6 +433,7 @@ final:
 }
 
 int PSInitAttentionStates(PSLayer *layer, uint32_t steps, int retain_previous) {
+    UNUSED(retain_previous);
     if (layer == NULL) return 0;
     PSAttentionData *data = PSGetAttentionData(layer);
     if (data == NULL) {
@@ -490,21 +492,18 @@ int PSInitAttentionStates(PSLayer *layer, uint32_t steps, int retain_previous) {
         }
         return 1;
     }
-    PSMatrix query = initLayerStates(
-        layer, steps, retain_previous, data->query, NULL
-    );
+    PSFloat *prv = NULL;
+    PSMatrix query = initLayerStates(layer, steps, 0, data->query, &prv);
     if (query == NULL) return 0;
     if (data->query != NULL) PSMatrixDelete(data->query);
     data->query = query;
-    int is_training = (
-        layer->network != NULL && layer->network->status == STATUS_TRAINING
-    );
+    int is_training = PSIsNetworkTraining(layer->network);
     /* If network is not training, other data used for backpropagation is not
      * needed, so exit now. */
     if (!is_training) return 1;
     if (hasTrainableQuery(layer)) {
         PSMatrix query_inputs = initLayerStates(
-            layer, steps, retain_previous, data->query_inputs, NULL
+            layer, steps, 0, data->query_inputs, &prv
         );
         if (query_inputs == NULL) return 0;
         if (data->query_inputs != NULL) PSMatrixDelete(data->query_inputs);
@@ -541,9 +540,7 @@ int PSResizeAttentionStates(PSLayer *layer, uint32_t steps) {
         layer->private = data;
     }
     PSAttentionSettings *settings = PSGetAttentionSettings(layer);
-    int is_training = (
-        layer->network != NULL && layer->network->status == STATUS_TRAINING
-    );
+    int is_training = PSIsNetworkTraining(layer->network);
 
     PSMatrix query = resizeLayerStates(
         layer, steps, data->query, &layer->initial_states
@@ -744,7 +741,8 @@ static int applyCausalMask(PSLayer *layer, PSFloat *mask, PSMatrix scores,
 }
 
 PSFloat *PSGetAttentionQuery(PSLayer *layer, int t) {
-    int trainable = hasTrainableQuery(layer);
+    int is_training = PSIsNetworkTraining(layer->network), trainable = 0;
+    if (is_training) trainable = hasTrainableQuery(layer);
     PSAttentionData *data = PSGetAttentionData(layer);
     if (data == NULL) {
         data = calloc(1, sizeof(*data));
@@ -780,6 +778,10 @@ PSFloat *PSGetAttentionQuery(PSLayer *layer, int t) {
         if (data->query != NULL) PSMatrixDelete(data->query);
         data->query = query;
         if (trainable) {
+            if (data->query_inputs == NULL) {
+                PSErrNN(NULL, NULL, layer, "missing query_inputs");
+                return 0;
+            }
             PSMatrixDelete(data->query_inputs);
             data->query_inputs = PSMatrixDup(data->query);
         }
@@ -795,7 +797,8 @@ PSFloat *PSGetAttentionQuery(PSLayer *layer, int t) {
         }
         int cur_seqlen = PSStateSequenceLength(layer);
         if (t >= cur_seqlen || data->query == NULL) {
-            if (!PSResizeLayerStates(layer, t + 1)) {
+            int steps = (t >= cur_seqlen ? t + 1 : cur_seqlen);
+            if (!PSResizeLayerStates(layer, steps)) {
                 if (layer->network)
                     PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
                 PSErrNN(
@@ -808,6 +811,10 @@ PSFloat *PSGetAttentionQuery(PSLayer *layer, int t) {
         query = data->query + (t * layer->size);
         PSVectorCopy(query, inputs, layer->size);
         if (trainable) {
+            if (data->query_inputs == NULL) {
+                PSErrNN(NULL, NULL, layer, "missing query_inputs");
+                return 0;
+            }
             query_inputs = data->query_inputs + (t * layer->size);
             PSVectorCopy(query_inputs, inputs, layer->size);
         }
@@ -853,7 +860,8 @@ PSMatrix PSGetAttentionKeys(PSLayer *layer) {
         }
         layer->private = data;
     }
-    int trainable = hasTrainableKeys(layer);
+    int is_training = PSIsNetworkTraining(layer->network), trainable = 0;
+    if (is_training) trainable = hasTrainableKeys(layer);
     PSMatrix keys = data->keys;
     if (keys != NULL) return keys; /*TODO: only if key provider in prev. net?*/
     PSLayer *provider = getKeysProvider(layer);
@@ -895,7 +903,8 @@ PSMatrix PSGetAttentionKeys(PSLayer *layer) {
 
 PSMatrix PSGetAttentionValues(PSLayer *layer) {
     PSMatrix values = NULL;
-    int trainable = hasTrainableValues(layer);
+    int is_training = PSIsNetworkTraining(layer->network), trainable = 0;
+    if (is_training) trainable = hasTrainableValues(layer);
     PSAttentionData *data = PSGetAttentionData(layer);
     if (data == NULL) {
         data = calloc(1, sizeof(*data));
@@ -989,17 +998,35 @@ static PSFloat *storeAttentionStates(PSLayer *layer, PSMatrix *states,
                                      PSMatrix *dest, int t)
 {
     if (dest == NULL) dest = &(layer->states);
+    if (*dest == NULL || *states == NULL) return NULL;
     if (PSHandleSequenceAtOnce(layer)) {
         PSMatrixDelete(*dest);
         *dest = *states;
         return *dest;
     } else {
         int len = PSMatrixLength(*states);
-        PSFloat *states_p = *states + (t * len);
-        PSVectorCopy(states_p, *states, len);
+        int dest_shape[3] = {0};
+        int dest_ndims = PSMatrixDimensions(*dest, dest_shape);
+        if (dest_ndims == 1) {
+            PSMatrixDelete(*dest);
+            *dest = *states;
+            return *dest;
+        }
+        if (t >= dest_shape[0]) {
+            PSErrNN(NULL, NULL, layer, "step %d is out of bounds for "
+                    "destination (%d)", t, dest_shape[0]);
+            return NULL;
+        } else if (PSMatrixStride(*dest, 0) != len) {
+            PSErrNN(NULL, NULL, layer, "data to be stored have different size "
+                    "mismatch destination stride: %d != %d", len,
+                    PSMatrixStride(*dest, 0));
+            return NULL;
+        }
+        PSFloat *dest_p = *dest + (t * len);
+        PSVectorCopy(dest_p, *states, len);
         PSMatrixDelete(*states);
         *states = NULL;
-        return states_p;
+        return dest_p;
     }
 }
 
@@ -1052,7 +1079,9 @@ static int updateAttentionGradientsAndDelta(PSLayer *layer, PSFloat **gweights,
     if (use_bias && gbiases) gb = gbiases + (layer->size * param_type);
     int shape[3] = {0};
     int ndims = PSMatrixDimensions(weights, shape);
-    int size = (ndims > 1 ? shape[0] : 1);
+    int size;
+    if (param_type == PS_SCORES_IDX) size = 1;
+    else size = (ndims > 1 ? shape[0] : 1);
     int acceleration = layer->network->acceleration;
     if (seqlen < 1) seqlen = 1;
     PSUpdateGradientData(gw, gb, inputs, delta, size, layer->size,
@@ -1065,7 +1094,8 @@ PSMatrix PSGetAdditiveScores(PSLayer *layer, PSFloat *query, PSMatrix keys) {
     if (query == NULL || keys == NULL) return NULL;
     PSMatrix scores = NULL, sum = NULL;
     PSMatrix score_weights = NULL;
-    int trainable = hasTrainableScores(layer);
+    int is_training = PSIsNetworkTraining(layer->network), trainable = 0;
+    if (is_training) trainable = hasTrainableScores(layer);
     int whole_seq = PSHandleSequenceAtOnce(layer);
     int num_keys = PSMatrixDim(keys, 0), num_qry = 1;
     int success = (num_keys > 0);
@@ -1810,7 +1840,9 @@ int PSInitAttentiontionLayer(PSLayer *layer, PSLayerDef *ldef) {
     layer->weight_types_count = param_types;
     layer->weights = calloc(param_types, sizeof(PSMatrix));
     if (layer->weights == NULL) goto memerr;
-    layer->biases = calloc((param_types * layer->size) + 1, sizeof(PSFloat));
+    int bias_size = ((param_types - 1) * layer->size) + 1;
+    layer->biases = calloc(bias_size, sizeof(PSFloat));
+    if (layer->biases == NULL) goto memerr;
     int trainable_count = 0, use_bias = !(layer->flags & FLAG_NO_BIAS);
     for (int i = 0; i < param_types; i++) {
         int param_flag = (1 << i), size = layer->size;
@@ -1834,12 +1866,6 @@ int PSInitAttentiontionLayer(PSLayer *layer, PSLayerDef *ldef) {
             layer->flags |= FLAG_USE_SEQUENCES;
         else if (PSIsRecurrent(layer->network))
             layer->flags |= FLAG_RECURRENT;
-        else {
-            PSErrNN(NULL, layer->network, layer,
-                    "attention layer must use sequences");
-            success = 0;
-            goto final;
-        }
     }
     layer->forward = PSAttentionForward;
     layer->backprop = PSAttentionBackprop;
@@ -1859,21 +1885,21 @@ int PSAttentionForward(PSLayer *layer, ...) {
     int t = va_arg(args, int);
     va_end(args);
     if (!PSBeforeSequenceForward(layer, seqlen, t)) return 0;
-    int is_training = layer->network->status == STATUS_TRAINING;
+    int is_training = PSIsNetworkTraining(layer->network);
     int whole_seq = PSHandleSequenceAtOnce(layer);
     PSFloat *query = PSGetAttentionQuery(layer, t);
     if (query == NULL) {
-        PSErrNN(NULL, NULL, layer, "Could not retrieve query");
+        PSErrNN(NULL, NULL, layer, "could not retrieve query");
         return 0;
     }
     PSMatrix keys = PSGetAttentionKeys(layer);
     if (keys == NULL) {
-        PSErrNN(NULL, NULL, layer, "Could not retrieve keys");
+        PSErrNN(NULL, NULL, layer, "could not retrieve keys");
         return 0;
     }
     PSMatrix values = PSGetAttentionValues(layer);
     if (values == NULL) {
-        PSErrNN(NULL, NULL, layer, "Could not retrieve values");
+        PSErrNN(NULL, NULL, layer, "could not retrieve values");
         return 0;
     }
     int causal = 0, n_heads = 0;
@@ -1926,6 +1952,7 @@ int PSAttentionForward(PSLayer *layer, ...) {
         PSErrNN(NULL, NULL, layer, "failed to compute attention");
         goto final;
     }
+    PSFloat *stored = NULL;
     if (useOutputProjection(layer)) {
         PSMatrix proj_weights = layer->weights[PS_PROJECTION_IDX];
         PSFloat *biases = NULL;
@@ -1949,18 +1976,38 @@ int PSAttentionForward(PSLayer *layer, ...) {
             goto final;
         }
         if (is_training) {
-            storeAttentionStates(layer, &attention_result,
-                                 &data->output_projection_inputs, t);
+            stored = storeAttentionStates(
+                layer, &attention_result, &data->output_projection_inputs, t
+            );
+            success = stored != NULL;
+            if (!success) {
+                PSErrNN(NULL, NULL, layer, "could not store "
+                        "output_projection_inputs");
+                goto final;
+            }
         }
         if (data->output_projection_inputs != attention_result)
             PSMatrixDelete(attention_result);
         attention_result = new_result;
     }
-    storeAttentionStates(layer, &attention_result, NULL, t);
+    stored = storeAttentionStates(layer, &attention_result, NULL, t);
+    success = stored != NULL;
+    if (!success) {
+        PSErrNN(NULL, NULL, layer, "could not store attention results");
+        goto final;
+    }
     /* Eventually store data for backpropagation */
     if (!is_training) goto final;
-    if (attn_w != NULL)
-        storeAttentionStates(layer, &attn_w, &data->attention_weights, t);
+    if (attn_w != NULL) {
+        stored = storeAttentionStates(
+            layer, &attn_w, &data->attention_weights, t
+        );
+        success = stored != NULL;
+        if (!success) {
+            PSErrNN(NULL, NULL, layer, "could not store attention weights");
+            goto final;
+        }
+    }
     if (multihead) {
         PSFloat **q_heads = heads[0];
         PSMatrix *k_heads = heads[1];
@@ -2133,5 +2180,6 @@ int PSAttentionBackprop(PSLayer *layer, PSLayer *previous_layer,
 final:
     PSMatrixDelete(dkeys);
     PSMatrixDelete(dvalues);
+    PSMatrixDelete(dquery);
     return success;
 }

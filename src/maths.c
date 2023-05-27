@@ -1024,7 +1024,7 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
             }
         }
         outlen = PSMatrixLength(out);
-    } else {
+    } else if (out == NULL) {
         out = PSMatrixCreateWithShape(0, NULL, nd, dimensions);
         *result = out;
         if (out == NULL) return 0;
@@ -1227,7 +1227,7 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
             }
         }
         outlen = PSMatrixLength(out);
-    } else {
+    } else if (out == NULL) {
         out = PSMatrixCreateWithShape(0, NULL, nd, dimensions);
         *result = out;
         if (out == NULL) return 0;

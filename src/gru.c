@@ -177,7 +177,7 @@ int PSResizeGRUStates(PSLayer *layer, uint32_t steps) {
         PSMatrixDelete(cell->candidates);
         cell->candidates = NULL;
         cell->initial_candidates = NULL;
-        layer->network->status = STATUS_ERROR;
+        PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
         return 0;
     }
     cell->candidates = candidates;
@@ -189,7 +189,7 @@ int PSResizeGRUStates(PSLayer *layer, uint32_t steps) {
         PSMatrixDelete(cell->update_gates);
         cell->update_gates = NULL;
         cell->initial_update_gates = NULL;
-        layer->network->status = STATUS_ERROR;
+        PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
         return 0;
     }
     cell->update_gates = update_gates;
@@ -201,7 +201,7 @@ int PSResizeGRUStates(PSLayer *layer, uint32_t steps) {
         PSMatrixDelete(cell->reset_gates);
         cell->reset_gates = NULL;
         cell->initial_reset_gates = NULL;
-        layer->network->status = STATUS_ERROR;
+        PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
         return 0;
     }
     cell->reset_gates = reset_gates;
@@ -284,7 +284,8 @@ int setGRUState(PSLayer *layer, int index, PSFloat state, int t, int type) {
     PSFloat *state_ptr = NULL, *previous_ptr = NULL;
     if (t >= (int) PSStateSequenceLength(layer)) {
         if (!PSResizeLayerStates(layer, t + 1)) {
-            if (layer->network) layer->network->status = STATUS_ERROR;
+            if (layer->network)
+                PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
             PSErr(
                 NULL, "Could not resize recurrent hidden states for "
                 "layer %d", layer->index

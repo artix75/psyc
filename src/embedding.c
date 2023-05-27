@@ -278,7 +278,7 @@ int PSPretrainEmbeddingLayer(PSLayer *layer, PSFloat *training_data,
         options->learning_rate = 0.1; /* TODO: use a constant or autocalc.*/
     PSTrain(pretrainer, pretrain_data, pretaing_num_elements, NULL, 0,
             options);
-    if (pretrainer->status == STATUS_ERROR) {
+    if (PSGetNetworkStatus(pretrainer) == STATUS_ERROR) {
         PSErr(__func__, "Layer[%d]: pretraining failed!",
               layer->index);
         success = 0;
