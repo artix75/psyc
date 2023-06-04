@@ -556,6 +556,17 @@ void PSMatrixPrintInfo(PSMatrix matrix, const char *name, int newline) {
     );
 }
 
+void PSMatrixPrintShape(PSMatrix matrix, FILE *f) {
+    if (matrix == NULL || f == NULL) return;
+    int shape[MAX_DIMENSIONS] = {0};
+    int nd = PSMatrixDimensions(matrix, shape), i;
+    if (nd > MAX_DIMENSIONS) {
+        PSWarn("%s: invalid matrix", __func__);
+        return;
+    }
+    for (i = 0; i < nd; i++) fprintf(f, "%s%d", (i > 0 ? "," : ""), shape[i]);
+}
+
 int PSMatrixWrite(PSMatrix matrix, const char *sep, char bracket,
                   int indent, FILE *out)
 {
@@ -1378,6 +1389,7 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
         else lda = (m > 1 ? m : 1);
         if (trans_b == 'N') ldb =  (n > 1 ? n : 1);
         else ldb = (k > 1 ? k : 1);
+        /*
         size_t alen = PSMatrixLength(a), blen = PSMatrixLength(b);
         if (alen == blen &&
            dims_a[0] == dims_b[1] &&
@@ -1387,12 +1399,17 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
            (trans_a == 'T' ? 1 : 0) ^ (trans_b == 'T' ? 1 : 0) &&
            (trans_a == 'N' ? 1 : 0) ^ (trans_b == 'N' ? 1 : 0)) {
             PSErr(__func__, "Unsupported BLAS Syrc");
+            return 0;
         } else {
             int odim1 = PSMatrixDim(out, 1);
             int ldc = ((odim1 > 1) ? odim1 : 1);
             PSGemm(order, trans_a, trans_b, m, n, k, 1.0, a, lda, b, ldb, beta,
                    out, ldc);
-        }
+        }*/
+        int odim1 = PSMatrixDim(out, 1);
+        int ldc = ((odim1 > 1) ? odim1 : 1);
+        PSGemm(order, trans_a, trans_b, m, n, k, 1.0, a, lda, b, ldb, beta,
+               out, ldc);
     }
     if (PSBLASLastError != NULL) return 0;
     return 1;

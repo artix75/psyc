@@ -4169,13 +4169,19 @@ int PSSoftmaxBackward(PSFloat *softmax_out, PSFloat *delta, PSFloat *dest,
     PSMatrix diagonal = PSDiagonalFlattenVector(softmax_out, len);
     if (diagonal == NULL) return 0;
     int success = 1;
+    PSMatrix sout = PSMatrixFromArray(softmax_out, 2, len, 1), tmpdest = NULL;
+    success = (sout != NULL);
+    if (!success) goto final;
     PSMathOpts opts = {.acceleration = acceleration};
+    opts.transpose = 2;
+    success = PSMatrixProduct(sout, sout, &tmpdest, &opts);
+    if (!success) goto final;
+    PSSubtractVectors(diagonal, tmpdest, diagonal, len * len, &opts);
     opts.argtype[1] = 'V';
-    PSFloat dotprod = PSDotProduct(softmax_out, softmax_out, len, &opts);
-    PSSubtractVectorScalar(diagonal, dotprod, diagonal, len*len, &opts);
     success = PSMatrixProductVM(delta, diagonal, len, &dest, &opts);
 final:
     PSMatrixDelete(diagonal);
+    PSMatrixDelete(tmpdest);
     return success;
 }
 

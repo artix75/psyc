@@ -147,6 +147,7 @@ uint64_t PSMatrixLength(PSMatrix matrix);
 int PSMatrixStride(PSMatrix matrix, int dim);
 int PSMatrixShapeType(PSMatrix matrix);
 void PSMatrixPrintInfo(PSMatrix matrix, const char *name, int newline);
+void PSMatrixPrintShape(PSMatrix matrix, FILE *f);
 int PSMatrixWrite(PSMatrix matrix, const char *sep, char bracket,
                   int indent, FILE *out);
 void PSMatrixPrint(PSMatrix matrix, const char *sep, int print_shape);
