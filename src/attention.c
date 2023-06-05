@@ -1616,7 +1616,9 @@ int PSDotAttentionBackward(PSLayer *layer, PSMatrix *dscores, PSMatrix keys,
         qlen = PSMatrixLength(*((PSMatrix *) dquery));
         success = PSMatrixProduct(*dscores, query, dkeys, &opts);
     } else {
-        qlen = layer->size;
+        /* Read qlen for keys last axis since they're equal even in
+         * multihead attention. */
+        qlen = PSMatrixDim(keys, 1);
         PSMatrix q = PSMatrixFromArray(query, 2, 1, qlen);
         success = q != NULL;
         if (!success) goto final;
@@ -1793,6 +1795,12 @@ int PSMultiHeadAttentionBackward(PSLayer *layer, PSMatrix delta, PSFloat *mask,
         PSFloat *attn_wp = attn_w + (n * attn_stride);
         success = PSAttentionBackward(layer, dh, qh_p, kh, vh, mask, attn_wp,
                                       NULL, dqh, &dkh, &dvh, NULL);
+        if (!success) {
+            PSMatrixDelete(dqh);
+            PSMatrixDelete(dkh);
+            PSMatrixDelete(dvh);
+            goto final;
+        }
         for (int i = 0; i < qlen; i++) {
             PSFloat *dh_p = dqh + (i * latent_dim);
             PSFloat *dst_p = dquery + (i * layer->size) + (n * latent_dim);
@@ -1809,7 +1817,6 @@ int PSMultiHeadAttentionBackward(PSLayer *layer, PSMatrix delta, PSFloat *mask,
         PSMatrixDelete(dqh);
         PSMatrixDelete(dkh);
         PSMatrixDelete(dvh);
-        attn_w += (qlen * klen);
     }
 final:
     deleteHeads(d_heads, n_heads, 0);
@@ -2318,6 +2325,7 @@ int PSAttentionBackprop(PSLayer *layer, PSLayer *previous_layer,
                                       score_inputs, dquery,
                                       &dkeys, &dvalues, gradient);
     }
+    if (!success) goto final;
     if (hasTrainableValues(layer)) {
         success = dvalues != NULL;
         if (!success) {
