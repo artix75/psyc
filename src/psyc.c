@@ -4182,6 +4182,7 @@ int PSSoftmaxBackward(PSFloat *softmax_out, PSFloat *delta, PSFloat *dest,
 final:
     PSMatrixDelete(diagonal);
     PSMatrixDelete(tmpdest);
+    PSMatrixDelete(sout);
     return success;
 }
 

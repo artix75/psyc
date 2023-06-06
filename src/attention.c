@@ -1970,9 +1970,10 @@ int PSInitAttentiontionLayer(PSLayer *layer, PSLayerDef *ldef) {
         settings->query_provider = settings->keys_provider;
     if (settings->values_provider == NULL || self_attention)
         settings->values_provider = settings->keys_provider;
-    success = settings->query_provider == NULL || isValidProvider(
-        settings->query_provider,settings->keys_provider
-    );
+    success = settings->query_provider == NULL ||
+              PSIsLayerPlaceholder(settings->query_provider) ||
+              isValidProvider(settings->query_provider,
+                              settings->keys_provider);
     if (!success) {
         PSErrNN(NULL, layer->network, layer,
                 "invalid query_provider");

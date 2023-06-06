@@ -116,6 +116,20 @@ int string2int(char *str, int *valid) {
     return num;
 }
 
+static PSLayer *layerByIndex(PSNeuralNetwork *network, PSNeuralNetwork *parent,
+                             int nidx, int lidx)
+{
+    if (parent == NULL || PSIsNetworkChain(network))
+        return PSGetLayerByIndex(network, lidx, nidx);
+    int last_idx = 0;
+    if (PSIsNetworkChain(parent)) {
+        PSNeuralNetwork *tail = PSGetNetworkChainTail(parent);
+        if (tail != NULL) last_idx = tail->index;
+    }
+    if (nidx > last_idx) return PSGetLayerByIndex(network, lidx, nidx);
+    else return PSGetLayerByIndex(parent, lidx, nidx);
+}
+
 static int getOptimizationIndex(PSOptimization optimization) {
     if (optimization == NULL) return 0;
     int idx = 0, i;
@@ -931,8 +945,9 @@ static int loadLegacyLayerDefinitions(PSNeuralNetwork *network, char *vers,
 }
 
 static int loadLayerDefinitions(PSNeuralNetwork *network, char *vers,
-                                int netsize, int empty, const char *filepath,
-                                FILE *f)
+                                int netsize, int empty,
+                                PSNeuralNetwork *parent,
+                                const char *filepath, FILE *f)
 {
     UNUSED(vers);
     PSLayer *layer = NULL;
@@ -1119,7 +1134,7 @@ static int loadLayerDefinitions(PSNeuralNetwork *network, char *vers,
                     return 0;
                 }
             } else if (strcmp("causal", propname) == 0) {
-                ok = scanFile(f, "%1[,\n]", 2, NULL,
+                ok = scanFile(f, "%d%1[,\n]", 2, NULL,
                               &(ldef.causal_attention), sep);
                 if (!ok) {
                     loadErr(filepath, f, "Invalid causal value");
@@ -1134,12 +1149,12 @@ static int loadLayerDefinitions(PSNeuralNetwork *network, char *vers,
                 }
             } else if (strcmp("query_provider", propname) == 0) {
                 int nidx = -1, lidx = -1;
-                ok = scanFile(f, "%d:%d", 2, NULL, &nidx, &lidx);
+                ok = scanFile(f, "%d:%d%1[,\n]", 3, NULL, &nidx, &lidx, sep);
                 if (!ok) {
                     loadErr(filepath, f, "Invalid query_provider value");
                     return 0;
                 }
-                PSLayer *provider = PSGetLayerByIndex(network, lidx, nidx);
+                PSLayer *provider = layerByIndex(network, parent, nidx, lidx);
                 if (provider == NULL)
                     provider = PSMakeLayerPlaceholder(lidx, nidx);
                 if (provider == NULL) {
@@ -1150,12 +1165,12 @@ static int loadLayerDefinitions(PSNeuralNetwork *network, char *vers,
                 ldef.query_provider = provider;
             } else if (strcmp("keys_provider", propname) == 0) {
                 int nidx = -1, lidx = -1;
-                ok = scanFile(f, "%d:%d", 2, NULL, &nidx, &lidx);
+                ok = scanFile(f, "%d:%d%1[,\n]", 3, NULL, &nidx, &lidx, sep);
                 if (!ok) {
                     loadErr(filepath, f, "Invalid keys_provider value");
                     return 0;
                 }
-                PSLayer *provider = PSGetLayerByIndex(network, lidx, nidx);
+                PSLayer *provider = layerByIndex(network, parent, nidx, lidx);
                 if (provider == NULL)
                     provider = PSMakeLayerPlaceholder(lidx, nidx);
                 if (provider == NULL) {
@@ -1166,12 +1181,12 @@ static int loadLayerDefinitions(PSNeuralNetwork *network, char *vers,
                 ldef.keys_provider = provider;
             } else if (strcmp("values_provider", propname) == 0) {
                 int nidx = -1, lidx = -1;
-                ok = scanFile(f, "%d:%d", 2, NULL, &nidx, &lidx);
+                ok = scanFile(f, "%d:%d%1[,\n]", 3, NULL, &nidx, &lidx, sep);
                 if (!ok) {
                     loadErr(filepath, f, "Invalid values_provider value");
                     return 0;
                 }
-                PSLayer *provider = PSGetLayerByIndex(network, lidx, nidx);
+                PSLayer *provider = layerByIndex(network, parent, nidx, lidx);
                 if (provider == NULL)
                     provider = PSMakeLayerPlaceholder(lidx, nidx);
                 if (provider == NULL) {
@@ -1212,13 +1227,13 @@ static int loadLayerDefinitions(PSNeuralNetwork *network, char *vers,
                 }
                 for (int j = 0; j < ldef.providers_count; j++) {
                     int nidx = -1, lidx = -1;
-                    ok = scanFile(f, "%d:%d%1[-\n]", 3, NULL,
+                    ok = scanFile(f, "%d:%d%1[,-\n]", 3, NULL,
                                   &nidx, &lidx, sep);
                     if (!ok) {
                         loadErr(filepath, f, "invalid provider[%d]", j);
                         return 0;
                     }
-                    PSLayer *provider = PSGetLayerByIndex(network, lidx, nidx);
+                    PSLayer *provider = layerByIndex(network, parent,nidx,lidx);
                     /*if (provider == NULL)
                         provider = PSMakeLayerPlaceholder(lidx, nidx);*/
                     if (provider == NULL) {
@@ -1958,7 +1973,8 @@ int readNetwork(PSNeuralNetwork *network, FILE *f, const char* filepath,
         ok = 0;
         goto final;
     }
-    ok = loadLayerDefinitions(network, vers, netsize, empty, filepath, f);
+    ok = loadLayerDefinitions(network, vers, netsize, empty, parent,
+                              filepath, f);
     if (!ok) goto final;
     ok = loadLayersParameters(network, filepath, f, verbose);
     if (verbose) printf("\n");
