@@ -823,7 +823,7 @@ PSFloat *PSGetAttentionQuery(PSLayer *layer, int t) {
             }
             PSMatrixDelete(data->query_inputs);
             data->query_inputs = PSMatrixDup(data->query);
-            if (data->query_inputs) {
+            if (data->query_inputs == NULL) {
                 PSErrNN(NULL, NULL, layer, "could not store query_inputs into "
                         "cache");
                 return NULL;
@@ -944,6 +944,11 @@ PSMatrix PSGetAttentionKeys(PSLayer *layer) {
         if (is_training) {
             PSMatrixDelete(data->key_inputs);
             data->key_inputs = PSMatrixDup(keys);
+            if (data->key_inputs == NULL) {
+                PSErrNN(NULL, NULL, layer, "could not store key_inputs into "
+                        "cache");
+                return NULL;
+            }
         }
         int acceleration = layer->network->acceleration;
         PSMatrix weights = layer->weights[PS_KEYS_IDX];
@@ -1656,12 +1661,17 @@ int PSAttentionBackward(PSLayer *layer, PSMatrix delta, PSFloat *query,
     int keys_seqlen = PSMatrixDim(keys, 0);
     PSMathOpts opts = {.acceleration = layer->network->acceleration};
     /* Compute delta for values */
-    PSMatrix attn_w = PSMatrixFromArray(attention_weights, 2, 1, keys_seqlen);
+    int attn_seqlen = 1, whole_seq = PSHandleSequenceAtOnce(layer);
+    if (whole_seq) attn_seqlen = PSStateSequenceLength(layer);
+    PSMatrix attn_w = PSMatrixFromArray(
+        attention_weights, 2, attn_seqlen, keys_seqlen
+    );
     int ok = attn_w != NULL;
     if (!ok) goto final;
     opts.transpose = 1;
     ok = PSMatrixProduct(attn_w, delta, dvalues, &opts);
     PSMatrixDelete(attn_w);
+    attn_w = NULL;
     if (!ok) {
         PSErrNN(NULL, NULL, layer, "could not compute delta for values");
         goto final;
@@ -1691,12 +1701,14 @@ int PSAttentionBackward(PSLayer *layer, PSMatrix delta, PSFloat *query,
         dwseqlen = dwshape[0];
         dwstride = dwshape[dwdims - 1];
     }
-    PSFloat *attw_p = attention_weights, *delta_p = dweights,
+    PSFloat *attw_p = attention_weights, *dweights_p = dweights,
             *dscore_p = dscores;
     for (i = 0; i < dwseqlen; i++) {
-        ok =  PSSoftmaxBackward(attw_p, delta_p, dscore_p, dwstride,
+        ok =  PSSoftmaxBackward(attw_p, dweights_p, dscore_p, dwstride,
                                 opts.acceleration);
         attw_p += keys_seqlen;
+        dweights_p += dwstride;
+        dscore_p += dwstride;
         if (!ok) goto final;
     }
     if (mask != NULL) {
