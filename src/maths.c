@@ -556,15 +556,16 @@ void PSMatrixPrintInfo(PSMatrix matrix, const char *name, int newline) {
     );
 }
 
-void PSMatrixPrintShape(PSMatrix matrix, FILE *f) {
-    if (matrix == NULL || f == NULL) return;
+void PSMatrixPrintShape(PSMatrix matrix, int newline) {
+    if (matrix == NULL) return;
     int shape[MAX_DIMENSIONS] = {0};
     int nd = PSMatrixDimensions(matrix, shape), i;
     if (nd > MAX_DIMENSIONS) {
         PSWarn("%s: invalid matrix", __func__);
         return;
     }
-    for (i = 0; i < nd; i++) fprintf(f, "%s%d", (i > 0 ? "," : ""), shape[i]);
+    for (i = 0; i < nd; i++) printf("%s%d", (i > 0 ? "," : ""), shape[i]);
+    if (newline) printf("\n");
 }
 
 int PSMatrixWrite(PSMatrix matrix, const char *sep, char bracket,
