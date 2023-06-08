@@ -1450,7 +1450,11 @@ PSMatrix PSMultiHeadAttention(PSLayer *layer, PSFloat *query, PSMatrix keys,
     if (attention_weights_ptr != NULL) {
         if (!whole_seq)
             *attention_weights_ptr = PSMatrixZeros(2, num_heads, keys_seqlen);
-        else *attention_weights_ptr = PSMatrixZeros(2, qry_seqlen, keys_seqlen);
+        else {
+            *attention_weights_ptr = PSMatrixZeros(
+                3, num_heads, qry_seqlen, keys_seqlen
+            );
+        }
         success = *attention_weights_ptr != NULL;
         if (!success) goto final;
     }
@@ -1499,8 +1503,7 @@ PSMatrix PSMultiHeadAttention(PSLayer *layer, PSFloat *query, PSMatrix keys,
         PSMatrixDelete(hres);
         if (attn_w != NULL) {
             int len = PSMatrixLength(attn_w);
-            int offset = (!whole_seq ? n : 0);
-            PSFloat *dest = *attention_weights_ptr + (offset * len);
+            PSFloat *dest = *attention_weights_ptr + (n * len);
             PSVectorCopy(dest, attn_w, len);
             PSMatrixDelete(attn_w);
             attn_w = NULL;
