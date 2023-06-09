@@ -31,6 +31,8 @@
 #include "utils.h"
 #include "convolutional.h"
 #include "recurrent.h"
+#include "attention.h"
+#include "operator_layer.h"
 #include "optimization.h"
 #include "activation.h"
 #include "mnist.h"
@@ -66,6 +68,8 @@
 
 #define TRAIN_EVENT_BATCH   1
 #define TRAIN_EVENT_EPOCH   2
+
+#define MAX_PROVIDERS       1024
 
 #define UNUSED(V) ((void) V)
 
@@ -122,6 +126,8 @@ void onBatchTrained(PSNeuralNetwork *network, int epoch, int epochs,
 void onEpochTrained(PSNeuralNetwork *network, int epoch, int epochs,
                     PSFloat loss, PSFloat current_loss, float accuracy,
                     PSFloat *rate, PSFloat *training_data);
+PSLayer *PSMakeLayerPlaceholder(int layer_index, int network_index);
+int PSIsLayerPlaceholder(PSLayer *layer);
 static void cleanup(void);
 
 
@@ -227,7 +233,7 @@ static int resolveMNISTDataFiles(char *path) {
     return 1;
 }
 
-static PSLayerType getLayerType(char *name, int *is_cifar) {
+static PSLayerType getLayerType(char *name, int *is_cifar, PSLayerDef *ldef) {
     if (strcasecmp("fully_connected", name) == 0)
         return FullyConnected;
     else if (strcasecmp("Fully Connected", name) == 0)
@@ -258,7 +264,22 @@ static PSLayerType getLayerType(char *name, int *is_cifar) {
         return Embedding;
     else if (strcasecmp("normalization", name) == 0)
         return Normalization;
-    else if (strcasecmp("cifar", name) == 0) {
+    else if (strcasecmp("attention", name) == 0)
+        return Attention;
+    else if (strcasecmp("operator", name) == 0)
+        return OperatorLayer;
+    else if (strcasecmp("op", name) == 0)
+        return OperatorLayer;
+    else if (strcasecmp("add", name) == 0) {
+        ldef->operator = PSAddOperator;
+        return OperatorLayer;
+    } else if (strcasecmp("concatenate", name) == 0) {
+        ldef->operator = PSConcatenateOperator;
+        return OperatorLayer;
+    } else if (strcasecmp("concat", name) == 0) {
+        ldef->operator = PSConcatenateOperator;
+        return OperatorLayer;
+    } else if (strcasecmp("cifar", name) == 0) {
         *is_cifar = 1;
         return FullyConnected;
     } else {
@@ -529,8 +550,57 @@ static int parseParamInitMode(int param_type, char *arg, PSLayerDef *ldef,
     return 1;
 }
 
+static int parseLayerCoordinates(char *coords, int *nidx, int *lidx) {
+    *nidx = -1;
+    *lidx = -1;
+    if (coords == NULL) return 0;
+    char *sep = strchr(coords, ':');
+    if (sep != NULL) {
+        char *n = coords, *l = sep + 1;
+        *sep = '\0';
+        *nidx = atoi(n);
+        *lidx = atoi(l);
+        if (*nidx < 0) return 0;
+    } else *lidx = atoi(coords);
+    if (*lidx < 0) return 0;
+    return 1;
+}
+
+static PSLayer *getLayerFromCoordinates(char *coords, int network_idx,
+                                        PSNeuralNetwork *current,
+                                        int allow_future)
+{
+    int nidx = -1, lidx = -1;
+    PSLayer *layer = NULL;
+    if (!parseLayerCoordinates(coords, &nidx, &lidx)) {
+        fprintf(stderr, "ERROR: Invalid layer coordinates %s\n",
+                coords);
+        return NULL;
+    }
+    if (nidx < 0) nidx = network_idx;
+    else if (nidx > network_idx) {
+        fprintf(stderr, "ERROR: Invalid layer coordinates %s"
+                ": network index %d > current: %d\n",
+                coords, nidx, network_idx);
+        return NULL;
+    }
+    if (nidx == network_idx) layer = current->layers[lidx];
+    else layer = PSGetLayerByIndex(network, lidx, nidx);
+    if (layer == NULL && allow_future)
+        layer = PSMakeLayerPlaceholder(lidx, nidx);
+    if (layer == NULL) {
+        fprintf(stderr, "ERROR: Invalid layer coordinates %s"
+                ": layer not found\n", coords);
+        return NULL;
+    }
+    return layer;
+}
+
 void parseOptions(int argc, char **argv) {
-    int i, j;
+    int network_idx = 0, i, j;
+    PSNeuralNetwork *current = network, *previous = NULL;
+    PSNeuralNetworkLink *link = NULL;
+    PSNeuralNetworkLink curlink = {0};
     for (i = 1; i < argc; i++) {
         /* printf("ARG[%d]: %s\n", i, argv[i]); */
         int is_last = (i == (argc - 1));
@@ -548,11 +618,26 @@ void parseOptions(int argc, char **argv) {
             }
         } else if (strcmp("--load", arg) == 0 && !is_last) {
             char *file = argv[++i];
-            int loaded = PSLoadNetwork(network, file);
+            int loaded = PSLoadNetwork(current, file);
             if (!loaded) {
-                fprintf(stderr, "Could not load pretrained network %s\n", file);
+                fprintf(stderr, "ERROR: Could not load pretrained network "
+                        "%s\n", file);
                 goto err;
             }
+        } else if (strcmp("--network", arg) == 0) {
+            if (previous != NULL) {
+                if (!PSAddNetwork(previous, current, link)) {
+                    fprintf(stderr, "ERROR: Could not add network\n");
+                    goto err;
+                }
+            }
+            previous = current;
+            current = PSCreateNetwork(NULL);
+            if (current == NULL) {
+                fprintf(stderr, "ERROR: Could not create network\n");
+                goto err;
+            }
+            network_idx++;
         } else if (strcmp("--save", arg) == 0 && !is_last) {
             char *file = argv[++i];
             if (strlen(file) > PATH_MAX) {
@@ -566,19 +651,22 @@ void parseOptions(int argc, char **argv) {
             }
         } else if (strcmp("--name", arg) == 0 && !is_last) {
             char *name = (char*) argv[++i];
-            network->name = strdup(name);
+            current->name = strdup(name);
         } else if (strcmp("--onehot", arg) == 0) {
-            if (network->size == 0) network->flags |= FLAG_ONEHOT;
-            else network->layers[network->size - 1]->flags |= FLAG_ONEHOT;
+            if (current->size == 0) current->flags |= FLAG_ONEHOT;
+            else current->layers[current->size - 1]->flags |= FLAG_ONEHOT;
         } else if (strcmp("--layer", arg) == 0 && !is_last) {
             char *type = argv[++i];
-            int is_cifar = 0, lidx = network->size;
-            PSLayerType ltype = getLayerType(type, &is_cifar);
+            int is_cifar = 0, lidx = current->size;
+            PSLayer *link_to = NULL, *query_provider_to = NULL;
+            PSLayer *providers[MAX_PROVIDERS] = {0};
+            int providers_count = 0;
+            PSLayerDef ldef = {0};
+            PSLayerType ltype = getLayerType(type, &is_cifar, &ldef);
             if ((i + 1) >= argc) break;
             PSLayer *layer = NULL;
-            PSLayerDef ldef = {0};
             if (is_cifar) {
-                layer = PSAddCIFARInputLayer(network);
+                layer = PSAddCIFARInputLayer(current);
                 continue;
             }
             j = i + 1;
@@ -636,6 +724,7 @@ void parseOptions(int argc, char **argv) {
                                 actvname);
                         goto err;
                     }
+                    i = j;
                 } else if ((strcmp("--region-size", carg) == 0 ||
                             strcmp("--filter-width", carg) == 0) &&
                             ++j<argc)
@@ -683,8 +772,10 @@ void parseOptions(int argc, char **argv) {
                     i = j;
                     ldef.activation = PSRelu;
                 } else if (strcmp("--pretrained", carg) == 0) {
+                    i = j;
                     ldef.pretrained = 1;
                 } else if (strcmp("--load-layer", carg) == 0 && ++j < argc) {
+                    i = j;
                     ldef.load_from = argv[j];
                 } else if (strcmp("--dropout", carg) == 0 && ++j < argc) {
                     char *dropout = argv[j];
@@ -698,6 +789,114 @@ void parseOptions(int argc, char **argv) {
                         goto err;
                     }
                     i = j;
+                } else if (strcmp("--operator", carg) == 0 && ++j < argc) {
+                    char *opstr = argv[j];
+                    PSOperatorType op;
+                    if (strcmp("add", opstr) == 0) op = PSAddOperator;
+                    else if (strcmp("concatenate", opstr) == 0)
+                        op = PSConcatenateOperator;
+                    else {
+                        fprintf(stderr, "ERROR: Invalid %s: valid values are "
+                                "add|concatenate\n", opstr);
+                        goto err;
+                    }
+                    i = j;
+                    ldef.operator = op;
+                } else if (strcmp("--provider", carg) == 0 && ++j < argc) {
+                    if (ltype != OperatorLayer) {
+                        fprintf(stderr, "ERROR: %s is only available to "
+                               "operator layers\n", carg);
+                        goto err;
+                    }
+                    if (providers_count >= MAX_PROVIDERS) {
+                        fprintf(stderr, "ERROR: max providers is %d\n",
+                                MAX_PROVIDERS);
+                        goto err;
+                    }
+                    PSLayer *provider = getLayerFromCoordinates(
+                        argv[j], network_idx, current, 0
+                    );
+                    if (provider == NULL) goto err;
+                    i = j;
+                    providers[providers_count++] = provider;
+                    ldef.providers_count = providers_count;
+                } else if (strcmp("--attention-type", carg) == 0 && ++j<argc) {
+                    char *typestr = argv[j];
+                    PSAttentionType type;
+                    if (strcasecmp("dot", typestr) == 0) type = PSDotAttention;
+                    else if (strcasecmp("add", typestr) == 0)
+                        type = PSAdditiveAttention;
+                    else if (strcasecmp("additive", typestr) == 0)
+                        type = PSAdditiveAttention;
+                    else {
+                        fprintf(stderr, "ERROR: Invalid --attention-type "
+                                "'%s'\n", typestr);
+                        fprintf(stderr, "Valid types: dot|additive\n");
+                        goto err;
+                    }
+                    i = j;
+                    ldef.attention_type = type;
+                } else if (strcmp("--causal", carg) == 0) {
+                    i = j;
+                    ldef.causal_attention = 1;
+                } else if (strcmp("--attention-heads", carg) == 0 && ++j<argc) {
+                    int heads = atoi(argv[j]);
+                    if (heads < 0) heads = 0;
+                    i = j;
+                    ldef.attention_heads = heads;
+                } else if (strcmp("--attention-scale", carg) == 0 && ++j<argc) {
+                    PSFloat scale = atof(argv[j]);
+                    if (scale < 0) scale = 0;
+                    i = j;
+                    ldef.attention_scale = scale;
+                } else if (strcmp("--query-provider", carg) == 0 && ++j<argc) {
+                    PSLayer *provider = getLayerFromCoordinates(
+                        argv[j], network_idx, current, 1
+                    );
+                    if (provider == NULL) goto err;
+                    if (ltype != Attention) {
+                        if (provider->type != Attention) {
+                            fprintf(stderr, "ERROR: current layer type is "
+                                    "not attention and provider type is not "
+                                    "attention\n");
+                            goto err;
+                        }
+                        query_provider_to = provider;
+                    } else ldef.query_provider = provider;
+                    i = j;
+                } else if (strcmp("--key-provider", carg) == 0 && ++j<argc) {
+                    if (ltype != Attention) {
+                        fprintf(stderr, "ERROR: %s is only available to "
+                                "attention layers\n", carg);
+                        goto err;
+                    }
+                    PSLayer *provider = getLayerFromCoordinates(
+                        argv[j], network_idx, current, 0
+                    );
+                    if (provider == NULL) goto err;
+                    i = j;
+                    ldef.keys_provider = provider;
+                } else if (strcmp("--value-provider", carg) == 0 && ++j<argc) {
+                    if (ltype != Attention) {
+                        fprintf(stderr, "ERROR: %s is only available to "
+                                "attention layers\n", carg);
+                        goto err;
+                    }
+                    PSLayer *provider = getLayerFromCoordinates(
+                        argv[j], network_idx, current, 0
+                    );
+                    if (provider == NULL) goto err;
+                    i = j;
+                    ldef.values_provider = provider;
+                } else if (strcmp("--link", carg) == 0 && ++j < argc) {
+                    link_to = getLayerFromCoordinates(
+                        argv[j], network_idx, current, 0
+                    );
+                    i = j;
+                    if (link_to == NULL) goto err;
+                } else if (strcmp("--whole-sequence", carg) == 0) {
+                    ldef.flags &= ~((unsigned) FLAG_RECURRENT);
+                    ldef.flags |= FLAG_USE_SEQUENCES;
                 } else if (strcmp("--recurrent-layer", carg) == 0) {
                     ldef.flags |= FLAG_RECURRENT;
                 } else if (strcmp("--disable-biases", carg) == 0) {
@@ -739,8 +938,12 @@ void parseOptions(int argc, char **argv) {
                 } else break;
             }
             int size = 0;
-            if (ltype != Convolutional && ltype != Pooling && ltype != Dropout)
-            {
+            int need_size = (
+                ltype != Convolutional && ltype != Pooling &&
+                ltype != Dropout && ltype != Normalization &&
+                ltype != Attention && ltype != OperatorLayer
+            );
+            if (need_size) {
                 if (i >= argc) {
                     fprintf(
                         stderr, "ERROR: missing layer size for layer %d\n",
@@ -755,12 +958,32 @@ void parseOptions(int argc, char **argv) {
                 }
                 j = i + 1;
             }
-            layer = PSAddLayer(network, ltype, size, &ldef);
+            if (OperatorLayer == ltype && providers_count > 0) {
+                ldef.providers_count = providers_count;
+                ldef.providers = providers;
+            }
+            layer = PSAddLayer(current, ltype, size, &ldef);
             if (layer == NULL) {
                 fprintf(
                     stderr, "FATAL: Failed to create layer %d\n", lidx
                 );
                 goto err;
+            }
+            if (link_to != NULL) {
+                curlink.layer = layer;
+                curlink.previous_layer = link_to;
+                link = &curlink;
+            }
+            if (query_provider_to != NULL) {
+                if (!PSSetAttentionQueryProvider(query_provider_to, layer)) {
+                    fprintf(
+                        stderr, "ERROR: could not set layer %d:%d (%s) as "
+                        "query provider for layer %d:%d\n",
+                        network_idx, layer->index, PSGetLabelForType(ltype),
+                        query_provider_to->network->index,
+                        query_provider_to->index
+                    );
+                }
             }
             continue;
         } else if (strcmp("--train", arg) == 0 && ++i < argc) {
@@ -876,7 +1099,7 @@ void parseOptions(int argc, char **argv) {
                         "use --help to see valid function names\n", funcname);
                 goto err;
             }
-            network->loss = func;
+            current->loss = func;
         } else if (strcmp("--validate-every", arg) == 0 && !is_last) {
             char *everystr = argv[++i];
             int matched = sscanf(everystr, "%d", &validate_every);
@@ -889,13 +1112,13 @@ void parseOptions(int argc, char **argv) {
         } else if (strcmp("--training-adjust-rate", arg) == 0) {
             training_flags |= TRAINING_ADJUST_RATE;
         } else if (strcmp("--disable-avx", arg) == 0) {
-            PSDisableAcceleration(&network->acceleration, PSAcceleration_AVX);
+            PSDisableAcceleration(&current->acceleration, PSAcceleration_AVX);
         } else if (strcmp("--disable-accelerate", arg) == 0 ||
                    strcmp("--disable-acf", arg) == 0)
         {
-            PSDisableAcceleration(&network->acceleration, PSAcceleration_ACF);
+            PSDisableAcceleration(&current->acceleration, PSAcceleration_ACF);
         } else if (strcmp("--disable-blas", arg) == 0) {
-            PSDisableAcceleration(&network->acceleration, PSAcceleration_BLAS);
+            PSDisableAcceleration(&current->acceleration, PSAcceleration_BLAS);
         } else if (strcmp("--enable-colors", arg) == 0) {
             PSGlobalFlags |= FLAG_LOG_COLORS;
         } else if (strcmp("--quiet", arg) == 0) {
@@ -916,11 +1139,11 @@ void parseOptions(int argc, char **argv) {
         } else if (strcmp("--on-batch-trained", arg) == 0 && !is_last) {
             on_batch_trained = strdup(argv[++i]);
             if (strlen(on_batch_trained) > 0)
-                network->onBatchTrained = onBatchTrained;
+                current->onBatchTrained = onBatchTrained;
         } else if (strcmp("--on-epoch-trained", arg) == 0 && !is_last) {
             on_epoch_trained =strdup( argv[++i]);
             if (strlen(on_epoch_trained) > 0)
-                network->onEpochTrained = onEpochTrained;
+                current->onEpochTrained = onEpochTrained;
         } else if (strcmp("--batch-script-every", arg) == 0 && !is_last) {
             char *every = argv[++i];
             int matched = sscanf(every, "%d", &batch_script_every);
@@ -962,8 +1185,16 @@ void parseOptions(int argc, char **argv) {
             goto err;
         }
     }
+    if (current != network && !PSNetworkChainContains(network, current)) {
+        if (!PSAddNetwork(network, current, link)) {
+            fprintf(stderr, "ERROR: Could not add network\n");
+            goto err;
+        }
+    }
     return;
 err:
+    if (current != network && !PSNetworkChainContains(network, current))
+        PSDeleteNetwork(current);
     cleanup();
     exit(1);
 }
@@ -1281,6 +1512,10 @@ void printHelp(const char* program_path) {
     printf("                                    "
            "(if before 1st layer) or desired output\n");
     printf("                                    (if after output layer)\n");
+    printf("        --network                   Start new network "
+           "definition\n");
+    printf("                                    (multiple networks will be "
+           "chained\n");
     printf("        --train [OPT] TRAIN_DATASET Train network\n");
     printf("        --test [OPT] TEST_DATASET   Perform tests\n");
 #ifdef HAS_MAGICK
@@ -1351,6 +1586,7 @@ void printHelp(const char* program_path) {
            "                                  (sigmoid,tanh,relu)\n");
     printf("        --dropout DROPOUT         Layer Dropout (float)\n");
     printf("        --recurrent-layer         Recurrent layer mode\n");
+    printf("        --whole-sequence          Whole sequence mode\n");
     printf("        --disable-biases          Disable biases\n");
     printf("        --output-width WIDTH      Output Width\n");
     printf("        --output-height HEIGHT    Output Height\n");
@@ -1364,6 +1600,38 @@ void printHelp(const char* program_path) {
            " (def. 1)\n");
     printf("        --padding PADDING         Convolutional padding"
            " (def. 0)\n");
+    printf("        --operator OP             Operator layer operator:\n"
+           "                                  (add|concatenate)\n");
+    printf("        --provider COORDS         Operator layer provider\n"
+           "                                  (See LAYER COORDINATES section\n"
+           "                                  for details about COORDS)\n"
+    );
+    printf("        --attention-type TYPE     Attention layer type:\n"
+           "                                  (dot|additive)\n");
+    printf("        --attention-heads NUM     Multi-Head Attention layer "
+        "heads\n");
+    printf("        --attention-scale SCALE   Attention layer scale\n");
+    printf("        --causal                  Causal Attention\n");
+    printf("        --query-provider COORDS   Attention query provider\n"
+           "                                  If current layer is not an\n"
+           "                                  attention layer, current layer\n"
+           "                                  will be set as provider of\n"
+           "                                  layer defined by COORDS\n"
+           "                                  (See LAYER COORDINATES section\n"
+           "                                  for details about COORDS)\n"
+    );
+    printf("        --key-provider COORDS     Attention keys provider\n"
+           "                                  (See LAYER COORDINATES section\n"
+           "                                  for details about COORDS)\n"
+    );
+    printf("        --value-provider COORDS   Attention values provider\n"
+           "                                  (See LAYER COORDINATES section\n"
+           "                                  for details about COORDS)\n"
+    );
+    printf("        --link COORDS             Link layer to previous network\n"
+           "                                  (See LAYER COORDINATES section\n"
+           "                                  for details about COORDS)\n"
+    );
     printf("        --weight-init-mode MODE   Weight initialization mode:\n"
            "                                  auto,random,zero (def. auto)\n");
     printf("        --bias-init-mode MODE     Bias initialization mode:\n"
@@ -1380,13 +1648,19 @@ void printHelp(const char* program_path) {
     /*printf("        --use-relu                Use ReLU activation (for "
            "Convolutional Layers)\n");*/
     printf("\n");
+    printf("LAYER COORDINATES:\n\n");
+    printf("        Format: [NETWORK_INDEX:]LAYER_INDEX\n");
+    printf("        Examples:\n");
+    printf("            1:2     - Third layer (2) of second network(1)\n");
+    printf("            3       - Fourth layer (3) of current network\n");
+    printf("\n");
     printf("LOG LEVELS:\n\n");
     printf("        "); printLogLevels(stdout); printf("\n\n");
     printf("TRAIN|TEST OPTIONS:\n\n");
     printf("        --mnist                   Dataset format is MNIST\n");
     printf("        --cifar [CLASSES]         Dataset format is CIFAR\n"
-           "                                  (classes: 10 or 100, default\n"
-           "                                   is 10)\n"
+           "                                  (classes: 10 or 100, default "
+           "is 10)\n"
     );
     printf("        --max-images              Max images to load (CIFAR)\n");
     printf("        --max-files               Max files to load (CIFAR)\n");

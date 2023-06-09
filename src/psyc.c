@@ -1055,6 +1055,9 @@ void PSPrintLayerInfo(PSLayer *layer) {
     int onehot_input = (layer->index == 0 && layer->flags & FLAG_ONEHOT);
     if (onehot_input)
         sprintf(onehot_info, " (vector size: %d)", layer->onehot_vector_size);
+    static int min_indent = 0;
+    if (min_indent == 0) min_indent = strlen("  Layer[]: ");
+    int indent = 1 + (int) PSMathLog10((PSFloat) layer->index) + min_indent;
     printf("Layer[%d]: %s, size = %d", layer->index, type_name, layer->size);
     if (Dropout == layer->type) printf(", dropout = %g", PSGetDropout(layer));
     if (onehot_info[0]) printf(" %s", onehot_info);
@@ -1091,6 +1094,23 @@ void PSPrintLayerInfo(PSLayer *layer) {
             printf(", attention type = dot");
         int nheads = PSGetAttentionHeadCount(layer);
         if (nheads > 1) printf(", heads = %d", nheads);
+        PSLayer *qprov = NULL, *kprov = NULL, *vprov = NULL;
+        int ok = PSGetAttentionProviders(layer, &qprov, &kprov, &vprov), i;
+        if (ok) {
+            PSLayer *providers[] = {qprov, kprov, vprov};
+            char *names[] = {"query", "keys", "values"};
+            printf("\n");
+            for (i = 0; i < 3; i++) {
+                PSLayer *provider = providers[i];
+                int nc = printf("%*c%s provider: ", indent, ' ', names[i]);
+                int vindent = 30 - nc;
+                if (provider != NULL) {
+                    printf("%*c%d:%d (%s)%s", vindent, ' ',
+                           provider->network->index, provider->index,
+                           PSGetLayerTypeLabel(provider), (i < 2 ? "\n" : ""));
+                } else printf("%*cnull%s", vindent,' ',(i < 2 ? "\n" : ""));
+            }
+        } else printf("\n%*c%s", indent, ' ', "no providers");
     } else if (ltype == Embedding) {
         int vocab_size = PSGetEmbeddingVocabularySize(layer);
         if (vocab_size > 0)
@@ -1098,6 +1118,23 @@ void PSPrintLayerInfo(PSLayer *layer) {
     } else if (ltype == OperatorLayer) {
         PSOperatorType op = PSGetOperatorLayerType(layer);
         printf(", operator = %s", PSGetOperatorLayerTypeLabel(op));
+        int prv_count = 0, i;
+        PSLayer **providers = PSGetOperatorLayerProviders(layer, &prv_count);
+        printf(", providers = %d", prv_count);
+        if (prv_count > 0) {
+            printf("\n");
+            int last_idx = prv_count - 1;
+            for (i = 0; i < prv_count; i++) {
+                PSLayer *provider = providers[i];
+                printf("%*c[%d]", indent, ' ', i);
+                if (provider != NULL) {
+                    printf(" %d:%d (%s)%s", provider->network->index,
+                           provider->index,
+                           PSGetLayerTypeLabel(provider),
+                           (i < last_idx ? "\n" : ""));
+                } else printf(" null%s", (i < last_idx ? "\n" : ""));
+            }
+        }
     }
     const char *activation = PSGetActivationName(layer->activate);
     if (layer->index > 0 && activation != NULL)

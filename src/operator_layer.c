@@ -307,7 +307,7 @@ int PSInitOperatorLayer(PSLayer *layer, PSLayerDef *ldef) {
     }
     if (ldef->providers_count <= 0) {
         PSErrNN(NULL, NULL, layer, "invalid `providers_count` in layer "
-                "definition: ", ldef->providers_count);
+                "definition: %d", ldef->providers_count);
         return 0;
     }
     if (ldef->providers == NULL) {

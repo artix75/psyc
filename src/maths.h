@@ -31,6 +31,7 @@
 #define PSExp(v) exp(v)
 #define PSRound(v) round(v)
 #define PSMathLog(v) log(v)
+#define PSMathLog10(v) log10(v)
 #define PSAbs(v) fabs(v)
 #define PSPow(a,b) pow(a, b)
 #else
@@ -40,6 +41,7 @@
 #define PSExp(v) expf(v)
 #define PSRound(v) roundf(v)
 #define PSMathLog(v) logf(v)
+#define PSMathLog10(v) log10f(v)
 #define PSAbs(v) fabsf(v)
 #define PSPow(a,b) powf(a, b)
 #endif

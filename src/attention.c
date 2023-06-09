@@ -1715,6 +1715,7 @@ int PSAttentionBackward(PSLayer *layer, PSMatrix delta, PSFloat *query,
         if (!ok) goto final;
     }
     /* NOTE: Not sure about applying mask during backward step */
+    UNUSED(mask);
     /*if (mask != NULL) {
         ok = applyCausalMask(layer, mask, dscores, 0);
         if (!ok) {
