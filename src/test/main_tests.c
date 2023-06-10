@@ -39,6 +39,8 @@
 #include "../gru.h"
 #include "../normalization.h"
 #include "../operator_layer.h"
+#include "../attention.h"
+#include "../positional_encoding.h"
 #include "../mnist.h"
 #include "../maths.h"
 #include "../activation.h"
@@ -65,6 +67,7 @@
 #define OP_ADD_NETWORK "resources/add-operator-layer.psmodel"
 #define OP_MUL_NETWORK "resources/multiply-operator-layer.psmodel"
 #define ENCDEC_BASIC_NETWORK "resources/encoder-decoder.basic.psmodel"
+#define POSITIONAL_NETWORK  "resources/positional_embed.psmodel"
 #define TEST_IMAGE_FILE "resources/t10k-images-idx3-ubyte.gz"
 #define TEST_LABEL_FILE "resources/t10k-labels-idx1-ubyte.gz"
 #define TEST_IMAGE_SIZE 28
@@ -108,6 +111,7 @@ TestCase *DropoutNetworkTests;
 TestCase *ConcatOperatorLayerTests;
 TestCase *AddOperatorLayerTests;
 TestCase *MulOperatorLayerTests;
+TestCase *PositionalEmbedTests;
 TestCase *EncoderDecoderTests;
 
 #ifdef USE_AVX
@@ -239,6 +243,9 @@ int testAddOperatorBackprop(TestCase *test_case, Test *test);
 int testMulOperatorLoad(TestCase *test_case, Test *test);
 int testMulOperatorForward(TestCase *test_case, Test *test);
 int testMulOperatorBackprop(TestCase *test_case, Test *test);
+
+int testPositionalEmbedLoad(TestCase *test_case, Test *test);
+int testPositionalEmbedForward(TestCase *test_case, Test *test);
 
 
 /* psyc.c function prototypes */
@@ -541,19 +548,21 @@ static int avx_tests = 1, maths_tests = 1, activation_tests = 1,
            optimization_tests = 1, fullnet_tests = 1, convnet_tests = 1,
            rnn_tests = 1, lstm_tests = 1, gru_tests = 1,
            normalization_tests = 1, dropout_tests = 1, encdec_tests = 1,
-           concat_op_tests = 1, add_op_tests = 1, mul_op_tests = 1;
+           concat_op_tests = 1, add_op_tests = 1, mul_op_tests = 1,
+           positional_embed_tests = 1;
 
 static int *test_ptrs[] = {
     &avx_tests, &maths_tests, &activation_tests, &optimization_tests,
     &fullnet_tests, &convnet_tests, &rnn_tests, &lstm_tests, &gru_tests,
     &normalization_tests, &dropout_tests, &concat_op_tests, &add_op_tests,
-    &mul_op_tests, &encdec_tests
+    &mul_op_tests, &positional_embed_tests, &encdec_tests
 };
 
 static char*test_ids[] = {
     "avx", "maths", "activation", "optimization", "fully-connected",
     "convolutional", "rnn", "lstm", "gru", "normalization", "dropout",
-    "concatenate-layer", "add-layer", "multiply-layer", "encoder_decoder",
+    "concatenate-layer", "add-layer", "multiply-layer", "positional-embedding",
+    "encoder_decoder",
 };
 
 static void printTestList(void) {
@@ -878,7 +887,7 @@ int main(int argc, char** argv) {
         tot_failed += AddOperatorLayerTests->failed_count;
         deleteTest(AddOperatorLayerTests);
     }
-    if (add_op_tests) {
+    if (mul_op_tests) {
         MulOperatorLayerTests = createTest("Multiply Operator Layer");
         MulOperatorLayerTests->setup = genericSetup;
         MulOperatorLayerTests->teardown = genericTeardown;
@@ -892,6 +901,20 @@ int main(int argc, char** argv) {
         tot_tests += MulOperatorLayerTests->count;
         tot_failed += MulOperatorLayerTests->failed_count;
         deleteTest(MulOperatorLayerTests);
+    }
+    if (positional_embed_tests) {
+        PositionalEmbedTests = createTest("Positional Encoding (Embed)");
+        PositionalEmbedTests->setup = genericSetup;
+        PositionalEmbedTests->teardown = genericTeardown;
+        addTest(PositionalEmbedTests, "Load", NULL, testPositionalEmbedLoad);
+        addTest(PositionalEmbedTests, "Forward", NULL,
+                testPositionalEmbedForward);
+        addTest(PositionalEmbedTests, "Clone", NULL, testGenericClone);
+        addTest(PositionalEmbedTests, "Save", NULL, testGenericSave);
+        performTests(PositionalEmbedTests);
+        tot_tests += PositionalEmbedTests->count;
+        tot_failed += PositionalEmbedTests->failed_count;
+        deleteTest(PositionalEmbedTests);
     }
     if (encdec_tests) {
         EncoderDecoderTests = createTest("Encoder-Decoder");
@@ -3294,6 +3317,50 @@ final:
     return ok;
 }
 
+int testPositionalEmbedLoad(TestCase *test_case, Test *test) {
+    PSNeuralNetwork *network = getNetwork(test_case);
+    testAssertNotNull(network, test);
+    char path[PATH_MAX] = {0};
+    testAssert(joinPath(executable_path, POSITIONAL_NETWORK, path), test);
+    int loaded = PSLoadNetwork(network, path);
+    testAssertWithMessage(loaded, test, "Failed to load %s", path);
+    network->acceleration = PSGlobalAcceleration;
+    PSLayer *poslayer = network->layers[network->size - 1];
+    testAssertNotNull(poslayer, test);
+    testAssert(poslayer->type == PositionalEncoding, test);
+    int expected_size = 6;
+    testAssert(expected_size == poslayer->size, test);
+    if (!PSIsNetworkBuilt(network)) {
+        int built = PSBuildNetwork(network);
+        testAssert(built, test);
+    }
+    return 1;
+}
+
+int testPositionalEmbedForward(TestCase *test_case, Test *test) {
+    int ok = 1;
+    PSNeuralNetwork *network = getNetwork(test_case);
+    testAssertNotNull(network, test);
+    PSFloat inputs[] = {5, 1, 9, 7, 3, 5};
+    PSFloat expected_y[] = {
+        0.841471, 1.5403, 0.0463992, 1.99892, 0.00215443, 2, 1.25359,
+        -0.370828, 0.452098, 1.91293, 0.0215431, 1.99981, 1.56628, 0.337755,
+        0.411923, 1.94337, 0.0193893, 1.99988, 0.28224, -1.97998, 0.277596,
+        1.98064, 0.0129265, 1.99996, -1.71573, -0.369981, 0.4146, 1.956,
+        0.0193896, 1.9999
+    };
+    ok = PSForward(network, inputs);
+    testAssert(ok, test);
+    PSLayer *poslayer = network->layers[network->size - 1];
+    PSFloat *states = PSGetStates(poslayer, 0);
+    testAssertNotNull(states, test);
+    uint64_t explen = (uint64_t) (sizeof(expected_y) / sizeof(PSFloat));
+    testAssert(PSMatrixLength(states) == explen, test);
+    ok = compareArrays(states, expected_y, explen, test,
+                       "Positional Layer Outputs:", 0, 4);
+    return ok;
+}
+
 int encoderDecoderSetup(TestCase *test_case) {
     PSNeuralNetwork *network = PSCreateNetwork("Encoder-Decoder");
     if (network == NULL) {
@@ -3668,7 +3735,28 @@ int compareNetworks(PSNeuralNetwork *network, PSNeuralNetwork *clone,
                     "Clone provider index[%d]", i, j, orig_prv->index,
                     clone_prv->index
                 );
+                testAssertWithMessage(
+                    orig_prv->size == clone_prv->size, test,
+                    "Layer[%d]: Source provider[%d] size != Clone provider[%d]"
+                    " size: %d != %d", i, j, j, orig_prv->size, clone_prv->size
+                );
             }
+        }
+        if (PositionalEncoding == orig_l->type) {
+            int orig_enclen = PSGetPositionalEncodingLength(orig_l),
+                clone_enclen = PSGetPositionalEncodingLength(clone_l);
+            testAssertWithMessage(
+                orig_enclen == clone_enclen, test, "Layer[%d]: Source "
+                "positional encoding size != Clone ones: %d != %d",
+                i, orig_enclen, clone_enclen
+            );
+            int orig_base = PSGetPositionalEncodingBase(orig_l),
+                clone_base = PSGetPositionalEncodingBase(clone_l);
+            testAssertWithMessage(
+                orig_base == clone_base, test, "Layer[%d]: Source "
+                "base != Clone one: %d != %d",
+                i, orig_base, clone_base
+            );
         }
         if (i == 0) continue;
         if (otype == Pooling) continue;

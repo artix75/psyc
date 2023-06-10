@@ -22,5 +22,7 @@
 #include "maths.h"
 
 PSMatrix PSGetPositionalEncoding(int seqlen, int size, int base);
+int PSGetPositionalEncodingLength(PSLayer *layer);
+int PSGetPositionalEncodingBase(PSLayer *layer);
 
 #endif /*  __PS_POSITIONAL_ENCODING_H */

@@ -44,6 +44,13 @@ int PSGetPositionalEncodingLength(PSLayer *layer) {
     return PSMatrixDim(layer->weights[0], 0);
 }
 
+int PSGetPositionalEncodingBase(PSLayer *layer) {
+    if (layer == NULL) return 0;
+    PSPositionalSettings *settings = PSGetPositionalSettings(layer);
+    if (settings == NULL) return 0;
+    return settings->base;
+}
+
 static void deletePositionalLayer(PSLayer *layer) {
     if (layer == NULL) return;
     free(layer->extra);
