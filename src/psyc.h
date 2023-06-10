@@ -29,7 +29,7 @@
 
 #define PSYC_VERSION      "0.9.1"
 
-#define LAYER_TYPES     13
+#define LAYER_TYPES     14
 
 #define DEFAULT_RHO     0.95
 #define DEFAULT_BETA1   0.9
@@ -193,6 +193,9 @@ typedef struct PSLayerDef {
     int operator;
     int providers_count;
     struct PSLayer **providers;
+    /* PositionalEncoding */
+    int positional_initial_capacity;
+    int positional_base;
 } PSLayerDef;
 
 typedef struct PSGradient {
@@ -216,7 +219,8 @@ typedef enum {
     Normalization,
     Attention,
     OperatorLayer,
-    Linear
+    Linear,
+    PositionalEncoding
 } PSLayerType;
 
 typedef enum {

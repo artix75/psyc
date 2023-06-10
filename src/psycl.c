@@ -236,6 +236,8 @@ static int resolveMNISTDataFiles(char *path) {
 static PSLayerType getLayerType(char *name, int *is_cifar, PSLayerDef *ldef) {
     if (strcasecmp("fully_connected", name) == 0)
         return FullyConnected;
+    else if (strcasecmp("fully-connected", name) == 0)
+        return FullyConnected;
     else if (strcasecmp("Fully Connected", name) == 0)
         return FullyConnected;
     else if (strcasecmp("FullyConnected", name) == 0)
@@ -270,6 +272,16 @@ static PSLayerType getLayerType(char *name, int *is_cifar, PSLayerDef *ldef) {
         return OperatorLayer;
     else if (strcasecmp("op", name) == 0)
         return OperatorLayer;
+    else if (strcasecmp("Positional Encoding", name) == 0)
+        return PositionalEncoding;
+    else if (strcasecmp("PositionalEncoding", name) == 0)
+        return PositionalEncoding;
+    else if (strcasecmp("positional_encoding", name) == 0)
+        return PositionalEncoding;
+    else if (strcasecmp("positional-encoding", name) == 0)
+        return PositionalEncoding;
+    else if (strcasecmp("positional", name) == 0)
+        return PositionalEncoding;
     else if (strcasecmp("add", name) == 0) {
         ldef->operator = PSAddOperator;
         return OperatorLayer;

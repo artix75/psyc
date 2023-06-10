@@ -34,6 +34,8 @@
 #define PSMathLog10(v) log10(v)
 #define PSAbs(v) fabs(v)
 #define PSPow(a,b) pow(a, b)
+#define PSSin(a) sin(a)
+#define PSCos(a) cos(a)
 #else
 #define PSTanh(v) tanhf(v)
 #define PSSqrt(v) sqrtf(v)
@@ -44,6 +46,8 @@
 #define PSMathLog10(v) log10f(v)
 #define PSAbs(v) fabsf(v)
 #define PSPow(a,b) powf(a, b)
+#define PSSin(a) sinf(a)
+#define PSCos(a) cosf(a)
 #endif
 
 #define PSClipValue(v, min, max) (v > max ? max : (v < min ? min : v))

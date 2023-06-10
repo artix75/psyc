@@ -129,6 +129,7 @@ int PSInitEmbeddingLayer(PSLayer *layer, int size, int previous_size,
 int PSInitNormalizationLayer(PSLayer *layer, PSLayerDef *ldef);
 int PSInitAttentiontionLayer(PSLayer *layer, PSLayerDef *ldef);
 int PSInitOperatorLayer(PSLayer *layer, PSLayerDef *ldef);
+int PSInitPositionalLayer(PSLayer *layer, PSLayerDef *layer_def);
 int PSDumpGradients(PSNeuralNetwork *network, PSGradient ***gradients,
                     const char* filename, PSTrainingOptions *opts);
 PSGradient **cloneNetworkGradients(PSGradient **gradients,
@@ -232,7 +233,8 @@ int checkLayerForForward(PSLayer *layer) {
     int trainable = !(layer->flags & FLAG_NON_TRAINABLE);
     int needs_neurons = (
         Dropout != layer->type && Normalization != layer->type &&
-        Attention != layer->type && layer->type != OperatorLayer
+        Attention != layer->type && layer->type != OperatorLayer &&
+        PositionalEncoding != layer->type
     );
     if (layer->neurons == NULL && needs_neurons) {
         PSErr(NULL, "Layer[%d] has no neurons!", layer->index);
@@ -267,7 +269,7 @@ int checkLayerForForward(PSLayer *layer) {
                 return 0;
             }
         }
-    } else {
+    } else if (trainable) {
         if (layer->type != Pooling && layer->type != Dropout &&
             layer->type != OperatorLayer)
         {
@@ -823,6 +825,8 @@ char *PSGetLabelForType(PSLayerType type) {
             return "Operator Layer";
         case Linear:
             return "Linear";
+        case PositionalEncoding:
+            return "Positional Encoding";
     }
     return "UNKOWN";
 }
@@ -1824,6 +1828,14 @@ int PSBuildNetwork(PSNeuralNetwork *network) {
         if (PSHandleSequenceAtOnce(layer)) {
             if (first_whole_seq_layer < 0) first_whole_seq_layer = i;
             network->flags |= FLAG_USE_SEQUENCES;
+        } else if (PSHandleSequenceAtOnce(network)) {
+            if (first_whole_seq_layer < 0) first_whole_seq_layer = i;
+            layer->flags |= FLAG_USE_SEQUENCES;
+            if (PSIsRecurrent(layer)) {
+                PSErrNN(__func__, network, layer, "network uses whole "
+                        "sequences but layer is recurrent");
+                return 0;
+            }
         }
     }
     int is_recurrent = PSIsRecurrent(network);
@@ -3002,6 +3014,8 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
         initialized = PSInitAttentiontionLayer(layer, layer_def);
     } else if (type == OperatorLayer) {
         initialized = PSInitOperatorLayer(layer, layer_def);
+    } else if (type == PositionalEncoding) {
+        initialized = PSInitPositionalLayer(layer, layer_def);
     } else PSErr(__func__, "Invalid layer type %d", type);
     if (!initialized) goto fail;
     if (layer->index > 0 && layer->delta == NULL) {
@@ -3139,7 +3153,7 @@ int inputLayerForward(PSNeuralNetwork *network, PSFloat *inputs, ...) {
         seqlen = va_arg(ap, int);
         if (is_recurrent) t = va_arg(ap, int);
         else if (seq_at_once) {
-            input_size *= seqlen;
+            len *= seqlen;
             t = 0;
         }
         va_end(ap);
@@ -3564,7 +3578,8 @@ int networkForward(PSNeuralNetwork *network, PSFloat *inputs,
             );
             goto final;
         }
-        ok = inputLayerForward(network, inputs, seqlen);
+        PSFloat *seq_inputs = (inputs != NULL ? inputs + 1 : NULL);
+        ok = inputLayerForward(network, seq_inputs, seqlen);
     } else {
         ok = inputLayerForward(network, inputs);
         if (!ok) goto final;
@@ -4965,6 +4980,7 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
             if (memory_gradients2 != NULL) xgradients = memory_gradients2[i];
             PSLayer *layer = net->layers[i + 1];
             if (layer->pretrained) continue;
+            if (layer->flags & FLAG_NON_TRAINABLE) continue;
             /* Update Biases */
             if (!(layer->flags & FLAG_NO_BIAS)) {
                 if (divide_grads_by_batches) PSDivideVectorScalar(
