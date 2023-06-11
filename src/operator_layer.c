@@ -38,6 +38,8 @@ typedef struct {
 /* Forward declarations */
 int checkLayerForForward(PSLayer *layer);
 int PSBeforeSequenceForward(PSLayer *layer, int seqlen, int t);
+PSLayer *PSResolveLayerPlaceholder(PSLayer *placeholder, PSNeuralNetwork *net);
+int PSIsLayerPlaceholder(PSLayer *layer);
 int PSOperatorForward(PSLayer *layer, ...);
 int PSOperatorBackprop(PSLayer *layer, PSLayer *previous,
                             PSGradient *gradient, ...);
@@ -56,43 +58,11 @@ static void deleteOperatorLayer(PSLayer *layer) {
 static int copyOperatorLayer(PSLayer *layer, PSLayer *src) {
     PSOperatorLayerSettings *srcsettings = PSGetOperatorLayerSettings(src);
     PSOperatorLayerSettings *dstsettings = PSGetOperatorLayerSettings(layer);
-    if (dstsettings != NULL) {
-        free(dstsettings->providers);
-        free(dstsettings);
-        layer->extra = NULL;
+    if (dstsettings == NULL || srcsettings == NULL) {
+        PSErrNN(__func__, NULL, layer, "missing settings");
+        return 0;
     }
-    if (srcsettings != NULL) {
-        dstsettings = malloc(sizeof(*dstsettings));
-        if (dstsettings == NULL) {
-            PSPrintMemoryErrorMsg();
-            return 0;
-        }
-        memcpy(dstsettings, srcsettings, sizeof(*dstsettings));
-        layer->extra = dstsettings;
-        if (srcsettings->providers_count == 0) dstsettings->providers = NULL;
-        else {
-            dstsettings->providers =
-                calloc(srcsettings->providers_count, sizeof(PSLayer *));
-            if (dstsettings->providers == NULL) {
-                PSPrintMemoryErrorMsg();
-                return 0;
-            }
-            for (int i = 0; i < srcsettings->providers_count; i++) {
-                PSLayer *srcprovider = srcsettings->providers[i];
-                if (srcprovider != NULL) {
-                    dstsettings->providers[i] = PSGetLayerByIndex(
-                        layer->network, srcprovider->index,
-                        srcprovider->network->index
-                    );
-                    if (dstsettings->providers[i] == NULL) {
-                        PSErrNN(NULL, NULL, layer, "could not find provider"
-                                "[%d]", i);
-                        return 0;
-                    }
-                }
-            }
-        }
-    }
+    dstsettings->operator = srcsettings->operator;
     return 1;
 }
 

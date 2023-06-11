@@ -126,7 +126,7 @@ static PSLayer *layerByIndex(PSNeuralNetwork *network, PSNeuralNetwork *parent,
         PSNeuralNetwork *tail = PSGetNetworkChainTail(parent);
         if (tail != NULL) last_idx = tail->index;
     }
-    if (nidx > last_idx) return PSGetLayerByIndex(network, lidx, nidx);
+    if (nidx > last_idx) return PSGetLayerByIndex(network, lidx, 0);
     else return PSGetLayerByIndex(parent, lidx, nidx);
 }
 

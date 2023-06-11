@@ -130,10 +130,6 @@ static int copyAttentionLayer(PSLayer *layer, PSLayer *src) {
     int success = 1;
     PSAttentionSettings *srcsettings = PSGetAttentionSettings(src);
     PSAttentionData *srcdata = PSGetAttentionData(src);
-    if (layer->extra != NULL) {
-        free(layer->extra);
-        layer->extra = NULL;
-    }
     PSAttentionData *data = PSGetAttentionData(layer);
     if (data != NULL) {
         PSMatrixDelete(data->query);
@@ -151,50 +147,20 @@ static int copyAttentionLayer(PSLayer *layer, PSLayer *src) {
         layer->private = NULL;
     }
     if (srcsettings != NULL) {
+        PSAttentionSettings *cursettings = PSGetAttentionSettings(layer);
         PSAttentionSettings *settings = malloc(sizeof(*srcsettings));
         if (settings == NULL) {
             PSPrintMemoryErrorMsg();
             return 0;
         }
-        layer->extra = settings;
         memcpy(settings, srcsettings, sizeof(*srcsettings));
-        settings->query_provider = NULL;
-        settings->keys_provider = NULL;
-        settings->values_provider = NULL;
-        PSLayer **srcproviders[] = {
-            &srcsettings->query_provider, &srcsettings->keys_provider,
-            &srcsettings->values_provider
-        };
-        PSLayer **providers[] = {
-            &settings->query_provider, &settings->keys_provider,
-            &settings->values_provider
-        };
-        for (size_t i = 0; i < (sizeof(providers) / sizeof(PSFloat**)); i++) {
-            PSLayer *srcprovider = *(srcproviders[i]);
-            PSLayer **provider_p = providers[i];
-            if (srcprovider != NULL) {
-                *provider_p = PSGetLayerByIndex(
-                    layer->network, srcprovider->index,
-                    srcprovider->network->index
-                );
-                if (*provider_p == NULL) {
-                    int is_after = (
-                        srcprovider->network->index > layer->network->index ||
-                        (srcprovider->network->index == layer->network->index &&
-                         srcprovider->index > layer->index)
-                    );
-                    if (!is_after) {
-                        PSErrNN(NULL, NULL, layer, "could not find layer "
-                                "query_provider");
-                        return 0;
-                    } else {
-                        *provider_p = PSMakeLayerPlaceholder(
-                            srcprovider->index, srcprovider->network->index
-                        );
-                    }
-                }
-            }
+        if (cursettings != NULL) {
+            settings->query_provider = cursettings->query_provider;
+            settings->keys_provider = cursettings->keys_provider;
+            settings->values_provider = cursettings->values_provider;
         }
+        if (layer->extra != NULL) free(layer->extra);
+        layer->extra = settings;
     }
     if (srcdata != NULL) {
         data = layer->private = calloc(1, sizeof(*data));

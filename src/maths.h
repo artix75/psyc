@@ -220,6 +220,7 @@ PSFloat PSStdDev(PSFloat *a, uint64_t len, PSMathOpts *opts);
 PSFloat PSDotProduct(PSFloat *a, PSFloat *b, uint64_t length, PSMathOpts *opts);
 PSFloat PSDotSquare(PSFloat *a, uint64_t length, PSMathOpts *opts);
 void PSVectorFill(PSFloat *vec, PSFloat val, uint64_t len, PSMathOpts *opts);
+void PSVectorWrite(PSFloat *vec, int len, char* sep, FILE *f);
 void PSVectorPrint(PSFloat *vec, int len, char* sep);
 PSFloat *PSVectorTranspose(PSFloat *vec, int acceleration, int ndims, ...);
 int PSMatMul(PSFloat *a, PSFloat *b, PSFloat *dest, int m, int n, int k,

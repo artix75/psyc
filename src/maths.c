@@ -2597,10 +2597,14 @@ void PSVectorFill(PSFloat *vec, PSFloat val, uint64_t len, PSMathOpts *opts) {
     for (uint64_t i = 0; i < len; i++) vec[i] = val;
 }
 
-void PSVectorPrint(PSFloat *vec, int len, char* sep) {
-    if (vec == NULL) return;
+void PSVectorWrite(PSFloat *vec, int len, char* sep, FILE *f) {
+    if (vec == NULL || f == NULL) return;
     if (sep == NULL) sep = ",";
-    writeSerializedFloatArray(stdout, len, sep, 0, vec);
+    writeSerializedFloatArray(f, len, sep, 0, vec);
+}
+
+void PSVectorPrint(PSFloat *vec, int len, char* sep) {
+    PSVectorWrite(vec, len, sep, stdout);
     printf("\n");
 }
 

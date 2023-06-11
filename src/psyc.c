@@ -146,6 +146,9 @@ int useAutoRegression(PSNeuralNetwork *network,
                       PSForwardOptions *forward_opts,
                       PSTrainingOptions *training_opts);
 PSLayer *PSResolveLayerPlaceholder(PSLayer *placeholder, PSNeuralNetwork *net);
+PSLayer *PSMakeLayerPlaceholder(int layer_index, int network_index);
+static PSNeuralNetwork *cloneNetwork(PSNeuralNetwork *network, int layout_only,
+                                     PSNeuralNetwork *parent);
 
 /* Miscellaneous functions */
 
@@ -1010,6 +1013,10 @@ PSLayer *PSGetLayerByIndex(PSNeuralNetwork *network, int layer_index,
             current = current->next;
         if (current == NULL) return NULL;
         network = current;
+    } else if (network_index > 0) {
+        PSErr(__func__, "invalid network index %d for non chained network %d",
+              network_index, network->index);
+        return NULL;
     }
     if (layer_index < 0) layer_index = network->size + layer_index;
     if (layer_index < 0 || layer_index >= network->size) return NULL;
@@ -2146,7 +2153,7 @@ int cloneNetworkChain(PSNeuralNetwork *network, PSNeuralNetwork *clone,
             PSErr("PSCloneNetwork", "broken network chain");
             return 0;
         }
-        clone_next = PSCloneNetwork(next, layout_only);
+        clone_next = cloneNetwork(next, layout_only, clone);
         if (clone_next == NULL) return 0;
         PSNeuralNetworkLink *link = next->previous_network_link,
                             *clone_link = NULL;
@@ -2221,13 +2228,18 @@ int cloneNetworkChain(PSNeuralNetwork *network, PSNeuralNetwork *clone,
     return 1;
 }
 
-PSNeuralNetwork *PSCloneNetwork(PSNeuralNetwork *network, int layout_only) {
+static PSNeuralNetwork *cloneNetwork(PSNeuralNetwork *network, int layout_only,
+                                     PSNeuralNetwork *parent)
+{
     if (network == NULL) return NULL;
     int clone_next = 0;
     if (network->previous != NULL || network->next != NULL)
         clone_next = network->previous == NULL;
     PSNeuralNetwork *clone = PSCreateNetwork(NULL);
     if (clone == NULL) goto memerr;
+    int is_chain = (parent != NULL),
+        is_child = (is_chain && network->index > 0);
+    if (is_child) clone->index = network->index;
     if (!layout_only) {
         clone->status = network->status;
         if (network->training != NULL) {
@@ -2260,21 +2272,95 @@ PSNeuralNetwork *PSCloneNetwork(PSNeuralNetwork *network, int layout_only) {
             .output_rows = layer->output_rows
         };
         if (Dropout == type) ldef.dropout = PSGetDropout(layer);
-        if (Convolutional == type || Pooling == type) {
+        else if (Convolutional == type || Pooling == type) {
             PSConvolutionalSettings *csettings =
                 PSGetConvolutionalSettings(layer);
             ldef.stride = csettings->stride;
             ldef.padding = csettings->padding;
             ldef.filter_width = csettings->filter_width;
             ldef.filter_height = csettings->filter_height;
-        }
-        if (Attention == type) {
+        } else if (Attention == type) {
             ldef.attention_type = PSGetAttentionType(layer);
             ldef.attention_heads = PSGetAttentionHeadCount(layer);
             ldef.causal_attention = PSIsCausalAttention(layer);
             ldef.attention_scale = PSGetAttentionScale(layer);
             ldef.trainable_parameters =
                 PSGetAttentionTrainableParameters(layer);
+            PSLayer *qprovider = NULL, *kprovider = NULL, *vprovider = NULL;
+            int ok = PSGetAttentionProviders(layer, &qprovider, &kprovider,
+                                             &vprovider), pidx;
+            if (!ok) {
+                PSErrNN(__func__, NULL, layer, "could not retrieve attention "
+                        "provders");
+                goto err;
+            }
+            PSLayer *srcproviders[] = {qprovider, kprovider, vprovider};
+            PSLayer **dstproviders[] = {
+                &ldef.query_provider, &ldef.keys_provider,&ldef.values_provider
+            };
+            for (pidx = 0; pidx < 3; pidx++) {
+                PSLayer *srcprovider = srcproviders[pidx];
+                if (srcprovider == NULL || srcprovider->network == NULL)
+                    continue;
+                int nidx = srcprovider->network->index,
+                    lidx = srcprovider->index;
+                PSLayer **dstprovider_p = dstproviders[pidx];
+                PSLayer *provider = NULL;
+                if (!is_chain)
+                    provider = PSGetLayerByIndex(clone, lidx, nidx);
+                else if (is_child && nidx < clone->index)
+                    provider = PSGetLayerByIndex(parent, lidx, nidx);
+                else if (is_child && nidx == clone->index && lidx<layer->index)
+                    provider = PSGetLayerByIndex(clone, lidx, 0);
+                if (provider == NULL) {
+                    provider = PSMakeLayerPlaceholder(lidx, nidx);
+                    if (provider == NULL) goto err;
+                    provider->size = srcprovider->size;
+                    provider->flags = srcprovider->flags;
+                }
+                *dstprovider_p = provider;
+            }
+        } else if (OperatorLayer == type) {
+            int count = 0, p;
+            ldef.operator = PSGetOperatorLayerType(layer);
+            PSLayer **lproviders = PSGetOperatorLayerProviders(layer, &count);
+            PSLayer *providers[PS_MAX_PROVIDERS] = {0};
+            ldef.providers_count = count;
+            if (lproviders == NULL && count > 0) {
+                PSErrNN(__func__, NULL, layer, "layer should have %d "
+                        "provider(s) but is missing providers at all", count);
+                goto err;
+            }
+            for (p = 0; p < count; p++) {
+                PSLayer *provider = lproviders[p];
+                if (provider == NULL) {
+                    providers[i] = NULL;
+                    continue;
+                }
+                if (provider->network == NULL) {
+                    PSErrNN(__func__, NULL, layer,
+                            "provider[%d] has no network", p);
+                    goto err;
+                }
+                int nidx = provider->network->index, lidx = provider->index;
+                PSLayer *clone_provider = NULL;
+                if (!is_chain)
+                    clone_provider = PSGetLayerByIndex(clone, lidx, nidx);
+                else if (is_child && nidx < clone->index)
+                    clone_provider = PSGetLayerByIndex(parent, lidx, nidx);
+                else if (is_child && nidx == clone->index && lidx<layer->index)
+                    clone_provider = PSGetLayerByIndex(clone, lidx, 0);
+                if (clone_provider == NULL) {
+                    clone_provider = PSMakeLayerPlaceholder(
+                        provider->index, provider->network->index
+                    );
+                    if (clone_provider == NULL) goto err;
+                    clone_provider->size = provider->size;
+                    clone_provider->flags = provider->flags;
+                }
+                providers[p] = clone_provider;
+            }
+            ldef.providers = providers;
         }
         ldef.pretrained = layer->pretrained;
         PSLayer *cloned_layer = PSAddLayer(clone, type, layer->size, &ldef);
@@ -2376,6 +2462,7 @@ PSNeuralNetwork *PSCloneNetwork(PSNeuralNetwork *network, int layout_only) {
     clone->sequence_settings.end = network->sequence_settings.end;
     if (network->context != NULL) {
         memcpy(clone->context, network->context, sizeof(PSNetworkContext));
+        setNetworkContext(clone, built, 0);
         setNetworkContext(clone, head_network, NULL);
         setNetworkContext(clone, last_network, NULL);
         setNetworkContext(clone, network_chain_length, 1);
@@ -2466,6 +2553,16 @@ memerr:
 err:
     if (clone != NULL) PSDeleteNetwork(clone);
     return NULL;
+}
+
+PSNeuralNetwork *PSCloneNetwork(PSNeuralNetwork *network, int layout_only) {
+    PSNeuralNetwork *clone =  cloneNetwork(network, layout_only, NULL);
+    if (clone == NULL) return NULL;
+    if (PSIsNetworkBuilt(network) && !PSBuildNetwork(clone)) {
+        PSDeleteNetwork(clone);
+        return NULL;
+    }
+    return clone;
 }
 
 int PSGetNetworkChainLength(PSNeuralNetwork *network) {

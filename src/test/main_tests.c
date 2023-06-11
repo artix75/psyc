@@ -68,6 +68,13 @@
 #define OP_MUL_NETWORK "resources/multiply-operator-layer.psmodel"
 #define ENCDEC_BASIC_NETWORK "resources/encoder-decoder.basic.psmodel"
 #define POSITIONAL_NETWORK  "resources/positional_embed.psmodel"
+#define ADD_ATTENTION_NETWORK "resources/pretrained.additive-attention.psmodel"
+#define DOT_ATTENTION_NETWORK \
+    "resources/pretrained.dot-product-attention.psmodel"
+#define MH_ATTENTION_NETWORK \
+    "resources/pretrained.mh-dot-product-attention.psmodel"
+#define MH_CAUSAL_SELFATTENTION_NETWORK \
+    "resources/pretrained.mh-causal-attention.psmodel"
 #define TEST_IMAGE_FILE "resources/t10k-images-idx3-ubyte.gz"
 #define TEST_LABEL_FILE "resources/t10k-labels-idx1-ubyte.gz"
 #define TEST_IMAGE_SIZE 28
@@ -113,6 +120,10 @@ TestCase *AddOperatorLayerTests;
 TestCase *MulOperatorLayerTests;
 TestCase *PositionalEmbedTests;
 TestCase *EncoderDecoderTests;
+TestCase *AdditiveAttentionTests;
+TestCase *DotAttentionTests;
+TestCase *MHAttentionTests;
+TestCase *MHCausalSelfAttentionTests;
 
 #ifdef USE_AVX
 TestCase *AVXTests;
@@ -130,6 +141,8 @@ int LSTMSetup (TestCase *test_case);
 int GRUSetup(TestCase *test_case);
 int encoderDecoderSetup(TestCase *test_case);
 int encoderDecoderTeardown(TestCase *test_case);
+int attentionSetup(TestCase *test_case);
+int attentionTeardown(TestCase *test_case);
 
 int testGenericClone(TestCase *test_case, Test *test);
 int testGenericSave(TestCase *test_case, Test *test);
@@ -246,6 +259,15 @@ int testMulOperatorBackprop(TestCase *test_case, Test *test);
 
 int testPositionalEmbedLoad(TestCase *test_case, Test *test);
 int testPositionalEmbedForward(TestCase *test_case, Test *test);
+
+int testAdditiveAttentionLoad(TestCase *test_case, Test *test);
+int testAdditiveAttentionBackprop(TestCase *test_case, Test *test);
+int testDotAttentionLoad(TestCase *test_case, Test *test);
+int testDotAttentionBackprop(TestCase *test_case, Test *test);
+int testMHAttentionLoad(TestCase *test_case, Test *test);
+int testMHAttentionBackprop(TestCase *test_case, Test *test);
+int testMHCausalSelfAttentionLoad(TestCase *test_case, Test *test);
+int testMHCausalSelfAttentionBackprop(TestCase *test_case, Test *test);
 
 
 /* psyc.c function prototypes */
@@ -549,20 +571,20 @@ static int avx_tests = 1, maths_tests = 1, activation_tests = 1,
            rnn_tests = 1, lstm_tests = 1, gru_tests = 1,
            normalization_tests = 1, dropout_tests = 1, encdec_tests = 1,
            concat_op_tests = 1, add_op_tests = 1, mul_op_tests = 1,
-           positional_embed_tests = 1;
+           positional_embed_tests = 1, attention_tests = 1;
 
 static int *test_ptrs[] = {
     &avx_tests, &maths_tests, &activation_tests, &optimization_tests,
     &fullnet_tests, &convnet_tests, &rnn_tests, &lstm_tests, &gru_tests,
     &normalization_tests, &dropout_tests, &concat_op_tests, &add_op_tests,
-    &mul_op_tests, &positional_embed_tests, &encdec_tests
+    &mul_op_tests, &positional_embed_tests, &encdec_tests, &attention_tests
 };
 
 static char*test_ids[] = {
     "avx", "maths", "activation", "optimization", "fully-connected",
     "convolutional", "rnn", "lstm", "gru", "normalization", "dropout",
     "concatenate-layer", "add-layer", "multiply-layer", "positional-embedding",
-    "encoder_decoder",
+    "encoder_decoder", "attention"
 };
 
 static void printTestList(void) {
@@ -931,6 +953,62 @@ int main(int argc, char** argv) {
         tot_tests += EncoderDecoderTests->count;
         tot_failed += EncoderDecoderTests->failed_count;
         deleteTest(EncoderDecoderTests);
+    }
+    if (attention_tests) {
+        AdditiveAttentionTests = createTest("Additive Attention");
+        AdditiveAttentionTests->setup = attentionSetup;
+        AdditiveAttentionTests->teardown = attentionTeardown;
+        addTest(AdditiveAttentionTests, "Load", NULL,
+            testAdditiveAttentionLoad);
+        addTest(AdditiveAttentionTests, "Save", NULL, testEncodedDecoderSave);
+        addTest(AdditiveAttentionTests, "Clone", NULL, testEncodedDecoderClone);
+        addTest(AdditiveAttentionTests, "Backprop", NULL,
+            testAdditiveAttentionBackprop);
+        performTests(AdditiveAttentionTests);
+        tot_tests += AdditiveAttentionTests->count;
+        tot_failed += AdditiveAttentionTests->failed_count;
+        deleteTest(AdditiveAttentionTests);
+
+        DotAttentionTests = createTest("Dot Product Attention");
+        DotAttentionTests->setup = attentionSetup;
+        DotAttentionTests->teardown = attentionTeardown;
+        addTest(DotAttentionTests, "Load", NULL, testDotAttentionLoad);
+        addTest(DotAttentionTests, "Save", NULL, testEncodedDecoderSave);
+        addTest(DotAttentionTests, "Clone", NULL, testEncodedDecoderClone);
+        addTest(DotAttentionTests, "Backprop", NULL, testDotAttentionBackprop);
+        performTests(DotAttentionTests);
+        tot_tests += DotAttentionTests->count;
+        tot_failed += DotAttentionTests->failed_count;
+        deleteTest(DotAttentionTests);
+
+        MHAttentionTests = createTest("Multi-Head Attention");
+        MHAttentionTests->setup = attentionSetup;
+        MHAttentionTests->teardown = attentionTeardown;
+        addTest(MHAttentionTests, "Load", NULL, testMHAttentionLoad);
+        addTest(MHAttentionTests, "Save", NULL, testEncodedDecoderSave);
+        addTest(MHAttentionTests, "Clone", NULL, testEncodedDecoderClone);
+        addTest(MHAttentionTests, "Backprop", NULL, testMHAttentionBackprop);
+        performTests(MHAttentionTests);
+        tot_tests += MHAttentionTests->count;
+        tot_failed += MHAttentionTests->failed_count;
+        deleteTest(MHAttentionTests);
+
+        MHCausalSelfAttentionTests =
+            createTest("Multi-Head Causal Self-Attention");
+        MHCausalSelfAttentionTests->setup = attentionSetup;
+        MHCausalSelfAttentionTests->teardown = attentionTeardown;
+        addTest(MHCausalSelfAttentionTests, "Load", NULL,
+            testMHCausalSelfAttentionLoad);
+        addTest(MHCausalSelfAttentionTests, "Save", NULL,
+            testGenericSave);
+        addTest(MHCausalSelfAttentionTests, "Clone", NULL,
+            testGenericClone);
+        addTest(MHCausalSelfAttentionTests, "Backprop", NULL,
+            testMHCausalSelfAttentionBackprop);
+        performTests(MHCausalSelfAttentionTests);
+        tot_tests += MHCausalSelfAttentionTests->count;
+        tot_failed += MHCausalSelfAttentionTests->failed_count;
+        deleteTest(MHCausalSelfAttentionTests);
     }
     gettimeofday(&end_t, NULL);
     time_t elapsed = PSGetElapsedTimeUS(start_t, end_t);
@@ -3395,6 +3473,7 @@ int testEncodedDecoderLoad(TestCase *test_case, Test *test) {
     testAssert(PSGetNetworkChainLength(network) == 2, test);
     return ok;
 }
+
 int testEncodedDecoderSave(TestCase *test_case, Test *test) {
     PSNeuralNetwork *network = getNetwork(test_case);
     testAssertNotNull(network, test);
@@ -3551,6 +3630,339 @@ int testEncodedDecoderBackprop(TestCase *test_case, Test *test) {
     return ok;
 }
 
+int attentionSetup(TestCase *test_case) {
+    PSNeuralNetwork *network = PSCreateNetwork("Attention Test");
+    if (network == NULL) {
+        PSErr(NULL, "\nCould not create network!");
+        return 0;
+    }
+    test_case->data = malloc(2 * sizeof(void*));
+    if (test_case->data == NULL) {
+        fprintf(stderr, "\nCould not allocate memory!\n");
+        return 0;
+    }
+    test_case->data[0] = network;
+    test_case->data[1] = NULL;
+    return 1;
+}
+
+int attentionTeardown(TestCase *test_case) {
+    PSNeuralNetwork *network = getNetwork(test_case);
+    if (network) PSDeleteNetwork(network);
+    return 1;
+}
+
+int testGenericAttentionBackprop(PSNeuralNetwork *network, char *file_prefix,
+                                 Test *test)
+{
+    int ok = 1, xlen = 0, ylen = 0, olen = 0, i;
+    int old_status = network->status;
+    PSGradient ***grads = NULL;
+    FILE *f = NULL;
+    PSFloat *x = NULL, *y = NULL, *inputs = NULL, *targets = NULL,
+            *outputs = NULL;
+    PSFloat **expgrads_w = NULL, **expgrads_b = NULL;
+    PSNeuralNetwork *tail = PSGetNetworkChainTail(network);
+    testAssertNotNull(tail, test);
+    PSLayer *attn_layer = NULL;
+    for (i = 0; i < tail->size; i++) {
+        PSLayer *l = tail->layers[i];
+        if (l != NULL && l->type == Attention) {
+            attn_layer = l;
+            break;
+        }
+    }
+    testAssertWithMessage(attn_layer != NULL, test,
+                          "attention layer not found in network %s",
+                          network->name);
+    char fname[PATH_MAX] = {0};
+    char path[PATH_MAX] = {0};
+    /* Load inputs */
+    sprintf(fname, "resources/%s%s.data", file_prefix, "-inputs");
+    testAssert(
+        joinPath(executable_path, fname, path), test
+    );
+    f = fopen(path, "r");
+    testAssertWithMessage(f != NULL, test, "could not open %s", path);
+    inputs = readSerializedFloatArray(f, ",", &xlen, 1024, 10);
+    ok = (inputs != NULL);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "could not read inputs from %s", path
+    );
+    fclose(f);
+    /* Load targets */
+    sprintf(fname, "resources/%s%s.data", file_prefix, "-targets");
+    testAssert(
+        joinPath(executable_path, fname, path), test
+    );
+    f = fopen(path, "r");
+    testAssertWithMessage(f != NULL, test, "could not open %s", path);
+    targets = readSerializedFloatArray(f, ",", &ylen, 1024, 10);
+    ok = (targets != NULL);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "could not read targets from %s", path
+    );
+    fclose(f);
+    /* Load outputs */
+    sprintf(fname, "resources/%s%s.data", file_prefix, "-outputs");
+    testAssert(
+        joinPath(executable_path, fname, path), test
+    );
+    f = fopen(path, "r");
+    testAssertWithMessage(f != NULL, test, "could not open %s", path);
+    outputs = readSerializedFloatArray(
+        f, ",", &olen, attn_layer->size * 100, attn_layer->size
+    );
+    ok = (outputs != NULL);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "could not read outputs from %s", path
+    );
+    fclose(f);
+    /* Load gradients */
+    expgrads_w = calloc(attn_layer->weight_types_count, sizeof(PSFloat *));
+    ok = (expgrads_w != NULL);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "could not allocate gradients%s",""
+    );
+    expgrads_b = calloc(attn_layer->weight_types_count, sizeof(PSFloat *));
+    ok = (expgrads_b != NULL);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "could not allocate gradients%s",""
+    );
+    char suffix[25] = {0};
+    for (i = 0; i < attn_layer->weight_types_count; i++) {
+        if (attn_layer->weights[i] == NULL) continue;
+        int wlen = PSMatrixLength(attn_layer->weights[i]),
+            blen = (i == PS_SCORES_IDX ? 1 : attn_layer->size),
+            exp_wlen = 0, exp_blen = 0;
+        /* Load saved weight gradients */
+        sprintf(suffix, "-%d-wgrads", i);
+        sprintf(fname, "resources/%s%s.data", file_prefix, suffix);
+        testAssert(
+            joinPath(executable_path, fname, path), test
+        );
+        f = fopen(path, "r");
+        testAssertWithMessage(f != NULL, test, "could not open %s", path);
+        expgrads_w[i] = readSerializedFloatArray(f, ",", &exp_wlen, wlen, wlen);
+        ok = (expgrads_w[i] != NULL);
+        testAssertWithMessageOrGoto(
+            ok, final, test, "could not read weight gradients "
+            " %d from %s", i, path
+        );
+        fclose(f);
+        ok = (wlen == exp_wlen);
+        testAssertWithMessageOrGoto(
+            ok, final, test, "expected weights[%d] length is %d, got %d",
+            i, exp_wlen, wlen
+        );
+        /* Load saved bias gradients */
+        sprintf(suffix, "-%d-bgrads", i);
+        sprintf(fname, "resources/%s%s.data", file_prefix, suffix);
+        testAssert(
+            joinPath(executable_path, fname, path), test
+        );
+        f = fopen(path, "r");
+        testAssertWithMessage(f != NULL, test, "could not open %s", path);
+        expgrads_b[i] = readSerializedFloatArray(f, ",", &exp_blen, blen, blen);
+        ok = (expgrads_b[i] != NULL);
+        testAssertWithMessageOrGoto(
+            ok, final, test, "could not read bias gradients "
+            " %d from %s", i, path
+        );
+        fclose(f);
+        ok = (wlen == exp_wlen);
+        testAssertWithMessageOrGoto(
+            ok, final, test, "expected bias[%d] length is %d, got %d",
+            i, exp_blen, blen
+        );
+    }
+    x = malloc((xlen + ylen) * sizeof(PSFloat));
+    testAssertWithMessageOrGoto(
+        x != NULL, final, test, "could not allocate '%s'", "x"
+    );
+    PSVectorCopy(x, inputs, xlen);
+    y = x + xlen;
+    PSVectorCopy(y, targets, ylen);
+    PSTrainingOptions topts = {0};
+    PSSetDefaultTrainingOptions(&topts);
+    PSSetNetworkStatus(network, STATUS_TRAINING, NULL);
+    grads = backprop(network, x, y, &topts, NULL);
+    ok = (grads != NULL);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "backpropagation failed%s",""
+    );
+    PSMatrix attn_out = attn_layer->states;
+    ok = (attn_out != NULL);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "attention layer has not outputs%s",""
+    );
+    ok = compareArrays(attn_out, outputs, PSMatrixLength(attn_out), test,
+                       "Attention Layer Outputs:", 0, 4);
+    if (!ok) goto final;
+    PSGradient **n_grads = grads[attn_layer->network->index];
+    ok = (n_grads != NULL);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "missing gradients for network %d",
+        attn_layer->network->index
+    );
+    int gidx = attn_layer->index - 1;
+    PSGradient *attn_grads = n_grads[gidx];
+    ok = (attn_grads != NULL);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "missing gradients for attention layer at index %d",
+        gidx
+    );
+    PSFloat *wgrads_p = attn_grads->weights,
+            *bgrads_p = attn_grads->biases;
+    ok = (wgrads_p  != NULL);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "missing attention gradient weights%s",""
+    );
+    ok = (bgrads_p  != NULL);
+    testAssertWithMessageOrGoto(
+        ok, final, test, "missing attention gradient biases%s",""
+    );
+    char cmpdescr[255] = {0};
+    for (i = 0; i < attn_layer->weight_types_count; i++) {
+        if (attn_layer->weights[i] == NULL) continue;
+        int wlen = PSMatrixLength(attn_layer->weights[i]),
+            blen = (i == PS_SCORES_IDX ? 1 : attn_layer->size);
+        PSFloat *exp_wg = expgrads_w[i];
+        PSFloat *exp_bg = expgrads_b[i];
+        ok = (exp_wg != NULL);
+        testAssertWithMessageOrGoto(
+            ok, final, test, "missing expected weight gradients %d", i
+        );
+        ok = (exp_bg != NULL);
+        testAssertWithMessageOrGoto(
+            ok, final, test, "missing expected bias gradients %d", i
+        );
+        snprintf(cmpdescr, 255, "Attention weight gradients[%d]", i);
+        ok = compareArrays(wgrads_p, exp_wg, wlen, test, cmpdescr, 0, 4);
+        if (!ok) goto final;
+        snprintf(cmpdescr, 255, "Attention bias gradients[%d]", i);
+        ok = compareArrays(bgrads_p, exp_bg, blen, test, cmpdescr, 0, 4);
+        if (!ok) goto final;
+        wgrads_p += wlen;
+        bgrads_p += blen;
+    }
+final:
+    if (f != NULL) fclose(f);
+    if (expgrads_w != NULL) {
+        for (i = 0; i < attn_layer->weight_types_count; i++) {
+            PSFloat *g = expgrads_w[i];
+            free(g);
+        }
+        free(expgrads_w);
+    }
+    if (expgrads_b != NULL) {
+        for (i = 0; i < attn_layer->weight_types_count; i++) {
+            PSFloat *g = expgrads_b[i];
+            free(g);
+        }
+        free(expgrads_b);
+    }
+    free(x);
+    free(inputs);
+    free(targets);
+    free(outputs);
+    PSSetNetworkStatus(network, old_status, NULL);
+    if (grads != NULL) PSDeleteGradientsChain(grads, network);
+    return ok;
+}
+
+int testAdditiveAttentionLoad(TestCase *test_case, Test *test) {
+    PSNeuralNetwork *network = getNetwork(test_case);
+    testAssertNotNull(network, test);
+    char path[PATH_MAX] = {0};
+    testAssert(
+        joinPath(executable_path, ADD_ATTENTION_NETWORK, path), test
+    );
+    int ok = PSLoadNetwork(network, path);
+    testAssert(ok, test);
+    testAssert(PSGetNetworkChainLength(network) == 2, test);
+    return ok;
+}
+
+
+int testAdditiveAttentionBackprop(TestCase *test_case, Test *test) {
+    PSNeuralNetwork *network = getNetwork(test_case);
+    testAssertNotNull(network, test);
+    int ok = testGenericAttentionBackprop(
+        network, "pretrained.additive-attention", test
+    );
+    return ok;
+}
+
+int testDotAttentionLoad(TestCase *test_case, Test *test) {
+    PSNeuralNetwork *network = getNetwork(test_case);
+    testAssertNotNull(network, test);
+    char path[PATH_MAX] = {0};
+    testAssert(
+        joinPath(executable_path, DOT_ATTENTION_NETWORK, path), test
+    );
+    int ok = PSLoadNetwork(network, path);
+    testAssert(ok, test);
+    testAssert(PSGetNetworkChainLength(network) == 2, test);
+    return ok;
+}
+
+
+int testDotAttentionBackprop(TestCase *test_case, Test *test) {
+    PSNeuralNetwork *network = getNetwork(test_case);
+    testAssertNotNull(network, test);
+    int ok = testGenericAttentionBackprop(
+        network, "pretrained.dot-product-attention", test
+    );
+    return ok;
+}
+
+int testMHAttentionLoad(TestCase *test_case, Test *test) {
+    PSNeuralNetwork *network = getNetwork(test_case);
+    testAssertNotNull(network, test);
+    char path[PATH_MAX] = {0};
+    testAssert(
+        joinPath(executable_path, MH_ATTENTION_NETWORK, path), test
+    );
+    int ok = PSLoadNetwork(network, path);
+    testAssert(ok, test);
+    testAssert(PSGetNetworkChainLength(network) == 2, test);
+    return ok;
+}
+
+
+int testMHAttentionBackprop(TestCase *test_case, Test *test) {
+    PSNeuralNetwork *network = getNetwork(test_case);
+    testAssertNotNull(network, test);
+    int ok = testGenericAttentionBackprop(
+        network, "pretrained.mh-dot-product-attention", test
+    );
+    return ok;
+}
+
+int testMHCausalSelfAttentionLoad(TestCase *test_case, Test *test) {
+    PSNeuralNetwork *network = getNetwork(test_case);
+    testAssertNotNull(network, test);
+    char path[PATH_MAX] = {0};
+    testAssert(
+        joinPath(executable_path, MH_CAUSAL_SELFATTENTION_NETWORK, path), test
+    );
+    int ok = PSLoadNetwork(network, path);
+    testAssert(ok, test);
+    testAssert(PSGetNetworkChainLength(network) == 1, test);
+    return ok;
+}
+
+
+int testMHCausalSelfAttentionBackprop(TestCase *test_case, Test *test) {
+    PSNeuralNetwork *network = getNetwork(test_case);
+    testAssertNotNull(network, test);
+    int ok = testGenericAttentionBackprop(
+        network, "pretrained.mh-causal-attention", test
+    );
+    return ok;
+}
+
 int testGenericClone(TestCase *test_case, Test *test) {
     PSNeuralNetwork *network = getNetwork(test_case);
     PSNeuralNetwork *clone = PSCloneNetwork(network, 0);
@@ -3691,8 +4103,7 @@ int compareNetworks(PSNeuralNetwork *network, PSNeuralNetwork *clone,
                 i, o_dropout, c_dropout
             );
             continue;
-        }
-        if (OperatorLayer == orig_l->type) {
+        } else if (OperatorLayer == orig_l->type) {
             PSOperatorType orig_op = PSGetOperatorLayerType(orig_l);
             PSOperatorType clone_op = PSGetOperatorLayerType(clone_l);
             testAssertWithMessage(
@@ -3741,8 +4152,7 @@ int compareNetworks(PSNeuralNetwork *network, PSNeuralNetwork *clone,
                     " size: %d != %d", i, j, j, orig_prv->size, clone_prv->size
                 );
             }
-        }
-        if (PositionalEncoding == orig_l->type) {
+        } else if (PositionalEncoding == orig_l->type) {
             int orig_enclen = PSGetPositionalEncodingLength(orig_l),
                 clone_enclen = PSGetPositionalEncodingLength(clone_l);
             testAssertWithMessage(
@@ -3756,6 +4166,132 @@ int compareNetworks(PSNeuralNetwork *network, PSNeuralNetwork *clone,
                 orig_base == clone_base, test, "Layer[%d]: Source "
                 "base != Clone one: %d != %d",
                 i, orig_base, clone_base
+            );
+        } else if (Attention == orig_l->type) {
+            PSAttentionType oattn_type = PSGetAttentionType(orig_l),
+                            cattn_type = PSGetAttentionType(clone_l);
+            testAssertWithMessage(
+                oattn_type == cattn_type, test, "Layer[%d] attention type %d "
+                "(%s) != Clone one %d (%s)", i, oattn_type,
+                PSGetAttentionTypeLabel(oattn_type), cattn_type,
+                PSGetAttentionTypeLabel(cattn_type)
+            );
+            int orig_nheads = PSGetAttentionHeadCount(orig_l),
+                clone_nheads = PSGetAttentionHeadCount(clone_l);
+            testAssertWithMessage(
+                orig_nheads == clone_nheads, test, "Layer[%d] attention heads "
+                "%d != Clone attention heads %d", i, orig_nheads, clone_nheads
+            );
+            PSFloat orig_scale = PSGetAttentionScale(orig_l),
+                    clone_scale = PSGetAttentionScale(clone_l);
+            ok = compareFloats(orig_scale, clone_scale, 0, 4);
+            testAssertWithMessage(
+                ok, test, "Layer[%d] attention scale %g != Clone scale %g",
+                i, orig_scale, clone_scale
+            );
+            int orig_is_causal = PSIsCausalAttention(orig_l),
+                clone_is_causal = PSIsCausalAttention(clone_l);
+            testAssertWithMessage(
+                orig_is_causal == clone_is_causal, test, "Layer[%d] causal "
+                "attention is %d, but Clone is %d", i, orig_is_causal,
+                clone_is_causal
+            );
+            PSLayer *qprov_o = NULL, *qprov_c = NULL,
+                    *kprov_o = NULL, *kprov_c = NULL,
+                    *vprov_o = NULL, *vprov_c = NULL;
+            ok = PSGetAttentionProviders(orig_l, &qprov_o, &kprov_o, &vprov_o);
+            testAssert(ok, test);
+            ok = PSGetAttentionProviders(clone_l, &qprov_c, &kprov_c, &vprov_c);
+            testAssert(ok, test);
+            if (qprov_o != NULL) {
+                testAssertWithMessage(
+                    qprov_c != NULL, test, "Layer[%d] has query provider, but "
+                    "cloned doesn't", i
+                );
+                testAssertWithMessage(
+                    qprov_o->network->index == qprov_c->network->index, test,
+                    "Layer[%d] query provider's network index is %d, but "
+                    "clone one is %d", i, qprov_o->network->index,
+                    qprov_c->network->index
+                );
+                testAssertWithMessage(
+                    qprov_o->index == qprov_c->index, test, "Layer[%d] query "
+                    "provider's index is %d, but clone one is %d",
+                    i, qprov_o->index, qprov_c->index
+                );
+                testAssertWithMessage(
+                    qprov_o->type == qprov_c->type, test, "Layer[%d] query "
+                    "provider's type is %d, but clone one is %d",
+                    i, qprov_o->type, qprov_c->type
+                );
+                testAssertWithMessage(
+                    qprov_o->size == qprov_c->size, test, "Layer[%d] query "
+                    "provider's size is %d, but clone one is %d",
+                    i, qprov_o->size, qprov_c->size
+                );
+            } else testAssertWithMessage(
+                qprov_c == NULL, test, "Layer[%d] has no query provider, but "
+                "cloned layer does", i
+            );
+            if (kprov_o != NULL) {
+                testAssertWithMessage(
+                    kprov_c != NULL, test, "Layer[%d] has key provider, but "
+                    "cloned doesn't", i
+                );
+                testAssertWithMessage(
+                    kprov_o->network->index == kprov_c->network->index, test,
+                    "Layer[%d] key provider's network index is %d, but "
+                    "clone one is %d", i, kprov_o->network->index,
+                    kprov_c->network->index
+                );
+                testAssertWithMessage(
+                    kprov_o->index == kprov_c->index, test, "Layer[%d] key "
+                    "provider's index is %d, but clone one is %d",
+                    i, kprov_o->index, kprov_c->index
+                );
+                testAssertWithMessage(
+                    kprov_o->type == kprov_c->type, test, "Layer[%d] key "
+                    "provider's type is %d, but clone one is %d",
+                    i, kprov_o->type, kprov_c->type
+                );
+                testAssertWithMessage(
+                    kprov_o->size == kprov_c->size, test, "Layer[%d] key "
+                    "provider's size is %d, but clone one is %d",
+                    i, kprov_o->size, kprov_c->size
+                );
+            } else testAssertWithMessage(
+                kprov_c == NULL, test, "Layer[%d] has no key provider, but "
+                "cloned layer does", i
+            );
+            if (vprov_o != NULL) {
+                testAssertWithMessage(
+                    vprov_c != NULL, test, "Layer[%d] has value provider, but "
+                    "cloned doesn't", i
+                );
+                testAssertWithMessage(
+                    vprov_o->network->index == vprov_c->network->index, test,
+                    "Layer[%d] value provider's network index is %d, but "
+                    "clone one is %d", i, vprov_o->network->index,
+                    vprov_c->network->index
+                );
+                testAssertWithMessage(
+                    vprov_o->index == vprov_c->index, test, "Layer[%d] value "
+                    "provider's index is %d, but clone one is %d",
+                    i, vprov_o->index, vprov_c->index
+                );
+                testAssertWithMessage(
+                    vprov_o->type == vprov_c->type, test, "Layer[%d] value "
+                    "provider's type is %d, but clone one is %d",
+                    i, vprov_o->type, vprov_c->type
+                );
+                testAssertWithMessage(
+                    vprov_o->size == vprov_c->size, test, "Layer[%d] value "
+                    "provider's size is %d, but clone one is %d",
+                    i, vprov_o->size, vprov_c->size
+                );
+            } else testAssertWithMessage(
+                vprov_c == NULL, test, "Layer[%d] has no value provider, but "
+                "cloned layer does", i
             );
         }
         if (i == 0) continue;
@@ -3805,8 +4341,24 @@ int compareNetworks(PSNeuralNetwork *network, PSNeuralNetwork *clone,
             for (k = 0; k < orig_l->weight_types_count; k++) {
                 PSMatrix o_weights = orig_l->weights[k];
                 PSMatrix c_weights = clone_l->weights[k];
-                testAssertNotNull(o_weights, test);
-                testAssertNotNull(c_weights, test);
+                if (Attention != orig_l->type) {
+                    testAssertNotNull(o_weights, test);
+                    testAssertNotNull(c_weights, test);
+                } else {
+                    int orig_wnull = (o_weights == NULL),
+                        clone_wnull = (c_weights == NULL);
+                    if (!orig_wnull) {
+                        testAssertWithMessage(
+                            !clone_wnull, test, "Layer[%d] has weights[%d], "
+                            "but cloned layer[%d] is missing them", i, k, i
+                        );
+                    } else {
+                        testAssertWithMessage(
+                            clone_wnull, test, "Layer[%d] has no weights[%d], "
+                            "but cloned layer[%d] has them", i, k, i
+                        );
+                    }
+                }
                 uint64_t o_wsize = PSMatrixLength(o_weights),
                          c_wsize = PSMatrixLength(c_weights);
                 testAssertWithMessage(
