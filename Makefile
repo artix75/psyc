@@ -11,7 +11,7 @@ default: all
 
 .PHONY: clean
 .PHONY: clean-full
-.PHONY: show-build-info
+.PHONY: show-build-conf
 
 demo:
 	@cd src/demo/ && $(MAKE)
@@ -52,8 +52,8 @@ valgrind:
 helgrind:
 	$(MAKE) OPTIMIZATION="-O0" CFLAGS="-D__ATOMIC_VAR_FORCE_SYNC_MACROS"
 	
-show-build-info:
-	@cd src && $(MAKE) show-build-info
+show-build-conf:
+	@cd src && $(MAKE) show-build-conf
 
 list-available-options:
 	@cd src && $(MAKE) list-available-options

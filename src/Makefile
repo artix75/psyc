@@ -66,10 +66,11 @@ uninstall:
 	rm -f $(LIBDIR)/$(LIBNAME)
 	rm -rvf $(INCLUDEDIR)/psyc
 
-show-build-info:
+show-build-conf:
 	@echo "CC=$(CC)"
 	@echo "IS_CLANG=$(IS_CLANG)"
 	@echo "PREFIX=$(PREFIX)"
+	@echo "DOUBLE_PRECISION=$(DOUBLE_PRECISION)"
 	@echo "AVX=$(AVX)"
 	@echo "HAS_BLAS=$(HAS_BLAS)"
 	@echo "HAS_CBLAS=$(HAS_CBLAS)"
