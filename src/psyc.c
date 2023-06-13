@@ -896,9 +896,11 @@ PSScalarActivationFunction PSGetScalarActivationFunc(PSActivationFunction func){
     if (func == PSSigmoid) return PSSigmoidS;
     else if (func == PSTanhActivation) return PSTanhS;
     else if (func == PSRelu) return PSReluS;
+    else if (func == PSGelu) return PSGeluS;
     else if (func == PSSigmoidDerivative) return PSSigmoidDerivativeS;
     else if (func == PSTanhDerivative) return PSTanhDerivativeS;
     else if (func == PSReluDerivative) return PSReluDerivativeS;
+    else if (func == PSGeluDerivative) return PSGeluDerivativeS;
     return NULL;
 }
 
@@ -906,6 +908,7 @@ const char *PSGetActivationName(PSActivationFunction func) {
     if (func == PSSigmoid) return "sigmoid";
     else if (func == PSTanhActivation) return "tanh";
     else if (func == PSRelu) return "relu";
+    else if (func == PSGelu) return "gelu";
     return NULL;
 }
 
@@ -913,6 +916,7 @@ PSActivationFunction PSGetActivationDerivative(PSActivationFunction func) {
     if (func == PSSigmoid) return PSSigmoidDerivative;
     else if (func == PSTanhActivation) return PSTanhDerivative;
     else if (func == PSRelu) return PSReluDerivative;
+    else if (func == PSGelu) return PSGeluDerivative;
     return NULL;
 }
 
@@ -5972,6 +5976,14 @@ int PSCheckNetwork(PSNeuralNetwork *network) {
             PSErr(__func__,
                   "Layer[%d] activate function is PSRelu, "
                   "but derivative function is not PSReluDerivative", i);
+            return 0;
+        }
+        if (layer->activate == PSGelu &&
+            layer->derivative != PSGeluDerivative)
+        {
+            PSErr(__func__,
+                  "Layer[%d] activate function is PSGelu, "
+                  "but derivative function is not PSGeluDerivative", i);
             return 0;
         }
         if (layer->activate == PSTanhActivation &&

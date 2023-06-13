@@ -731,6 +731,8 @@ void parseOptions(int argc, char **argv) {
                         ldef.activation = PSTanhActivation;
                     else if (strcasecmp("relu", actvname) == 0)
                         ldef.activation = PSRelu;
+                    else if (strcasecmp("gelu", actvname) == 0)
+                        ldef.activation = PSGelu;
                     else {
                         fprintf(stderr, "ERROR: Invalid activation '%s'",
                                 actvname);
@@ -1595,7 +1597,7 @@ void printHelp(const char* program_path) {
     printf("\n");
     printf("LAYER OPTIONS:\n\n");
     printf("        --activation FUNC         Activation Function:\n"
-           "                                  (sigmoid,tanh,relu)\n");
+           "                                  (sigmoid,tanh,relu,gelu)\n");
     printf("        --dropout DROPOUT         Layer Dropout (float)\n");
     printf("        --recurrent-layer         Recurrent layer mode\n");
     printf("        --whole-sequence          Whole sequence mode\n");

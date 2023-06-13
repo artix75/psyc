@@ -192,6 +192,8 @@ int testActTanh(TestCase *tc, Test *test);
 int testActTanhDeriv(TestCase *tc, Test *test);
 int testActRelu(TestCase *tc, Test *test);
 int testActReluDeriv(TestCase *tc, Test *test);
+int testActGelu(TestCase *tc, Test *test);
+int testActGeluDeriv(TestCase *tc, Test *test);
 int testActSoftmax(TestCase *tc, Test *test);
 
 int testDefaultOptimization(TestCase *tc, Test *test);
@@ -744,6 +746,8 @@ int main(int argc, char** argv) {
         addTest(activationTests, "Tanh der.", NULL, testActTanhDeriv);
         addTest(activationTests, "ReLU", NULL, testActRelu);
         addTest(activationTests, "ReLU der.", NULL, testActReluDeriv);
+        addTest(activationTests, "GeLU", NULL, testActGelu);
+        addTest(activationTests, "GeLU der.", NULL, testActGeluDeriv);
         addTest(activationTests, "Softmax", NULL, testActSoftmax);
         performTests(activationTests);
         tot_tests += activationTests->count;
@@ -6173,6 +6177,77 @@ int testActReluDeriv(TestCase *tc, Test *test) {
     opts.acceleration = PSAcceleration_None;
     PSReluDerivative(x, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "No Acceleration:", 0, 0);
+    if (!ok) return 0;
+    return ok;
+}
+
+int testActGelu(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat x[4] = {-1.79316703, -1.38185011, 0.98695828, -0.43326748};
+    PSFloat y[4] = {-0.06547327, -0.11563015, 0.82708914, -0.1440327};
+    PSFloat cmp_res[4] = {0};
+    PSFloat res[4] = {0};
+    for (int i = 0; i < 4; i++) cmp_res[i] = PSGeluS(x[i]);
+    int ok = 1;
+    PSMathOpts opts = {0};
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    opts.acceleration = PSAcceleration_ACF;
+    PSGelu(x, res, 4, &opts);
+    ok = compareArrays(res, y, 4, test, "Accelerate Framework", 0, 4);
+    if (!ok) return 0;
+    ok = compareArrays(res, cmp_res, 4, test, "PSGeluS: Accelerate Framework",
+                       0, 4);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    opts.acceleration = PSAcceleration_AVX;
+    PSGelu(x, res, 4, &opts);
+    ok = compareArrays(res, y, 4, test, "AVX", 0, 4);
+    if (!ok) return 0;
+    ok = compareArrays(res, cmp_res, 4, test, "PSGeluS: AVX", 0, 4);
+    if (!ok) return 0;
+#endif
+    opts.acceleration = PSAcceleration_None;
+    PSGelu(x, res, 4, &opts);
+    ok = compareArrays(res, y, 4, test, "No Acceleration:", 0, 4);
+    if (!ok) return 0;
+    ok = compareArrays(res, cmp_res, 4, test, "PSGeluS: No Acceleration:",0,4);
+    if (!ok) return 0;
+    return ok;
+}
+
+int testActGeluDeriv(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat x[4] = {-0.06547327, -0.11563015, 0.82708914, -0.1440327};
+    PSFloat y[4] = {0.44783455, 0.40815094, 1.03017281, 0.3858705};
+    PSFloat cmp_res[4] = {0};
+    PSFloat res[4] = {0};
+    for (int i = 0; i < 4; i++) cmp_res[i] = PSGeluDerivativeS(x[i]);
+    int ok = 1;
+    PSMathOpts opts = {0};
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    opts.acceleration = PSAcceleration_ACF;
+    PSGeluDerivative(x, res, 4, &opts);
+    ok = compareArrays(res, y, 4, test, "Accelerate Framework", 0, 3);
+    if (!ok) return 0;
+    ok = compareArrays(res, cmp_res, 4, test, "PSGeluDerivativeS: "
+                      "Accelerate Framework", 0, 3);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    opts.acceleration = PSAcceleration_AVX;
+    PSGeluDerivative(x, res, 4, &opts);
+    ok = compareArrays(res, y, 4, test, "AVX", 0, 4);
+    if (!ok) return 0;
+    ok = compareArrays(res, cmp_res, 4, test, "PSGeluDerivativeS: AVX", 0, 3);
+    if (!ok) return 0;
+#endif
+    opts.acceleration = PSAcceleration_None;
+    PSGeluDerivative(x, res, 4, &opts);
+    ok = compareArrays(res, y, 4, test, "No Acceleration:", 0, 3);
+    if (!ok) return 0;
+    ok = compareArrays(res, cmp_res, 4, test, "PSGeluDerivativeS: "
+                       "No Acceleration:",0,3);
     if (!ok) return 0;
     return ok;
 }
