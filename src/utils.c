@@ -26,6 +26,7 @@
 #include <limits.h>
 #include <pwd.h>
 #include <errno.h>
+#include <assert.h>
 
 #include "psyc.h"
 #include "platform.h"
@@ -37,6 +38,259 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 #endif
+
+/* PSDict */
+
+/*
+ * The Dan Bernstein popuralized hash..  See
+ * https://github.com/pjps/ndjbdns/blob/master/cdb_hash.c#L26 Due to hash
+ * collisions it seems to be replaced with "siphash" in n-djbdns, see
+ * https://github.com/pjps/ndjbdns/commit/16cb625eccbd68045737729792f09b4945a4b508
+ */
+uint32_t djb33_hash(const char* s, size_t len) {
+    uint32_t h = 5381;
+    while (len--) {
+        /* h = 33 * h ^ s[i]; */
+        h += (h << 5);
+        h ^= *s++;
+        if (!*s) break;
+    }
+    return h;
+}
+
+PSDictItem *PSDictItemCreate(const char *key, PSDictValue value) {
+    if (key == NULL) return NULL;
+    PSDictItem *item = malloc(sizeof(*item));
+    if (item == NULL) {
+        PSPrintMemoryErrorMsg();
+        return NULL;
+    }
+    item->key = strdup(key);
+    if (item->key == NULL) {
+        PSPrintMemoryErrorMsg();
+        free(item);
+        return NULL;
+    }
+    item->value = value;
+    item->prev = NULL;
+    item->next = NULL;
+    item->dict = NULL;
+    item->slot = -1;
+    return item;
+}
+
+void PSDictItemRelease(PSDictItem *item) {
+    if (item == NULL) return;
+    if (item->dict != NULL && item->dict->on_item_release != NULL)
+        item->dict->on_item_release(item);
+    free((void *) item->key);
+    free(item);
+}
+
+/* Create a new PSDict dictionary. */
+PSDict *PSDictCreate(int flags) {
+    PSDict *dict = calloc(1, sizeof(*dict));
+    if (dict == NULL) {
+        PSPrintMemoryErrorMsg();
+        return NULL;
+    }
+    dict->flags = flags;
+    return dict;
+}
+
+/* Delete all items in dictionary `dict`. */
+void PSDictClear(PSDict *dict) {
+    if (dict == NULL) return;
+    for (int i = 0; i < PSDICT_HT_SIZE; i++) {
+        PSDictItem *item = dict->table[i];
+        while (item) {
+            PSDictItem *next = item->next;
+            PSDictItemRelease(item);
+            item = dict->table[i] = next;
+            dict->length--;
+        }
+        dict->table[i] = NULL;
+    }
+}
+
+/* Get the item associated to `key` in dictionary `dict`, if any.
+ * Return value: the item (PSDictItem) or NULL. */
+PSDictItem *PSDictGet(PSDict *dict, const char *key) {
+    if (dict == NULL || key == NULL) return NULL;
+    int slot = PSDictSlotForKey(key);
+    PSDictItem *item = dict->table[slot], *found_item = NULL;
+    while (item != NULL) {
+        if (strcmp(item->key, key) == 0) {
+            found_item = item;
+            break;
+        }
+        item = item->next;
+    }
+    return found_item;
+}
+
+/* Get the item associated to `key` in dictionary `dict` as a pointer.
+ * Return value: the item as a pointer or NULL. */
+void *PSDictGetPointer(PSDict *dict, const char *key) {
+    PSDictItem *item = PSDictGet(dict, key);
+    if (item == NULL) return NULL;
+    return item->value.as_ptr;
+}
+
+/* Check whether `dict` has the key `key.
+ * Return value: 1 if `dict` has `key`, elseway 0. */
+int PSDictHasKey(PSDict *dict, const char *key) {
+    PSDictItem *item = PSDictGet(dict, key);
+    return (item != NULL);
+}
+
+/* Set value `val` for key `key` in dictionary `dict`. Unless flag
+ * `PSDICT_UPDATE_DISABLED` is enabled in dictionary falgs, value will be
+ * set even If `key` is already associated to another value.
+ * Return value: the item (`PSDictItem`) associated to the `key` or NULL. */
+PSDictItem *PSDictSet(PSDict *dict, const char *key, PSDictValue val) {
+    if (dict == NULL || key == NULL) return NULL;
+    int slot = PSDictSlotForKey(key), found = 0;
+    PSDictItem *item = dict->table[slot], *last_item = NULL;
+    while (item != NULL) {
+        if (strcmp(item->key, key) == 0) {
+            if (!(dict->flags & PSDICT_UPDATE_DISABLED))
+                item->value = val;
+            found = 1;
+            break;
+        }
+        last_item = item;
+        item = item->next;
+    }
+    if (found) return item;
+    item = PSDictItemCreate(key, val);
+    if (item == NULL) {
+        PSPrintMemoryErrorMsg();
+        return NULL;
+    }
+    item->dict = dict;
+    item->slot = slot;
+    if (last_item != NULL) {
+        last_item->next = item;
+        item->prev = last_item;
+    } else dict->table[slot] = item;
+    dict->length++;
+    return item;
+}
+
+/* Return value `val` if it's already set for `key`, elseway set it and
+ * return it.
+ * Return value: the value associated with `key`. */
+PSDictItem *PSDictGetOrSet(PSDict *dict, const char *key, PSDictValue val) {
+    if (dict == NULL) return NULL;
+    int old_flags = dict->flags;
+    dict->flags |= PSDICT_UPDATE_DISABLED;
+    PSDictItem *item = PSDictSet(dict, key, val);
+    dict->flags = old_flags;
+    return item;
+}
+
+/* Delete item associated to `key` in dictionary `dict`, if any. */
+void PSDictDelete(PSDict *dict, const char *key) {
+    PSDictItem *item = PSDictGet(dict, key);
+    if (item == NULL) return;
+    PSDictItem *prev = item->prev, *next = item->next;
+    if (prev == NULL) {
+        assert(item->slot >= 0);
+        dict->table[item->slot] = next;
+    } else prev->next = next;
+    if (next != NULL) next->prev = prev;
+    PSDictItemRelease(item);
+    dict->length--;
+}
+
+/* Return an array containing all keys owned by dictionary `dict`.
+ * The size of the array is given by `dict->length`.
+ * Return value: an array of strings containing all the keys or NULL if
+                 something goes wrong. */
+const char **PSDictGetKeys(PSDict *dict) {
+    if (dict == NULL || dict->length == 0) return NULL;
+    const char **keys = malloc(dict->length * sizeof(const char *));
+    if (keys == NULL) {
+        PSPrintMemoryErrorMsg();
+        return NULL;
+    }
+    int idx = 0, i;
+    for (i = 0; i < PSDICT_HT_SIZE; i++) {
+        PSDictItem *item = dict->table[i];
+        while (item != NULL) {
+            keys[idx++] = item->key;
+            item = item->next;
+        }
+    }
+    return keys;
+}
+
+/* Return an array containing all items owned by dictionary `dict`.
+ * The size of the array is given by `dict->length`.
+ * Return value: an array of `PSDictItem` containing all the values or NULL if
+                 something goes wrong. */
+PSDictItem **PSDictGetItems(PSDict *dict) {
+    if (dict == NULL || dict->length == 0) return NULL;
+    PSDictItem **items = malloc(dict->length * sizeof(PSDictItem *));
+    if (items == NULL) {
+        PSPrintMemoryErrorMsg();
+        return NULL;
+    }
+    int idx = 0, i;
+    for (i = 0; i < PSDICT_HT_SIZE; i++) {
+        PSDictItem *item = dict->table[i];
+        while (item != NULL) {
+            items[idx++] = item;
+            item = item->next;
+        }
+    }
+    return items;
+}
+
+/* Create a new iterator for dictionary `dict`. The dictionary will be
+ * allocated in memory, so it's up to the developer to free it as soon as
+ * it is no longer needed.
+ * Return value: the iterator or NULL if something goes wrong. */
+struct PSDictIterator *PSDictIteratorCreate(PSDict *dict) {
+    PSDictIterator *iter = malloc(sizeof(*iter));
+    if (iter == NULL) {
+        PSPrintMemoryErrorMsg();
+        return NULL;
+    }
+    iter->dict = dict;
+    iter->current = NULL;
+    return iter;
+}
+
+/* Iterate over the next item using `iterator`.
+ * Return value: the next item (`PSDictItem`) or NULL if there are no more
+ *               items to iterate. */
+PSDictItem *PSDictNext(PSDictIterator *iterator) {
+    if (iterator == NULL || iterator->dict == NULL) return NULL;
+    PSDictItem *item = iterator->current;
+    int slot = 0;
+    while (item != NULL) {
+        slot = item->slot;
+        item = item->next;
+        if (item != NULL) break;
+    }
+    if (item == NULL) {
+        while (++slot < PSDICT_HT_SIZE) {
+            item = iterator->dict->table[slot];
+            if (item != NULL) break;
+        }
+    }
+    if (item != NULL) iterator->current = item;
+    return item;
+}
+
+/* Delete the dictionary and free it's allocated memory. */
+void PSDictRelease(PSDict *dict) {
+    if (dict == NULL) return;
+    PSDictClear(dict);
+    free(dict);
+}
 
 /* Network Functions */
 

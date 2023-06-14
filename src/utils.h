@@ -27,7 +27,18 @@
 #define M_PI 3.141592653589793
 #endif
 
+#define PSDICT_HT_SIZE 4096
+#define PSDICT_UPDATE_DISABLED (1 << 0)
+#define PSDictHash(key) (djb33_hash(key, 4096))
+#define PSDictFromInt(n) ((PSDictValue) {.as_int = n})
+#define PSDictFromFloat(n) ((PSDictValue) {.as_float = n})
+#define PSDictFromPointer(ptr) ((PSDictValue) {.as_ptr = ptr})
+#define PSDictFromString(str) PSDictFromPointer(str)
+#define PSDictSlotForKey(key) (PSDictHash(key) % PSDICT_HT_SIZE)
+#define PSDictGetStr(dict, key) ((const char *) PSDictGetPointer(dict, key))
+
 #define PSFileExists(path) (access(path, F_OK) == 0)
+
 /* Get elapsed time in milliseconds */
 #define PSGetElapsedTimeMS(st, et) ((((et.tv_sec - st.tv_sec) * 1000000) \
 /* Get elapsed time in microseconds */
@@ -37,6 +48,38 @@
 #define OPT_TIME_LONG        (1 << 0)
 #define OPT_TIME_FULL        (1 << 1)
 #define OPT_TIME_HUMAN       (1 << 2)
+
+struct PSDictItem;
+struct PSDict;
+struct PSDictIterator;
+typedef void (* PSOnDictItemRelease) (struct PSDictItem *);
+
+typedef union {
+    int64_t    as_int;
+    PSFloat    as_float;
+    void       *as_ptr;
+} PSDictValue;
+
+typedef struct PSDictItem {
+    const char          *key;
+    PSDictValue         value;
+    struct PSDictItem   *prev;
+    struct PSDictItem   *next;
+    struct PSDict       *dict;
+    int                 slot;
+} PSDictItem;
+
+typedef struct PSDict {
+    int64_t             length;
+    int                 flags;
+    PSDictItem          *table[PSDICT_HT_SIZE];
+    PSOnDictItemRelease on_item_release;
+} PSDict;
+
+typedef struct PSDictIterator {
+    PSDict      *dict;
+    PSDictItem  *current;
+} PSDictIterator;
 
 /* Filesystem functions */
 int PSIsDirectory(const char *path);
