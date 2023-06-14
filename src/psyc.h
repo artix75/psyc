@@ -97,6 +97,11 @@
 #define TRAINING_FLAG_TEACHER_FORCING   (1 << 8)
 #define TRAINING_FLAG_SEQ2SEQ           (1 << 9)
 
+/* I/O options */
+
+#define PS_IO_SAVE_DEFINITION           (1 << 0)
+#define PS_IO_BINARY_MODE               (1 << 1)
+
 #define PSIsRecurrent(o) (o->flags & FLAG_RECURRENT)
 #define PSSetRecurrent(o) (o->flags |= FLAG_RECURRENT)
 #define PSUseSequences(o) \
@@ -352,7 +357,7 @@ PSNeuralNetwork *PSCloneNetwork(PSNeuralNetwork *network, int layout_only);
 int PSLoadNetwork(PSNeuralNetwork *network, const char* filename);
 int PSSaveNetwork(PSNeuralNetwork *network, const char* filename);
 int PSLoadLayer(PSLayer *layer, const char *filepath);
-int PSSaveLayer(PSLayer *layer, const char *filepath, int save_definition);
+int PSSaveLayer(PSLayer *layer, const char *filepath, int opts);
 void PSSetNetworkStatus(PSNeuralNetwork *network, int status, int *old);
 int PSGetNetworkStatus(PSNeuralNetwork *network);
 PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,

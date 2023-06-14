@@ -616,6 +616,7 @@ static int useOutputProjection(PSLayer *layer) {
 
 static int isValidProvider(PSLayer *provider, PSLayer *keys_provider) {
     if (provider == NULL || keys_provider == NULL) return 0;
+    if (provider == keys_provider) return 1;
     return PSUseSequences(provider) && provider->size == keys_provider->size;
 }
 

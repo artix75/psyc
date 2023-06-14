@@ -24,6 +24,8 @@
 #include <time.h>
 #include <inttypes.h>
 #include <sys/utsname.h>
+#include <stdint.h>
+#include <errno.h>
 
 #include "psyc.h"
 #include "config.h"
@@ -38,6 +40,7 @@
 #include "log.h"
 #include "buildinfo.h"
 #include "optimization.h"
+#include "platform.h"
 
 #define DATA_LAYER_MIN_ARGC 3
 #define OPT_FLOAT_FORMAT_HEX (1 << 0)
@@ -55,6 +58,9 @@
 #define CONV_PARAM_USE_RELU          8
 
 #define CONV_PARAMETER_COUNT 9
+
+#define PS_BINARY_FTYPE_LAYER 0
+#define PS_BINARY_FTYPE_MODEL 1
 
 #define UNUSED(V) ((void) V)
 
@@ -86,6 +92,14 @@ typedef struct PSModelFileHeader {
     int     acceleration;
 } PSModelFileHeader;
 
+typedef struct PSBinaryFileHeader {
+    int type;
+    int float_size;
+    int iee_754_conformity;
+    int big_endian;
+    char version[255];
+} PSBinaryFileHeader;
+
 PSTrainingOptions *PSGetNetworkTrainingOptions(PSNeuralNetwork *network);
 int PSGetTrainingMemoryGradients(PSNeuralNetwork *network,
                                  PSGradient ***mg1, PSGradient ***mg2);
@@ -97,6 +111,94 @@ void PSPrintLayerInfo(PSLayer *layer);
 const char *PSGetActivationName(PSActivationFunction func);
 PSFloat *PSSetSequenceStart(PSNeuralNetwork *network, PSFloat *start, int len);
 PSLayer *PSMakeLayerPlaceholder(int layer_index, int network_index);
+
+uint16_t swap_uint16(uint16_t val) {
+    return (val << 8) | (val >> 8 );
+}
+
+int16_t swap_int16(int16_t val) {
+    return (val << 8) | ((val >> 8) & 0xFF);
+}
+
+uint32_t swap_uint32(uint32_t val) {
+    val = ((val << 8) & 0xFF00FF00 ) | ((val >> 8) & 0xFF00FF);
+    return (val << 16) | (val >> 16);
+}
+
+int32_t swap_int32(int32_t val) {
+    val = ((val << 8) & 0xFF00FF00) | ((val >> 8) & 0xFF00FF);
+    return (val << 16) | ((val >> 16) & 0xFFFF);
+}
+
+int64_t swap_int64(int64_t val) {
+    val = ((val << 8) & 0xFF00FF00FF00FF00ULL) |
+          ((val >> 8) & 0x00FF00FF00FF00FFULL);
+    val = ((val << 16) & 0xFFFF0000FFFF0000ULL) |
+          ((val >> 16) & 0x0000FFFF0000FFFFULL);
+    return (val << 32) | ((val >> 32) & 0xFFFFFFFFULL);
+}
+
+uint64_t swap_uint64(uint64_t val) {
+    val = ((val << 8) & 0xFF00FF00FF00FF00ULL) |
+          ((val >> 8) & 0x00FF00FF00FF00FFULL);
+    val = ((val << 16) & 0xFFFF0000FFFF0000ULL) |
+          ((val >> 16) & 0x0000FFFF0000FFFFULL );
+    return (val << 32) | (val >> 32);
+}
+
+uint16_t readUInt16(FILE *f, int swap) {
+    if (f == NULL) return 0;
+    uint16_t val = 0;
+    int nread = fread(&val, sizeof(val), 1, f);
+    if (nread < 1) return 0;
+    if (swap) val = swap_uint16(val);
+    return val;
+}
+
+uint16_t readInt16(FILE *f, int swap) {
+    if (f == NULL) return 0;
+    int16_t val = 0;
+    int nread = fread(&val, sizeof(val), 1, f);
+    if (nread < 1) return 0;
+    if (swap) val = swap_int16(val);
+    return val;
+}
+
+uint32_t readUInt32(FILE *f, int swap) {
+    if (f == NULL) return 0;
+    uint32_t val = 0;
+    int nread = fread(&val, sizeof(val), 1, f);
+    if (nread < 1) return 0;
+    if (swap) val = swap_uint32(val);
+    return val;
+}
+
+uint32_t readInt32(FILE *f, int swap) {
+    if (f == NULL) return 0;
+    int32_t val = 0;
+    int nread = fread(&val, sizeof(val), 1, f);
+    if (nread < 1) return 0;
+    if (swap) val = swap_int32(val);
+    return val;
+}
+
+uint64_t readUInt64(FILE *f, int swap) {
+    if (f == NULL) return 0;
+    uint64_t val = 0;
+    int nread = fread(&val, sizeof(val), 1, f);
+    if (nread < 1) return 0;
+    if (swap) val = swap_uint64(val);
+    return val;
+}
+
+uint64_t readInt64(FILE *f, int swap) {
+    if (f == NULL) return 0;
+    int64_t val = 0;
+    int nread = fread(&val, sizeof(val), 1, f);
+    if (nread < 1) return 0;
+    if (swap) val = swap_int64(val);
+    return val;
+}
 
 PSFloat string2float(char *str, int *valid) {
     char *endptr = NULL;
@@ -312,6 +414,406 @@ static int scanFile(FILE *f, char *fmt, int match, int *matched, ...) {
 
 static int scanFileNoMatch(FILE *f, char *fmt) {
     return scanFile(f, fmt, 0, NULL);
+}
+
+/* Binary format */
+
+/* Write PsyC binary header. Argument `type` can be:
+   0 - Layer definition file
+   1 - Model definition file
+
+   Format specifications:
+
+   BYTES                 DESCR                  CONTENT             TYPE
+   --------------------------------------------------------------------------
+   4                     Filler                 FFFFFFFF
+   4                     Fixed String           PSYC
+   1                     File Type              0 - Layer file
+                                                1 - Model file
+   1                     Version Len                                unsigned
+   [Version Len]         PsyC Version                               string
+   1                     Size of PSFloat                            unsigned
+   1                     Float IEEE 754 Conform. 0 = false          signed
+                                                 1 = true
+                                                 2 = maybe
+   1                     Big Endian             0|1                 unsigned
+*/
+
+static int readBinaryFileHeader(FILE *f, PSBinaryFileHeader *hdr) {
+    if (hdr == NULL || f == NULL) return 0;
+    if (ftell(f) != 0) return 0;
+    uint32_t filler = 0;
+    char hdr_s[5] = {0};
+    int nread = fread(&filler, sizeof(filler), 1, f);
+    int valid_hdr = (nread == 1 && filler == 0xFFFFFFFF);
+    if (!valid_hdr) {
+        if (nread < 1 && !feof(f)) valid_hdr = 1;
+        goto err;
+    }
+    nread = fread(hdr_s, 1, 4, f);
+    if (nread < 4) {
+        valid_hdr = !feof(f);
+        goto err;
+    }
+    valid_hdr = (strcmp("PSYC", hdr_s) == 0);
+    if (!valid_hdr) goto err;
+    hdr->type = fgetc(f);
+    if (hdr->type == EOF) goto err;
+    int verslen = fgetc(f);
+    if (verslen == EOF) goto err;
+    if (verslen > 254) {
+        PSErr(NULL, "invalid version string length");
+        goto err;
+    }
+    hdr->version[0] = '\0';
+    nread = fread(hdr->version, 1, verslen, f);
+    if (nread < verslen) goto err;
+    hdr->float_size = fgetc(f);
+    if (hdr->float_size == EOF) goto err;
+    int valid_sz = (
+        hdr->float_size == sizeof(float) ||
+        hdr->float_size == sizeof(double)
+    );
+    if (!valid_sz) {
+        PSErr(NULL, "invalid PSFloat size %d", hdr->float_size);
+        goto err;
+    }
+    hdr->iee_754_conformity = fgetc(f);
+    if (hdr->iee_754_conformity == EOF) goto err;
+    hdr->big_endian = fgetc(f);
+    if (hdr->big_endian == EOF) goto err;
+    return 1;
+err:
+    fseek(f, 0, SEEK_SET);
+    if (valid_hdr) return 0;
+    PSErr(NULL, "invalid PsyC binary file");
+    return 0;
+}
+
+static int writeBinaryFileHeader(FILE *f, int type) {
+    if (f == NULL) return 0;
+    if (ftell(f) != 0) return 0;
+    static uint32_t hdr_i = 0xFFFFFFFF;
+    static char *hdr_s = "PSYC";
+    int success = 1;
+    int nwritten = fwrite(&hdr_i, 4, 1, f);
+    success = (nwritten == 1);
+    if (!success) return 0;
+    nwritten = fwrite(hdr_s, 1, 4, f);
+    success = (nwritten == 4);
+    if (!success) return 0;
+    success = fputc(type, f) != EOF;
+    if (!success) return 0;
+    int verslen = strlen(PSYC_VERSION);
+    if (verslen > UINT8_MAX) verslen = UINT8_MAX;
+    success = fputc((uint8_t) verslen, f) != EOF;
+    if (!success) return 0;
+    nwritten = fwrite(PSYC_VERSION, 1, verslen, f);
+    success = (nwritten == verslen);
+    if (!success) return 0;
+    success = fputc((uint8_t) sizeof(PSFloat), f) != EOF;
+    if (!success) return 0;
+    success = fputc((uint8_t) PS_IEC_559, f) != EOF;
+    if (!success) return 0;
+    success = fputc((uint8_t) PS_IS_BIG_ENDIAN, f) != EOF;
+    if (!success) return 0;
+    return success;
+}
+
+static int writeBinaryFloats(PSFloat *floats, uint64_t len, FILE *f) {
+    if (f == NULL || floats == NULL) return 0;
+    if (len == 0) return 1;
+    int max_chunk_len = 4096 / sizeof(PSFloat);
+    int nwritten = 0, totwritten = 0, remaining = len;
+    PSFloat *floats_p = floats;
+    while ((uint64_t) totwritten < len) {
+        int buflen = (remaining >= max_chunk_len ? max_chunk_len : remaining);
+        nwritten = fwrite(floats_p, sizeof(PSFloat), buflen, f);
+        totwritten += nwritten;
+        remaining -= nwritten;
+        if (nwritten < buflen) {
+            char *err = "an error occurred";
+            if (errno > 0) err = strerror(errno);
+            PSErr(NULL, "failed to write binary floats: %s", err);
+            return 0;
+        }
+        floats_p += nwritten;
+    }
+    return 1;
+}
+
+static int readBinaryFloats(PSFloat *floats, uint64_t len, FILE *f) {
+    if (f == NULL || floats == NULL) return 0;
+    int max_chunk_len = 4096 / sizeof(PSFloat);
+    int nread = 0, totread = 0, remaining = len;
+    PSFloat *floats_p = floats;
+    while ((uint64_t) totread < len) {
+        int buflen = (remaining >= max_chunk_len ? max_chunk_len : remaining);
+        nread = fread(floats_p, sizeof(PSFloat), buflen, f);
+        totread += nread;
+        remaining -= nread;
+        if (nread < buflen) {
+            char *err = "an error occurred";
+            if (errno > 0) err = strerror(errno);
+            PSErr(NULL, "failed to read binary floats: %s", err);
+            return 0;
+        }
+        floats_p += nread;
+    }
+    return 1;
+}
+
+/* Format: LEN[8] + VECTOR[LEN * sizef(PSFloat)] */
+static int writeBinaryFloatArray(PSFloat *floats, uint64_t len, FILE *f) {
+    if (f == NULL) return 0;
+    if (floats == NULL) len = 0;
+    int nwritten = fwrite(&len, sizeof(len), 1, f);
+    if (nwritten < 1) return 0;
+    if (floats == NULL) return 1;
+    return writeBinaryFloats(floats, len, f);
+}
+
+PSFloat *readBinaryFloatArray(PSFloat *floats, uint64_t *len, FILE *f) {
+    assert(len != NULL);
+    if (f == NULL) return NULL;
+    *len = 0;
+    int nread = fread(&len, sizeof(len), 1, f);
+    if (nread < 1) return NULL;
+    PSFloat *allocd = NULL;
+    if (floats == NULL) {
+        allocd = calloc(*len, sizeof(PSFloat));
+        if (allocd == NULL) {
+            PSPrintMemoryErrorMsg();
+            return NULL;
+        }
+        floats = allocd;
+    }
+    int ok = (readBinaryFloatArray(floats, len, f) != NULL);
+    if (!ok) floats = NULL;
+    free(allocd);
+    return floats;
+}
+
+/* Format: LEN[8] + MATRIX[LEN * sizef(PSFloat)] */
+static int writeBinaryMatrixAsVector(PSMatrix matrix, FILE *f) {
+    return writeBinaryFloatArray(matrix, PSMatrixLength(matrix), f);
+}
+
+/* Format:
+    SHAPELEN[1] + SHAPE[SHAPELEN] + LEN[8] + MATRIX[LEN * sizef(PSFloat)]
+*/
+int writeBinaryMatrix(PSMatrix matrix, FILE *f) {
+    if (f == NULL) return 0;
+    if (matrix == NULL) return fputc(0, f) != EOF;
+    int shape[3];
+    int shape_len = PSMatrixDimensions(matrix, shape), i;
+    if (fputc((uint8_t) shape_len, f) == EOF) return 0;
+    for (i = 0; i < shape_len; i++) {
+        if (fputc((uint8_t) shape[i], f) == EOF) return 0;
+    }
+    return writeBinaryMatrixAsVector(matrix, f);
+}
+
+/* Format: HEADER (see writeBinaryFileHeader) +
+           INDEX[4] + BIAS_COUNT[8] + BIAS[BIAS_COUNT * sizeof(PSFloat)] +
+           WEIGHT_TYPES[1] + TOT_WEIGHT_COUNT[8] +
+           For each weight matrix:
+           WEIGHT_COUNT[8] + WEIGHTS[WEIGHT_COUNT * sizeof(PSFloat)] */
+static int writeBinaryLayerParameters(PSLayer *layer, int opts, FILE *f,
+                                      const char*func)
+{
+    UNUSED(opts);
+    if (layer == NULL || f == NULL) return 0;
+    PSLayerType ltype = layer->type;
+    if (Pooling == ltype || layer->type == Dropout) return 0;
+    uint64_t bias_count = PSGetLayerParametersCount(layer, PARAM_TYPE_BIAS),
+             weights_count = PSGetLayerParametersCount(layer,PARAM_TYPE_WEIGHT);
+    int i = layer->index, j;
+    if (!writeBinaryFileHeader(f, PS_BINARY_FTYPE_LAYER)) return 0;
+    int nwritten = fwrite(&layer->index, sizeof(layer->index), 1, f);
+    if (nwritten < 1) return 0;
+    nwritten = fwrite(&bias_count, sizeof(bias_count), 1, f);
+    if (nwritten < 1) return 0;
+    if (bias_count > 0) {
+        if (layer->biases == NULL) {
+            PSErr(func, "Layer[%d]: biases are NULL", i);
+            return 0;
+        }
+        if (!writeBinaryFloats(layer->biases, bias_count, f)) {
+            PSErrNN(func, NULL, layer, "could not write binary biases");
+            return 0;
+        }
+    }
+    int partial_trainable_parameters = (layer->type == Attention);
+    if (fputc((uint8_t) layer->weight_types_count, f) == EOF) return 0;
+    nwritten = fwrite(&weights_count, sizeof(weights_count), 1, f);
+    if (nwritten < 1) return 0;
+    if (layer->weight_types_count > 0) {
+        if (layer->weights == NULL) {
+            PSErr(func, "Layer[%d]: weights are NULL", i);
+            return 0;
+        }
+        for (j = 0; j < layer->weight_types_count; j++) {
+            PSMatrix weights = layer->weights[j];
+            int ok = (weights != NULL || partial_trainable_parameters);
+            if (!ok) {
+                PSErr(func, "Layer[%d]: weights[%d] are NULL", i, j);
+                return 0;
+            }
+            uint64_t len = 0;
+            if (weights == NULL) {
+                nwritten = fwrite(&len, sizeof(len), 1, f);
+                if (nwritten < 0) return 0;
+                continue;
+            }
+            len = PSMatrixLength(weights);
+            nwritten = fwrite(&len, sizeof(len), 1, f);
+            if (nwritten < 0) return 0;
+            if (!writeBinaryFloats(weights, len, f)) {
+                PSErrNN(func, NULL, layer, "could not write binary "
+                        "weights[%d]", j);
+                return 0;
+            }
+        }
+    }
+    return 1;
+}
+
+static int loadBinaryLayerParameters(PSLayer *layer, const char *filepath,
+                                     FILE *f, int check_index, int verbose)
+{
+    if (layer->type == Pooling || layer->type == Dropout) return 0;
+    int lidx = -1, wtype_count = 0, ok = 1,
+        i = layer->index;
+    uint64_t bias_count = 0, wcount = 0;
+    PSBinaryFileHeader hdr = {0};
+    ok = readBinaryFileHeader(f, &hdr);
+    if (!ok) {
+        loadErr(filepath, f, "file is not a valid psyc binary file");
+        return 0;
+    }
+    int iee_754_conformity = PS_IEC_559;
+    ok = (
+        (hdr.iee_754_conformity && iee_754_conformity) ||
+        (!hdr.iee_754_conformity && !iee_754_conformity)
+    );
+    if (!ok) {
+        loadErr(filepath, NULL, "float representation used in file does "
+                "not match with executable float representation");
+        return 0;
+    }
+    if (sizeof(PSFloat) != hdr.float_size) {
+        loadErr(filepath, NULL, "floats in file have different size from "
+                "psyc PSFloat size: %zu != %zu. Try to rebuild psyc with "
+                "proper float size (ie. `make DOUBLE_PRECISION=%s)",
+                (size_t)hdr.float_size, sizeof(PSFloat),
+                (sizeof(PSFloat) == sizeof(float) ? "on" : "off"));
+        return 0;
+    }
+    int do_swap = (
+        (hdr.big_endian && !PS_IS_BIG_ENDIAN) ||
+        (!hdr.big_endian && PS_IS_BIG_ENDIAN)
+    );
+    lidx = readUInt32(f, do_swap);
+    if (errno > 0) goto read_err;
+    ok = (!check_index || i == lidx);
+    if (!ok) {
+        loadErr(filepath, f, "Invalid layer index %u, expected: %llu",
+            lidx, i
+        );
+        return 0;
+    }
+    uint64_t expected_bias_count = PSGetLayerParametersCount(
+        layer, PARAM_TYPE_BIAS
+    );
+    uint64_t expected_weights_count = PSGetLayerParametersCount(
+        layer, PARAM_TYPE_WEIGHT
+    );
+    bias_count = readUInt64(f, do_swap);
+    if (errno > 0) goto read_err;
+    ok = (bias_count == expected_bias_count);
+    if (!ok) {
+        loadErr(filepath, f, "Layer[%u]: found %llu biases, expected: %llu",
+            i, bias_count, expected_bias_count
+        );
+        return 0;
+    }
+    if (layer->biases == NULL && bias_count > 0) {
+        loadErr(filepath, f, "Layer[%u]: found %llu biases, but "
+            "layer->biases is NULL",
+            i, bias_count
+        );
+        return 0;
+    }
+    if (bias_count > 0 && layer->biases != NULL)
+        ok = readBinaryFloats(layer->biases, bias_count, f);
+    if (!ok) {
+        loadErr(filepath, f, "could not load biases");
+        return 0;
+    }
+    wtype_count = fgetc(f);
+    if (wtype_count == EOF) goto read_err;
+    ok = (wtype_count == layer->weight_types_count);
+    if (!ok) {
+        loadErr(filepath, f, "Layer[%u]: found %d weight types, "
+            "expected: %d", i, wtype_count, layer->weight_types_count
+        );
+        return 0;
+    }
+    wcount = readUInt64(f, do_swap);
+    if (errno > 0) goto read_err;
+    ok = (wcount == expected_weights_count);
+    if (!ok) {
+        loadErr(filepath, f, "Layer[%d]: found %llu weights, "
+            "expected: %llu", i, wcount, expected_weights_count
+        );
+        return 0;
+    }
+    if (layer->weights == NULL && wtype_count > 0) {
+        loadErr(filepath, f, "Layer[%u]: found %llu weights, but "
+            "layer->weights is NULL",
+            i, wcount
+        );
+        ok = 0;
+        return 0;
+    }
+    int partial_trainable_parameters = (layer->type == Attention);
+    for (int j = 0; j < layer->weight_types_count; j++) {
+        PSMatrix weights = layer->weights[j];
+        uint64_t wlen = readUInt64(f, do_swap);
+        if (errno > 0) goto read_err;
+        ok = (weights != NULL);
+        if (!ok && partial_trainable_parameters) ok = wlen == 0;
+        if (!ok) {
+            loadErr(filepath, NULL, "Layer[%d]: weights[%d] is NULL", i, j);
+            return 0;
+        }
+        if (wlen == 0 && weights == NULL) continue;
+        ok = (wlen == PSMatrixLength(weights));
+        if (!ok) {
+            loadErr(filepath, NULL, "Layer[%u]: weights[%d] size expected to "
+                    "be %llu, but files states %llu", i, j,
+                    PSMatrixLength(weights), wlen);
+            return 0;
+        }
+        ok = readBinaryFloats(weights, wlen, f);
+        if (!ok) {
+            loadErr(filepath, f, "could not load weights[%d]", j);
+            return 0;
+        }
+    }
+    if (verbose) {
+        int llen = printf("\rLayer[%d]: Loaded", i);
+        PSFillWithBlank(llen - 1);
+        printf("\n");
+        PSPrintLayerInfo(layer);
+    }
+    return ok;
+read_err:
+    if (errno > 0)
+        loadErr(filepath, f, "failed to read file: %s", strerror(errno));
+    else loadErr(filepath, f, "failed to read file");
+    return 0;
 }
 
 /* Scan model file header (version >= 0.3) until new line (included). */
@@ -1746,11 +2248,19 @@ static int loadGradients(PSNeuralNetwork *network, const char *filepath,
 int PSLoadLayer(PSLayer *layer, const char *filepath) {
     if (layer == NULL) return 0;
     FILE *f = fopen(filepath, "r");
-    PSInfo("Loading layer from %s", filepath);
+    PSInfo("Loading layer %d from %s", layer->index, filepath);
     if (f == NULL) {
         PSErr(__func__, "Could not open '%s'", filepath);
         return 0;
     }
+    int first_byte = fgetc(f);
+    fseek(f, 0, SEEK_SET);
+    if (first_byte == EOF) {
+        PSErr(__func__, "read error");
+        return 0;
+    }
+    if (first_byte == 0xFF)
+        return loadBinaryLayerParameters(layer, filepath, f, 0, 0);
     int loaded = 0, lidx = 0;
     if (scanFile(f, "layer[%d]:", 1, NULL, &lidx)) {
         /* Ignore layer definition */
@@ -1770,17 +2280,27 @@ final:
     return loaded;
 }
 
-int PSSaveLayer(PSLayer *layer, const char *filepath, int save_definition) {
+int PSSaveLayer(PSLayer *layer, const char *filepath, int opts) {
     if (layer == NULL) return 0;
+    int save_definition = (opts & PS_IO_SAVE_DEFINITION),
+        binary = (opts & PS_IO_BINARY_MODE), saved = 1;
+    if (save_definition && binary) {
+        PSErr(__func__, "cannot save layer definition in binary mode");
+        return 0;
+    }
     FILE *f = fopen(filepath, "w");
     PSInfo("Saving layer %d to %s", layer->index, filepath);
     if (f == NULL) {
         PSErr(__func__, "Cannot open %s for writing!", filepath);
         return 0;
     }
-    int saved = 1;
     if (save_definition) saved = writeLayerDefinition(layer, f);
-    if (saved) saved = writeLayerParameters(layer, 0, f, __func__);
+    if (saved) {
+        int (*writeParams) (PSLayer *, int, FILE *, const char *) = NULL;
+        if (!binary) writeParams = writeLayerParameters;
+        else writeParams = writeBinaryLayerParameters;
+        saved = writeParams(layer, 0, f, __func__);
+    }
     fclose(f);
     return saved;
 }

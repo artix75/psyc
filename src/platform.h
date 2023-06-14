@@ -19,6 +19,7 @@
 #define __PLATFORM_H
 
 
+#include <stdint.h>
 #ifdef __APPLE__
 #include <AvailabilityMacros.h>
 #endif
@@ -40,6 +41,35 @@
     #define IS_UNIX 1
 #else
     #define IS_UNIX 0
+#endif
+
+/* PS_IEC_559 (IEE 754 conformity)
+ *   0: No
+ *   1: Yes
+ *   2: Maybe */
+#ifdef __GCC_IEC_559
+
+#if __GCC_IEC_559 > 0
+#define PS_IEC_559 1
+#else
+#define PS_IEC_559 0
+#endif
+
+#else
+
+#ifdef __STDC_IEC_559__
+#define PS_IEC_559 1
+#elif __DBL_DIG__ == 15 && __DBL_MANT_DIG__ == 53 && __DBL_MAX_10_EXP__ == 308\
+    && __DBL_MAX_EXP__ == 1024 && __DBL_MIN_10_EXP__ == -307 && \
+    __DBL_MIN_EXP__ == -1021
+#define PS_IEC_559 2
+#else
+#define PS_IEC_559 0
+#endif
+
+/* Endianness */
+#define PS_IS_BIG_ENDIAN (*(uint16_t *)"\0\xff" < 0x100)
+
 #endif
 
 #endif /* __PLATFORM_H  */
