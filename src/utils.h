@@ -27,6 +27,7 @@
 #define M_PI 3.141592653589793
 #endif
 
+#define PSFileExists(path) (access(path, F_OK) == 0)
 /* Get elapsed time in milliseconds */
 #define PSGetElapsedTimeMS(st, et) ((((et.tv_sec - st.tv_sec) * 1000000) \
 /* Get elapsed time in microseconds */
@@ -37,18 +38,25 @@
 #define OPT_TIME_FULL        (1 << 1)
 #define OPT_TIME_HUMAN       (1 << 2)
 
-/* Network Functions */
+/* Filesystem functions */
+int PSIsDirectory(const char *path);
+const char *PSGetHomeDirectory(void);
+int PSMakeDir(const char *path, int recursive);
+const char *PSWorkingDirectory(void);
+char *PSPathJoin(int count, ...);
+
+/* Networking functions. */
+int PSDownloadFile(const char *url, const char *dest_dir);
+
+/* Neural Network Functions */
 
 void PSAbortLayer(PSNeuralNetwork *network, PSLayer *layer);
 
 /* Misc */
 
 int PSGetTerminalColumns();
-
 void PSFillWithBlank(int line_length);
-
 PSFloat *PSCopyFloats(PSFloat *src, size_t size);
-
 char *PSGetElapsedTimeString(time_t elapsed_us, int long_format);
 
 #endif /* __PS_UTILS_H */

@@ -4,7 +4,7 @@ IS_CLANG := $(shell sh -c '$(CC) --version | grep clang > /dev/null && echo yes'
 OPTIMIZATION?=-O2
 OPT=$(OPTIMIZATION)
 CSTD=gnu99 -pedantic
-CFLAGS=-std=$(CSTD) -Wall -W -Wno-missing-field-initializers -Wno-unknown-pragmas -Wno-unused-label
+CFLAGS=-std=$(CSTD) -Wall -W -Wno-missing-field-initializers -Wno-unknown-pragmas -Wno-unused-label -Wno-unused-but-set-variable
 ifeq (yes, $(IS_CLANG))
         CFLAGS+=-Wno-string-compare
         CFLAGS+=-Wno-unused-command-line-argument
