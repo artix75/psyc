@@ -1,6 +1,28 @@
 SHELL=/bin/bash
 CC=gcc
+PLATFORM := $(shell sh -c 'uname -s 2>/dev/null || echo not_found')
+HARDWARE := $(shell sh -c 'uname -m 2>/dev/null || echo not_found')
+SRCPATH := $(strip $(dir $(lastword $(MAKEFILE_LIST))))
+PSYCPATH := $(SRCPATH)../
 IS_CLANG := $(shell sh -c '$(CC) --version | grep clang > /dev/null && echo yes')
+HAS_ZLIB := $(shell sh -c '$(CC) -o $(PSYCPATH)resources/testzlib $(PSYCPATH)resources/testzlib.c > /dev/null 2>&1 && echo yes')
+ifneq (yes, $(HAS_ZLIB))
+	HAS_APT := $(shell sh -c 'apt --version > /dev/null 2>&1 && echo yes')
+	HAS_YUM := $(shell sh -c 'yum --version > /dev/null 2>&1 && echo yes')
+	ERR := $(shell echo -e '\033[31mFATAL: Could not find zlib.h on your system\033[0m' >&2)
+ifeq (yes, $(HAS_APT))
+	TIP := $(shell echo -e '\033[33mTry to install it by typing:\nsudo apt install libz-dev\033[0m' >&2)
+else
+
+ifeq (yes, $(HAS_YUM))
+	TIP := $(shell echo -e '\033[33mTry to install it by typing:\nsudo yum install zlib-devel\033[0m' >&2)
+else
+	TIP := $(shell echo -e '\033[33mPlase, install zlib developer files.\nFor more info see: https://www.zlib.net\033[0m' >&2)
+endif
+
+endif
+        $(error 'aborting...')
+endif
 OPTIMIZATION?=-O2
 OPT=$(OPTIMIZATION)
 CSTD=gnu99 -pedantic
@@ -16,10 +38,6 @@ LIBDIR=$(PREFIX)/lib
 BINDIR=$(PREFIX)/bin
 INCLUDEDIR=$(PREFIX)/include
 SHAREDIR=$(PREFIX)/share/psyc
-PLATFORM := $(shell sh -c 'uname -s 2>/dev/null || echo not_found')
-HARDWARE := $(shell sh -c 'uname -m 2>/dev/null || echo not_found')
-SRCPATH := $(strip $(dir $(lastword $(MAKEFILE_LIST))))
-PSYCPATH := $(SRCPATH)../
 build_info_h := $(shell sh -c '$(SRCPATH)genbuildinfo.sh')
 WAND_CONFIG=Wand-config
 HAS_MAGICK=false

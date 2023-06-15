@@ -14,15 +14,15 @@ default: all
 .PHONY: show-build-conf
 
 demo:
-	@cd src/demo/ && $(MAKE)
+	@cd src/demo/ && $(MAKE) --no-print-directory
 neural_cli:
-	@cd src && $(MAKE)
+	@cd src && $(MAKE) --no-print-directory
 test:
-	cd src/test && $(MAKE)
+	cd src/test && $(MAKE) --no-print-directory
 benchmark:
-	cd src/test && $(MAKE) benchmark
+	cd src/test && $(MAKE) --no-print-directory benchmark
 profile:
-	cd src/debug && $(MAKE)
+	cd src/debug && $(MAKE) --no-print-directory
 clean:
 	if ! [ -e tmp/ ]; then mkdir tmp/; fi
 	if [ -e bin/README ]; then cp bin/README tmp/; fi
