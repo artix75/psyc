@@ -441,6 +441,7 @@ int PSMakeDir(const char *path, int recursive) {
         }
         return 1;
     }
+    errno = 0;
     int success = mkdir(path, 0777) == 0;
     if (!success) {
         if (recursive && errno == ENOENT) {

@@ -257,7 +257,6 @@ void printModelHeaderInfo(PSModelFileHeader *hdr) {
 }
 
 static void loadErr(const char *fname, FILE *f, const char *fmt, ...) {
-    PSLog(PSLOGLEVEL_ERROR, "ERROR: ");
     PSLog(PSLOGLEVEL_ERROR, "ERROR: while loading file '%s'", fname);
     if (f != NULL) {
         off_t offset = ftello(f), chars = 0, last_line_offset = 0;
@@ -525,6 +524,7 @@ static int writeBinaryFloats(PSFloat *floats, uint64_t len, FILE *f) {
     if (len == 0) return 1;
     int max_chunk_len = 4096 / sizeof(PSFloat);
     int nwritten = 0, totwritten = 0, remaining = len;
+    errno = 0;
     PSFloat *floats_p = floats;
     while ((uint64_t) totwritten < len) {
         int buflen = (remaining >= max_chunk_len ? max_chunk_len : remaining);
@@ -546,6 +546,7 @@ static int readBinaryFloats(PSFloat *floats, uint64_t len, FILE *f) {
     if (f == NULL || floats == NULL) return 0;
     int max_chunk_len = 4096 / sizeof(PSFloat);
     int nread = 0, totread = 0, remaining = len;
+    errno = 0;
     PSFloat *floats_p = floats;
     while ((uint64_t) totread < len) {
         int buflen = (remaining >= max_chunk_len ? max_chunk_len : remaining);
@@ -683,6 +684,7 @@ static int loadBinaryLayerParameters(PSLayer *layer, const char *filepath,
                                      FILE *f, int check_index, int verbose)
 {
     if (layer->type == Pooling || layer->type == Dropout) return 0;
+    errno = 0;
     int lidx = -1, wtype_count = 0, ok = 1,
         i = layer->index;
     uint64_t bias_count = 0, wcount = 0;
@@ -2254,14 +2256,16 @@ int PSLoadLayer(PSLayer *layer, const char *filepath) {
         return 0;
     }
     int first_byte = fgetc(f);
+    int loaded = 0, lidx = 0;
     fseek(f, 0, SEEK_SET);
     if (first_byte == EOF) {
         PSErr(__func__, "read error");
         return 0;
     }
-    if (first_byte == 0xFF)
-        return loadBinaryLayerParameters(layer, filepath, f, 0, 0);
-    int loaded = 0, lidx = 0;
+    if (first_byte == 0xFF) {
+        loaded = loadBinaryLayerParameters(layer, filepath, f, 0, 0);
+        goto final;
+    }
     if (scanFile(f, "layer[%d]:", 1, NULL, &lidx)) {
         /* Ignore layer definition */
         char c = fgetc(f);
