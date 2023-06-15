@@ -19,7 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "../psyc.h"
-#include "../mnist.h"
+#include "../dataset.h"
 
 #define INPUT_SIZE (28 * 28)
 #define EPOCHS 30

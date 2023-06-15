@@ -29,7 +29,7 @@
 
 #include "../psyc.h"
 #include "../convolutional.h"
-#include "../cifar.h"
+#include "../dataset.h"
 #include "../debug.h"
 
 #define EPOCHS 200

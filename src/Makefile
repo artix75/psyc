@@ -52,9 +52,7 @@ install: all
 	cp ../bin/psycl $(SHAREDIR)/bin/psycl
 	ln -s -f $(SHAREDIR)/bin/psycl $(BINDIR)/psycl
 	cp ../lib/$(LIBNAME) $(LIBDIR)/$(LIBNAME)
-	cp psyc.h $(INCLUDEDIR)/psyc/
-	cp mnist.h $(INCLUDEDIR)/psyc/
-	cp image_data.h $(INCLUDEDIR)/psyc/
+	cp *.h $(INCLUDEDIR)/psyc/
 	cp -r ../resources $(SHAREDIR)/resources
 	cp -r ../utils/*.rb $(SHAREDIR)/utils/
 	#cp ../bin/*_demo $(SHAREDIR)/bin/

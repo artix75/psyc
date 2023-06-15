@@ -41,14 +41,13 @@
 #include "../operator_layer.h"
 #include "../attention.h"
 #include "../positional_encoding.h"
-#include "../mnist.h"
+#include "../dataset.h"
 #include "../maths.h"
 #include "../activation.h"
 #include "../optimization.h"
 #include "../utils.h"
 #include "../debug.h"
 #include "../log.h"
-#include "../cifar.h"
 #ifdef USE_AVX
 #include "../avx.h"
 #endif

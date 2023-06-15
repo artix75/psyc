@@ -26,7 +26,7 @@
 #include "../recurrent.h"
 #include "../utils.h"
 #include "../lstm.h"
-#include "../mnist.h"
+#include "../dataset.h"
 
 #define RED     "\x1b[31m"
 #define GREEN   "\x1b[32m"

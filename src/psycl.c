@@ -35,8 +35,7 @@
 #include "operator_layer.h"
 #include "optimization.h"
 #include "activation.h"
-#include "mnist.h"
-#include "cifar.h"
+#include "dataset.h"
 #include "log.h"
 #include "debug.h"
 

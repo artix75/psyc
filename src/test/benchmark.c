@@ -33,12 +33,11 @@
 #include "../lstm.h"
 #include "../gru.h"
 #include "../normalization.h"
-#include "../mnist.h"
+#include "../dataset.h"
 #include "../maths.h"
 #include "../activation.h"
 #include "../optimization.h"
 #include "../utils.h"
-#include "../cifar.h"
 #include "../debug.h"
 #include "../log.h"
 #ifdef USE_AVX

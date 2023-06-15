@@ -19,7 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "../psyc.h"
-#include "../mnist.h"
+#include "../dataset.h"
 #include "../debug.h"
 
 #define EPOCHS 30
