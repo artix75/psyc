@@ -67,9 +67,9 @@
 #define PS_IEC_559 0
 #endif
 
+#endif
+
 /* Endianness */
 #define PS_IS_BIG_ENDIAN (*(uint16_t *)"\0\xff" < 0x100)
-
-#endif
 
 #endif /* __PLATFORM_H  */
