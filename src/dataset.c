@@ -150,7 +150,8 @@ PSFloat *PSLoadDataFromString(char *str, PSTextParserOptions *opts,
     int last_idx = len - 1;
     if (opts == NULL) opts = &default_opts;
     int do_normalize = !(opts->flags & PS_PARSER_FLAG_NO_NORMALIZATION),
-        read_only = (opts->flags & PS_PARSER_FLAG_READONLY_VOCAB);
+        read_only = (opts->flags & PS_PARSER_FLAG_READONLY_VOCAB),
+        char_mode = (opts->mode == PS_PARSER_MODE_CHARS);
     PSTokenNormalizer normalize = NULL;
     if (do_normalize) {
         normalize = opts->normalizer;
@@ -167,7 +168,8 @@ PSFloat *PSLoadDataFromString(char *str, PSTextParserOptions *opts,
     int64_t max_vocab_size = opts->max_vocabulary_size;
     if (max_vocab_size <= 0) max_vocab_size = PS_DEFAULT_MAX_VOCAB_SIZE;
     const char *separator = opts->separator;
-    if (separator == NULL) separator = PS_DEFAULT_TOKEN_SEPARATOR;
+    if (separator == NULL && !char_mode)
+        separator = PS_DEFAULT_TOKEN_SEPARATOR;
     int64_t capacity = 0, count = 0;
     vocab = *vocabulary;
     if (vocab != NULL) capacity = vocab->capacity;
@@ -189,10 +191,19 @@ PSFloat *PSLoadDataFromString(char *str, PSTextParserOptions *opts,
     }
     int64_t current_capacity = capacity;
     char *token = str, *p = str, *sep_p = NULL;
-    while ((p - str) < (long) last_idx) {
+    char ctoken[2] = {0};
+    while ((p - str) <= (long) last_idx) {
+        size_t wlen = 0;
+        if (*p == 0) break;
+        if (char_mode) {
+            ctoken[0] = *p++;
+            token = ctoken;
+            if (separator && strchr(separator, ctoken[0])) continue;
+            wlen = 1;
+            goto add_to_vocab;
+        }
         token = p;
         sep_p = strpbrk(p, separator);
-        size_t wlen = 0;
         if (sep_p != NULL) {
             wlen = sep_p - p;
             *sep_p = '\0';
@@ -201,6 +212,7 @@ PSFloat *PSLoadDataFromString(char *str, PSTextParserOptions *opts,
             wlen = p - str;
             p += (wlen + 1);
         }
+add_to_vocab:
         if (wlen == 0) continue;
         if (do_normalize) normalize(token, wlen);
         int64_t id = -1;
