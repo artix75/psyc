@@ -28,18 +28,31 @@
 #endif
 
 /* Text processing */
+#define PS_DEFAULT_TOKEN_SEPARATOR  " ,.:!?-'\"\n\t\r"
+
 #define PS_INVALID_TOKEN_ID -1
 #define PS_TOKEN_NOT_FOUND  -2
 
+#define PS_PARSER_MODE_TOKENS  0
+#define PS_PARSER_MODE_CHARS   1
+
+#define PS_PARSER_FLAG_NO_NORMALIZATION (1 << 0)
+#define PS_PARSER_FLAG_PRESERVE_STRING  (1 << 1)
+#define PS_PARSER_FLAG_READONLY_VOCAB   (1 << 2)
+
+typedef void (*PSTokenNormalizer) (char *token, int len);
+
 typedef struct {
     int mode;
-    int64_t max_vocabulary_size;
+    int flags;
+    int64_t max_vocabulary_size; /* Except <unknown> token */
     int64_t sequence_length;
     const char *separator;
     /*const char *keep;*/
     const char *unkown_token;
     int capacity;
     int buffer_size;
+    PSTokenNormalizer normalizer;
 } PSTextParserOptions;
 
 typedef struct {
@@ -57,6 +70,9 @@ const char *PSVocabularyErrorString(int err);
 void PSVocabularyRelease(PSVocabulary *vocabulary);
 
 void PSNormalizeToken(char *token, int len);
+PSFloat *PSLoadDataFromString(char *str, PSTextParserOptions *opts,
+                              PSFloat *existing_data, int64_t *datalen,
+                              PSVocabulary **vocabulary);
 PSFloat *PSLoadDataFromTextFile(const char *filepath,
                                 PSTextParserOptions *opts,
                                 int64_t *datalen,

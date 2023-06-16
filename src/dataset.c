@@ -31,12 +31,9 @@
 #include "utils.h"
 #include "log.h"
 
-#define PS_DEFAULT_TOKEN_SEPARATOR  " ,.:!?-'\"\n\t\r"
 #define PS_DEFAULT_PARSER_CAPACITY  50
 #define PS_DEFAULT_MAX_VOCAB_SIZE   15000
 #define PS_DEFAULT_UNKOWN_TOKEN     "<unknown>"
-#define PS_PARSER_MODE_TOKENS  0
-#define PS_PARSER_MODE_CHARS   1
 
 #define PS_PARSER_BUFFER_SIZE 4096
 
@@ -66,6 +63,10 @@ int64_t PSVocabularyAdd(PSVocabulary *vocabulary, char *token) {
     if (token == NULL) return PS_INVALID_TOKEN_ID;
     int64_t id = vocabulary->token_map->length, size;
     PSDict *token_map = vocabulary->token_map;
+    /* Set id as value for token into token_map dictionary. Since token_map
+     * has flag PSDICT_UPDATE_DISABLED enabled, value won't be updated if it
+     * already exists for token, so, in this case, existing value will be
+     * returned. */
     PSDictItem *item = PSDictSet(token_map, token, PSDictFromInt(id));
     if (item == NULL) return PS_INVALID_TOKEN_ID;
     id = item->value.as_int;
@@ -120,6 +121,137 @@ void PSNormalizeToken(char *token, int len) {
     for (int i = 0; i < len; i++) token[i] = tolower(token[i]);
 }
 
+PSFloat *PSLoadDataFromString(char *str, PSTextParserOptions *opts,
+                              PSFloat *existing_data, int64_t *datalen,
+                              PSVocabulary **vocabulary)
+{
+    static PSTextParserOptions default_opts = {0};
+    char *tmpstr = NULL;
+    int new_vocab = 0;
+    PSVocabulary *vocab = NULL;
+    PSFloat *data = NULL;
+    if (datalen == NULL) {
+        PSErr(__func__, "Missing mandatory argument `datalen`");
+        goto fail;
+    }
+    if (vocabulary == NULL) {
+        PSErr(__func__, "Missing mandatory argument `vocabulary`");
+        goto fail;
+    }
+    if (str == NULL) {
+        if (existing_data == NULL) *datalen = 0;
+        return NULL;
+    }
+    int len = strlen(str);
+    if (len == 0) {
+        if (existing_data == NULL) *datalen = 0;
+        return NULL;
+    }
+    int last_idx = len - 1;
+    if (opts == NULL) opts = &default_opts;
+    int do_normalize = !(opts->flags & PS_PARSER_FLAG_NO_NORMALIZATION),
+        read_only = (opts->flags & PS_PARSER_FLAG_READONLY_VOCAB);
+    PSTokenNormalizer normalize = NULL;
+    if (do_normalize) {
+        normalize = opts->normalizer;
+        if (normalize == NULL) normalize = PSNormalizeToken;
+    }
+    if (opts->flags & PS_PARSER_FLAG_PRESERVE_STRING) {
+        tmpstr = strdup(str);
+        if (tmpstr == NULL) {
+            PSPrintMemoryErrorMsg();
+            goto fail;
+        }
+        str = tmpstr;
+    }
+    int64_t max_vocab_size = opts->max_vocabulary_size;
+    if (max_vocab_size <= 0) max_vocab_size = PS_DEFAULT_MAX_VOCAB_SIZE;
+    const char *separator = opts->separator;
+    if (separator == NULL) separator = PS_DEFAULT_TOKEN_SEPARATOR;
+    int64_t capacity = 0, count = 0;
+    vocab = *vocabulary;
+    if (vocab != NULL) capacity = vocab->capacity;
+    else {
+        new_vocab = 1;
+        capacity = opts->capacity;
+        if (capacity <= 0) capacity = PS_DEFAULT_PARSER_CAPACITY;
+        vocab = PSVocabularyCreate(capacity);
+        if (vocab == NULL) goto fail;
+        *vocabulary = vocab;
+    }
+    if (existing_data == NULL) {
+        data = malloc(capacity * sizeof(PSFloat));
+        if (data == NULL) goto memerr;
+        count = 0;
+    } else {
+        data = existing_data;
+        count = *datalen;
+    }
+    int64_t current_capacity = capacity;
+    char *token = str, *p = str, *sep_p = NULL;
+    while ((p - str) < (long) last_idx) {
+        token = p;
+        sep_p = strpbrk(p, separator);
+        size_t wlen = 0;
+        if (sep_p != NULL) {
+            wlen = sep_p - p;
+            *sep_p = '\0';
+            p = sep_p + 1;
+        } else {
+            wlen = p - str;
+            p += (wlen + 1);
+        }
+        if (wlen == 0) continue;
+        if (do_normalize) normalize(token, wlen);
+        int64_t id = -1;
+        if (read_only || (vocab->size >= max_vocab_size)) {
+            id = PSVocabularyGetTokenID(vocab, token);
+            if (id == PS_TOKEN_NOT_FOUND) {
+                /* Vocabulary is already full or read-only and token was not
+                   found, so set it to unknown. */
+                token = (char *) opts->unkown_token;
+                if (token == NULL) token = PS_DEFAULT_UNKOWN_TOKEN;
+                /* Set or get <unknown> token. */
+                if (!read_only) id = PSVocabularyAdd(vocab, token);
+                else id = PSVocabularyGetTokenID(vocab, token);
+            }
+        } else id = PSVocabularyAdd(vocab, token);
+        if (id < 0) {
+            if (read_only) {
+                PSErr(__func__, "Failed to add vocabulary: %s",
+                      PSVocabularyErrorString(id));
+            } else {
+                PSErr(__func__, "Token not found: %s",
+                      PSVocabularyErrorString(id));
+            }
+            goto fail;
+        }
+        PSFloat token_id = (PSFloat) id;
+        if (++count >= current_capacity) {
+            current_capacity += capacity;
+            PSFloat *new_data = realloc(
+                data, current_capacity * sizeof(PSFloat)
+            );
+            if (new_data == NULL) goto memerr;
+            data = new_data;
+        }
+        data[count - 1] = token_id;
+    }
+    *datalen = count;
+    return data;
+memerr:
+    PSPrintMemoryErrorMsg();
+fail:
+    if (datalen != NULL) *datalen = 0;
+    if (data != NULL) free(data);
+    if (new_vocab) {
+        if (vocabulary != NULL) *vocabulary = NULL;
+        if (vocab != NULL) PSVocabularyRelease(vocab);
+    }
+    free(tmpstr);
+    return NULL;
+}
+
 PSFloat *PSLoadDataFromTextFile(const char *filepath,
                                 PSTextParserOptions *opts,
                                 int64_t *datalen,
@@ -130,7 +262,7 @@ PSFloat *PSLoadDataFromTextFile(const char *filepath,
     PSVocabulary *vocab = NULL;
     PSFloat *data = NULL;
     if (opts == NULL) opts = &default_opts;
-    int buffer_size = opts->buffer_size;
+    int buffer_size = opts->buffer_size, new_vocab = 0;
     if (buffer_size <= 0) buffer_size = PS_PARSER_BUFFER_SIZE;
     char buf[buffer_size];
     buf[0] = '\0';
@@ -146,25 +278,29 @@ PSFloat *PSLoadDataFromTextFile(const char *filepath,
         PSErr(__func__, "Missing mandatory argument `vocabulary`");
         goto fail;
     }
+    vocab = *vocabulary;
     const char *separator = opts->separator;
     if (separator == NULL) separator = PS_DEFAULT_TOKEN_SEPARATOR;
-    int64_t max_vocab_size = opts->max_vocabulary_size;
-    if (max_vocab_size <= 0) max_vocab_size = PS_DEFAULT_MAX_VOCAB_SIZE;
-    int capacity = opts->capacity;
-    if (capacity <= 0) capacity = PS_DEFAULT_PARSER_CAPACITY;
-    int current_capacity = capacity;
-    vocab = PSVocabularyCreate(capacity);
-    if (vocab == NULL) goto fail;
-    *vocabulary = vocab;
-    data = malloc(capacity * sizeof(PSFloat));
-    if (data == NULL) goto memerr;
+    int64_t capacity = 0;
+    if (vocab != NULL) capacity = vocab->capacity;
+    else {
+        new_vocab = 1;
+        capacity = opts->capacity;
+        if (capacity <= 0) capacity = PS_DEFAULT_PARSER_CAPACITY;
+        vocab = PSVocabularyCreate(capacity);
+        if (vocab == NULL) goto fail;
+        *vocabulary = vocab;
+    }
     file = fopen(filepath, "r");
     if (file == NULL) {
         PSErr(__func__, "Could not open file '%s'", filepath);
         goto fail;
     }
+    data = malloc(capacity * sizeof(PSFloat));
+    if (data == NULL) goto memerr;
     size_t nread = 0, buflen = sizeof(buf) - 1;
-    int err = 0, count = 0;
+    *datalen = 0;
+    int err = 0;
     while ((nread = fread(buf, 1, buflen, file))) {
         err = ferror(file);
         if (err != 0 || nread <= 0) break;
@@ -182,52 +318,18 @@ PSFloat *PSLoadDataFromTextFile(const char *filepath,
                 }
             }
             if (idx < last_idx) {
+                /* Truncate buffer to index of last separator found and
+                 * reset file stream offset to first byte after truncation. */
                 buf[idx] = '\0';
                 int truncated_len = (int) (last_idx - idx);
                 fseek(file, -truncated_len, SEEK_CUR);
                 last_idx = idx;
             }
         }
-        char *token = buf, *p = buf, *sep_p = NULL;
-        while ((p - buf) < (long) last_idx) {
-            token = p;
-            sep_p = strpbrk(p, separator);
-            size_t wlen = 0;
-            if (sep_p != NULL) {
-                wlen = sep_p - p;
-                *sep_p = '\0';
-                p = sep_p + 1;
-            } else {
-                wlen = p - buf;
-                p += (wlen + 1);
-            }
-            if (wlen == 0) continue;
-            PSNormalizeToken(token, wlen);
-            int64_t id = -1;
-            if (vocab->size >= max_vocab_size) {
-                id = PSVocabularyGetTokenID(vocab, token);
-                if (id == PS_TOKEN_NOT_FOUND) {
-                    token = (char *) opts->unkown_token;
-                    if (token == NULL) token = PS_DEFAULT_UNKOWN_TOKEN;
-                    id = PSVocabularyAdd(vocab, token);
-                }
-            } else id = PSVocabularyAdd(vocab, token);
-            if (id < 0) {
-                PSErr(__func__, "Failed to add vocabulary: %s",
-                      PSVocabularyErrorString(id));
-                goto fail;
-            }
-            PSFloat token_id = (PSFloat) id;
-            if (++count >= current_capacity) {
-                current_capacity += capacity;
-                PSFloat *new_data = realloc(
-                    data, current_capacity * sizeof(PSFloat)
-                );
-                if (new_data == NULL) goto memerr;
-                data = new_data;
-            }
-            data[count - 1] = token_id;
-        }
+        data = PSLoadDataFromString(
+            buf, opts, data, datalen, &vocab
+        );
+        if (data == NULL) goto fail;
     }
     if (err != 0) {
         PSErr(__func__, "Error while reading file '%s' (%d): '%s'",
@@ -241,10 +343,12 @@ memerr:
     PSPrintMemoryErrorMsg();
 fail:
     if (datalen != NULL) *datalen = 0;
-    if (vocabulary != NULL) *vocabulary = NULL;
     if (file != NULL) fclose(file);
     if (data != NULL) free(data);
-    if (vocab != NULL) PSVocabularyRelease(vocab);
+    if (new_vocab) {
+        if (vocabulary != NULL) *vocabulary = NULL;
+        if (vocab != NULL) PSVocabularyRelease(vocab);
+    }
     return NULL;
 }
 

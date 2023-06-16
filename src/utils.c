@@ -145,7 +145,7 @@ int PSDictHasKey(PSDict *dict, const char *key) {
 }
 
 /* Set value `val` for key `key` in dictionary `dict`. Unless flag
- * `PSDICT_UPDATE_DISABLED` is enabled in dictionary falgs, value will be
+ * `PSDICT_UPDATE_DISABLED` is enabled in dictionary flags, value will be
  * set even If `key` is already associated to another value.
  * Return value: the item (`PSDictItem`) associated to the `key` or NULL. */
 PSDictItem *PSDictSet(PSDict *dict, const char *key, PSDictValue val) {
