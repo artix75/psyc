@@ -135,7 +135,8 @@ typedef int      (*PSPretrainLayerFunction) (struct PSLayer *,
 typedef uint64_t (*PSGetParamCountFunction) (struct PSLayer *layer, int type);
 typedef int      (*PSInitStatesFunc) (struct PSLayer *layer, uint32_t steps,
                                       int retain_previous);
-typedef int      (*PSResizeStatesFunc) (struct PSLayer *layer, uint32_t steps);
+typedef int      (*PSResizeStatesFunc) (struct PSLayer *layer, uint32_t steps,
+                                        uint32_t previous_steps);
 typedef PSFloat  (*PSLossFunction) (PSFloat* x, PSFloat* y, int size,
                                     int onehot_size);
 typedef void     (*PSTrainCallback) (struct PSNeuralNetwork *network,

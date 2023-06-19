@@ -87,7 +87,7 @@ int PSInitDropoutMask(PSLayer *layer, uint32_t seqlen, int retain_previous) {
     return 1;
 }
 
-int PSResizeDropoutMask(PSLayer *layer, uint32_t seqlen) {
+int PSResizeDropoutMask(PSLayer *layer, uint32_t seqlen, uint32_t prevlen) {
     if (layer == NULL) return 0;
     PSDropoutData *data = PSGetDropoutData(layer);
     if (data == NULL) {
@@ -103,10 +103,9 @@ int PSResizeDropoutMask(PSLayer *layer, uint32_t seqlen) {
         PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
         return 0;
     }
-    int cur_seqlen = PSStateSequenceLength(layer);
-    int diff = seqlen - cur_seqlen;
+    int diff = seqlen - prevlen;
     if (diff > 0) {
-        PSFloat *new_segment = dropout_mask + (cur_seqlen * layer->size);
+        PSFloat *new_segment = dropout_mask + (prevlen * layer->size);
         memset(new_segment, 0, (size_t) diff * layer->size * sizeof(PSFloat));
     }
     data->dropout_mask = dropout_mask;
@@ -122,7 +121,7 @@ PSFloat *PSGetDropoutMask(PSLayer *layer, int t) {
         if (t < 0) return NULL;
         int cur_seqlen = PSStateSequenceLength(layer);
         if (t >= cur_seqlen) {
-            if (!PSResizeDropoutMask(layer, t + 1)) return NULL;
+            if (!PSResizeDropoutMask(layer, t + 1, cur_seqlen)) return NULL;
             mask = data->dropout_mask;
             if (mask == NULL) return NULL;
         } else if (mask == NULL) {

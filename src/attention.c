@@ -524,7 +524,8 @@ int PSInitAttentionStates(PSLayer *layer, uint32_t steps, int retain_previous) {
     return 1;
 }
 
-int PSResizeAttentionStates(PSLayer *layer, uint32_t steps) {
+int PSResizeAttentionStates(PSLayer *layer, uint32_t steps, uint32_t prevlen) {
+    UNUSED(prevlen);
     if (layer == NULL) return 0;
     PSAttentionData *data = PSGetAttentionData(layer);
     if (data == NULL) {

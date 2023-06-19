@@ -163,7 +163,8 @@ int PSInitGRUStates(PSLayer *layer, uint32_t steps, int retain_previous) {
     return 1;
 }
 
-int PSResizeGRUStates(PSLayer *layer, uint32_t steps) {
+int PSResizeGRUStates(PSLayer *layer, uint32_t steps, uint32_t prev_steps) {
+    UNUSED(prev_steps);
     PSGRUCell *cell = PSGetGRUCell(layer);
     if (cell == NULL) {
         PSErr(__func__, "Layer[%d]: missing GRU cell");

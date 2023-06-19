@@ -33,6 +33,7 @@ typedef struct {
     PSFloat mean;
     PSFloat variance;
     PSFloat stddev;
+    uint32_t seqlen;
 } PSNormalizationLayerCache;
 
 /* Forward declarations */
@@ -55,11 +56,15 @@ static void deleteNormalizationCache(PSNormalizationLayerCache *cache,
 {
     if (cache == NULL) return;
     if (seqlen <= 0) seqlen = 1;
+    int checked_seqlen = 0;
     for (uint32_t i = 0; i < seqlen; i++) {
         PSNormalizationLayerCache *cache_t = cache + i;
-        if (cache_t == NULL) continue;
-        cache_t->normalized_values = NULL;
+        if (!checked_seqlen && cache_t->seqlen) {
+            seqlen = cache_t->seqlen;
+            checked_seqlen = 1;
+        }
         free(cache_t->normalized_values);
+        cache_t->normalized_values = NULL;
     }
     free(cache);
 }
@@ -144,6 +149,7 @@ PSNormalizationLayerCache *createNormalizationCache(PSLayer *layer,
     }
     for (uint32_t i = 0; i < seqlen; i++) {
         PSNormalizationLayerCache *cache_t = cache + i;
+        cache_t->seqlen = seqlen;
         cache_t->normalized_values = calloc(layer->size, sizeof(PSFloat));
         if (cache_t->normalized_values == NULL) {
             PSPrintMemoryErrorMsg();
@@ -163,8 +169,8 @@ int PSInitNormalizationCache(PSLayer *layer, uint32_t seqlen,
     if (seqlen > 0) {
         if (cache != NULL) deleteNormalizationLayerCache(layer);
         cache = createNormalizationCache(layer, seqlen);
-        if (cache == NULL) return 0;
         layer->private = cache;
+        if (cache == NULL) return 0;
     } else if (layer->private != NULL) {
         deleteNormalizationLayerCache(layer);
         layer->private = NULL;
@@ -172,14 +178,14 @@ int PSInitNormalizationCache(PSLayer *layer, uint32_t seqlen,
     return 1;
 }
 
-int PSResizeNormalizationCache(PSLayer *layer, uint32_t seqlen) {
+int PSResizeNormalizationCache(PSLayer *layer, uint32_t seqlen, uint32_t prev) {
     if (layer == NULL) return 0;
     PSNormalizationLayerCache *cache = GetNormalizationCache(layer);
     if (cache == NULL) return PSInitNormalizationCache(layer, seqlen, 0);
     size_t size = (size_t) seqlen * sizeof(PSNormalizationLayerCache);
     PSNormalizationLayerCache *new_cache = realloc(cache, size);
     if (new_cache == NULL) goto memerr;
-    int cur_seqlen = PSStateSequenceLength(layer);
+    int cur_seqlen = prev;
     int diff = seqlen - cur_seqlen;
     if (diff > 0) {
         PSNormalizationLayerCache *added_caches = new_cache + cur_seqlen;
@@ -190,6 +196,7 @@ int PSResizeNormalizationCache(PSLayer *layer, uint32_t seqlen) {
             if (added->normalized_values == NULL) goto memerr;
         }
     }
+    deleteNormalizationCache(cache, cur_seqlen);
     layer->private = new_cache;
     return 1;
 memerr:

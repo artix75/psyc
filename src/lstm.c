@@ -200,7 +200,8 @@ int PSInitLSTMStates(PSLayer *layer, uint32_t steps, int retain_previous) {
     return 1;
 }
 
-int PSResizeLSTMStates(PSLayer *layer, uint32_t steps) {
+int PSResizeLSTMStates(PSLayer *layer, uint32_t steps, uint32_t prev_steps) {
+    UNUSED(prev_steps);
     PSLSTMCell *cell = PSGetLSTMCell(layer);
     if (cell == NULL) {
         PSErr(__func__, "Layer[%d]: missing LSTM cell");

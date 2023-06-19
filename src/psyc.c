@@ -1493,7 +1493,7 @@ int PSResizeLayerStates(PSLayer *layer, uint32_t seqlen) {
     }
     layer->states = hstates;
     if (layer->on_states_resize != NULL)
-        if (!layer->on_states_resize(layer, seqlen)) return 0;
+        if (!layer->on_states_resize(layer, seqlen, cur_seqlen)) return 0;
     return 1;
 }
 
