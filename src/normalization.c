@@ -58,6 +58,7 @@ static void deleteNormalizationCache(PSNormalizationLayerCache *cache,
     for (uint32_t i = 0; i < seqlen; i++) {
         PSNormalizationLayerCache *cache_t = cache + i;
         if (cache_t == NULL) continue;
+        cache_t->normalized_values = NULL;
         free(cache_t->normalized_values);
     }
     free(cache);
@@ -144,7 +145,7 @@ PSNormalizationLayerCache *createNormalizationCache(PSLayer *layer,
     for (uint32_t i = 0; i < seqlen; i++) {
         PSNormalizationLayerCache *cache_t = cache + i;
         cache_t->normalized_values = calloc(layer->size, sizeof(PSFloat));
-        if (cache_t == NULL) {
+        if (cache_t->normalized_values == NULL) {
             PSPrintMemoryErrorMsg();
             deleteNormalizationCache(cache, i);
             return NULL;
