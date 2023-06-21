@@ -1158,7 +1158,32 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
 #endif
     int shape_a = getShapeType(ndims_a, mdims_a);
     int shape_b = getShapeType(ndims_b, mdims_b);
-    /* TODO: handle scalar shape */
+    PSMatrix orig_a = a, orig_b = b;
+    int use_scalar = (
+        shape_a == PS_SHAPE_TYPE_SCALAR || shape_b == PS_SHAPE_TYPE_SCALAR
+    ), reverse_args = 0;
+    if (use_scalar) {
+        /* One of `a` or `b` is a scalar-line matrix. */
+        if (shape_a == PS_SHAPE_TYPE_SCALAR) {
+            reverse_args = 1;
+            PSMatrix tmp_a = a;
+            int tmp_nda = ndims_b;
+            int tmp_shape_a[MAX_DIMENSIONS] = {0};
+            a = b;
+            b = tmp_a;
+            shape_a = shape_b;
+            shape_b = PS_SHAPE_TYPE_SCALAR;
+            ndims_a = ndims_b;
+            ndims_b = tmp_nda;
+            if (transpose == 2) transpose = 1;
+            else if (transpose == 1) transpose = 2;
+            memcpy(tmp_shape_a, mdims_a, MAX_DIMENSIONS * sizeof(int));
+            memcpy(mdims_a, mdims_b, MAX_DIMENSIONS * sizeof(int));
+            memcpy(mdims_b, tmp_shape_a, MAX_DIMENSIONS * sizeof(int));
+            last_dim_a = ndims_a - 1;
+            last_dim_b = ndims_b - 1;
+        }
+    }
     int a_vector_like = (
         shape_a == PS_SHAPE_TYPE_COL || shape_a == PS_SHAPE_TYPE_ROW
     );
@@ -1195,26 +1220,38 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
             }
         }
     }
-    l = dims_a[last_dim_a];
-    if (dims_b[0] != l) {
-        PSErr(
-            __func__, "Aligment error: `b` dim[0] != `a` dim[%d] -> %d != %d\n"
-            "Matrix a shape: %d,%d %s\n"
-            "Matrix b shape: %d,%d %s",
-            last_dim_a, dims_b[0], l,
-            dims_a[0], dims_a[last_dim_a], (transpose_a ? "(transp.)" : ""),
-            dims_b[0], dims_b[last_dim_b], (transpose_b ? "(transp.)" : "")
-        );
-        return 0;
-    }
-    int nd = ndims_a + ndims_b - 2;
-    if (nd == 1) dimensions[0] = (ndims_a == 2 ? dims_a[0] : dims_b[1]);
-    else if (nd == 2) {
-        dimensions[0] = dims_a[0];
-        dimensions[1] = dims_b[last_dim_b];
+    int nd = 0;
+    if (!use_scalar) {
+        l = dims_a[last_dim_a];
+        if (dims_b[0] != l) goto align_err;
+        nd = ndims_a + ndims_b - 2;
+        if (nd == 1) dimensions[0] = (ndims_a == 2 ? dims_a[0] : dims_b[1]);
+        else if (nd == 2) {
+            dimensions[0] = dims_a[0];
+            dimensions[1] = dims_b[last_dim_b];
+        } else {
+            PSErr(__func__, "Invalid output dimensions: %d", nd);
+            return 0;
+        }
     } else {
-        PSErr(__func__, "Invalid output dimensions: %d", nd);
-        return 0;
+        int odims_a[MAX_DIMENSIONS] = {0};
+        int odims_b[MAX_DIMENSIONS] = {0};
+        int o_ndims_a = PSMatrixDimensions(orig_a, odims_a),
+            o_ndims_b = PSMatrixDimensions(orig_b, odims_b);
+        UNUSED(o_ndims_b);
+        l = odims_a[o_ndims_a - 1];
+        if (odims_b[0] != l) goto align_err;
+        nd = ndims_a + ndims_b - 2;
+        if (nd == 1) {
+            dimensions[0] = (o_ndims_a == 2 ? odims_a[0] : odims_b[1]);
+            l = dimensions[0];
+        } else if (nd == 2) {
+            dimensions[0] = odims_a[0];
+            dimensions[1] = odims_b[1];
+            if (shape_a == PS_SHAPE_TYPE_ROW) l = dimensions[1];
+            else l = dimensions[0];
+        }
+        if (odims_a[o_ndims_a - 1] == 0) l = 0;
     }
     int outlen = 0;
     PSMatrix out = *result;
@@ -1250,7 +1287,33 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
         for (int i = 0; i < nd; i++) outlen *= dimensions[i];
     }
     PSBLASOrder order;
-    if (!a_vector_like && b_vector_like) {
+    if (shape_b == PS_SHAPE_TYPE_SCALAR) {
+        if (l == 1) {
+            *out = *b * *a;
+            return 1;
+        } else {
+            int a_stride;
+            if (shape_a == PS_SHAPE_TYPE_ROW) a_stride = PSMatrixStride(a, 1);
+            else a_stride = PSMatrixStride(a, 0);
+            if (shape_a != PS_SHAPE_TYPE_MATRIX)
+                PSAxpy(l, *((PSFloat *) b), a, a_stride, out, 1);
+            else {
+                int max_dim_idx = (dims_a[0] >= dims_a[1] ? 0 : 1);
+                int o_dim_idx = 1 - max_dim_idx;
+                l = dims_a[max_dim_idx];
+                PSFloat val = *((PSFloat *) b);
+                a_stride = PSMatrixStride(a, max_dim_idx);
+                int o_stride = PSMatrixStride(out, max_dim_idx);
+                int o_dim = dims_a[o_dim_idx];
+                PSFloat *aptr = a, *optr = out;
+                for (i = 0; i < o_dim; i++) {
+                    PSAxpy(l, val, aptr, a_stride, optr, o_stride);
+                    aptr += PSMatrixStride(a, o_dim_idx);
+                    optr += PSMatrixStride(out, o_dim_idx);
+                }
+            }
+        }
+    } else if (!a_vector_like && b_vector_like) {
         /* Matrix vector multiplication -- Level 2 BLAS */
         /* Always use original dimensions here, even if `a` in transposed */
         dims_a = mdims_a;
@@ -1414,6 +1477,28 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
     }
     if (PSBLASLastError != NULL) return 0;
     return 1;
+align_err:
+    if (reverse_args) {
+        /* `a` and `b` were reversed */
+        int tmp_shape[MAX_DIMENSIONS] = {0};
+        memcpy(tmp_shape, dims_a, MAX_DIMENSIONS * sizeof(int));
+        memcpy(dims_a, dims_b, MAX_DIMENSIONS * sizeof(int));
+        memcpy(dims_b, dims_a, MAX_DIMENSIONS * sizeof(int));
+        int tr_a = transpose_a, last_d_a = last_dim_a;
+        transpose_a = transpose_b;
+        transpose_b = tr_a;
+        last_dim_a = last_dim_b;
+        last_dim_b = last_d_a;
+    }
+    PSErr(
+        __func__, "Aligment error: `b` dim[0] != `a` dim[%d] -> %d != %d\n"
+        "Matrix a shape: %d,%d %s\n"
+        "Matrix b shape: %d,%d %s",
+        last_dim_a, dims_b[0], l,
+        dims_a[0], dims_a[last_dim_a], (transpose_a ? "(transp.)" : ""),
+        dims_b[0], dims_b[last_dim_b], (transpose_b ? "(transp.)" : "")
+    );
+    return 0;
 }
 
 PSMatrix PSMatrixReshape(PSMatrix matrix, int num_dims, ...) {

@@ -2031,16 +2031,15 @@ memerr:
 
 int PSAttentionForward(PSLayer *layer, ...) {
     if (!checkLayerForForward(layer)) return 0;
-    int success = 1;
-    int t = 0;
+    int is_training = PSIsNetworkTraining(layer->network);
+    int whole_seq = PSHandleSequenceAtOnce(layer);
+    int success = 1, t = 0;
     va_list args;
     va_start(args, layer);
     int seqlen = va_arg(args, int);
-    if (!PSHandleSequenceAtOnce(layer)) t = va_arg(args, int);
+    if (!whole_seq) t = va_arg(args, int);
     va_end(args);
     if (!PSBeforeSequenceForward(layer, seqlen, t)) return 0;
-    int is_training = PSIsNetworkTraining(layer->network);
-    int whole_seq = PSHandleSequenceAtOnce(layer);
     PSFloat *query = PSGetAttentionQuery(layer, t);
     if (query == NULL) {
         PSErrNN(NULL, NULL, layer, "could not retrieve query");

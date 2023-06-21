@@ -449,6 +449,7 @@ int PSFullForward(PSLayer *layer, ...) {
         }
         int ok = PSDot(previous->states, weights, layer->states, &opts);
         if (!ok) return 0;
+        opts.transpose = 0;
         opts.store_mode = PS_STORE_MODE_SET;
         if (layer->activate)
             layer->activate(layer->states, NULL, seqlen * layer->size, &opts);
@@ -758,13 +759,13 @@ int PSFindLayerMaxState(PSLayer *layer, PSFloat *max_p, int *index_p, ...)
         seqidx = va_arg(args, int);
         va_end(args);
     }
-    PSFloat max = 0.0;
+    PSFloat max = PSFLOAT_MIN;
     int max_idx = -1;
     PSFloat *states = PSGetStates(layer, seqidx);
     if (states == NULL) return 0;
     for (i = 0; i < layer->size; i++) {
         PSFloat state = states[i];
-        if (state > max) {
+        if (max_idx < 0 || state > max) {
             max = state;
             max_idx = i;
         }

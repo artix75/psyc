@@ -17,6 +17,7 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <string.h>
 #include <math.h>
 #include "types.h"
 #include "config.h"
@@ -101,6 +102,15 @@ void PSGelu(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts) {
     PSMathOpts mopts = {0};
     PSInitActivationMathOpts(&mopts, opts);
     if (mopts.acceleration != PSAcceleration_None) {
+        PSFloat *tmpdest = NULL;
+        if (dest == vec) {
+            tmpdest = calloc(len, sizeof(PSFloat));
+            if (tmpdest == NULL) {
+                PSPrintMemoryErrorMsg();
+                abort();
+            }
+            dest = tmpdest;
+        }
         int i;
         /* vec ^ 3 */
         for (i = 0; i < 2; i++) {
@@ -118,6 +128,11 @@ void PSGelu(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts) {
         /* 0.5 * vec * dest */
         PSMultiplyVectors(dest, vec, dest, len, &mopts);
         PSMultiplyVectorScalar(dest, 0.5, dest, len, &mopts);
+        if (tmpdest != NULL) {
+            dest = vec;
+            PSVectorCopy(dest, tmpdest, len);
+            free(tmpdest);
+        }
         return;
     }
     uint64_t i;

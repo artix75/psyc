@@ -95,7 +95,8 @@ int PSInitPositionalStates(PSLayer *layer, uint32_t seqlen, int retain_prev) {
     return initOrResizePositionalEncodings(layer, seqlen);
 }
 
-int PSResizePositionalStates(PSLayer *layer, uint32_t seqlen) {
+int PSResizePositionalStates(PSLayer *layer, uint32_t seqlen, uint32_t prevl) {
+    UNUSED(prevl);
     return initOrResizePositionalEncodings(layer, seqlen);
 }
 

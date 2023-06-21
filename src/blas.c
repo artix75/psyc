@@ -86,6 +86,36 @@ static void HandleBLASError(const char *func, const char *param,
 /* Native BLAS functions, loosely inspired by GNU Scientific Library (GSL):
  * https://www.gnu.org/software/gsl/doc/html/ */
 
+static void psyc_axpy(int n, PSFloat alpha, PSFloat *x, int incx,
+                      PSFloat *y, int incy)
+{
+    int i;
+
+    if (alpha == 0.0) return;
+
+    if (incx == 1 && incy == 1) {
+        const int m = n % 4;
+
+        for (i = 0; i < m; i++) y[i] += alpha * x[i];
+
+        for (i = m; i + 3 < n; i += 4) {
+            y[i] += alpha * x[i];
+            y[i + 1] += alpha * x[i + 1];
+            y[i + 2] += alpha * x[i + 2];
+            y[i + 3] += alpha * x[i + 3];
+        }
+    } else {
+        int ix = (incx > 0 ?  0 : (n - 1) * -incx);
+        int iy = (incy > 0 ?  0 : (n - 1) * -incy);
+
+        for (i = 0; i < n; i++) {
+            y[iy] += alpha * x[ix];
+            ix += incx;
+            iy += incy;
+        }
+    }
+}
+
 static void psyc_gemv(PSBLASOrder order, char trans, int m, int n,
                       PSFloat alpha, PSFloat *a, int lda, PSFloat *x,
                       PSFloat incx, PSFloat beta, PSFloat *y, int incy)
@@ -308,6 +338,19 @@ static void psyc_gemm(PSBLASOrder order, char trans_a, char trans_b, int m,
 }
 
 /* Wrapper public functions */
+
+void PSAxpy(int n, PSFloat alpha, PSFloat *x, int incx, PSFloat *y, int incy) {
+#if defined(HAS_CBLAS) && !defined(USE_PSYC_BLAS)
+    UNUSED(psyc_axpy);
+#ifdef PS_DOUBLE_PRECISION
+    cblas_daxpy(n, alpha, x, incx, y, incy);
+#else
+    cblas_saxpy(n, alpha, x, incx, y, incy);
+#endif
+#else
+    psyc_axpy(n, alpha, x, incx, y, incy);
+#endif
+}
 
 void PSGemv(PSBLASOrder order, char trans, int m, int n, PSFloat alpha,
             PSFloat *a, int lda, PSFloat *x, PSFloat incx, PSFloat beta,

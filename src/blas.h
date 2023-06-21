@@ -33,6 +33,7 @@ typedef struct PSBlasErr {
 } PSBLASErr;
 
 extern PSBLASErr *PSBLASLastError;
+void PSAxpy(int n, PSFloat alpha, PSFloat *x, int incx, PSFloat *y, int incy);
 void PSGemv(PSBLASOrder order, char trans, int m, int n, PSFloat alpha,
             PSFloat *a, int lda, PSFloat *x, PSFloat incx, PSFloat beta,
             PSFloat *y, int incy);
