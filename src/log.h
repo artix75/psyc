@@ -29,18 +29,26 @@
 #define PSLOGLEVEL_ERROR     5
 #define PSLOGLEVEL_FATAL     6
 
+#define PSCOLOR_BLACK       "\x1b[30m"
 #define PSCOLOR_RED         "\x1b[31m"
 #define PSCOLOR_GREEN       "\x1b[32m"
 #define PSCOLOR_YELLOW      "\x1b[33m"
 #define PSCOLOR_BLUE        "\x1b[34m"
 #define PSCOLOR_MAGENTA     "\x1b[35m"
 #define PSCOLOR_CYAN        "\x1b[36m"
-#define PSCOLOR_WHITE       "\x1b[97m"
-#define PSCOLOR_BOLD        "\x1b[1m"
-#define PSCOLOR_DIM         "\x1b[2m"
-#define PSCOLOR_HIDDEN      "\x1b[8m"
+#define PSCOLOR_WHITE       "\x1b[37m"
 #define PSCOLOR_RESET       "\x1b[0m"
 #define PSCOLOR_RESET_BOLD  "\x1b[21m"
+#define PSSTYLE_BOLD        "\x1b[1m"
+#define PSSTYLE_DIM         "\x1b[2m"
+#define PSSTYLE_HIDDEN      "\x1b[8m"
+#define PSSTYLE_ITALICS     "\x1b[3m"
+#define PSSTYLE_UNDERLINE   "\x1b[4m"
+
+#define PSCOLOR_BOLD    PSSTYLE_BOLD
+#define PSCOLOR_DIM     PSSTYLE_DIM
+#define PSCOLOR_DARK    PSSTYLE_DIM
+
 
 #define PSDEFAULT_LOGLEVEL   PSLOGLEVEL_INFO
 

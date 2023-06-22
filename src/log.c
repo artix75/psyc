@@ -49,7 +49,7 @@ void PSVLog(int level, const char *format, va_list args) {
     if (use_colors) {
         switch (level) {
         case PSLOGLEVEL_DEBUG: color = PSCOLOR_DIM; break;
-        case PSLOGLEVEL_INFO: color = PSCOLOR_WHITE; break;
+        case PSLOGLEVEL_INFO: color = PSCOLOR_RESET; break;
         case PSLOGLEVEL_NOTICE: color = PSCOLOR_BOLD; break;
         case PSLOGLEVEL_SUCCESS: color = PSCOLOR_GREEN; break;
         case PSLOGLEVEL_WARN: color = PSCOLOR_YELLOW; break;
