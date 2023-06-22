@@ -291,13 +291,13 @@ static PSMatrix initOrResizeCausalMask(PSLayer *layer, PSAttentionData *data,
     PSMatrix mask = data->causal_mask;
     if (mask != NULL) {
         int mask_seqlen = PSMatrixDim(mask, 0);
-        if (seqlen > mask_seqlen) {
+        if (seqlen != mask_seqlen) {
             PSMatrixDelete(mask);
             data->causal_mask = NULL;
             mask = NULL;
         }
     }
-    if (mask == NULL) {
+    if (mask == NULL && seqlen > 0) {
         PSMathOpts opts = {.acceleration = layer->network->acceleration};
         mask = createCausalMask(seqlen, &opts);
         if (mask == NULL) {
@@ -2081,7 +2081,7 @@ int PSAttentionForward(PSLayer *layer, ...) {
         }
         mask_size = PSMatrixDim(mask, 0);
         if (t >= mask_size) {
-            mask = initOrResizeCausalMask(layer, NULL, t + 1);
+            mask = initOrResizeCausalMask(layer, NULL, t);
             success = mask != NULL;
             if (!success) goto final;
         }
