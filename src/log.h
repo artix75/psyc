@@ -49,6 +49,32 @@
 #define PSCOLOR_DIM     PSSTYLE_DIM
 #define PSCOLOR_DARK    PSSTYLE_DIM
 
+#define PSXTERM256_GRADIENT_BLACK_BLUE      16
+#define PSXTERM256_GRADIENT_GREEN_BLUE      22
+#define PSXTERM256_GRADIENT_GREEN_AZURE     28
+#define PSXTERM256_GRADIENT_GREEN_CYAN1     34
+#define PSXTERM256_GRADIENT_GREEN_CYAN2     40
+#define PSXTERM256_GRADIENT_GREEN_CYAN3     46
+#define PSXTERM256_GRADIENT_GREEN_CYAN4     112
+#define PSXTERM256_GRADIENT_GREEN_CYAN5     118
+#define PSXTERM256_GRADIENT_GREEN_CYAN6     148
+#define PSXTERM256_GRADIENT_GREEN_CYAN7     154
+#define PSXTERM256_GRADIENT_MAGENTA1        52
+#define PSXTERM256_GRADIENT_MAGENTA2        88
+#define PSXTERM256_GRADIENT_MAGENTA3        124
+#define PSXTERM256_GRADIENT_MAGENTA4        160
+#define PSXTERM256_GRADIENT_MAGENTA5        196
+#define PSXTERM256_GRADIENT_ORANGE_VIOLET1  130
+#define PSXTERM256_GRADIENT_ORANGE_VIOLET2  136
+#define PSXTERM256_GRADIENT_ORANGE_VIOLET3  166
+#define PSXTERM256_GRADIENT_ORANGE_VIOLET4  172
+#define PSXTERM256_GRADIENT_ORANGE_VIOLET5  178
+#define PSXTERM256_GRADIENT_ORANGE_VIOLET6  202
+#define PSXTERM256_GRADIENT_ORANGE_VIOLET7  208
+#define PSXTERM256_GRADIENT_ORANGE_VIOLET8  214
+#define PSXTERM256_GRADIENT_YELLOW_WHITE1   190
+#define PSXTERM256_GRADIENT_YELLOW_WHITE2   26
+#define PSXTERM256_GRADIENT_GRAYSCALE       232
 
 #define PSDEFAULT_LOGLEVEL   PSLOGLEVEL_INFO
 
@@ -56,6 +82,20 @@
 #define FLAG_LOG_COLORS (1 << 0)
 #endif
 
+#define PS_PROGRESS_STYLE_DOUBLE_DASH 0
+#define PS_PROGRESS_STYLE_SINGLE_DASH 1
+#define PS_PROGRESS_STYLE_BAR         2
+#define PS_PROGRESS_STYLE_LINE        3
+
+#define PS_PROGRESS_FLAG_PERCENT        (1 << 0)
+#define PS_PROGRESS_FLAG_JUST_PERCENT   (1 << 1)
+#define PS_PROGRESS_FLAG_JUST_BAR       (1 << 2)
+#define PS_PROGRESS_FLAG_NO_TOTAL       (1 << 3)
+#define PS_PROGRESS_FLAG_NO_GRADIENT    (1 << 4)
+#define PS_PROGRESS_FLAG_NO_XTERM256    (1 << 5)
+#define PS_PROGRESS_FLAG_XTERM256_CODE  (1 << 6)
+
+#define PSClearScreen() (printf("\e[1;1H\e[2J"))
 #define PSLogColorEnabled() (PSGlobalFlags & FLAG_LOG_COLORS)
 #define PSLogEnableColor() (PSGlobalFlags |= FLAG_LOG_COLORS)
 #define PSLogDisableColor() (PSGlobalFlags &= ~((unsigned) FLAG_LOG_COLORS))
@@ -76,5 +116,11 @@ void PSErrNN(const char *tag, PSNeuralNetwork *network, PSLayer *layer,
 const char* PSLogLevelName(int level);
 int PSLogLevelByName(const char *name);
 int PSGetMaxLogLevel(void);
+
+int PSIsXTermColor256(int always_check);
+int PSXTermColor256ToANSI(uint8_t color, int bgcolor);
+void PSPrintSameLine(char *format, ...);
+int PSProgressBar(int num, int tot, int style, int color, int flags,
+                  char *label);
 
 #endif /* __LOG_H__ */

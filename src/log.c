@@ -21,6 +21,9 @@
 #include <strings.h>
 #include "log.h"
 #include "psyc.h"
+#include "utils.h"
+
+#define CONTINUOUS_PROG_CHAR "―"
 
 const char *logLevels[] = {
     "DEBUG",
@@ -33,6 +36,7 @@ const char *logLevels[] = {
 };
 
 static size_t log_levels_count = sizeof(logLevels) / sizeof(const char *);
+static int printing_on_same_line = 0;
 
 int PSLogLevel = PSDEFAULT_LOGLEVEL;
 FILE *PSLogFile = NULL;
@@ -45,6 +49,15 @@ void PSVLog(int level, const char *format, va_list args) {
         if (level > PSLOGLEVEL_WARN) out = stderr;
         else out = stdout;
     } else use_colors = 0;
+    if (printing_on_same_line) {
+        printing_on_same_line = 0;
+        printf("\n");
+        fflush(stdout);
+        if (out != stdout) {
+            fprintf(out, "\n");
+            fflush(out);
+        }
+    }
     char *color = NULL;
     if (use_colors) {
         switch (level) {
@@ -173,4 +186,185 @@ int PSLogLevelByName(const char *name) {
 
 int PSGetMaxLogLevel(void) {
     return (int) log_levels_count - 1;
+}
+
+int PSIsXTermColor256(int always_check) {
+    static int is_xterm_256 = -1;
+    if (always_check || is_xterm_256 < 0) {
+        char *term = getenv("TERM");
+        is_xterm_256 = (term != NULL && strcmp("xterm-256color",term) == 0);
+    }
+    return is_xterm_256;
+}
+
+int PSXTermColor256ToANSI(uint8_t color, int bgcolor) {
+    if (color <= 7) color += 30;
+    else if (color <= 15) color += 90;
+    else if (color >= 16 && color <= 21) color = 33; /* Blue */
+    else if (color >= 22 && color <= 51) {
+        if (((color - 16) % 6) > 3) color = 36; /* Cyan */
+        else color = 21; /* Green */
+    } else if (color >= 52 && color <= 57) color = 35; /* Magenta */
+    else if (color >= 58 && color <= 87) {
+        if (((color - 16) % 6) > 3) color = 36; /* Cyan */
+        else color = 21; /* Green */
+    } else if (color >= 88 && color <= 93) color = 35; /* Magenta */
+    else if (color >= 94 && color <= 99) {
+        if (((color - 16) % 6) > 3) color = 35; /* Magenta */
+        else color = 33; /* yellow */
+    } else if (color >= 106 && color <= 123) {
+        if (((color - 16) % 6) > 3) color = 36; /* Cyan */
+        else color = 21; /* Green */
+    } else if (color >= 124 && color <= 129) color = 35; /* Magenta */
+    else if (color >= 130 && color <= 141) {
+        if (((color - 16) % 6) > 3) color = 35; /* Magenta */
+        else color = 33; /* yellow */
+    } else if (color >= 142 && color <= 159) {
+        if (((color - 16) % 6) > 3) color = 36; /* Cyan */
+        else color = 21; /* Green */
+    } else if (color >= 160 && color <= 165) color = 35; /* Magenta */
+    else if (color >= 172 && color <= 183) {
+        if (((color - 16) % 6) > 3) color = 35; /* Magenta */
+        else color = 33; /* yellow */
+    } else if (color >= 185 && color <= 189) {
+        if (((color - 16) % 6) > 3) color = 37; /* White */
+        else color = 33; /* yellow */
+    } else if (color >= 190 && color <= 195) {
+        if (((color - 16) % 6) > 3) color = 36; /* Cyan */
+        else color = 21; /* Green */
+    } else if (color >= 196 && color <= 201) color = 35; /* Magenta */
+    else if (color >= 202 && color <= 225) {
+        if (((color - 16) % 6) > 3) color = 35; /* Magenta */
+        else color = 33; /* yellow */
+    } else if (color >= 226 && color <= 231) {
+        if (((color - 16) % 6) > 3) color = 37; /* White */
+        else color = 33; /* yellow */
+    } else {
+        if ((color - 232) < 244) color = 2; /* Dark */
+        else color = 37; /* White */
+    }
+    if (bgcolor && color >= 30) color += 10;
+    return color;
+}
+
+void PSPrintSameLine(char *format, ...) {
+    printing_on_same_line = 1;
+    if (format == NULL) format = "";
+    int max_w = PSGetTerminalColumns() + 1;
+    char buf[max_w];
+    va_list args;
+    va_start(args, format);
+    vsnprintf(buf, max_w, format, args);
+    va_end(args);
+    fprintf(stdout, "\r%-*s", max_w - 1, buf);
+    fflush(stdout);
+}
+
+int PSProgressBar(int num, int tot, int style, int color, int flags,
+                  char *label)
+{
+    if (tot == 0) goto end_bar;
+    char *c = "=";
+    int color_on_bg = 0;
+    if (style == PS_PROGRESS_STYLE_DOUBLE_DASH) c = "=";
+    else if (style == PS_PROGRESS_STYLE_SINGLE_DASH) c = "-";
+    else if (style == PS_PROGRESS_STYLE_BAR) {
+        color_on_bg = 1;
+        c = " ";
+    } else if (style == PS_PROGRESS_STYLE_LINE) {
+        c = CONTINUOUS_PROG_CHAR;
+    }
+    int tw = PSGetTerminalColumns(), available = tw - 1, nwritten = 0;
+    int maxlen = (tw > 255 ? 255 : tw), minlen = 6;
+    int clen = strlen(c);
+    char buf[255] = {0};
+    char *p = buf;
+    float percent = ((float) num / (float) tot);
+    if (label != NULL) {
+        int max_label_len = 17;
+        nwritten = snprintf(p, max_label_len, "%.*s ", max_label_len-2, label);
+        p += nwritten;
+        available -= nwritten;
+        maxlen -= nwritten;
+    }
+    int just_bar = (flags & PS_PROGRESS_FLAG_JUST_BAR),
+        just_percent = 0, use_percent = 0;
+    if (!just_bar) {
+        just_percent = (flags & PS_PROGRESS_FLAG_JUST_PERCENT);
+        use_percent = (just_percent || (flags & PS_PROGRESS_FLAG_PERCENT));
+        if (!just_percent) {
+            int pad = 1 + (int) PSMathLog10((PSFloat) tot);
+            if (!(flags & PS_PROGRESS_FLAG_NO_TOTAL))
+                nwritten = snprintf(p, maxlen, "%*d/%d ", pad, num, tot);
+            else
+                nwritten = snprintf(p, maxlen, "%*d ", pad, num);
+            p += nwritten;
+            available -= nwritten;
+            maxlen -= nwritten;
+            if (available < minlen) goto end_bar;
+        }
+        if (use_percent) {
+            int i_percent = (int) roundf(percent * 100);
+            nwritten = snprintf(p, maxlen, "- %3d%% ", i_percent);
+            p += nwritten;
+            available -= nwritten;
+            maxlen -= nwritten;
+            if (available < minlen) goto end_bar;
+        }
+    }
+    int max_width = available;
+    int width = (int) roundf(percent * (float) max_width), i;
+    int barsize = (width * clen);
+    int maxsize = barsize + (max_width - width);
+    int is_xterm256 = 0;
+    if (!(flags & PS_PROGRESS_FLAG_NO_XTERM256))
+        is_xterm256 = PSIsXTermColor256(0);
+    if (color) {
+        int use_gradient = !(flags & PS_PROGRESS_FLAG_NO_GRADIENT) &&
+                           is_xterm256;
+        if (color == 1) {
+            /* Use default color */
+            color = (is_xterm256 ? 40 : 32);
+        }
+        if (use_gradient) {
+            int gradient_size = (color >= 232 ? (255 - color) : 5);
+            color += (int) roundf(percent * (float) gradient_size);
+        } else if (!is_xterm256) {
+            if (flags & PS_PROGRESS_FLAG_XTERM256_CODE)
+             color = PSXTermColor256ToANSI(color, color_on_bg);
+        }
+    } else if (color_on_bg) {
+        color = 7;
+        is_xterm256 = 0;
+    }
+    if (color) {
+        if (is_xterm256) {
+            int target = (color_on_bg ? 48 : 38); /* 48 is background */
+            nwritten = snprintf(p, maxsize, "\x1b[%d;5;%dm",target,color);
+        } else nwritten = snprintf(p, maxsize, "\x1b[%dm", color);
+        p += nwritten;
+    }
+    char bar[255] = {0};
+    if (((p + maxsize) - buf) > 255) goto end_bar;
+    bar[0] = '\0';
+    for (i = 0; i < width; i++) {
+        if (clen == 1) bar[i] = c[0];
+        else memcpy(bar + (i * clen), c, clen);
+    }
+    if (color_on_bg) {
+        nwritten = snprintf(bar + (i * clen), maxsize, "\x1b[0m");
+        maxsize += nwritten;
+    }
+    if (clen > 1 && (maxsize - barsize <= 0)) maxsize++;
+    snprintf(p, maxsize, "%-*s", maxsize, bar);
+    printing_on_same_line = 1;
+    printf("\r%-*s", tw, buf);
+    if (color) printf("\x1b[0m");
+    fflush(stdout);
+    return 1;
+end_bar:
+    printing_on_same_line = 0;
+    printf("\n");
+    fflush(stdout);
+    return 0;
 }

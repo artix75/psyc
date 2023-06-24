@@ -102,6 +102,10 @@ int PSMakeDir(const char *path, int recursive);
 const char *PSWorkingDirectory(void);
 char *PSPathJoin(int count, ...);
 
+/* Strings */
+
+char *PSStringJoin(char **strings, char *sep, int len);
+
 /* Networking functions. */
 int PSDownloadFile(const char *url, const char *dest_dir);
 

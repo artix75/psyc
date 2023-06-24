@@ -634,3 +634,31 @@ int PSDownloadFile(const char *url, const char *dest_dir) {
     exit_status = system(cmd);
     return exit_status == 0;
 }
+
+/* Strings */
+
+char *PSStringJoin(char **strings, char *sep, int len) {
+    errno = 0;
+    if (len < 2) return NULL;
+    char *joined = NULL;
+    if (sep == NULL) sep = "";
+    int seplen = strlen(sep), totlen = 1, i;
+    for (i = 0; i < len; i++) {
+        char *str = strings[i];
+        if (str == NULL) str = "";
+        int slen = strlen(str), prepend_sep = (i > 0);
+        if (prepend_sep) slen += seplen;
+        totlen += slen;
+        char *new = realloc(joined, totlen);
+        if (new == NULL) {
+            PSPrintMemoryErrorMsg();
+            errno = ENOMEM;
+            return NULL;
+        }
+        joined = new;
+        char *p = joined + (totlen - slen - 1);
+        if (prepend_sep) snprintf(p, slen + 1, "%s%s", sep, str);
+        else snprintf(p, slen + 1, "%s", str);
+    }
+    return joined;
+}
