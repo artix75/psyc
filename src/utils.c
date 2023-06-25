@@ -27,11 +27,13 @@
 #include <pwd.h>
 #include <errno.h>
 #include <assert.h>
+#include <ctype.h>
 
 #include "psyc.h"
 #include "platform.h"
 #include "utils.h"
 #include "maths.h"
+#include "utf8.h"
 #include "log.h"
 
 #if IS_UNIX
@@ -661,4 +663,27 @@ char *PSStringJoin(char **strings, char *sep, int len) {
         else snprintf(p, slen + 1, "%s", str);
     }
     return joined;
+}
+
+int PSPrintableLength(const char *s) {
+    if (s == NULL) return 0;
+    int len = 0;
+    int in_style_seq = 0;
+    while (*s) {
+        char c = *s;
+        if (c == '\x1b') {
+            in_style_seq = 1;
+            goto next;
+        } else if (in_style_seq) {
+            if (c == 'm') in_style_seq = 0;
+            goto next;
+        }
+        int clen = PSUTF8CharSize(s);
+        if (clen == 1) {
+            if (isprint(c)) len++;
+        } else if ((c & 0xC0) != 0x80) len++;
+next:
+        s++;
+    }
+    return len;
 }

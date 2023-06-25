@@ -37,6 +37,7 @@ const char *logLevels[] = {
 
 static size_t log_levels_count = sizeof(logLevels) / sizeof(const char *);
 static int printing_on_same_line = 0;
+static int current_line_length = 0;
 
 int PSLogLevel = PSDEFAULT_LOGLEVEL;
 FILE *PSLogFile = NULL;
@@ -247,17 +248,21 @@ int PSXTermColor256ToANSI(uint8_t color, int bgcolor) {
     return color;
 }
 
-void PSPrintSameLine(char *format, ...) {
+void PSVPrintSameLine(char *format, va_list args) {
     printing_on_same_line = 1;
     if (format == NULL) format = "";
     int max_w = PSGetTerminalColumns() + 1;
     char buf[max_w];
-    va_list args;
-    va_start(args, format);
     vsnprintf(buf, max_w, format, args);
-    va_end(args);
     fprintf(stdout, "\r%-*s", max_w - 1, buf);
     fflush(stdout);
+}
+
+void PSPrintSameLine(char *format, ...) {
+    va_list args;
+    va_start(args, format);
+    PSVPrintSameLine(format, args);
+    va_end(args);
 }
 
 int PSProgressBar(int num, int tot, int style, int color, int flags,
@@ -367,4 +372,72 @@ end_bar:
     printf("\n");
     fflush(stdout);
     return 0;
+}
+
+int PSVLineAppend(int opts, char *format, va_list args) {
+    if (format == NULL) return current_line_length;
+    if (!printing_on_same_line) return current_line_length;
+    int len = 0, tw = PSGetTerminalColumns();
+    int available = tw - current_line_length, minlen = available;
+    int is_plain_ascii = (opts & PS_LINE_PLAIN_ASCII),
+        fill = (opts & PS_LINE_FILL);
+    char buf[255] = {0};
+    char *str = NULL;
+    if (!is_plain_ascii) {
+        int ascii_len = vsnprintf(buf, 255, format, args);
+        int printed_len = len = PSPrintableLength(buf);
+        minlen += (ascii_len - printed_len);
+        str = buf;
+    }
+    if (!fill) {
+        if (str != NULL) {
+            printf("%s", str);
+            current_line_length += len;
+        } else current_line_length += vfprintf(stdout, format, args);
+    } else {
+        if (!is_plain_ascii) {
+             printf("%-*s", minlen, buf);
+             current_line_length += len + (available - len);
+        } else {
+            vsnprintf(buf, 255, format, args);
+            current_line_length += printf("%-*s", minlen, buf);
+        }
+    }
+    fflush(stdout);
+    return current_line_length;
+}
+
+int PSLineAppend(int opts, char *format, ...) {
+    va_list args;
+    int len;
+    va_start(args, format);
+    len = PSVLineAppend(opts, format, args);
+    va_end(args);
+    return len;
+}
+
+int PSLineStart(int opts, char *format, ...) {
+    int overwrite = (opts & PS_LINE_OVERWRITE);
+    if (printing_on_same_line && !overwrite) fflush(stdout);
+    current_line_length = 0;
+    if (overwrite) {
+        printing_on_same_line = 1;
+        printf("\r");
+    } else printf("\n");
+    if (format != NULL) {
+        va_list args;
+        va_start(args, format);
+        int len = PSVLineAppend(opts, format, args);
+        va_end(args);
+        return len;
+    } else return current_line_length;
+}
+
+void PSLineEnd(void) {
+    current_line_length = 0;
+    if (printing_on_same_line) {
+        printf("\n");
+        fflush(stdout);
+    }
+    printing_on_same_line = 0;
 }

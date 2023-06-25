@@ -105,6 +105,7 @@ char *PSPathJoin(int count, ...);
 /* Strings */
 
 char *PSStringJoin(char **strings, char *sep, int len);
+int PSPrintableLength(const char *s);
 
 /* Networking functions. */
 int PSDownloadFile(const char *url, const char *dest_dir);

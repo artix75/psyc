@@ -32,7 +32,8 @@
 #include "misc/utf8-tables.c"
 
 int PSUTF8StrLen(const char *s) {
-    int len=0;
+    if (s == NULL) return 0;
+    int len = 0;
     while (*s) {
         if ((*s & 0xC0) != 0x80) len++;
         s++;

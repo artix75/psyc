@@ -95,6 +95,10 @@
 #define PS_PROGRESS_FLAG_NO_XTERM256    (1 << 5)
 #define PS_PROGRESS_FLAG_XTERM256_CODE  (1 << 6)
 
+#define PS_LINE_FILL            (1 << 1)
+#define PS_LINE_OVERWRITE       (1 << 2)
+#define PS_LINE_PLAIN_ASCII     (1 << 3)
+
 #define PSClearScreen() (printf("\e[1;1H\e[2J"))
 #define PSLogColorEnabled() (PSGlobalFlags & FLAG_LOG_COLORS)
 #define PSLogEnableColor() (PSGlobalFlags |= FLAG_LOG_COLORS)
@@ -119,8 +123,13 @@ int PSGetMaxLogLevel(void);
 
 int PSIsXTermColor256(int always_check);
 int PSXTermColor256ToANSI(uint8_t color, int bgcolor);
+void PSVPrintSameLine(char *format, va_list args);
 void PSPrintSameLine(char *format, ...);
 int PSProgressBar(int num, int tot, int style, int color, int flags,
                   char *label);
+int PSLineStart(int opts, char *format, ...);
+int PSLineAppend(int opts, char *format, ...);
+int PSVLineAppend(int opts, char *format, va_list args);
+void PSLineEnd(void);
 
 #endif /* __LOG_H__ */
