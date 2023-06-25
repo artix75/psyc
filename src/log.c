@@ -408,8 +408,8 @@ int PSVLineAppend(int opts, char *format, va_list args) {
 }
 
 int PSLineAppend(int opts, char *format, ...) {
-    va_list args;
     int len;
+    va_list args;
     va_start(args, format);
     len = PSVLineAppend(opts, format, args);
     va_end(args);
@@ -431,6 +431,11 @@ int PSLineStart(int opts, char *format, ...) {
         va_end(args);
         return len;
     } else return current_line_length;
+}
+
+int PSLineFill(void) {
+    if (!printing_on_same_line) PSLineStart(PS_LINE_OVERWRITE, NULL);
+    return PSLineAppend(PS_LINE_FILL, "");
 }
 
 void PSLineEnd(void) {

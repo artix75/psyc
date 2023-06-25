@@ -130,6 +130,7 @@ int PSProgressBar(int num, int tot, int style, int color, int flags,
 int PSLineStart(int opts, char *format, ...);
 int PSLineAppend(int opts, char *format, ...);
 int PSVLineAppend(int opts, char *format, va_list args);
+int PSLineFill(void);
 void PSLineEnd(void);
 
 #endif /* __LOG_H__ */

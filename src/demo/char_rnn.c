@@ -219,6 +219,11 @@ void printSample(PSNeuralNetwork *network, int input_idx, int len) {
 }
 
 void printHelp(char *executable) {
+    char optimization_name[255] = {0};
+    char *uc_optimization_name = getOptimizationName(OPTIMIZATION);
+    int namelen = strlen(uc_optimization_name), i;
+    for (i = 0; i < namelen; i++)
+        optimization_name[i] = tolower(uc_optimization_name[i]);
     printf("Usage %s [OPTIONS]\n", executable);
     printf("    OPTIONS:\n");
     printf("        -l, --load MODEL_FILE           Load model\n");
@@ -235,7 +240,7 @@ void printHelp(char *executable) {
           "                                         "
           "nesterov, none)\n"
           "                                        "
-          "Default: %s\n", getOptimizationName(optimization)
+          "Default: %s\n", optimization_name
     );
     printf("        --epochs EPOCHS                 Epochs (def. %d)\n",
         EPOCHS);

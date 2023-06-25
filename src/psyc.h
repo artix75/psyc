@@ -154,6 +154,13 @@ typedef int      (*PSBeforeBackpropCallback) (struct PSNeuralNetwork *network,
                                               PSFloat *y,
                                               struct PSTrainingOptions *opts,
                                               struct PSGradient **gradients);
+typedef void     (*PSLogTrainingProgressFunc) (struct PSNeuralNetwork *network,
+                                               int status, int epochs,
+                                               int batches, PSFloat *loss,
+                                               PSFloat *accuracy,
+                                               time_t *elapsed,
+                                               int validating_current,
+                                               int validating_tot);
 typedef void     (*PSSignalHandler) (int);
 
 typedef struct PSLayerDef {
@@ -248,23 +255,24 @@ typedef struct PSForwardOptions {
 } PSForwardOptions;
 
 typedef struct PSTrainingOptions {
-    int                     epochs;
-    PSFloat                 learning_rate;
-    int                     batch_size;
-    int                     flags;
-    PSFloat                 l1_decay;
-    PSFloat                 l2_decay;
-    PSFloat                 momentum;
-    PSFloat                 rho;
-    PSFloat                 eps;
-    PSFloat                 beta1;
-    PSFloat                 beta2;
-    PSFloat                 clip;
-    PSOptimization          optimization;
-    int                     bptt_truncate;
-    int                     validate_every_batches;
-    int                     max_validation_elements;
-    FILE                    *debug_dump_to;
+    int                         epochs;
+    PSFloat                     learning_rate;
+    int                         batch_size;
+    int                         flags;
+    PSFloat                     l1_decay;
+    PSFloat                     l2_decay;
+    PSFloat                     momentum;
+    PSFloat                     rho;
+    PSFloat                     eps;
+    PSFloat                     beta1;
+    PSFloat                     beta2;
+    PSFloat                     clip;
+    PSOptimization              optimization;
+    int                         bptt_truncate;
+    int                         validate_every_batches;
+    int                         max_validation_elements;
+    PSLogTrainingProgressFunc   log_progress;
+    FILE                        *debug_dump_to;
 } PSTrainingOptions;
 
 typedef struct {

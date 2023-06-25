@@ -48,15 +48,24 @@
 #define SAMPLE_LEN      30
 
 #define DEFAULT_OUTPUT_FILE "/tmp/pretrained.rnn.psmodel"
+#define DEFAULT_OPTIMIZATION PSAdaGradOptimization
 
 #define UNUSED(V) ((void) V)
+
+char *getOptimizationName(PSOptimization optimization);
 
 PSNeuralNetwork *network = NULL;
 char *output_path = DEFAULT_OUTPUT_FILE;
 int pause_requested = 0;
 int use_random_choice = 0;
+PSOptimization optimization = DEFAULT_OPTIMIZATION;
 
 void print_help(char *progname) {
+    char optimization_name[255] = {0};
+    char *uc_optimization_name = getOptimizationName(DEFAULT_OPTIMIZATION);
+    int namelen = strlen(uc_optimization_name), i;
+    for (i = 0; i < namelen; i++)
+        optimization_name[i] = tolower(uc_optimization_name[i]);
     printf("Usage %s OPTIONS\n", progname);
     printf("    OPTIONS:\n");
     printf("        -l, --load TRAINED_DT_FILE      Load pretrained model\n");
@@ -86,7 +95,9 @@ void print_help(char *progname) {
           "                                        "
           "(adagrad,adadelta,adam,windowgrad,\n"
           "                                         "
-          "nesterov)\n");
+          "nesterov)\n"
+          "                                        "
+          "Default: %s\n", optimization_name);
     printf("        --epochs EPOCHS                 Epochs (def. %d)\n",
         EPOCHS);
     printf("        --batch-size SIZE               Batch size (def. %d)\n",
@@ -209,7 +220,6 @@ int main(int argc, char** argv) {
     int batch_size = BATCHES;
     int disable_avx = 0;
     int shuffle = 0;
-    PSOptimization optimization = PSDefaultOptimization;
     PSFloat learning_rate = LEARNING_RATE;
     PSFloat embedding_learning_rate = 0;
     PSFloat momentum = MOMENTUM;
@@ -324,7 +334,7 @@ int main(int argc, char** argv) {
             else if (strcmp("nesterov", optname) == 0)
                 optimization = PSNesterovOptimization;
             else {
-                fprintf(stderr, "Invalid optmization `%s`\n", optname);
+                fprintf(stderr, "Invalid optimization `%s`\n", optname);
                 fprintf(
                     stderr, "Valid values: adam, adagrad, adadelta, "
                     "windowgrad, nesterov\n"
@@ -401,7 +411,6 @@ int main(int argc, char** argv) {
     printf("*** NOTE ***\nTraining data taken from some paragraphs of "
            "Wikipedia's article about planet\nSaturn: "
            "(https://en.wikipedia.org/wiki/Saturn).\n\n");
-
     PSTrainingOptions options = {
         .epochs = epochs,
         .batch_size = batch_size,
