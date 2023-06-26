@@ -213,9 +213,11 @@ void PSLogTrainingProgress(PSNeuralNetwork *network, int status, int epochs,
     int batch_num = network->training->current_batch + 1;
     int percent =
         (int) roundf(((float) batch_num / (float) batches) * 100.0f);
+    int pad = 1 + PSMathLog10((PSFloat) batches);
     int lnflags = PS_LINE_PLAIN_ASCII | PS_LINE_FILL;
     PSLineStart(
-        PS_LINE_OVERWRITE, " - Batch %d/%d (%d%%)", batch_num, batches, percent
+        PS_LINE_OVERWRITE, " - Batch %*d/%d %3d%%", pad, batch_num,
+        batches, percent
     );
     char *elapsed_str = "";
     if (elapsed != NULL) elapsed_str = PSGetElapsedTimeString(*elapsed, 0);
@@ -249,6 +251,94 @@ void PSLogTrainingProgress(PSNeuralNetwork *network, int status, int epochs,
     } else {
         PSLineFill();
     }
+}
+
+void PSLogTrainingProgressBar(PSNeuralNetwork *network, int status, int epochs,
+                              int batches, PSFloat *loss, PSFloat *accuracy,
+                              time_t *elapsed, int validating_current,
+                              int validating_tot)
+{
+    UNUSED(validating_current);
+    static int epoch_printed = -1;
+    static int min_sfx_len = -1;
+    if (PSLogLevel > PSLOGLEVEL_INFO) return;
+    if (network->training == NULL) return;
+    if (status == STATUS_TRAINED || status == STATUS_ERROR) {
+        PSLineEnd();
+        epoch_printed = -1;
+        min_sfx_len = -1;
+        return;
+    }
+    if (network->training->current_batch == 0) {
+        if (epoch_printed != network->training->current_epoch) {
+            PSLineEnd();
+            printf("Epoch %d/%d:\n", network->training->current_epoch + 1,
+                    epochs);
+            fflush(stdout);
+            epoch_printed = network->training->current_epoch;
+        }
+    }
+    int tw = PSGetTerminalColumns();
+    int batch_num = network->training->current_batch + 1;
+    int percent =
+        (int) roundf(((float) batch_num / (float) batches) * 100.0f);
+    int lnflags = PS_LINE_PLAIN_ASCII | PS_LINE_FILL;
+    int pad = 1 + PSMathLog10((PSFloat) batches);
+    int len = PSLineStart(
+        PS_LINE_OVERWRITE, "Batch %*d/%d ", pad, batch_num, batches
+    );
+    int maxlen = tw - 1;
+    char *elapsed_str = "";
+    char sfx[35] = {0};
+    int epoch_ended = 0;
+    if (status == STATUS_VALIDATING) {
+        maxlen -= snprintf(sfx, 35, " | validating...");
+    } else if (status == STATUS_TRAINING) {
+        if (elapsed != NULL) elapsed_str = PSGetElapsedTimeString(*elapsed, 0);
+        if (batch_num < batches) {
+            if (accuracy != NULL) {
+                maxlen -= snprintf(
+                    sfx, 35, " | loss: %.2lf | acc: %.2lf | %s",
+                    *loss, *accuracy, elapsed_str
+                );
+            } else {
+                maxlen -= snprintf(
+                    sfx, 35, " | loss: %.2lf | %s", *loss, elapsed_str
+                );
+            }
+        } else {
+            if (loss != NULL) {
+                if (accuracy != NULL) {
+                    maxlen -= snprintf(
+                        sfx, 35, " | loss: %.2lf |acc: %.2f | %s",
+                        *loss, *accuracy, elapsed_str
+                    );
+                } else {
+                    maxlen -= snprintf(
+                        sfx, 35, " | loss: %.2lf | %s", *loss, elapsed_str
+                    );
+                }
+                epoch_ended = 1;
+            }
+        }
+    }
+    if (min_sfx_len < 0) min_sfx_len = (tw - 1 - maxlen);
+    else {
+        int minlen = (tw - 1 - min_sfx_len);
+        if (maxlen > minlen) maxlen = minlen;
+    }
+    int style = PS_PROGRESS_STYLE_DOUBLE_DASH, color = 0,
+        flags = PS_PROGRESS_FLAG_JUST_BAR;
+    if (PSLogColorEnabled()) {
+        color = 1;
+        style = PS_PROGRESS_STYLE_LINE;
+    }
+    PSProgressBar(batch_num, batches, style, color, flags, maxlen, NULL);
+    if (sfx[0]) {
+        int lnflags = PS_LINE_PLAIN_ASCII | PS_LINE_FILL;
+        PSLineAppend(lnflags, "%s", sfx);
+    }
+    if (epoch_ended) PSLineEnd();
 }
 
 void dumpForwardStep(int i, PSFloat a, PSFloat b, PSFloat sum,

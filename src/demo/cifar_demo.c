@@ -30,6 +30,7 @@
 #include "../psyc.h"
 #include "../convolutional.h"
 #include "../dataset.h"
+#include "../log.h"
 #include "../debug.h"
 
 #define EPOCHS 200
@@ -120,7 +121,9 @@ void print_help(char *progname) {
     printf("        --max-batches MAX               Max batches (for debug)\n");
     printf("        --max-images MAX                Max images (for debug)\n");
     printf("        --validate-every BATCH_NUM      Validate inside epochs\n");
-    printf("        -h, --help              Print this help\n");
+    printf("        --colors                        Enable colorized output\n");
+    printf("        --progress-bar                  Use progress bar\n");
+    printf("        -h, --help                      Print this help\n");
 }
 
 FILE *dump_activations_to = NULL;
@@ -226,6 +229,7 @@ int main(int argc, char** argv) {
     int no_acceleration = 0;
     int max_images = 0;
     int no_shuffle = 0;
+    int progbar = 0;
     PSOptimization optimization = PSDefaultOptimization;
     PSFloat learning_rate = LEARNING_RATE;
     PSFloat momentum = MOMENTUM;
@@ -374,6 +378,10 @@ int main(int argc, char** argv) {
                 );
                 return 1;
             }
+        } else if (strcmp("--progress-bar", arg) == 0) {
+            progbar = 1;
+        } else if (strcmp("--colors", arg) == 0) {
+            PSLogEnableColor();
         } else if (strcmp("--help", arg) == 0 || strcmp("-h", arg) == 0) {
             print_help(argv[0]);
             return 0;
@@ -579,6 +587,7 @@ int main(int argc, char** argv) {
         };
         if (optimization != PSDefaultOptimization)
             train_opts.optimization = optimization;
+        if (progbar) train_opts.log_progress = PSLogTrainingProgressBar;
         PSTrain(network, training_data, datalen, validation_data, valdlen,
                 &train_opts);
     }

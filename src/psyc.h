@@ -447,6 +447,12 @@ int PSNetworkChainContains(PSNeuralNetwork *chain, PSNeuralNetwork *network);
 PSFloat PSQuadraticLoss(PSFloat *x, PSFloat *y, int size, int onehot_size);
 PSFloat PSCrossEntropyLoss(PSFloat *x, PSFloat *y, int size, int onehot_size);
 
+/* Training progress logging functions */
+void PSLogTrainingProgressBar(PSNeuralNetwork *network, int status, int epochs,
+                              int batches, PSFloat *loss, PSFloat *accuracy,
+                              time_t *elapsed, int validating_current,
+                              int validating_tot);
+
 /* Miscellaneous functions */
 
 void PSHandleSignals(PSSignalHandler shutdown_handler);

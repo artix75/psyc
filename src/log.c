@@ -266,7 +266,7 @@ void PSPrintSameLine(char *format, ...) {
 }
 
 int PSProgressBar(int num, int tot, int style, int color, int flags,
-                  char *label)
+                  int maxlen, char *label)
 {
     if (tot == 0) goto end_bar;
     char *c = "=";
@@ -279,8 +279,15 @@ int PSProgressBar(int num, int tot, int style, int color, int flags,
     } else if (style == PS_PROGRESS_STYLE_LINE) {
         c = CONTINUOUS_PROG_CHAR;
     }
-    int tw = PSGetTerminalColumns(), available = tw - 1, nwritten = 0;
-    int maxlen = (tw > 255 ? 255 : tw), minlen = 6;
+    int tw = PSGetTerminalColumns();
+    if (maxlen <= 0) maxlen = tw - 1;
+    if (maxlen < 1) goto end_bar;
+    int available = maxlen, nwritten = 0;
+    int do_append = (printing_on_same_line && current_line_length > 0);
+    if (do_append) available -= current_line_length;
+    if (available < 1) goto end_bar;
+    int max_available = available;
+    int maxwrite = (max_available > 255 ? 255 : max_available), minlen = 6;
     int clen = strlen(c);
     char buf[255] = {0};
     char *p = buf;
@@ -290,7 +297,7 @@ int PSProgressBar(int num, int tot, int style, int color, int flags,
         nwritten = snprintf(p, max_label_len, "%.*s ", max_label_len-2, label);
         p += nwritten;
         available -= nwritten;
-        maxlen -= nwritten;
+        maxwrite -= nwritten;
     }
     int just_bar = (flags & PS_PROGRESS_FLAG_JUST_BAR),
         just_percent = 0, use_percent = 0;
@@ -300,20 +307,20 @@ int PSProgressBar(int num, int tot, int style, int color, int flags,
         if (!just_percent) {
             int pad = 1 + (int) PSMathLog10((PSFloat) tot);
             if (!(flags & PS_PROGRESS_FLAG_NO_TOTAL))
-                nwritten = snprintf(p, maxlen, "%*d/%d ", pad, num, tot);
+                nwritten = snprintf(p, maxwrite, "%*d/%d ", pad, num, tot);
             else
-                nwritten = snprintf(p, maxlen, "%*d ", pad, num);
+                nwritten = snprintf(p, maxwrite, "%*d ", pad, num);
             p += nwritten;
             available -= nwritten;
-            maxlen -= nwritten;
+            maxwrite -= nwritten;
             if (available < minlen) goto end_bar;
         }
         if (use_percent) {
             int i_percent = (int) roundf(percent * 100);
-            nwritten = snprintf(p, maxlen, "- %3d%% ", i_percent);
+            nwritten = snprintf(p, maxwrite, "- %3d%% ", i_percent);
             p += nwritten;
             available -= nwritten;
-            maxlen -= nwritten;
+            maxwrite -= nwritten;
             if (available < minlen) goto end_bar;
         }
     }
@@ -336,7 +343,7 @@ int PSProgressBar(int num, int tot, int style, int color, int flags,
             color += (int) roundf(percent * (float) gradient_size);
         } else if (!is_xterm256) {
             if (flags & PS_PROGRESS_FLAG_XTERM256_CODE)
-             color = PSXTermColor256ToANSI(color, color_on_bg);
+                color = PSXTermColor256ToANSI(color, color_on_bg);
         }
     } else if (color_on_bg) {
         color = 7;
@@ -363,9 +370,11 @@ int PSProgressBar(int num, int tot, int style, int color, int flags,
     if (clen > 1 && (maxsize - barsize <= 0)) maxsize++;
     snprintf(p, maxsize, "%-*s", maxsize, bar);
     printing_on_same_line = 1;
-    printf("\r%-*s", tw, buf);
+    if (!do_append) printf("\r%-*s", max_available, buf);
+    else printf("%-*s", max_available, buf);
     if (color) printf("\x1b[0m");
     fflush(stdout);
+    current_line_length += max_available;
     return 1;
 end_bar:
     printing_on_same_line = 0;
