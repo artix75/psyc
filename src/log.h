@@ -94,6 +94,7 @@
 #define PS_PROGRESS_FLAG_NO_GRADIENT    (1 << 4)
 #define PS_PROGRESS_FLAG_NO_XTERM256    (1 << 5)
 #define PS_PROGRESS_FLAG_XTERM256_CODE  (1 << 6)
+#define PS_PROGRESS_FLAG_PERCENT_RIGHT  (1 << 7)
 
 #define PS_LINE_FILL            (1 << 1)
 #define PS_LINE_OVERWRITE       (1 << 2)

@@ -38,6 +38,7 @@ const char *logLevels[] = {
 static size_t log_levels_count = sizeof(logLevels) / sizeof(const char *);
 static int printing_on_same_line = 0;
 static int current_line_length = 0;
+static const char *line_overwritten_by = NULL;
 
 int PSLogLevel = PSDEFAULT_LOGLEVEL;
 FILE *PSLogFile = NULL;
@@ -250,6 +251,7 @@ int PSXTermColor256ToANSI(uint8_t color, int bgcolor) {
 
 void PSVPrintSameLine(char *format, va_list args) {
     printing_on_same_line = 1;
+    line_overwritten_by = __func__;
     if (format == NULL) format = "";
     int max_w = PSGetTerminalColumns() + 1;
     char buf[max_w];
@@ -283,7 +285,10 @@ int PSProgressBar(int num, int tot, int style, int color, int flags,
     if (maxlen <= 0) maxlen = tw - 1;
     if (maxlen < 1) goto end_bar;
     int available = maxlen, nwritten = 0;
-    int do_append = (printing_on_same_line && current_line_length > 0);
+    int do_append = (
+        printing_on_same_line && current_line_length > 0 &&
+        line_overwritten_by != __func__
+    );
     if (do_append) available -= current_line_length;
     if (available < 1) goto end_bar;
     int max_available = available;
@@ -300,7 +305,8 @@ int PSProgressBar(int num, int tot, int style, int color, int flags,
         maxwrite -= nwritten;
     }
     int just_bar = (flags & PS_PROGRESS_FLAG_JUST_BAR),
-        just_percent = 0, use_percent = 0;
+        just_percent = 0, use_percent = 0, percent_align_right = 0,
+        i_percent = 0;
     if (!just_bar) {
         just_percent = (flags & PS_PROGRESS_FLAG_JUST_PERCENT);
         use_percent = (just_percent || (flags & PS_PROGRESS_FLAG_PERCENT));
@@ -316,12 +322,18 @@ int PSProgressBar(int num, int tot, int style, int color, int flags,
             if (available < minlen) goto end_bar;
         }
         if (use_percent) {
-            int i_percent = (int) roundf(percent * 100);
-            nwritten = snprintf(p, maxwrite, "- %3d%% ", i_percent);
-            p += nwritten;
-            available -= nwritten;
-            maxwrite -= nwritten;
-            if (available < minlen) goto end_bar;
+            i_percent = (int) roundf(percent * 100);
+            percent_align_right = (flags & PS_PROGRESS_FLAG_PERCENT_RIGHT);
+            if (!percent_align_right) {
+                nwritten = snprintf(p, maxwrite, "- %3d%% ", i_percent);
+                p += nwritten;
+                available -= nwritten;
+                maxwrite -= nwritten;
+                if (available < minlen) goto end_bar;
+            } else {
+                available -= 5;
+                maxwrite -= 5;
+            }
         }
     }
     int max_width = available;
@@ -334,7 +346,7 @@ int PSProgressBar(int num, int tot, int style, int color, int flags,
     if (color) {
         int use_gradient = !(flags & PS_PROGRESS_FLAG_NO_GRADIENT) &&
                            is_xterm256;
-        if (color == 1) {
+        if (color == 1 && (use_gradient || !is_xterm256)) {
             /* Use default color */
             color = (is_xterm256 ? 40 : 32);
         }
@@ -370,11 +382,15 @@ int PSProgressBar(int num, int tot, int style, int color, int flags,
     if (clen > 1 && (maxsize - barsize <= 0)) maxsize++;
     snprintf(p, maxsize, "%-*s", maxsize, bar);
     printing_on_same_line = 1;
+    line_overwritten_by = __func__;
     if (!do_append) printf("\r%-*s", max_available, buf);
     else printf("%-*s", max_available, buf);
     if (color) printf("\x1b[0m");
-    fflush(stdout);
     current_line_length += max_available;
+    if (percent_align_right) {
+        current_line_length += printf(" %3d%%", i_percent);
+    }
+    fflush(stdout);
     return 1;
 end_bar:
     printing_on_same_line = 0;
@@ -431,6 +447,7 @@ int PSLineStart(int opts, char *format, ...) {
     current_line_length = 0;
     if (overwrite) {
         printing_on_same_line = 1;
+        line_overwritten_by = __func__;
         printf("\r");
     } else printf("\n");
     if (format != NULL) {

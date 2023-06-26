@@ -259,6 +259,7 @@ void PSLogTrainingProgressBar(PSNeuralNetwork *network, int status, int epochs,
                               int validating_tot)
 {
     UNUSED(validating_current);
+    UNUSED(validating_tot);
     static int epoch_printed = -1;
     static int min_sfx_len = -1;
     if (PSLogLevel > PSLOGLEVEL_INFO) return;
@@ -280,11 +281,8 @@ void PSLogTrainingProgressBar(PSNeuralNetwork *network, int status, int epochs,
     }
     int tw = PSGetTerminalColumns();
     int batch_num = network->training->current_batch + 1;
-    int percent =
-        (int) roundf(((float) batch_num / (float) batches) * 100.0f);
-    int lnflags = PS_LINE_PLAIN_ASCII | PS_LINE_FILL;
     int pad = 1 + PSMathLog10((PSFloat) batches);
-    int len = PSLineStart(
+    PSLineStart(
         PS_LINE_OVERWRITE, "Batch %*d/%d ", pad, batch_num, batches
     );
     int maxlen = tw - 1;
