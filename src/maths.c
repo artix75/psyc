@@ -1229,6 +1229,9 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
         else if (nd == 2) {
             dimensions[0] = dims_a[0];
             dimensions[1] = dims_b[last_dim_b];
+        } else if (nd == 0 && dims_a[0] == dims_b[0]) {
+            nd = 1;
+            dimensions[0] = 1;
         } else {
             PSErr(__func__, "Invalid output dimensions: %d", nd);
             return 0;
@@ -1250,6 +1253,9 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
             dimensions[1] = odims_b[1];
             if (shape_a == PS_SHAPE_TYPE_ROW) l = dimensions[1];
             else l = dimensions[0];
+        } else if (nd == 0 && dims_a[0] == dims_b[0]) {
+            nd = 1;
+            dimensions[0] = 1;
         }
         if (odims_a[o_ndims_a - 1] == 0) l = 0;
     }
@@ -1285,6 +1291,12 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
     if (outlen == 0) {
         outlen = 1;
         for (int i = 0; i < nd; i++) outlen *= dimensions[i];
+    }
+    if (a_vector_like && b_vector_like && nd == 1 && dimensions[0] == 1 &&
+        dims_a[0] == dims_b[0])
+    {
+        *out = PSDotProduct(a, b, dims_a[0], opt);
+        return 1;
     }
     PSBLASOrder order;
     if (shape_b == PS_SHAPE_TYPE_SCALAR) {
