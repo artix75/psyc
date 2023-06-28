@@ -783,7 +783,42 @@ int genericMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *out,
         if (out == NULL) return 0;
     }
     PSFloat *out_p = *out, *ap = a, *bp = NULL;
-    if (ndims_b > 1) b = PSMatrixTranspose(b, 0, opts);
+    PSMatrix trans_b = NULL;
+    if (ndims_b > 1) {
+        b = PSMatrixTranspose(b, 0, opts);
+        if (b == NULL) return 0;
+        if (ndims_b > 2) {
+            if ((ndims_b - 1) > 2) {
+                PSErr(NULL, "unsupported dimensions for matrix `b`");
+                return 0;
+            }
+            trans_b = PSMatrixDupShape(b);
+            if (trans_b == NULL) return 0;
+            int bs = PSMatrixStride(trans_b, 0), blen = PSMatrixDim(trans_b, 0);
+            for (i = 0; i < blen; i++) {
+                int offset = i * bs;
+                PSFloat *src = b + offset, *dst = trans_b + offset;
+                dst = PSVectorTranspose(
+                    src, dst, opts->acceleration, 2, shape_b[0], shape_b[1]
+                );
+                success = (dst != NULL);
+                if (!success) goto final;
+            }
+            b = trans_b;
+            int k;
+            for (i = 0; i < niter_a; i++) {
+                bp = b;
+                for (j = 0; j < l; j++) {
+                    for (k = 0; k < blen; k++) {
+                        bp = (b + (k * bs)) + (l * j);
+                        *(out_p++) = PSDotProduct(ap, bp, l, opts);
+                    }
+                }
+                ap += l;
+            }
+            goto final;
+        }
+    }
     for (i = 0; i < niter_a; i++) {
         bp = b;
         for (j = 0; j < niter_b; j++) {
@@ -792,6 +827,8 @@ int genericMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *out,
         }
         ap += l;
     }
+final:
+    PSMatrixDelete(trans_b);
     return success;
 }
 
@@ -1293,9 +1330,9 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
         for (int i = 0; i < nd; i++) outlen *= dimensions[i];
     }
     if (a_vector_like && b_vector_like && nd == 1 && dimensions[0] == 1 &&
-        dims_a[0] == dims_b[0])
+        PSMatrixLength(a) == PSMatrixLength(b))
     {
-        *out = PSDotProduct(a, b, dims_a[0], opt);
+        *out = PSDotProduct(a, b, PSMatrixLength(a), opt);
         return 1;
     }
     PSBLASOrder order;
@@ -2709,13 +2746,17 @@ void PSVectorPrint(PSFloat *vec, int len, char* sep) {
  * of `ndims` dimensions.
  * Use variadic arguments to set up-to 3 dimensions in the shape,
  * (ie rows, columns for 2-D array).
+ * If `dest` is not NULL, transposed vector will be stored into it.
  * Return value: the transposed array, with size of dim1*dim12*dim3, or NULL
- * if something gose wrong.
+ * if something goes wrong. If `dest` is not NULL, return value will be
+ * `dest` or NULL if something goes wrong.
  * NOTES:
  * - Variadic dimensions refer to original matrix shape, and not to the
  *   resulting transposed matrix.
- * - If you need to transpose a `PSMatrix`, use `PSMatrixTranspose` insetad. */
-PSFloat *PSVectorTranspose(PSFloat *vec, int acceleration, int ndims, ...) {
+ * - If you need to transpose a `PSMatrix`, use `PSMatrixTranspose` instead. */
+PSFloat *PSVectorTranspose(PSFloat *vec, PSFloat *dest, int acceleration,
+                           int ndims, ...)
+{
     if (ndims == 1) return vec;
     else if (ndims > MAX_DIMENSIONS) {
         PSErr(__func__, "`ndims` must be <= %d", MAX_DIMENSIONS);
@@ -2737,7 +2778,8 @@ PSFloat *PSVectorTranspose(PSFloat *vec, int acceleration, int ndims, ...) {
         PSErr(__func__, "Invalid dimensions: eachdimension must be > 0");
         return NULL;
     }
-    PSFloat *transposed = malloc(veclen * sizeof(PSFloat));
+    PSFloat *transposed = dest;
+    if (transposed == NULL) transposed = malloc(veclen * sizeof(PSFloat));
     if (transposed == NULL) {
         PSPrintMemoryErrorMsg();
         return NULL;
@@ -2841,12 +2883,12 @@ int PSMatMul(PSFloat *a, PSFloat *b, PSFloat *dest, int m, int n, int k,
     int do_add = (store_mode == PS_STORE_MODE_ADD), success = 1;
     PSFloat *transposed_a = NULL, *transposed_b = NULL, *orig_b = b;
     if (transpose_a) {
-        transposed_a = PSVectorTranspose(a, acceleration, 2, k, m);
+        transposed_a = PSVectorTranspose(a, NULL, acceleration, 2, k, m);
         if (transposed_a == NULL) return 0;
         a = transposed_a;
     }
     if (transpose_b) {
-        transposed_b = PSVectorTranspose(b, acceleration, 2, n, k);
+        transposed_b = PSVectorTranspose(b, NULL, acceleration, 2, n, k);
         if (transposed_b == NULL) return 0;
         b = transposed_b;
     }
@@ -2876,7 +2918,7 @@ int PSMatMul(PSFloat *a, PSFloat *b, PSFloat *dest, int m, int n, int k,
     int a_rows = m, a_cols = k, b_rows = k, b_cols = n, out_rows, out_cols;
     if (transpose_b) b = orig_b;
     else {
-        transposed_b = PSVectorTranspose(b, acceleration, 2, k, n);
+        transposed_b = PSVectorTranspose(b, NULL, acceleration, 2, k, n);
         b = transposed_b;
     }
     out_rows = a_rows;

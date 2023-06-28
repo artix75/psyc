@@ -222,7 +222,8 @@ PSFloat PSDotSquare(PSFloat *a, uint64_t length, PSMathOpts *opts);
 void PSVectorFill(PSFloat *vec, PSFloat val, uint64_t len, PSMathOpts *opts);
 void PSVectorWrite(PSFloat *vec, int len, char* sep, FILE *f);
 void PSVectorPrint(PSFloat *vec, int len, char* sep);
-PSFloat *PSVectorTranspose(PSFloat *vec, int acceleration, int ndims, ...);
+PSFloat *PSVectorTranspose(PSFloat *vec, PSFloat *dest, int acceleration,
+                           int ndims, ...);
 int PSMatMul(PSFloat *a, PSFloat *b, PSFloat *dest, int m, int n, int k,
              PSMathOpts *opts);
 int PSDot(PSMatrix a, PSMatrix b, PSFloat *dest, PSMathOpts *opts);
