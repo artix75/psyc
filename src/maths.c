@@ -119,8 +119,6 @@
     }\
     UNUSED(debug_step);
 
-#define MAX_DIMENSIONS 3
-
 /* Forward declarations and external functions */
 
 int writeSerializedFloatArray(FILE *out, int count, char *sep, int opts,
@@ -192,7 +190,7 @@ unsigned int PSRandomInt(unsigned int range, PSFloat *weights, int *err,
 
 typedef struct PSMatrixHeader {
     int ndims;
-    int dims[MAX_DIMENSIONS];
+    int dims[PS_MATRIX_MAX_DIMENSIONS];
     PSMatrix transposed;
     PSMatrix transposed_from;
     uint64_t length;
@@ -222,7 +220,7 @@ static PSFloat matrixRandomInitializer(PSMatrix matrix, int idx, PSFloat val) {
 
 static const char *matrixDimensionsToString(int ndims, int *dims) {
     static char dimstr[256] = {0};
-    if (dims == NULL || ndims < 0 || ndims > MAX_DIMENSIONS) {
+    if (dims == NULL || ndims < 0 || ndims > PS_MATRIX_MAX_DIMENSIONS) {
         dimstr[0] = '\0';
         return dimstr;
     }
@@ -258,8 +256,9 @@ PSMatrix PSMatrixCreateWithShape(PSFloat init_value,
                                  PSMatrixInitializer initializer,
                                  int ndims, int *shape)
 {
-    if (ndims < 1 || ndims > MAX_DIMENSIONS) {
-        PSErr(__func__, "ndims must be between 1 and %d", MAX_DIMENSIONS);
+    if (ndims < 1 || ndims > PS_MATRIX_MAX_DIMENSIONS) {
+        PSErr(__func__, "ndims must be between 1 and %d",
+              PS_MATRIX_MAX_DIMENSIONS);
         return NULL;
     }
     int len = 1, i;
@@ -297,7 +296,7 @@ PSMatrix PSMatrixCreateWithShape(PSFloat init_value,
     hdr->transposed = NULL;
     hdr->transposed_from = NULL;
     hdr->ndims = ndims;
-    for (i = 0; i < MAX_DIMENSIONS; i++) {
+    for (i = 0; i < PS_MATRIX_MAX_DIMENSIONS; i++) {
         if (i < ndims) hdr->dims[i] = shape[i];
         else hdr->dims[i] = 0;
     }
@@ -316,11 +315,12 @@ PSMatrix PSMatrixCreateWithShape(PSFloat init_value,
 PSMatrix PSMatrixCreateV(PSFloat init_value, PSMatrixInitializer initializer,
                          int ndims, va_list args)
 {
-    if (ndims < 1 || ndims > MAX_DIMENSIONS) {
-        PSErr(__func__, "ndims must be between 1 and %d", MAX_DIMENSIONS);
+    if (ndims < 1 || ndims > PS_MATRIX_MAX_DIMENSIONS) {
+        PSErr(__func__, "ndims must be between 1 and %d",
+              PS_MATRIX_MAX_DIMENSIONS);
         return NULL;
     }
-    int dims[MAX_DIMENSIONS];
+    int dims[PS_MATRIX_MAX_DIMENSIONS];
     for (int i = 0; i < ndims; i++) {
         int d = va_arg(args, int);
         dims[i] = d;
@@ -428,8 +428,8 @@ int PSMatrixCopy(PSMatrix src, PSMatrix dst) {
         PSErr(__func__, "`dst` matrix is NULL");
         return 0;
     }
-    int src_dims[MAX_DIMENSIONS];
-    int dst_dims[MAX_DIMENSIONS];
+    int src_dims[PS_MATRIX_MAX_DIMENSIONS];
+    int dst_dims[PS_MATRIX_MAX_DIMENSIONS];
     int src_ndims = PSMatrixDimensions(src, src_dims),
         dst_ndims = PSMatrixDimensions(dst, dst_dims),
         src_len = PSMatrixLength(src), i;
@@ -480,7 +480,7 @@ PSMatrix PSMatrixExpand(PSMatrix src, int add, int keep_src) {
         PSMathOpts opts = {.acceleration = PSGlobalAcceleration};
         return PSMatrixTranspose(matrix, 1, &opts);
     }
-    int new_dims[MAX_DIMENSIONS] = {0};
+    int new_dims[PS_MATRIX_MAX_DIMENSIONS] = {0};
     int ndims = PSMatrixDimensions(src, new_dims);
     int curlen = PSMatrixLength(src);
     new_dims[0] += add;
@@ -512,7 +512,7 @@ int PSMatrixDimensions(PSMatrix matrix, int *dims) {
     int ndims = PSMatrixNumDims(matrix);
     if (dims == NULL) return ndims;
     PSMatrixHeader *hdr = PSMatrixGetHeader(matrix);
-    memcpy(dims, hdr->dims, (MAX_DIMENSIONS * sizeof(int)));
+    memcpy(dims, hdr->dims, (PS_MATRIX_MAX_DIMENSIONS * sizeof(int)));
     return ndims;
 }
 
@@ -526,7 +526,7 @@ int PSMatrixStride(PSMatrix matrix, int dim) {
     if (matrix == NULL) return 0;
     int refdim = dim + 1;
     PSMatrixHeader *hdr = PSMatrixGetHeader(matrix);
-    if (refdim >= MAX_DIMENSIONS || refdim >= hdr->ndims) return 1;
+    if (refdim >= PS_MATRIX_MAX_DIMENSIONS || refdim >= hdr->ndims) return 1;
     int stride = 1;
     while (refdim < hdr->ndims) stride *= hdr->dims[refdim++];
     return stride;
@@ -534,7 +534,7 @@ int PSMatrixStride(PSMatrix matrix, int dim) {
 
 int PSMatrixShapeType(PSMatrix matrix) {
     if (matrix == NULL) return PS_SHAPE_TYPE_NONE;
-    int dims[MAX_DIMENSIONS];
+    int dims[PS_MATRIX_MAX_DIMENSIONS];
     int ndims = PSMatrixDimensions(matrix, dims);
     return getShapeType(ndims, dims);
 }
@@ -548,7 +548,7 @@ void PSMatrixPrintInfo(PSMatrix matrix, const char *name, int newline) {
         printf("Matrix %s = (null)%s", name, nl);
         return;
     }
-    int dims[MAX_DIMENSIONS] = {0};
+    int dims[PS_MATRIX_MAX_DIMENSIONS] = {0};
     int ndims = PSMatrixDimensions(matrix, dims);
     printf(
         "Matrix %s dimensions = %d, shape = (%s)%s",
@@ -558,9 +558,9 @@ void PSMatrixPrintInfo(PSMatrix matrix, const char *name, int newline) {
 
 void PSMatrixPrintShape(PSMatrix matrix, int newline) {
     if (matrix == NULL) return;
-    int shape[MAX_DIMENSIONS] = {0};
+    int shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
     int nd = PSMatrixDimensions(matrix, shape), i;
-    if (nd > MAX_DIMENSIONS) {
+    if (nd > PS_MATRIX_MAX_DIMENSIONS) {
         PSWarn("%s: invalid matrix", __func__);
         return;
     }
@@ -583,13 +583,13 @@ int PSMatrixWrite(PSMatrix matrix, const char *sep, char bracket,
         PSErr(__func__, "invalid bracket '%c'", bracket);
         return 0;
     }
-    int shape[MAX_DIMENSIONS];
+    int shape[PS_MATRIX_MAX_DIMENSIONS];
     int ndims = PSMatrixDimensions(matrix, shape), i, j, k;
     int last_dim = ndims - 1;
-    int index[MAX_DIMENSIONS] = {0};
-    int prev_index[MAX_DIMENSIONS];
+    int index[PS_MATRIX_MAX_DIMENSIONS] = {0};
+    int prev_index[PS_MATRIX_MAX_DIMENSIONS];
     for (j = 0; j < ndims; j++) prev_index[j] = -1;
-    int strides[MAX_DIMENSIONS] = {0};
+    int strides[PS_MATRIX_MAX_DIMENSIONS] = {0};
     for (j = 0; j < ndims; j++) {
         strides[j] = 1;
         for (k = j + 1; k < ndims; k++) strides[j] *= shape[k];
@@ -629,7 +629,7 @@ int PSMatrixWrite(PSMatrix matrix, const char *sep, char bracket,
                 } else break;
             }
         }
-        memcpy(prev_index, index, MAX_DIMENSIONS * sizeof(int));
+        memcpy(prev_index, index, PS_MATRIX_MAX_DIMENSIONS * sizeof(int));
     }
     if (indent > 0) printf("\n");
     return nwritten;
@@ -638,7 +638,7 @@ int PSMatrixWrite(PSMatrix matrix, const char *sep, char bracket,
 void PSMatrixPrint(PSMatrix matrix, const char *sep, int print_shape) {
     if (matrix == NULL) return;
     if (print_shape) {
-        int shape[MAX_DIMENSIONS];
+        int shape[PS_MATRIX_MAX_DIMENSIONS];
         int ndims = PSMatrixDimensions(matrix, shape);
         printf("Matrix (shape = %s):\n",matrixDimensionsToString(ndims,shape));
     }
@@ -698,8 +698,8 @@ int genericMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *out,
         b = PSMatrixTranspose(b, 0, opts);
         if (a == NULL) return 0;
     }
-    int shape_a[MAX_DIMENSIONS] = {0};
-    int shape_b[MAX_DIMENSIONS] = {0};
+    int shape_a[PS_MATRIX_MAX_DIMENSIONS] = {0};
+    int shape_b[PS_MATRIX_MAX_DIMENSIONS] = {0};
     int ndims_a = PSMatrixDimensions(a, shape_a);
     int ndims_b = PSMatrixDimensions(b, shape_b);
     uint64_t len = 0;
@@ -743,13 +743,13 @@ int genericMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *out,
         return 0;
     }
     int nd = ndims_a + ndims_b - 2;
-    if (nd > MAX_DIMENSIONS) {
+    if (nd > PS_MATRIX_MAX_DIMENSIONS) {
         PSErr(__func__, "result would exceed max dimensions (%d): %d",
-              nd, MAX_DIMENSIONS);
+              nd, PS_MATRIX_MAX_DIMENSIONS);
         return 0;
     }
     int i, j = 0, niter_a = 1, niter_b = 1;
-    int dimensions[MAX_DIMENSIONS * 3] = {0};
+    int dimensions[PS_MATRIX_MAX_DIMENSIONS * 3] = {0};
     for (i = 0; i < (ndims_a - 1); i++) {
         if (i < (ndims_a - 1)) niter_a *= shape_a[i];
         dimensions[j++] = shape_a[i];
@@ -758,7 +758,7 @@ int genericMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *out,
     if (ndims_b > 1) dimensions[j++] = shape_b[ndims_b - 1];
     niter_b = PSMatrixLength(b) / l;
     if (*out != NULL) {
-        int out_shape[MAX_DIMENSIONS] = {0};
+        int out_shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
         int out_ndims = PSMatrixDimensions(*out, out_shape);
         if (out_ndims != nd) {
             PSErr(
@@ -879,7 +879,7 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
     UNUSED(acceleration);
     UNUSED(use_acf);
 #endif
-    int dims_a[MAX_DIMENSIONS];
+    int dims_a[PS_MATRIX_MAX_DIMENSIONS];
     int ndims = PSMatrixDimensions(a, dims_a);
     if (ndims == 0) {
         PSErr(__func__, "Invalid matrix");
@@ -907,8 +907,21 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
         PSMatrixPrintInfo(a, "a", 1);
         return 0;
     }
-    int nd = ndims - 1, outlen;
-    int ld = (transpose & 1 ? dims_a[nd] : dims_a[0]);
+    int scalar_a = (getShapeType(ndims, dims_a) == PS_SHAPE_TYPE_SCALAR);
+    int scalar_b = len == 1;
+    int use_scalar = (scalar_a || scalar_b);
+    int nd, ld, outlen;
+    if (use_scalar) {
+        if (scalar_a && scalar_b) nd = 0;
+        else {
+            nd = 1;
+            if (scalar_a) ld = len;
+            else ld = (transpose & 1 ? dims_a[nd] : dims_a[0]);
+        }
+    } else {
+        nd = ndims - 1;
+        ld = (transpose & 1 ? dims_a[nd] : dims_a[0]);
+    }
     if (nd == 0) outlen = 1;
     else if (nd == 1) outlen = ld;
     else if (nd == 2) outlen = dims_a[ld] * len;
@@ -920,6 +933,13 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
     if (out == NULL) {
         out = *result = calloc(outlen, sizeof(PSFloat));
         if (out == NULL) return 0;
+    }
+    if (use_scalar) {
+        if (!scalar_a && transpose & 1) a = PSMatrixTranspose(a, 0, opts);
+        if (scalar_a && scalar_b) *out = *a * *b;
+        else if (scalar_a) PSMultiplyVectorScalar(b, *a, out, len, opts);
+        else PSMultiplyVectorScalar(a, *b, out, PSMatrixLength(a), opts);
+        return 1;
     }
     if (ndims == 1) {
         out[0] = PSDotProduct(a, b, len, opts);
@@ -995,8 +1015,8 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
         return 0;
     }
     PSBLASOrder order = PSBLASRowMajor;
-    int mdims_b[MAX_DIMENSIONS];
-    int tdims_b[MAX_DIMENSIONS];
+    int mdims_b[PS_MATRIX_MAX_DIMENSIONS];
+    int tdims_b[PS_MATRIX_MAX_DIMENSIONS];
     int *dims_b = mdims_b;
     int ndims = PSMatrixDimensions(b, dims_b);
     if (ndims == 0) {
@@ -1011,7 +1031,7 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
         return success;
     }
     int last_dim = ndims - 1;
-    int dimensions[MAX_DIMENSIONS] = {0};
+    int dimensions[PS_MATRIX_MAX_DIMENSIONS] = {0};
     int transpose = 0;
     int acceleration = PSGlobalAcceleration;
     PSFloat beta = 0.0;
@@ -1044,14 +1064,26 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
               "%d != %d (transpose: %d)", dims_b[0], len, transpose);
         return 0;
     }
-    int nd = 1 + ndims - 2;
-    if (nd == 1) dimensions[0] = dims_b[1];
-    else if (nd == 2) {
-        dimensions[0] = len;
-        dimensions[1] = dims_b[1];
+    int scalar_a = len == 1;
+    int scalar_b = (getShapeType(ndims, dims_b) == PS_SHAPE_TYPE_SCALAR);
+    int use_scalar = (scalar_a || scalar_b);
+    int nd;
+    if (!use_scalar) {
+        nd = 1 + ndims - 2;
+        if (nd == 1) dimensions[0] = dims_b[1];
+        else if (nd == 2) {
+            dimensions[0] = len;
+            dimensions[1] = dims_b[1];
+        } else if (nd == 0) {
+            nd = 1;
+            dimensions[0] = 1;
+        } else {
+            PSErr(__func__, "Invalid output dimensions: %d", nd);
+            return 0;
+        }
     } else {
-        PSErr(__func__, "Invalid output dimensions: %d", nd);
-        return 0;
+        nd = 1;
+        dimensions[0] = (scalar_a ? PSMatrixLength(b) : len);
     }
     PSMatrix out = *result;
     int outlen = 0;
@@ -1082,6 +1114,15 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
     if (outlen == 0) {
         outlen = 1;
         for (int i = 0; i < nd; i++) outlen *= dimensions[i];
+    }
+    if (use_scalar) {
+        if (!scalar_b && transpose & 2) b = PSMatrixTranspose(b, 0, opts);
+        if (scalar_a && scalar_b) *out = *a * *b;
+        else if (scalar_b) PSMultiplyVectorScalar(a, *b, out, len, opts);
+        else PSMultiplyVectorScalar(b, *a, out, PSMatrixLength(b), opts);
+    } else if (nd==1 && dimensions[0]==1  && PSMatrixLength(b)==(uint64_t)len) {
+        *out = PSDotProduct(a, b, len, opts);
+        return 1;
     }
     int lda = (mdims_b[1] > 1 ? mdims_b[1] : 1);
     int m = mdims_b[0], n = mdims_b[1];
@@ -1149,11 +1190,11 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
         return 0;
     }
     /* Original matrix dimensions */
-    int mdims_a[MAX_DIMENSIONS];
-    int mdims_b[MAX_DIMENSIONS];
+    int mdims_a[PS_MATRIX_MAX_DIMENSIONS];
+    int mdims_b[PS_MATRIX_MAX_DIMENSIONS];
     /* Eventually transposed matrix dimensions */
-    int tdims_a[MAX_DIMENSIONS];
-    int tdims_b[MAX_DIMENSIONS];
+    int tdims_a[PS_MATRIX_MAX_DIMENSIONS];
+    int tdims_b[PS_MATRIX_MAX_DIMENSIONS];
     /* Number of dimensions */
     int ndims_a = PSMatrixDimensions(a, mdims_a);
     int ndims_b = PSMatrixDimensions(b, mdims_b);
@@ -1170,7 +1211,7 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
     int last_dim_a = ndims_a - 1, last_dim_b = ndims_b - 1;
     int *dims_a = mdims_a, *dims_b = mdims_b;
     int lda = 0, ldb = 0, l = 0, i;
-    int dimensions[MAX_DIMENSIONS] = {0};
+    int dimensions[PS_MATRIX_MAX_DIMENSIONS] = {0};
     char trans_a = 'N', trans_b = 'N';
     int transpose = 0;
     int acceleration = PSGlobalAcceleration;
@@ -1205,7 +1246,7 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
             reverse_args = 1;
             PSMatrix tmp_a = a;
             int tmp_nda = ndims_b;
-            int tmp_shape_a[MAX_DIMENSIONS] = {0};
+            int tmp_shape_a[PS_MATRIX_MAX_DIMENSIONS] = {0};
             a = b;
             b = tmp_a;
             shape_a = shape_b;
@@ -1214,9 +1255,9 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
             ndims_b = tmp_nda;
             if (transpose == 2) transpose = 1;
             else if (transpose == 1) transpose = 2;
-            memcpy(tmp_shape_a, mdims_a, MAX_DIMENSIONS * sizeof(int));
-            memcpy(mdims_a, mdims_b, MAX_DIMENSIONS * sizeof(int));
-            memcpy(mdims_b, tmp_shape_a, MAX_DIMENSIONS * sizeof(int));
+            memcpy(tmp_shape_a, mdims_a, PS_MATRIX_MAX_DIMENSIONS*sizeof(int));
+            memcpy(mdims_a, mdims_b, PS_MATRIX_MAX_DIMENSIONS * sizeof(int));
+            memcpy(mdims_b, tmp_shape_a, PS_MATRIX_MAX_DIMENSIONS*sizeof(int));
             last_dim_a = ndims_a - 1;
             last_dim_b = ndims_b - 1;
         }
@@ -1274,8 +1315,8 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
             return 0;
         }
     } else {
-        int odims_a[MAX_DIMENSIONS] = {0};
-        int odims_b[MAX_DIMENSIONS] = {0};
+        int odims_a[PS_MATRIX_MAX_DIMENSIONS] = {0};
+        int odims_b[PS_MATRIX_MAX_DIMENSIONS] = {0};
         int o_ndims_a = PSMatrixDimensions(orig_a, odims_a),
             o_ndims_b = PSMatrixDimensions(orig_b, odims_b);
         UNUSED(o_ndims_b);
@@ -1529,10 +1570,10 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
 align_err:
     if (reverse_args) {
         /* `a` and `b` were reversed */
-        int tmp_shape[MAX_DIMENSIONS] = {0};
-        memcpy(tmp_shape, dims_a, MAX_DIMENSIONS * sizeof(int));
-        memcpy(dims_a, dims_b, MAX_DIMENSIONS * sizeof(int));
-        memcpy(dims_b, dims_a, MAX_DIMENSIONS * sizeof(int));
+        int tmp_shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
+        memcpy(tmp_shape, dims_a, PS_MATRIX_MAX_DIMENSIONS * sizeof(int));
+        memcpy(dims_a, dims_b, PS_MATRIX_MAX_DIMENSIONS * sizeof(int));
+        memcpy(dims_b, dims_a, PS_MATRIX_MAX_DIMENSIONS * sizeof(int));
         int tr_a = transpose_a, last_d_a = last_dim_a;
         transpose_a = transpose_b;
         transpose_b = tr_a;
@@ -1553,12 +1594,12 @@ align_err:
 PSMatrix PSMatrixReshape(PSMatrix matrix, int num_dims, ...) {
     if (matrix == NULL) return NULL;
     if (num_dims <= 0) return NULL;
-    if (num_dims > MAX_DIMENSIONS) {
-        PSErr(__func__, "max shape dimensions: %d", MAX_DIMENSIONS);
+    if (num_dims > PS_MATRIX_MAX_DIMENSIONS) {
+        PSErr(__func__, "max shape dimensions: %d", PS_MATRIX_MAX_DIMENSIONS);
         return NULL;
     }
     uint64_t new_len = 1;
-    int new_shape[MAX_DIMENSIONS] = {0};
+    int new_shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
     PSMatrixHeader *hdr = PSMatrixGetHeader(matrix);
     va_list args;
     va_start(args, num_dims);
@@ -1587,7 +1628,7 @@ PSMatrix *PSMatrixSplit(PSMatrix matrix, int num_slices, int axis,
                         PSMathOpts *opts)
 {
     if (matrix == NULL) return NULL;
-    int shape[MAX_DIMENSIONS] = {0};
+    int shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
     int ndims = PSMatrixDimensions(matrix, shape);
     uint64_t len = PSMatrixLength(matrix);
     if (len == 0 || ndims <= 0) {
@@ -1644,7 +1685,7 @@ PSMatrix *PSMatrixSplit(PSMatrix matrix, int num_slices, int axis,
         int from = points[i], to = points[i + 1], len = to - from;
         int size = len * elem_size;
         PSFloat *data = matrix + (from * elem_size);
-        int slice_shape[MAX_DIMENSIONS] = {len};
+        int slice_shape[PS_MATRIX_MAX_DIMENSIONS] = {len};
         for (int j = 1; j < ndims; j++) slice_shape[j] = shape[j];
         PSMatrix subm = PSMatrixCreateWithShape(0, NULL, ndims, slice_shape);
         success = (subm != NULL);
@@ -2490,8 +2531,8 @@ int PSDot(PSMatrix a, PSMatrix b, PSMatrix dest, PSMathOpts *opts) {
         return 0;
     }
     int store_mode = PS_STORE_MODE_SET;
-    int dims_a[MAX_DIMENSIONS] = {0};
-    int dims_b[MAX_DIMENSIONS] = {0};
+    int dims_a[PS_MATRIX_MAX_DIMENSIONS] = {0};
+    int dims_b[PS_MATRIX_MAX_DIMENSIONS] = {0};
     char df_argtype[] = {'M', 'M', 'M'};
     char *argtype = df_argtype;
     int transpose = 0;
@@ -2758,14 +2799,14 @@ PSFloat *PSVectorTranspose(PSFloat *vec, PSFloat *dest, int acceleration,
                            int ndims, ...)
 {
     if (ndims == 1) return vec;
-    else if (ndims > MAX_DIMENSIONS) {
-        PSErr(__func__, "`ndims` must be <= %d", MAX_DIMENSIONS);
+    else if (ndims > PS_MATRIX_MAX_DIMENSIONS) {
+        PSErr(__func__, "`ndims` must be <= %d", PS_MATRIX_MAX_DIMENSIONS);
         return NULL;
     } else if (ndims <= 0) {
         PSErr(__func__, "`ndims` must be > 0");
         return NULL;
     }
-    int dims[MAX_DIMENSIONS] = {0};
+    int dims[PS_MATRIX_MAX_DIMENSIONS] = {0};
     uint64_t x, y, z, idx, i, veclen = 1;
     va_list args;
     va_start(args, ndims);

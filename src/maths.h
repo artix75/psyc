@@ -65,6 +65,8 @@
 #define PS_SHAPE_TYPE_COL    3
 #define PS_SHAPE_TYPE_MATRIX 4
 
+#define PS_MATRIX_MAX_DIMENSIONS 3
+
 struct PSMathOpts;
 typedef void (*PSDotProductDebug)(int i, PSFloat a, PSFloat b, PSFloat sum,
                                   int using_acceleration,

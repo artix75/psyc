@@ -75,6 +75,7 @@ void PSVLog(int level, const char *format, va_list args) {
     if (color != NULL) fprintf(out, "%s", color);
     vfprintf(out, format, args);
     if (color != NULL) fprintf(out, "%s", PSCOLOR_RESET);
+    fflush(out);
 }
 
 void PSLog(int level, const char *format, ...) {
