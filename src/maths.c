@@ -782,39 +782,52 @@ int genericMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *out,
         *out = PSMatrixCreateWithShape(0, NULL, nd, dimensions);
         if (out == NULL) return 0;
     }
+    uint64_t outlen = PSMatrixLength(*out);
     PSFloat *out_p = *out, *ap = a, *bp = NULL;
-    PSMatrix trans_b = NULL;
+    PSMatrix swap_b = NULL;
     if (ndims_b > 1) {
         b = PSMatrixTranspose(b, 0, opts);
         if (b == NULL) return 0;
+        int blen = PSMatrixDim(b, 0);
         if (ndims_b > 2) {
             if ((ndims_b - 1) > 2) {
                 PSErr(NULL, "unsupported dimensions for matrix `b`");
                 return 0;
             }
-            trans_b = PSMatrixDupShape(b);
-            if (trans_b == NULL) return 0;
-            int bs = PSMatrixStride(trans_b, 0), blen = PSMatrixDim(trans_b, 0);
+            swap_b = PSMatrixDupShape(b);
+            if (swap_b == NULL) return 0;
+            int bs = PSMatrixStride(swap_b, 0);
+            int tshape_b[PS_MATRIX_MAX_DIMENSIONS] = {0};
+            PSMatrixDimensions(b, tshape_b);
             for (i = 0; i < blen; i++) {
                 int offset = i * bs;
-                PSFloat *src = b + offset, *dst = trans_b + offset;
+                PSFloat *src = b + offset, *dst = swap_b + offset;
                 dst = PSVectorTranspose(
-                    src, dst, opts->acceleration, 2, shape_b[0], shape_b[1]
+                    src, dst, opts->acceleration, 2,
+                    tshape_b[ndims_b - 2], tshape_b[ndims_b - 1]
                 );
                 success = (dst != NULL);
                 if (!success) goto final;
             }
-            b = trans_b;
-            int k;
+            b = swap_b;
+            PSMatrixDimensions(b, tshape_b);
+            int last_db = tshape_b[ndims_b - 1];
+            tshape_b[ndims_b - 1] = tshape_b[ndims_b - 2];
+            tshape_b[ndims_b - 2] = last_db;
+            PSMatrixHeader *hdr = PSMatrixGetHeader(b);
+            memcpy(hdr->dims, tshape_b, PS_MATRIX_MAX_DIMENSIONS * sizeof(int));
+            l = tshape_b[ndims_b - 1];
+            int as = PSMatrixStride(a, 0), k;
             for (i = 0; i < niter_a; i++) {
                 bp = b;
-                for (j = 0; j < l; j++) {
-                    for (k = 0; k < blen; k++) {
-                        bp = (b + (k * bs)) + (l * j);
+                for (k = 0; k < tshape_b[ndims_b - 2]; k++) {
+                    for (j = 0; j < blen; j++) {
+                        bp = (b + (j * bs)) + (l * k);
+                        assert((uint64_t)(out_p - *out) <= outlen);
                         *(out_p++) = PSDotProduct(ap, bp, l, opts);
                     }
                 }
-                ap += l;
+                ap += as;
             }
             goto final;
         }
@@ -828,7 +841,7 @@ int genericMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *out,
         ap += l;
     }
 final:
-    PSMatrixDelete(trans_b);
+    PSMatrixDelete(swap_b);
     return success;
 }
 
@@ -1253,8 +1266,10 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
             shape_b = PS_SHAPE_TYPE_SCALAR;
             ndims_a = ndims_b;
             ndims_b = tmp_nda;
-            if (transpose == 2) transpose = 1;
-            else if (transpose == 1) transpose = 2;
+            int tr = 0;
+            if (transpose & 2) tr |= 1;
+            if (transpose & 1) tr |= 2;
+            transpose = tr;
             memcpy(tmp_shape_a, mdims_a, PS_MATRIX_MAX_DIMENSIONS*sizeof(int));
             memcpy(mdims_a, mdims_b, PS_MATRIX_MAX_DIMENSIONS * sizeof(int));
             memcpy(mdims_b, tmp_shape_a, PS_MATRIX_MAX_DIMENSIONS*sizeof(int));
