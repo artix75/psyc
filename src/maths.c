@@ -1141,6 +1141,12 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
     int m = mdims_b[0], n = mdims_b[1];
     if (!use_blas) {
         int do_add = (beta == 1.0);
+        if (!(transpose & 2)) b = PSMatrixTranspose(b, 0, opts);
+        else {
+            int tmpm = m;
+            m = n;
+            n = tmpm;
+        }
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
         if (use_acf) {
             if (outlen == 0) return 0;
@@ -1154,7 +1160,7 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
                 }
                 dest = tmpdest;
             }
-            VDSPMMul(b, a, dest, m, 1, n);
+            VDSPMMul(b, a, dest, n, 1, m);
             if (do_add) {
                 PSMathOpts sumopts = {.acceleration = acceleration};
                 PSSumVectors(dest, out, out, outlen, &sumopts);
@@ -1165,10 +1171,10 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
         }
 #endif
         PSMathOpts mopts = {.acceleration = acceleration};
-        for (int i = 0; i < m; i++) {
-            PSFloat *row = b + (i * n);
-            if (!do_add) out[i] = PSDotProduct(row, a, n, &mopts);
-            else out[i] += PSDotProduct(row, a, n, &mopts);
+        for (int i = 0; i < n; i++) {
+            PSFloat *row = b + (i * m);
+            if (!do_add) out[i] = PSDotProduct(row, a, m, &mopts);
+            else out[i] += PSDotProduct(row, a, m, &mopts);
         }
         return 1;
     }
@@ -1446,6 +1452,11 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
         int m = dims_a[0], n = dims_a[1];
         if (!use_blas) {
             int do_add = (beta == 1.0);
+            if (transpose_a) {
+                int tmpm = m;
+                m = n;
+                n = tmpm;
+            }
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
             if (use_acf) {
                 if (outlen == 0) return 0;
@@ -1459,7 +1470,7 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
                     }
                     dest = tmpdest;
                 }
-                VDSPMMul(a, b, dest, dims_a[0], 1, mdims_a[1]);
+                VDSPMMul(a, b, dest, m, 1, n);
                 if (do_add) {
                     PSMathOpts sumopts = {.acceleration = acceleration};
                     PSSumVectors(dest, out, out, outlen, &sumopts);
@@ -1490,8 +1501,20 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
         int m = dims_b[0], n = dims_b[1];
         if (!use_blas) {
             int do_add = (beta == 1.0);
-            /* If b was transposed, we need it back in its original shape*/
-            if (transpose & 2) b = PSMatrixTranspose(b, 0, opt);
+            /* Transposition here needs to work in reveres way: if b should be
+             * transposed, use it with its original shape, if no tranposition
+             * has been set, use it in its transpodes shape.
+             * Since, in the first case (transposed), `b` has already been
+             * transposed, always call PSMatrixTranspose:
+             *  - if already transposed, just return it's original (cached)
+             *    version
+             *  - otherwise, transpose it. */
+            b = PSMatrixTranspose(b, 0, opt);
+            if (transpose_b) {
+                int tmpm = m;
+                m = n;
+                n = tmpm;
+            }
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
             if (use_acf) {
                 if (outlen == 0) return 0;
@@ -1505,7 +1528,7 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
                     }
                     dest = tmpdest;
                 }
-                VDSPMMul(b, a, dest, m, 1, n);
+                VDSPMMul(b, a, dest, n, 1, m);
                 if (do_add) {
                     PSSumVectors(dest, out, out, outlen, opt);
                     if (opt == NULL || tmpdest != opt->tmpdest)
@@ -1515,9 +1538,9 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
             }
 #endif
             if (opt) opt->store_mode = PS_STORE_MODE_SET;
-            for (int i = 0; i < m; i++) {
-                PSFloat *row = b + (i * n);
-                if (!do_add) out[i] = PSDotProduct(row, a, n, opt);
+            for (int i = 0; i < n; i++) {
+                PSFloat *row = b + (i * m);
+                if (!do_add) out[i] = PSDotProduct(row, a, m, opt);
                 else out[i] += PSDotProduct(row, a, n, opt);
             }
             return 1;
