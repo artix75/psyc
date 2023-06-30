@@ -1258,7 +1258,7 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
         if (shape_a == PS_SHAPE_TYPE_SCALAR) {
             reverse_args = 1;
             PSMatrix tmp_a = a;
-            int tmp_nda = ndims_b;
+            int tmp_nda = ndims_a;
             int tmp_shape_a[PS_MATRIX_MAX_DIMENSIONS] = {0};
             a = b;
             b = tmp_a;
@@ -1334,7 +1334,24 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
         int odims_b[PS_MATRIX_MAX_DIMENSIONS] = {0};
         int o_ndims_a = PSMatrixDimensions(orig_a, odims_a),
             o_ndims_b = PSMatrixDimensions(orig_b, odims_b);
-        UNUSED(o_ndims_b);
+        if (transpose) {
+            int orig_transp = transpose;
+            if (reverse_args) {
+                orig_transp = 0;
+                if (transpose & 2) orig_transp |= 1;
+                if (transpose & 1) orig_transp |= 2;
+            }
+            if (o_ndims_a > 1 && orig_transp & 1) {
+                int tmp = odims_a[0];
+                odims_a[0] = odims_a[o_ndims_a - 1];
+                odims_a[o_ndims_a - 1] = tmp;
+            }
+            if (o_ndims_b > 1 && orig_transp & 2) {
+                int tmp = odims_b[0];
+                odims_b[0] = odims_b[o_ndims_b - 1];
+                odims_b[o_ndims_b - 1] = tmp;
+            }
+        }
         l = odims_a[o_ndims_a - 1];
         if (odims_b[0] != l) goto align_err;
         nd = ndims_a + ndims_b - 2;
@@ -1425,7 +1442,7 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
         dims_b = mdims_b;
         order = PSBLASRowMajor;
         lda = (dims_a[last_dim_a] > 1 ? dims_a[1] : 1);
-        int bs = PSMatrixStride(b, 0);
+        int bs = PSMatrixStride(b, (transpose_b ? ndims_b - 1 : 0));
         int m = dims_a[0], n = dims_a[1];
         if (!use_blas) {
             int do_add = (beta == 1.0);
