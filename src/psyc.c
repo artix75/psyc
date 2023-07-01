@@ -149,6 +149,7 @@ PSLayer *PSResolveLayerPlaceholder(PSLayer *placeholder, PSNeuralNetwork *net);
 PSLayer *PSMakeLayerPlaceholder(int layer_index, int network_index);
 static PSNeuralNetwork *cloneNetwork(PSNeuralNetwork *network, int layout_only,
                                      PSNeuralNetwork *parent);
+int PSIsLayerPlaceholder(PSLayer *layer);
 
 /* Miscellaneous functions */
 
@@ -1954,14 +1955,16 @@ int PSBuildNetwork(PSNeuralNetwork *network) {
             PSErrNN(__func__, network, layer, "null layer");
             return 0;
         }
-        if ((signed) layer->type == LAYER_PLACEHOLDER_TYPE) {
+        if (PSIsLayerPlaceholder(layer)) {
             layer->index = i;
-            network->layers[i] = PSResolveLayerPlaceholder(layer, network);
-            if (network->layers[i] == NULL) {
+            PSLayer *resolved = PSResolveLayerPlaceholder(layer, network);
+            if (resolved == NULL) {
                 PSErrNN(__func__, network, layer,
                         "could not resolve layer placeholder");
                 return 0;
             }
+            PSDeleteLayer(layer);
+            network->layers[i] = resolved;
         } else if (layer->build != NULL) {
             if (!layer->build(layer)) return 0;
         }
@@ -3333,7 +3336,7 @@ void PSDeleteLayer(PSLayer* layer) {
 
 int PSIsLayerPlaceholder(PSLayer *layer) {
     if (layer == NULL) return 0;
-    return (signed) layer->type == LAYER_PLACEHOLDER_TYPE;
+    return (signed) (layer->type) == LAYER_PLACEHOLDER_TYPE;
 }
 
 PSLayer *PSResolveLayerPlaceholder(PSLayer *placeholder, PSNeuralNetwork *net) {

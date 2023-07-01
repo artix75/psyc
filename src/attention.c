@@ -54,6 +54,7 @@ typedef struct {
     PSMatrix *q_heads;
     PSMatrix *k_heads;
     PSMatrix *v_heads;
+    int provider_placeholders;
 } PSAttentionData;
 
 /* Forward declarations */
@@ -105,7 +106,20 @@ static void deleteHeads(PSMatrix *heads, int num_heads, int is_vector) {
 static void deleteAttentionLayer(PSLayer *layer) {
     PSAttentionData *data = PSGetAttentionData(layer);
     PSAttentionSettings *settings = PSGetAttentionSettings(layer);
-    int n_heads = (settings ? settings->num_heads : 0);
+    int n_heads = 0;
+    int placeholders = (data ? data->provider_placeholders : 0);
+    if (settings != NULL) {
+        n_heads = settings->num_heads;
+        PSLayer *provider = settings->query_provider;
+        if (provider && (placeholders & 1) && PSIsLayerPlaceholder(provider))
+            PSDeleteLayer(provider);
+        provider = settings->keys_provider;
+        if (provider && (placeholders & 2) && PSIsLayerPlaceholder(provider))
+            PSDeleteLayer(provider);
+        provider = settings->values_provider;
+        if (provider && (placeholders & 3) && PSIsLayerPlaceholder(provider))
+            PSDeleteLayer(provider);
+    }
     if (data != NULL) {
         PSMatrixDelete(data->query);
         PSMatrixDelete(data->keys);
@@ -630,15 +644,21 @@ static PSLayer *getKeysProvider(PSLayer *layer) {
 static PSLayer *getQueryProvider(PSLayer *layer) {
     PSAttentionSettings *settings = PSGetAttentionSettings(layer);
     if (settings == NULL) return NULL;
+    PSAttentionData *data = PSGetAttentionData(layer);
     if (PSIsLayerPlaceholder(settings->query_provider)) {
-        settings->query_provider = PSResolveLayerPlaceholder(
+        PSLayer *resolved = PSResolveLayerPlaceholder(
             settings->query_provider, layer->network
         );
-        if (settings->query_provider == NULL) {
+        if (resolved == NULL) {
+            if (data != NULL) data->provider_placeholders |= 1;
             PSErrNN(NULL, NULL, layer, "could not resolve query provider "
                     "placeholder");
             return NULL;
         }
+        if (data != NULL)
+            data->provider_placeholders &= ~((unsigned) 1);
+        PSDeleteLayer(settings->query_provider);
+        settings->query_provider = resolved;
     }
     return settings->query_provider;
 }
@@ -646,16 +666,20 @@ static PSLayer *getQueryProvider(PSLayer *layer) {
 static PSLayer *getValuesProvider(PSLayer *layer) {
     PSAttentionSettings *settings = PSGetAttentionSettings(layer);
     if (settings == NULL) return NULL;
+    PSAttentionData *data = PSGetAttentionData(layer);
     PSLayer *provider = settings->values_provider;
     if (PSIsLayerPlaceholder(provider)) {
-        settings->values_provider = provider = PSResolveLayerPlaceholder(
+        PSLayer *resolved = PSResolveLayerPlaceholder(
             provider, layer->network
         );
-        if (settings->values_provider == NULL) {
+        if (resolved == NULL) {
+            if (data != NULL) data->provider_placeholders |= 3;
             PSErrNN(NULL, NULL, layer, "could not resolve values provider "
                     "placeholder");
             return NULL;
         }
+        PSDeleteLayer(provider);
+        settings->values_provider = provider = resolved;
     }
     if (provider == NULL) provider = settings->keys_provider;
     return provider;
@@ -664,6 +688,7 @@ static PSLayer *getValuesProvider(PSLayer *layer) {
 static int buildAttentionLayer(PSLayer *layer) {
     if (layer == NULL) return 0;
     PSAttentionSettings *settings = PSGetAttentionSettings(layer);
+    PSAttentionData *data = PSGetAttentionData(layer);
     if (settings == NULL) {
         PSErrNN(__func__, NULL, layer, "attention layer has no settings");
         return 0;
@@ -673,6 +698,7 @@ static int buildAttentionLayer(PSLayer *layer) {
         PSErrNN(__func__, NULL, layer, "missing keys provider");
         return 0;
     } else if (PSIsLayerPlaceholder(provider)) {
+        if (data != NULL) data->provider_placeholders |= 2;
         PSErrNN(__func__, NULL, layer, "keys provider is a placeholder");
         return 0;
     }
@@ -1427,7 +1453,7 @@ PSMatrix PSMultiHeadAttention(PSLayer *layer, PSFloat *query, PSMatrix keys,
         if (!success) goto final;
     }
     for (int n = 0; n < num_heads; n++) {
-        PSFloat  *q = q_heads[n];
+        PSFloat *q = q_heads[n];
         PSMatrix k = k_heads[n];
         PSMatrix v = v_heads[n];
         success = q != NULL;
@@ -1908,6 +1934,9 @@ int PSInitAttentiontionLayer(PSLayer *layer, PSLayerDef *ldef) {
     PSAttentionSettings *settings = calloc(1, sizeof(*settings));
     if (settings == NULL) goto memerr;
     layer->extra = settings;
+    PSAttentionData *data = calloc(1, sizeof(*data));
+    if (data == NULL) goto memerr;
+    layer->private = data;
     settings->type = PSAdditiveAttention;
     settings->scale = 0.0;
     settings->num_heads = 0;
@@ -1956,10 +1985,11 @@ int PSInitAttentiontionLayer(PSLayer *layer, PSLayerDef *ldef) {
         settings->query_provider = settings->keys_provider;
     if (settings->values_provider == NULL || self_attention)
         settings->values_provider = settings->keys_provider;
-    success = settings->query_provider == NULL ||
-              PSIsLayerPlaceholder(settings->query_provider) ||
-              isValidProvider(settings->query_provider,
-                              settings->keys_provider);
+    int qprovider_is_placeholder =
+        PSIsLayerPlaceholder(settings->query_provider);
+    if (qprovider_is_placeholder) data->provider_placeholders |= 1;
+    success = settings->query_provider == NULL || qprovider_is_placeholder ||
+              isValidProvider(settings->query_provider,settings->keys_provider);
     if (!success) {
         PSErrNN(NULL, layer->network, layer,
                 "invalid query_provider");
@@ -1986,9 +2016,6 @@ int PSInitAttentiontionLayer(PSLayer *layer, PSLayerDef *ldef) {
         success = 0;
         goto final;
     }
-    PSAttentionData *data = calloc(1, sizeof(*data));
-    if (data == NULL) goto memerr;
-    layer->private = data;
     int param_types = ATTENTION_WEIGHT_TYPES_COUNT;
     layer->weight_types_count = param_types;
     layer->weights = calloc(param_types, sizeof(PSMatrix));
@@ -2192,6 +2219,8 @@ int PSAttentionForward(PSLayer *layer, ...) {
         } else {
             success = storeQueryHeads(layer, q_heads, t);
             if (!success) goto final;
+            deleteHeads(q_heads, n_heads, 1);
+            q_heads = heads[0] = NULL;
         }
     }
 final:
