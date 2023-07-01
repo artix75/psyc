@@ -1096,7 +1096,7 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
         }
     } else {
         nd = 1;
-        dimensions[0] = (scalar_a ? PSMatrixLength(b) : len);
+        dimensions[0] = (scalar_a ? (int) PSMatrixLength(b) : len);
     }
     PSMatrix out = *result;
     int outlen = 0;
@@ -1530,7 +1530,7 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
                 }
                 VDSPMMul(b, a, dest, n, 1, m);
                 if (do_add) {
-                    PSMathOpts sumopt = {.acceleration = opt->acceleration};
+                    PSMathOpts sumopt = {.acceleration = acceleration};
                     PSSumVectors(dest, out, out, outlen, &sumopt);
                     if (opt == NULL || tmpdest != opt->tmpdest)
                         free(tmpdest);
@@ -1571,7 +1571,7 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
                 }
                 VDSPMMul(a, b, dest, m, n, k);
                 if (do_add) {
-                    PSMathOpts sumopt = {.acceleration = opt->acceleration};
+                    PSMathOpts sumopt = {.acceleration = acceleration};
                     PSSumVectors(dest, out, out, outlen, &sumopt);
                     if (opt == NULL || tmpdest != opt->tmpdest)
                         free(tmpdest);

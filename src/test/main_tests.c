@@ -3693,6 +3693,7 @@ int testGenericAttentionBackprop(PSNeuralNetwork *network, char *file_prefix,
         ok, final, test, "could not read inputs from %s", path
     );
     fclose(f);
+    f = NULL;
     /* Load targets */
     sprintf(fname, "resources/%s%s.data", file_prefix, "-targets");
     testAssert(
@@ -3706,6 +3707,7 @@ int testGenericAttentionBackprop(PSNeuralNetwork *network, char *file_prefix,
         ok, final, test, "could not read targets from %s", path
     );
     fclose(f);
+    f = NULL;
     /* Load outputs */
     sprintf(fname, "resources/%s%s.data", file_prefix, "-outputs");
     testAssert(
@@ -3721,6 +3723,7 @@ int testGenericAttentionBackprop(PSNeuralNetwork *network, char *file_prefix,
         ok, final, test, "could not read outputs from %s", path
     );
     fclose(f);
+    f = NULL;
     /* Load gradients */
     expgrads_w = calloc(attn_layer->weight_types_count, sizeof(PSFloat *));
     ok = (expgrads_w != NULL);
@@ -3753,6 +3756,7 @@ int testGenericAttentionBackprop(PSNeuralNetwork *network, char *file_prefix,
             " %d from %s", i, path
         );
         fclose(f);
+        f = NULL;
         ok = (wlen == exp_wlen);
         testAssertWithMessageOrGoto(
             ok, final, test, "expected weights[%d] length is %d, got %d",
@@ -3773,6 +3777,7 @@ int testGenericAttentionBackprop(PSNeuralNetwork *network, char *file_prefix,
             " %d from %s", i, path
         );
         fclose(f);
+        f = NULL;
         ok = (wlen == exp_wlen);
         testAssertWithMessageOrGoto(
             ok, final, test, "expected bias[%d] length is %d, got %d",

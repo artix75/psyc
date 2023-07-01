@@ -3830,7 +3830,7 @@ int networkForward(PSNeuralNetwork *network, PSFloat *inputs,
             PSErr(__func__, "Layer %d forward function is NULL", i);
             goto final;
         }
-        ok = layer->forward(layer);
+        ok = layer->forward(layer, seqlen);
         if (!ok) goto final;
     }
 final:

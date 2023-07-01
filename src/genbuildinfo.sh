@@ -6,7 +6,7 @@ fi
 GIT_SHA=`(git show-ref --head --hash=8 2> /dev/null || echo 00000000) | head -n1`
 GIT_DIRTY=`git diff --no-ext-diff 2> /dev/null | wc -l`
 GIT_DIRTY=`echo $GIT_DIRTY | xargs`
-GIT_BRANCH=`git rev-parse --abbrev-ref HEAD`
+GIT_BRANCH=`git rev-parse --abbrev-ref HEAD 2> /dev/null || echo none`
 test -f buildinfo.h || touch buildinfo.h
 (cat buildinfo.h | grep SHA | grep $GIT_SHA) && \
 (cat buildinfo.h | grep BRANCH | grep $GIT_BRANCH) && \
