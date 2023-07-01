@@ -1576,7 +1576,7 @@ int PSDotAttentionBackward(PSLayer *layer, PSMatrix *dscores, PSMatrix keys,
     if (scale == 0.0) {
         int size = PSMatrixDim(keys, 1);
         scale = (1 / PSSqrt((PSFloat) size));
-        settings->scale = scale;
+        if (settings != NULL) settings->scale = scale;
     }
     PSMathOpts opts = {.acceleration = layer->network->acceleration};
     int whole_seq = PSHandleSequenceAtOnce(layer), success = 1,
@@ -2232,6 +2232,10 @@ int PSAttentionBackprop(PSLayer *layer, PSLayer *previous_layer,
         return 0;
     }
     PSAttentionSettings *settings = PSGetAttentionSettings(layer);
+    if (settings == NULL) {
+        PSErrNN(__func__, NULL, layer, "missing stored settings");
+        return 0;
+    }
     int whole_seq = PSHandleSequenceAtOnce(layer),
         t = 0, seqlen = 1, nheads = 1;
     if (settings != NULL) nheads = settings->num_heads;

@@ -146,7 +146,7 @@ void PSErrNN(const char *tag, PSNeuralNetwork *network, PSLayer *layer,
     else PSLog(PSLOGLEVEL_ERROR, ": ");
     if (network != NULL || layer != NULL) {
         int printed_network = 1, printed_layer = 0;
-        if (PSGetNetworkChainLength(network) > 1)
+        if (network != NULL && PSGetNetworkChainLength(network) > 1)
             PSLog(PSLOGLEVEL_ERROR, "Network[%d]", network->index);
         else if (network && !null_network && network->name != NULL) {
             char *ellipsis = "";

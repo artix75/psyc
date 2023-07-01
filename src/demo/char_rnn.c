@@ -22,6 +22,7 @@
 #include <signal.h>
 #include <assert.h>
 #include <time.h>
+#include <ctype.h>
 #include <sys/time.h>
 
 #include <execinfo.h>

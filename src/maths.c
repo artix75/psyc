@@ -780,7 +780,7 @@ int genericMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *out,
         }
     } else {
         *out = PSMatrixCreateWithShape(0, NULL, nd, dimensions);
-        if (out == NULL) return 0;
+        if (*out == NULL) return 0;
     }
     uint64_t outlen = PSMatrixLength(*out);
     PSFloat *out_p = *out, *ap = a, *bp = NULL;

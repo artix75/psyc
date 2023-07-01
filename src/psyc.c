@@ -227,6 +227,7 @@ void PSLogTrainingProgress(PSNeuralNetwork *network, int status, int epochs,
         else PSLineAppend(lnflags, ", validating...");
     } else if (status == STATUS_TRAINING) {
         if (batch_num < batches) {
+            assert(loss != NULL);
             if (accuracy != NULL) {
                 PSLineAppend(
                     lnflags, ", loss = %.2lf, acc. = %.2lf, avg. time = %s",
@@ -5969,14 +5970,14 @@ void PSTrain(PSNeuralNetwork *network,
             return;
         }
         int batches_count = elements_count / batch_size;
-        float *acc_p = NULL;
+        PSFloat *acc_p = NULL;
         if (test_data  && PSGetNetworkStatus(network) == STATUS_TRAINING) {
             log_progress(
                 network, STATUS_VALIDATING, epochs, batches_count, NULL,
                 NULL, NULL, 0, 0
             );
             acc = validate(network, test_data, test_size, options, 0);
-            acc_p = &acc;
+            acc_p = (PSFloat *) &acc;
         }
         if (i > 0 && loss > prev_loss && adjust_rate)
             learning_rate *= 0.5;
