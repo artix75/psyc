@@ -1,0 +1,139 @@
+{
+  "wte": {
+    "is_exp": false,
+    "transpose": true,
+    "save_transposed_to": "wte.T",
+    "psyc_param": {
+      "type": "weights",
+      "lidx": 88,
+      "wcount": "1",
+      "transposed_lidx": 1
+    }
+  },
+  "wpe": {
+    "is_exp": false,
+    "psyc_param": {
+      "type": "weights",
+      "lidx": "2",
+      "wcount": "1"
+    }
+  },
+  "h.*/ln_1/b": {
+    "is_exp": true,
+    "psyc_param": {
+      "type": "biases",
+      "lidx": "0",
+      "wcount": "0"
+    }
+  },
+  "h.*/ln_1/g": {
+    "is_exp": true,
+    "psyc_param": {
+      "type": "weights",
+      "lidx": "0",
+      "wcount": "1"
+    }
+  },
+  "h.*/attn/c_attn/b": {
+    "is_exp": true,
+    "psyc_param": {
+      "type": "biases",
+      "lidx": "1",
+      "wcount": "0"
+    }
+  },
+  "h.*/attn/c_attn/w": {
+    "is_exp": true,
+    "transpose": true,
+    "psyc_param": {
+      "type": "weights",
+      "lidx": "1",
+      "wcount": "5"
+    },
+    "split": 3
+  },
+  "h.*/attn/c_proj/b": {
+    "is_exp": true,
+    "psyc_param": {
+      "type": "biases",
+      "lidx": "1",
+      "wcount": "0"
+    }
+  },
+  "h.*/attn/c_proj/w": {
+    "is_exp": true,
+    "transpose": true,
+    "psyc_param": {
+      "type": "weights",
+      "lidx": "1",
+      "wcount": "5"
+    }
+  },
+  "h.*/ln_2/b": {
+    "is_exp": true,
+    "psyc_param": {
+      "type": "biases",
+      "lidx": "3",
+      "wcount": "0"
+    }
+  },
+  "h.*/ln_2/g": {
+    "is_exp": true,
+    "psyc_param": {
+      "type": "weights",
+      "lidx": "3",
+      "wcount": "1"
+    }
+  },
+  "h.*/mlp/c_fc/b": {
+    "is_exp": true,
+    "psyc_param": {
+      "type": "biases",
+      "lidx": "4",
+      "wcount": "0"
+    }
+  },
+  "h.*/mlp/c_fc/w": {
+    "is_exp": true,
+    "transpose": true,
+    "psyc_param": {
+      "type": "weights",
+      "lidx": "4",
+      "wcount": "1"
+    }
+  },
+  "h.*/mlp/c_proj/b": {
+    "is_exp": true,
+    "transpose": true,
+    "psyc_param": {
+      "type": "biases",
+      "lidx": "5",
+      "wcount": "0"
+    }
+  },
+  "h.*/mlp/c_proj/w": {
+    "is_exp": true,
+    "transpose": true,
+    "psyc_param": {
+      "type": "weights",
+      "lidx": "5",
+      "wcount": "1"
+    }
+  },
+  "ln_f/b": {
+    "is_exp": false,
+    "psyc_param": {
+      "type": "biases",
+      "lidx": "0",
+      "wcount": "0"
+    }
+  },
+  "ln_f/g": {
+    "is_exp": false,
+    "psyc_param": {
+      "type": "weights",
+      "lidx": "0",
+      "wcount": "1"
+    }
+  }
+}

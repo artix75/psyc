@@ -4,8 +4,17 @@ include ../Makefile.common.mk
 ifeq ($(CATCH_FPE),on)
 	CFLAGS+=-DCATCH_FPE
 endif
+GPT_CFLAGS=''
+GPT_LDFLAGS=''
+ifeq ($(HAS_READLINE),yes)
+	GPT_CFLAGS=-DHAS_READLINE
+	GPT_LDFLAGS=-lreadline
+endif
 
 default: all
+
+gpt_demo.o:
+	$(CC) --std=gnu99 $(CFLAGS) $(GPT_CFLAGS) -c -o $@ gpt_demo.c
 
 mnist_demo: $(OBJS) mnist_demo.o
 	$(CC) -o ../../bin/mnist_demo $(OBJS) mnist_demo.o $(LDFLAGS)
@@ -19,6 +28,8 @@ char_rnn: $(OBJS) char_rnn.o
 	$(CC) -o ../../bin/char_rnn $(OBJS) char_rnn.o $(LDFLAGS)
 cifar_demo: $(OBJS) cifar_demo.o
 	$(CC) -o ../../bin/cifar_demo $(OBJS) cifar_demo.o $(LDFLAGS)
-all: mnist_demo conv_demo rnn_demo lstm_demo char_rnn cifar_demo
+gpt_demo: $(OBJS) gpt_demo.o
+	$(CC) -o ../../bin/gpt_demo $(OBJS) gpt_demo.o $(LDFLAGS) $(GPT_LDFLAGS)
+all: mnist_demo conv_demo rnn_demo lstm_demo char_rnn cifar_demo gpt_demo
 	
         

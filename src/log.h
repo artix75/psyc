@@ -100,7 +100,7 @@
 #define PS_LINE_OVERWRITE       (1 << 2)
 #define PS_LINE_PLAIN_ASCII     (1 << 3)
 
-#define PSClearScreen() (printf("\e[1;1H\e[2J"))
+#define PSClearScreen() (printf("\x1b[1;1H\x1b[2J"))
 #define PSLogColorEnabled() (PSGlobalFlags & FLAG_LOG_COLORS)
 #define PSLogEnableColor() (PSGlobalFlags |= FLAG_LOG_COLORS)
 #define PSLogDisableColor() (PSGlobalFlags &= ~((unsigned) FLAG_LOG_COLORS))

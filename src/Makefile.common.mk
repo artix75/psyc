@@ -96,6 +96,11 @@ ifeq ($(PLATFORM), Linux)
         CFLAGS+=-fdiagnostics-color -Wno-unused-result -Wno-maybe-uninitialized
 endif
 
+HAS_READLINE=no
+ifneq ($(READLINE), off)
+        HAS_READLINE := $(shell sh -c '$(PSYCPATH)utils/has_lib.sh "readline/readline" $(CC) && echo yes')
+endif
+
 ifeq ($(MAGICK), off)
         HAS_MAGICK=false
 else
