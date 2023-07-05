@@ -2291,6 +2291,11 @@ int cloneNetworkChain(PSNeuralNetwork *network, PSNeuralNetwork *clone,
         }
         clone_next = cloneNetwork(next, layout_only, clone);
         if (clone_next == NULL) return 0;
+        if (clone_next->previous != NULL) {
+            PSNeuralNetwork *prev = clone_next->previous;
+            if (prev != NULL && prev->next == clone_next) prev->next = NULL;
+            clone_next->previous = NULL;
+        }
         PSNeuralNetworkLink *link = next->previous_network_link,
                             *clone_link = NULL;
         if (link != NULL) {
@@ -2375,7 +2380,25 @@ static PSNeuralNetwork *cloneNetwork(PSNeuralNetwork *network, int layout_only,
     if (clone == NULL) goto memerr;
     int is_chain = (parent != NULL),
         is_child = (is_chain && network->index > 0);
-    if (is_child) clone->index = network->index;
+    if (is_child) {
+        clone->index = network->index;
+        if (clone->previous == NULL) {
+            PSNeuralNetwork *prev = NULL, *cur = parent;
+            while (cur != NULL) {
+                if (cur->index == (network->index - 1)) {
+                    prev = cur;
+                    break;
+                }
+                cur = cur->next;
+            }
+            if (prev == NULL)
+                PSWarn("could not find previous network in network chain");
+            else {
+                clone->previous = prev;
+                prev->next = clone;
+            }
+        }
+    }
     if (!layout_only) {
         clone->status = network->status;
         if (network->training != NULL) {

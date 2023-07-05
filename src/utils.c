@@ -687,3 +687,130 @@ next:
     }
     return len;
 }
+
+/* Bitmaps */
+
+size_t PSGetBitmapArrayLength(size_t size) {
+    return 1 + (size / (64 * 8));
+}
+
+int PSBitmapIndexFor(uint64_t index) {
+    return (int) (index / (64 * 8));
+}
+
+PSBitmap PSBitmapCreate(size_t size) {
+    if (size == 0) return NULL;
+    size_t actual_size = PSGetBitmapArrayLength(size);
+    actual_size += 1; /* Make room for element containing 'size': bitmap[-1] */
+    PSBitmap bitmap = calloc(actual_size, 64);
+    if (bitmap == NULL) {
+        PSPrintMemoryErrorMsg();
+        return NULL;
+    }
+    *bitmap = (uint64_t) size;
+    return bitmap + 1;
+}
+
+void PSBitmapRelease(PSBitmap bitmap) {
+    if (bitmap == NULL) return;
+    bitmap--;
+    free(bitmap);
+}
+
+size_t PSBitmapSize(PSBitmap bitmap) {
+    if (bitmap == NULL) return 0;
+    return (size_t) *(bitmap - 1);
+}
+
+int PSBitmapGetBit(PSBitmap bitmap, uint64_t index) {
+    if (bitmap == NULL) return 0;
+    if (index >= PSBitmapSize(bitmap)) return 0;
+    int idx = PSBitmapIndexFor(index),
+        bitidx = (int) (index % (64 * 8));
+    return (bitmap[idx] & (1 << bitidx) ? 1 : 0);
+}
+
+int PSBitmapSetBit(PSBitmap bitmap, uint64_t index, int val) {
+    if (bitmap == NULL) return 0;
+    if (index >= PSBitmapSize(bitmap)) return 0;
+    int idx = PSBitmapIndexFor(index),
+        bitidx = (int) (index % (64 * 8));
+    int old = (bitmap[idx] & (1 << bitidx) ? 1 : 0);
+    if (val) bitmap[idx] |= (1 << bitidx);
+    else bitmap[idx] &= ~((unsigned) (1 << bitidx));
+    return old;
+}
+
+void PSBitmapClear(PSBitmap bitmap) {
+    if (bitmap == NULL) return;
+    size_t size = PSBitmapSize(bitmap);
+    size_t actual_size = PSGetBitmapArrayLength(size);
+    memset(bitmap, 0, actual_size * 64);
+}
+
+PSBitmap PSBitmapOp(PSBitmap a, PSBitmap b, PSBitmap dest, int op) {
+    if (op < PS_BITMAP_OP_AND || op > PS_BITMAP_OP_XOR) {
+        PSErr(__func__, "invalid operation");
+        return NULL;
+    }
+    if (a == NULL) {
+        PSErr(__func__, "mandatory argument `a` is null");
+        return NULL;
+    }
+    if (b == NULL) {
+        PSErr(__func__, "mandatory argument `b` is null");
+        return NULL;
+    }
+    size_t size_a = PSBitmapSize(a), size_b = PSBitmapSize(b);
+    if (size_a != size_b) {
+        PSErr(__func__, "bitmaps have different size: %zu != %zu",
+              size_a, size_b);
+        return NULL;
+    }
+    if (dest == NULL) {
+        dest = PSBitmapCreate(size_a);
+        if (dest == NULL) return NULL;
+    } else {
+        size_t dstsize = PSBitmapSize(dest);
+        if (dstsize != size_a) {
+            PSErr(__func__, "dest size differs: %zu != %zu", dstsize, size_a);
+            return NULL;
+        }
+    }
+    PSBitmapClear(dest);
+    size_t len = PSGetBitmapArrayLength(size_a), i;
+    for (i = 0; i < len; i++) {
+       if (op == PS_BITMAP_OP_AND) dest[i] = a[i] & b[i];
+       else if (op == PS_BITMAP_OP_OR) dest[i] = a[i] | b[i];
+       else if (op == PS_BITMAP_OP_XOR) dest[i] = a[i] ^ b[i];
+    }
+    return dest;
+}
+
+int PSBitmapCopy(PSBitmap dst, PSBitmap src) {
+    if (dst == NULL || src == NULL) return 0;
+    size_t src_size = PSBitmapSize(src), dst_size = PSBitmapSize(dst), i, count;
+    if (src_size != dst_size) {
+        PSErr(__func__, "source size differs from destination size: %zu != %zu",
+              src_size, dst_size);
+        return 0;
+    }
+    if (src_size == 0) return 0;
+    count = PSGetBitmapArrayLength(src_size);
+    for (i = 0; i < count; i++) dst[i] = src[i];
+    return 1;
+}
+
+PSBitmap PSBitmapDup(PSBitmap src) {
+    if (src == NULL) return NULL;
+    size_t size = PSBitmapSize(src);
+    PSBitmap clone = PSBitmapCreate(size);
+    if (clone == NULL) return NULL;
+    int success = PSBitmapCopy(clone, src);
+    if (!success) {
+        PSErr(__func__, "could not copy source data");
+        PSBitmapRelease(clone);
+        return NULL;
+    }
+    return clone;
+}

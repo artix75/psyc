@@ -21,6 +21,8 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
+#include <stdint.h>
+#include <stdlib.h>
 #include "types.h"
 
 #ifndef M_PI
@@ -48,6 +50,15 @@
 #define OPT_TIME_LONG        (1 << 0)
 #define OPT_TIME_FULL        (1 << 1)
 #define OPT_TIME_HUMAN       (1 << 2)
+
+#define PS_BITMAP_OP_AND 1
+#define PS_BITMAP_OP_OR  2
+#define PS_BITMAP_OP_XOR 3
+
+#define PSBitmapAnd(a, b, dest) PSBitmapOp(a, b, dest, PS_BITMAP_OP_AND)
+#define PSBitmapOr(a, b, dest) PSBitmapOp(a, b, dest, PS_BITMAP_OP_OR)
+
+/* Dictionary */
 
 struct PSDictItem;
 struct PSDict;
@@ -94,6 +105,19 @@ PSDictItem **PSDictGetItems(PSDict *dict);
 struct PSDictIterator *PSDictIteratorCreate(PSDict *dict);
 PSDictItem *PSDictNext(PSDictIterator *iterator);
 void PSDictRelease(PSDict *dict);
+
+/* Bitmaps */
+
+typedef uint64_t *PSBitmap;
+PSBitmap PSBitmapCreate(size_t size);
+int PSBitmapCopy(PSBitmap dst, PSBitmap src);
+PSBitmap PSBitmapDup(PSBitmap src);
+void PSBitmapRelease(PSBitmap bitmap);
+size_t PSBitmapSize(PSBitmap bitmap);
+int PSBitmapGetBit(PSBitmap bitmap, uint64_t index);
+int PSBitmapSetBit(PSBitmap bitmap, uint64_t index, int val);
+void PSBitmapClear(PSBitmap bitmap);
+PSBitmap PSBitmapOp(PSBitmap a, PSBitmap b, PSBitmap dest, int op);
 
 /* Filesystem functions */
 int PSIsDirectory(const char *path);

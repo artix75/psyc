@@ -23,6 +23,7 @@
 #include "psyc.h"
 #include "log.h"
 #include "maths.h"
+#include "utils.h"
 #include "config.h"
 
 #define UNUSED(V) ((void) V)
@@ -33,6 +34,7 @@ typedef struct {
     PSOperatorType operator;
     int providers_count;
     PSLayer **providers;
+    PSBitmap placeholders;
 } PSOperatorLayerSettings;
 
 /* Forward declarations */
@@ -40,16 +42,53 @@ int checkLayerForForward(PSLayer *layer);
 int PSBeforeSequenceForward(PSLayer *layer, int seqlen, int t);
 PSLayer *PSResolveLayerPlaceholder(PSLayer *placeholder, PSNeuralNetwork *net);
 int PSIsLayerPlaceholder(PSLayer *layer);
+PSLayer *PSMakeLayerPlaceholder(int layer_index, int network_index);
 int PSOperatorForward(PSLayer *layer, ...);
 int PSOperatorBackprop(PSLayer *layer, PSLayer *previous,
                             PSGradient *gradient, ...);
 
 
 /* Layer utils */
+
+static PSLayer *resolveProviderPlaceholder(PSLayer *layer, PSLayer *provider) {
+    if (!PSIsLayerPlaceholder(provider)) return provider;
+    PSOperatorLayerSettings *settings = PSGetOperatorLayerSettings(layer);
+    if (settings == NULL || settings->providers == NULL) {
+        PSErrNN(NULL, NULL, layer, "missing or invalid settings");
+        return NULL;
+    }
+    PSLayer *placeholder = provider;
+    provider = PSResolveLayerPlaceholder(placeholder, layer->network);
+    if (provider == NULL) {
+        PSErrNN(NULL, NULL, layer, "invalid provider placeholder");
+        return NULL;
+    }
+    int count = settings->providers_count, i;
+    for (i = 0; i < count; i++) {
+        if (settings->providers[i] == placeholder)
+            settings->providers[i] = provider;
+    }
+    PSDeleteLayer(placeholder);
+    return provider;
+}
+
 static void deleteOperatorLayer(PSLayer *layer) {
     PSOperatorLayerSettings *settings = PSGetOperatorLayerSettings(layer);
     if (settings != NULL) {
+        if (settings->providers != NULL && settings->placeholders != NULL) {
+            int i;
+            for (i = 0; i < settings->providers_count; i++) {
+                PSLayer *provider = settings->providers[i];
+                if (provider == NULL) continue;
+                int is_placeholder = PSBitmapGetBit(settings->placeholders, i);
+                if (is_placeholder) {
+                    PSDeleteLayer(provider);
+                    settings->providers[i] = NULL;
+                }
+            }
+        }
         free(settings->providers);
+        PSBitmapRelease(settings->placeholders);
     }
     free(settings);
     layer->extra = NULL;
@@ -63,12 +102,114 @@ static int copyOperatorLayer(PSLayer *layer, PSLayer *src) {
         return 0;
     }
     dstsettings->operator = srcsettings->operator;
+    if (dstsettings->placeholders != NULL)
+        PSBitmapRelease(dstsettings->placeholders);
+    dstsettings->placeholders = NULL;
+    if (srcsettings->placeholders != NULL) {
+        dstsettings->placeholders = PSBitmapDup(srcsettings->placeholders);
+        if (dstsettings->placeholders == NULL) return 0;
+    } else {
+        PSErrNN(
+            NULL, NULL, layer, "missing info for placeholders in source layer"
+        );
+        return 0;
+    }
+    dstsettings->providers_count = srcsettings->providers_count;
+    if (dstsettings->providers != NULL) free(dstsettings->providers);
+    dstsettings->providers = NULL;
+    if (srcsettings->providers != NULL) {
+        dstsettings->providers = calloc(
+            srcsettings->providers_count, sizeof(PSLayer*)
+        );
+        if (dstsettings->providers == NULL) {
+            PSPrintMemoryErrorMsg();
+            return 0;
+        }
+        int i;
+        for (i = 0; i < srcsettings->providers_count; i++) {
+            PSLayer *srcprovider = srcsettings->providers[i];
+            if (srcprovider == NULL) continue;
+            PSNeuralNetwork *provider_network = srcprovider->network;
+            if (provider_network == NULL) {
+                PSErrNN(NULL, NULL, src, "provider[%d] has no netwoek");
+                return 0;
+            }
+            int is_placeholder = PSBitmapGetBit(srcsettings->placeholders, i);
+            if (is_placeholder) {
+                if (!PSIsLayerPlaceholder(srcprovider)) {
+                    PSErrNN(NULL, NULL, layer, "provider[%d] should be "
+                            "a player placeholder but it's not", i);
+                    return 0;
+                }
+                int *indices = (int *) srcprovider->extra;
+                if (indices == NULL) {
+                    PSErrNN(NULL, NULL, layer, "provider[%d] is an invalid "
+                            "layer placeholder", i);
+                    return 0;
+                }
+                dstsettings->providers[i] = PSMakeLayerPlaceholder(
+                    indices[0], indices[1]
+                );
+                if (dstsettings->providers[i] == NULL) return 0;
+            } else {
+                PSLayer *dstprovider = NULL;
+                if (layer->network == NULL) {
+                    PSErrNN(NULL, NULL, layer, "layer has no network");
+                    return 0;
+                }
+                dstprovider = PSGetLayerByIndex(
+                    layer->network, srcprovider->index, provider_network->index
+                );
+                if (dstprovider == NULL) {
+                    dstprovider = PSMakeLayerPlaceholder(
+                        srcprovider->index, provider_network->index
+                    );
+                }
+                if (dstprovider == NULL) return 0;
+                dstsettings->providers[i] = dstprovider;
+            }
+        }
+    }
+    return 1;
+}
+
+static int buildOperatorLayer(PSLayer *layer) {
+    PSOperatorLayerSettings *settings = PSGetOperatorLayerSettings(layer);
+    if (settings == NULL) {
+        PSErrNN(NULL, NULL, layer, "missing operator layer settings");
+        return 0;
+    }
+    int count = settings->providers_count, i;
+    if (count < 1 || settings->providers == NULL) {
+        PSErrNN(NULL, NULL, layer, "missing operator layer providers");
+        return 0;
+    }
+    for (i = 0; i < count; i++) {
+        PSLayer *provider = settings->providers[i];
+        if (PSIsLayerPlaceholder(provider)) {
+            provider = resolveProviderPlaceholder(layer, provider);
+            if (provider == NULL) {
+                PSErrNN(
+                    NULL, NULL, layer, "could not resolve provider placeholder"
+                );
+                return 0;
+            }
+            settings->providers[i] = provider;
+        }
+    }
     return 1;
 }
 
 static PSFloat *getInputsFromProvider(PSLayer *layer, PSLayer *provider, int t)
 {
     if (layer == NULL || provider == NULL) return NULL;
+    if (PSIsLayerPlaceholder(provider)) {
+        provider = resolveProviderPlaceholder(layer, provider);
+        if (provider == NULL) {
+            PSErrNN(NULL,NULL,layer,"could not resolve provider placeholder");
+            return NULL;
+        }
+    }
     if (!PSUseSequences(provider)) return PSGetStates(provider, 0);
     if (layer->network->index > provider->network->index)
         return PSGetOutputs(provider);
@@ -267,6 +408,7 @@ int PSInitOperatorLayer(PSLayer *layer, PSLayerDef *ldef) {
     int success = 1;
     layer->on_delete = deleteOperatorLayer;
     layer->on_copy = copyOperatorLayer;
+    layer->build = buildOperatorLayer;
     layer->weights = NULL;
     layer->flags |= FLAG_NON_TRAINABLE;
     layer->biases = NULL;
@@ -324,6 +466,8 @@ int PSInitOperatorLayer(PSLayer *layer, PSLayerDef *ldef) {
         PSPrintMemoryErrorMsg();
         return 0;
     }
+    settings->placeholders = PSBitmapCreate((size_t)settings->providers_count);
+    if (settings->placeholders == NULL) return 0;
     PSLayer **providers_p = settings->providers;
     if (include_prev_layer) {
         *(providers_p++) = prev;
