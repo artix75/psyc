@@ -180,6 +180,7 @@ int testMathsMatMul(TestCase *tc, Test *test);
 int testMathsMatrixCopy(TestCase *tc, Test *test);
 int testMathsMatrixDup(TestCase *tc, Test *test);
 int testMathsMatrixTranspose(TestCase *tc, Test *test);
+int testMathsMatrixSwap(TestCase *tc, Test *test);
 int testMathsMatrixExpand(TestCase *tc, Test *test);
 int testMathsMatrixProduct(TestCase *tc, Test *test);
 int testMathsMatrixProductMV(TestCase *tc, Test *test);
@@ -726,6 +727,7 @@ int main(int argc, char** argv) {
         addTest(mathsTests, "Matrix Dup.", NULL, testMathsMatrixDup);
         addTest(mathsTests, "Matrix Expand", NULL, testMathsMatrixExpand);
         addTest(mathsTests, "Matrix Transp.", NULL, testMathsMatrixTranspose);
+        addTest(mathsTests, "Matrix Swap", NULL, testMathsMatrixSwap);
         addTest(mathsTests, "Matrix Product", NULL, testMathsMatrixProduct);
         addTest(mathsTests, "Matrix Product (MV)", NULL,
                 testMathsMatrixProductMV);
@@ -5484,6 +5486,56 @@ final:
     PSMatrixDelete(m2d);
     PSMatrixDelete(m3d);
     return res;
+}
+
+int testMathsMatrixSwap(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat data[] = {
+        0.464504,0.913899,0.907141,0.325932,0.944054,0.721402,0.598695,
+        0.273243,0.398003,0.242346,0.107517,0.0299835,0.932873,0.794529,
+        0.651348,0.209432,0.926456,0.944398
+    };
+    PSFloat exp1data[] = {
+        0.464504,0.325932,0.913899,0.944054,0.907141,0.721402,0.598695,
+        0.242346,0.273243,0.107517,0.398003,0.0299835,0.932873,0.209432,
+        0.794529,0.926456,0.651348,0.944398
+    };
+    PSFloat exp2data[] = {
+        0.464504,0.913899,0.907141,0.598695,0.273243,0.398003,0.932873,
+        0.794529,0.651348,0.325932,0.944054,0.721402,0.242346,0.107517,
+        0.0299835,0.209432,0.926456,0.944398
+    };
+    int ok = 1;
+    PSMatrix matrix = NULL, swap1 = NULL, swap2 = NULL;
+    matrix = PSMatrixFromArray(data, 3, 3, 2, 3);
+    testAssertNotNull(matrix, test);
+    swap1 = PSMatrixSwapAxes(matrix, -1, -2);
+    ok = swap1 != NULL;
+    testAssertWithMessageOrGoto(
+        ok, final, test, "failed to swap axes %d, %d", -1, -2
+    );
+    ok = compareArrays(
+        swap1, exp1data, PSMatrixLength(swap1), test, "Swap -1, -2", 0, 4
+    );
+    testAssertWithMessageOrGoto(
+        ok, final, test, "swap %d, %d comparison failed", -1, -2
+    );
+    swap2 = PSMatrixSwapAxes(matrix, 0, 1);
+    ok = swap2 != NULL;
+    testAssertWithMessageOrGoto(
+        ok, final, test, "failed to swap axes %d, %d", 0, 1
+    );
+    ok = compareArrays(
+        swap2, exp2data, PSMatrixLength(swap2), test, "Swap 0, 1", 0, 4
+    );
+    testAssertWithMessageOrGoto(
+        ok, final, test, "swap %d, %d comparison failed", 0, 1
+    );
+final:
+    PSMatrixDelete(matrix);
+    PSMatrixDelete(swap1);
+    PSMatrixDelete(swap2);
+    return ok;
 }
 
 int testMathsMatrixExpand(TestCase *tc, Test *test) {

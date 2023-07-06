@@ -170,6 +170,7 @@ PSMatrix PSMatrixFlatten(PSMatrix matrix);
 PSMatrix *PSMatrixSplit(PSMatrix matrix, int num_slices, int axis,
                         PSMathOpts *opts);
 PSMatrix PSMatrixTranspose(PSMatrix matrix, int rebuild, PSMathOpts *opts);
+PSMatrix PSMatrixSwapAxes(PSMatrix matrix, int axis1, int axis2);
 void PSMatrixResetTransposed(PSMatrix matrix);
 PSMatrix PSMatrixDup(PSMatrix matrix);
 PSMatrix PSMatrixDupShape(PSMatrix matrix);

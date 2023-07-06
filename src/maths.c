@@ -1829,6 +1829,77 @@ final:
     return transposed;
 }
 
+PSMatrix PSMatrixSwapAxes(PSMatrix matrix, int axis1, int axis2) {
+    if (matrix == NULL) return NULL;
+    PSMatrixHeader *hdr = PSMatrixGetHeader(matrix);
+    int orig_axis1 = axis1, orig_axis2 = axis2, i, j;
+    if (axis1 < 0) axis1 = hdr->ndims + axis1;
+    if (axis1 < 0 || axis1 >= hdr->ndims) {
+        PSErr(__func__, "`axis1` is out of bound: %d (matrix has %d "
+              "dimension(s))", orig_axis1, hdr->ndims);
+    }
+    if (axis2 < 0) axis2 = hdr->ndims + axis2;
+    if (axis2 < 0 || axis2 >= hdr->ndims) {
+        PSErr(__func__, "`axis2` is out of bound: %d (matrix has %d "
+              "dimension(s))", orig_axis2, hdr->ndims);
+    }
+    if (axis1 == axis2) return PSMatrixDup(matrix);
+    int last_axis = hdr->ndims - 1;
+    int do_transp = (
+        (axis1 == 0 && axis2 == last_axis) ||
+        (axis1 == last_axis && axis2 == 0)
+    );
+    if (do_transp) return PSMatrixDup(PSMatrixTranspose(matrix, 0, NULL));
+    int shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
+    for (i = 0; i < hdr->ndims; i++) {
+        int idx = i;
+        if (axis1 == i) idx = axis2;
+        else if (axis2 == i) idx = axis1;
+        shape[i] = hdr->dims[idx];
+    }
+    PSMatrix swapped = PSMatrixCreateWithShape(0, NULL, hdr->ndims, shape);
+    if (swapped == NULL) {
+        PSErr(__func__, "could not create swapped matrix");
+        return NULL;
+    }
+    PSFloat *src_p = matrix, *dst_p = swapped;
+    if ((axis1 == last_axis - 1 && axis2 == last_axis) ||
+        (axis1 == last_axis && axis2 == last_axis - 1))
+    {
+        int stride = PSMatrixStride(swapped, 0);
+        int rows = hdr->dims[last_axis - 1], cols = hdr->dims[last_axis];
+        for (i = 0; i < shape[0]; i++) {
+            PSFloat *transposed = PSVectorTranspose(
+                src_p, dst_p, PSGlobalAcceleration, 2, rows, cols
+            );
+            if (transposed == NULL) {
+                PSErr(__func__, "could not swap axes");
+                PSMatrixDelete(swapped);
+                return NULL;
+            }
+            src_p += stride;
+            dst_p += stride;
+        }
+    } else if ((axis1 == 0 && axis2 == 1) || (axis1 == 1 && axis2 == 0)) {
+        int dst_stride = PSMatrixStride(swapped, 0),
+            src_stride0 = PSMatrixStride(matrix, 0),
+            src_stride1 = PSMatrixStride(matrix, 1);
+        for (i = 0; i < shape[0]; i++) {
+            for (j = 0; j < shape[1]; j++) {
+                src_p = (matrix + (j * src_stride0));
+                src_p += i * src_stride1;
+                PSVectorCopy(dst_p + (j * src_stride1), src_p, src_stride1);
+            }
+            dst_p += dst_stride;
+        }
+    } else {
+        PSErr(__func__, "unsupported axes for swapping");
+        PSMatrixDelete(swapped);
+        return NULL;
+    }
+    return swapped;
+}
+
 void PSMatrixResetTransposed(PSMatrix matrix) {
     if (matrix == NULL) return;
     PSMatrixHeader *hdr = PSMatrixGetHeader(matrix);
