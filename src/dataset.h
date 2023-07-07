@@ -40,7 +40,8 @@
 #define PS_PARSER_FLAG_PRESERVE_STRING  (1 << 1)
 #define PS_PARSER_FLAG_READONLY_VOCAB   (1 << 2)
 
-typedef void (*PSTokenNormalizer) (char *token, int len);
+typedef char *(*PSTokenNormalizer) (char *token, int len);
+typedef int   (*PSTokenMatch) (char *str, int *len);
 
 typedef struct {
     int mode;
@@ -53,13 +54,14 @@ typedef struct {
     int capacity;
     int buffer_size;
     PSTokenNormalizer normalizer;
+    PSTokenMatch match_token;
 } PSTextParserOptions;
 
 typedef struct {
-    int64_t size;
-    int64_t capacity;
-    PSDict      *token_map;
-    const char **tokens;
+    int64_t         size;
+    int64_t         capacity;
+    PSDict          *token_map;
+    const char      **tokens;
 } PSVocabulary;
 
 PSVocabulary *PSVocabularyCreate(int64_t initial_capacity);
@@ -69,7 +71,7 @@ const char *PSVocabularyGetTokenByID(PSVocabulary *vocabulary, int64_t id);
 const char *PSVocabularyErrorString(int err);
 void PSVocabularyRelease(PSVocabulary *vocabulary);
 
-void PSNormalizeToken(char *token, int len);
+char *PSNormalizeToken(char *token, int len);
 PSFloat *PSLoadDataFromString(char *str, PSTextParserOptions *opts,
                               PSFloat *existing_data, int64_t *datalen,
                               PSVocabulary **vocabulary);

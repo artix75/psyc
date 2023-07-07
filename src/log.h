@@ -118,7 +118,7 @@ void PSWarn(const char *format, ...);
 void PSErr(const char *tag, const char *format, ...);
 void PSErrNN(const char *tag, PSNeuralNetwork *network, PSLayer *layer,
              const char *format, ...);
-const char* PSLogLevelName(int level);
+const char *PSLogLevelName(int level);
 int PSLogLevelByName(const char *name);
 int PSGetMaxLogLevel(void);
 

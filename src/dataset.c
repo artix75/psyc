@@ -117,8 +117,9 @@ void PSVocabularyRelease(PSVocabulary *vocabulary) {
     PSDictRelease(vocabulary->token_map);
 }
 
-void PSNormalizeToken(char *token, int len) {
+char *PSNormalizeToken(char *token, int len) {
     for (int i = 0; i < len; i++) token[i] = tolower(token[i]);
+    return token;
 }
 
 PSFloat *PSLoadDataFromString(char *str, PSTextParserOptions *opts,
@@ -167,6 +168,7 @@ PSFloat *PSLoadDataFromString(char *str, PSTextParserOptions *opts,
     }
     int64_t max_vocab_size = opts->max_vocabulary_size;
     if (max_vocab_size <= 0) max_vocab_size = PS_DEFAULT_MAX_VOCAB_SIZE;
+    PSTokenMatch match_token = opts->match_token;
     const char *separator = opts->separator;
     if (separator == NULL && !char_mode)
         separator = PS_DEFAULT_TOKEN_SEPARATOR;
@@ -192,6 +194,7 @@ PSFloat *PSLoadDataFromString(char *str, PSTextParserOptions *opts,
     int64_t current_capacity = capacity;
     char *token = str, *p = str, *sep_p = NULL;
     char ctoken[2] = {0};
+    int do_free_token = 0;
     while ((p - str) <= (long) last_idx) {
         size_t wlen = 0;
         if (*p == 0) break;
@@ -202,25 +205,58 @@ PSFloat *PSLoadDataFromString(char *str, PSTextParserOptions *opts,
             wlen = 1;
             goto add_to_vocab;
         }
-        token = p;
-        sep_p = strpbrk(p, separator);
-        if (sep_p != NULL) {
-            wlen = sep_p - p;
-            *sep_p = '\0';
-            p = sep_p + 1;
+        if (match_token != NULL) {
+            int matched = match_token(p, (int *) &wlen);
+            if (!matched || wlen <= 0) {
+                p++;
+                continue;
+            }
+            token = malloc(wlen + 1);
+            if (token == NULL) {
+                PSErr(__func__, "could not allocate token of length: %d",wlen);
+                goto memerr;
+            }
+            memcpy(token, p, wlen);
+            token[wlen] = '\0';
+            do_free_token = 1;
+            p += wlen;
         } else {
-            wlen = p - str;
-            p += (wlen + 1);
+            token = p;
+            sep_p = strpbrk(p, separator);
+            if (sep_p != NULL) {
+                wlen = sep_p - p;
+                *sep_p = '\0';
+                p = sep_p + 1;
+            } else {
+                wlen = strlen(p);
+                p += wlen;
+            }
         }
 add_to_vocab:
         if (wlen == 0) continue;
-        if (do_normalize) normalize(token, wlen);
+        if (do_normalize) {
+            char *normalized = normalize(token, wlen);
+            if (normalized == NULL) {
+                PSErr(__func__, "could not normalize token '%s'", token);
+                if (do_free_token) free(token);
+                token = NULL;
+                goto fail;
+            } else if (normalized != token) {
+                if (do_free_token) free(token);
+                token = normalized;
+                do_free_token = 1;
+            }
+        }
         int64_t id = -1;
         if (read_only || (vocab->size >= max_vocab_size)) {
             id = PSVocabularyGetTokenID(vocab, token);
             if (id == PS_TOKEN_NOT_FOUND) {
                 /* Vocabulary is already full or read-only and token was not
                    found, so set it to unknown. */
+                if (do_free_token) {
+                    free(token);
+                    do_free_token = 0;
+                }
                 token = (char *) opts->unkown_token;
                 if (token == NULL) token = PS_DEFAULT_UNKOWN_TOKEN;
                 /* Set or get <unknown> token. */
@@ -228,6 +264,7 @@ add_to_vocab:
                 else id = PSVocabularyGetTokenID(vocab, token);
             }
         } else id = PSVocabularyAdd(vocab, token);
+        if (do_free_token) free(token);
         if (id < 0) {
             if (read_only) {
                 PSErr(__func__, "Failed to add vocabulary: %s",
