@@ -373,8 +373,6 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
                     PSLayerDef *layer_def);
 PSLayer *PSAddConvolutionalLayer(PSNeuralNetwork *network, PSLayerDef *ldef);
 PSLayer *PSAddPoolingLayer(PSNeuralNetwork *network, PSLayerDef *ldef);
-PSLayer *PSGetFirstRecurrentLayer(PSNeuralNetwork *network);
-PSLayer *PSGetLastRecurrentLayer(PSNeuralNetwork *network);
 int PSGetOneHotLayerVectorSize(PSLayer *layer);
 uint64_t PSGetLayerParametersCount(PSLayer *layer, int param_type);
 PSLayer *PSGetPreviousLayer(PSLayer *layer);
