@@ -30,12 +30,18 @@
 #include "psyc.h"
 #include "utils.h"
 #include "log.h"
+#include "platform.h"
 
 #define PS_DEFAULT_PARSER_CAPACITY  50
 #define PS_DEFAULT_MAX_VOCAB_SIZE   15000
 #define PS_DEFAULT_UNKOWN_TOKEN     "<unknown>"
 
 #define PS_PARSER_BUFFER_SIZE 4096
+
+/* Forward declarations */
+uint32_t swap_uint32(uint32_t val);
+
+/**** PSVocabulary ****/
 
 PSVocabulary *PSVocabularyCreate(int64_t initial_capacity) {
     PSVocabulary *vocabulary = malloc(sizeof(*vocabulary));
@@ -116,6 +122,8 @@ void PSVocabularyRelease(PSVocabulary *vocabulary) {
     free(vocabulary->tokens);
     PSDictRelease(vocabulary->token_map);
 }
+
+/**** Text Datasets ****/
 
 char *PSNormalizeToken(char *token, int len) {
     for (int i = 0; i < len; i++) token[i] = tolower(token[i]);
@@ -406,10 +414,6 @@ fail:
 #define MNIST_CHUNK 16384
 #define IMAGES_MAGIC_NUM 2051
 #define LABELS_MAGIC_NUM 2049
-#define le2be(x) ((x >> 24 & 0x000000FF) | \
-    (x >> 8 & 0x0000FF00) | \
-    (x << 8 & 0x00FF0000) | \
-    (x << 24))
 
 int decompressGZip(FILE *source, FILE *dest) {
     int ret;
@@ -552,16 +556,16 @@ int PSLoadMNISTData(int type, const char *images_file, const char *labels_file,
     fseek(tmpimages, 0, SEEK_SET);
     fseek(tmplabels, 0, SEEK_SET);
     uint32_t magic_num = 0, image_count = 0, label_count = 0;
-    int i = 0, j = 0;
+    int i = 0, j = 0, do_swap = !PS_IS_BIG_ENDIAN;
     fread(&magic_num, 1, 4, tmpimages);
-    magic_num = le2be(magic_num);
+    if (do_swap) magic_num = swap_uint32(magic_num);
     if (magic_num != IMAGES_MAGIC_NUM) {
         PSErr(__func__, "Invalid magic number for image file: %d", magic_num);
         data = NULL;
         goto final;
     }
     fread(&image_count, 1, 4, tmpimages);
-    image_count = le2be(image_count);
+    if (do_swap) image_count = swap_uint32(image_count);
     if (image_count == 0) {
         PSErr(__func__, "Image count is 0!");
         data = NULL;
@@ -569,14 +573,14 @@ int PSLoadMNISTData(int type, const char *images_file, const char *labels_file,
     }
     if (do_log) printf("Found %d images.\n", image_count);
     fread(&magic_num, 1, 4, tmplabels);
-    magic_num = le2be(magic_num);
+    if (do_swap) magic_num = swap_uint32(magic_num);
     if (magic_num != LABELS_MAGIC_NUM) {
         PSErr(__func__, "Invalid magic number for labels file: %d",magic_num);
         data = NULL;
         goto final;
     }
     fread(&label_count, 1, 4, tmplabels);
-    label_count = le2be(label_count);
+    if (do_swap) label_count = swap_uint32(label_count);
     if (label_count == 0) {
         PSErr(__func__, "Label count is 0!");
         data = NULL;
@@ -591,8 +595,10 @@ int PSLoadMNISTData(int type, const char *images_file, const char *labels_file,
     uint32_t rows = 0, cols = 0;
     fread(&rows, 1, 4, tmpimages);
     fread(&cols, 1, 4, tmpimages);
-    rows = le2be(rows);
-    cols = le2be(cols);
+    if (do_swap) {
+        rows = swap_uint32(rows);
+        cols = swap_uint32(cols);
+    }
     if (do_log) printf("Image size: %dx%d\n", rows, cols);
     int img_area = rows * cols;
     if (img_area == 0) {
