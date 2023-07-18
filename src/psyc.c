@@ -6032,10 +6032,12 @@ void PSTrain(PSNeuralNetwork *network,
     network->training->ended_at = end_t;
     if (PSGetNetworkStatus(network) == STATUS_TRAINING)
         PSSetNetworkStatus(network, STATUS_TRAINED, NULL);
-    PSNeuralNetwork *current = input_network;
-    if (current != NULL) {
-        PSResetNetworkStateSequences(current, 0, 0);
-        current = current->next;
+    if (is_recurrent) {
+        PSNeuralNetwork *current = input_network;
+        while (current != NULL) {
+            PSResetNetworkStateSequences(current, 0, 0);
+            current = current->next;
+        }
     }
 }
 
