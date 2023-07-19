@@ -530,13 +530,13 @@ int PSLoadMNISTData(int type, const char *images_file, const char *labels_file,
     getTempFileName(prefixLbl, tmpLabelsFileName);
     FILE *images = fopen(images_file, "r");
     if (images == NULL) {
-        PSErr(__func__, "Cannot open %s", images_file);
+        PSErr(__func__, "Cannot open images '%s'", images_file);
         data = NULL;
         return 0;
     }
     FILE *labels = fopen(labels_file, "r");
     if (labels == NULL) {
-        PSErr(__func__, "Cannot open %s", labels_file);
+        PSErr(__func__, "Cannot open labels '%s'", labels_file);
         data = NULL;
         fclose(images);
         return 0;
