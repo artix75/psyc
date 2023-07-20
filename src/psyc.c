@@ -4687,12 +4687,11 @@ int backpropThroughTime(PSNeuralNetwork *network, PSFloat *y,
             PSLayer *layer = network->layers[i];
             PSLayer *previous_layer = network->layers[i - 1];
             if (layer->pretrained) break;
+            if (!PSIsRecurrent(layer)) break;
             PSGradient *lgradients = gradients[i - 1];
-            /*if (!PSIsRecurrent(layer)) break;*/ /* TODO: why this?? */
             PSLayerType ltype = layer->type;
             int is_lstm = (LSTM == ltype);
             int is_gru = (GRU == ltype);
-            /*if (!is_recurrent && !is_lstm && !is_gru) continue;*/ //Why this?
 
             /*  Apply derivative on layer deltas */
             if (layer->derivative != NULL && !is_lstm && !is_gru) {
@@ -4774,7 +4773,7 @@ PSGradient **networkBackprop(PSNeuralNetwork *network, PSFloat *y,
             y = tmpy;
         }
     }
-    PSLayer *previous_layer = NULL;
+    PSLayer *backprop_from = output_layer, *previous_layer = NULL;
     ok = resetDeltas(network);
     if (!ok) {
         PSErr(NULL, "Failed to reset network deltas");
@@ -4813,7 +4812,7 @@ PSGradient **networkBackprop(PSNeuralNetwork *network, PSFloat *y,
         } else if (first_recurrent != NULL) {
             int first_recurrent_idx = first_recurrent->index;
             if (first_recurrent_idx == 0) goto final;
-            else previous_layer = network->layers[first_recurrent_idx - 1];
+            else backprop_from = network->layers[first_recurrent_idx - 1];
         } else {
             PSErr(
                 NULL, "First recurrent layer was not found, cannot "
@@ -4826,7 +4825,7 @@ PSGradient **networkBackprop(PSNeuralNetwork *network, PSFloat *y,
         ok = computeOutputDelta(output_layer, y);
         if (!ok) goto final;
     }
-    for (i = output_layer->index; i > 0; i--) {
+    for (i = backprop_from->index; i > 0; i--) {
         PSLayer *layer = network->layers[i];
         previous_layer = network->layers[i - 1];
         if (layer->pretrained) break;
