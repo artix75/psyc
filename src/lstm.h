@@ -48,10 +48,6 @@ typedef struct {
     PSMatrix output_gates;
     PSMatrix forget_gates;
     PSFloat *initial_raw_states;
-    PSFloat *initial_candidates;   /* TODO: Probabily not needed */
-    PSFloat *initial_input_gates;  /* TODO: Probabily not needed */
-    PSFloat *initial_output_gates; /* TODO: Probabily not needed */
-    PSFloat *initial_forget_gates; /* TODO: Probabily not needed */
 } PSLSTMCell;
 
 PSLSTMCell *PSGetLSTMCell(PSLayer *layer);

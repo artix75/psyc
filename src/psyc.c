@@ -1455,15 +1455,17 @@ PSMatrix initLayerStates(PSLayer *layer, uint32_t seqlen,
                          int retain_previous,
                          PSMatrix current, PSFloat **previous)
 {
-    assert(previous != NULL);
     /* If `retain_previous` is true, it means that the last vector in
      * current sequence states must be retained as 'initial state'.
      * This is done by adding one further row to states matrix that will
      * hold the 'initial' vector from previous last vector. */
     int cur_seqlen =  0;
-    if (current == layer->states || retain_previous)
+    if (current == layer->states)
         cur_seqlen = PSStateSequenceLength(layer);
-    else if (current != NULL) cur_seqlen = PSMatrixDim(current, 0);
+    else if (current != NULL) {
+        cur_seqlen = PSMatrixDim(current, 0);
+        if (retain_previous) cur_seqlen--;
+    }
     if (cur_seqlen <= 0) retain_previous = 0;
     int nrows = seqlen + (retain_previous ? 1 : 0);
     PSMatrix states = PSMatrixZeros(2, nrows, layer->size);
@@ -1479,15 +1481,15 @@ PSMatrix initLayerStates(PSLayer *layer, uint32_t seqlen,
         /* Initial step in new states (last row) */
         PSFloat *initial = PSMatrixGet(states, 1, NULL, nrows - 1);
         if (last == NULL || initial == NULL) {
-            PSErr(
-                NULL, "Could not initialize layer[%d] states (seqlen = %d)",
-                layer->index, seqlen
+            PSErrNN(
+                NULL, NULL, layer,
+                "could not initialize layer states (seqlen = %d)", seqlen
             );
             return NULL;
         }
         PSVectorCopy(initial, last, layer->size);
-        *previous = initial;
-    } else *previous = NULL;
+        if (previous != NULL) *previous = initial;
+    } else if (previous != NULL) *previous = NULL;
     return states;
 }
 
@@ -1500,17 +1502,16 @@ PSMatrix initLayerStates(PSLayer *layer, uint32_t seqlen,
 PSMatrix resizeLayerStates(PSLayer *layer, uint32_t seqlen,
                            PSMatrix current, PSFloat **previous)
 {
-    assert(previous != NULL);
     int nrows = seqlen, cur_seqlen, cur_nrows;
     if (current == layer->states)
         cur_seqlen = PSStateSequenceLength(layer);
     else {
         if (current == NULL) {
-            *previous = NULL;
+            if (previous != NULL) *previous = NULL;
             return NULL;
         }
         cur_seqlen = PSMatrixDim(current, 0);
-        if (*previous != NULL) cur_seqlen--;
+        if (previous && *previous != NULL) cur_seqlen--;
     }
     cur_nrows = cur_seqlen;
     if (layer->initial_states != NULL) {
@@ -1523,7 +1524,7 @@ PSMatrix resizeLayerStates(PSLayer *layer, uint32_t seqlen,
     int steps2add = nrows - cur_nrows;
     if (steps2add <= 0) {
         /* No action needed, just return current. */
-        *previous = layer->initial_states;
+        if (previous != NULL) *previous = layer->initial_states;
         return current;
     }
     PSMatrix states = PSMatrixExpand(current, steps2add, 0);
@@ -1538,7 +1539,7 @@ PSMatrix resizeLayerStates(PSLayer *layer, uint32_t seqlen,
      * If layer has no `initial_states`, `last` will simply point to added
      * rows. */
     PSFloat *last = states + (cur_seqlen * layer->size);
-    if (*previous != NULL) {
+    if (previous && *previous != NULL) {
         /* Move initial state from index [cur_seqlen] to index[seqlen]:
          * `prev` points to last rows in new states (states[seqlen]) that
          * will contain values belonging to `initial_states` (pointed by
@@ -3311,9 +3312,9 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
     return layer;
 fail:
     if (layer != NULL) {
-        PSErr(
-            __func__, "Could not initialize layer %d on network '%s'",
-            layer->index, network->name
+        PSErrNN(
+            __func__, NULL, layer,
+            "could not initialize layer on network '%s'", network->name
         );
         PSAbortLayer(network, layer);
     }

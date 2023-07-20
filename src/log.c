@@ -157,7 +157,8 @@ void PSErrNN(const char *tag, PSNeuralNetwork *network, PSLayer *layer,
         } else printed_network = 0;
         if (layer != NULL) {
             if (printed_network) PSLog(PSLOGLEVEL_ERROR, ", ");
-            PSLog(PSLOGLEVEL_ERROR, "Layer[%d]", layer->index);
+            PSLog(PSLOGLEVEL_ERROR, "Layer[%d] (%s)", layer->index,
+                  PSGetLayerTypeLabel(layer));
             printed_layer = 1;
         }
         if (printed_network || printed_layer)

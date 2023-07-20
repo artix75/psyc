@@ -498,8 +498,7 @@ int PSInitAttentionStates(PSLayer *layer, uint32_t steps, int retain_previous) {
         }
         return 1;
     }
-    PSFloat *prv = NULL;
-    PSMatrix query = initLayerStates(layer, steps, 0, data->query, &prv);
+    PSMatrix query = initLayerStates(layer, steps, 0, data->query, NULL);
     if (query == NULL) return 0;
     if (data->query != NULL) PSMatrixDelete(data->query);
     data->query = query;
@@ -509,7 +508,7 @@ int PSInitAttentionStates(PSLayer *layer, uint32_t steps, int retain_previous) {
     if (!is_training) return 1;
     if (hasTrainableQuery(layer)) {
         PSMatrix query_inputs = initLayerStates(
-            layer, steps, 0, data->query_inputs, &prv
+            layer, steps, 0, data->query_inputs, NULL
         );
         if (query_inputs == NULL) return 0;
         if (data->query_inputs != NULL) PSMatrixDelete(data->query_inputs);

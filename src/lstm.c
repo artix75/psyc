@@ -159,32 +159,28 @@ int PSInitLSTMStates(PSLayer *layer, uint32_t steps, int retain_previous) {
         return 1;
     }
     PSMatrix candidates = initLayerStates(
-        layer, steps, retain_previous, cell->candidates,
-        &cell->initial_candidates
+        layer, steps, 0, cell->candidates, NULL
     );
     if (candidates == NULL) return 0;
     if (cell->candidates != NULL) PSMatrixDelete(cell->candidates);
     cell->candidates = candidates;
 
     PSMatrix input_gates = initLayerStates(
-        layer, steps, retain_previous, cell->input_gates,
-        &cell->initial_input_gates
+        layer, steps, 0, cell->input_gates, NULL
     );
     if (input_gates == NULL) return 0;
     if (cell->input_gates != NULL) PSMatrixDelete(cell->input_gates);
     cell->input_gates = input_gates;
 
     PSMatrix output_gates = initLayerStates(
-        layer, steps, retain_previous, cell->output_gates,
-        &cell->initial_output_gates
+        layer, steps, 0, cell->output_gates, NULL
     );
     if (output_gates == NULL) return 0;
     if (cell->output_gates != NULL) PSMatrixDelete(cell->output_gates);
     cell->output_gates = output_gates;
 
     PSMatrix forget_gates = initLayerStates(
-        layer, steps, retain_previous, cell->forget_gates,
-        &cell->initial_forget_gates
+        layer, steps, 0, cell->forget_gates, NULL
     );
     if (forget_gates == NULL) return 0;
     if (cell->forget_gates != NULL) PSMatrixDelete(cell->forget_gates);
@@ -209,48 +205,44 @@ int PSResizeLSTMStates(PSLayer *layer, uint32_t steps, uint32_t prev_steps) {
     }
 
     PSMatrix candidates = resizeLayerStates(
-        layer, steps, cell->candidates, &cell->initial_candidates
+        layer, steps, cell->candidates, NULL
     );
     if (candidates == NULL) {
         PSMatrixDelete(cell->candidates);
         cell->candidates = NULL;
-        cell->initial_candidates = NULL;
         PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
         return 0;
     }
     cell->candidates = candidates;
 
     PSMatrix input_gates = resizeLayerStates(
-        layer, steps, cell->input_gates, &cell->initial_input_gates
+        layer, steps, cell->input_gates, NULL
     );
     if (input_gates == NULL) {
         PSMatrixDelete(cell->input_gates);
         cell->input_gates = NULL;
-        cell->initial_input_gates = NULL;
         PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
         return 0;
     }
     cell->input_gates = input_gates;
 
     PSMatrix output_gates = resizeLayerStates(
-        layer, steps, cell->output_gates, &cell->initial_output_gates
+        layer, steps, cell->output_gates, NULL
     );
     if (output_gates == NULL) {
         PSMatrixDelete(cell->output_gates);
         cell->output_gates = NULL;
-        cell->initial_output_gates = NULL;
         PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
         return 0;
     }
     cell->output_gates = output_gates;
 
     PSMatrix forget_gates = resizeLayerStates(
-        layer, steps, cell->forget_gates, &cell->initial_forget_gates
+        layer, steps, cell->forget_gates, NULL
     );
     if (forget_gates == NULL) {
         PSMatrixDelete(cell->forget_gates);
         cell->forget_gates = NULL;
-        cell->initial_forget_gates = NULL;
         PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
         return 0;
     }
@@ -279,16 +271,16 @@ static int getLSTMStatePointers(PSLSTMCell *cell, int type,
     }
     if (type == CANDIDATE_IDX) {
         *state_ptr = cell->candidates;
-        *previous_ptr = cell->initial_candidates;
+        *previous_ptr = NULL;
     } else if (type == INPUT_IDX) {
         *state_ptr = cell->input_gates;
-        *previous_ptr = cell->initial_input_gates;
+        *previous_ptr = NULL;
     } else if (type == OUTPUT_IDX) {
         *state_ptr = cell->output_gates;
-        *previous_ptr = cell->initial_output_gates;
+        *previous_ptr = NULL;
     } else if (type == FORGET_IDX) {
         *state_ptr = cell->forget_gates;
-        *previous_ptr = cell->initial_forget_gates;
+        *previous_ptr = NULL;
     } else if (type == RAW_STATE_IDX) {
         *state_ptr = cell->raw_states;
         *previous_ptr = cell->initial_raw_states;
