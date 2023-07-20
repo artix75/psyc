@@ -45,7 +45,7 @@
 
 #define LAYER_PLACEHOLDER_TYPE -1
 #define STATUS_ERROR_LOSS ((PSFloat) FLT_MIN)
-#define BPTT_TRUNCATE   4
+#define BPTT_TRUNCATE   0
 
 #define applyGradientsOnBiases(opts, grads, params, mg, xg, len, r, i, accel) \
     applyGradientsOnParameters(PARAM_TYPE_BIAS, opts, grads, params, mg, xg,\
