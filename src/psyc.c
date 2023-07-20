@@ -1464,7 +1464,7 @@ PSMatrix initLayerStates(PSLayer *layer, uint32_t seqlen,
         cur_seqlen = PSStateSequenceLength(layer);
     else if (current != NULL) {
         cur_seqlen = PSMatrixDim(current, 0);
-        if (retain_previous) cur_seqlen--;
+        if (previous && *previous != NULL) cur_seqlen--;
     }
     if (cur_seqlen <= 0) retain_previous = 0;
     int nrows = seqlen + (retain_previous ? 1 : 0);
