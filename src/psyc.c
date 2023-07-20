@@ -673,7 +673,7 @@ static int parseSequenceData(PSNeuralNetwork *network, PSFloat *data,
     if (x_seqlen != NULL) *x_seqlen = 0;
     if (y_seqlen != NULL) *y_seqlen = 0;
     if (x != NULL) *x = NULL;
-    if (y!= NULL) *y = NULL;
+    if (y != NULL) *y = NULL;
     PSNeuralNetwork *input_net = network, *output_net = network;
     int netcount = PSGetNetworkChainLength(network);
     if (netcount > 1) {
@@ -1461,7 +1461,7 @@ PSMatrix initLayerStates(PSLayer *layer, uint32_t seqlen,
      * This is done by adding one further row to states matrix that will
      * hold the 'initial' vector from previous last vector. */
     int cur_seqlen =  0;
-    if (current == layer->states)
+    if (current == layer->states || retain_previous)
         cur_seqlen = PSStateSequenceLength(layer);
     else if (current != NULL) cur_seqlen = PSMatrixDim(current, 0);
     if (cur_seqlen <= 0) retain_previous = 0;
