@@ -40,9 +40,6 @@ typedef struct {
     PSMatrix candidates;
     PSMatrix update_gates;
     PSMatrix reset_gates;
-    PSFloat *initial_candidates;   /* TODO: Probabily not needed */
-    PSFloat *initial_update_gates;  /* TODO: Probabily not needed */
-    PSFloat *initial_reset_gates; /* TODO: Probabily not needed */
 } PSGRUCell;
 
 PSGRUCell *PSGetGRUCell(PSLayer *layer);

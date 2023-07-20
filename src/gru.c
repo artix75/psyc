@@ -115,6 +115,7 @@ PSFloat *PSGetGRUStates(PSLayer *layer, int t, int type) {
 }
 
 int PSInitGRUStates(PSLayer *layer, uint32_t steps, int retain_previous) {
+    UNUSED(retain_previous);
     if (layer == NULL) return 0;
     PSGRUCell *cell = PSGetGRUCell(layer);
     if (cell == NULL) {
@@ -137,24 +138,21 @@ int PSInitGRUStates(PSLayer *layer, uint32_t steps, int retain_previous) {
         return 1;
     }
     PSMatrix candidates = initLayerStates(
-        layer, steps, retain_previous, cell->candidates,
-        &cell->initial_candidates
+        layer, steps, 0, cell->candidates, NULL
     );
     if (candidates == NULL) return 0;
     if (cell->candidates != NULL) PSMatrixDelete(cell->candidates);
     cell->candidates = candidates;
 
     PSMatrix update_gates = initLayerStates(
-        layer, steps, retain_previous, cell->update_gates,
-        &cell->initial_update_gates
+        layer, steps, 0, cell->update_gates, NULL
     );
     if (update_gates == NULL) return 0;
     if (cell->update_gates != NULL) PSMatrixDelete(cell->update_gates);
     cell->update_gates = update_gates;
 
     PSMatrix reset_gates = initLayerStates(
-        layer, steps, retain_previous, cell->reset_gates,
-        &cell->initial_reset_gates
+        layer, steps, 0, cell->reset_gates, NULL
     );
     if (reset_gates == NULL) return 0;
     if (cell->reset_gates != NULL) PSMatrixDelete(cell->reset_gates);
@@ -172,36 +170,33 @@ int PSResizeGRUStates(PSLayer *layer, uint32_t steps, uint32_t prev_steps) {
     }
 
     PSMatrix candidates = resizeLayerStates(
-        layer, steps, cell->candidates, &cell->initial_candidates
+        layer, steps, cell->candidates, NULL
     );
     if (candidates == NULL) {
         PSMatrixDelete(cell->candidates);
         cell->candidates = NULL;
-        cell->initial_candidates = NULL;
         PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
         return 0;
     }
     cell->candidates = candidates;
 
     PSMatrix update_gates = resizeLayerStates(
-        layer, steps, cell->update_gates, &cell->initial_update_gates
+        layer, steps, cell->update_gates, NULL
     );
     if (update_gates == NULL) {
         PSMatrixDelete(cell->update_gates);
         cell->update_gates = NULL;
-        cell->initial_update_gates = NULL;
         PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
         return 0;
     }
     cell->update_gates = update_gates;
 
     PSMatrix reset_gates = resizeLayerStates(
-        layer, steps, cell->reset_gates, &cell->initial_reset_gates
+        layer, steps, cell->reset_gates, NULL
     );
     if (reset_gates == NULL) {
         PSMatrixDelete(cell->reset_gates);
         cell->reset_gates = NULL;
-        cell->initial_reset_gates = NULL;
         PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
         return 0;
     }
@@ -219,13 +214,13 @@ static int getGRUStatePointers(PSGRUCell *cell, int type,
     }
     if (type == CANDIDATE_IDX) {
         *state_ptr = cell->candidates;
-        *previous_ptr = cell->initial_candidates;
+        *previous_ptr = NULL;
     } else if (type == UPDATE_IDX) {
         *state_ptr = cell->update_gates;
-        *previous_ptr = cell->initial_update_gates;
+        *previous_ptr = NULL;
     } else if (type == RESET_IDX) {
         *state_ptr = cell->reset_gates;
-        *previous_ptr = cell->initial_reset_gates;
+        *previous_ptr = NULL;
     } else {
         PSErr(NULL, "Invalid GRU state type %d", type);
         *state_ptr = NULL;
