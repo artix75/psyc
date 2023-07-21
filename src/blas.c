@@ -15,6 +15,7 @@
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
+#include "platform.h"
 #include "blas.h"
 #include "log.h"
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)

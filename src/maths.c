@@ -23,6 +23,7 @@
 #include <errno.h>
 #include <assert.h>
 
+#include "platform.h"
 #include "config.h"
 #include "maths.h"
 #include "blas.h"

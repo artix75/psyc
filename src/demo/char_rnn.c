@@ -31,6 +31,7 @@
 #include <xmmintrin.h>
 #endif
 
+#include "../platform.h"
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
 #include <Accelerate/Accelerate.h>
 #endif
