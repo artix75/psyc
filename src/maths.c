@@ -128,11 +128,16 @@ int writeSerializedFloatArray(FILE *out, int count, char *sep, int opts,
 /**** Utils ****/
 static unsigned char randomSeeded = 0;
 
+static void randomSeed(void) {
+    if (randomSeeded) return;
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    srand(tv.tv_usec * tv.tv_sec);
+    randomSeeded = 1;
+}
+
 PSFloat PSNormalizedRandom() {
-    if (!randomSeeded) {
-        randomSeeded = 1;
-        srand(time(NULL));
-    }
+    randomSeed();
     int r = rand();
     return ((PSFloat) r / (PSFloat) RAND_MAX);
 }
@@ -150,10 +155,7 @@ PSFloat PSGaussianRandom(PSFloat mean, PSFloat stddev) {
 unsigned int PSRandomInt(unsigned int range, PSFloat *weights, int *err,
                          PSMathOpts *opts)
 {
-    if (!randomSeeded) {
-        randomSeeded = 1;
-        srand(time(NULL));
-    }
+    randomSeed();
     if (err != NULL) *err = 0;
     if (range == 0) return 0;
     if (weights == NULL) {
