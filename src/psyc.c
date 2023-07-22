@@ -5247,7 +5247,7 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
                 PSErr(NULL, "could not initialize training context on network "
                       "%d", net->index);
                 PSSetNetworkStatus(network, STATUS_ERROR, NULL);
-                return STATUS_ERROR_LOSS;
+                goto final;
             }
             training_ctx = getTrainingContext(net);
             assert(training_ctx != NULL);

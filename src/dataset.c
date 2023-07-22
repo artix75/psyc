@@ -496,25 +496,27 @@ void zerr(int ret)
 }
 
 void getTempFileName(const char *prefix, char *buffer) {
+    char buff[4] = {0};
+    if (buffer == NULL) return;
     FILE *urand = fopen("/dev/urandom", "r");
-    char buff[4];
-    fgets(buff, 4, urand);
+    if (urand != NULL) {
+        fgets(buff, 4, urand);
+        fclose(urand);
+    }
     sprintf(buffer, "/tmp/%s-%02x%02x%02x%02x",
             prefix,
             (unsigned char) buff[0],
             (unsigned char) buff[1],
             (unsigned char) buff[2],
             (unsigned char) buff[3]);
-    fclose(urand);
 }
 
 int PSLoadMNISTData(int type, const char *images_file, const char *labels_file,
                     PSFloat **data)
 {
-    char tmpImagesFileName[255];
-    char tmpLabelsFileName[255];
-    char *prefixImg;
-    char *prefixLbl;
+    char tmpImagesFileName[255] = {0};
+    char tmpLabelsFileName[255] = {0};
+    char *prefixImg = NULL, *prefixLbl = NULL;
     int data_len = 0, err;
     int do_log = (PSLogLevel <= PSLOGLEVEL_INFO);
     if (type == DATA_TYPE_TRAINING) {

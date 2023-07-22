@@ -207,6 +207,8 @@ int main(int argc, char** argv) {
 #endif
     PSHandleSignals(NULL);
     PSNeuralNetwork *network = NULL;
+    PSFloat *training_data = NULL;
+    PSFloat *test_data = NULL;
     char *mnist_files[] = {NULL, NULL, NULL, NULL};
     int arg_idx = parseOptions(argc, argv), arg_file_count = 0,
         found_files_count = 0, success = 1, i;
@@ -241,8 +243,6 @@ int main(int argc, char** argv) {
         printf("%s %s:\n", dataset_type, datatype);
         printf(" - %s\n", fpath);
     }
-    PSFloat *training_data = NULL;
-    PSFloat *test_data = NULL;
     int testlen = 0;
     int datalen = 0;
     int loaded = 0;

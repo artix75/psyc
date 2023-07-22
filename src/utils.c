@@ -569,8 +569,8 @@ exceeded:
         PSErr(__func__, "path length exceeded %d", PATH_MAX);
         goto final;
     }
-    va_end(args);
 final:
+    va_end(args);
     if (!success) {
         free(path);
         path = NULL;

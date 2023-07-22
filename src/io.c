@@ -591,8 +591,10 @@ PSFloat *readBinaryFloatArray(PSFloat *floats, uint64_t *len, FILE *f) {
         floats = allocd;
     }
     int ok = (readBinaryFloatArray(floats, len, f) != NULL);
-    if (!ok) floats = NULL;
-    free(allocd);
+    if (!ok) {
+        floats = NULL;
+        free(allocd);
+    }
     return floats;
 }
 

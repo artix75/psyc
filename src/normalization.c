@@ -182,9 +182,10 @@ int PSResizeNormalizationCache(PSLayer *layer, uint32_t seqlen, uint32_t prev) {
     if (layer == NULL) return 0;
     PSNormalizationLayerCache *cache = GetNormalizationCache(layer);
     if (cache == NULL) return PSInitNormalizationCache(layer, seqlen, 0);
-    size_t size = (size_t) seqlen * sizeof(PSNormalizationLayerCache);
-    PSNormalizationLayerCache *new_cache = realloc(cache, size);
+    PSNormalizationLayerCache *new_cache = calloc(seqlen, seqlen);
     if (new_cache == NULL) goto memerr;
+    size_t size = (size_t) seqlen * sizeof(PSNormalizationLayerCache);
+    memcpy(new_cache, cache, size);
     int cur_seqlen = prev;
     int diff = seqlen - cur_seqlen;
     if (diff > 0) {
@@ -196,7 +197,7 @@ int PSResizeNormalizationCache(PSLayer *layer, uint32_t seqlen, uint32_t prev) {
             if (added->normalized_values == NULL) goto memerr;
         }
     }
-    deleteNormalizationCache(cache, cur_seqlen);
+    free(cache);
     layer->private = new_cache;
     return 1;
 memerr:
