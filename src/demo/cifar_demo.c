@@ -21,6 +21,7 @@
 #include <signal.h>
 #include <strings.h>
 
+#include <limits.h>
 #include <execinfo.h>
 #include <fenv.h>
 #if defined(__x86_64__) || defined(__i386__)
@@ -189,6 +190,52 @@ void onBatchTrained(PSNeuralNetwork *network, int epoch, int epochs,
     }
 }
 
+char *downloadCIFARDataset(int classes) {
+    const char *wdir = PSWorkingDirectory();
+    int success = 1;
+    if (wdir == NULL) return NULL;
+    if (classes != 10 && classes != 100) classes = 10;
+    char *path = NULL, *tarpath = NULL;
+    char dirname[NAME_MAX] = {0};
+    char url[PATH_MAX] = {0};
+    char tarfname[NAME_MAX] = {0};
+    char cmd[PATH_MAX * 3];
+    char *datasets_path = PSPathJoin(2, wdir, "datasets");
+    if (datasets_path == NULL) return NULL;
+    if (!PSFileExists(datasets_path))
+        if (!PSMakeDir(datasets_path, 1)) goto final;
+    snprintf(dirname, NAME_MAX, "cifar-%d-batches-bin", classes);
+    path = PSPathJoin(2, datasets_path, dirname);
+    if (path == NULL) goto final;
+    if (PSFileExists(path)) goto final;
+    snprintf(tarfname, NAME_MAX, "cifar-%d-binary.tar.gz", classes);
+    snprintf(
+        url, PATH_MAX,"http://www.cs.toronto.edu/~kriz/%s", tarfname
+    );
+    PSNotice("Downloading CIFAR dataset (%d classes)", classes);
+    success = PSDownloadFile(url, datasets_path);
+    if (!success) goto final;
+    tarpath = PSPathJoin(2, datasets_path, tarfname);
+    success = (tarpath != NULL);
+    if (!success) goto final;
+    snprintf(
+        cmd, PATH_MAX * 3, "tar xvzf \"%s\" -C \"%s\"", tarpath, datasets_path
+    );
+    PSNotice("Extracting CIFAR dataset (%d classes)", classes);
+    int status = system(cmd);
+    success = (status == 0);
+    if (!success) goto final;
+final:
+    if (tarpath != NULL && PSFileExists(tarpath)) unlink(tarpath);
+    free(datasets_path);
+    free(tarpath);
+    if (!success) {
+        free(path);
+        path = NULL;
+    }
+    return path;
+}
+
 int main(int argc, char** argv) {
 #if defined(__x86_64__) || defined(__i386__)
     _MM_SET_EXCEPTION_MASK( _MM_GET_EXCEPTION_MASK()
@@ -208,6 +255,7 @@ int main(int argc, char** argv) {
     PSFloat *validation_data = NULL;
     const char *pretrained_file = NULL;
     const char *dataset_path = NULL;
+    char *downloaded_dataset_path = NULL;
     int testsize = 0;
     int datasize = 0;
     int testlen = 0;
@@ -390,11 +438,18 @@ int main(int argc, char** argv) {
             return 1;
         }
     }
+    int success = 1;
 
     if (pretrained_file == NULL && dataset_path == NULL) {
-        print_help(argv[0]);
-        fprintf(stderr, "FATAL: at least --data or --load needed!\n");
-        return 1;
+        downloaded_dataset_path = downloadCIFARDataset(classes);
+        if (downloaded_dataset_path == NULL) {
+            PSErr(NULL, "could not download CIFAR dataset and no dataset "
+                  "provided");
+            /*print_help(argv[0]);*/
+            fprintf(stderr, "FATAL: at least --data or --load needed!\n");
+            return 1;
+        }
+        dataset_path = downloaded_dataset_path;
     }
 
     if (debug_output_str != NULL) {
@@ -607,5 +662,7 @@ int main(int argc, char** argv) {
     PSDeleteNetwork(network);
     if (training_data != NULL) free(training_data);
     if (test_data != NULL) free(test_data);
-    return 0;
+final:
+    free(downloaded_dataset_path);
+    return success ? 0 : 1;
 }
