@@ -102,8 +102,9 @@ typedef struct PSBinaryFileHeader {
 
 PSTrainingOptions *PSGetNetworkTrainingOptions(PSNeuralNetwork *network);
 int PSGetTrainingMemoryGradients(PSNeuralNetwork *network,
-                                 PSGradient ***mg1, PSGradient ***mg2);
-int initTrainingContext(PSNeuralNetwork *network, int mem_gradients_count);
+                                 PSGradient ***grads_p);
+int initTrainingContext(PSNeuralNetwork *network, PSTrainingOptions *opts,
+                        int mem_gradients_count);
 int PSCompareVersion(const char* vers1, const char* vers2);
 int getLossFunctionIndex(PSLossFunction function);
 PSLossFunction getLossFunctionAtIndex(int index);
@@ -1052,11 +1053,11 @@ int writeGradients(PSNeuralNetwork *network, PSGradient **gradients,
         PSGradient *gradient = gradients[i - 1];
         if (gradient == NULL) continue;
         if (gradient->bias_count > 0 && gradient->biases == NULL) {
-            PSErr("PSSaveNetwork", "Invalid gradient biases");
+            PSErr("PSSaveNetwork", "invalid gradient biases");
             return 0;
         }
         if (gradient->weight_count > 0 && gradient->weights == NULL) {
-            PSErr("PSSaveNetwork", "Invalid gradient weights");
+            PSErr("PSSaveNetwork", "invalid gradient weights");
             return 0;
         }
         fprintf(
@@ -2376,7 +2377,7 @@ int loadNetworkTrainingData(PSNeuralNetwork *network, FILE *f,
             loadErr(filepath, f, "Invalid or missing 'memory_gradients'");
             goto final;
         }
-        ok = initTrainingContext(network, numgradients);
+        ok = initTrainingContext(network, NULL, numgradients);
         if (!ok) {
             PSErr(__func__, "Failed to initialize network training data");
             goto final;
@@ -2386,19 +2387,19 @@ int loadNetworkTrainingData(PSNeuralNetwork *network, FILE *f,
             PSErr(__func__, "Invalid network training data (missing options)");
             goto final;
         }
-        PSGradient **memg1 = NULL, **memg2 = NULL;
+        PSGradient **memory_gradients[PS_MAX_MEMORY_GRADIENTS] = {0};
         if (numgradients > 0) {
             int foundgradients = PSGetTrainingMemoryGradients(
-                network, &memg1, &memg2
+                network, memory_gradients
             );
             ok = (foundgradients == numgradients);
             if (ok) {
-                ok = memg1 != NULL;
-                if (ok && numgradients >= 2) ok = memg2 != NULL;
+                ok = memory_gradients[0] != NULL;
+                if (ok && numgradients >= 2) ok = memory_gradients[1] != NULL;
             }
             if (!ok) {
                 loadErr(
-                    filepath, NULL, "Invalid network training data (missing "
+                    filepath, NULL, "invalid network training data (missing "
                     "gradients)"
                 );
                 goto final;
@@ -2412,15 +2413,12 @@ int loadNetworkTrainingData(PSNeuralNetwork *network, FILE *f,
         ok = scanTrainingOptions(f, topts, filepath);
         if (!ok) goto final;
         for (int i = 0; i < numgradients; i++) {
-            PSGradient **memg = NULL;
-            if (i == 0) memg = memg1;
-            else if (i == 1) memg = memg2;
-            else break;
+            PSGradient **memg = memory_gradients[i];
             int gidx = -1;
             ok = scanFile(f, "memory_gradients[%d]:\n", 1, NULL, &gidx);
             if (ok && gidx != i) ok = 0;
             if (!ok) {
-                loadErr(filepath, f, "Invalid memory gradient header");
+                loadErr(filepath, f, "invalid memory gradient[%d] header", i);
                 goto final;
             }
             if (legacy_model)
@@ -2429,7 +2427,7 @@ int loadNetworkTrainingData(PSNeuralNetwork *network, FILE *f,
                 ok = loadGradients(network, filepath, f, memg, i);
             if (!ok) {
                 loadErr(
-                    filepath, NULL, "Failed to load memory gradients %s", i
+                    filepath, NULL, "failed to load memory gradients %s", i
                 );
                 goto final;
             }
@@ -2722,8 +2720,8 @@ static int writeNetwork(PSNeuralNetwork *network, FILE *f) {
         fprintf(f, "\n");
     }
     PSTrainingOptions *topts = PSGetNetworkTrainingOptions(network);
-    PSGradient **memg1 = NULL, **memg2 = NULL;
-    int numgradients = PSGetTrainingMemoryGradients(network, &memg1, &memg2);
+    PSGradient **memory_gradients[PS_MAX_MEMORY_GRADIENTS] = {0};
+    int numgradients = PSGetTrainingMemoryGradients(network, memory_gradients);
     if (topts != NULL || numgradients > 0) {
         fprintf(f, MODEL_TRAINING_DATA_SEP);
         fprintf(f, "memory_gradients:%d\n", numgradients);
@@ -2753,17 +2751,14 @@ static int writeNetwork(PSNeuralNetwork *network, FILE *f) {
             fprintf(f, ",bptt_truncate=%d", topts->bptt_truncate);
         }
         fprintf(f, "\n");
-        if (numgradients > 0) {
-            if (memg1 == NULL) {
-                PSErr(__func__, "Training memory gradient 1 is NULL");
+        for (i = 0; i < numgradients; i++) {
+            PSGradient **memg = memory_gradients[i];
+            if (memg == NULL) {
+                PSErr(__func__, "memory gradient[%d] is NULL", i);
                 return 0;
             }
-            fprintf(f, "memory_gradients[0]:\n");
-            if (!writeGradients(network, memg1, opts, f)) return 0;
-            if (memg2 != NULL) {
-                fprintf(f, "memory_gradients[1]:\n");
-                if (!writeGradients(network, memg2, opts, f)) return 0;
-            }
+            fprintf(f, "memory_gradients[%d]:\n", i);
+            if (!writeGradients(network, memg, opts, f)) return 0;
         }
     }
     return 1;

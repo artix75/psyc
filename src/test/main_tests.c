@@ -280,9 +280,7 @@ PSGradient ***backprop(PSNeuralNetwork *network, PSFloat *x, PSFloat *y,
 PSFloat updateNetworkParameters(PSNeuralNetwork *network,
                                 PSFloat *training_data,
                                 int batch_size, int elements_count,
-                                PSTrainingOptions* opts, PSFloat rate,
-                                PSGradient **memory_gradients1,
-                                PSGradient **memory_gradients2, ...);
+                                PSFloat rate, PSTrainingOptions* opts, ...);
 
 PSFloat *PSGetDropoutMask(PSLayer *layer, int t);
 
@@ -2188,8 +2186,8 @@ int testRNNStep(TestCase *test_case, Test *test) {
 
     int i, j, w;
     PSFloat loss = updateNetworkParameters(
-        network, training_data, 1, elements_count,
-        NULL, RNN_LEARNING_RATE, NULL, NULL, sequences
+        network, training_data, 1, elements_count, RNN_LEARNING_RATE,
+        NULL, sequences
     );
     UNUSED(loss);
     for (i = 1; i < network->size; i++) {
@@ -3625,8 +3623,7 @@ int testEncodedDecoderBackprop(TestCase *test_case, Test *test) {
     PSFloat *seq[] = {NULL};
     seq[0] = training_data;
     PSFloat loss = updateNetworkParameters(
-        network, training_data, 1, elements_count,
-        &opts, 0.3, NULL, NULL, seq
+        network, training_data, 1, elements_count, 0.3, &opts, seq
     );
     UNUSED(loss);
     ok = (network->status != STATUS_ERROR);

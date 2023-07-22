@@ -39,6 +39,7 @@
 #else
 #define DEFAULT_EPS     1e-7
 #endif
+#define PS_MAX_MEMORY_GRADIENTS 2
 
 #define DEFAULT_RECURRENT_MODE ManyToMany
 #define MAX_SEQUENCE_LENGTH 10
