@@ -28,8 +28,10 @@ char_rnn: $(OBJS) char_rnn.o
 	$(CC) -o ../../bin/char_rnn $(OBJS) char_rnn.o $(LDFLAGS)
 cifar_demo: $(OBJS) cifar_demo.o
 	$(CC) -o ../../bin/cifar_demo $(OBJS) cifar_demo.o $(LDFLAGS)
+seq2seq_demo: $(OBJS) seq2seq_demo.o
+	$(CC) -o ../../bin/seq2seq_demo $(OBJS) seq2seq_demo.o $(LDFLAGS)
 gpt_demo: $(OBJS) gpt_demo.o
 	$(CC) -o ../../bin/gpt_demo $(OBJS) gpt_demo.o $(LDFLAGS) $(GPT_LDFLAGS)
-all: mnist_demo conv_demo rnn_demo lstm_demo char_rnn cifar_demo gpt_demo
+all: mnist_demo conv_demo rnn_demo lstm_demo char_rnn cifar_demo gpt_demo seq2seq_demo
 	
         
