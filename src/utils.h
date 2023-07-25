@@ -143,7 +143,6 @@ void PSAbortLayer(PSNeuralNetwork *network, PSLayer *layer);
 
 int PSGetTerminalColumns();
 void PSFillWithBlank(int line_length);
-PSFloat *PSCopyFloats(PSFloat *src, size_t size);
 char *PSGetElapsedTimeString(time_t elapsed_us, int long_format);
 
 #endif /* __PS_UTILS_H */

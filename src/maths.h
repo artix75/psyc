@@ -51,6 +51,7 @@
 #endif
 
 #define PSClipValue(v, min, max) (v > max ? max : (v < min ? min : v))
+#define PSVectorZeros(len) calloc(len, sizeof(PSFloat))
 #define PSVectorCopy(dest, src, len) memcpy(dest, src, len * sizeof(PSFloat))
 #define PSVectorClear(vec, len) memset(vec, 0, len * sizeof(PSFloat))
 #define PSVectorZero(len) calloc(len, sizeof(PSFloat))
@@ -238,5 +239,6 @@ PSMatrix PSDiagonalMask(int size);
 PSMatrix PSDiagonalFlatten(PSMatrix matrix);
 PSMatrix PSDiagonalFlattenVector(PSFloat *vec, uint64_t len);
 PSFloat **PSVectorSplit(PSFloat *vec, int len, int num_slices);
+PSFloat *PSVectorDup(PSFloat *src, size_t length);
 
 #endif /* __PS_MATHS_H__ */

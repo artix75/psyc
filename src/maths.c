@@ -3196,3 +3196,14 @@ fail:
     }
     return NULL;
 }
+
+PSFloat *PSVectorDup(PSFloat *src, size_t length) {
+    size_t size = length * sizeof(PSFloat);
+    PSFloat *dup = malloc(size);
+    if (dup == NULL) {
+        PSPrintMemoryErrorMsg();
+        return NULL;
+    }
+    memcpy(dup, src, size);
+    return dup;
+}

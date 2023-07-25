@@ -340,14 +340,6 @@ void PSFillWithBlank(int line_length) {
     fflush(stdout);
 }
 
-PSFloat *PSCopyFloats(PSFloat *src, size_t length) {
-    size_t size = length * sizeof(PSFloat);
-    PSFloat *dup = malloc(size);
-    if (dup == NULL) return NULL;
-    memcpy(dup, src, size);
-    return dup;
-}
-
 /* Compare version string `vers1` with `vers2`.
  * Returns:
  *  -1 if `vers1` < `vers2`
