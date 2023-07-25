@@ -176,6 +176,7 @@ void PSMatrixResetTransposed(PSMatrix matrix);
 PSMatrix PSMatrixDup(PSMatrix matrix);
 PSMatrix PSMatrixDupShape(PSMatrix matrix);
 int PSMatrixCopy(PSMatrix src, PSMatrix dst);
+int PSMatrixEquals(PSMatrix a, PSMatrix b, int precision, int ignore_shape);
 void PSMatrixClear(PSMatrix matrix);
 void PSMatrixDelete(PSMatrix matrix);
 
@@ -240,5 +241,9 @@ PSMatrix PSDiagonalFlatten(PSMatrix matrix);
 PSMatrix PSDiagonalFlattenVector(PSFloat *vec, uint64_t len);
 PSFloat **PSVectorSplit(PSFloat *vec, int len, int num_slices);
 PSFloat *PSVectorDup(PSFloat *src, size_t length);
+PSFloat *PSVectorRandom(size_t len);
+int PSFloatEquals(PSFloat a, PSFloat b, int precision);
+int PSVectorEquals(PSFloat *a, PSFloat *b, uint64_t length, int precision,
+                   uint64_t *index);
 
 #endif /* __PS_MATHS_H__ */

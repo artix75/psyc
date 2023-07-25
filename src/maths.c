@@ -1904,6 +1904,30 @@ PSMatrix PSMatrixSwapAxes(PSMatrix matrix, int axis1, int axis2) {
     return swapped;
 }
 
+/* Compare two martrices `a` and `b` having `length` length. Use `precision` to
+ * set precision tolerance. Lower precision leads to higher tolerance.
+ * By setting `precision` to zero, the two vectors must be perfectly
+ * equal (no precision tolerance at all).
+ * Returns: 1 if `a` and `b` equal, 0 if they differ at some point. */
+int PSMatrixEquals(PSMatrix a, PSMatrix b, int precision, int ignore_shape) {
+    if (a == NULL || b == NULL) return 0;
+    int alen = PSMatrixLength(a), blen = 0;
+    if (!ignore_shape) {
+        int shape_a[PS_MATRIX_MAX_DIMENSIONS] = {0};
+        int shape_b[PS_MATRIX_MAX_DIMENSIONS] = {0};
+        int ndims_a = PSMatrixDimensions(a, shape_a),
+            ndims_b = PSMatrixDimensions(b, shape_b), i;
+        if (ndims_a != ndims_b) return 0;
+        for (i = 0; i < ndims_a; i++) {
+            if (shape_a[i] != shape_b[i]) return 0;
+        }
+    } else {
+        blen = PSMatrixLength(b);
+        if (alen != blen) return 0;
+    }
+    return PSVectorEquals(a, b, alen, precision, NULL);
+}
+
 void PSMatrixResetTransposed(PSMatrix matrix) {
     if (matrix == NULL) return;
     PSMatrixHeader *hdr = PSMatrixGetHeader(matrix);
@@ -3206,4 +3230,57 @@ PSFloat *PSVectorDup(PSFloat *src, size_t length) {
     }
     memcpy(dup, src, size);
     return dup;
+}
+
+PSFloat *PSVectorRandom(size_t len) {
+    PSFloat *vec = malloc(len * sizeof(PSFloat));
+    if (vec == NULL) {
+        PSPrintMemoryErrorMsg();
+        return NULL;
+    }
+    size_t i;
+    for (i = 0; i < len; i++) {
+        vec[i] = PSNormalizedRandom();
+    }
+    return vec;
+}
+
+/* Compare two floats `a` and `b`. Use `precision` to set precision tolerance.
+ * Lower precision leads to higher tolerance.
+ * By setting `precision` to zero, the two numbers must be perfectly
+ * equal (no precision tolerance at all).
+ * Returns: 1 if `a` and `b` equal, 0 if they differ. */
+int PSFloatEquals(PSFloat a, PSFloat b, int precision) {
+    static PSFloat precision_table[23] = {0};
+    if (precision > 0) {
+        if (precision > 22) precision = 22;
+        PSFloat diff = fabs(a - b), maxdiff;
+        maxdiff = precision_table[precision];
+        if (maxdiff == 0) {
+            maxdiff = PSPow(10, precision * -1);
+            precision_table[precision] = maxdiff;
+        }
+        return diff <= maxdiff;
+    }
+    return a == b;
+}
+
+/* Compare two vectors `a` and `b` having `length` length. Use `precision` to
+ * set precision tolerance. Lower precision leads to higher tolerance.
+ * By setting `precision` to zero, the two vectors must be perfectly
+ * equal (no precision tolerance at all).
+ * Use `index` pointer if you need to know the index of the first
+ * non-equal elements.
+ * Returns: 1 if `a` and `b` equal, 0 if they differ at some point. */
+int PSVectorEquals(PSFloat *a, PSFloat *b, uint64_t length, int precision,
+                   uint64_t *index)
+{
+    uint64_t i;
+    for (i = 0; i < length; i++) {
+        if (!PSFloatEquals(a[i], b[i], precision)) {
+            if (index != NULL) *index = i;
+            return 0;
+        }
+    }
+    return 1;
 }
