@@ -660,10 +660,10 @@ PSFloat *PSMatrixGet(PSMatrix matrix, int ndims, uint32_t *len, ...) {
     for (int i = 0; i < ndims; i++) {
         int refdim = i + 1;
         if (refdim >= hdr->ndims) stride = 1;
-        else stride = hdr->dims[refdim];
+        else stride = PSMatrixStride(matrix, i);
         int idx = va_arg(args, int);
         if (idx >= hdr->dims[i]) {
-            PSWarn("%s: index %d is out of bounds for dim[%d] (%d)",
+            PSWarn("%s: index %d is out of bounds for axis[%d] (%d)",
                    __func__, idx, i, hdr->dims[i]);
             values = NULL;
             stride = 0;
