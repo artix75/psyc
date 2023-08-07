@@ -83,7 +83,7 @@ int main(int argc, char** argv) {
         .batch_size = 1
     ));
 
-    PSTest(network, test_data, datalen);
+    PSTest(network, test_data, datalen, NULL);
 
     PSDeleteNetwork(network);
     free(train_data);
