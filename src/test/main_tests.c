@@ -1267,10 +1267,15 @@ int LSTMSetup(TestCase *test_case) {
     }
 
     for (i = 0; i < out->size; i++) {
-        PSNeuron *neuron = out->neurons[i];
-        *neuron->bias = 0.0;
+        PSNeuron neuron = {0};
+        if (!PSGetNeuron(out, i, &neuron)) {
+            fprintf(stderr, "\nCould not get layer[%d] neuron[%d]\n",
+                    out->index, i);
+            return 0;
+        }
+        *neuron.bias = 0.0;
         for (w = 0; w < layer->size; w++) {
-            neuron->weights[w] = lstm_out_weights[i][w];
+            neuron.weights[w] = lstm_out_weights[i][w];
         }
     }
 
@@ -1345,10 +1350,15 @@ int GRUSetup(TestCase *test_case) {
     }
 
     for (i = 0; i < out->size; i++) {
-        PSNeuron *neuron = out->neurons[i];
-        *neuron->bias = 0.0;
+        PSNeuron neuron = {0};
+        if (!PSGetNeuron(out, i, &neuron)) {
+            fprintf(stderr, "\nCould not get layer[%d] neuron[%d]\n",
+                    out->index, i);
+            return 0;
+        }
+        *neuron.bias = 0.0;
         for (w = 0; w < layer->size; w++) {
-            neuron->weights[w] = lstm_out_weights[i][w];
+            neuron.weights[w] = lstm_out_weights[i][w];
         }
     }
 
@@ -1680,10 +1690,11 @@ int testFullLoad(TestCase *test_case, Test *test) {
                 "Layer[%d] Bias[%d] expected to be %g, got %g",
                 l, i, expected_bias, bias
             );
-            PSNeuron *n = network->layers[l]->neurons[i];
-            testAssertNotNull(n->weights, test);
+            PSNeuron n = {0};
+            testAssertNotNull(PSGetNeuron(network->layers[l], i, &n), test);
+            testAssertNotNull(n.weights, test);
             PSFloat expected_w = expected_weights[l - 1][i];
-            PSFloat w = getRoundedFloatDec(n->weights[0], 4);
+            PSFloat w = getRoundedFloatDec(n.weights[0], 4);
             testAssertWithMessage(
                 w == expected_w, test,
                 "Layer[%d] N[%d] Weight[0] expected to be %g, got %g",
@@ -2205,22 +2216,23 @@ int testRNNStep(TestCase *test_case, Test *test) {
         int wsize = (int) PSGetLayerInputWeightsCount(layer, 1);
         if (layer->type == Recurrent) wsize += layer->size;
         for (j = 0; j < layer->size; j++) {
-            PSNeuron *n = layer->neurons[j];
+            PSNeuron n = {0};
+            testAssertNotNull(PSGetNeuron(layer, j, &n), test);
             for (w = 0; w < wsize; w++) {
                 PSFloat *eweights, *lweights;
                 int widx = w;
                 if (i == 1) {
                     if (w < RNN_INPUT_SIZE) {
                         eweights = rnn_trained_inner_weights[j];
-                        lweights = PSGetNeuronInputWeights(n);
+                        lweights = PSGetNeuronInputWeights(&n);
                     } else {
                         widx -= RNN_INPUT_SIZE;
                         eweights = rnn_trained_recurrent_weights[j];
-                        lweights = PSGetRecurrentNeuronHiddenWeights(n);
+                        lweights = PSGetRecurrentNeuronHiddenWeights(&n);
                     }
                 } else {
                     eweights = rnn_trained_outer_weights[j];
-                    lweights = PSGetNeuronInputWeights(n);
+                    lweights = PSGetNeuronInputWeights(&n);
                 }
                 testAssertNotNull(lweights, test);
                 PSFloat w_val = getRoundedFloatDec(lweights[widx], 2);

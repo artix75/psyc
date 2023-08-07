@@ -302,7 +302,6 @@ typedef struct PSLayer {
     int                         weight_types_count;
     PSMatrix                    *weights;
     PSFloat                     *biases;
-    PSNeuron                    **neurons;
     PSMatrix                    states;
     PSMatrix                    delta;
     PSFloat                     *initial_states;
@@ -395,6 +394,7 @@ PSFloat PSGetNeuronState(PSNeuron *neuron, ...);
 PSFloat *PSGetOutputs(PSLayer *layer);
 int PSSetState(PSLayer *layer, PSFloat state, int index, ...);
 int PSSetNeuronState(PSNeuron *neuron, double state, ...);
+PSNeuron *PSGetNeuron(PSLayer *layer, int index, PSNeuron *neuron);
 int PSStateSequenceLength(PSLayer *layer);
 int PSForward(PSNeuralNetwork *network, PSFloat *values);
 int PSAutoregression(PSNeuralNetwork *network, PSFloat *inputs,

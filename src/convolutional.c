@@ -435,20 +435,6 @@ int PSConvolutionalLayerCopy(PSLayer *layer, PSLayer *src) {
     layer->output_columns = src->output_columns;
     layer->output_rows = src->output_rows;
     layer->output_depth = src->output_depth;
-    if (Pooling == layer->type) return 1;
-    if (layer->weights == NULL || layer->biases == NULL)
-        return 0;
-    int i, j;
-    int feature_size = layer->size / layer->output_depth;
-    for (i = 0; i < layer->output_depth; i++) {
-        for (j = 0; j < feature_size; j++) {
-            int idx = (i * feature_size) + j;
-            PSNeuron *neuron = layer->neurons[idx];
-            if (neuron == NULL) return 0;
-            neuron->bias = layer->biases + i;
-            neuron->weights = layer->weights[i];
-        }
-    }
     return 1;
 }
 
@@ -601,8 +587,6 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
     int weights_size = settings->filter_width * settings->filter_height *
                        settings->filter_depth;;
     layer->size = size;
-    layer->neurons = calloc(size, sizeof(PSNeuron*));
-    if (layer->neurons == NULL) goto memerr;
     layer->states = PSMatrixZeros(2, 1, size);
     if (layer->states == NULL) goto memerr;
     layer->biases = malloc(layer->output_depth * sizeof(PSFloat));
@@ -610,7 +594,7 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
     layer->weights = malloc(layer->output_depth * sizeof(PSMatrix));
     if (layer->weights == NULL) goto memerr;
     PSFloat wrange = PSSqrt(1.0 / weights_size);
-    int i, j, use_relu = (layer->activate == PSRelu), rand_bias = 0;
+    int i, use_relu = (layer->activate == PSRelu), rand_bias = 0;
     layer->weight_types_count = 0;
     PSFloat default_bias = (use_relu ? 0.1 : 0.0);
     if (layer_def->bias_init_mode == INIT_MODE_ZERO) default_bias = 0.0;
@@ -625,20 +609,6 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
         );
         if (layer->weights[i] == NULL) goto memerr;
         layer->weight_types_count++;
-        for (j = 0; j < area; j++) {
-            int idx = (i * area) + j;
-            PSNeuron *neuron = malloc(sizeof(PSNeuron));
-            if (neuron == NULL) {
-                PSErr(__func__, "Layer[%d]: Couldn't allocate neuron!",index);
-                goto err;
-            }
-            neuron->index = idx;
-            neuron->extra = NULL;
-            neuron->bias = layer->biases + i;
-            neuron->weights = layer->weights[i];
-            neuron->layer = layer;
-            layer->neurons[idx] = neuron;
-        }
     }
     layer->forward = PSConvolutionalForward;
     layer->backprop = PSConvolutionalBackprop;
@@ -693,24 +663,8 @@ int PSInitPoolingLayer(PSNeuralNetwork *network, PSLayer *layer,
     int area = (output_w * output_h);
     int size = area * layer->output_depth;
     layer->size = size;
-    layer->neurons = malloc(sizeof(PSNeuron*) * size);
-    if (layer->neurons == NULL) goto memerr;
     layer->states = PSMatrixZeros(2, 1, size);
     if (layer->states == NULL) goto memerr;
-    int i, j;
-    for (i = 0; i < layer->output_depth; i++) {
-        for (j = 0; j < area; j++) {
-            int idx = (i * area) + j;
-            PSNeuron *neuron = malloc(sizeof(PSNeuron));
-            if (neuron == NULL) goto memerr;
-            neuron->index = idx;
-            neuron->extra = NULL;
-            neuron->bias = NULL;
-            neuron->weights = NULL;
-            neuron->layer = layer;
-            layer->neurons[idx] = neuron;
-        }
-    }
     layer->activate = NULL;
     layer->derivative = NULL;
     layer->forward = PSPool;
@@ -817,8 +771,6 @@ int PSConvolutionalForward(PSLayer *layer, ...) {
         row = 0;
         for (j = 0; j < feature_size; j++) {
             int idx = (i * feature_size) + j;
-            PSNeuron *neuron = layer->neurons[idx];
-            dbginfo.neuron = neuron;
             col = idx % layer->output_columns;
             if (col == 0 && j > 0) row++;
             int r_row = (row * stride) - padding;
@@ -908,10 +860,6 @@ int PSPool(PSLayer *layer, ...) {
         );
         return 0;
     }
-    if (layer->neurons == NULL) {
-        PSErr(NULL, "Layer[%d] has no neurons!", layer->index);
-        return 0;
-    }
     if (layer->index == 0) {
         PSErr(NULL, "Cannot forward on layer 0!");
         return 0;
@@ -956,8 +904,6 @@ int PSPool(PSLayer *layer, ...) {
         row = 0;
         for (j = 0; j < feature_size; j++) {
             int idx = (i * feature_size) + j;
-            PSNeuron *neuron = layer->neurons[idx];
-            dbginfo.neuron = neuron;
             col = idx % (int) output_w;
             if (col == 0 && j > 0) row++;
             int r_row = row * settings->filter_height;
@@ -1041,7 +987,6 @@ int PSPoolingBackprop(PSLayer *pooling_layer, PSLayer *convolutional_layer,
         row = 0;
         for (j = 0; j < feature_size; j++) {
             int idx = j + (i * feature_size);
-            dbginfo.neuron = pooling_layer->neurons[idx];
             PSFloat d = delta[idx];
             PSFloat pool_state = PSGetState(pooling_layer, idx, t);
             col = idx % (int) output_w;
@@ -1141,7 +1086,6 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
         row = 0;
         for (j = 0; j < feature_size; j++) {
             int idx = j + (i * feature_size);
-            dbginfo.neuron = convolutional_layer->neurons[idx];
             PSFloat d = delta[idx];
             if (use_bias) gradient->biases[i] += d;
             col = idx % (int) output_w;
@@ -1199,9 +1143,14 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
                         );
                         gradient->weights[weight_offset + widx] += (a * d);
                         if (prev_delta != NULL) {
-                            PSNeuron *neuron =
-                                convolutional_layer->neurons[idx];
-                            prev_delta[nidx] += (d * neuron->weights[widx]);
+                            PSNeuron neuron;
+                            if (!PSGetNeuron(convolutional_layer, idx, &neuron))
+                            {
+                                PSErrNN(NULL, NULL, convolutional_layer,
+                                        "failed to read neuron %d", idx);
+                                return 0;
+                            }
+                            prev_delta[nidx] += (d * neuron.weights[widx]);
                         }
                         widx++;
                     }

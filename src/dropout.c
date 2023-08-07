@@ -245,8 +245,6 @@ int PSInitDropoutLayer(PSNeuralNetwork *network, PSLayer *layer,
     }
     data->dropout = dropout;
     layer->extra = data;
-    /* TODO: Allocate neurons? */
-    layer->neurons = NULL;
     layer->activate = NULL;
     layer->derivative = NULL;
     layer->states = PSMatrixZeros(2, 1, layer->size);

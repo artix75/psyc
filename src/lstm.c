@@ -487,8 +487,6 @@ int PSInitLSTMLayer(PSNeuralNetwork *network, PSLayer *layer,
     if (layer->biases != NULL) free(layer->biases);
     layer->biases = calloc(size, bias_count * sizeof(PSFloat));
     if (layer->biases == NULL) goto memerr;
-    layer->neurons = calloc(size, sizeof(PSNeuron*));
-    if (layer->neurons == NULL) goto memerr;
     layer->weights = calloc(LSTM_WEIGHT_TYPES_COUNT, sizeof(PSMatrix));
     if (layer->weights == NULL) goto memerr;
     layer->weight_types_count = 0;
@@ -509,19 +507,6 @@ int PSInitLSTMLayer(PSNeuralNetwork *network, PSLayer *layer,
     layer->delta = PSMatrixZeros(2, 1, layer->size * 2);
     if (layer->delta == NULL) goto memerr;
     if (!PSCreateLSTMCell(layer)) return 0;
-    for (i = 0; i < size; i++) {
-        PSNeuron *neuron = malloc(sizeof(PSNeuron));
-        if (neuron == NULL) {
-            PSPrintMemoryErrorMsg();
-            return 0;
-        }
-        neuron->index = i;
-        neuron->bias = NULL;
-        neuron->weights = NULL;
-        layer->neurons[i] = neuron;
-        neuron->extra = NULL;
-        neuron->layer = layer;
-    }
     layer->flags |= FLAG_RECURRENT;
     if (layer->activate == NULL) {
         layer->activate = PSTanhActivation;

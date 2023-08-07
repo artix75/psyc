@@ -71,8 +71,6 @@ int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
 {
     int i;
     layer->on_delete = PSDeleteRNNLayer;
-    layer->neurons = calloc(size, sizeof(PSNeuron*));
-    if (layer->neurons == NULL) goto memerr;
     layer->states = PSMatrixZeros(2, 1, size);
     if (layer->states == NULL) goto memerr;
     layer->weights = calloc(RNN_WEIGHT_TYPES_COUNT, sizeof(PSMatrix));
@@ -91,20 +89,11 @@ int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
     if (layer->biases == NULL) goto memerr;
     layer->extra = calloc(size, sizeof(PSFloat));
     if (layer->extra == NULL) goto memerr;
-    PSMatrix weights = layer->weights[0];
     int bias_init_mode = (ldef != NULL ? ldef->bias_init_mode : INIT_MODE_AUTO);
     int rand_bias = (bias_init_mode == INIT_MODE_RAND);
     for (i = 0; i < size; i++) {
-        PSNeuron *neuron = malloc(sizeof(PSNeuron));
-        if (neuron == NULL) goto memerr;
-        neuron->index = i;
         if (rand_bias) layer->biases[i] = PSInitParam(PARAM_TYPE_BIAS,ldef,1,0);
         else layer->biases[i] = 0.0;
-        neuron->weights = weights + (i * ws);
-        neuron->bias = layer->biases + i;
-        layer->neurons[i] = neuron;
-        neuron->layer = layer;
-        neuron->extra = NULL;
     }
     layer->flags |= FLAG_RECURRENT;
     if (layer->activate == NULL) {

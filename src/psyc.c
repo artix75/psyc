@@ -91,9 +91,6 @@ typedef struct {
     PSTrainingContext   *training_context;
 } PSNetworkContext;
 
-typedef PSFloat (*PSGetDeltaFunction)(PSNeuron* n, PSLayer* l, PSLayer* next,
-                                     PSFloat *last_d);
-
 static PSLossFunction loss_functions[] = {
     NULL,
     PSQuadraticLoss,
@@ -123,8 +120,7 @@ int PSInitGRULayer(PSNeuralNetwork *network, PSLayer *layer,
                    int size, int ws, PSLayerDef *ldef);
 int PSInitDropoutLayer(PSNeuralNetwork *network, PSLayer *layer,
                        PSLayerDef *layer_def);
-int PSInitEmbeddingLayer(PSLayer *layer, int size, int previous_size,
-                         PSLayerDef *ldef);
+int PSInitEmbeddingLayer(PSLayer *layer, int size, PSLayerDef *ldef);
 int PSInitNormalizationLayer(PSLayer *layer, PSLayerDef *ldef);
 int PSInitAttentiontionLayer(PSLayer *layer, PSLayerDef *ldef);
 int PSInitOperatorLayer(PSLayer *layer, PSLayerDef *ldef);
@@ -362,15 +358,6 @@ void dumpForwardStep(int i, PSFloat a, PSFloat b, PSFloat sum,
 int checkLayerForForward(PSLayer *layer) {
     if (layer == NULL) return 0;
     int trainable = !(layer->flags & FLAG_NON_TRAINABLE);
-    int needs_neurons = (
-        Dropout != layer->type && Normalization != layer->type &&
-        Attention != layer->type && layer->type != OperatorLayer &&
-        PositionalEncoding != layer->type
-    );
-    if (layer->neurons == NULL && needs_neurons) {
-        PSErr(NULL, "Layer[%d] has no neurons!", layer->index);
-        return 0;
-    }
     if (layer->index == 0) {
         PSErr(NULL, "Cannot perform forward on layer 0");
         return 0;
@@ -431,8 +418,8 @@ void handleLayerForwardDebug(PSLayer *layer, const char *func,
  * corresponding weight, since the input should always be considered
  * as it would be 1 */
 int PSOnehotInputsForward(PSLayer *layer, int weights_index,
-                              PSFloat *outputs, int t, int apply_biases,
-                              int do_activate)
+                          PSFloat *outputs, int t, int apply_biases,
+                          int do_activate)
 {
     PSLayer *previous = PSGetPreviousLayer(layer);
     if (previous == NULL) {
@@ -496,7 +483,6 @@ int PSOnehotInputsForward(PSLayer *layer, int weights_index,
         if (do_activate) layer->activate(out, NULL, layer->size, &opts);
     }
     return 1;
-
 no_transposition:
     for (int s = 0; s < seqlen; s++) {
         int tidx = s + t;
@@ -515,10 +501,7 @@ no_transposition:
             return 0;
         }
         for (int i = 0; i < layer->size; i++) {
-            PSNeuron *n = layer->neurons[i];
-            PSFloat w;
-            if (n != NULL && n->weights != NULL) w = n->weights[onehot_idx];
-            else w = weights[(i * layer->size) + onehot_idx];
+            PSFloat w = weights[(i * layer->size) + onehot_idx];
             outputs[i] = w;
             if (use_bias) outputs[i] += layer->biases[i];
         }
@@ -2592,25 +2575,8 @@ static PSNeuralNetwork *cloneNetwork(PSNeuralNetwork *network, int layout_only,
                 }
                 memcpy(cloned_layer->biases, layer->biases, bias_size);
             }
-            if (layer->on_copy != NULL) {
+            if (layer->on_copy != NULL)
                 if (!layer->on_copy(cloned_layer, layer)) goto err;
-            } else {
-                for (j = 0; j < layer->size; j++) {
-                    PSNeuron *clone_n = cloned_layer->neurons[j];
-                    /* if (Pooling == type) continue; */
-                    if (cloned_layer->biases != NULL) {
-                        clone_n->bias = cloned_layer->biases + j;
-                        cloned_layer->biases[j] = layer->biases[j];
-                    } else clone_n->bias = NULL;
-                    PSMatrix clone_weights = NULL;
-                    if (cloned_layer->weights != NULL)
-                        clone_weights = cloned_layer->weights[0];
-                    if (clone_weights != NULL) {
-                        clone_n->weights = clone_weights +
-                                           (j * cloned_layer->size);
-                    } else clone_n->weights = NULL;
-                }
-            }
         }
     }
     if (clone->layers == NULL) {
@@ -2895,11 +2861,6 @@ int PSDumpNetworkStates(PSNeuralNetwork *network, const char* filename) {
         }
         fprintf(f, ",activations=(");
         for(; nidx < layer->size; nidx++) {
-            PSNeuron *n = layer->neurons[nidx];
-            if (n == NULL) {
-                PSErr(__func__, "Layer[%d] Neuron[%s] is null", i, nidx);
-                return 0;
-            }
             if (!has_seq) {
                 if (nidx > 0) fprintf(f, ",");
                 writeSerializedFloat(f, PSGetState(layer, nidx), opts);
@@ -3013,6 +2974,68 @@ void PSDeleteNeuron(PSNeuron *neuron) {
     free(neuron);
 }
 
+PSNeuron *PSGetNeuron(PSLayer *layer, int index, PSNeuron *neuron) {
+    if (layer == NULL) return NULL;
+    if (index >= layer->size) {
+        PSWarn("%s: neuron index %d for layer %d (size = %d) is "
+               "out-of-bounds", __func__, index, layer->index, layer->size);
+        return NULL;
+    }
+    int allocated = 0;
+    if (neuron == NULL) {
+        neuron = calloc(1, sizeof(*neuron));
+        if (neuron == NULL) {
+            PSPrintMemoryErrorMsg();
+            return NULL;
+        }
+        allocated = 1;
+    } else memset(neuron, 0, sizeof(*neuron));
+    neuron->layer = layer;
+    neuron->index = index;
+    if (Convolutional == layer->type) {
+        if (layer->output_depth == 0) {
+            PSErrNN(__func__, NULL, layer, "convolutional layer has no "
+                    "output_depth");
+            goto err;
+        }
+        int feature_size = layer->size / layer->output_depth;
+        int feature_idx = index / feature_size;
+        neuron->bias = layer->biases + feature_idx;
+        neuron->weights = layer->weights[feature_idx];
+    } else {
+        neuron->bias = NULL;
+        neuron->weights = NULL;
+        switch (layer->type) {
+            case Attention:
+            case Pooling:
+            case Dropout:
+            case Normalization:
+            case PositionalEncoding:
+            case OperatorLayer: goto final; break;
+            default: break;
+        }
+        if (layer->biases != NULL) neuron->bias = layer->biases + index;
+        PSMatrix weights = NULL;
+        PSLayer *previous = PSGetPreviousLayer(layer);
+        if (layer->weights != NULL && layer->weights[0] != NULL) {
+            if (previous == NULL) {
+                PSErrNN(__func__, NULL, layer,"could not find previous layer");
+                goto err;
+            }
+            weights = layer->weights[0];
+            int prevsize = previous->size;
+            if (previous->flags & FLAG_ONEHOT)
+                prevsize = PSGetOneHotLayerVectorSize(previous);
+            neuron->weights = weights + (index * prevsize);
+        }
+    }
+final:
+    return neuron;
+err:
+    if (allocated) PSDeleteNeuron(neuron);
+    return NULL;
+}
+
 void PSSetDefaultLayerDef(PSLayerDef *ldef, PSLayerType type) {
     memset(ldef, 0, sizeof(*ldef));
     UNUSED(type);
@@ -3080,8 +3103,6 @@ int initGenericLayer(PSLayer *layer, int size, int previous_size,
         PSErr(NULL, "Layer[%d]: missing network");
         goto fail;
     }
-    layer->neurons = calloc(size, sizeof(PSNeuron*));
-    if (layer->neurons == NULL) goto memerr;
     layer->states = PSMatrixZeros(2, 1, size);
     if (layer->states == NULL) goto memerr;
     PSMatrix weights = NULL;
@@ -3099,20 +3120,8 @@ int initGenericLayer(PSLayer *layer, int size, int previous_size,
     }
     int i;
     for (i = 0; i < size; i++) {
-        PSNeuron *neuron = malloc(sizeof(PSNeuron));
-        if (neuron == NULL) goto memerr;
-        neuron->index = i;
-        neuron->extra = NULL;
-        if (layer->index > 0 && previous_size > 0) {
-            neuron->bias = layer->biases + i;
-            *(neuron->bias) = PSInitParam(PARAM_TYPE_BIAS, ldef, 1.0, 0.0);
-            neuron->weights = weights + (i * previous_size);
-        } else {
-            neuron->bias = NULL;
-            neuron->weights = NULL;
-        }
-        neuron->layer = layer;
-        layer->neurons[i] = neuron;
+        if (layer->index > 0 && previous_size > 0)
+            layer->biases[i] = PSInitParam(PARAM_TYPE_BIAS, ldef, 1.0, 0.0);
     }
     if (layer->type != SoftMax) {
         int is_linear = layer->type == Linear;
@@ -3163,7 +3172,6 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
     layer->size = size;
     layer->extra = NULL;
     layer->flags = layer_def->flags;
-    layer->neurons = NULL;
     layer->delta = NULL;
     layer->states = NULL;
     layer->weights = NULL;
@@ -3256,8 +3264,7 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
     } else if (type == Dropout) {
         initialized = PSInitDropoutLayer(network, layer, layer_def);
     } else if (type == Embedding) {
-        initialized = PSInitEmbeddingLayer(layer, size, previous_size,
-                                           layer_def);
+        initialized = PSInitEmbeddingLayer(layer, size, layer_def);
     } else if (type == Normalization) {
         initialized = PSInitNormalizationLayer(layer, layer_def);
     } else if (type == Attention) {
@@ -3324,16 +3331,7 @@ PSLayer *PSAddPoolingLayer(PSNeuralNetwork *network, PSLayerDef *ldef) {
 
 void PSDeleteLayer(PSLayer* layer) {
     if (layer == NULL) return;
-    int size = layer->size, i;
-    for (i = 0; i < size; i++) {
-        if (layer->neurons == NULL) break;
-        PSNeuron* neuron = layer->neurons[i];
-        if (neuron == NULL) continue;
-        if (layer->type != Convolutional) PSDeleteNeuron(neuron);
-        else free(neuron); /* TODO: Why? */
-        layer->neurons[i] = NULL;
-    }
-    if (layer->neurons != NULL) free(layer->neurons);
+    int i;
     if (layer->weights != NULL) {
         for (i = 0; i < layer->weight_types_count; i++) {
             PSMatrix weights = layer->weights[i];

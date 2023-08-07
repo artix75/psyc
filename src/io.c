@@ -2088,12 +2088,10 @@ static int loadLegacyGradients(PSNeuralNetwork *network, const char *filepath,
             } else if (Recurrent == layer->type) wsize += lsize;
         }
         for (int k = 0; k < lsize; k++) {
-            PSNeuron *n = layer->neurons[k];
             int matched = 0, ok;
             PSFloat *bias_p = lgradients->biases + k;
             if (!is_lstm) ok = scanFile(f, PSFLOAT_FORMAT "|", 1, NULL,bias_p);
             else {
-                assert(n != NULL);
                 PSFloat *cbias_p = lgradients->biases + j,
                         *ibias_p = lgradients->biases + lsize + j,
                         *obias_p = lgradients->biases + (lsize * 2) + j,

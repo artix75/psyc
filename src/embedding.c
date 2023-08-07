@@ -354,9 +354,7 @@ int PSEmbeddingLayerCopy(PSLayer *layer, PSLayer *src) {
 }
 
 /* Initialization */
-int PSInitEmbeddingLayer(PSLayer *layer, int size, int previous_size,
-                         PSLayerDef *ldef)
-{
+int PSInitEmbeddingLayer(PSLayer *layer, int size, PSLayerDef *ldef) {
     static PSLayerDef default_def = {.embedding_type = PSWord2Vec};
     if (layer->index == 0) {
         PSErr(NULL, "Embedding layer cannot be the first layer");
@@ -412,24 +410,8 @@ int PSInitEmbeddingLayer(PSLayer *layer, int size, int previous_size,
     layer->activate = ldef->activation;
     if (layer->activate != NULL)
         layer->derivative = PSGetActivationDerivative(layer->activate);
-    layer->neurons = calloc(size, sizeof(PSNeuron*));
-    if (layer->neurons == NULL) goto memerr;
-    for (i = 0; i < size; i++) {
-        PSNeuron *neuron = malloc(sizeof(PSNeuron));
-        if (neuron == NULL) goto memerr;
-        neuron->index = i;
-        neuron->extra = NULL;
-        neuron->bias = layer->biases + i;
-        *(neuron->bias) = PSInitParam(PARAM_TYPE_BIAS, ldef, 1.0, 0.0);
-        if (layer->index > 0 && previous_size > 0) {
-            neuron->weights = layer->weights[0] + (i * previous_size);
-        } else {
-            neuron->bias = NULL;
-            neuron->weights = NULL;
-        }
-        neuron->layer = layer;
-        layer->neurons[i] = neuron;
-    }
+    for (i = 0; i < size; i++)
+        layer->biases[i] = PSInitParam(PARAM_TYPE_BIAS, ldef, 1.0, 0.0);
     layer->forward = PSFullForward;
     layer->backprop = PSFullBackprop;
     layer->pretrain = PSPretrainEmbeddingLayer;
