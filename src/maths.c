@@ -121,6 +121,13 @@
     }\
     UNUSED(debug_step);
 
+typedef void (*PSOpVV) (PSFloat *a, PSFloat *b, PSFloat *res, uint64_t len,
+                        PSMathOpts *opts);
+typedef void (*PSOpVS) (PSFloat *a, PSFloat b, PSFloat *res, uint64_t len,
+                        PSMathOpts *opts);
+typedef void (*PSOpSV) (PSFloat a, PSFloat *b, PSFloat *res, uint64_t len,
+                        PSMathOpts *opts);
+
 /* Forward declarations and external functions */
 
 int writeSerializedFloatArray(FILE *out, int count, char *sep, int opts,
@@ -676,8 +683,8 @@ PSFloat *PSMatrixGet(PSMatrix matrix, int ndims, uint32_t *len, ...) {
     return values;
 }
 
-int genericMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *out,
-                         PSMathOpts *opts)
+static int genericMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *out,
+                                PSMathOpts *opts)
 {
     PSMathOpts dfopts = {.acceleration = PSGlobalAcceleration};
     if (opts == NULL) opts = &dfopts;
@@ -847,6 +854,143 @@ int genericMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *out,
 final:
     PSMatrixDelete(swap_b);
     return success;
+}
+
+static int genericMatrixOperation(PSMatrix a, PSMatrix b, PSMatrix *result,
+                                  PSOpVV vvop, PSOpVS vsop, PSOpSV svop,
+                                  const char *func, PSMathOpts *opt)
+{
+    PSMathOpts dfopts = {.acceleration = PSGlobalAcceleration};
+    if (opt == NULL) opt = &dfopts;
+    if (result == NULL) {
+        PSErr(func, "argument result cannot be null");
+        return 0;
+    }
+    if (a == NULL) {
+        PSErr(func, "matrix `a` cannot be null");
+        return 0;
+    }
+    if (b == NULL) {
+        PSErr(func, "matrix `a` cannot be null");
+        return 0;
+    }
+    if (func == NULL) func = __func__;
+    assert(vvop != NULL);
+    assert(vsop != NULL);
+    if (opt->transpose & 1) {
+        a = PSMatrixTranspose(a, 0, opt);
+        if (a == NULL) return 0;
+    }
+    if (opt->transpose & 2) {
+        b = PSMatrixTranspose(b, 0, opt);
+        if (b == NULL) return 0;
+    }
+    /* Original matrix dimensions */
+    int dims_a[PS_MATRIX_MAX_DIMENSIONS];
+    int dims_b[PS_MATRIX_MAX_DIMENSIONS];
+    /* Number of dimensions */
+    int ndims_a = PSMatrixDimensions(a, dims_a);
+    int ndims_b = PSMatrixDimensions(b, dims_b);
+    if (ndims_a == 0) {
+        PSErr(func, "Invalid matrix `a`");
+        return 0;
+    }
+    if (ndims_b == 0) {
+        PSErr(func, "Invalid matrix `b`");
+        return 0;
+    }
+    int *shape_a = dims_a, *shape_b = dims_b, *deepest_shape = NULL;
+    int deepest_nd, deepest_len;
+    PSMatrix deepest_matrix = NULL;
+    int commutative = (svop == NULL);
+    if (ndims_b > ndims_a && commutative) {
+        /* Swap matrices so that `a` is always the matrix with deepest shape */
+        PSMatrix orig_a = a;
+        int orig_ndims_a = ndims_a;
+        a = b;
+        b = orig_a;
+        ndims_a = ndims_b;
+        ndims_b = orig_ndims_a;
+        shape_a = dims_b;
+        shape_b = dims_a;
+        deepest_shape = shape_a;
+        deepest_nd = ndims_a;
+        deepest_matrix = a;
+    } else {
+        if (ndims_b > ndims_a) {
+            deepest_shape = shape_b;
+            deepest_nd = ndims_b;
+            deepest_matrix = b;
+        } else {
+            deepest_shape = shape_a;
+            deepest_nd = ndims_a;
+            deepest_matrix = a;
+        }
+    }
+    int len_a = PSMatrixLength(a), len_b = PSMatrixLength(b), same_shape = 0, i;
+    deepest_len = PSMatrixLength(deepest_matrix);
+    if (len_a == len_b && ndims_a == ndims_b) {
+        same_shape = 1;
+        for (i = 0; i < ndims_a; i++) {
+            same_shape = (shape_a[i] == shape_b[i]);
+            if (!same_shape) break;
+        }
+    }
+    int shape_type_a = getShapeType(ndims_a, shape_a),
+        shape_type_b = getShapeType(ndims_b, shape_b);
+    int a_scalar = (shape_type_a == PS_SHAPE_TYPE_SCALAR),
+        b_scalar = (shape_type_b == PS_SHAPE_TYPE_SCALAR),
+        use_scalar = (a_scalar || b_scalar);
+    int a_vec = (
+        shape_type_a == PS_SHAPE_TYPE_COL ||
+        shape_type_a == PS_SHAPE_TYPE_ROW
+    );
+    int b_vec = (
+        shape_type_b == PS_SHAPE_TYPE_COL ||
+        shape_type_b == PS_SHAPE_TYPE_ROW
+    );
+    int valid_shapes = (
+        same_shape || use_scalar || (a_vec && b_vec && (len_a == len_b)) ||
+        (b_vec && (shape_a[ndims_a - 1] == len_b) && (len_a % len_b) == 0)
+    );
+    if (!valid_shapes) {
+        PSErr(func, "operands have incompatible shapes");
+        return 0;
+    }
+    PSMatrix out = *result;
+    if (out == NULL) {
+        out = PSMatrixCreateWithShape(0, NULL, deepest_nd, deepest_shape);
+        if (out == NULL) return 0;
+        *result = out;
+    } else {
+        int shape_o[PS_MATRIX_MAX_DIMENSIONS] = {0};
+        int ndims_o = PSMatrixDimensions(out, shape_o);
+        int same_out_shape = (ndims_o == deepest_nd);
+        if (same_out_shape) {
+            for (i = 0; i < deepest_nd; i++) {
+                same_out_shape = deepest_shape[i] == shape_o[i];
+                if (!same_out_shape) break;
+            }
+        }
+        if (!same_out_shape) {
+            PSErr(func, "result matrix has an invalid shape");
+            return 0;
+        }
+    }
+    if (same_shape || (a_vec && b_vec && len_a == len_b))
+        vvop(a, b, out, len_a, opt);
+    else if (b_scalar) vsop(a, *b, out, len_a, opt);
+    else if (a_scalar && !commutative) svop(*a, b, out, deepest_len, opt);
+    else {
+        PSFloat *ap = a, *op = out;
+        int count = len_a / len_b;
+        for (i = 0; i < count; i++) {
+            vvop(ap, b, op, len_b, opt);
+            ap += len_b;
+            op += len_b;
+        }
+    }
+    return 1;
 }
 
 /* Performs matrix-vector multiplication between matrix `a` and vector `b`.
@@ -1650,6 +1794,43 @@ align_err:
         dims_b[0], dims_b[last_dim_b], (transpose_b ? "(transp.)" : "")
     );
     return 0;
+}
+
+int PSMatrixAdd(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
+    return genericMatrixOperation(a, b, result, PSSumVectors, PSSumVectorScalar,
+                                  NULL, __func__, opt);
+}
+
+int PSMatrixMultiply(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt)
+{
+    return genericMatrixOperation(a, b, result, PSMultiplyVectors,
+                                  PSMultiplyVectorScalar, NULL, __func__, opt);
+}
+
+int PSMatrixSubtract(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt)
+{
+    return genericMatrixOperation(a, b, result,
+                                  PSSubtractVectors,
+                                  PSSubtractVectorScalar,
+                                  PSSubtractScalarVector,
+                                  __func__, opt);
+}
+
+int PSMatrixDivide(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt)
+{
+    if (b != NULL) {
+        int shape_b[PS_MATRIX_MAX_DIMENSIONS] = {0};
+        int nd_b = PSMatrixDimensions(b, shape_b);
+        if (getShapeType(nd_b, shape_b) == PS_SHAPE_TYPE_SCALAR && *b == 0) {
+            PSErr(__func__, "division by zero");
+            return 0;
+        }
+    }
+    return genericMatrixOperation(a, b, result,
+                                  PSDivideVectors,
+                                  PSDivideVectorScalar,
+                                  PSDivideScalarVector,
+                                  __func__, opt);
 }
 
 PSMatrix PSMatrixReshape(PSMatrix matrix, int num_dims, ...) {

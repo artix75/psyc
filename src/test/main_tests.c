@@ -107,6 +107,8 @@
 
 #define UNUSED(V) ((void) V)
 
+typedef int (*testMatrixOpFunc)(PSMatrix, PSMatrix, PSMatrix *, PSMathOpts *);
+
 TestCase *fullNetworkTests;
 TestCase *convNetworkTests;
 TestCase *recurrentNetworkTests;
@@ -185,6 +187,10 @@ int testMathsMatrixExpand(TestCase *tc, Test *test);
 int testMathsMatrixProduct(TestCase *tc, Test *test);
 int testMathsMatrixProductMV(TestCase *tc, Test *test);
 int testMathsMatrixProductVM(TestCase *tc, Test *test);
+int testMathsMatrixAdd(TestCase *tc, Test *test);
+int testMathsMatrixMultiply(TestCase *tc, Test *test);
+int testMathsMatrixSubtract(TestCase *tc, Test *test);
+int testMathsMatrixDivide(TestCase *tc, Test *test);
 
 int testActSigmoid(TestCase *tc, Test *test);
 int testActSigmoidDeriv(TestCase *tc, Test *test);
@@ -726,6 +732,10 @@ int main(int argc, char** argv) {
         addTest(mathsTests, "Matrix Expand", NULL, testMathsMatrixExpand);
         addTest(mathsTests, "Matrix Transp.", NULL, testMathsMatrixTranspose);
         addTest(mathsTests, "Matrix Swap", NULL, testMathsMatrixSwap);
+        addTest(mathsTests, "Matrix Add", NULL, testMathsMatrixAdd);
+        addTest(mathsTests, "Matrix Multiply", NULL, testMathsMatrixMultiply);
+        addTest(mathsTests, "Matrix Subtract", NULL, testMathsMatrixSubtract);
+        addTest(mathsTests, "Matrix Divide", NULL, testMathsMatrixDivide);
         addTest(mathsTests, "Matrix Product", NULL, testMathsMatrixProduct);
         addTest(mathsTests, "Matrix Product (MV)", NULL,
                 testMathsMatrixProductMV);
@@ -5927,6 +5937,522 @@ int testMathsMatrixProductVM(TestCase *tc, Test *test) {
     if (!res) return 0;
     numtests++;
     return res;
+}
+
+int testMatrixOp(PSMatrix a, PSMatrix b, testMatrixOpFunc func,
+                 int expected_nd, int *expected_shape, PSFloat *expected,
+                 char *funcname, Test *test)
+{
+    int ok = 1, nd, i;
+    PSMathOpts opts = {0};
+    PSMatrix res = NULL;
+    int shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
+    char testdescr[255] = {0};
+#ifdef HAS_BLAS
+    snprintf(testdescr, 255, "[BLAS] %s", funcname);
+    opts.acceleration = PSAcceleration_BLAS;
+    ok = func(a, b, &res, &opts);
+    testAssertWithMessageOrGoto(
+        (ok && res != NULL), final, test, "%s: operation failed", testdescr
+    );
+    nd = PSMatrixDimensions(res, shape);
+    testAssertWithMessageOrGoto(
+        (ok = expected_nd == nd), final, test, "%s: expected shape size "
+        "was %d, got %d", testdescr, expected_nd, nd
+    );
+    for (i = 0; i < nd; i++) {
+        testAssertWithMessageOrGoto(
+            (ok = shape[i] == expected_shape[i]), final, test, "%s: invalid "
+            "result shape[%d] %d != %d", testdescr, shape[i], expected_shape[i]
+        );
+    }
+    ok = compareArrays(res, expected, PSMatrixLength(res), test,
+                       testdescr, 0, 5);
+    if (!ok) goto final;
+    PSMatrixDelete(res);
+    res = NULL;
+    memset(shape, 0, sizeof(shape));
+#endif
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    snprintf(testdescr, 255, "[ACF] %s", funcname);
+    opts.acceleration = PSAcceleration_ACF;
+    ok = func(a, b, &res, &opts);
+    testAssertWithMessageOrGoto(
+        (ok && res != NULL), final, test, "%s: operation failed", testdescr
+    );
+    nd = PSMatrixDimensions(res, shape);
+    testAssertWithMessageOrGoto(
+        (ok = expected_nd == nd), final, test, "%s: expected shape size "
+        "was %d, got %d", testdescr, expected_nd, nd
+    );
+    for (i = 0; i < nd; i++) {
+        testAssertWithMessageOrGoto(
+            (ok = shape[i] == expected_shape[i]), final, test, "%s: invalid "
+            "result shape[%d] %d != %d", testdescr, shape[i], expected_shape[i]
+        );
+    }
+    ok = compareArrays(res, expected, PSMatrixLength(res), test,
+                       testdescr, 0, 5);
+    if (!ok) goto final;
+    PSMatrixDelete(res);
+    res = NULL;
+    memset(shape, 0, sizeof(shape));
+#endif
+#ifdef USE_AVX
+    snprintf(testdescr, 255, "[AVX] %s", funcname);
+    opts.acceleration = PSAcceleration_AVX;
+    ok = func(a, b, &res, &opts);
+    testAssertWithMessageOrGoto(
+        (ok && res != NULL), final, test, "%s: operation failed", testdescr
+    );
+    nd = PSMatrixDimensions(res, shape);
+    testAssertWithMessageOrGoto(
+        (ok = expected_nd == nd), final, test, "%s: expected shape size "
+        "was %d, got %d", testdescr, expected_nd, nd
+    );
+    for (i = 0; i < nd; i++) {
+        testAssertWithMessageOrGoto(
+            (ok = shape[i] == expected_shape[i]), final, test, "%s: invalid "
+            "result shape[%d] %d != %d", testdescr, shape[i], expected_shape[i]
+        );
+    }
+    ok = compareArrays(res, expected, PSMatrixLength(res), test,
+                       testdescr, 0, 5);
+    if (!ok) goto final;
+    PSMatrixDelete(res);
+    res = NULL;
+    memset(shape, 0, sizeof(shape));
+#endif
+    snprintf(testdescr, 255, "[NO ACCEL] %s", funcname);
+    opts.acceleration = PSAcceleration_None;
+    ok = func(a, b, &res, &opts);
+    testAssertWithMessageOrGoto(
+        (ok && res != NULL), final, test, "%s: operation failed", testdescr
+    );
+    nd = PSMatrixDimensions(res, shape);
+    testAssertWithMessageOrGoto(
+        (ok = expected_nd == nd), final, test, "%s: expected shape size "
+        "was %d, got %d", testdescr, expected_nd, nd
+    );
+    for (i = 0; i < nd; i++) {
+        testAssertWithMessageOrGoto(
+            (ok = shape[i] == expected_shape[i]), final, test, "%s: invalid "
+            "result shape[%d] %d != %d", testdescr, shape[i], expected_shape[i]
+        );
+    }
+    ok = compareArrays(res, expected, PSMatrixLength(res), test,
+                       testdescr, 0, 5);
+    if (!ok) goto final;
+    PSMatrixDelete(res);
+    res = NULL;
+    memset(shape, 0, sizeof(shape));
+final:
+    PSMatrixDelete(res);
+    return ok;
+}
+
+int testMathsMatrixAdd(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat am_values[] = {
+        -2.1282408 ,  1.09726265,  2.1837216 ,
+        1.13824648, -0.39490999, -0.45876261
+    };
+    PSFloat bm_values[] = {
+        0.57556455,  0.3889593 , -1.17216897,
+        0.6723251 ,  0.34371944, -0.02343899
+    };
+    PSFloat av_values[] = {-1.56267393, -1.00281759,  0.09569721};
+    PSFloat bv_values[] = {0.27088287,  0.93006405, -0.35962201};
+    PSFloat scalar_value = 2.0;
+    PSFloat exp_am_bm[] = {
+        -1.55267625,  1.48622195,  1.01155262,
+        1.81057158, -0.05119055, -0.4822016
+    };
+    PSFloat exp_av_bv[] = {-1.29179107, -0.07275354, -0.2639248};
+    PSFloat exp_am_bv[] = {
+        -1.85735794,  2.0273267 ,  1.82409958,
+        1.40912935,  0.53515406, -0.81838462
+    };
+    PSFloat exp_am_scalar[2 * 3];
+    PSVectorCopy(exp_am_scalar, am_values, (2 * 3));
+    int ok = 1, nd = 0, i;
+    int shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
+    PSMatrix am = NULL, bm = NULL, av = NULL, bv = NULL, bv_t = NULL,
+             scalar = NULL;
+    for (i = 0; i < (int)(sizeof(exp_am_scalar)/sizeof(PSFloat)); i++)
+        exp_am_scalar[i] += scalar_value;
+    am = PSMatrixCreate(0, NULL, 2, 2, 3);
+    bm = PSMatrixCreate(0, NULL, 2, 2, 3);
+    testAssertWithMessageOrGoto(
+        (ok = am != NULL), final, test,
+        "could not create matrix %s with shape 2,3", "A"
+    );
+    testAssertWithMessageOrGoto(
+        (ok = bm != NULL), final, test,
+        "could not create matrix %s with shape 2,3", "B"
+    );
+    PSVectorCopy(am, am_values, PSMatrixLength(am));
+    PSVectorCopy(bm, bm_values, PSMatrixLength(bm));
+    nd = PSMatrixDimensions(am, shape);
+    ok = testMatrixOp(am, bm, PSMatrixAdd, nd, shape, exp_am_bm,
+                      "PSMatrixAdd: shape(2,3) + shape(2,3)", test);
+    if (!ok) goto final;
+
+    av = PSMatrixCreate(0, NULL, 2, 1, 3);
+    bv = PSMatrixCreate(0, NULL, 2, 1, 3);
+    testAssertWithMessageOrGoto(
+        (ok = av != NULL), final, test,
+        "could not create matrix %s with shape 1,3", "A"
+    );
+    testAssertWithMessageOrGoto(
+        (ok = bv != NULL), final, test,
+        "could not create matrix %s with shape 1,3", "B"
+    );
+    PSVectorCopy(av, av_values, PSMatrixLength(av));
+    PSVectorCopy(bv, bv_values, PSMatrixLength(bv));
+    nd = PSMatrixDimensions(av, shape);
+    ok = testMatrixOp(av, bv, PSMatrixAdd, nd, shape, exp_av_bv,
+                      "PSMatrixAdd: shape(1,3) + shape(1,3)", test);
+    if (!ok) goto final;
+
+    bv_t = PSMatrixReshape(bv, 2, 3, 1);
+    testAssertWithMessageOrGoto(
+        (ok = bv_t != NULL), final, test, "could not reshape matrix %s","B"
+    );
+    ok = testMatrixOp(av, bv_t, PSMatrixAdd, nd, shape, exp_av_bv,
+                      "PSMatrixAdd: shape(1,3) + shape(3,1)", test);
+    if (!ok) goto final;
+
+    nd = PSMatrixDimensions(am, shape);
+    ok = testMatrixOp(am, bv, PSMatrixAdd, nd, shape, exp_am_bv,
+                      "PSMatrixAdd: shape(2,3) + shape(1,3)", test);
+    if (!ok) goto final;
+
+    scalar = PSMatrixCreate(scalar_value, NULL, 1, 1);
+    testAssertWithMessageOrGoto(
+        (ok = scalar != NULL), final, test,
+        "could not create %s matrix with shape 1", "scalar"
+    );
+    nd = PSMatrixDimensions(am, shape);
+    ok = testMatrixOp(am, scalar, PSMatrixAdd, nd, shape, exp_am_scalar,
+                      "PSMatrixAdd: shape(2,3) + shape(1)", test);
+    if (!ok) goto final;
+    ok = testMatrixOp(scalar, am, PSMatrixAdd, nd, shape, exp_am_scalar,
+                      "PSMatrixAdd: shape(1) + shape(2,3)", test);
+    if (!ok) goto final;
+final:
+    PSMatrixDelete(am);
+    PSMatrixDelete(bm);
+    PSMatrixDelete(av);
+    PSMatrixDelete(bv);
+    PSMatrixDelete(bv_t);
+    PSMatrixDelete(scalar);
+    return ok;
+}
+
+int testMathsMatrixMultiply(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat am_values[] = {
+        -2.1282408 ,  1.09726265,  2.1837216 ,
+        1.13824648, -0.39490999, -0.45876261
+    };
+    PSFloat bm_values[] = {
+        0.57556455,  0.3889593 , -1.17216897,
+        0.6723251 ,  0.34371944, -0.02343899
+    };
+    PSFloat av_values[] = {-1.56267393, -1.00281759,  0.09569721};
+    PSFloat bv_values[] = {0.27088287,  0.93006405, -0.35962201};
+    PSFloat scalar_value = 2.0;
+    PSFloat exp_am_bm[] = {
+        -1.22493996,  0.42679051, -2.5596907 ,
+        0.76527168, -0.13573824, 0.01075293
+    };
+    PSFloat exp_av_bv[] = {-0.42330159, -0.93268459, -0.03441482};
+    PSFloat exp_am_bv[] = {
+        -0.57650397,  1.02052454, -0.78531435,
+        0.30833147, -0.36729158, 0.16498113
+    };
+    PSFloat exp_am_scalar[2 * 3];
+    PSVectorCopy(exp_am_scalar, am_values, (2 * 3));
+    int ok = 1, nd = 0, i;
+    int shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
+    PSMatrix am = NULL, bm = NULL, av = NULL, bv = NULL, bv_t = NULL,
+             scalar = NULL;
+    for (i = 0; i < (int)(sizeof(exp_am_scalar)/sizeof(PSFloat)); i++)
+        exp_am_scalar[i] *= scalar_value;
+    am = PSMatrixCreate(0, NULL, 2, 2, 3);
+    bm = PSMatrixCreate(0, NULL, 2, 2, 3);
+    testAssertWithMessageOrGoto(
+        (ok = am != NULL), final, test,
+        "could not create matrix %s with shape 2,3", "A"
+    );
+    testAssertWithMessageOrGoto(
+        (ok = bm != NULL), final, test,
+        "could not create matrix %s with shape 2,3", "B"
+    );
+    PSVectorCopy(am, am_values, PSMatrixLength(am));
+    PSVectorCopy(bm, bm_values, PSMatrixLength(bm));
+    nd = PSMatrixDimensions(am, shape);
+    ok = testMatrixOp(am, bm, PSMatrixMultiply, nd, shape, exp_am_bm,
+                      "PSMatrixMultiply: shape(2,3) + shape(2,3)", test);
+    if (!ok) goto final;
+
+    av = PSMatrixCreate(0, NULL, 2, 1, 3);
+    bv = PSMatrixCreate(0, NULL, 2, 1, 3);
+    testAssertWithMessageOrGoto(
+        (ok = av != NULL), final, test,
+        "could not create matrix %s with shape 1,3", "A"
+    );
+    testAssertWithMessageOrGoto(
+        (ok = bv != NULL), final, test,
+        "could not create matrix %s with shape 1,3", "B"
+    );
+    PSVectorCopy(av, av_values, PSMatrixLength(av));
+    PSVectorCopy(bv, bv_values, PSMatrixLength(bv));
+    nd = PSMatrixDimensions(av, shape);
+    ok = testMatrixOp(av, bv, PSMatrixMultiply, nd, shape, exp_av_bv,
+                      "PSMatrixMultiply: shape(1,3) + shape(1,3)", test);
+    if (!ok) goto final;
+
+    bv_t = PSMatrixReshape(bv, 2, 3, 1);
+    testAssertWithMessageOrGoto(
+        (ok = bv_t != NULL), final, test, "could not reshape matrix %s","B"
+    );
+    ok = testMatrixOp(av, bv_t, PSMatrixMultiply, nd, shape, exp_av_bv,
+                      "PSMatrixMultiply: shape(1,3) + shape(3,1)", test);
+    if (!ok) goto final;
+
+    nd = PSMatrixDimensions(am, shape);
+    ok = testMatrixOp(am, bv, PSMatrixMultiply, nd, shape, exp_am_bv,
+                      "PSMatrixMultiply: shape(2,3) + shape(1,3)", test);
+    if (!ok) goto final;
+
+    scalar = PSMatrixCreate(scalar_value, NULL, 1, 1);
+    testAssertWithMessageOrGoto(
+        (ok = scalar != NULL), final, test,
+        "could not create %s matrix with shape 1", "scalar"
+    );
+    nd = PSMatrixDimensions(am, shape);
+    ok = testMatrixOp(am, scalar, PSMatrixMultiply, nd, shape, exp_am_scalar,
+                      "PSMatrixMultiply: shape(2,3) + shape(1)", test);
+    if (!ok) goto final;
+    ok = testMatrixOp(scalar, am, PSMatrixMultiply, nd, shape, exp_am_scalar,
+                      "PSMatrixMultiply: shape(1) + shape(2,3)", test);
+    if (!ok) goto final;
+final:
+    PSMatrixDelete(am);
+    PSMatrixDelete(bm);
+    PSMatrixDelete(av);
+    PSMatrixDelete(bv);
+    PSMatrixDelete(bv_t);
+    PSMatrixDelete(scalar);
+    return ok;
+}
+
+int testMathsMatrixSubtract(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat am_values[] = {
+        -2.1282408 ,  1.09726265,  2.1837216 ,
+        1.13824648, -0.39490999, -0.45876261
+    };
+    PSFloat bm_values[] = {
+        0.57556455,  0.3889593 , -1.17216897,
+        0.6723251 ,  0.34371944, -0.02343899
+    };
+    PSFloat av_values[] = {-1.56267393, -1.00281759,  0.09569721};
+    PSFloat bv_values[] = {0.27088287,  0.93006405, -0.35962201};
+    PSFloat scalar_value = 2.0;
+    PSFloat exp_am_bm[] = {
+        -2.70380535,  0.70830334,  3.35589057,
+        0.46592139, -0.73862943, -0.43532362
+    };
+    PSFloat exp_av_bv[] = {-1.8335568 , -1.93288164,  0.45531922};
+    PSFloat exp_am_bv[] = {
+        -2.39912367,  0.1671986 ,  2.54334361,
+        0.86736362, -1.32497403, -0.0991406
+    };
+    PSFloat exp_am_scalar[2 * 3];
+    PSFloat exp_scalar_am[2 * 3];
+    PSVectorCopy(exp_am_scalar, am_values, (2 * 3));
+    PSVectorCopy(exp_scalar_am, am_values, (2 * 3));
+    int ok = 1, nd = 0, i;
+    int shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
+    PSMatrix am = NULL, bm = NULL, av = NULL, bv = NULL, bv_t = NULL,
+             scalar = NULL;
+    for (i = 0; i < (int)(sizeof(exp_am_scalar)/sizeof(PSFloat)); i++) {
+        exp_am_scalar[i] -= scalar_value;
+        exp_scalar_am[i] = scalar_value - exp_scalar_am[i];
+    }
+    am = PSMatrixCreate(0, NULL, 2, 2, 3);
+    bm = PSMatrixCreate(0, NULL, 2, 2, 3);
+    testAssertWithMessageOrGoto(
+        (ok = am != NULL), final, test,
+        "could not create matrix %s with shape 2,3", "A"
+    );
+    testAssertWithMessageOrGoto(
+        (ok = bm != NULL), final, test,
+        "could not create matrix %s with shape 2,3", "B"
+    );
+    PSVectorCopy(am, am_values, PSMatrixLength(am));
+    PSVectorCopy(bm, bm_values, PSMatrixLength(bm));
+    nd = PSMatrixDimensions(am, shape);
+    ok = testMatrixOp(am, bm, PSMatrixSubtract, nd, shape, exp_am_bm,
+                      "PSMatrixSubtract: shape(2,3) + shape(2,3)", test);
+    if (!ok) goto final;
+
+    av = PSMatrixCreate(0, NULL, 2, 1, 3);
+    bv = PSMatrixCreate(0, NULL, 2, 1, 3);
+    testAssertWithMessageOrGoto(
+        (ok = av != NULL), final, test,
+        "could not create matrix %s with shape 1,3", "A"
+    );
+    testAssertWithMessageOrGoto(
+        (ok = bv != NULL), final, test,
+        "could not create matrix %s with shape 1,3", "B"
+    );
+    PSVectorCopy(av, av_values, PSMatrixLength(av));
+    PSVectorCopy(bv, bv_values, PSMatrixLength(bv));
+    nd = PSMatrixDimensions(av, shape);
+    ok = testMatrixOp(av, bv, PSMatrixSubtract, nd, shape, exp_av_bv,
+                      "PSMatrixSubtract: shape(1,3) + shape(1,3)", test);
+    if (!ok) goto final;
+
+    bv_t = PSMatrixReshape(bv, 2, 3, 1);
+    testAssertWithMessageOrGoto(
+        (ok = bv_t != NULL), final, test, "could not reshape matrix %s","B"
+    );
+    ok = testMatrixOp(av, bv_t, PSMatrixSubtract, nd, shape, exp_av_bv,
+                      "PSMatrixSubtract: shape(1,3) + shape(3,1)", test);
+    if (!ok) goto final;
+
+    nd = PSMatrixDimensions(am, shape);
+    ok = testMatrixOp(am, bv, PSMatrixSubtract, nd, shape, exp_am_bv,
+                      "PSMatrixSubtract: shape(2,3) + shape(1,3)", test);
+    if (!ok) goto final;
+
+    scalar = PSMatrixCreate(scalar_value, NULL, 1, 1);
+    testAssertWithMessageOrGoto(
+        (ok = scalar != NULL), final, test,
+        "could not create %s matrix with shape 1", "scalar"
+    );
+    nd = PSMatrixDimensions(am, shape);
+    ok = testMatrixOp(am, scalar, PSMatrixSubtract, nd, shape, exp_am_scalar,
+                      "PSMatrixSubtract: shape(2,3) + shape(1)", test);
+    if (!ok) goto final;
+    ok = testMatrixOp(scalar, am, PSMatrixSubtract, nd, shape, exp_scalar_am,
+                      "PSMatrixSubtract: shape(1) + shape(2,3)", test);
+    if (!ok) goto final;
+final:
+    PSMatrixDelete(am);
+    PSMatrixDelete(bm);
+    PSMatrixDelete(av);
+    PSMatrixDelete(bv);
+    PSMatrixDelete(bv_t);
+    PSMatrixDelete(scalar);
+    return ok;
+}
+
+int testMathsMatrixDivide(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat am_values[] = {
+        -2.1282408 ,  1.09726265,  2.1837216 ,
+        1.13824648, -0.39490999, -0.45876261
+    };
+    PSFloat bm_values[] = {
+        0.57556455,  0.3889593 , -1.17216897,
+        0.6723251 ,  0.34371944, -0.02343899
+    };
+    PSFloat av_values[] = {-1.56267393, -1.00281759,  0.09569721};
+    PSFloat bv_values[] = {0.27088287,  0.93006405, -0.35962201};
+    PSFloat scalar_value = 2.0;
+    PSFloat exp_am_bm[] = {
+        -3.69765789,  2.82102173, -1.86297509,
+        1.69300014, -1.14893119, 19.57262971
+    };
+    PSFloat exp_av_bv[] = {-5.7688179 , -1.07822423, -0.26610498};
+    PSFloat exp_am_bv[] = {
+        -7.85668295,  1.17977106, -6.07226903,
+        4.20198773, -0.42460515, 1.27568002
+    };
+    PSFloat exp_am_scalar[2 * 3];
+    PSFloat exp_scalar_am[2 * 3];
+    PSVectorCopy(exp_am_scalar, am_values, (2 * 3));
+    PSVectorCopy(exp_scalar_am, am_values, (2 * 3));
+    int ok = 1, nd = 0, i;
+    int shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
+    PSMatrix am = NULL, bm = NULL, av = NULL, bv = NULL, bv_t = NULL,
+             scalar = NULL;
+    for (i = 0; i < (int)(sizeof(exp_am_scalar)/sizeof(PSFloat)); i++) {
+        exp_am_scalar[i] /= scalar_value;
+        exp_scalar_am[i] = scalar_value / exp_scalar_am[i];
+    }
+    am = PSMatrixCreate(0, NULL, 2, 2, 3);
+    bm = PSMatrixCreate(0, NULL, 2, 2, 3);
+    testAssertWithMessageOrGoto(
+        (ok = am != NULL), final, test,
+        "could not create matrix %s with shape 2,3", "A"
+    );
+    testAssertWithMessageOrGoto(
+        (ok = bm != NULL), final, test,
+        "could not create matrix %s with shape 2,3", "B"
+    );
+    PSVectorCopy(am, am_values, PSMatrixLength(am));
+    PSVectorCopy(bm, bm_values, PSMatrixLength(bm));
+    nd = PSMatrixDimensions(am, shape);
+    ok = testMatrixOp(am, bm, PSMatrixDivide, nd, shape, exp_am_bm,
+                      "PSMatrixDivide: shape(2,3) + shape(2,3)", test);
+    if (!ok) goto final;
+
+    av = PSMatrixCreate(0, NULL, 2, 1, 3);
+    bv = PSMatrixCreate(0, NULL, 2, 1, 3);
+    testAssertWithMessageOrGoto(
+        (ok = av != NULL), final, test,
+        "could not create matrix %s with shape 1,3", "A"
+    );
+    testAssertWithMessageOrGoto(
+        (ok = bv != NULL), final, test,
+        "could not create matrix %s with shape 1,3", "B"
+    );
+    PSVectorCopy(av, av_values, PSMatrixLength(av));
+    PSVectorCopy(bv, bv_values, PSMatrixLength(bv));
+    nd = PSMatrixDimensions(av, shape);
+    ok = testMatrixOp(av, bv, PSMatrixDivide, nd, shape, exp_av_bv,
+                      "PSMatrixDivide: shape(1,3) + shape(1,3)", test);
+    if (!ok) goto final;
+
+    bv_t = PSMatrixReshape(bv, 2, 3, 1);
+    testAssertWithMessageOrGoto(
+        (ok = bv_t != NULL), final, test, "could not reshape matrix %s","B"
+    );
+    ok = testMatrixOp(av, bv_t, PSMatrixDivide, nd, shape, exp_av_bv,
+                      "PSMatrixDivide: shape(1,3) + shape(3,1)", test);
+    if (!ok) goto final;
+
+    nd = PSMatrixDimensions(am, shape);
+    ok = testMatrixOp(am, bv, PSMatrixDivide, nd, shape, exp_am_bv,
+                      "PSMatrixDivide: shape(2,3) + shape(1,3)", test);
+    if (!ok) goto final;
+
+    scalar = PSMatrixCreate(scalar_value, NULL, 1, 1);
+    testAssertWithMessageOrGoto(
+        (ok = scalar != NULL), final, test,
+        "could not create %s matrix with shape 1", "scalar"
+    );
+    nd = PSMatrixDimensions(am, shape);
+    ok = testMatrixOp(am, scalar, PSMatrixDivide, nd, shape, exp_am_scalar,
+                      "PSMatrixDivide: shape(2,3) + shape(1)", test);
+    if (!ok) goto final;
+    ok = testMatrixOp(scalar, am, PSMatrixDivide, nd, shape, exp_scalar_am,
+                      "PSMatrixDivide: shape(1) + shape(2,3)", test);
+    if (!ok) goto final;
+final:
+    PSMatrixDelete(am);
+    PSMatrixDelete(bm);
+    PSMatrixDelete(av);
+    PSMatrixDelete(bv);
+    PSMatrixDelete(bv_t);
+    PSMatrixDelete(scalar);
+    return ok;
 }
 
 int testMatMul(Test *test, int acceleration) {

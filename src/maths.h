@@ -166,6 +166,10 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
                       PSMathOpts *opts);
 int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
                       PSMathOpts *opts);
+int PSMatrixAdd(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt);
+int PSMatrixMultiply(PSMatrix a, PSMatrix b, PSMatrix *result,PSMathOpts *opt);
+int PSMatrixSubtract(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt);
+int PSMatrixDivide(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt);
 PSMatrix PSMatrixReshape(PSMatrix matrix, int num_dims, ...);
 PSMatrix PSMatrixFlatten(PSMatrix matrix);
 PSMatrix *PSMatrixSplit(PSMatrix matrix, int num_slices, int axis,
