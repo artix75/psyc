@@ -5212,12 +5212,11 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
                 clipGradients(srcgrads, clip_min, clip_max, gradsize, &mopts);
                 int ok = sumGradients(dstgrads, srcgrads, gradsize, &mopts);
                 PSDeleteNetworkGradients(srcgrads, cur);
-                bp_gradients[netidx] = NULL;
+                bp_gradients[cur->index] = NULL;
                 if (!ok) {
                     PSSetNetworkStatus(network, STATUS_ERROR, NULL);
                     goto final;
                 }
-                netidx++;
                 cur = cur->next;
             }
         }
