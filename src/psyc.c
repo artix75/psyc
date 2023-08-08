@@ -5206,8 +5206,8 @@ PSFloat updateNetworkParameters(PSNeuralNetwork *network,
         if (apply_clip) {
             PSNeuralNetwork *cur = network;
             while (cur != NULL) {
-                PSGradient **srcgrads = bp_gradients[netidx],
-                           **dstgrads = gradients[netidx];
+                PSGradient **srcgrads = bp_gradients[cur->index],
+                           **dstgrads = gradients[cur->index];
                 gradsize = cur->size - 1;
                 clipGradients(srcgrads, clip_min, clip_max, gradsize, &mopts);
                 int ok = sumGradients(dstgrads, srcgrads, gradsize, &mopts);
