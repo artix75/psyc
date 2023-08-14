@@ -1220,14 +1220,14 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
     UNUSED(use_acf);
 #endif
     int l = dims_b[0];
-    if (l != len) {
+    int scalar_a = len == 1;
+    int scalar_b = (getShapeType(ndims, dims_b) == PS_SHAPE_TYPE_SCALAR);
+    int use_scalar = (scalar_a || scalar_b);
+    if (l != len && !use_scalar) {
         PSErr(__func__, "Aligment error: b dim[0] != vector length -> "
               "%d != %d (transpose: %d)", dims_b[0], len, transpose);
         return 0;
     }
-    int scalar_a = len == 1;
-    int scalar_b = (getShapeType(ndims, dims_b) == PS_SHAPE_TYPE_SCALAR);
-    int use_scalar = (scalar_a || scalar_b);
     int nd;
     if (!use_scalar) {
         nd = 1 + ndims - 2;
