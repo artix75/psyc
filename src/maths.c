@@ -1061,16 +1061,16 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
         PSMatrixDelete(res);
         return success;
     }
+    int scalar_a = (getShapeType(ndims, dims_a) == PS_SHAPE_TYPE_SCALAR);
+    int scalar_b = len == 1;
+    int use_scalar = (scalar_a || scalar_b);
     int l = (transpose & 1 ? dims_a[0] : dims_a[ndims - 1]);
-    if (len != l) {
+    if (len != l && !use_scalar) {
         PSErr(__func__, "Aligment error: vector len != a dim[%d] -> "
               "%d != %d (transpose: %d)", (ndims - 1), l, len, transpose);
         PSMatrixPrintInfo(a, "a", 1);
         return 0;
     }
-    int scalar_a = (getShapeType(ndims, dims_a) == PS_SHAPE_TYPE_SCALAR);
-    int scalar_b = len == 1;
-    int use_scalar = (scalar_a || scalar_b);
     int nd, ld, outlen;
     if (use_scalar) {
         if (scalar_a && scalar_b) nd = 0;
@@ -1219,10 +1219,10 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
     UNUSED(acceleration);
     UNUSED(use_acf);
 #endif
-    int l = dims_b[0];
     int scalar_a = len == 1;
     int scalar_b = (getShapeType(ndims, dims_b) == PS_SHAPE_TYPE_SCALAR);
     int use_scalar = (scalar_a || scalar_b);
+    int l = dims_b[0];
     if (l != len && !use_scalar) {
         PSErr(__func__, "Aligment error: b dim[0] != vector length -> "
               "%d != %d (transpose: %d)", dims_b[0], len, transpose);
