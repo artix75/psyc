@@ -629,13 +629,9 @@ int PSInitPoolingLayer(PSNeuralNetwork *network, PSLayer *layer,
     layer->on_copy = PSConvolutionalLayerCopy;
     layer->flags |= FLAG_NON_TRAINABLE;
     PSLayer *previous = network->layers[index - 1];
-    if (previous->type != Convolutional) {
-        PSErr(
-            __func__, "Pooling's previous layer must be a Convolutional layer!"
-        );
-        return 0;
-    }
-    PSLayerDef default_def = {.stride = 1, .filter_width = 2, .filter_height=2};
+    PSLayerDef default_def = {
+        .stride = 1, .filter_width = 2, .filter_height = 2
+    };
     if (layer_def == NULL) layer_def = &default_def;
     layer->extra = calloc(1, sizeof(PSConvolutionalSettings));
     if (layer->extra == NULL) {
@@ -644,6 +640,7 @@ int PSInitPoolingLayer(PSNeuralNetwork *network, PSLayer *layer,
     }
     PSConvolutionalSettings *settings = (PSConvolutionalSettings*)layer->extra;
     layer->output_depth = previous->output_depth;
+    if (layer->output_depth < 1) layer->output_depth = 1;
     settings->filter_width = layer_def->filter_width;
     settings->filter_height = layer_def->filter_height;
     if (settings->filter_width <= 0) {
@@ -654,6 +651,24 @@ int PSInitPoolingLayer(PSNeuralNetwork *network, PSLayer *layer,
     PSFloat input_w, input_h, output_w, output_h;
     input_w = previous->output_columns;
     input_h = previous->output_rows;
+    if (input_w == 0 || input_h == 0) {
+        if (input_w == 0 && input_h == 0) {
+            input_w = previous->size;
+            input_h = 1;
+        } else if (input_w == 0) {
+            if ((previous->size % (int) input_h) != 0) {
+                PSErr(__func__, "invalid input height %d", input_h);
+                return 0;
+            }
+            input_w = previous->size / input_h;
+        } else if (input_h == 0) {
+            if ((previous->size % (int) input_w) != 0) {
+                PSErr(__func__, "invalid input width %d", input_w);
+                return 0;
+            }
+            input_h = previous->size / input_w;
+        }
+    }
     settings->input_width = input_w;
     settings->input_height = input_h;
     output_w = PSCalculatePoolingSide(input_w, settings->filter_width);

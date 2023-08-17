@@ -1205,8 +1205,12 @@ void PSPrintLayerInfo(PSLayer *layer) {
         if (stride <= 0 && ltype == Pooling) stride = filter_w;
         printf(", input size = %dx%d, output_size = %dx%d, depth = %d",
             input_w, input_h, output_w, output_h, depth);
-        printf(", filter = %dx%dx%d, stride = %d",
-               filter_w, filter_h, filter_d, stride);
+        if (ltype == Convolutional) {
+            printf(", filter = %dx%dx%d, stride = %d",
+                   filter_w, filter_h, filter_d, stride);
+        } else {
+            printf(", filter = %dx%d, stride = %d", filter_w, filter_h, stride);
+        }
         if (ltype == Convolutional) {
             if (padding < 0) padding = 0;
             printf(", padding = %d", padding);
@@ -3238,13 +3242,6 @@ PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
             previous_size = previous->onehot_vector_size;
         network->output_size = size;
     }
-    if (previous && previous->type == Convolutional && type != Pooling) {
-        PSErr(__func__, "Layer[%d]: only Pooling type is allowd after a "
-              "Convolutional layer (type = %s)", layer->index,
-              PSGetLabelForType(type));
-        PSAbortLayer(network, layer);
-        return NULL;
-    }
     if (type == FullyConnected || type == SoftMax || type == Linear) {
         initialized = initGenericLayer(layer, size, previous_size, layer_def);
     } else if (type == Convolutional) {
@@ -4874,12 +4871,10 @@ PSGradient **networkBackprop(PSNeuralNetwork *network, PSFloat *y,
             break;
         }
         PSLayerType ltype = layer->type;
-        PSLayerType prev_ltype = previous_layer->type;
         ok = (
             FullyConnected == ltype || Embedding == ltype ||
             Dropout == ltype || Normalization == ltype ||
-            (Pooling == ltype && Convolutional == prev_ltype) ||
-            Convolutional == ltype || SoftMax == ltype ||
+            Pooling == ltype || Convolutional == ltype || SoftMax == ltype ||
             Attention == ltype || OperatorLayer == ltype ||
             Linear == ltype
         );
@@ -6146,18 +6141,6 @@ int PSCheckNetwork(PSNeuralNetwork *network) {
                 );
                 return 0;
             }
-        }
-        /* TODO: remove this contraint */
-        if (ltype == Pooling && previous && previous->type != Convolutional) {
-            PSErr(__func__, "Layer[%d] type is Pooling, "
-                  "but previous type is not Convolutional", i);
-            return 0;
-        }
-        /* TODO: remove this contraint */
-        if (ltype != Pooling && previous && previous->type == Convolutional) {
-            PSErr(__func__, "Layer[%d] previous type is "
-                  "Convolutional, but type is not Pooling", i);
-            return 0;
         }
         if (layer->activate == PSSigmoid &&
             layer->derivative != PSSigmoidDerivative) {
