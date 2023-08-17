@@ -223,6 +223,12 @@ int PSInitDropoutLayer(PSNeuralNetwork *network, PSLayer *layer,
     layer->on_states_resize = PSResizeDropoutMask;
     if (PSIsRecurrent(previous)) layer->flags |= FLAG_RECURRENT;
     layer->size = previous->size;
+    if (previous->output_columns > 0)
+        layer->output_columns = previous->output_columns;
+    if (previous->output_rows > 0)
+        layer->output_rows = previous->output_rows;
+    if (previous->output_depth > 0)
+        layer->output_depth = previous->output_depth;
     if (layer->biases != NULL) free(layer->biases);
     layer->biases = NULL;
     if (layer->weights != NULL) {

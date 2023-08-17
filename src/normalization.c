@@ -223,6 +223,12 @@ int PSInitNormalizationLayer(PSLayer *layer, PSLayerDef *ldef) {
     layer->on_delete = deleteNormalizationLayer;
     layer->on_copy = copyNormalizationLayer;
     layer->size = previous->size;
+    if (previous->output_columns > 0)
+        layer->output_columns = previous->output_columns;
+    if (previous->output_rows > 0)
+        layer->output_rows = previous->output_rows;
+    if (previous->output_depth > 0)
+        layer->output_depth = previous->output_depth;
     if (!(layer->flags & FLAG_NON_TRAINABLE)) {
         layer->weights = malloc(sizeof(PSMatrix));
         if (layer->weights == NULL) goto memerr;
