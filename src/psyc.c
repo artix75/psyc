@@ -1352,7 +1352,7 @@ void PSPrintNetworkInfo(PSNeuralNetwork *network) {
 
 /* Loss Functions */
 
-PSFloat PSQuadraticLoss(PSFloat *outputs, PSFloat *desired, int size,
+PSFloat PSQuadraticLoss(PSFloat *outputs, PSFloat *expected, int size,
                         int onehot_size)
 {
     PSFloat *_diffs;
@@ -1360,13 +1360,13 @@ PSFloat PSQuadraticLoss(PSFloat *outputs, PSFloat *desired, int size,
     if (!onehot_size) {
         int i;
         for (i = 0; i < size; i++) {
-            PSFloat d = outputs[i] - desired[i];
+            PSFloat d = outputs[i] - expected[i];
             diffs[i] = d;
             if (isnan(d)) {
                 fprintf(stderr,
                     "\n\nPSQuadraticLoss: diffs[%d] is nan!\n"
-                    " -> output=%g, desired=%g\n",
-                    i, outputs[i], desired[i]
+                    " -> output=%g, expected=%g\n",
+                    i, outputs[i], expected[i]
                 );
                 assert(!isnan(d));
             }
@@ -1379,19 +1379,18 @@ PSFloat PSQuadraticLoss(PSFloat *outputs, PSFloat *desired, int size,
     return loss;
 }
 
-PSFloat PSCrossEntropyLoss(PSFloat *outputs, PSFloat *desired, int size,
+PSFloat PSCrossEntropyLoss(PSFloat *outputs, PSFloat *expected, int size,
                         int onehot_size)
 {
     PSFloat loss = 0.0;
     int i;
     for (i = 0; i < size; i++) {
         PSFloat o = outputs[i];
-        if (o == 0.0) continue;
-        if (onehot_size) loss += (PSMathLog(o));
+        if (onehot_size) loss += (PSMathLog(o + PSFLOAT_EPS));
         else {
-            if (o == 1) continue; /*  log(1 - 1) would be NaN */
-            PSFloat y = desired[i];
-            loss += (y * PSMathLog(o) + (1 - y) * PSMathLog(1 - o));
+            PSFloat y = expected[i];
+            loss += (y * PSMathLog(o + PSFLOAT_EPS) +
+                    (1 - y) * PSMathLog((1 - o) + PSFLOAT_EPS));
         }
     }
     loss *= -1;
