@@ -246,16 +246,18 @@ int PSPositionalForward(PSLayer *layer, ...) {
         if (!success) {
             PSErrNN(__func__, NULL, layer,
                     "could not create embeddings for onehot inputs");
+            goto final;
         }
         PSFloat *dest_p = tmpinputs, *inputs_p = previous->states;
         for (i = 0; i < seqlen; i++) {
             long index = (long) *inputs_p;
             if (index >= capacity) {
-                if (!initOrResizePositionalEncodings(layer,  index + 1)) {
+                success = initOrResizePositionalEncodings(layer,  index + 1);
+                if (!success) {
                     PSErrNN(__func__, NULL, layer,
                             "failed to resize positional encodings to %d,%d",
                             index + 1, layer->size);
-                    return 0;
+                    goto final;
                 }
                 weights = layer->weights[0];
             }

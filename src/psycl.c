@@ -1252,7 +1252,7 @@ int parseOptionsFromFile(const char *filename) {
             tokens[numtokens++] = strdup(token);
             token = strtok(NULL,  " \r\t");
         }
-        if (numtokens == 0) goto next_line;
+        if (numtokens == 0 || tokens[0] == NULL) goto next_line;
         toLowerCase(tokens[0]);
         /* Ignore single char options (ie. 'p' for '-p')*/
         int first_token_len = strlen(tokens[0]);
