@@ -51,10 +51,10 @@
 #endif
 
 #define PSClipValue(v, min, max) (v > max ? max : (v < min ? min : v))
-#define PSVectorZeros(len) calloc(len, sizeof(PSFloat))
 #define PSVectorCopy(dest, src, len) memcpy(dest, src, len * sizeof(PSFloat))
 #define PSVectorClear(vec, len) memset(vec, 0, len * sizeof(PSFloat))
 #define PSVectorZero(len) calloc(len, sizeof(PSFloat))
+#define PSVectorCreate(len) malloc(len * sizeof(PSFloat))
 
 #define PS_STORE_MODE_SET 0
 #define PS_STORE_MODE_ADD 1
