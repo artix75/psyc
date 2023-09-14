@@ -10,8 +10,9 @@ endif
 default: all
 
 .PHONY: clean
-.PHONY: clean-full
+.PHONY: distclean
 .PHONY: show-build-conf
+.PHONY: help
 
 demo:
 	@cd src/demo/ && $(MAKE) --no-print-directory
@@ -35,9 +36,10 @@ clean:
 	if [ -e tmp/README ]; then cp tmp/README bin/; fi
 	if [ -e tmp/README ]; then cp tmp/README lib/; fi
 
-clean-full: clean
+distclean: clean
 	rm -f .c_headers
 	rm -f src/config.mk
+	rm -f src/buildinfo.h
 
 install:
 	@cd src && $(MAKE) install
@@ -57,3 +59,14 @@ show-build-conf:
 
 list-available-options:
 	@cd src && $(MAKE) list-available-options
+
+help:
+	@echo ''
+	@echo "AVAILABLE OPTIONS:"
+	@echo ''
+	@cd src && $(MAKE) list-available-options
+	@echo ''
+	@echo "AVAILABLE RULES:"
+	@echo ''
+	@$(MAKE) -qp 2>/dev/null | awk -F':' '/^[a-zA-Z0-9][^$$#\/\t=]*:([^=]|$$)/ {split($$1,A,/ /);for(i in A)print A[i]}' | grep -v '\.o' | grep -v '\.c' | grep -v '\.dylib' | grep -v '\.so' | grep -v '\.mk' | grep -v Makefile | sort -u
+	@echo ''
