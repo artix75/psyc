@@ -2722,6 +2722,16 @@ void PSVectorPower(PSFloat *a, PSFloat exp, PSFloat *dest, uint64_t length,
                    PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE();
+    if (exp == 1) {
+        if (dest == a) return;
+        else if (dest != NULL) {
+            PSVectorCopy(dest, a, length);
+            return;
+        }
+    } else if (exp == 2) {
+        PSMultiplyVectors(a, a, dest, length, opts);
+        return;
+    }
 #if defined(HAS_ACCELERATE_FRAMEWORK)
     if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         PSFloat exps[length];
