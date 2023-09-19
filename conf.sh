@@ -179,7 +179,8 @@ if [ "$HAS_ACCELERATE_FRAMEWORK" = 'true' ]; then
 fi
 
 MKFILE="$SCRIPT_DIR/src/config.mk"
-echo "# Config generated in $(date)" > $MKFILE
+echo "Generating '$MKFILE' on $(date)"
+echo "# Config generated on $(date)" > $MKFILE
 printf "$VARS\n" >> $MKFILE
 echo "BLAS_CFLAGS=$BLAS_CFLAGS" >> $MKFILE
 echo "BLAS_LDFLAGS=$BLAS_LDFLAGS" >> $MKFILE

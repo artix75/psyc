@@ -23,6 +23,10 @@ endif
 endif
         $(error 'aborting...')
 endif
+NOBUILD_GOALS := clean rebuildclean distclean uninstall
+
+-include $(SRCPATH).make-build-info
+
 OPTIMIZATION?=-O2
 OPT=$(OPTIMIZATION)
 CSTD=gnu99 -pedantic
@@ -38,14 +42,18 @@ LIBDIR=$(PREFIX)/lib
 BINDIR=$(PREFIX)/bin
 INCLUDEDIR=$(PREFIX)/include
 SHAREDIR=$(PREFIX)/share/psyc
-build_info_h := $(shell sh -c '$(SRCPATH)genbuildinfo.sh --optimization "$(OPT)" --prefix "$(PREFIX)"')
 WAND_CONFIG=Wand-config
 HAS_MAGICK=false
 MAGICK_VERSION=none
 MAGICK_VERSION_MAJOR=none
-CONFIGMK=$(SRCPATH)config.mk
-ifeq (,$(wildcard $(CONFIGMK)))
-        $(error "Could not find $(CONFIGMK): try to manually run ./conf.sh")
+CONFIGMK := $(SRCPATH)config.mk
+
+TMPDIR ?= $(shell test -e /tmp && echo /tmp || (mkdir -p $(PSYCPATH)tmp/ && test -e $(PSYCPATH)tmp && echo $(PSYCPATH)tmp))
+gen_conf_mk := $(shell sh -c 'cd $(PSYCPATH) && ./conf.sh > $(TMPDIR)/psyc_conf.log 2>&1')
+conf_mk_exists := $(shell test -e $(CONFIGMK) && echo true)
+
+ifneq (true, $(conf_mk_exists))
+        $(error FATAL: Could not find $(CONFIGMK): take a look at logs in '$(TMPDIR)/psyc_conf.log' and try to manually run ./conf.sh)
 endif
 
 include $(CONFIGMK)
@@ -94,6 +102,7 @@ endif
 
 ifeq ($(PLATFORM), Linux)
         CFLAGS+=-fdiagnostics-color -Wno-unused-result -Wno-maybe-uninitialized
+        CFLAGS+=-fPIC -Wno-unused-but-set-variable
 endif
 
 HAS_READLINE=no
@@ -121,3 +130,46 @@ endif
 ifeq ($(DEBUG_MODE),on)
 	CFLAGS+=-DPS_DEBUG_MODE
 endif
+
+ifneq ($(COLORS),off)
+	ACTION_COLOR="\033[1m"
+	NAME_COLOR="\033[36m"
+	LINK_ACTION_COLOR="\033[32m"
+	END_COLOR="\033[0m"
+else
+	ACTION_COLOR=""
+	NAME_COLOR=""
+	END_COLOR=""
+	LINK_ACTION_COLOR=""
+endif
+
+COMPILE_ACTION_NAME = Compiling
+LINK_ACTION_NAME    = Linking
+OUTPUT_OPTION ?= -o $@
+
+print-action = @printf '%b %b\n' $(ACTION_COLOR)$(3)$(1) $(NAME_COLOR)$(notdir $(2))$(END_COLOR)
+
+.PHONY: print-action
+
+.save-build-info:
+	@cd $(PSYCPATH) && $(MAKE) rebuildclean
+	@$(SRCPATH)genbuildinfo.sh --optimization "$(OPT)" --prefix "$(PREFIX)"
+	echo PREV_CFLAGS='$(CFLAGS)' > $(SRCPATH).make-build-info
+	echo PREV_LDFLAGS='$(LDFLAGS)' >> $(SRCPATH).make-build-info
+
+.PHONY: .save-build-info
+
+.make-prerequisites:
+	@touch $@
+
+ifneq ($(strip $(PREV_CFLAGS)), $(strip $(CFLAGS)))
+.make-prerequisites: .save-build-info
+endif
+
+ifneq ($(strip $(PREV_LDFLAGS)), $(strip $(LDFLAGS)))
+.make-prerequisites: .save-build-info
+endif
+
+%.o: %.c .make-prerequisites
+	$(call print-action,$(COMPILE_ACTION_NAME),$<)
+	$(COMPILE.c) $(OUTPUT_OPTION) $<

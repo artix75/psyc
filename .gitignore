@@ -19,3 +19,5 @@ resources/cifar-10-batches-bin/
 resources/testzlib
 src/magick_conf.h
 src/buildinfo.h
+Makefile.dep
+.make-*

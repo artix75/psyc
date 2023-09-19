@@ -4,7 +4,6 @@ LIBNAME=libpsyc
 ifeq ($(PLATFORM), Linux)
         LIBNAME := $(LIBNAME).so
         LIBOPTS := -shared -fPIC -Wl,-soname,$(LIBNAME)
-        CFLAGS+=-fPIC -Wno-unused-but-set-variable
 endif
 
 ifeq ($(PLATFORM), Darwin)
@@ -25,22 +24,36 @@ ifneq ($(HAS_MAGICK), false)
         MAGICK_VERSION_MAJOR := $(shell echo $(MAGICK_VERSION) | cut -d '.' -f 1)
 endif
 
+PSYCLIB := ../lib/$(LIBNAME)
+PSYCL := ../bin/psycl
+
 default: all
+
+Makefile.dep:
+	-$(CC) -MM *.c > Makefile.dep 2> /dev/null || true
+
+ifeq (0, $(words $(findstring $(MAKECMDGOALS), $(NOBUILD_GOALS))))
+-include Makefile.dep
+endif
 
 image_data.o:
 	@echo '#define PSYCH_MAGICK_VERSION $(MAGICK_VERSION_MAJOR)' > magick_conf.h
+	$(call print-action,$(COMPILE_ACTION_NAME),image_data.c)
 	$(CC) $(MAGICK_CFLAGS) $(CFLAGS)  -c -o $@ image_data.c
 
-psycl.o: 
+psycl.o: psycl.c
+	$(call print-action,$(COMPILE_ACTION_NAME),psycl.c)
 	$(CC) $(BIN_CFLAGS) -c -o $@ psycl.c
 
-$(LIBNAME): $(OBJS)
-	$(CC) $(LIBOPTS) -o ../lib/$@ $(OBJS) $(LDFLAGS)
+$(PSYCLIB): $(OBJS)
+	$(call print-action,$(LINK_ACTION_NAME),$@,$(LINK_ACTION_COLOR))
+	$(CC) $(LIBOPTS) -o $@ $(OBJS) $(LDFLAGS)
 
-psycl: $(CLI_OBJS)
-	$(CC) -o ../bin/psycl $(CLI_OBJS) $(BIN_LDFLAGS)
+$(PSYCL): $(CLI_OBJS)
+	$(call print-action,$(LINK_ACTION_NAME),$@,$(LINK_ACTION_COLOR))
+	$(CC) -o $@ $(CLI_OBJS) $(BIN_LDFLAGS)
 
-all: psycl $(LIBNAME)
+all: $(PSYCL) $(PSYCLIB)
 
 install: all
 	@mkdir -p $(BINDIR)
@@ -49,13 +62,13 @@ install: all
 	@mkdir -p $(SHAREDIR)
 	@mkdir -p $(SHAREDIR)/bin
 	@mkdir -p $(SHAREDIR)/utils
-	cp ../bin/psycl $(SHAREDIR)/bin/psycl
+	cp $(PSYCL) $(SHAREDIR)/bin/psycl
 	ln -s -f $(SHAREDIR)/bin/psycl $(BINDIR)/psycl
-	cp ../lib/$(LIBNAME) $(LIBDIR)/$(LIBNAME)
+	cp $(PSYCLIB) $(LIBDIR)/$(LIBNAME)
 	cp *.h $(INCLUDEDIR)/psyc/
 	cp -r ../resources $(SHAREDIR)/resources
 	cp -r ../utils/*.rb $(SHAREDIR)/utils/
-	#cp ../bin/*_demo $(SHAREDIR)/bin/
+#	cp ../bin/*_demo $(SHAREDIR)/bin/
 	@if [ "$(PLATFORM)" = "Linux" ]; then /sbin/ldconfig; fi
 
 uninstall:
@@ -93,3 +106,4 @@ list-available-options:
 	@echo "MAGICK           (on|off)    ImageMagick support $(MAGICK)"
 	@echo "TESTS            TESTS       Only perform specific tests"
 	@echo "BUILD_ONLY                   Only build, do not execute (ie. tests)"
+	@echo "COLORS           (on|off)    Colorized output (default 'on')""
