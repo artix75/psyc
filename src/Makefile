@@ -28,6 +28,7 @@ endif
 PSYCLIB := ../lib/$(LIBNAME)
 PSYC_STATIC_LIB := ../lib/$(STATIC_LIBNAME)
 PSYCL := ../bin/psycl
+PSYC_CC_UTIL = ../bin/psyc-cc.sh
 
 default: all
 
@@ -59,9 +60,28 @@ $(PSYC_STATIC_LIB): $(OBJS)
 	$(call print-action,$(LINK_ACTION_NAME),$@,$(LINK_ACTION_COLOR))
 	$(AR) crs $@ $^
 
+$(PSYC_CC_UTIL): ../resources/psyc-cc.sh ../resources/license-header.h
+	$(call print-action,Creating,$@,$(LINK_ACTION_COLOR))
+	@echo '#!/bin/bash' > $@
+	@cat ../resources/license-header.sh >> $@
+	@echo '' >> $@
+	@echo "CC='$(CC)'" >> $@
+	@echo "MAGICK_CFLAGS='$(MAGICK_CFLAGS)'" >> $@
+	@echo "BLAS_CFLAGS='$(BLAS_CFLAGS)'" >> $@
+	@echo "ACCELERATE_CFLAGS='$(ACCELERATE_CFLAGS)'" >> $@
+	@echo "CFLAGS='$(CFLAGS)'" >> $@
+	@echo "LDFLAGS='$(LDFLAGS)'" >> $@
+	@echo "PREFIX='$(PREFIX)'" >> $@
+	@echo "LIBDIR='$(LIBDIR)'" >> $@
+	@echo "INCLUDEDIR='$(INCLUDEDIR)'" >> $@
+	@echo "LIBNAME='$(LIBNAME)'" >> $@
+	@echo "STATIC_LIBNAME='$(STATIC_LIBNAME)'" >> $@
+	@cat ../resources/psyc-cc.sh >> $@
+	@chmod +x $@
+
 static: $(PSYC_STATIC_LIB)
 
-all: $(PSYCL) $(PSYCLIB) $(PSYC_STATIC_LIB)
+all: $(PSYCL) $(PSYCLIB) $(PSYC_STATIC_LIB) $(PSYC_CC_UTIL)
 
 install: all
 	@mkdir -p $(BINDIR)
@@ -72,6 +92,8 @@ install: all
 	@mkdir -p $(SHAREDIR)/utils
 	cp $(PSYCL) $(SHAREDIR)/bin/psycl
 	ln -s -f $(SHAREDIR)/bin/psycl $(BINDIR)/psycl
+	-cp $(PSYC_CC_UTIL) $(SHAREDIR)/bin/$(notdir $(PSYC_CC_UTIL))
+	-ln -s -f $(SHAREDIR)/bin/$(notdir $(PSYC_CC_UTIL)) $(BINDIR)/$(notdir $(basename $(PSYC_CC_UTIL)))
 	cp $(PSYCLIB) $(LIBDIR)/$(LIBNAME)
 	cp $(PSYC_STATIC_LIB) $(LIBDIR)/$(STATIC_LIBNAME)
 	cp *.h $(INCLUDEDIR)/psyc/
@@ -83,6 +105,7 @@ install: all
 uninstall:
 	rm -rvf $(SHAREDIR)
 	rm -f $(BINDIR)/psycl
+	rm -f $(BINDIR)/$(notdir $(basename $(PSYC_CC_UTIL)))
 	rm -f $(LIBDIR)/$(LIBNAME)
 	rm -rvf $(INCLUDEDIR)/psyc
 
