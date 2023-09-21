@@ -62,6 +62,8 @@ install:
 	@cd src && $(MAKE) install
 uninstall:
 	@cd src && $(MAKE) uninstall
+static:
+	@cd src && $(MAKE) static
 
 all: $(DEFAULT_BUILD_TARGETS)
 

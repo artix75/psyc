@@ -1,5 +1,6 @@
 SHELL=/bin/bash
 CC=gcc
+AR=ar
 PLATFORM := $(shell sh -c 'uname -s 2>/dev/null || echo not_found')
 HARDWARE := $(shell sh -c 'uname -m 2>/dev/null || echo not_found')
 SRCPATH := $(strip $(dir $(lastword $(MAKEFILE_LIST))))
@@ -48,7 +49,7 @@ MAGICK_VERSION=none
 MAGICK_VERSION_MAJOR=none
 CONFIGMK := $(SRCPATH)config.mk
 
-TMPDIR ?= $(shell test -e /tmp && echo /tmp || (mkdir -p $(PSYCPATH)tmp/ && test -e $(PSYCPATH)tmp && echo $(PSYCPATH)tmp))
+TMPDIR ?= $(shell test -e /tmp && echo /tmp || (mkdir -p $(PSYCPATH)tmp/ &>/dev/null && test -e $(PSYCPATH)tmp && echo $(PSYCPATH)tmp))
 gen_conf_mk := $(shell sh -c 'cd $(PSYCPATH) && ./conf.sh > $(TMPDIR)/psyc_conf.log 2>&1')
 conf_mk_exists := $(shell test -e $(CONFIGMK) && echo true)
 

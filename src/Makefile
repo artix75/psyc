@@ -1,6 +1,7 @@
 include Makefile.common.mk
 
 LIBNAME=libpsyc
+STATIC_LIBNAME := $(LIBNAME).a
 ifeq ($(PLATFORM), Linux)
         LIBNAME := $(LIBNAME).so
         LIBOPTS := -shared -fPIC -Wl,-soname,$(LIBNAME)
@@ -25,6 +26,7 @@ ifneq ($(HAS_MAGICK), false)
 endif
 
 PSYCLIB := ../lib/$(LIBNAME)
+PSYC_STATIC_LIB := ../lib/$(STATIC_LIBNAME)
 PSYCL := ../bin/psycl
 
 default: all
@@ -53,7 +55,13 @@ $(PSYCL): $(CLI_OBJS)
 	$(call print-action,$(LINK_ACTION_NAME),$@,$(LINK_ACTION_COLOR))
 	$(CC) -o $@ $(CLI_OBJS) $(BIN_LDFLAGS)
 
-all: $(PSYCL) $(PSYCLIB)
+$(PSYC_STATIC_LIB): $(OBJS)
+	$(call print-action,$(LINK_ACTION_NAME),$@,$(LINK_ACTION_COLOR))
+	$(AR) crs $@ $^
+
+static: $(PSYC_STATIC_LIB)
+
+all: $(PSYCL) $(PSYCLIB) $(PSYC_STATIC_LIB)
 
 install: all
 	@mkdir -p $(BINDIR)
@@ -65,6 +73,7 @@ install: all
 	cp $(PSYCL) $(SHAREDIR)/bin/psycl
 	ln -s -f $(SHAREDIR)/bin/psycl $(BINDIR)/psycl
 	cp $(PSYCLIB) $(LIBDIR)/$(LIBNAME)
+	cp $(PSYC_STATIC_LIB) $(LIBDIR)/$(STATIC_LIBNAME)
 	cp *.h $(INCLUDEDIR)/psyc/
 	cp -r ../resources $(SHAREDIR)/resources
 	cp -r ../utils/*.rb $(SHAREDIR)/utils/
