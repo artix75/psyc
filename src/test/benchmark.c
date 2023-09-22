@@ -461,7 +461,7 @@ int mathsDotProductBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSDotProduct(x, y, size, &opts));
     *num_results += 1;
@@ -506,7 +506,7 @@ int mathsDotBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSMathOpts opts = {0};
     opts.argtype[1] = 'V';
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, (ok = PSDot(x, y, dest, &opts)));
     if (!ok) goto final;
@@ -571,7 +571,7 @@ int mathsVecProdBenchmark(PSBenchmarkConfig *cfg, int *num_results,
 #endif
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     opts.acceleration = PSAcceleration_ACF;
-    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
     PSBenchmarkMeasure(
         res, (ok = PSOuterProduct(a, b, dest, len_a, len_b, &opts))
     );
@@ -614,7 +614,7 @@ int mathsSumVBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSSumVectors(x, y, dest, size, &opts));
     *num_results += 1;
@@ -659,7 +659,7 @@ int mathsSubVBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSSubtractVectors(x, y, dest, size, &opts));
     *num_results += 1;
@@ -704,7 +704,7 @@ int mathsMulVBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSMultiplyVectors(x, y, dest, size, &opts));
     *num_results += 1;
@@ -753,7 +753,7 @@ int mathsAddVSBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {.store_mode = mode, .tmpdest = tmpdest};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSSumVectorScalar(x, y, dest, size, &opts));
     *num_results += 1;
@@ -802,7 +802,7 @@ int mathsMulVSBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {.store_mode = mode, .tmpdest = tmpdest};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSMultiplyVectorScalar(x, y, dest, size, &opts));
     *num_results += 1;
@@ -849,7 +849,7 @@ int mathsDivVBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSSumVectorScalar(y, PSFLOAT_EPS, y, size, &opts);
     PSBenchmarkResults *res = results;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSDivideVectors(x, y, dest, size, &opts));
     *num_results += 1;
@@ -899,7 +899,7 @@ int mathsDivVSBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {.store_mode = mode, .tmpdest = tmpdest};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSDivideVectorScalar(x, y, dest, size, &opts));
     *num_results += 1;
@@ -950,7 +950,7 @@ int mathsDivSVBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {.store_mode = mode, .tmpdest = tmpdest};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSDivideScalarVector(y, x, dest, size, &opts));
     *num_results += 1;
@@ -1000,7 +1000,7 @@ int mathsSubVSBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {.store_mode = mode, .tmpdest = tmpdest};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSSubtractVectorScalar(x, y, dest, size, &opts));
     *num_results += 1;
@@ -1051,7 +1051,7 @@ int mathsSubSVBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {.store_mode = mode, .tmpdest = tmpdest};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSSubtractScalarVector(y, x, dest, size, &opts));
     *num_results += 1;
@@ -1094,7 +1094,7 @@ int mathsReduceBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSSumVectorElements(x, size, &opts));
     *num_results += 1;
@@ -1135,7 +1135,7 @@ int mathsMeanBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSMean(x, size, &opts));
     *num_results += 1;
@@ -1176,7 +1176,7 @@ int mathsVarianceBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSVariance(x, size, &opts));
     *num_results += 1;
@@ -1217,7 +1217,7 @@ int mathsStdDevBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSStdDev(x, size, &opts));
     *num_results += 1;
@@ -1259,7 +1259,7 @@ int mathsSqrtBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSVectorSqrt(x, y, size, &opts));
     *num_results += 1;
@@ -1302,7 +1302,7 @@ int mathsTanhBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSVectorTanh(x, y, size, &opts));
     *num_results += 1;
@@ -1345,7 +1345,7 @@ int mathsExpBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSVectorExp(x, y, size, &opts));
     *num_results += 1;
@@ -1388,7 +1388,7 @@ int mathsNegBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSVectorNeg(x, y, size, &opts));
     *num_results += 1;
@@ -1431,7 +1431,7 @@ int mathsAbsBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSVectorAbs(x, y, size, &opts));
     *num_results += 1;
@@ -1478,7 +1478,7 @@ int mathsVecPowBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {.store_mode = mode, .tmpdest = tmpdest};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSVectorPower(x, y, dest, size, &opts));
     *num_results += 1;
@@ -1538,7 +1538,7 @@ int mathsMatrixProdBenchmark(PSBenchmarkConfig *cfg, int *num_results,
 #endif
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     opts.acceleration = PSAcceleration_ACF;
-    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
     PSBenchmarkMeasure(
         res, (ok = PSMatrixProduct(a, b, &dest, &opts))
     );
@@ -1580,7 +1580,7 @@ int actSigmoidBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     opts.acceleration = PSAcceleration_ACF;
-    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSSigmoid(x, dest, size, &opts));
     *num_results += 1;
@@ -1625,7 +1625,7 @@ int actSigmoidDerivBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     opts.acceleration = PSAcceleration_ACF;
-    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSSigmoidDerivative(x, dest, size, &opts));
     *num_results += 1;
@@ -1670,7 +1670,7 @@ int actTanhBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     opts.acceleration = PSAcceleration_ACF;
-    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSTanhActivation(x, dest, size, &opts));
     *num_results += 1;
@@ -1715,7 +1715,7 @@ int actTanhDerivBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     opts.acceleration = PSAcceleration_ACF;
-    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSTanhDerivative(x, dest, size, &opts));
     *num_results += 1;
@@ -1760,7 +1760,7 @@ int actReluBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     opts.acceleration = PSAcceleration_ACF;
-    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSRelu(x, dest, size, &opts));
     *num_results += 1;
@@ -1805,7 +1805,7 @@ int actReluDerivBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     opts.acceleration = PSAcceleration_ACF;
-    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSReluDerivative(x, dest, size, &opts));
     *num_results += 1;
@@ -1858,7 +1858,7 @@ int optimDefaultBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     int acceleration = 0;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     acceleration = PSAcceleration_ACF;
-    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
     memcpy(dest, x, size * sizeof(PSFloat));
     PSBenchmarkMeasure(res, (
         ok = PSDefaultOptimization(
@@ -1905,6 +1905,149 @@ final:
     return ok;
 }
 
+int optimNesterovBenchmark(PSBenchmarkConfig *cfg, int *num_results,
+                           PSBenchmarkResults *results)
+{
+    PS_BENCHMARK_PREAMBLE(cfg, results);
+    assert(cfg->argc > 0 && cfg->argv != NULL);
+    int size = *((int *) cfg->argv), ok = 1;
+    assert(size > 0);
+    PSMatrix x = PSMatrixWithGaussianRandom(1, 1, size);
+    PSMatrix y = PSMatrixWithGaussianRandom(1, 1, size);
+    PSFloat *dest = malloc(size * sizeof(PSFloat));
+    PSFloat *mem = malloc(size * sizeof(PSFloat));
+    PSFloat *tmp = NULL;
+    if (x == NULL || y == NULL || dest == NULL || mem == NULL) {
+        PSPrintMemoryErrorMsg();
+        ok = 0;
+        goto final;
+    }
+    assert(PSMatrixLength(x) == (size_t) size);
+    if (cache_enabled) tmp = PSVectorCreate(size);
+    PSFloat rate = 0.1, momentum = 0.9;
+    PSBenchmarkResults *res = results;
+    int acceleration = 0;
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    acceleration = PSAcceleration_ACF;
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    memcpy(dest, x, size * sizeof(PSFloat));
+    PSBenchmarkMeasure(res, (
+        ok = PSNesterovOptimization(
+            x, y, mem, NULL, tmp, NULL, NULL, rate, momentum,
+            size, acceleration, 0, NULL
+        )
+    ));
+    if (!ok) goto final;
+    *num_results += 1;
+    res += 1;
+#endif
+#ifdef USE_AVX
+    acceleration = PSAcceleration_AVX;
+    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    memcpy(dest, x, size * sizeof(PSFloat));
+    PSBenchmarkMeasure(res, (
+        ok = PSNesterovOptimization(
+            x, y, mem, NULL, tmp, NULL, NULL, rate, momentum,
+            size, acceleration, 0, NULL
+        )
+    ));
+    if (!ok) goto final;
+    *num_results += 1;
+    res += 1;
+#endif
+    acceleration = PSAcceleration_None;
+    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    memcpy(dest, x, size * sizeof(PSFloat));
+    PSBenchmarkMeasure(res, (
+        ok = PSNesterovOptimization(
+            x, y, mem, NULL, tmp, NULL, NULL, rate, momentum,
+            size, acceleration, 0, NULL
+        )
+    ));
+    if (!ok) goto final;
+    *num_results += 1;
+    res += 1;
+final:
+    if (x != NULL) PSMatrixDelete(x);
+    if (y != NULL) PSMatrixDelete(y);
+    free(dest);
+    free(mem);
+    free(tmp);
+    return ok;
+}
+
+int optimWindowGradBenchmark(PSBenchmarkConfig *cfg, int *num_results,
+                          PSBenchmarkResults *results)
+{
+    PS_BENCHMARK_PREAMBLE(cfg, results);
+    assert(cfg->argc > 0 && cfg->argv != NULL);
+    int size = *((int *) cfg->argv), ok = 1;
+    assert(size > 0);
+    PSMatrix x = PSMatrixWithGaussianRandom(1, 1, size);
+    PSMatrix y = PSMatrixWithGaussianRandom(1, 1, size);
+    PSFloat *dest = malloc(size * sizeof(PSFloat));
+    PSFloat *mem = malloc(size * sizeof(PSFloat));
+    if (x == NULL || y == NULL || dest == NULL || mem == NULL) {
+        PSPrintMemoryErrorMsg();
+        ok = 0;
+        goto final;
+    }
+    assert(PSMatrixLength(x) == (size_t) size);
+    PSMathOpts opts = {0};
+    PSFloat rate = 0.1, momentum = 0.0;
+    PSBenchmarkResults *res = results;
+    int acceleration = 0;
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    acceleration = PSAcceleration_ACF;
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    opts.acceleration = PSAcceleration_ACF;
+    memcpy(dest, x, size * sizeof(PSFloat));
+    PSBenchmarkMeasure(res, (
+        ok = PSWindowGradOptimization(
+            x, y, mem, NULL, NULL, NULL, NULL, rate, momentum,
+            size, acceleration, 0, NULL
+        )
+    ));
+    if (!ok) goto final;
+    *num_results += 1;
+    res += 1;
+#endif
+#ifdef USE_AVX
+    acceleration = PSAcceleration_AVX;
+    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    opts.acceleration = PSAcceleration_ACF;
+    memcpy(dest, x, size * sizeof(PSFloat));
+    PSBenchmarkMeasure(res, (
+        ok = PSWindowGradOptimization(
+            x, y, mem, NULL, NULL, NULL, NULL, rate, momentum,
+            size, acceleration, 0, NULL
+        )
+    ));
+    if (!ok) goto final;
+    *num_results += 1;
+    res += 1;
+#endif
+    acceleration = PSAcceleration_None;
+    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    opts.acceleration = PSAcceleration_ACF;
+    memcpy(dest, x, size * sizeof(PSFloat));
+    PSBenchmarkMeasure(res, (
+        ok = PSWindowGradOptimization(
+            x, y, mem, NULL, NULL, NULL, NULL, rate, momentum,
+            size, acceleration, 0, NULL
+        )
+    ));
+    if (!ok) goto final;
+    *num_results += 1;
+    res += 1;
+final:
+    if (x != NULL) PSMatrixDelete(x);
+    if (y != NULL) PSMatrixDelete(y);
+    free(dest);
+    free(mem);
+    return ok;
+}
+
 int optimAdaGradBenchmark(PSBenchmarkConfig *cfg, int *num_results,
                           PSBenchmarkResults *results)
 {
@@ -1931,7 +2074,7 @@ int optimAdaGradBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     int acceleration = 0;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     acceleration = PSAcceleration_ACF;
-    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     memcpy(dest, x, size * sizeof(PSFloat));
     PSBenchmarkMeasure(res, (
@@ -2008,7 +2151,7 @@ int optimAdaDeltaBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     int acceleration = 0;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     acceleration = PSAcceleration_ACF;
-    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     memcpy(dest, x, size * sizeof(PSFloat));
     PSBenchmarkMeasure(res, (
@@ -2092,7 +2235,7 @@ int optimAdamBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     int acceleration = 0;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     acceleration = PSAcceleration_ACF;
-    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     memcpy(dest, x, size * sizeof(PSFloat));
     PSBenchmarkMeasure(res, (
@@ -2173,7 +2316,7 @@ int fullnetForwardBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     network->acceleration = PSAcceleration_ACF;
-    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
     PSBenchmarkMeasure(res, (
         ok = PSForward(network, x)
     ));
@@ -2249,7 +2392,7 @@ int cifarCNNBackpropBenchmark(PSBenchmarkConfig *cfg, int *num_results,
 #endif
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     network->acceleration = PSAcceleration_ACF;
-    PS_INIT_BENCHMARK(cfg, res, "Apple Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
     PSBenchmarkMeasure(res, (
         gradients = backprop(network, x, y, NULL, NULL)
     ));
@@ -2694,6 +2837,36 @@ PSBenchmarkConfig bechmarks[] = {
     {"PSDefaultOptimization (%d)", &optimization_tag, 0, 10,
      optimDefaultBenchmark, 1, int_argv},
 
+    /* PSDefaultOptimization (with momentum)*/
+    {"PSDefaultOptimization (mom.) (10000)", &optimization_tag, 0, 10,
+     optimDefaultBenchmark, 2, INTARGS(10000,1), 1},
+    {"PSDefaultOptimization (mom.) (100000)", &optimization_tag, 0, 10,
+     optimDefaultBenchmark, 2, INTARGS(100000,1), 1},
+    {"PSDefaultOptimization (mom.) (1000000)", &optimization_tag, 0, 10,
+     optimDefaultBenchmark, 2, INTARGS(1000000,1), 1},
+    {"PSDefaultOptimization (mom.) (%d)", &optimization_tag, 0, 10,
+     optimDefaultBenchmark, 2, int_argv, 1},
+
+    /* PSNesterovOptimization */
+    {"PSNesterovOptimization (10000)", &optimization_tag, 0, 10,
+     optimNesterovBenchmark, 1, INTARGS(10000)},
+    {"PSNesterovOptimization (100000)", &optimization_tag, 0, 10,
+     optimNesterovBenchmark, 1, INTARGS(100000)},
+    {"PSNesterovOptimization (1000000)", &optimization_tag, 0, 10,
+     optimNesterovBenchmark, 1, INTARGS(1000000)},
+    {"PSNesterovOptimization (%d)", &optimization_tag, 0, 10,
+     optimNesterovBenchmark, 1, int_argv},
+
+    /* PSWindowGradOptimization */
+    {"PSWindowGradOptimization (10000)", &optimization_tag, 0, 10,
+     optimWindowGradBenchmark, 1, INTARGS(10000)},
+    {"PSWindowGradOptimization (100000)", &optimization_tag, 0, 10,
+     optimWindowGradBenchmark, 1, INTARGS(100000)},
+    {"PSWindowGradOptimization (1000000)", &optimization_tag, 0, 10,
+     optimWindowGradBenchmark, 1, INTARGS(1000000)},
+    {"PSWindowGradOptimization (%d)", &optimization_tag, 0, 10,
+     optimWindowGradBenchmark, 1, int_argv},
+
     /* PSAdaGradOptimization */
     {"PSAdaGradOptimization (10000)", &optimization_tag, 0, 10,
      optimAdaGradBenchmark, 1, INTARGS(10000)},
@@ -2723,6 +2896,8 @@ PSBenchmarkConfig bechmarks[] = {
      optimAdamBenchmark, 1, INTARGS(1000000)},
     {"PSAdamOptimization (%d)", &optimization_tag, 0, 10,
      optimAdamBenchmark, 1, int_argv},
+
+    /**** Forward step ****/
 
     /* FullyConnected Forward */
     {"FullyConnected Forward (500,1000)", &fullnet_tag, 0, 10,
