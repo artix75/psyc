@@ -1,7 +1,7 @@
 INCLUDEDIR="$INCLUDEDIR/psyc"
 printHelp() {
     echo '' >&2
-    echo "Usage: $0 [OPTIONS] SOURCE [-- GCC_OPTS]" >&2
+    echo "Usage: $0 [OPTIONS] [SOURCE] [-- GCC_OPTS]" >&2
     echo "Compile a C source file against Psyc library." >&2
     echo '' >&2
     echo "OPTIONS:" >&2
@@ -9,6 +9,8 @@ printHelp() {
     echo "    -o, --output PATH           Output path" >&2
     echo "    -s, --static                Use static library" >&2
     echo "    -p, --dry-run               Only print command whithout executing it" >&2
+    echo "    --cflags                    Print CFLAGS and exit" >&2
+    echo "    --ldflags                    Print LDFLAGS and exit" >&2
     echo "    -q, --quiet                 Quiet mode" >&2
     echo "    -h, --help                  Print this help" >&2
     echo '' >&2
@@ -22,6 +24,7 @@ PRINT_ONLY=false
 QUIET=false
 SOURCE=''
 OUT=''
+PRINT_CFG=''
 while ! [ -z "$ARG" ]; do
     if [ "$ARG" = "-h" ] || [ "$ARG" = "--help" ]; then
         printHelp
@@ -31,7 +34,7 @@ while ! [ -z "$ARG" ]; do
         echo "ERROR: invalid value for '$CUR_ARG'" >&2
     fi
     if [ "$ARG" = "--" ]; then
-        if [ -z "$SOURCE" ]; then
+        if [ -z "$SOURCE" ] && [ -z "$PRINT_CFG" ]; then
             printHelp
             echo "ERROR: missing SOURCE" >&2
             exit 1
@@ -43,6 +46,10 @@ while ! [ -z "$ARG" ]; do
         USE_STATIC=true
     elif [ "$ARG" = "-p" ] || [ "$ARG" = "--dry-run" ]; then
         PRINT_ONLY=true
+    elif [ "$ARG" = "--cflags" ]; then
+        PRINT_CFG=cflags
+    elif [ "$ARG" = "--ldflags" ]; then
+        PRINT_CFG=ldflags
     elif [ "$ARG" = "-q" ] || [ "$ARG" = "--quiet" ]; then
         QUIET=true
     elif [ "$ARG" = "-o" ] || [ "$ARG" = "--output" ]; then
@@ -67,9 +74,8 @@ while ! [ -z "$ARG" ]; do
     ARG=$1
 done
 
-if [ -z "$SOURCE" ]; then
+if [ -z "$SOURCE" ] && [ -z "$PRINT_CFG" ]; then
     printHelp
-    echo "ERROR: missing SOURCE" >&2
     exit 1
 fi
 
@@ -109,6 +115,13 @@ if [ -z "$OUT" ]; then
     OUT=${SOURCE%.cc}
     OUT=${OUT%.c}
     OUT="$OUT.o"
+fi
+if [ "$PRINT_CFG" = 'cflags' ]; then
+    echo "$CFLAGS"
+    exit
+elif [ "$PRINT_CFG" = 'ldflags' ]; then
+    echo "$LDFLAGS"
+    exit
 fi
 CMD="$CC $CFLAGS $GCC_OPTS $OBJS -o $OUT $LDFLAGS"
 if [ "$PRINT_ONLY" = true ]; then
