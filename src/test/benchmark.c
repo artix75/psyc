@@ -1773,6 +1773,48 @@ final:
     return ok;
 }
 
+int actGeluBenchmark(PSBenchmarkConfig *cfg, int *num_results,
+                        PSBenchmarkResults *results)
+{
+    PS_BENCHMARK_PREAMBLE(cfg, results);
+    assert(cfg->argc > 0 && cfg->argv != NULL);
+    int size = *((int *) cfg->argv), ok = 1;
+    assert(size > 0);
+    PSMatrix x = PSMatrixWithGaussianRandom(1, 1, size);
+    PSFloat *dest = malloc(size * sizeof(PSFloat));
+    if (x == NULL || dest == NULL) {
+        PSPrintMemoryErrorMsg();
+        ok = 0;
+        goto final;
+    }
+    assert(PSMatrixLength(x) == (size_t) size);
+    PSMathOpts opts = {0};
+    PSBenchmarkResults *res = results;
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    opts.acceleration = PSAcceleration_ACF;
+    PSBenchmarkMeasure(res, PSGelu(x, dest, size, &opts));
+    *num_results += 1;
+    res += 1;
+#endif
+#ifdef USE_AVX
+    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    opts.acceleration = PSAcceleration_AVX;
+    PSBenchmarkMeasure(res, PSGelu(x, dest, size, &opts));
+    *num_results += 1;
+    res += 1;
+#endif
+    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    opts.acceleration = PSAcceleration_None;
+    PSBenchmarkMeasure(res, PSGelu(x, dest, size, &opts));
+    *num_results += 1;
+    res += 1;
+final:
+    if (x != NULL) PSMatrixDelete(x);
+    free(dest);
+    return ok;
+}
+
 int actReluDerivBenchmark(PSBenchmarkConfig *cfg, int *num_results,
                              PSBenchmarkResults *results)
 {
@@ -1807,6 +1849,90 @@ int actReluDerivBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
     opts.acceleration = PSAcceleration_None;
     PSBenchmarkMeasure(res, PSReluDerivative(x, dest, size, &opts));
+    *num_results += 1;
+    res += 1;
+final:
+    if (x != NULL) PSMatrixDelete(x);
+    free(dest);
+    return ok;
+}
+
+int actGeluDerivBenchmark(PSBenchmarkConfig *cfg, int *num_results,
+                             PSBenchmarkResults *results)
+{
+    PS_BENCHMARK_PREAMBLE(cfg, results);
+    assert(cfg->argc > 0 && cfg->argv != NULL);
+    int size = *((int *) cfg->argv), ok = 1;
+    assert(size > 0);
+    PSMatrix x = PSMatrixWithGaussianRandom(1, 1, size);
+    PSFloat *dest = malloc(size * sizeof(PSFloat));
+    if (x == NULL || dest == NULL) {
+        PSPrintMemoryErrorMsg();
+        ok = 0;
+        goto final;
+    }
+    assert(PSMatrixLength(x) == (size_t) size);
+    PSMathOpts opts = {0};
+    PSBenchmarkResults *res = results;
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    opts.acceleration = PSAcceleration_ACF;
+    PSBenchmarkMeasure(res, PSGeluDerivative(x, dest, size, &opts));
+    *num_results += 1;
+    res += 1;
+#endif
+#ifdef USE_AVX
+    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    opts.acceleration = PSAcceleration_AVX;
+    PSBenchmarkMeasure(res, PSGeluDerivative(x, dest, size, &opts));
+    *num_results += 1;
+    res += 1;
+#endif
+    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    opts.acceleration = PSAcceleration_None;
+    PSBenchmarkMeasure(res, PSGeluDerivative(x, dest, size, &opts));
+    *num_results += 1;
+    res += 1;
+final:
+    if (x != NULL) PSMatrixDelete(x);
+    free(dest);
+    return ok;
+}
+
+int actSoftmaxBenchmark(PSBenchmarkConfig *cfg, int *num_results,
+                        PSBenchmarkResults *results)
+{
+    PS_BENCHMARK_PREAMBLE(cfg, results);
+    assert(cfg->argc > 0 && cfg->argv != NULL);
+    int size = *((int *) cfg->argv), ok = 1;
+    assert(size > 0);
+    PSMatrix x = PSMatrixWithGaussianRandom(1, 1, size);
+    PSFloat *dest = malloc(size * sizeof(PSFloat));
+    if (x == NULL || dest == NULL) {
+        PSPrintMemoryErrorMsg();
+        ok = 0;
+        goto final;
+    }
+    assert(PSMatrixLength(x) == (size_t) size);
+    PSMathOpts opts = {0};
+    PSBenchmarkResults *res = results;
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    opts.acceleration = PSAcceleration_ACF;
+    PSBenchmarkMeasure(res, PSSoftmax(x, dest, size, &opts));
+    *num_results += 1;
+    res += 1;
+#endif
+#ifdef USE_AVX
+    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    opts.acceleration = PSAcceleration_AVX;
+    PSBenchmarkMeasure(res, PSSoftmax(x, dest, size, &opts));
+    *num_results += 1;
+    res += 1;
+#endif
+    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    opts.acceleration = PSAcceleration_None;
+    PSBenchmarkMeasure(res, PSSoftmax(x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 final:
@@ -2757,6 +2883,30 @@ PSBenchmarkConfig bechmarks[] = {
     {"PSRelu (%d)", &activation_tag, 0, 10, actReluBenchmark,
      1, int_argv},
 
+    /* PSGelu */
+    {"PSGelu (1000)", &activation_tag, 0, 10, actGeluBenchmark,
+     1, INTARGS(1000)},
+    {"PSGelu (10000)", &activation_tag, 0, 10, actGeluBenchmark,
+     1, INTARGS(10000)},
+    {"PSGelu (100000)", &activation_tag, 0, 10, actGeluBenchmark,
+     1, INTARGS(100000)},
+    {"PSGelu (1000000)", &activation_tag, 0, 10, actGeluBenchmark,
+     1, INTARGS(1000000)},
+    {"PSGelu (%d)", &activation_tag, 0, 10, actGeluBenchmark,
+     1, int_argv},
+
+    /* PSSoftmax */
+    {"PSSoftmax (1000)", &activation_tag, 0, 10, actSoftmaxBenchmark,
+     1, INTARGS(1000)},
+    {"PSSoftmax (10000)", &activation_tag, 0, 10, actSoftmaxBenchmark,
+     1, INTARGS(10000)},
+    {"PSSoftmax (100000)", &activation_tag, 0, 10, actSoftmaxBenchmark,
+     1, INTARGS(100000)},
+    {"PSSoftmax (1000000)", &activation_tag, 0, 10, actSoftmaxBenchmark,
+     1, INTARGS(1000000)},
+    {"PSSoftmax (%d)", &activation_tag, 0, 10, actSoftmaxBenchmark,
+     1, int_argv},
+
     /* PSSigmoidDerivative */
     {"PSSigmoidDerivative (1000)", &activation_tag, 0, 10,
       actSigmoidDerivBenchmark, 1, INTARGS(1000)},
@@ -2792,6 +2942,18 @@ PSBenchmarkConfig bechmarks[] = {
      actReluDerivBenchmark, 1, INTARGS(1000000)},
     {"PSReluDerivative (%d)", &activation_tag, 0, 10,
      actReluDerivBenchmark, 1, int_argv},
+
+    /* PSGeluDerivative */
+    {"PSGeluDerivative (1000)", &activation_tag, 0, 10,
+      actGeluDerivBenchmark, 1, INTARGS(1000)},
+    {"PSGeluDerivative (10000)", &activation_tag, 0, 10,
+     actGeluDerivBenchmark, 1, INTARGS(10000)},
+    {"PSGeluDerivative (100000)", &activation_tag, 0, 10,
+     actGeluDerivBenchmark, 1, INTARGS(100000)},
+    {"PSGeluDerivative (1000000)", &activation_tag, 0, 10,
+     actGeluDerivBenchmark, 1, INTARGS(1000000)},
+    {"PSGeluDerivative (%d)", &activation_tag, 0, 10,
+     actGeluDerivBenchmark, 1, int_argv},
 
     /********************** Optimization **********************/
 
