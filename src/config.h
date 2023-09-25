@@ -56,6 +56,7 @@ int PSIsAccelerationEnabled(uint8_t config, PSAcceleration acceleration);
 int PSEnableAcceleration(uint8_t *config, PSAcceleration acceleration);
 void PSDisableAcceleration(uint8_t *config, PSAcceleration acceleration);
 const char *PSGetAccelerationName(PSAcceleration acceleration);
+int PSGetCodeOptimizationLevel(void);
 
 extern int PSGlobalFlags;
 extern uint8_t PSGlobalAcceleration;

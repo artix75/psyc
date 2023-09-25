@@ -18,12 +18,21 @@ endif
 
 default: all
 
+Makefile.dep:
+	-$(CC) -MM *.c > Makefile.dep 2> /dev/null || true
+
+ifeq (0, $(words $(findstring $(MAKECMDGOALS), $(NOBUILD_GOALS))))
+-include Makefile.dep
+endif
+
 benchmark: $(OBJS) benchmark.o
+	$(call print-action,$(LINK_ACTION_NAME),$@,$(LINK_ACTION_COLOR))
 	$(CC) -o benchmark $(OBJS) benchmark.o $(LDFLAGS)
 	@cp benchmark ../../bin/
 	@[ -z "$(BUILD_ONLY)" ] && ./benchmark$(TEST_ARGS) || echo '' > /dev/null
 
 main_tests: $(OBJS) main_tests.o
+	$(call print-action,$(LINK_ACTION_NAME),$@,$(LINK_ACTION_COLOR))
 	$(CC) -o main_tests $(OBJS) main_tests.o $(LDFLAGS)
 
 all: main_tests

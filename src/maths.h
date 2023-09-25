@@ -51,10 +51,10 @@
 #endif
 
 #define PSClipValue(v, min, max) (v > max ? max : (v < min ? min : v))
-#define PSVectorZeros(len) calloc(len, sizeof(PSFloat))
 #define PSVectorCopy(dest, src, len) memcpy(dest, src, len * sizeof(PSFloat))
 #define PSVectorClear(vec, len) memset(vec, 0, len * sizeof(PSFloat))
 #define PSVectorZero(len) calloc(len, sizeof(PSFloat))
+#define PSVectorCreate(len) malloc(len * sizeof(PSFloat))
 
 #define PS_STORE_MODE_SET 0
 #define PS_STORE_MODE_ADD 1
@@ -222,6 +222,8 @@ void PSVectorMapWithLimit(PSFloat *a, PSFloat limit, PSFloat mapper,
 PSFloat PSVectorMax(PSFloat *a, uint64_t *index, uint64_t length,
                     PSMathOpts *opts);
 PSFloat PSSumVectorElements(PSFloat *a, uint64_t length, PSMathOpts *opts);
+void PSVectorPower(PSFloat *a, PSFloat exp, PSFloat *dest, uint64_t length,
+                   PSMathOpts *opts);
 int PSCumulativeSum(PSFloat *a, PSFloat *dest, uint64_t length);
 PSFloat PSMean(PSFloat *a, uint64_t length, PSMathOpts *opts);
 PSFloat PSVariance(PSFloat *a, uint64_t len, PSMathOpts *opts);

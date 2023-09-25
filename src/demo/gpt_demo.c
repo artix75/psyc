@@ -23,6 +23,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <stdint.h>
+#include <inttypes.h>
 #include <ctype.h>
 #include <assert.h>
 #include <unistd.h>
@@ -1205,7 +1206,7 @@ static PSVocabulary *loadVocabulary(char *model_dir, uint64_t vocab_size) {
     char token[1024];
     while (!feof(f)) {
         uint64_t index = 0;
-        int matched = fscanf(f, "%llu: ", &index);
+        int matched = fscanf(f, "%" SCNu64 ": ", &index);
         if (!matched) {
             ok = 0;
             PSErr(NULL, "invalid index at line %d in file '%s'",

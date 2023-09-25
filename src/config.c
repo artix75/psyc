@@ -15,6 +15,10 @@
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
+#include <ctype.h>
+#include <stdlib.h>
+#include <string.h>
+#include "buildinfo.h"
 #include "types.h"
 #include "config.h"
 
@@ -81,4 +85,18 @@ const char *PSGetAccelerationName(PSAcceleration acceleration) {
         case PSAcceleration_All: return "All";
     }
     return "Unknown";
+}
+
+/* Returns code optimization level (given by -O gcc option) as an integer.
+ * Returns -1 if optimization level is unknown. */
+int PSGetCodeOptimizationLevel(void) {
+    static int optimization = -1;
+#ifdef PS_OPTIMIZATION
+    if (optimization < 0) {
+        if (isdigit(PS_OPTIMIZATION[0])) optimization = atoi(PS_OPTIMIZATION);
+        else if (strcmp("fast", PS_OPTIMIZATION) == 0) optimization = 4;
+        else optimization = 0;
+    }
+#endif
+    return optimization;
 }

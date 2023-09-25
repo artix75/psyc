@@ -69,6 +69,8 @@
 #define VVSqrt(a,dest,len) vvsqrt(dest, a, (int *)&len)
 #define VVTanh(a,dest,len) vvtanh(dest, a, (int *)&len)
 #define VVExp(a,dest,len)  vvexp(dest, a, (int *)&len)
+#define VVLog(a,dest,len)  vvlog(dest, a, (int *)&len)
+#define VVPow(a,exp,dest,len) vvpow(dest, exp, a, (int *)&len)
 
 #else
 
@@ -102,6 +104,8 @@
 #define VVSqrt(a,dest,len) vvsqrtf(dest, a, (int *)&len)
 #define VVTanh(a,dest,len) vvtanhf(dest, a, (int *)&len)
 #define VVExp(a,dest,len)  vvexpf(dest, a, (int *)&len)
+#define VVLog(a,dest,len)  vvlogf(dest, a, (int *)&len)
+#define VVPow(a,exp,dest,len) vvpowf(dest, exp, a, (int *)&len)
 
 #endif
 
@@ -2712,6 +2716,44 @@ PSFloat PSSumVectorElements(PSFloat *a, uint64_t length, PSMathOpts *opts) {
     uint64_t i;
     for (i = 0; i < length; i++) sum += a[i];
     return sum;
+}
+
+void PSVectorPower(PSFloat *a, PSFloat exp, PSFloat *dest, uint64_t length,
+                   PSMathOpts *opts)
+{
+    MATHS_OPERATION_PREAMBLE();
+    if (exp == 1) {
+        if (dest == a) return;
+        else if (dest != NULL) {
+            PSVectorCopy(dest, a, length);
+            return;
+        }
+    } else if (exp == 2) {
+        PSMultiplyVectors(a, a, dest, length, opts);
+        return;
+    }
+#if defined(HAS_ACCELERATE_FRAMEWORK)
+    if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
+        PSFloat exps[length];
+        VDSPFill(exp, exps, length);
+        VVPow(a, exps, dest, length);
+        return;
+    }
+#else
+    UNUSED(acceleration);
+#endif
+    /* No Acceleration */
+    switch (mode) {
+        case PS_STORE_MODE_SET:
+            for (; i < length; i++) dest[i] = PSPow(a[i], exp);
+            break;
+        case PS_STORE_MODE_ADD:
+            for (; i < length; i++) dest[i] += PSPow(a[i], exp);
+            break;
+        case PS_STORE_MODE_SUB:
+            for (; i < length; i++) dest[i] -= PSPow(a[i], exp);
+            break;
+    }
 }
 
 int PSCumulativeSum(PSFloat *a, PSFloat *dest, uint64_t length) {

@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <inttypes.h>
 #include <signal.h>
 #include <assert.h>
 #include <time.h>
@@ -365,7 +366,9 @@ void initLSTMGRUParams(PSNeuralNetwork *network) {
     }
     uint64_t bias_count = PSGetLayerParametersCount(layer, PARAM_TYPE_BIAS);
     if (bias_count > 0) {
-        printf("Setting LSTM/GRU biases to zero (len = %llu)\n", bias_count);
+        printf(
+            "Setting LSTM/GRU biases to zero (len = %" PRIu64 ")\n", bias_count
+        );
         memset(layer->biases, 0, bias_count * sizeof(PSFloat));
     }
 }

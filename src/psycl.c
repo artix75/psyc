@@ -38,6 +38,7 @@
 #include "dataset.h"
 #include "log.h"
 #include "debug.h"
+#include "buildinfo.h"
 
 #ifdef HAS_MAGICK
 #include "image_data.h"
@@ -540,6 +541,24 @@ static void printAvailableAccelerations(void) {
     printAccelerationInfo(PSAcceleration_AVX);
     printAccelerationInfo(PSAcceleration_ACF);
     printAccelerationInfo(PSAcceleration_BLAS);
+}
+
+static void printInfo(void) {
+    printf("Version:                %s\n", PSYC_VERSION);
+    printf("Git SHA:                %s\n", PSYC_GIT_SHA);
+    printf("Git Dirty:              %s\n", PSYC_GIT_DIRTY);
+    printf("Git Branch:             %s\n", PSYC_GIT_BRANCH);
+    printf("Arch.:                  %dbit\n", (sizeof(long) == 8 ? 64 : 32));
+    printf("Double Precision:       %s\n",
+            (sizeof(PSFloat) > sizeof(float) ? "yes" : "no"));
+    printf("Code Optimization:      %d\n", PSGetCodeOptimizationLevel());
+    printf("Available Acceleration(s):\n");
+    if (PSIsAccelerationAvailable(PSAcceleration_ACF))
+        printf("    Accelerate Framework\n");
+    if (PSIsAccelerationAvailable(PSAcceleration_BLAS))
+        printf("    BLAS\n");
+    if (PSIsAccelerationAvailable(PSAcceleration_AVX))
+        printf("    AVX\n");
 }
 
 static int parseParamInitMode(int param_type, char *arg, PSLayerDef *ldef,
@@ -1189,6 +1208,10 @@ void parseOptions(int argc, char **argv) {
             );
             cleanup();
             exit(0);
+        } else if (strcmp("--info", arg) == 0) {
+            printInfo();
+            cleanup();
+            exit(0);
         } else if (strcmp("-h", arg) == 0 || strcmp("--help", arg) == 0) {
             printHelp(argv[0]);
             cleanup();
@@ -1252,7 +1275,7 @@ int parseOptionsFromFile(const char *filename) {
             tokens[numtokens++] = strdup(token);
             token = strtok(NULL,  " \r\t");
         }
-        if (numtokens == 0) goto next_line;
+        if (numtokens == 0 || tokens[0] == NULL) goto next_line;
         toLowerCase(tokens[0]);
         /* Ignore single char options (ie. 'p' for '-p')*/
         int first_token_len = strlen(tokens[0]);
@@ -1513,7 +1536,7 @@ PSLossFunction getLossFunctionByName(char *name) {
 }
 
 void printHelp(const char* program_path) {
-    printf("Usage: %s [OPTIONS]\n\n", program_path);
+    printf("\nUsage: %s [OPTIONS]\n\n", program_path);
     printf("OPTIONS:\n\n");
     printf("    -c, --config FILE               Load options from FILE\n");
     printf("        --load PRETRAINED           Load a pretrained network\n");
@@ -1581,6 +1604,7 @@ void printHelp(const char* program_path) {
     printf("        --verbose                   Verbose output (loglevel DEBUG)"
            "\n");
     printf("        --enable-colors             Colorized output\n");
+    printf("        --info                      Print Psyc info\n");
     printf("    -v, --version                   Print version\n");
     printf("    -h, --help                      Print this help\n");
     printf("\n");

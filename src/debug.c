@@ -52,6 +52,7 @@
 #include "avx.h"
 #endif
 
+#include "buildinfo.h"
 #include "platform.h"
 #include "config.h"
 #include "buildinfo.h"
@@ -61,6 +62,8 @@
 #include "convolutional.h"
 #include "lstm.h"
 #include "log.h"
+#include "utils.h"
+#include "dataset.h"
 #define UNUSED(V) ((void) V)
 
 #ifdef BACKTRACE_AVAILABLE
@@ -291,6 +294,16 @@ void segvHandler(int sig, siginfo_t *info, void *secret) {
 #else
             0,0,0);
 #endif
+#ifdef __clang__
+#ifdef __clang_version__
+    printf("Clang:              %s\n", __clang_version__);
+#else
+    printf("Clang:              yes\n");
+#endif
+#endif
+#ifdef PS_OPTIMIZATION
+    printf("Optimization:       %s\n", PS_OPTIMIZATION);
+#endif
     printf("Global Flags:       %d\n", PSGlobalFlags);
     printf("Unixtime:           %lu\n", time(NULL));
     if (last_debug_info.has_info) printLastDebugInfo();
@@ -306,6 +319,9 @@ void segvHandler(int sig, siginfo_t *info, void *secret) {
     printf("PSNeuron:          %d\n", (int) sizeof(PSNeuron));
     printf("PSLayer:           %d\n", (int) sizeof(PSLayer));
     printf("PSNeuralNetwork:   %d\n", (int) sizeof(PSLayer));
+    printf("PSDict:            %d\n", (int) sizeof(PSDict));
+    printf("PSDictItem:        %d\n", (int) sizeof(PSDictItem));
+    printf("PSVocabulary:      %d\n", (int) sizeof(PSVocabulary));
     printf("\n\n---- SIZEOF TYPES ----\n");
     printf("PSFloat: %d\n", (int) sizeof(PSFloat));
 #if USE_AVX

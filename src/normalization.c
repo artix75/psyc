@@ -30,9 +30,9 @@
 
 typedef struct {
     PSFloat *normalized_values;
-    PSFloat mean;
-    PSFloat variance;
-    PSFloat stddev;
+    PSFloat *mean;
+    PSFloat *variance;
+    PSFloat *stddev;
     uint32_t seqlen;
 } PSNormalizationLayerCache;
 
@@ -65,6 +65,12 @@ static void deleteNormalizationCache(PSNormalizationLayerCache *cache,
         }
         free(cache_t->normalized_values);
         cache_t->normalized_values = NULL;
+        free(cache_t->mean);
+        cache_t->mean = NULL;
+        free(cache_t->variance);
+        cache_t->variance = NULL;
+        free(cache_t->stddev);
+        cache_t->stddev = NULL;
     }
     free(cache);
 }
@@ -89,6 +95,8 @@ static void deleteNormalizationLayer(PSLayer *layer) {
 static int copyNormalizationLayer(PSLayer *layer, PSLayer *src) {
     PSNormalizationLayerCache *dstcache = GetNormalizationCache(layer);
     PSNormalizationLayerCache *srccache = GetNormalizationCache(src);
+    int outdepth = layer->output_depth;
+    if (outdepth < 1) outdepth = 1;
     if (srccache != NULL) {
         if (dstcache != NULL) deleteNormalizationLayerCache(layer);
         uint32_t seqlen = 1;
@@ -103,18 +111,38 @@ static int copyNormalizationLayer(PSLayer *layer, PSLayer *src) {
                 PSNormalizationLayerCache *srccache_t = srccache + i;
                 free(cache_t->normalized_values);
                 cache_t->normalized_values = NULL;
+                free(cache_t->mean);
+                cache_t->mean = NULL;
+                free(cache_t->variance);
+                cache_t->variance = NULL;
+                free(cache_t->stddev);
+                cache_t->stddev = NULL;
                 if (srccache_t->normalized_values != NULL) {
                     cache_t->normalized_values =
                         malloc(layer->size * sizeof(PSFloat));
-                    if (!cache_t->normalized_values) {
-                        PSPrintMemoryErrorMsg();
-                        return 0;
-                    }
-                    memcpy(
+                    if (cache_t->normalized_values == NULL) goto memerr;
+                    PSVectorCopy(
                         cache_t->normalized_values,
                         srccache_t->normalized_values,
-                        layer->size * sizeof(PSFloat)
+                        layer->size
                     );
+                }
+                if (srccache_t->mean != NULL) {
+                    cache_t->mean = malloc(outdepth * sizeof(PSFloat));
+                    if (cache_t->mean == NULL) goto memerr;
+                    PSVectorCopy(cache_t->mean, srccache_t->mean, outdepth);
+                }
+                if (srccache_t->variance != NULL) {
+                    cache_t->variance = malloc(outdepth * sizeof(PSFloat));
+                    if (cache_t->variance == NULL) goto memerr;
+                    PSVectorCopy(
+                        cache_t->variance, srccache_t->variance, outdepth
+                    );
+                }
+                if (srccache_t->stddev != NULL) {
+                    cache_t->stddev = malloc(outdepth * sizeof(PSFloat));
+                    if (cache_t->stddev == NULL) goto memerr;
+                    PSVectorCopy(cache_t->stddev, srccache_t->stddev, outdepth);
                 }
             }
         }
@@ -137,6 +165,34 @@ static int copyNormalizationLayer(PSLayer *layer, PSLayer *src) {
         layer->extra = NULL;
     }
     return 1;
+memerr:
+    PSPrintMemoryErrorMsg();
+    return 0;
+}
+
+static int checkNormalizationCache(PSNormalizationLayerCache *cache,
+                                   int size, int n_features)
+{
+    if (cache->normalized_values == NULL) {
+        cache->normalized_values = malloc(size * sizeof(PSFloat));
+        if (cache->normalized_values == NULL) goto memerr;
+    }
+    if (cache->mean == NULL) {
+        cache->mean = calloc(n_features, sizeof(PSFloat));
+        if (cache->mean == NULL) goto memerr;
+    }
+    if (cache->variance == NULL) {
+        cache->variance = calloc(n_features, sizeof(PSFloat));
+        if (cache->variance == NULL) goto memerr;
+    }
+    if (cache->stddev == NULL) {
+        cache->stddev = calloc(n_features, sizeof(PSFloat));
+        if (cache->stddev == NULL) goto memerr;
+    }
+    return 1;
+memerr:
+    PSPrintMemoryErrorMsg();
+    return 0;
 }
 
 PSNormalizationLayerCache *createNormalizationCache(PSLayer *layer,
@@ -147,17 +203,26 @@ PSNormalizationLayerCache *createNormalizationCache(PSLayer *layer,
         PSPrintMemoryErrorMsg();
         return NULL;
     }
-    for (uint32_t i = 0; i < seqlen; i++) {
+    int outdepth = layer->output_depth;
+    uint32_t i;
+    if (outdepth < 1) outdepth = 1;
+    for (i = 0; i < seqlen; i++) {
         PSNormalizationLayerCache *cache_t = cache + i;
         cache_t->seqlen = seqlen;
         cache_t->normalized_values = calloc(layer->size, sizeof(PSFloat));
-        if (cache_t->normalized_values == NULL) {
-            PSPrintMemoryErrorMsg();
-            deleteNormalizationCache(cache, i);
-            return NULL;
-        }
+        if (cache_t->normalized_values == NULL) goto memerr;
+        cache_t->mean = calloc(outdepth, sizeof(PSFloat));
+        if (cache_t->mean == NULL) goto memerr;
+        cache_t->variance = calloc(outdepth, sizeof(PSFloat));
+        if (cache_t->variance == NULL) goto memerr;
+        cache_t->stddev = calloc(outdepth, sizeof(PSFloat));
+        if (cache_t->stddev == NULL) goto memerr;
     }
     return cache;
+memerr:
+    PSPrintMemoryErrorMsg();
+    deleteNormalizationCache(cache, i);
+    return NULL;
 }
 
 int PSInitNormalizationCache(PSLayer *layer, uint32_t seqlen,
@@ -182,10 +247,12 @@ int PSResizeNormalizationCache(PSLayer *layer, uint32_t seqlen, uint32_t prev) {
     if (layer == NULL) return 0;
     PSNormalizationLayerCache *cache = GetNormalizationCache(layer);
     if (cache == NULL) return PSInitNormalizationCache(layer, seqlen, 0);
-    PSNormalizationLayerCache *new_cache = calloc(seqlen, seqlen);
+    PSNormalizationLayerCache *new_cache = calloc(seqlen, sizeof(*new_cache));
     if (new_cache == NULL) goto memerr;
     size_t size = (size_t) seqlen * sizeof(PSNormalizationLayerCache);
     memcpy(new_cache, cache, size);
+    int outdepth = layer->output_depth;
+    if (outdepth < 1) outdepth = 1;
     int cur_seqlen = prev;
     int diff = seqlen - cur_seqlen;
     if (diff > 0) {
@@ -195,6 +262,12 @@ int PSResizeNormalizationCache(PSLayer *layer, uint32_t seqlen, uint32_t prev) {
             PSNormalizationLayerCache *added = added_caches + i;
             added->normalized_values = calloc(layer->size, sizeof(PSFloat));
             if (added->normalized_values == NULL) goto memerr;
+            added->mean = calloc(outdepth, sizeof(PSFloat));
+            if (added->mean == NULL) goto memerr;
+            added->variance = calloc(outdepth, sizeof(PSFloat));
+            if (added->variance == NULL) goto memerr;
+            added->stddev = calloc(outdepth, sizeof(PSFloat));
+            if (added->stddev == NULL) goto memerr;
         }
     }
     free(cache);
@@ -206,6 +279,47 @@ memerr:
     deleteNormalizationLayerCache(layer);
     layer->private = NULL;
     PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
+    return 0;
+}
+
+int PSNormalize(PSFloat *inputs, PSFloat *outputs, PSFloat *normalized,
+                int size, PSFloat *scale, PSFloat *intercept,
+                PSFloat *mean_p, PSFloat *variance_p, PSFloat *stddev_p,
+                PSFloat epsilon, PSMathOpts *opts)
+{
+    PSMathOpts dfopts = {.acceleration = PSGlobalAcceleration};
+    if (opts == NULL) opts = &dfopts;
+    size_t alloc_size = size * sizeof(PSFloat);
+    PSFloat *meandiff = malloc(alloc_size);
+    PSFloat *tmp = malloc(alloc_size);
+    if (meandiff == NULL || tmp == NULL) goto memerr;
+    /* Compute, variance and stddev */
+    PSFloat mean = PSMean(inputs, size, opts);
+    PSSubtractVectorScalar(inputs, mean, meandiff, size, opts);
+    PSMultiplyVectors(meandiff, meandiff, tmp, size, opts);
+    PSFloat variance = PSMean(tmp, size, opts);
+    PSFloat stddev = PSSqrt(variance + epsilon);
+    /* Normalize values: (x - mean) / stddtev */
+    PSDivideVectorScalar(meandiff, stddev, normalized, size, opts);
+    if (mean_p != NULL) *mean_p = mean;
+    if (variance_p != NULL) *variance_p = variance;
+    if (stddev_p != NULL) *stddev_p = stddev;
+    if (scale != NULL || intercept != NULL) {
+        if (scale != NULL)
+            PSMultiplyVectors(normalized, scale, outputs, size, opts);
+        if (intercept != NULL)
+            PSSumVectors(outputs, intercept, outputs, size, opts);
+    } else {
+        if (outputs != normalized) memcpy(outputs, normalized, alloc_size);
+    }
+    free(meandiff);
+    free(tmp);
+    return 1;
+memerr:
+    PSPrintMemoryErrorMsg();
+fail:
+    free(meandiff);
+    free(tmp);
     return 0;
 }
 
@@ -229,6 +343,7 @@ int PSInitNormalizationLayer(PSLayer *layer, PSLayerDef *ldef) {
         layer->output_rows = previous->output_rows;
     if (previous->output_depth > 0)
         layer->output_depth = previous->output_depth;
+    else layer->output_depth = 1;
     if (!(layer->flags & FLAG_NON_TRAINABLE)) {
         layer->weights = malloc(sizeof(PSMatrix));
         if (layer->weights == NULL) goto memerr;
@@ -269,12 +384,11 @@ memerr:
     return 0;
 }
 
-/* Feddforward */
+/* Feedforward */
 int PSNormalizationForward(PSLayer *layer, ...) {
     if (!checkLayerForForward(layer)) return 0;
     int t = 0, seqlen = 1, is_recurrent = PSIsRecurrent(layer),
         sequence_at_once = PSHandleSequenceAtOnce(layer);
-    PSFloat *meandiff = NULL, *tmp = NULL;
     PSLayer *previous = PSGetPreviousLayer(layer);
     if (is_recurrent || sequence_at_once) {
         va_list args;
@@ -302,58 +416,41 @@ int PSNormalizationForward(PSLayer *layer, ...) {
         if (lcache == NULL) return 0;
     }
     PSNormalizationLayerSettings *settings = PSGetNormalizationSettings(layer);
-    size_t alloc_size = layer->size * sizeof(PSFloat);
     PSFloat epsilon = PSDEFAULT_NORM_EPSILON;
     if (settings != NULL) epsilon = settings->epsilon;
     if (epsilon == 0) epsilon = PSDEFAULT_NORM_EPSILON;
     PSMathOpts mopts = {.acceleration = layer->network->acceleration};
     PSFloat *input_p = inputs, *output_p = outputs;
-    for (int i = 0; i < seqlen; i++) {
+    int size = layer->size, n_features = layer->output_depth,
+        trainable = !(layer->flags & FLAG_NON_TRAINABLE), i, j;
+    if (n_features > 1) size /= n_features;
+    else n_features = 1;
+    for (i = 0; i < seqlen; i++) {
         int tidx = i + t;
         PSNormalizationLayerCache *cache = lcache + tidx;
-        if (cache->normalized_values == NULL) {
-            cache->normalized_values = malloc(alloc_size);
-            if (cache->normalized_values == NULL) goto memerr;
-        }
+        if (!checkNormalizationCache(cache, layer->size, n_features))
+            return 0;
         /* Normalization */
-        PSFloat *normalized = cache->normalized_values;
-        meandiff = malloc(alloc_size);
-        tmp = malloc(alloc_size);
-        if (meandiff == NULL || tmp == NULL) goto memerr;
-        /* Compute, variance and stddev */
-        PSFloat mean = PSMean(input_p, layer->size, &mopts);
-        PSSubtractVectorScalar(input_p, mean, meandiff, layer->size, &mopts);
-        PSMultiplyVectors(meandiff, meandiff, tmp, layer->size, &mopts);
-        PSFloat variance = PSMean(tmp, layer->size, &mopts);
-        PSFloat stddev = PSSqrt(variance + epsilon);
-        /* Normalize values: (x - mean) / stddtev */
-        PSDivideVectorScalar(meandiff, stddev, normalized, layer->size, &mopts);
-        cache->mean = mean;
-        cache->variance = variance;
-        cache->stddev = stddev;
-        if (!(layer->flags & FLAG_NON_TRAINABLE)) {
-            /* Apply weights and biases */
-            PSMultiplyVectors(
-                normalized, layer->weights[0], output_p, layer->size, &mopts
-            );
-            PSSumVectors(
-                output_p, layer->biases, output_p, layer->size, &mopts
-            );
-        } else memcpy(output_p, normalized, alloc_size);
-        free(meandiff);
-        free(tmp);
-        meandiff = NULL;
-        tmp = NULL;
-        input_p += layer->size;
-        output_p += layer->size;
+        for (j = 0; j < n_features; j++) {
+            int offset = j * size;
+            PSFloat *normalized = cache->normalized_values + offset;
+            PSFloat *scale = NULL, *intercept = NULL;
+            PSFloat *mean_p = cache->mean + j,
+                    *var_p = cache->variance + j,
+                    *stddev_p = cache->stddev + j;
+            if (trainable) {
+                scale = layer->weights[0] + offset;
+                intercept = layer->biases + offset;
+            }
+            int ok = PSNormalize(input_p, output_p, normalized, size, scale,
+                                 intercept, mean_p, var_p, stddev_p,
+                                 epsilon, &mopts);
+            if (!ok) return 0;
+            input_p += size;
+            output_p += size;
+        }
     }
     return 1;
-memerr:
-    PSPrintMemoryErrorMsg();
-fail:
-    free(meandiff);
-    free(tmp);
-    return 0;
 }
 
 int PSNormalizationBackprop(PSLayer *layer, PSLayer *previous,
@@ -387,35 +484,20 @@ int PSNormalizationBackprop(PSLayer *layer, PSLayer *previous,
     if (epsilon == 0) epsilon = PSDEFAULT_NORM_EPSILON;
     PSMathOpts mopts = {.acceleration = layer->network->acceleration};
     size_t alloc_size = layer->size * sizeof(PSFloat);
+    int n_features = layer->output_depth, size = layer->size, i, j;
+    if (n_features < 1) n_features = 1;
+    else if (n_features > 1) size /= n_features;
     PSFloat *delta_p = layer->delta, *prev_delta_p = previous->delta;
-    for (int i = 0; i < seqlen; i++) {
-        int tidx = i + t;
-        PSNormalizationLayerCache *cache = lcache + tidx;
-        PSFloat *normalized = cache->normalized_values;
-        if (normalized == NULL) {
-            PSErr(NULL, "Layer[%d]: missing normalized values in "
-                        "normalization cache at step %d", layer->index, tidx);
-            return 0;
+    PSFloat *delta_norm_p = delta_norm = delta_p;
+    if (trainable) {
+        delta_norm = malloc(seqlen * alloc_size);
+        success = (delta_norm != NULL);
+        if (!success) {
+            PSPrintMemoryErrorMsg();
+            goto final;
         }
-        if (trainable) {
-            delta_norm = malloc(alloc_size);
-            if (delta_norm == NULL) {
-                PSPrintMemoryErrorMsg();
-                return 0;
-            }
-            mopts.store_mode = PS_STORE_MODE_ADD;
-            if (use_bias) {
-                PSSumVectors(gradient->biases, delta_p, gradient->biases,
-                             layer->size, &mopts);
-            }
-            PSMultiplyVectors(delta_p, normalized, gradient->weights,
-                              layer->size, &mopts);
-            mopts.store_mode = PS_STORE_MODE_SET;
-            /* delta_norm = weights * delta[tidx] */
-            PSMultiplyVectors(layer->weights[0], delta_p, delta_norm,
-                              layer->size, &mopts);
-        } else delta_norm = delta_p; /* delta_norm = delta[tidx] */
-        if (previous->delta == NULL) continue;
+    }
+    if (previous->delta != NULL) {
         tmp1 = malloc(alloc_size);
         tmp2 = malloc(alloc_size);
         success = (tmp1 != NULL && tmp2 != NULL);
@@ -423,33 +505,65 @@ int PSNormalizationBackprop(PSLayer *layer, PSLayer *previous,
             PSPrintMemoryErrorMsg();
             goto final;
         }
-        PSFloat stddev = cache->stddev;
-        if (stddev == 0.0) stddev = PSSqrt(cache->variance + epsilon);
-        success = (stddev != 0);
+    }
+    PSFloat *tmp1_p = tmp1, *tmp2_p = tmp2;
+    for (i = 0; i < seqlen; i++) {
+        int tidx = i + t;
+        PSNormalizationLayerCache *cache = lcache + tidx;
+        success = (cache->normalized_values != NULL);
         if (!success) {
-            PSErr(NULL, "Layer[%d]: stddev is zero", layer->index);
+            PSErr(NULL, "Layer[%d]: missing normalized values in "
+                        "normalization cache at step %d", layer->index, tidx);
             goto final;
         }
-        mopts.store_mode = PS_STORE_MODE_SET;
-        PSMultiplyVectors(delta_norm, normalized, tmp2, layer->size, &mopts);
-        PSMultiplyVectorScalar(delta_norm, layer->size, tmp1, layer->size,
-            &mopts);
-        /* dnorm_sum = sum(delta_norm)
-         * dnorm_norm_sum = sum(delta_norm * normalized) */
-        PSFloat dnorm_sum = PSSumVectorElements(delta_norm,layer->size,&mopts);
-        PSFloat dnorm_norm_sum = PSSumVectorElements(tmp2, layer->size, &mopts);
-        PSMultiplyVectorScalar(normalized, dnorm_norm_sum, tmp2, layer->size,
-                               &mopts);
-        PSSubtractVectorScalar(tmp1, dnorm_sum, tmp1, layer->size, &mopts);
-        PSSubtractVectors(tmp1, tmp2, tmp1, layer->size, &mopts);
-        mopts.store_mode = PS_STORE_MODE_ADD;
-        /* tmp1 = ((delta_norm / layer_size) - dnorm_sum) -
-                   (normalized * dnorm_norm_sum)) */
-        /* prev_delta += (tmp1 * (layer_size * stddev)) */
-        PSDivideVectorScalar(tmp1, (layer->size * stddev), prev_delta_p,
-                             layer->size, &mopts);
-        delta_p += layer->size;
-        prev_delta_p += layer->size;
+        for (j = 0; j < n_features; j++) {
+            int offset = size * j;
+            PSFloat *normalized = cache->normalized_values + offset;
+            if (trainable) {
+                PSFloat *gbiases = gradient->biases + offset,
+                        *gweights = gradient->weights + offset,
+                        *lweights = layer->weights[0] + offset;
+                mopts.store_mode = PS_STORE_MODE_ADD;
+                if (use_bias)
+                    PSSumVectors(gbiases, delta_p, gbiases, size, &mopts);
+                PSMultiplyVectors(delta_p, normalized, gweights, size, &mopts);
+                mopts.store_mode = PS_STORE_MODE_SET;
+                /* delta_norm = weights * delta[tidx] */
+                PSMultiplyVectors(lweights, delta_p, delta_norm_p,size, &mopts);
+            } else delta_norm_p = delta_p; /* delta_norm = delta[tidx] */
+            if (previous->delta == NULL) continue;
+            PSFloat stddev = cache->stddev[j];
+            if (stddev == 0.0) stddev = PSSqrt(cache->variance[j] + epsilon);
+            success = (stddev != 0);
+            if (!success) {
+                PSErr(NULL, "Layer[%d]: stddev is zero", layer->index);
+                goto final;
+            }
+            mopts.store_mode = PS_STORE_MODE_SET;
+            PSMultiplyVectors(delta_norm_p, normalized, tmp2_p, size, &mopts);
+            PSMultiplyVectorScalar(delta_norm_p, size, tmp1_p, size, &mopts);
+            /* dnorm_sum = sum(delta_norm)
+             * dnorm_norm_sum = sum(delta_norm * normalized) */
+            PSFloat dnorm_sum = PSSumVectorElements(delta_norm_p, size, &mopts);
+            PSFloat dnorm_norm_sum = PSSumVectorElements(tmp2_p, size, &mopts);
+            PSMultiplyVectorScalar(
+                normalized, dnorm_norm_sum, tmp2_p, size,&mopts
+            );
+            PSSubtractVectorScalar(tmp1_p, dnorm_sum, tmp1_p, size, &mopts);
+            PSSubtractVectors(tmp1_p, tmp2_p, tmp1_p, size, &mopts);
+            mopts.store_mode = PS_STORE_MODE_ADD;
+            /* tmp1 = ((delta_norm / layer_size) - dnorm_sum) -
+                       (normalized * dnorm_norm_sum)) */
+            /* prev_delta += (tmp1 * (layer_size * stddev)) */
+            PSDivideVectorScalar(
+                tmp1_p, (size * stddev), prev_delta_p, size, &mopts
+            );
+            delta_p += size;
+            prev_delta_p += size;
+            delta_norm_p += size;
+            tmp1_p += size;
+            tmp2_p += size;
+        }
     }
 final:
     if (delta_norm != layer->delta && delta_norm != NULL) free(delta_norm);

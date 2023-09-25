@@ -349,9 +349,6 @@ int PSAdamOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
                        uint64_t len, int acceleration, int iteration,
                        PSTrainingOptions *options)
 {
-    UNUSED(tmp);
-    UNUSED(mtmp);
-    UNUSED(xtmp);
     UNUSED(momentum);
     if (mgrads == NULL) {
         PSErr(__func__, "argument `mgrads` is mandatory");
@@ -380,7 +377,7 @@ int PSAdamOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
     PSFloat *tmpalloc = NULL, *tmpalloc1 = NULL, *tmpalloc2 = NULL;
     if (!PSIsAccelerationAvailable(acceleration))
         acceleration = PSAcceleration_None;
-    acceleration = PSAcceleration_None; /* Acceleration disabled */
+    /*acceleration = PSAcceleration_None; */
     int success = 1;
     if (acceleration == PSAcceleration_None) {
         for (uint64_t i = 0; i < len; i++) {
@@ -393,51 +390,65 @@ int PSAdamOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
             params[i] += dx;
         }
     } else {
-        /* ACCELERATION DISABLED: MISSING ACCELERATED FUNCTION FOR POW */
-
-        /*if (tmp == NULL) {
+        if (tmp == NULL) {
             tmpalloc = malloc(len * sizeof(PSFloat));
-            if (tmpalloc == NULL) {
+            success = (tmpalloc != NULL);
+            if (!success) {
                 PSPrintMemoryErrorMsg();
-                return 0;
+                goto final;
             }
             tmp = tmpalloc;
         }
         PSFloat *correct1 = mtmp, *correct2 = xtmp;
         if (correct1 == NULL) {
-            tmpalloc = malloc(len * sizeof(PSFloat));
-            if (tmpalloc1 == NULL) {
+            tmpalloc1 = malloc(len * sizeof(PSFloat));
+            success = (tmpalloc1 != NULL);
+            if (!success) {
                 PSPrintMemoryErrorMsg();
-                success = 0;
                 goto final;
             }
             correct1 = tmpalloc1;
         }
         if (correct2 == NULL) {
-            tmpalloc = malloc(len * sizeof(PSFloat));
-            if (tmpalloc2 == NULL) {
+            tmpalloc2 = malloc(len * sizeof(PSFloat));
+            success = (tmpalloc2 != NULL);
+            if (!success) {
                 PSPrintMemoryErrorMsg();
-                success = 0;
                 goto final;
             }
             correct2 = tmpalloc2;
         }
-        PSMathOpts mopts = {.acceleration = acceleration};*/
+        PSMathOpts mopts = {.acceleration = acceleration};
 
         /* mgrads[i] * beta1 + (1 - beta1) * grads[i] */
-        /*mopts.store_mode = PS_STORE_MODE_SET;
+        mopts.store_mode = PS_STORE_MODE_SET;
         PSMultiplyVectorScalar(mgrads, beta1, mgrads, len, &mopts);
-        mopts.store_mode = PS_STORE_MODE_ADD;
-        PSMultiplyVectorScalar(grads, (1 - beta1), mgrads, len, &mopts);*/
+        PSMultiplyVectorScalar(grads, (1 - beta1), tmp, len, &mopts);
+        PSSumVectors(mgrads, tmp, mgrads, len, &mopts);
         /* xgrads[i] = xgrads[i] * beta2 + (1 - beta2) * grads[i] * grads[i] */
-        /*mopts.store_mode = PS_STORE_MODE_SET;
+        mopts.store_mode = PS_STORE_MODE_SET;
         PSMultiplyVectorScalar(xgrads, beta2, xgrads, len, &mopts);
-        PSMultiplyVectors(grads, grads, tmp, len, &mopts);
-        mopts.store_mode = PS_STORE_MODE_ADD;
-        PSMultiplyVectorScalar(tmp, (1 - beta2), xgrads, len, &mopts);*/
-        /* correct1 = mgrads[i] * (1 - PSPow(beta1, iteration)) */
-
+        PSVectorPower(grads, 2, tmp, len, &mopts);
+        PSMultiplyVectorScalar(tmp, (1 - beta2), tmp, len, &mopts);
+        PSSumVectors(xgrads, tmp, xgrads, len, &mopts);
+        /* correct1 = mgrads[i] * (1 - PSPow(beta1, iteration))*/
+        mopts.store_mode = PS_STORE_MODE_SET;
+        PSMultiplyVectorScalar(
+            mgrads, (1 - PSPow(beta1, iteration)), correct1, len, &mopts
+        );
+        /* correct2 = xgrads[i] * (1 - PSPow(beta2, iteration))*/
+        PSMultiplyVectorScalar(
+            xgrads, (1 - PSPow(beta2, iteration)), correct2, len, &mopts
+        );
+        /* dx =  - rate * correct1 / (PSSqrt(correct2) + eps); */
+        PSMultiplyVectorScalar(correct1, -rate, correct1, len, &mopts);
+        PSVectorSqrt(correct2, correct2, len, &mopts);
+        PSSumVectorScalar(correct2, eps, correct2, len, &mopts);
+        PSDivideVectors(correct1, correct2, tmp, len, &mopts);
+        /* params[i] += dx; */
+        PSSumVectors(params, tmp, params, len, &mopts);
     }
+final:
     if (tmpalloc != NULL) free(tmpalloc);
     if (tmpalloc1 != NULL) free(tmpalloc1);
     if (tmpalloc2 != NULL) free(tmpalloc2);

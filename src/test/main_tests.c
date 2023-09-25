@@ -170,6 +170,7 @@ int testMathsClip(TestCase *tc, Test *test);
 int testMathsThres(TestCase *tc, Test *test);
 int testMathsMapLimit(TestCase *tc, Test *test);
 int testMathsExp(TestCase *tc, Test *test);
+int testMathsPow(TestCase *tc, Test *test);
 int testMathsTanh(TestCase *tc, Test *test);
 int testMathsSqrt(TestCase *tc, Test *test);
 int testMathsNeg(TestCase *tc, Test *test);
@@ -718,6 +719,7 @@ int main(int argc, char** argv) {
         addTest(mathsTests, "Threshold", NULL, testMathsThres);
         addTest(mathsTests, "Mapped Limit", NULL, testMathsMapLimit);
         addTest(mathsTests, "Exp", NULL, testMathsExp);
+        addTest(mathsTests, "Power", NULL, testMathsPow);
         addTest(mathsTests, "Tanh", NULL, testMathsTanh);
         addTest(mathsTests, "Sqrt", NULL, testMathsSqrt);
         addTest(mathsTests, "Negate", NULL, testMathsNeg);
@@ -5137,6 +5139,38 @@ int testMathsExp(TestCase *tc, Test *test) {
 #endif
     opts.acceleration = PSAcceleration_None;
     PSVectorExp(x, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "No Acceleration:", 0, 0);
+    if (!ok) return 0;
+    return ok;
+}
+
+int testMathsPow(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat x[6] = {1.0, 8.3, -2.0, -1.0, 0.0, 18.5};
+    PSFloat cmp_res[6] = {0};
+    PSFloat res[6] = {0};
+    PSFloat exp = 3;
+    for (int i = 0; i < 6; i++) cmp_res[i] = PSPow(x[i], exp);
+    int ok = 1;
+    int precision = 5;
+    PSMathOpts opts = {0};
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    opts.acceleration = PSAcceleration_ACF;
+    PSVectorPower(x, exp, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0,
+                       precision);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    opts.acceleration = PSAcceleration_AVX;
+    PSVectorPower(x, exp, res, 6, &opts);
+    ok = compareArrays(res, cmp_res, 6, test, "AVX", 0, precision);
+    if (!ok) return 0;
+#else
+    UNUSED(precision);
+#endif
+    opts.acceleration = PSAcceleration_None;
+    PSVectorPower(x, exp, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "No Acceleration:", 0, 0);
     if (!ok) return 0;
     return ok;
