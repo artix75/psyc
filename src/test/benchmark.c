@@ -55,11 +55,12 @@
     results->samples = cfg->samples;\
 } while (0)
 
-#define PS_INIT_BENCHMARK(cfg, results, bm_name) do {\
+#define PS_INIT_BENCHMARK(cfg, index_ptr, results, bm_name) do {\
     if (bm_name != NULL) sprintf(res->name, "%s", bm_name);\
     else res->name[0] = '\0';\
     if (cfg->samples <= 0) cfg->samples = DEFAULT_BENCHMARK_SAMPLES;\
     results->samples = cfg->samples;\
+    results->index = *index_ptr;\
 } while(0)
 
 #define INTARGS(...) ((void *)((int []){__VA_ARGS__}))
@@ -70,11 +71,20 @@
     results->tot_time_us = 0;\
     results->performed = 0;\
     if (results->samples <= 0) results->samples = DEFAULT_BENCHMARK_SAMPLES;\
+    if (!disable_prerun && results->index == 0) {\
+        code;\
+    }\
     while (results->performed++ < results->samples) {\
         gettimeofday(&st, NULL);\
         code;\
         gettimeofday(&et, NULL);\
         results->tot_time_us += PSGetElapsedTimeUS(st, et);\
+        if (verbose) {\
+            printf(\
+                "%s: sample %2d = %ldus\n", results->name, results->performed,\
+                PSGetElapsedTimeUS(st, et)\
+            );\
+        }\
     }\
     results->avg_time_us = results->tot_time_us / results->samples;\
 } while (0)
@@ -87,6 +97,7 @@ typedef int (* PSBenchmarkFunction) (struct PSBenchmarkConfig *,
 
 typedef struct PSBenchmarkResults {
     char name[256];
+    int index;
     int samples;
     int performed;
     time_t tot_time_us;
@@ -102,6 +113,7 @@ typedef struct PSBenchmarkConfig {
     int argc;
     void *argv;
     int size_args;
+    void *default_argv;
 } PSBenchmarkConfig;
 
 /* Globals */
@@ -109,6 +121,7 @@ typedef struct PSBenchmarkConfig {
 char *exclude_str = NULL;
 char *match_str = NULL;
 int cache_enabled = 1;
+int auto_accel = 0;
 int min_size = 0, max_size = 0;
 int int_argc = 0, flt_argc = 0;
 int int_argv[50] = {0};
@@ -116,6 +129,8 @@ PSFloat flt_argv[50] = {0};
 void *user_argv = NULL;
 char *csv_output = NULL;
 char *json_output = NULL;
+int disable_prerun = 0;
+int verbose = 0;
 
 /* Forward decl. */
 PSGradient **backprop(PSNeuralNetwork *network, PSFloat *x, PSFloat *y,
@@ -163,6 +178,27 @@ static int parseUserArgv(char *argvstr, void *argv, int is_int) {
     return argc;
 }
 
+static int setDefaultArgv(PSBenchmarkConfig *cfg, int user_argc,
+                          void *user_argv, int is_int)
+{
+    int default_argc = cfg->argc - user_argc;
+    if (default_argc <= 0) return 0;
+    if (cfg->default_argv == NULL) return 0;
+    size_t elem_sz = (is_int ? sizeof(int) : sizeof(PSFloat));
+    cfg->argv = calloc(cfg->argc, elem_sz);
+    if (cfg->argv == NULL) {
+        PSWarn("Benchmark '%s': failed to allocate %s argv of size %d",
+               cfg->name, (is_int ? "int" : "PSFloat"), cfg->argc);
+        return 0;
+    }
+    size_t default_sz = user_argc * elem_sz;
+    uint8_t *default_src = ((uint8_t *) cfg->default_argv) + default_sz;
+    uint8_t *default_dst = ((uint8_t *) cfg->argv) + default_sz;
+    if (user_argc > 0) memcpy(cfg->argv, user_argv, user_argc * elem_sz);
+    memcpy(default_dst, default_src, default_argc);
+    return default_argc;
+}
+
 char *PSBenchmarkName(PSBenchmarkConfig *cfg) {
     static char fmtname[255] = {0};
     if (cfg == NULL || cfg->name == NULL) return NULL;
@@ -186,6 +222,7 @@ char *PSBenchmarkName(PSBenchmarkConfig *cfg) {
                 else goto next;
                 p++;
                 remaining -= 2;
+
                 if (remaining < 1) break;
                 newlen += len;
                 if (newlen >= 254) break;
@@ -209,6 +246,7 @@ char *PSBenchmarkName(PSBenchmarkConfig *cfg) {
                 if (cur != name && remaining > 0) {
                     if (remaining > available) remaining = available;
                     strncpy(fmtname_p, cur, remaining);
+                    newlen += remaining;
                     remaining = 0;
                 }
                 break;
@@ -461,20 +499,20 @@ int mathsDotProductBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSDotProduct(x, y, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
 #ifdef USE_AVX
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     opts.acceleration = PSAcceleration_AVX;
     PSBenchmarkMeasure(res, PSDotProduct(x, y, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     opts.acceleration = PSAcceleration_None;
     PSBenchmarkMeasure(res, PSDotProduct(x, y, size, &opts));
     *num_results += 1;
@@ -506,7 +544,7 @@ int mathsDotBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSMathOpts opts = {0};
     opts.argtype[1] = 'V';
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, (ok = PSDot(x, y, dest, &opts)));
     if (!ok) goto final;
@@ -514,21 +552,21 @@ int mathsDotBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     res += 1;
 #endif
 #ifdef USE_AVX
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     opts.acceleration = PSAcceleration_AVX;
     PSBenchmarkMeasure(res, (ok = PSDot(x, y, dest, &opts)));
     if (!ok) goto final;
     *num_results += 1;
     res += 1;
 #endif
-    PS_INIT_BENCHMARK(cfg, res, "BLAS");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "BLAS");
     opts.acceleration = PSAcceleration_BLAS;
     PSBenchmarkMeasure(res, (ok = PSDot(x, y, dest, &opts)));
     if (!ok) goto final;
     *num_results += 1;
     res += 1;
 
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     opts.acceleration = PSAcceleration_None;
     PSBenchmarkMeasure(res, (ok = PSDot(x, y, dest, &opts)));
     if (!ok) goto final;
@@ -561,7 +599,7 @@ int mathsVecProdBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSMathOpts opts = {0};
 #ifdef HAS_BLAS
     opts.acceleration = PSAcceleration_BLAS;
-    PS_INIT_BENCHMARK(cfg, res, "BLAS");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "BLAS");
     PSBenchmarkMeasure(
         res, (ok = PSOuterProduct(a, b, dest, len_a, len_b, &opts))
     );
@@ -571,7 +609,7 @@ int mathsVecProdBenchmark(PSBenchmarkConfig *cfg, int *num_results,
 #endif
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     opts.acceleration = PSAcceleration_ACF;
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     PSBenchmarkMeasure(
         res, (ok = PSOuterProduct(a, b, dest, len_a, len_b, &opts))
     );
@@ -580,7 +618,7 @@ int mathsVecProdBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     res += 1;
 #endif
     opts.acceleration = PSAcceleration_None;
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     PSBenchmarkMeasure(
         res, (ok = PSOuterProduct(a, b, dest, len_a, len_b, &opts))
     );
@@ -614,20 +652,20 @@ int mathsSumVBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSSumVectors(x, y, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
 #ifdef USE_AVX
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     opts.acceleration = PSAcceleration_AVX;
     PSBenchmarkMeasure(res, PSSumVectors(x, y, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     opts.acceleration = PSAcceleration_None;
     PSBenchmarkMeasure(res, PSSumVectors(x, y, dest, size, &opts));
     *num_results += 1;
@@ -659,20 +697,20 @@ int mathsSubVBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSSubtractVectors(x, y, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
 #ifdef USE_AVX
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     opts.acceleration = PSAcceleration_AVX;
     PSBenchmarkMeasure(res, PSSubtractVectors(x, y, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     opts.acceleration = PSAcceleration_None;
     PSBenchmarkMeasure(res, PSSubtractVectors(x, y, dest, size, &opts));
     *num_results += 1;
@@ -704,20 +742,20 @@ int mathsMulVBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSMultiplyVectors(x, y, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
 #ifdef USE_AVX
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     opts.acceleration = PSAcceleration_AVX;
     PSBenchmarkMeasure(res, PSMultiplyVectors(x, y, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     opts.acceleration = PSAcceleration_None;
     PSBenchmarkMeasure(res, PSMultiplyVectors(x, y, dest, size, &opts));
     *num_results += 1;
@@ -753,20 +791,20 @@ int mathsAddVSBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {.store_mode = mode, .tmpdest = tmpdest};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSSumVectorScalar(x, y, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
 #ifdef USE_AVX
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     opts.acceleration = PSAcceleration_AVX;
     PSBenchmarkMeasure(res, PSSumVectorScalar(x, y, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     opts.acceleration = PSAcceleration_None;
     PSBenchmarkMeasure(res, PSSumVectorScalar(x, y, dest, size, &opts));
     *num_results += 1;
@@ -802,20 +840,20 @@ int mathsMulVSBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {.store_mode = mode, .tmpdest = tmpdest};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSMultiplyVectorScalar(x, y, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
 #ifdef USE_AVX
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     opts.acceleration = PSAcceleration_AVX;
     PSBenchmarkMeasure(res, PSMultiplyVectorScalar(x, y, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     opts.acceleration = PSAcceleration_None;
     PSBenchmarkMeasure(res, PSMultiplyVectorScalar(x, y, dest, size, &opts));
     *num_results += 1;
@@ -849,20 +887,20 @@ int mathsDivVBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSSumVectorScalar(y, PSFLOAT_EPS, y, size, &opts);
     PSBenchmarkResults *res = results;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSDivideVectors(x, y, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
 #ifdef USE_AVX
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     opts.acceleration = PSAcceleration_AVX;
     PSBenchmarkMeasure(res, PSDivideVectors(x, y, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     opts.acceleration = PSAcceleration_None;
     PSBenchmarkMeasure(res, PSDivideVectors(x, y, dest, size, &opts));
     *num_results += 1;
@@ -899,20 +937,20 @@ int mathsDivVSBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {.store_mode = mode, .tmpdest = tmpdest};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSDivideVectorScalar(x, y, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
 #ifdef USE_AVX
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     opts.acceleration = PSAcceleration_AVX;
     PSBenchmarkMeasure(res, PSDivideVectorScalar(x, y, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     opts.acceleration = PSAcceleration_None;
     PSBenchmarkMeasure(res, PSDivideVectorScalar(x, y, dest, size, &opts));
     *num_results += 1;
@@ -950,20 +988,20 @@ int mathsDivSVBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {.store_mode = mode, .tmpdest = tmpdest};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSDivideScalarVector(y, x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
 #ifdef USE_AVX
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     opts.acceleration = PSAcceleration_AVX;
     PSBenchmarkMeasure(res, PSDivideScalarVector(y, x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     opts.acceleration = PSAcceleration_None;
     PSBenchmarkMeasure(res, PSDivideScalarVector(y, x, dest, size, &opts));
     *num_results += 1;
@@ -1000,20 +1038,20 @@ int mathsSubVSBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {.store_mode = mode, .tmpdest = tmpdest};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSSubtractVectorScalar(x, y, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
 #ifdef USE_AVX
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     opts.acceleration = PSAcceleration_AVX;
     PSBenchmarkMeasure(res, PSSubtractVectorScalar(x, y, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     opts.acceleration = PSAcceleration_None;
     PSBenchmarkMeasure(res, PSSubtractVectorScalar(x, y, dest, size, &opts));
     *num_results += 1;
@@ -1051,20 +1089,20 @@ int mathsSubSVBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {.store_mode = mode, .tmpdest = tmpdest};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSSubtractScalarVector(y, x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
 #ifdef USE_AVX
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     opts.acceleration = PSAcceleration_AVX;
     PSBenchmarkMeasure(res, PSSubtractScalarVector(y, x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     opts.acceleration = PSAcceleration_None;
     PSBenchmarkMeasure(res, PSSubtractScalarVector(y, x, dest, size, &opts));
     *num_results += 1;
@@ -1094,20 +1132,20 @@ int mathsReduceBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSSumVectorElements(x, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
 #ifdef USE_AVX
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     opts.acceleration = PSAcceleration_AVX;
     PSBenchmarkMeasure(res, PSSumVectorElements(x, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     opts.acceleration = PSAcceleration_None;
     PSBenchmarkMeasure(res, PSSumVectorElements(x, size, &opts));
     *num_results += 1;
@@ -1135,20 +1173,20 @@ int mathsMeanBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSMean(x, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
 #ifdef USE_AVX
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     opts.acceleration = PSAcceleration_AVX;
     PSBenchmarkMeasure(res, PSMean(x, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     opts.acceleration = PSAcceleration_None;
     PSBenchmarkMeasure(res, PSMean(x, size, &opts));
     *num_results += 1;
@@ -1176,20 +1214,20 @@ int mathsVarianceBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSVariance(x, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
 #ifdef USE_AVX
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     opts.acceleration = PSAcceleration_AVX;
     PSBenchmarkMeasure(res, PSVariance(x, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     opts.acceleration = PSAcceleration_None;
     PSBenchmarkMeasure(res, PSVariance(x, size, &opts));
     *num_results += 1;
@@ -1217,20 +1255,20 @@ int mathsStdDevBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSStdDev(x, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
 #ifdef USE_AVX
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     opts.acceleration = PSAcceleration_AVX;
     PSBenchmarkMeasure(res, PSStdDev(x, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     opts.acceleration = PSAcceleration_None;
     PSBenchmarkMeasure(res, PSStdDev(x, size, &opts));
     *num_results += 1;
@@ -1259,20 +1297,20 @@ int mathsSqrtBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSVectorSqrt(x, y, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
 #ifdef USE_AVX
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     opts.acceleration = PSAcceleration_AVX;
     PSBenchmarkMeasure(res, PSVectorSqrt(x, y, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     opts.acceleration = PSAcceleration_None;
     PSBenchmarkMeasure(res, PSVectorSqrt(x, y, size, &opts));
     *num_results += 1;
@@ -1302,20 +1340,20 @@ int mathsTanhBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSVectorTanh(x, y, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
 #ifdef USE_AVX
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     opts.acceleration = PSAcceleration_AVX;
     PSBenchmarkMeasure(res, PSVectorTanh(x, y, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     opts.acceleration = PSAcceleration_None;
     PSBenchmarkMeasure(res, PSVectorTanh(x, y, size, &opts));
     *num_results += 1;
@@ -1345,20 +1383,20 @@ int mathsExpBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSVectorExp(x, y, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
 #ifdef USE_AVX
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     opts.acceleration = PSAcceleration_AVX;
     PSBenchmarkMeasure(res, PSVectorExp(x, y, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     opts.acceleration = PSAcceleration_None;
     PSBenchmarkMeasure(res, PSVectorExp(x, y, size, &opts));
     *num_results += 1;
@@ -1388,20 +1426,20 @@ int mathsNegBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSVectorNeg(x, y, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
 #ifdef USE_AVX
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     opts.acceleration = PSAcceleration_AVX;
     PSBenchmarkMeasure(res, PSVectorNeg(x, y, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     opts.acceleration = PSAcceleration_None;
     PSBenchmarkMeasure(res, PSVectorNeg(x, y, size, &opts));
     *num_results += 1;
@@ -1431,20 +1469,20 @@ int mathsAbsBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSVectorAbs(x, y, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
 #ifdef USE_AVX
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     opts.acceleration = PSAcceleration_AVX;
     PSBenchmarkMeasure(res, PSVectorAbs(x, y, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     opts.acceleration = PSAcceleration_None;
     PSBenchmarkMeasure(res, PSVectorAbs(x, y, size, &opts));
     *num_results += 1;
@@ -1478,20 +1516,20 @@ int mathsVecPowBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {.store_mode = mode, .tmpdest = tmpdest};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSVectorPower(x, y, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
 #ifdef USE_AVX
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     opts.acceleration = PSAcceleration_AVX;
     PSBenchmarkMeasure(res, PSVectorPower(x, y, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     opts.acceleration = PSAcceleration_None;
     PSBenchmarkMeasure(res, PSVectorPower(x, y, dest, size, &opts));
     *num_results += 1;
@@ -1527,9 +1565,9 @@ int mathsMatrixProdBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     opts.acceleration = PSAcceleration_BLAS;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     opts.acceleration |= PSAcceleration_ACF;
-    PS_INIT_BENCHMARK(cfg, res, "BLAS|Accelerate");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "BLAS|Accelerate");
 #else
-    PS_INIT_BENCHMARK(cfg, res, "BLAS");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "BLAS");
 #endif
     PSBenchmarkMeasure(
         res, (ok = PSMatrixProduct(a, b, &dest, &opts))
@@ -1540,7 +1578,7 @@ int mathsMatrixProdBenchmark(PSBenchmarkConfig *cfg, int *num_results,
 #endif
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     opts.acceleration = PSAcceleration_ACF;
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     PSBenchmarkMeasure(
         res, (ok = PSMatrixProduct(a, b, &dest, &opts))
     );
@@ -1549,7 +1587,7 @@ int mathsMatrixProdBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     res += 1;
 #endif
     opts.acceleration = PSAcceleration_None;
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     PSBenchmarkMeasure(
         res, (ok = PSMatrixProduct(a, b, &dest, &opts))
     );
@@ -1581,20 +1619,20 @@ int actSigmoidBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSMathOpts opts = {0};
     PSBenchmarkResults *res = results;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSSigmoid(x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
 #ifdef USE_AVX
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     opts.acceleration = PSAcceleration_AVX;
     PSBenchmarkMeasure(res, PSSigmoid(x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     opts.acceleration = PSAcceleration_None;
     PSBenchmarkMeasure(res, PSSigmoid(x, dest, size, &opts));
     *num_results += 1;
@@ -1623,20 +1661,20 @@ int actSigmoidDerivBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSMathOpts opts = {0};
     PSBenchmarkResults *res = results;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSSigmoidDerivative(x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
 #ifdef USE_AVX
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     opts.acceleration = PSAcceleration_AVX;
     PSBenchmarkMeasure(res, PSSigmoidDerivative(x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     opts.acceleration = PSAcceleration_None;
     PSBenchmarkMeasure(res, PSSigmoidDerivative(x, dest, size, &opts));
     *num_results += 1;
@@ -1665,20 +1703,20 @@ int actTanhBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSMathOpts opts = {0};
     PSBenchmarkResults *res = results;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSTanhActivation(x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
 #ifdef USE_AVX
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     opts.acceleration = PSAcceleration_AVX;
     PSBenchmarkMeasure(res, PSTanhActivation(x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     opts.acceleration = PSAcceleration_None;
     PSBenchmarkMeasure(res, PSTanhActivation(x, dest, size, &opts));
     *num_results += 1;
@@ -1707,20 +1745,20 @@ int actTanhDerivBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSMathOpts opts = {0};
     PSBenchmarkResults *res = results;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSTanhDerivative(x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
 #ifdef USE_AVX
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     opts.acceleration = PSAcceleration_AVX;
     PSBenchmarkMeasure(res, PSTanhDerivative(x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     opts.acceleration = PSAcceleration_None;
     PSBenchmarkMeasure(res, PSTanhDerivative(x, dest, size, &opts));
     *num_results += 1;
@@ -1749,20 +1787,20 @@ int actReluBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSMathOpts opts = {0};
     PSBenchmarkResults *res = results;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSRelu(x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
 #ifdef USE_AVX
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     opts.acceleration = PSAcceleration_AVX;
     PSBenchmarkMeasure(res, PSRelu(x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     opts.acceleration = PSAcceleration_None;
     PSBenchmarkMeasure(res, PSRelu(x, dest, size, &opts));
     *num_results += 1;
@@ -1791,20 +1829,20 @@ int actGeluBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSMathOpts opts = {0};
     PSBenchmarkResults *res = results;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSGelu(x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
 #ifdef USE_AVX
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     opts.acceleration = PSAcceleration_AVX;
     PSBenchmarkMeasure(res, PSGelu(x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     opts.acceleration = PSAcceleration_None;
     PSBenchmarkMeasure(res, PSGelu(x, dest, size, &opts));
     *num_results += 1;
@@ -1833,20 +1871,20 @@ int actReluDerivBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSMathOpts opts = {0};
     PSBenchmarkResults *res = results;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSReluDerivative(x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
 #ifdef USE_AVX
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     opts.acceleration = PSAcceleration_AVX;
     PSBenchmarkMeasure(res, PSReluDerivative(x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     opts.acceleration = PSAcceleration_None;
     PSBenchmarkMeasure(res, PSReluDerivative(x, dest, size, &opts));
     *num_results += 1;
@@ -1875,20 +1913,20 @@ int actGeluDerivBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSMathOpts opts = {0};
     PSBenchmarkResults *res = results;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSGeluDerivative(x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
 #ifdef USE_AVX
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     opts.acceleration = PSAcceleration_AVX;
     PSBenchmarkMeasure(res, PSGeluDerivative(x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     opts.acceleration = PSAcceleration_None;
     PSBenchmarkMeasure(res, PSGeluDerivative(x, dest, size, &opts));
     *num_results += 1;
@@ -1917,20 +1955,20 @@ int actSoftmaxBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSMathOpts opts = {0};
     PSBenchmarkResults *res = results;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
     PSBenchmarkMeasure(res, PSSoftmax(x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
 #ifdef USE_AVX
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     opts.acceleration = PSAcceleration_AVX;
     PSBenchmarkMeasure(res, PSSoftmax(x, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     opts.acceleration = PSAcceleration_None;
     PSBenchmarkMeasure(res, PSSoftmax(x, dest, size, &opts));
     *num_results += 1;
@@ -1952,10 +1990,9 @@ int optimDefaultBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     if (cfg->argc > 1) use_momentum = *(((int *) cfg->argv) + 1);
     PSMatrix x = PSMatrixWithGaussianRandom(1, 1, size);
     PSMatrix y = PSMatrixWithGaussianRandom(1, 1, size);
-    PSFloat *dest = malloc(size * sizeof(PSFloat));
     PSFloat *mem = malloc(size * sizeof(PSFloat));
     PSFloat *tmp = NULL;
-    if (x == NULL || y == NULL || dest == NULL || mem == NULL) {
+    if (x == NULL || y == NULL || mem == NULL) {
         PSPrintMemoryErrorMsg();
         ok = 0;
         goto final;
@@ -1968,8 +2005,8 @@ int optimDefaultBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     int acceleration = 0;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     acceleration = PSAcceleration_ACF;
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
-    memcpy(dest, x, size * sizeof(PSFloat));
+    if (auto_accel) acceleration |= PSAcceleration_Auto;
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     PSBenchmarkMeasure(res, (
         ok = PSDefaultOptimization(
             x, y, mem, NULL, tmp, NULL, NULL, rate, momentum,
@@ -1982,8 +2019,8 @@ int optimDefaultBenchmark(PSBenchmarkConfig *cfg, int *num_results,
 #endif
 #ifdef USE_AVX
     acceleration = PSAcceleration_AVX;
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
-    memcpy(dest, x, size * sizeof(PSFloat));
+    if (auto_accel) acceleration |= PSAcceleration_Auto;
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     PSBenchmarkMeasure(res, (
         ok = PSDefaultOptimization(
             x, y, mem, NULL, tmp, NULL, NULL, rate, momentum,
@@ -1995,8 +2032,7 @@ int optimDefaultBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     res += 1;
 #endif
     acceleration = PSAcceleration_None;
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
-    memcpy(dest, x, size * sizeof(PSFloat));
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     PSBenchmarkMeasure(res, (
         ok = PSDefaultOptimization(
             x, y, mem, NULL, tmp, NULL, NULL, rate, momentum,
@@ -2009,7 +2045,6 @@ int optimDefaultBenchmark(PSBenchmarkConfig *cfg, int *num_results,
 final:
     if (x != NULL) PSMatrixDelete(x);
     if (y != NULL) PSMatrixDelete(y);
-    free(dest);
     free(mem);
     free(tmp);
     return ok;
@@ -2024,10 +2059,9 @@ int optimNesterovBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     assert(size > 0);
     PSMatrix x = PSMatrixWithGaussianRandom(1, 1, size);
     PSMatrix y = PSMatrixWithGaussianRandom(1, 1, size);
-    PSFloat *dest = malloc(size * sizeof(PSFloat));
     PSFloat *mem = malloc(size * sizeof(PSFloat));
     PSFloat *tmp = NULL;
-    if (x == NULL || y == NULL || dest == NULL || mem == NULL) {
+    if (x == NULL || y == NULL || mem == NULL) {
         PSPrintMemoryErrorMsg();
         ok = 0;
         goto final;
@@ -2039,8 +2073,8 @@ int optimNesterovBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     int acceleration = 0;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     acceleration = PSAcceleration_ACF;
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
-    memcpy(dest, x, size * sizeof(PSFloat));
+    if (auto_accel) acceleration |= PSAcceleration_Auto;
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     PSBenchmarkMeasure(res, (
         ok = PSNesterovOptimization(
             x, y, mem, NULL, tmp, NULL, NULL, rate, momentum,
@@ -2053,8 +2087,8 @@ int optimNesterovBenchmark(PSBenchmarkConfig *cfg, int *num_results,
 #endif
 #ifdef USE_AVX
     acceleration = PSAcceleration_AVX;
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
-    memcpy(dest, x, size * sizeof(PSFloat));
+    if (auto_accel) acceleration |= PSAcceleration_Auto;
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     PSBenchmarkMeasure(res, (
         ok = PSNesterovOptimization(
             x, y, mem, NULL, tmp, NULL, NULL, rate, momentum,
@@ -2066,8 +2100,7 @@ int optimNesterovBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     res += 1;
 #endif
     acceleration = PSAcceleration_None;
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
-    memcpy(dest, x, size * sizeof(PSFloat));
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     PSBenchmarkMeasure(res, (
         ok = PSNesterovOptimization(
             x, y, mem, NULL, tmp, NULL, NULL, rate, momentum,
@@ -2080,7 +2113,6 @@ int optimNesterovBenchmark(PSBenchmarkConfig *cfg, int *num_results,
 final:
     if (x != NULL) PSMatrixDelete(x);
     if (y != NULL) PSMatrixDelete(y);
-    free(dest);
     free(mem);
     free(tmp);
     return ok;
@@ -2095,9 +2127,8 @@ int optimWindowGradBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     assert(size > 0);
     PSMatrix x = PSMatrixWithGaussianRandom(1, 1, size);
     PSMatrix y = PSMatrixWithGaussianRandom(1, 1, size);
-    PSFloat *dest = malloc(size * sizeof(PSFloat));
     PSFloat *mem = malloc(size * sizeof(PSFloat));
-    if (x == NULL || y == NULL || dest == NULL || mem == NULL) {
+    if (x == NULL || y == NULL || mem == NULL) {
         PSPrintMemoryErrorMsg();
         ok = 0;
         goto final;
@@ -2107,9 +2138,9 @@ int optimWindowGradBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
     int acceleration = 0;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     acceleration = PSAcceleration_ACF;
-    memcpy(dest, x, size * sizeof(PSFloat));
+    if (auto_accel) acceleration |= PSAcceleration_Auto;
     PSBenchmarkMeasure(res, (
         ok = PSWindowGradOptimization(
             x, y, mem, NULL, NULL, NULL, NULL, rate, momentum,
@@ -2122,8 +2153,8 @@ int optimWindowGradBenchmark(PSBenchmarkConfig *cfg, int *num_results,
 #endif
 #ifdef USE_AVX
     acceleration = PSAcceleration_AVX;
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
-    memcpy(dest, x, size * sizeof(PSFloat));
+    if (auto_accel) acceleration |= PSAcceleration_Auto;
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     PSBenchmarkMeasure(res, (
         ok = PSWindowGradOptimization(
             x, y, mem, NULL, NULL, NULL, NULL, rate, momentum,
@@ -2135,8 +2166,7 @@ int optimWindowGradBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     res += 1;
 #endif
     acceleration = PSAcceleration_None;
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
-    memcpy(dest, x, size * sizeof(PSFloat));
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     PSBenchmarkMeasure(res, (
         ok = PSWindowGradOptimization(
             x, y, mem, NULL, NULL, NULL, NULL, rate, momentum,
@@ -2149,7 +2179,6 @@ int optimWindowGradBenchmark(PSBenchmarkConfig *cfg, int *num_results,
 final:
     if (x != NULL) PSMatrixDelete(x);
     if (y != NULL) PSMatrixDelete(y);
-    free(dest);
     free(mem);
     return ok;
 }
@@ -2165,9 +2194,8 @@ int optimAdaGradBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     if (cfg->argc > 1) use_momentum = *(((int *) cfg->argv) + 1);
     PSMatrix x = PSMatrixWithGaussianRandom(1, 1, size);
     PSMatrix y = PSMatrixWithGaussianRandom(1, 1, size);
-    PSFloat *dest = malloc(size * sizeof(PSFloat));
     PSFloat *mem = malloc(size * sizeof(PSFloat));
-    if (x == NULL || y == NULL || dest == NULL || mem == NULL) {
+    if (x == NULL || y == NULL || mem == NULL) {
         PSPrintMemoryErrorMsg();
         ok = 0;
         goto final;
@@ -2179,8 +2207,8 @@ int optimAdaGradBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     int acceleration = 0;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     acceleration = PSAcceleration_ACF;
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
-    memcpy(dest, x, size * sizeof(PSFloat));
+    if (auto_accel) acceleration |= PSAcceleration_Auto;
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     PSBenchmarkMeasure(res, (
         ok = PSAdaGradOptimization(
             x, y, mem, NULL, NULL, NULL, NULL, rate, momentum,
@@ -2193,8 +2221,8 @@ int optimAdaGradBenchmark(PSBenchmarkConfig *cfg, int *num_results,
 #endif
 #ifdef USE_AVX
     acceleration = PSAcceleration_AVX;
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
-    memcpy(dest, x, size * sizeof(PSFloat));
+    if (auto_accel) acceleration |= PSAcceleration_Auto;
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     PSBenchmarkMeasure(res, (
         ok = PSAdaGradOptimization(
             x, y, mem, NULL, NULL, NULL, NULL, rate, momentum,
@@ -2206,8 +2234,7 @@ int optimAdaGradBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     res += 1;
 #endif
     acceleration = PSAcceleration_None;
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
-    memcpy(dest, x, size * sizeof(PSFloat));
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     PSBenchmarkMeasure(res, (
         ok = PSAdaGradOptimization(
             x, y, mem, NULL, NULL, NULL, NULL, rate, momentum,
@@ -2220,7 +2247,6 @@ int optimAdaGradBenchmark(PSBenchmarkConfig *cfg, int *num_results,
 final:
     if (x != NULL) PSMatrixDelete(x);
     if (y != NULL) PSMatrixDelete(y);
-    free(dest);
     free(mem);
     return ok;
 }
@@ -2236,10 +2262,9 @@ int optimAdaDeltaBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     if (cfg->argc > 1) use_momentum = *(((int *) cfg->argv) + 1);
     PSMatrix x = PSMatrixWithGaussianRandom(1, 1, size);
     PSMatrix y = PSMatrixWithGaussianRandom(1, 1, size);
-    PSFloat *dest = malloc(size * sizeof(PSFloat));
     PSFloat *mem1 = malloc(size * sizeof(PSFloat));
     PSFloat *mem2 = malloc(size * sizeof(PSFloat));
-    if (x == NULL || y == NULL || dest == NULL || mem1 == NULL || mem2 == NULL)
+    if (x == NULL || y == NULL || mem1 == NULL || mem2 == NULL)
     {
         PSPrintMemoryErrorMsg();
         ok = 0;
@@ -2252,8 +2277,8 @@ int optimAdaDeltaBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     int acceleration = 0;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     acceleration = PSAcceleration_ACF;
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
-    memcpy(dest, x, size * sizeof(PSFloat));
+    if (auto_accel) acceleration |= PSAcceleration_Auto;
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     PSBenchmarkMeasure(res, (
         ok = PSAdaDeltaOptimization(
             x, y, mem1, mem2, NULL, NULL, NULL, rate, momentum,
@@ -2266,8 +2291,8 @@ int optimAdaDeltaBenchmark(PSBenchmarkConfig *cfg, int *num_results,
 #endif
 #ifdef USE_AVX
     acceleration = PSAcceleration_AVX;
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
-    memcpy(dest, x, size * sizeof(PSFloat));
+    if (auto_accel) acceleration |= PSAcceleration_Auto;
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     PSBenchmarkMeasure(res, (
         ok = PSAdaDeltaOptimization(
             x, y, mem1, mem2, NULL, NULL, NULL, rate, momentum,
@@ -2279,8 +2304,7 @@ int optimAdaDeltaBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     res += 1;
 #endif
     acceleration = PSAcceleration_None;
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
-    memcpy(dest, x, size * sizeof(PSFloat));
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     PSBenchmarkMeasure(res, (
         ok = PSAdaDeltaOptimization(
             x, y, mem1, mem2, NULL, NULL, NULL, rate, momentum,
@@ -2293,7 +2317,6 @@ int optimAdaDeltaBenchmark(PSBenchmarkConfig *cfg, int *num_results,
 final:
     if (x != NULL) PSMatrixDelete(x);
     if (y != NULL) PSMatrixDelete(y);
-    free(dest);
     free(mem1);
     free(mem2);
     return ok;
@@ -2310,11 +2333,10 @@ int optimAdamBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     if (cfg->argc > 1) use_momentum = *(((int *) cfg->argv) + 1);
     PSMatrix x = PSMatrixWithGaussianRandom(1, 1, size);
     PSMatrix y = PSMatrixWithGaussianRandom(1, 1, size);
-    PSFloat *dest = malloc(size * sizeof(PSFloat));
     PSFloat *mem1 = malloc(size * sizeof(PSFloat));
     PSFloat *mem2 = malloc(size * sizeof(PSFloat));
     PSFloat *tmp1 = NULL, *tmp2 = NULL, *tmp3 = NULL;
-    if (x == NULL || y == NULL || dest == NULL || mem1 == NULL || mem2 == NULL)
+    if (x == NULL || y == NULL || mem1 == NULL || mem2 == NULL)
     {
         PSPrintMemoryErrorMsg();
         ok = 0;
@@ -2332,8 +2354,8 @@ int optimAdamBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     int acceleration = 0;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     acceleration = PSAcceleration_ACF;
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
-    memcpy(dest, x, size * sizeof(PSFloat));
+    if (auto_accel) acceleration |= PSAcceleration_Auto;
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     PSBenchmarkMeasure(res, (
         ok = PSAdamOptimization(
             x, y, mem1, mem2, tmp1, tmp2, tmp3, rate, momentum,
@@ -2346,8 +2368,8 @@ int optimAdamBenchmark(PSBenchmarkConfig *cfg, int *num_results,
 #endif
 #ifdef USE_AVX
     acceleration = PSAcceleration_AVX;
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
-    memcpy(dest, x, size * sizeof(PSFloat));
+    if (auto_accel) acceleration |= PSAcceleration_Auto;
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     PSBenchmarkMeasure(res, (
         ok = PSAdamOptimization(
             x, y, mem1, mem2, tmp1, tmp2, tmp3, rate, momentum,
@@ -2359,8 +2381,7 @@ int optimAdamBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     res += 1;
 #endif
     acceleration = PSAcceleration_None;
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
-    memcpy(dest, x, size * sizeof(PSFloat));
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     PSBenchmarkMeasure(res, (
         ok = PSAdamOptimization(
             x, y, mem1, mem2, tmp1, tmp2, tmp3, rate, momentum,
@@ -2373,12 +2394,86 @@ int optimAdamBenchmark(PSBenchmarkConfig *cfg, int *num_results,
 final:
     if (x != NULL) PSMatrixDelete(x);
     if (y != NULL) PSMatrixDelete(y);
-    free(dest);
     free(mem1);
     free(mem2);
     free(tmp1);
     free(tmp2);
     free(tmp3);
+    return ok;
+}
+
+int LRegularizationBenchmark(PSBenchmarkConfig *cfg, int *num_results,
+                             PSBenchmarkResults *results)
+{
+    PS_BENCHMARK_PREAMBLE(cfg, results);
+    assert(cfg->argc > 0 && cfg->argv != NULL);
+    int size = *((int *) cfg->argv);
+    assert(size > 0);
+    int types = 3, batches = 4, wdecay = 0, ok = 1;
+    if (cfg->argc >= 2) types = *(((int *) cfg->argv) + 1);
+    if (cfg->argc >= 3) batches = *(((int *) cfg->argv) + 2);
+    if (cfg->argc >= 4) wdecay = *(((int *) cfg->argv) + 3);
+    if (types <= 0) types = 3;
+    PSMatrix x = PSMatrixWithGaussianRandom(1, 1, size);
+    PSMatrix y = PSMatrixWithGaussianRandom(1, 1, size);
+    PSFloat *tmp = NULL;
+    if (x == NULL || y == NULL) {
+        PSPrintMemoryErrorMsg();
+        ok = 0;
+        goto final;
+    }
+    assert(PSMatrixLength(x) == (size_t) size);
+    if (cache_enabled) {
+        tmp = PSVectorCreate(size);
+    }
+    PSBenchmarkResults *res = results;
+    int acceleration = 0;
+    PSFloat l1 = (types & 1 ? 0.0001 : 0),
+            l2 = (types & 2 ? 0.00001 : 0);
+    PSFloat l1_loss = 0, l2_loss = 0;
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    acceleration = PSAcceleration_ACF;
+    if (auto_accel) acceleration |= PSAcceleration_Auto;
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
+    PSBenchmarkMeasure(res, (
+        ok = PSLRegularization(
+            l1, l2, x, y, tmp, size, &l1_loss, &l2_loss,
+            batches, wdecay, acceleration
+        )
+    ));
+    if (!ok) goto final;
+    *num_results += 1;
+    res += 1;
+#endif
+#ifdef USE_AVX
+    acceleration = PSAcceleration_AVX;
+    if (auto_accel) acceleration |= PSAcceleration_Auto;
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
+    PSBenchmarkMeasure(res, (
+        ok = PSLRegularization(
+            l1, l2, x, y, tmp, size, &l1_loss, &l2_loss,
+            batches, wdecay, acceleration
+        )
+    ));
+    if (!ok) goto final;
+    *num_results += 1;
+    res += 1;
+#endif
+    acceleration = PSAcceleration_None;
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
+    PSBenchmarkMeasure(res, (
+        ok = PSLRegularization(
+            l1, l2, x, y, tmp, size, &l1_loss, &l2_loss,
+            batches, wdecay, acceleration
+        )
+    ));
+    if (!ok) goto final;
+    *num_results += 1;
+    res += 1;
+final:
+    if (x != NULL) PSMatrixDelete(x);
+    if (y != NULL) PSMatrixDelete(y);
+    free(tmp);
     return ok;
 }
 
@@ -2410,7 +2505,8 @@ int fullnetForwardBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSBenchmarkResults *res = results;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     network->acceleration = PSAcceleration_ACF;
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    if (auto_accel) network->acceleration |= PSAcceleration_Auto;
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     PSBenchmarkMeasure(res, (
         ok = PSForward(network, x)
     ));
@@ -2420,7 +2516,8 @@ int fullnetForwardBenchmark(PSBenchmarkConfig *cfg, int *num_results,
 #endif
 #ifdef USE_AVX
     network->acceleration = PSAcceleration_AVX;
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    if (auto_accel) network->acceleration |= PSAcceleration_Auto;
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     PSBenchmarkMeasure(res, (
         ok = PSForward(network, x)
     ));
@@ -2429,7 +2526,7 @@ int fullnetForwardBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     res += 1;
 #endif
     network->acceleration = PSAcceleration_None;
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     PSBenchmarkMeasure(res, (
         ok = PSForward(network, x)
     ));
@@ -2465,7 +2562,7 @@ int cifarCNNBackpropBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     }
     PSBenchmarkResults *res = results;
     network->acceleration = PSGlobalAcceleration;
-    PS_INIT_BENCHMARK(cfg, res, "Default Acceleration");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Default Acceleration");
     PSBenchmarkMeasure(res, (
         gradients = backprop(network, x, y, NULL, NULL)
     ));
@@ -2475,7 +2572,8 @@ int cifarCNNBackpropBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     res += 1;
 #if HAS_BLAS
     network->acceleration = PSAcceleration_BLAS;
-    PS_INIT_BENCHMARK(cfg, res, "BLAS");
+    if (auto_accel) network->acceleration |= PSAcceleration_Auto;
+    PS_INIT_BENCHMARK(cfg, num_results, res, "BLAS");
     PSBenchmarkMeasure(res, (
         gradients = backprop(network, x, y, NULL, NULL)
     ));
@@ -2486,7 +2584,8 @@ int cifarCNNBackpropBenchmark(PSBenchmarkConfig *cfg, int *num_results,
 #endif
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     network->acceleration = PSAcceleration_ACF;
-    PS_INIT_BENCHMARK(cfg, res, "Accelerate Framework");
+    if (auto_accel) network->acceleration |= PSAcceleration_Auto;
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     PSBenchmarkMeasure(res, (
         gradients = backprop(network, x, y, NULL, NULL)
     ));
@@ -2497,7 +2596,8 @@ int cifarCNNBackpropBenchmark(PSBenchmarkConfig *cfg, int *num_results,
 #endif
 #ifdef USE_AVX
     network->acceleration = PSAcceleration_AVX;
-    PS_INIT_BENCHMARK(cfg, res, "AVX");
+    if (auto_accel) network->acceleration |= PSAcceleration_Auto;
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     PSBenchmarkMeasure(res, (
         gradients = backprop(network, x, y, NULL, NULL)
     ));
@@ -2507,7 +2607,7 @@ int cifarCNNBackpropBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     res += 1;
 #endif
     network->acceleration = PSAcceleration_None;
-    PS_INIT_BENCHMARK(cfg, res, "No Acceleration");
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     PSBenchmarkMeasure(res, (
         gradients = backprop(network, x, y, NULL, NULL)
     ));
@@ -2636,6 +2736,8 @@ PSBenchmarkConfig bechmarks[] = {
         mathsMulVSBenchmark, 2, INTARGS(100000, PS_STORE_MODE_ADD), 1},
     {"PSMultiplyVectorScalar (1000000, ADD)", &maths_tag, 0, 10,
         mathsMulVSBenchmark, 2, INTARGS(1000000, PS_STORE_MODE_ADD), 1},
+    {"PSMultiplyVectorScalar (%d, ADD)", &maths_tag, 0, 10,
+        mathsMulVSBenchmark, 2, int_argv, 1, INTARGS(0, PS_STORE_MODE_ADD)},
 
     /* PSDivideVectorScalar */
     {"PSDivideVectorScalar (1000)", &maths_tag, 0, 10, mathsDivVSBenchmark,
@@ -2656,6 +2758,8 @@ PSBenchmarkConfig bechmarks[] = {
         mathsDivVSBenchmark, 2, INTARGS(100000, PS_STORE_MODE_ADD), 1},
     {"PSDivideVectorScalar (1000000, ADD)", &maths_tag, 0, 10,
         mathsDivVSBenchmark, 2, INTARGS(1000000, PS_STORE_MODE_ADD), 1},
+    {"PSDivideVectorScalar (%d, ADD)", &maths_tag, 0, 10,
+        mathsDivVSBenchmark, 2, int_argv, 1, INTARGS(0, PS_STORE_MODE_ADD)},
 
     /* PSDivideScalarVector */
     {"PSDivideScalarVector (1000)", &maths_tag, 0, 10, mathsDivSVBenchmark,
@@ -2676,6 +2780,8 @@ PSBenchmarkConfig bechmarks[] = {
         mathsDivSVBenchmark, 2, INTARGS(100000, PS_STORE_MODE_ADD), 1},
     {"PSDivideScalarVector (1000000, ADD)", &maths_tag, 0, 10,
         mathsDivSVBenchmark, 2, INTARGS(1000000, PS_STORE_MODE_ADD), 1},
+    {"PSDivideScalarVector (%d, ADD)", &maths_tag, 0, 10,
+        mathsDivSVBenchmark, 2, int_argv, 1, INTARGS(0, PS_STORE_MODE_ADD)},
 
     /* PSSubtractVectorScalar */
     {"PSSubtractVectorScalar (1000)", &maths_tag, 0, 10, mathsSubVSBenchmark,
@@ -2696,6 +2802,8 @@ PSBenchmarkConfig bechmarks[] = {
         mathsSubVSBenchmark, 2, INTARGS(100000, PS_STORE_MODE_ADD), 1},
     {"PSSubtractVectorScalar (1000000, ADD)", &maths_tag, 0, 10,
         mathsSubVSBenchmark, 2, INTARGS(1000000, PS_STORE_MODE_ADD), 1},
+    {"PSSubtractVectorScalar (%d, ADD)", &maths_tag, 0, 10,
+        mathsSubVSBenchmark, 2, int_argv, 1, INTARGS(0, PS_STORE_MODE_ADD)},
 
     /* PSSubtractScalarVector */
     {"PSSubtractScalarVector (1000)", &maths_tag, 0, 10, mathsSubSVBenchmark,
@@ -2716,6 +2824,8 @@ PSBenchmarkConfig bechmarks[] = {
         mathsSubSVBenchmark, 2, INTARGS(100000, PS_STORE_MODE_ADD), 1},
     {"PSSubtractScalarVector (1000000, ADD)", &maths_tag, 0, 10,
         mathsSubSVBenchmark, 2, INTARGS(1000000, PS_STORE_MODE_ADD), 1},
+    {"PSSubtractScalarVector (%d, ADD)", &maths_tag, 0, 10,
+        mathsSubSVBenchmark, 2, int_argv, 1, INTARGS(0, PS_STORE_MODE_ADD)},
 
     /* PSSumVectorElements */
     {"PSSumVectorElements (1000)", &maths_tag, 0, 10, mathsReduceBenchmark,
@@ -3027,6 +3137,35 @@ PSBenchmarkConfig bechmarks[] = {
     {"PSAdamOptimization (%d)", &optimization_tag, 0, 10,
      optimAdamBenchmark, 1, int_argv},
 
+    /* PSLRegularization */
+    {"PSLRegularization (L1,10000)", &optimization_tag, 0, 10,
+     LRegularizationBenchmark, 2, INTARGS(10000,1), 1},
+    {"PSLRegularization (L1,100000)", &optimization_tag, 0, 10,
+     LRegularizationBenchmark, 2, INTARGS(100000,1), 1},
+    {"PSLRegularization (L1,1000000)", &optimization_tag, 0, 10,
+     LRegularizationBenchmark, 2, INTARGS(1000000,1), 1},
+    {"PSLRegularization (L1,%d)", &optimization_tag, 0, 10,
+     LRegularizationBenchmark, 2, int_argv, 1, INTARGS(0, 1)},
+
+    {"PSLRegularization (L2,10000)", &optimization_tag, 0, 10,
+     LRegularizationBenchmark, 2, INTARGS(10000,2), 1},
+    {"PSLRegularization (L2,100000)", &optimization_tag, 0, 10,
+     LRegularizationBenchmark, 2, INTARGS(100000,2), 1},
+    {"PSLRegularization (L2,1000000)", &optimization_tag, 0, 10,
+     LRegularizationBenchmark, 2, INTARGS(1000000,2), 1},
+    {"PSLRegularization (L2,%d)", &optimization_tag, 0, 10,
+     LRegularizationBenchmark, 2, int_argv, 1, INTARGS(0, 2)},
+
+    {"PSLRegularization (L1|L2,10000)", &optimization_tag, 0, 10,
+     LRegularizationBenchmark, 2, INTARGS(10000,3), 1},
+    {"PSLRegularization (L1|L2,100000)", &optimization_tag, 0, 10,
+     LRegularizationBenchmark, 2, INTARGS(100000,3), 1},
+    {"PSLRegularization (L1|L2,1000000)", &optimization_tag, 0, 10,
+     LRegularizationBenchmark, 2, INTARGS(1000000,3), 1},
+    {"PSLRegularization (L1|L2,%d)", &optimization_tag, 0, 10,
+     LRegularizationBenchmark, 2, int_argv, 1, INTARGS(0, 3)},
+
+
     /**** Forward step ****/
 
     /* FullyConnected Forward */
@@ -3044,9 +3183,19 @@ void printHelp(char *executable) {
     fprintf(stderr, "Usage: %s [OPTIONS] [TEST_ID, ...]\n", executable);
     fprintf(stderr, "\nOPTIONS:\n\n");
     fprintf(stderr, "   --no-cache              Disable math caches\n");
+    fprintf(stderr, "   --auto-acceleration     Enable PSAcceleration_Auto for "
+            "tests using it\n");
+    fprintf(stderr, "   --prerun-disabled       Disable pre-running benchmark "
+                    "code.\n"
+                    "                           (by default, benchmark code "
+                    "is executed once \n"
+                    "                           before actual measure "
+                    "in order to avoid code\n"
+                    "                           optimization confounding "
+                    "effects.)\n");
     fprintf(stderr, "   --int-argv ARGV         Custom int arguments "
             "(comma-separated)\n");
-    fprintf(stderr, "   --float-argv ARGV         Custom float arguments "
+    fprintf(stderr, "   --float-argv ARGV       Custom float arguments "
             "comma-separated)\n");
     fprintf(stderr, "   --min-size MIN          Skip tests having size less "
             "than MIN\n");
@@ -3061,6 +3210,7 @@ void printHelp(char *executable) {
     fprintf(stderr, "   --csv PATH              CSV Output\n");
     fprintf(stderr, "   --json PATH             JSON Output\n");
     fprintf(stderr, "   --list-tests            List all test IDS\n");
+    fprintf(stderr, "   -v, --verbose           Verbose output\n");
     fprintf(stderr, "   -h, --help              Print this help\n");
 }
 
@@ -3090,9 +3240,17 @@ int parseOptions(int argc, char **argv) {
             json_output = argv[++i];
         } else if (strcmp("--no-cache", arg) == 0) {
             cache_enabled = 0;
+        } else if (strcmp("--prerun-disabled", arg) == 0) {
+            disable_prerun = 1;
+        } else if (strcmp("--auto-acceleration", arg) == 0) {
+            auto_accel = 1;
         } else if (strcmp("--list-tests", arg) == 0) {
             printTagList();
             exit(1);
+        } else if ((strcmp("-v", arg) == 0) ||
+                   (strcmp("--verbose", arg) == 0))
+        {
+            verbose = 1;
         } else if ((strcmp("-h", arg) == 0) || (strcmp("--help", arg) == 0)) {
             printHelp(argv[0]);
             exit(1);
@@ -3154,10 +3312,15 @@ int main(int argc, char **argv) {
         "============ PsyC Benchmarks ============\n"
         PSCOLOR_RESET
     );
+    int optlevel = PSGetCodeOptimizationLevel();
     printf("%-20s %30s\n", "Version:", PSYC_VERSION);
     printf("%-20s %30s\n", "OS:", os);
     printf("%-20s %30d\n", "Arch:", (sizeof(long) == 8 ? 64 : 32));
-    printf("Cache Enabled: %s\n", (cache_enabled ? "yes" : "no"));
+    if (optlevel >= 0)
+        printf("%-20s %30d\n", "Code Optimization:", optlevel);
+    else
+        printf("%-20s %30s\n", "Code Optimization:", "unknown");
+    printf("%-20s %30s\n", "Cache Enabled:", (cache_enabled ? "yes" : "no"));
     printf("Default Accelerations:\n");
     if (PSAVXEnabled(PSGlobalAcceleration))
         printf(" - AVX\n");
@@ -3182,8 +3345,10 @@ int main(int argc, char **argv) {
             continue;
         if (int_argc > 0 && cfg->argv != int_argv) continue;
         if (flt_argc > 0 && cfg->argv != flt_argv) continue;
-        if (cfg->argv == int_argv && int_argc < cfg->argc) continue;
-        if (cfg->argv == flt_argv && flt_argc < cfg->argc) continue;
+        if (cfg->argv == int_argv && int_argc < cfg->argc)
+            if (!setDefaultArgv(cfg, int_argc, int_argv, 1)) continue;
+        if (cfg->argv == flt_argv && flt_argc < cfg->argc)
+            if (!setDefaultArgv(cfg, flt_argc, flt_argv, 0)) continue;
         int test_size = 0;
         if (min_size || max_size) {
             if (cfg->size_args == 0) cfg->size_args = 0xFF;

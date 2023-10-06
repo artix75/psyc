@@ -37,6 +37,8 @@
     PSAcceleration_ACF))
 #define PSBLASEnabled(acceleration) (PSIsAccelerationEnabled(acceleration,\
     PSAcceleration_BLAS))
+#define PSAutoAccelerationEnabled(acceleration) \
+    (PSIsAccelerationEnabled(acceleration, PSAcceleration_Auto))
 
 #define PSGlobalEnableAcceleration(acceleration) PSEnableAcceleration(\
     &PSGlobalAcceleration, acceleration)
@@ -48,17 +50,18 @@ typedef enum PSAcceleration {
     PSAcceleration_AVX  = (1 << 0),
     PSAcceleration_ACF = (1 << 1), /* Accelerate Framework */
     PSAcceleration_BLAS = (1 << 2),
-    PSAcceleration_All  = 0xFF
+    PSAcceleration_Auto = (1 << 15),
+    PSAcceleration_All  = 0xFFFF
 } PSAcceleration;
 
 int PSIsAccelerationAvailable(PSAcceleration acceleration);
-int PSIsAccelerationEnabled(uint8_t config, PSAcceleration acceleration);
-int PSEnableAcceleration(uint8_t *config, PSAcceleration acceleration);
-void PSDisableAcceleration(uint8_t *config, PSAcceleration acceleration);
+int PSIsAccelerationEnabled(uint16_t config, PSAcceleration acceleration);
+int PSEnableAcceleration(uint16_t *config, PSAcceleration acceleration);
+void PSDisableAcceleration(uint16_t *config, PSAcceleration acceleration);
 const char *PSGetAccelerationName(PSAcceleration acceleration);
 int PSGetCodeOptimizationLevel(void);
 
 extern int PSGlobalFlags;
-extern uint8_t PSGlobalAcceleration;
+extern uint16_t PSGlobalAcceleration;
 
 #endif /* __PS_CONFIG_H__ */

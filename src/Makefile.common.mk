@@ -154,9 +154,9 @@ print-action = @printf '%b %b\n' $(ACTION_COLOR)$(3)$(1) $(NAME_COLOR)$(notdir $
 
 .save-build-info:
 	@cd $(PSYCPATH) && $(MAKE) rebuildclean
-	@$(SRCPATH)genbuildinfo.sh --optimization "$(OPT)" --prefix "$(PREFIX)"
-	echo PREV_CFLAGS='$(CFLAGS)' > $(SRCPATH).make-build-info
-	echo PREV_LDFLAGS='$(LDFLAGS)' >> $(SRCPATH).make-build-info
+	@cd $(SRCPATH) && ./genbuildinfo.sh --optimization "$(OPT)" --prefix "$(PREFIX)"
+	@echo PREV_CFLAGS='$(CFLAGS)' > $(SRCPATH).make-build-info
+	@echo PREV_LDFLAGS='$(LDFLAGS)' >> $(SRCPATH).make-build-info
 
 .PHONY: .save-build-info
 

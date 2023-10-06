@@ -55,24 +55,24 @@ int PSGlobalFlags = 0;
 
 #endif
 
-static uint8_t unavailableAccelerations = PS_UNAVAILABLE_ACCEL;
-static uint8_t unavailableAccelerationsMask = ~(PS_UNAVAILABLE_ACCEL);
-uint8_t PSGlobalAcceleration = (PSAcceleration_All & ~(PS_UNAVAILABLE_ACCEL));
+static uint16_t unavailableAccelerations = PS_UNAVAILABLE_ACCEL;
+static uint16_t unavailableAccelerationsMask = ~(PS_UNAVAILABLE_ACCEL);
+uint16_t PSGlobalAcceleration = (PSAcceleration_All & ~(PS_UNAVAILABLE_ACCEL));
 
 int PSIsAccelerationAvailable(PSAcceleration acceleration) {
     return !(unavailableAccelerations & acceleration);
 }
 
-int PSIsAccelerationEnabled(uint8_t config, PSAcceleration acceleration) {
+int PSIsAccelerationEnabled(uint16_t config, PSAcceleration acceleration) {
     return (config & unavailableAccelerationsMask) & acceleration;
 }
 
-int PSEnableAcceleration(uint8_t *config, PSAcceleration acceleration) {
+int PSEnableAcceleration(uint16_t *config, PSAcceleration acceleration) {
     if (!PSIsAccelerationAvailable(acceleration)) return 0;
     return (*config = *config | acceleration);
 }
 
-void PSDisableAcceleration(uint8_t *config, PSAcceleration acceleration) {
+void PSDisableAcceleration(uint16_t *config, PSAcceleration acceleration) {
     *config = (*config & ~((unsigned) acceleration));
 }
 
@@ -82,6 +82,7 @@ const char *PSGetAccelerationName(PSAcceleration acceleration) {
         case PSAcceleration_AVX: return "AVX";
         case PSAcceleration_ACF: return "Accelerate Framework";
         case PSAcceleration_BLAS: return "BLAS";
+        case PSAcceleration_Auto: return "Auto";
         case PSAcceleration_All: return "All";
     }
     return "Unknown";

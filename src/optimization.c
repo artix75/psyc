@@ -39,9 +39,13 @@ int PSDefaultOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
     UNUSED(xtmp);
     UNUSED(iteration);
     UNUSED(options);
+    int has_momentum = (momentum != 0);
     if (!PSIsAccelerationAvailable(acceleration))
         acceleration = PSAcceleration_None;
-    int has_momentum = (momentum != 0);
+    else if (PSAutoAccelerationEnabled(acceleration)) {
+        if (PSGetCodeOptimizationLevel() > 0)
+            acceleration = PSAcceleration_None;
+    }
     if (has_momentum && mgrads == NULL) {
         PSErr(__func__, "argument `mgrads` is mandatory for momentum");
         return 0;
@@ -91,6 +95,10 @@ int PSNesterovOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
     PSFloat *tmpalloc = NULL;
     if (!PSIsAccelerationAvailable(acceleration))
         acceleration = PSAcceleration_None;
+    else if (PSAutoAccelerationEnabled(acceleration)) {
+        if (PSGetCodeOptimizationLevel() > 0)
+            acceleration = PSAcceleration_None;
+    }
     if (acceleration == PSAcceleration_None) {
         for (uint64_t i = 0; i < len; i++) {
             PSFloat dx = mgrads[i];
@@ -151,6 +159,10 @@ int PSAdaDeltaOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
     PSFloat *tmpalloc = NULL, *tmpalloc1 = NULL, *tmpalloc2 = NULL;
     if (!PSIsAccelerationAvailable(acceleration))
         acceleration = PSAcceleration_None;
+    else if (PSAutoAccelerationEnabled(acceleration)) {
+        if (PSGetCodeOptimizationLevel() > 0)
+            acceleration = PSAcceleration_None;
+    }
     int success = 1;
     if (acceleration == PSAcceleration_None) {
         for (uint64_t i = 0; i < len; i++) {
@@ -250,6 +262,10 @@ int PSWindowGradOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
     PSFloat eps = options->eps;
     if (!PSIsAccelerationAvailable(acceleration))
         acceleration = PSAcceleration_None;
+    else if (PSAutoAccelerationEnabled(acceleration)) {
+        if (PSGetCodeOptimizationLevel() > 0)
+            acceleration = PSAcceleration_None;
+    }
     PSFloat *tmpalloc = NULL;
     if (acceleration == PSAcceleration_None) {
         for (uint64_t i = 0; i < len; i++) {
@@ -309,6 +325,10 @@ int PSAdaGradOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
     PSFloat eps = options->eps;
     if (!PSIsAccelerationAvailable(acceleration))
         acceleration = PSAcceleration_None;
+    else if (PSAutoAccelerationEnabled(acceleration)) {
+        if (PSGetCodeOptimizationLevel() > 0)
+            acceleration = PSAcceleration_None;
+    }
     PSFloat *tmpalloc = NULL;
     if (acceleration == PSAcceleration_None) {
         for (uint64_t i = 0; i < len; i++) {
@@ -377,7 +397,10 @@ int PSAdamOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
     PSFloat *tmpalloc = NULL, *tmpalloc1 = NULL, *tmpalloc2 = NULL;
     if (!PSIsAccelerationAvailable(acceleration))
         acceleration = PSAcceleration_None;
-    /*acceleration = PSAcceleration_None; */
+    else if (PSAutoAccelerationEnabled(acceleration)) {
+        if (PSGetCodeOptimizationLevel() > 0)
+            acceleration = PSAcceleration_None;
+    }
     int success = 1;
     if (acceleration == PSAcceleration_None) {
         for (uint64_t i = 0; i < len; i++) {

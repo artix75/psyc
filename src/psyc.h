@@ -342,7 +342,7 @@ typedef struct PSNeuralNetwork {
     PSLayer                     **layers;
     PSLossFunction              loss;
     uint32_t                    flags;
-    uint8_t                     acceleration;
+    uint16_t                    acceleration;
     uint8_t                     status;
     uint32_t                    input_size;
     uint32_t                    output_size;
