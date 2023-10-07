@@ -113,7 +113,13 @@
 
 #define UNUSED(V) ((void) V)
 #define MATHS_OPERATION_PREAMBLE() \
-    if (dest == NULL) dest = a;\
+    if (dest == NULL) {\
+        dest = PSVectorCreate(length);\
+        if (dest == NULL) {\
+            PSPrintMemoryErrorMsg();\
+            return NULL;\
+        }\
+    }\
     PSDotProductDebug debug_step = NULL;\
     uint64_t i = 0;\
     int acceleration = PSGlobalAcceleration, mode = PS_STORE_MODE_SET;\
@@ -125,12 +131,12 @@
     }\
     UNUSED(debug_step);
 
-typedef void (*PSOpVV) (PSFloat *a, PSFloat *b, PSFloat *res, uint64_t len,
-                        PSMathOpts *opts);
-typedef void (*PSOpVS) (PSFloat *a, PSFloat b, PSFloat *res, uint64_t len,
-                        PSMathOpts *opts);
-typedef void (*PSOpSV) (PSFloat a, PSFloat *b, PSFloat *res, uint64_t len,
-                        PSMathOpts *opts);
+typedef PSFloat * (*PSOpVV) (PSFloat *a, PSFloat *b,PSFloat *res, uint64_t len,
+                             PSMathOpts *opts);
+typedef PSFloat * (*PSOpVS) (PSFloat *a, PSFloat b, PSFloat *res, uint64_t len,
+                             PSMathOpts *opts);
+typedef PSFloat * (*PSOpSV) (PSFloat a, PSFloat *b, PSFloat *res, uint64_t len,
+                             PSMathOpts *opts);
 
 /* Forward declarations and external functions */
 
@@ -1136,7 +1142,7 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
             VDSPMMul(a, b, dest, m, 1, n);
             if (do_add) {
                 PSMathOpts sumopts = {.acceleration = acceleration};
-                PSSumVectors(out, dest, out, outlen, &sumopts);
+                PSAddVectors(out, dest, out, outlen, &sumopts);
                 if (opts == NULL || tmpdest != opts->tmpdest)
                     free(tmpdest);
             }
@@ -1315,7 +1321,7 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
             VDSPMMul(b, a, dest, n, 1, m);
             if (do_add) {
                 PSMathOpts sumopts = {.acceleration = acceleration};
-                PSSumVectors(dest, out, out, outlen, &sumopts);
+                PSAddVectors(dest, out, out, outlen, &sumopts);
                 if (opts == NULL || tmpdest != opts->tmpdest)
                     free(tmpdest);
             }
@@ -1625,7 +1631,7 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
                 VDSPMMul(a, b, dest, m, 1, n);
                 if (do_add) {
                     PSMathOpts sumopts = {.acceleration = acceleration};
-                    PSSumVectors(dest, out, out, outlen, &sumopts);
+                    PSAddVectors(dest, out, out, outlen, &sumopts);
                     if (opt == NULL || tmpdest != opt->tmpdest)
                         free(tmpdest);
                 }
@@ -1683,7 +1689,7 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
                 VDSPMMul(b, a, dest, n, 1, m);
                 if (do_add) {
                     PSMathOpts sumopt = {.acceleration = acceleration};
-                    PSSumVectors(dest, out, out, outlen, &sumopt);
+                    PSAddVectors(dest, out, out, outlen, &sumopt);
                     if (opt == NULL || tmpdest != opt->tmpdest)
                         free(tmpdest);
                 }
@@ -1724,7 +1730,7 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
                 VDSPMMul(a, b, dest, m, n, k);
                 if (do_add) {
                     PSMathOpts sumopt = {.acceleration = acceleration};
-                    PSSumVectors(dest, out, out, outlen, &sumopt);
+                    PSAddVectors(dest, out, out, outlen, &sumopt);
                     if (opt == NULL || tmpdest != opt->tmpdest)
                         free(tmpdest);
                 }
@@ -1801,8 +1807,9 @@ align_err:
 }
 
 int PSMatrixAdd(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
-    return genericMatrixOperation(a, b, result, PSSumVectors, PSSumVectorScalar,
-                                  NULL, __func__, opt);
+    return genericMatrixOperation(
+        a, b, result, PSAddVectors, PSAddVectorScalar, NULL, __func__, opt
+    );
 }
 
 int PSMatrixMultiply(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt)
@@ -2132,15 +2139,15 @@ void PSMatrixDelete(PSMatrix matrix) {
 
 /**** Operations ****/
 
-void PSSumVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
-                  PSMathOpts *opts)
+PSFloat *PSAddVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
+                      PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE()
     UNUSED(debug_step);
 #ifdef HAS_ACCELERATE_FRAMEWORK
     if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VDSPAddV(a, b, dest, length);
-        return;
+        return dest;
     }
 #endif
 #if defined(USE_AVX)
@@ -2162,16 +2169,17 @@ void PSSumVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
             for (; i < length; i++) dest[i] -= a[i] + b[i];
             break;
     }
+    return dest;
 }
 
-void PSSubtractVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
-                       PSMathOpts *opts)
+PSFloat *PSSubtractVectors(PSFloat *a, PSFloat *b, PSFloat *dest,
+                           uint64_t length, PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE()
 #ifdef HAS_ACCELERATE_FRAMEWORK
     if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VDSPSubV(a, b, dest, length);
-        return;
+        return dest;
     }
 #elif defined(USE_AVX)
     if (PSAVXEnabled(acceleration)) {
@@ -2192,10 +2200,11 @@ void PSSubtractVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
             for (; i < length; i++) dest[i] -= a[i] - b[i];
             break;
     }
+    return dest;
 }
 
-void PSMultiplyVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
-                       PSMathOpts *opts)
+PSFloat *PSMultiplyVectors(PSFloat *a, PSFloat *b, PSFloat *dest,
+                           uint64_t length, PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
@@ -2204,7 +2213,7 @@ void PSMultiplyVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
             VDSPMulV(a, b, dest, length);
         else if (mode == PS_STORE_MODE_ADD)
             VDSPMulAddV(a, b, dest, dest, length);
-        return;
+        return dest;
     }
 #endif
 #if defined(USE_AVX)
@@ -2235,16 +2244,17 @@ void PSMultiplyVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
             for (; i < length; i++) dest[i] -= a[i] * b[i];
             break;
     }
+    return dest;
 }
 
-void PSDivideVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
-                     PSMathOpts *opts)
+PSFloat *PSDivideVectors(PSFloat *a, PSFloat *b, PSFloat *dest,uint64_t length,
+                         PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
     if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VDSPDivV(a, b, dest, length);
-        return;
+        return dest;
     }
 #endif
 #if defined(USE_AVX)
@@ -2275,16 +2285,17 @@ void PSDivideVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
             for (; i < length; i++) dest[i] -= a[i] / b[i];
             break;
     }
+    return dest;
 }
 
-void PSMultiplyVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
-                            uint64_t length, PSMathOpts *opts)
+PSFloat *PSMultiplyVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
+                                uint64_t length, PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
     if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VDSPMulVS(a, b, dest, length);
-        return;
+        return dest;
     }
 #endif
 #if defined(USE_AVX)
@@ -2306,16 +2317,17 @@ void PSMultiplyVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
             for (; i < length; i++) dest[i] -= a[i] * b;
             break;
     }
+    return dest;
 }
 
-void PSSumVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
-                       uint64_t length, PSMathOpts *opts)
+PSFloat *PSAddVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
+                           uint64_t length, PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
     if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VDSPAddVS(a, b, dest, length);
-        return;
+        return dest;
     }
 #endif
 #if defined(USE_AVX)
@@ -2337,17 +2349,18 @@ void PSSumVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
             for (; i < length; i++) dest[i] -= a[i] + b;
             break;
     }
+    return dest;
 }
 
-void PSSubtractVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
-                            uint64_t length, PSMathOpts *opts)
+PSFloat *PSSubtractVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
+                                uint64_t length, PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
     if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         PSFloat invb = b * -1;
         VDSPAddVS(a, invb, dest, length);
-        return;
+        return dest;
     }
 #endif
 #if defined(USE_AVX)
@@ -2367,10 +2380,11 @@ void PSSubtractVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
             for (; i < length; i++) dest[i] -= a[i] - b;
             break;
     }
+    return dest;
 }
 
-void PSSubtractScalarVector(PSFloat b, PSFloat *a, PSFloat *dest,
-                            uint64_t length, PSMathOpts *opts)
+PSFloat *PSSubtractScalarVector(PSFloat b, PSFloat *a, PSFloat *dest,
+                                uint64_t length, PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
@@ -2378,7 +2392,7 @@ void PSSubtractScalarVector(PSFloat b, PSFloat *a, PSFloat *dest,
         PSFloat invb = b * -1;
         VDSPAddVS(a, invb, dest, length);
         VDSPNeg(dest, dest, length);
-        return;
+        return dest;
     }
 #endif
 #if defined(USE_AVX)
@@ -2398,16 +2412,17 @@ void PSSubtractScalarVector(PSFloat b, PSFloat *a, PSFloat *dest,
             for (; i < length; i++) dest[i] -= b - a[i];
             break;
     }
+    return dest;
 }
 
-void PSDivideVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
-                          uint64_t length, PSMathOpts *opts)
+PSFloat *PSDivideVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
+                              uint64_t length, PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
     if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VDSPDivVS(a, b, dest, length);
-        return;
+        return dest;
     }
 #endif
 #if defined(USE_AVX)
@@ -2429,17 +2444,18 @@ void PSDivideVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
             for (; i < length; i++) dest[i] -= a[i] / b;
             break;
     }
+    return dest;
 }
 
-void PSDivideScalarVector(PSFloat b, PSFloat *a, PSFloat *dest,
-                          uint64_t length, PSMathOpts *opts)
+PSFloat *PSDivideScalarVector(PSFloat b, PSFloat *a, PSFloat *dest,
+                              uint64_t length, PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK) && defined(__arm64__)
     /* This seems to lead to nan in x86 arch., so only use it with arm64 */
     if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VDSPDivSV(b, a, dest, length);
-        return;
+        return dest;
     }
 #endif
 #if defined(USE_AVX)
@@ -2461,15 +2477,17 @@ void PSDivideScalarVector(PSFloat b, PSFloat *a, PSFloat *dest,
             for (; i < length; i++) dest[i] -= b / a[i];
             break;
     }
+    return dest;
 }
 
-void PSVectorTanh(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+PSFloat *PSVectorTanh(PSFloat *a, PSFloat *dest, uint64_t length,
+                      PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
     if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VVTanh(a, dest, length);
-        return;
+        return dest;
     }
 #else
     UNUSED(acceleration);
@@ -2486,15 +2504,17 @@ void PSVectorTanh(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
             for (; i < length; i++) dest[i] -= PSTanh(a[i]);
             break;
     }
+    return dest;
 }
 
-void PSVectorExp(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+PSFloat *PSVectorExp(PSFloat *a, PSFloat *dest, uint64_t length,
+                     PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
     if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VVExp(a, dest, length);
-        return;
+        return dest;
     }
 #else
     UNUSED(acceleration);
@@ -2511,15 +2531,17 @@ void PSVectorExp(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
             for (; i < length; i++) dest[i] -= PSExp(a[i]);
             break;
     }
+    return dest;
 }
 
-void PSVectorSqrt(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+PSFloat *PSVectorSqrt(PSFloat *a, PSFloat *dest, uint64_t length,
+                      PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
     if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VVSqrt(a, dest, length);
-        return;
+        return dest;
     }
 #else
     UNUSED(acceleration);
@@ -2536,15 +2558,17 @@ void PSVectorSqrt(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
             for (; i < length; i++) dest[i] -= PSSqrt(a[i]);
             break;
     }
+    return dest;
 }
 
-void PSVectorNeg(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+PSFloat *PSVectorNeg(PSFloat *a, PSFloat *dest, uint64_t length,
+                     PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
     if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VDSPNeg(a, dest, length);
-        return;
+        return dest;
     }
 #endif
 #if defined(USE_AVX)
@@ -2566,15 +2590,17 @@ void PSVectorNeg(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
             for (; i < length; i++) dest[i] -= -(a[i]);
             break;
     }
+    return dest;
 }
 
-void PSVectorAbs(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+PSFloat *PSVectorAbs(PSFloat *a, PSFloat *dest, uint64_t length,
+                     PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
     if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VDSPAbs(a, dest, length);
-        return;
+        return dest;
     }
 #else
     UNUSED(acceleration);
@@ -2591,16 +2617,17 @@ void PSVectorAbs(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
             for (; i < length; i++) dest[i] -= PSAbs(a[i]);
             break;
     }
+    return dest;
 }
 
-void PSVectorClip(PSFloat *a, PSFloat min, PSFloat max, PSFloat *dest,
-                  uint64_t length, PSMathOpts *opts)
+PSFloat *PSVectorClip(PSFloat *a, PSFloat min, PSFloat max, PSFloat *dest,
+                      uint64_t length, PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
     if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VDSPClip(a, min, max, dest, length);
-        return;
+        return dest;
     }
 #endif
 #if defined(USE_AVX)
@@ -2622,16 +2649,17 @@ void PSVectorClip(PSFloat *a, PSFloat min, PSFloat max, PSFloat *dest,
             for (; i < length; i++) dest[i] -= PSClipValue(a[i], min, max);
             break;
     }
+    return dest;
 }
 
-void PSVectorThreshold(PSFloat *a, PSFloat min, PSFloat *dest,
-                       uint64_t length, PSMathOpts *opts)
+PSFloat *PSVectorThreshold(PSFloat *a, PSFloat min, PSFloat *dest,
+                           uint64_t length, PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
     if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VDSPThres(a, min, dest, length);
-        return;
+        return dest;
     }
 #endif
 #if defined(USE_AVX)
@@ -2653,16 +2681,17 @@ void PSVectorThreshold(PSFloat *a, PSFloat min, PSFloat *dest,
             for (; i < length; i++) dest[i]-=PSClipValue(a[i],min,PSFLOAT_MAX);
             break;
     }
+    return dest;
 }
 
-void PSVectorMapWithLimit(PSFloat *a, PSFloat limit, PSFloat mapper,
-                          PSFloat *dest, uint64_t length, PSMathOpts *opts)
+PSFloat *PSVectorMapWithLimit(PSFloat *a, PSFloat limit, PSFloat mapper,
+                              PSFloat *dest, uint64_t length, PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
     if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VDSPVLim(a, limit, mapper, dest, length);
-        return;
+        return dest;
     }
 #else
     UNUSED(acceleration);
@@ -2672,6 +2701,7 @@ void PSVectorMapWithLimit(PSFloat *a, PSFloat limit, PSFloat mapper,
         if (limit <= a[i]) dest[i] = mapper;
         else dest[i] = -mapper;
     }
+    return dest;
 }
 
 PSFloat PSVectorMax(PSFloat *a, uint64_t *index, uint64_t length,
@@ -2701,7 +2731,7 @@ PSFloat PSVectorMax(PSFloat *a, uint64_t *index, uint64_t length,
     return max;
 }
 
-PSFloat PSSumVectorElements(PSFloat *a, uint64_t length, PSMathOpts *opts) {
+PSFloat PSVectorReduceSum(PSFloat *a, uint64_t length, PSMathOpts *opts) {
     PSFloat sum = 0.0;
     int acceleration = PSGlobalAcceleration;
     if (opts != NULL) acceleration = opts->acceleration;
@@ -2718,26 +2748,23 @@ PSFloat PSSumVectorElements(PSFloat *a, uint64_t length, PSMathOpts *opts) {
     return sum;
 }
 
-void PSVectorPower(PSFloat *a, PSFloat exp, PSFloat *dest, uint64_t length,
-                   PSMathOpts *opts)
+PSFloat *PSVectorPower(PSFloat *a, PSFloat exp, PSFloat *dest, uint64_t length,
+                       PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE();
     if (exp == 1) {
-        if (dest == a) return;
+        if (dest == a) return dest;
         else if (dest != NULL) {
             PSVectorCopy(dest, a, length);
-            return;
+            return dest;
         }
-    } else if (exp == 2) {
-        PSMultiplyVectors(a, a, dest, length, opts);
-        return;
-    }
+    } else if (exp == 2) return PSMultiplyVectors(a, a, dest, length, opts);
 #if defined(HAS_ACCELERATE_FRAMEWORK)
     if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         PSFloat exps[length];
         VDSPFill(exp, exps, length);
         VVPow(a, exps, dest, length);
-        return;
+        return dest;
     }
 #else
     UNUSED(acceleration);
@@ -2754,6 +2781,7 @@ void PSVectorPower(PSFloat *a, PSFloat exp, PSFloat *dest, uint64_t length,
             for (; i < length; i++) dest[i] -= PSPow(a[i], exp);
             break;
     }
+    return dest;
 }
 
 int PSCumulativeSum(PSFloat *a, PSFloat *dest, uint64_t length) {
@@ -3106,7 +3134,7 @@ acceleration_done:
     if (postprocess) {
         PSMathOpts ppopts = {.acceleration = acceleration};
         if (store_mode == PS_STORE_MODE_ADD)
-            PSSumVectors(dest, vpdest, dest, dstlen, &ppopts);
+            PSAddVectors(dest, vpdest, dest, dstlen, &ppopts);
         else if (store_mode == PS_STORE_MODE_SUB)
             PSSubtractVectors(dest, vpdest, dest, dstlen, &ppopts);
     }
@@ -3328,7 +3356,7 @@ int PSMatMul(PSFloat *a, PSFloat *b, PSFloat *dest, int m, int n, int k,
         }
         VDSPMMul(a, b, out, m, n, k);
         if (do_add) {
-            PSSumVectors(dest, out, dest, outlen, &mopts);
+            PSAddVectors(dest, out, dest, outlen, &mopts);
             if (opts == NULL || tmpdest != opts->tmpdest)
                 free(tmpdest);
         }

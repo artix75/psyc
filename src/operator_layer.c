@@ -271,7 +271,7 @@ int PSOperationForward(PSLayer *layer, int seqlen, int t) {
             PSVectorCopy(outputs, inputs, len);
             continue;
         }
-        if (is_add) PSSumVectors(outputs, inputs, outputs, len, &opts);
+        if (is_add) PSAddVectors(outputs, inputs, outputs, len, &opts);
         else PSMultiplyVectors(outputs, inputs, outputs, len, &opts);
     }
     return success;
@@ -304,7 +304,7 @@ int PSConcatenateBackward(PSLayer *layer, int seqlen, int t) {
             PSFloat *output_delta = provider->delta;
             if (output_delta == NULL) goto next;
             output_delta += (t * provider->size);
-            PSSumVectors(
+            PSAddVectors(
                 output_delta, delta, output_delta, provider->size, &opts
             );
 next:
@@ -352,7 +352,7 @@ int PSOperationBackward(PSLayer *layer, int seqlen, int t) {
         );
         success = (dptr != NULL);
         if (!success) goto final;
-        PSSumVectors(output_delta, delta, dptr, len, &opts);
+        PSAddVectors(output_delta, delta, dptr, len, &opts);
         if (is_add) continue;
         else if (is_mul) {
             for (int j = 0; j < providers_count; j++) {
@@ -366,7 +366,7 @@ int PSOperationBackward(PSLayer *layer, int seqlen, int t) {
                 PSFloat *inputs = getInputsFromProvider(layer, xprovider, t);
                 PSMultiplyVectors(dptr, inputs, dptr, len, &opts);
             }
-            PSSumVectors(output_delta, dptr, output_delta, len, &opts);
+            PSAddVectors(output_delta, dptr, output_delta, len, &opts);
         }
         if (dptr != output_delta) PSMatrixDelete(dptr);
     }

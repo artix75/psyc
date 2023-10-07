@@ -611,13 +611,13 @@ final:
     mopts.store_mode = PS_STORE_MODE_SET;
     /* Add biases */
     if (use_bias) {
-        PSSumVectors(candidates, cell->candidate_biases, candidates,
+        PSAddVectors(candidates, cell->candidate_biases, candidates,
             layer->size, &mopts);
-        PSSumVectors(input_gates, cell->input_biases, input_gates,
+        PSAddVectors(input_gates, cell->input_biases, input_gates,
             layer->size, &mopts);
-        PSSumVectors(output_gates, cell->output_biases, output_gates,
+        PSAddVectors(output_gates, cell->output_biases, output_gates,
             layer->size, &mopts);
-        PSSumVectors(forget_gates, cell->forget_biases, forget_gates,
+        PSAddVectors(forget_gates, cell->forget_biases, forget_gates,
             layer->size, &mopts);
     }
     /* Activate candidates, input, output and forget gates. */
@@ -725,7 +725,7 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previous_layer,
     }
     PSMultiplyVectors(dz, output_gates, dz, layer->size, &mopts);
     PSMultiplyVectors(dz, layer->delta, dz, layer->size, &mopts);
-    PSSumVectors(dz, delta_z, dz, layer->size, &mopts);
+    PSAddVectors(dz, delta_z, dz, layer->size, &mopts);
 
     /* Update output gates delta (delta_o) */
     PSSigmoidDerivative(output_gates, delta_o, layer->size, &mopts);
@@ -754,13 +754,13 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previous_layer,
 
     /* Update gradient biases */
     if (use_bias) {
-        PSSumVectors(delta_c, gradient_biases_c, gradient_biases_c,
+        PSAddVectors(delta_c, gradient_biases_c, gradient_biases_c,
                      layer->size, &mopts);
-        PSSumVectors(delta_i, gradient_biases_i, gradient_biases_i,
+        PSAddVectors(delta_i, gradient_biases_i, gradient_biases_i,
                      layer->size, &mopts);
-        PSSumVectors(delta_o, gradient_biases_o, gradient_biases_o,
+        PSAddVectors(delta_o, gradient_biases_o, gradient_biases_o,
                      layer->size, &mopts);
-        PSSumVectors(delta_f, gradient_biases_f, gradient_biases_f,
+        PSAddVectors(delta_f, gradient_biases_f, gradient_biases_f,
                      layer->size, &mopts);
     }
 

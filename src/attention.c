@@ -723,7 +723,7 @@ static int attentionFeedforward(PSMatrix x, PSMatrix weights, PSFloat *biases,
     if (x_is_vec) {
         success = PSDotMV(weights, (PSFloat *)x, dest, &opts);
         if (!success) return 0;
-        if (biases != NULL) PSSumVectors(dest, biases, dest, input_size, &opts);
+        if (biases != NULL) PSAddVectors(dest, biases, dest, input_size, &opts);
         if (activate) activate(dest, dest, input_size, &opts);
     } else {
         opts.transpose = 2;
@@ -737,7 +737,7 @@ static int attentionFeedforward(PSMatrix x, PSMatrix weights, PSFloat *biases,
             PSFloat *row = dest;
             for (i = 0; i < nrows; i++) {
                 if (biases != NULL)
-                    PSSumVectors(row, biases, row, input_size, &opts);
+                    PSAddVectors(row, biases, row, input_size, &opts);
                 if (activate)
                     activate(row, row, input_size, &opts);
                 row += input_size;
@@ -759,7 +759,7 @@ static int applyCausalMask(PSLayer *layer, PSFloat *mask, PSMatrix scores,
                     "sizes: %d != %d", masklen, scorelen);
             return 0;
         }
-        PSSumVectors(scores, mask, scores, masklen, &opts);
+        PSAddVectors(scores, mask, scores, masklen, &opts);
     } else {
         if (score_size <= 0) {
             int shape[3] = {0};
@@ -767,7 +767,7 @@ static int applyCausalMask(PSLayer *layer, PSFloat *mask, PSMatrix scores,
             if (ndims <= 0) return 0;
             score_size = shape[ndims - 1];
         }
-        PSSumVectors(scores, mask, scores, score_size, &opts);
+        PSAddVectors(scores, mask, scores, score_size, &opts);
     }
     return 1;
 }
@@ -1205,10 +1205,10 @@ PSMatrix PSGetAdditiveScores(PSLayer *layer, PSFloat *query, PSMatrix keys,
             PSFloat *dest = qrysum + offset;
             PSFloat *key = keys + offset;
             PSFloat *qry = query + qry_offset;
-            PSSumVectors(key, qry, dest, size, &opts);
+            PSAddVectors(key, qry, dest, size, &opts);
             PSTanhActivation(dest, dest, size, &opts);
             if (!trainable)
-                scores[k] = PSSumVectorElements(dest, size, &opts);
+                scores[k] = PSVectorReduceSum(dest, size, &opts);
         }
     }
     if (trainable) {
@@ -1574,17 +1574,17 @@ int PSAdditiveAttentionBackward(PSLayer *layer, PSMatrix *dscores,
     if (*dquery == NULL) *dquery = delta;
     else {
         if (PSHandleSequenceAtOnce(layer))
-            PSSumVectors(*dquery, delta, *dquery, klen, &opts);
+            PSAddVectors(*dquery, delta, *dquery, klen, &opts);
         else {
             delta_p = delta;
             for (i = 0; i < nkeys; i++) {
-                PSSumVectors(*dquery, delta_p, *dquery, size, &opts);
+                PSAddVectors(*dquery, delta_p, *dquery, size, &opts);
                 delta_p += size;
             }
         }
     }
     if (*dkeys == NULL) *dkeys = delta;
-    else PSSumVectors(*dkeys, delta, *dkeys, klen, &opts);
+    else PSAddVectors(*dkeys, delta, *dkeys, klen, &opts);
 final:
     if (delta && delta != *dkeys) PSMatrixDelete(delta);
     PSMatrixDelete(score_deriv);

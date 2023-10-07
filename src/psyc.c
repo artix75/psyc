@@ -479,7 +479,7 @@ int PSOnehotInputsForward(PSLayer *layer, int weights_index,
         PSFloat *states = tweights + (onehot_idx * layer->size);
         PSVectorCopy(out, states, layer->size);
         if (use_bias)
-            PSSumVectors(out, layer->biases, out, layer->size, &opts);
+            PSAddVectors(out, layer->biases, out, layer->size, &opts);
         if (do_activate) layer->activate(out, NULL, layer->size, &opts);
     }
     return 1;
@@ -546,7 +546,7 @@ int PSFullForward(PSLayer *layer, ...) {
         int ok = PSDot(weights, inputs, outputs, &opts);
         if (!ok) return 0;
         if (use_bias)
-            PSSumVectors(outputs, layer->biases, outputs, layer->size, &opts);
+            PSAddVectors(outputs, layer->biases, outputs, layer->size, &opts);
         if (layer->activate) layer->activate(outputs, NULL, layer->size, &opts);
     } else {
         opts.transpose = 2;
@@ -4440,7 +4440,7 @@ void PSUpdateGradientData(PSFloat *gradient_weights, PSFloat *gradient_biases,
         );
         if (gradient_biases != NULL) {
             opts.store_mode = PS_STORE_MODE_SET;
-            PSSumVectors(
+            PSAddVectors(
                 delta_p, gradient_biases, gradient_biases, size, &opts
             );
         };
@@ -4560,7 +4560,7 @@ int computeSoftmaxOutputDelta(PSLayer *layer, PSFloat *y, ...) {
         PSFloat *out_p = outputs;
         for (int i = 0; i < seqlen; i++) {
             PSMultiplyVectors(delta_p, out_p, delta_p, layer->size, &mopts);
-            softmax_sum = PSSumVectorElements(delta_p, layer->size, &mopts);
+            softmax_sum = PSVectorReduceSum(delta_p, layer->size, &mopts);
             mopts.store_mode = PS_STORE_MODE_SUB;
             PSMultiplyVectorScalar(
                 out_p, softmax_sum, delta_p, layer->size, &mopts
@@ -5016,7 +5016,7 @@ int sumGradients(PSGradient **dstgrads, PSGradient **srcgrads, int count,
                       "biases mismatch");
                 return 0;
             }
-            PSSumVectors(src->biases, dst->biases, dst->biases, src->bias_count,
+            PSAddVectors(src->biases, dst->biases, dst->biases, src->bias_count,
                          mopts);
         }
         if (src->weight_count > 0 && src->weights != NULL) {
@@ -5026,7 +5026,7 @@ int sumGradients(PSGradient **dstgrads, PSGradient **srcgrads, int count,
                       "weights mismatch");
                 return 0;
             }
-            PSSumVectors(src->weights, dst->weights, dst->weights,
+            PSAddVectors(src->weights, dst->weights, dst->weights,
                          src->weight_count, mopts);
         }
     }

@@ -768,7 +768,7 @@ int PSConvolutionalForward(PSLayer *layer, ...) {
             for (i = 0; i < layer->output_depth; i++) {
                 PSFloat bias = layer->biases[i];
                 PSFloat *feature_map = outputs + (i * feature_size);
-                PSSumVectorScalar(feature_map, bias, feature_map,
+                PSAddVectorScalar(feature_map, bias, feature_map,
                                   feature_size, &mopts);
             }
         }

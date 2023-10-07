@@ -188,7 +188,7 @@ forward_previous_step:
 final:
     dpopt.store_mode = PS_STORE_MODE_SET;
     if (use_bias)
-        PSSumVectors(outputs, layer->biases, outputs, layer->size, &dpopt);
+        PSAddVectors(outputs, layer->biases, outputs, layer->size, &dpopt);
     if (layer->activate != NULL)
         layer->activate(outputs, NULL, layer->size, &dpopt);
     return 1;
@@ -232,7 +232,7 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previous_layer,
         if (!onehot) {
             PSFloat *prev_layer_outputs = PSGetStates(previous_layer, tt);
             assert(prev_layer_outputs != NULL); /* TODO: emit error */
-            if (use_bias) PSSumVectors(
+            if (use_bias) PSAddVectors(
                 delta, gradients->biases, gradients->biases, layer->size,&mopts
             );
             mopts.store_mode = PS_STORE_MODE_ADD;

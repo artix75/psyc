@@ -80,12 +80,21 @@ void PSSigmoid(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts) {
     if (mopts.acceleration != PSAcceleration_None) {
         PSVectorNeg(vec, dest, len, &mopts);
         PSVectorExp(dest, dest, len, &mopts);
-        PSSumVectorScalar(dest, 1.0, dest, len, &mopts);
+        PSAddVectorScalar(dest, 1.0, dest, len, &mopts);
         PSDivideScalarVector(1.0, dest, dest, len, &mopts);
         return;
     }
     uint64_t i;
     for (i = 0; i < len; i++) dest[i] = PSSigmoidS(vec[i]);
+}
+
+void PSTanhActivation(PSFloat *vec, PSFloat *dest, uint64_t len,
+                      PSMathOpts *opts)
+{
+    if (dest == NULL) dest = vec;
+    PSMathOpts mopts = {0};
+    PSInitActivationMathOpts(&mopts, opts);
+    PSVectorTanh(vec, dest, len, &mopts);
 }
 
 void PSRelu(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts) {
@@ -120,11 +129,11 @@ void PSGelu(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts) {
         /* 0.044715 * dest */
         PSMultiplyVectorScalar(dest, 0.044715, dest, len, &mopts);
         /* val + dest */
-        PSSumVectors(dest, vec, dest, len, &mopts);
+        PSAddVectors(dest, vec, dest, len, &mopts);
         /* 1 + tanh(c * dest) */
         PSMultiplyVectorScalar(dest, c, dest, len, &mopts);
         PSVectorTanh(dest, dest, len, &mopts);
-        PSSumVectorScalar(dest, 1, dest, len, &mopts);
+        PSAddVectorScalar(dest, 1, dest, len, &mopts);
         /* 0.5 * vec * dest */
         PSMultiplyVectors(dest, vec, dest, len, &mopts);
         PSMultiplyVectorScalar(dest, 0.5, dest, len, &mopts);
@@ -203,7 +212,7 @@ void PSGeluDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
         /* 0.044715 * dest */
         PSMultiplyVectorScalar(dest, 0.044715, dest, len, &mopts);
         /* val + dest */
-        PSSumVectors(dest, vec, dest, len, &mopts);
+        PSAddVectors(dest, vec, dest, len, &mopts);
         /* tanh(c * dest) */
         PSMultiplyVectorScalar(dest, c1, dest, len, &mopts);
         PSVectorTanh(dest, dest, len, &mopts);
@@ -224,8 +233,8 @@ void PSGeluDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
 
         /* 0.5 + (0.5 * dest) + erf_prime */
         PSMultiplyVectorScalar(dest, 0.5, dest, len, &mopts);
-        PSSumVectors(dest, erf_prime, dest, len, &mopts);
-        PSSumVectorScalar(dest, 0.5, dest, len, &mopts);
+        PSAddVectors(dest, erf_prime, dest, len, &mopts);
+        PSAddVectorScalar(dest, 0.5, dest, len, &mopts);
 
         free(erf_prime);
         return;
@@ -242,8 +251,8 @@ void PSSoftmax(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts) {
     if (PSACFEnabled(mopts.acceleration)) {
         max = PSVectorMax(vec, NULL, len, &mopts);
         PSSubtractVectorScalar(vec, max, dest, len, &mopts);
-        PSVectorExp(dest, NULL, len, &mopts);
-        esum = PSSumVectorElements(dest, len, &mopts);
+        PSVectorExp(dest, dest, len, &mopts);
+        esum = PSVectorReduceSum(dest, len, &mopts);
         PSDivideVectorScalar(dest, esum, dest, len, &mopts);
         return;
     }

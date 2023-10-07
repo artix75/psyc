@@ -308,7 +308,7 @@ int PSNormalize(PSFloat *inputs, PSFloat *outputs, PSFloat *normalized,
         if (scale != NULL)
             PSMultiplyVectors(normalized, scale, outputs, size, opts);
         if (intercept != NULL)
-            PSSumVectors(outputs, intercept, outputs, size, opts);
+            PSAddVectors(outputs, intercept, outputs, size, opts);
     } else {
         if (outputs != normalized) memcpy(outputs, normalized, alloc_size);
     }
@@ -525,7 +525,7 @@ int PSNormalizationBackprop(PSLayer *layer, PSLayer *previous,
                         *lweights = layer->weights[0] + offset;
                 mopts.store_mode = PS_STORE_MODE_ADD;
                 if (use_bias)
-                    PSSumVectors(gbiases, delta_p, gbiases, size, &mopts);
+                    PSAddVectors(gbiases, delta_p, gbiases, size, &mopts);
                 PSMultiplyVectors(delta_p, normalized, gweights, size, &mopts);
                 mopts.store_mode = PS_STORE_MODE_SET;
                 /* delta_norm = weights * delta[tidx] */
@@ -544,8 +544,8 @@ int PSNormalizationBackprop(PSLayer *layer, PSLayer *previous,
             PSMultiplyVectorScalar(delta_norm_p, size, tmp1_p, size, &mopts);
             /* dnorm_sum = sum(delta_norm)
              * dnorm_norm_sum = sum(delta_norm * normalized) */
-            PSFloat dnorm_sum = PSSumVectorElements(delta_norm_p, size, &mopts);
-            PSFloat dnorm_norm_sum = PSSumVectorElements(tmp2_p, size, &mopts);
+            PSFloat dnorm_sum = PSVectorReduceSum(delta_norm_p, size, &mopts);
+            PSFloat dnorm_norm_sum = PSVectorReduceSum(tmp2_p, size, &mopts);
             PSMultiplyVectorScalar(
                 normalized, dnorm_norm_sum, tmp2_p, size,&mopts
             );

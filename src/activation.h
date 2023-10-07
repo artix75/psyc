@@ -27,8 +27,6 @@
 #define PSTanhS tanhf
 #endif
 
-#define PSTanhActivation PSVectorTanh
-
 typedef void     (*PSActivationFunction) (PSFloat *vec, PSFloat *dest,
                                           uint64_t len, PSMathOpts *opts);
 typedef PSFloat  (*PSScalarActivationFunction) (PSFloat);
@@ -42,6 +40,8 @@ PSFloat PSGeluDerivativeS(PSFloat val);
 PSFloat PSTanhDerivativeS(PSFloat val);
 
 void PSSigmoid(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts);
+void PSTanhActivation(PSFloat *vec, PSFloat *dest, uint64_t len,
+                      PSMathOpts *opts);
 void PSRelu(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts);
 void PSGelu(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts);
 void PSSigmoidDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,

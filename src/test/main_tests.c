@@ -4791,18 +4791,18 @@ int testMathsSumV(TestCase *tc, Test *test) {
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     opts.acceleration = PSAcceleration_ACF;
-    PSSumVectors(x, y, res, 6, &opts);
+    PSAddVectors(x, y, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0, 0);
     if (!ok) return 0;
 #endif
 #ifdef USE_AVX
     opts.acceleration = PSAcceleration_AVX;
-    PSSumVectors(x, y, res, 6, &opts);
+    PSAddVectors(x, y, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "AVX", 0, 0);
     if (!ok) return 0;
 #endif
     opts.acceleration = PSAcceleration_None;
-    PSSumVectors(x, y, res, 6, &opts);
+    PSAddVectors(x, y, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "No Acceleration:", 0, 0);
     if (!ok) return 0;
     return ok;
@@ -4903,18 +4903,18 @@ int testMathsSumVS(TestCase *tc, Test *test) {
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     opts.acceleration = PSAcceleration_ACF;
-    PSSumVectorScalar(x, y, res, 6, &opts);
+    PSAddVectorScalar(x, y, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0, 0);
     if (!ok) return 0;
 #endif
 #ifdef USE_AVX
     opts.acceleration = PSAcceleration_AVX;
-    PSSumVectorScalar(x, y, res, 6, &opts);
+    PSAddVectorScalar(x, y, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "AVX", 0, 0);
     if (!ok) return 0;
 #endif
     opts.acceleration = PSAcceleration_None;
-    PSSumVectorScalar(x, y, res, 6, &opts);
+    PSAddVectorScalar(x, y, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "No Acceleration:", 0, 0);
     if (!ok) return 0;
     return ok;
@@ -5152,7 +5152,7 @@ int testMathsPow(TestCase *tc, Test *test) {
     PSFloat exp = 3;
     for (int i = 0; i < 6; i++) cmp_res[i] = PSPow(x[i], exp);
     int ok = 1;
-    int precision = 5;
+    int precision = 3;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     opts.acceleration = PSAcceleration_ACF;

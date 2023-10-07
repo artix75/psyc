@@ -543,7 +543,7 @@ forward_previous_step:
     mopts.store_mode = PS_STORE_MODE_SET;
     if (use_bias) {
         /*  reset_gates += reset_biases */
-        PSSumVectors(reset_gates, cell->reset_biases, reset_gates,
+        PSAddVectors(reset_gates, cell->reset_biases, reset_gates,
             layer->size, &mopts);
     }
     /*  reset_gates = sigmoid(reset_gates) */
@@ -559,14 +559,14 @@ make_outputs:
     if (use_bias) {
         /*  candidates += candidate_biases
          *  update_gates += update_biases */
-        PSSumVectors(candidates, cell->candidate_biases, candidates,
+        PSAddVectors(candidates, cell->candidate_biases, candidates,
             layer->size, &mopts);
-        PSSumVectors(update_gates, cell->update_biases, update_gates,
+        PSAddVectors(update_gates, cell->update_biases, update_gates,
             layer->size, &mopts);
         if (!reset_gates_complete) {
             /* Add reset_biases to reset_gates if forward_previous_step has
              * been skipped. */
-            PSSumVectors(reset_gates, cell->reset_biases, reset_gates,
+            PSAddVectors(reset_gates, cell->reset_biases, reset_gates,
                 layer->size, &mopts);
         }
     }
@@ -683,10 +683,10 @@ int PSGRUBackprop(PSLayer *layer, PSLayer *previous_layer,
     /* Update gradient biases */
     if (use_bias) {
         mopts.store_mode = PS_STORE_MODE_SET;
-        PSSumVectors(gradient_biases_c,delta_c,gradient_biases_c,lsize,&mopts);
-        PSSumVectors(gradient_biases_u,delta_u,gradient_biases_u,lsize,&mopts);
+        PSAddVectors(gradient_biases_c,delta_c,gradient_biases_c,lsize,&mopts);
+        PSAddVectors(gradient_biases_u,delta_u,gradient_biases_u,lsize,&mopts);
         if (has_prev_states) {
-            PSSumVectors(gradient_biases_r, delta_r, gradient_biases_r,
+            PSAddVectors(gradient_biases_r, delta_r, gradient_biases_r,
                          lsize, &mopts);
         }
     }

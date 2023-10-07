@@ -68,7 +68,7 @@ int PSDefaultOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
             mopts.store_mode = PS_STORE_MODE_SUB;
             PSMultiplyVectorScalar(grads, rate, mgrads, len, &mopts);
             mopts.store_mode = PS_STORE_MODE_SET;
-            PSSumVectors(params, mgrads, params, len, &mopts);
+            PSAddVectors(params, mgrads, params, len, &mopts);
         } else {
             mopts.store_mode = PS_STORE_MODE_ADD;
             PSMultiplyVectorScalar(grads, -rate, params, len, &mopts);
@@ -126,7 +126,7 @@ int PSNesterovOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
         mopts.store_mode = PS_STORE_MODE_SUB;
         PSMultiplyVectorScalar(mgrads, (1.0 + momentum), tmp, len, &mopts);
         mopts.store_mode = PS_STORE_MODE_SET;
-        PSSumVectors(params, tmp, params, len, &mopts);
+        PSAddVectors(params, tmp, params, len, &mopts);
     }
     if (tmpalloc != NULL) free(tmpalloc);
     return 1;
@@ -215,8 +215,8 @@ int PSAdaDeltaOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
         PSMultiplyVectorScalar(tmp, (1 - rho), mgrads, len, &mopts);
         /*dx = - PSSqrt((*xgrads + eps) / (*mgrads + eps)) * grad;*/
         mopts.store_mode = PS_STORE_MODE_SET;
-        PSSumVectorScalar(xgrads, eps, xtmp, len, &mopts);
-        PSSumVectorScalar(mgrads, eps, mtmp, len, &mopts);
+        PSAddVectorScalar(xgrads, eps, xtmp, len, &mopts);
+        PSAddVectorScalar(mgrads, eps, mtmp, len, &mopts);
         PSDivideVectors(xtmp, mtmp, dx, len, &mopts);
         PSVectorSqrt(tmp, tmp, len, &mopts);
         PSMultiplyVectors(tmp, grads, tmp, len, &mopts);
@@ -228,7 +228,7 @@ int PSAdaDeltaOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
         PSMultiplyVectorScalar(dxsqr, (1 - rho), xgrads, len, &mopts);
         /* param + dx */
         mopts.store_mode = PS_STORE_MODE_SET;
-        PSSumVectors(params, dx, params, len, &mopts);
+        PSAddVectors(params, dx, params, len, &mopts);
         free(dxsqr);
     }
 final:
@@ -291,12 +291,12 @@ int PSWindowGradOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
         PSMultiplyVectorScalar(tmp, (1 - rho), mgrads, len, &mopts);
         /* dx = - rate / PSSqrt(mgrads[i] + eps) * grads[i] */
         mopts.store_mode = PS_STORE_MODE_SET;
-        PSSumVectorScalar(mgrads, eps, tmp, len, &mopts);
+        PSAddVectorScalar(mgrads, eps, tmp, len, &mopts);
         PSVectorSqrt(tmp, tmp, len, &mopts);
         PSDivideScalarVector(-rate, tmp, tmp, len, &mopts);
         PSMultiplyVectors(grads, tmp, tmp, len, &mopts);
         /* params[i] += dx */
-        PSSumVectors(params, tmp, params, len, &mopts);
+        PSAddVectors(params, tmp, params, len, &mopts);
     }
     if (tmpalloc != NULL) free(tmpalloc);
     return 1;
@@ -351,13 +351,13 @@ int PSAdaGradOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
         PSMultiplyVectors(grads, grads, mgrads, len, &mopts);
         mopts.store_mode = PS_STORE_MODE_SET;
         /* dx = - rate / PSSqrt(mgrads[i] + eps) * grads[i] */
-        PSSumVectorScalar(mgrads, eps, tmp, len, &mopts);
+        PSAddVectorScalar(mgrads, eps, tmp, len, &mopts);
         PSVectorSqrt(tmp, tmp, len, &mopts);
         PSDivideScalarVector(rate, tmp, tmp, len, &mopts);
         PSVectorNeg(tmp, tmp, len, &mopts);
         PSMultiplyVectors(tmp, grads, tmp, len, &mopts);
         /* params[i] += dx */
-        PSSumVectors(params, tmp, params, len, &mopts);
+        PSAddVectors(params, tmp, params, len, &mopts);
     }
     if (tmpalloc != NULL) free(tmpalloc);
     return 1;
@@ -447,13 +447,13 @@ int PSAdamOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
         mopts.store_mode = PS_STORE_MODE_SET;
         PSMultiplyVectorScalar(mgrads, beta1, mgrads, len, &mopts);
         PSMultiplyVectorScalar(grads, (1 - beta1), tmp, len, &mopts);
-        PSSumVectors(mgrads, tmp, mgrads, len, &mopts);
+        PSAddVectors(mgrads, tmp, mgrads, len, &mopts);
         /* xgrads[i] = xgrads[i] * beta2 + (1 - beta2) * grads[i] * grads[i] */
         mopts.store_mode = PS_STORE_MODE_SET;
         PSMultiplyVectorScalar(xgrads, beta2, xgrads, len, &mopts);
         PSVectorPower(grads, 2, tmp, len, &mopts);
         PSMultiplyVectorScalar(tmp, (1 - beta2), tmp, len, &mopts);
-        PSSumVectors(xgrads, tmp, xgrads, len, &mopts);
+        PSAddVectors(xgrads, tmp, xgrads, len, &mopts);
         /* correct1 = mgrads[i] * (1 - PSPow(beta1, iteration))*/
         mopts.store_mode = PS_STORE_MODE_SET;
         PSMultiplyVectorScalar(
@@ -466,10 +466,10 @@ int PSAdamOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
         /* dx =  - rate * correct1 / (PSSqrt(correct2) + eps); */
         PSMultiplyVectorScalar(correct1, -rate, correct1, len, &mopts);
         PSVectorSqrt(correct2, correct2, len, &mopts);
-        PSSumVectorScalar(correct2, eps, correct2, len, &mopts);
+        PSAddVectorScalar(correct2, eps, correct2, len, &mopts);
         PSDivideVectors(correct1, correct2, tmp, len, &mopts);
         /* params[i] += dx; */
-        PSSumVectors(params, tmp, params, len, &mopts);
+        PSAddVectors(params, tmp, params, len, &mopts);
     }
 final:
     if (tmpalloc != NULL) free(tmpalloc);
@@ -531,10 +531,10 @@ int PSLRegularization(PSFloat l1, PSFloat l2, PSFloat *weights,
                 PSMultiplyVectorScalar(l1_grads, l1, l1_grads, len, &mopts);
                 if (batches > 1)
                     PSDivideVectorScalar(l1_grads,batches,l1_grads,len,&mopts);
-                PSSumVectors(wgradients, l1_grads, wgradients, len, &mopts);
+                PSAddVectors(wgradients, l1_grads, wgradients, len, &mopts);
                 if (l1_loss != NULL) {
                     PSVectorAbs(weights, tmp, len, &mopts);
-                    *l1_loss += PSSumVectorElements(tmp, len, &mopts);
+                    *l1_loss += PSVectorReduceSum(tmp, len, &mopts);
                 }
             }
         }
@@ -546,10 +546,10 @@ int PSLRegularization(PSFloat l1, PSFloat l2, PSFloat *weights,
                 PSMultiplyVectorScalar(weights, l2, l2_grads, len, &mopts);
                 if (batches > 1)
                     PSDivideVectorScalar(l2_grads,batches,l2_grads,len,&mopts);
-                PSSumVectors(wgradients, l2_grads, wgradients, len, &mopts);
+                PSAddVectors(wgradients, l2_grads, wgradients, len, &mopts);
                 if (l2_loss != NULL) {
                     PSMultiplyVectors(weights, weights, tmp, len, &mopts);
-                    PSFloat loss = PSSumVectorElements(tmp, len, &mopts);
+                    PSFloat loss = PSVectorReduceSum(tmp, len, &mopts);
                     *l2_loss += loss;
                 }
             }

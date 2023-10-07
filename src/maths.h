@@ -186,44 +186,47 @@ void PSMatrixDelete(PSMatrix matrix);
 
 /**** Operations ***/
 
-void PSSumVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
-                  PSMathOpts *opts);
-void PSSubtractVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
-                       PSMathOpts *opts);
-void PSMultiplyVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
-                       PSMathOpts *opts);
-void PSDivideVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
+PSFloat *PSAddVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
+                      PSMathOpts *opts);
+PSFloat *PSSubtractVectors(PSFloat *a, PSFloat *b, PSFloat *dest,
+                           uint64_t length, PSMathOpts *opts);
+PSFloat *PSMultiplyVectors(PSFloat *a, PSFloat *b, PSFloat *dest,
+                           uint64_t length, PSMathOpts *opts);
+PSFloat *PSDivideVectors(PSFloat *a, PSFloat *b, PSFloat *dest,
+                         uint64_t length, PSMathOpts *opts);
+PSFloat *PSMultiplyVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
+                                uint64_t length, PSMathOpts *opts);
+PSFloat *PSAddVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
+                           uint64_t length, PSMathOpts *opts);
+PSFloat *PSSubtractVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
+                                uint64_t length, PSMathOpts *opts);
+PSFloat *PSSubtractScalarVector(PSFloat b, PSFloat *a, PSFloat *dest,
+                                uint64_t length, PSMathOpts *opts);
+PSFloat *PSDivideVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
+                              uint64_t length, PSMathOpts *opts);
+PSFloat *PSDivideScalarVector(PSFloat b, PSFloat *a, PSFloat *dest,
+                              uint64_t length, PSMathOpts *opts);
+PSFloat *PSVectorTanh(PSFloat *a, PSFloat *dest, uint64_t length,
+                      PSMathOpts *opts);
+PSFloat *PSVectorSqrt(PSFloat *a, PSFloat *dest, uint64_t length,
+                      PSMathOpts *opts);
+PSFloat *PSVectorExp(PSFloat *a, PSFloat *dest, uint64_t length,
                      PSMathOpts *opts);
-void PSMultiplyVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
-                            uint64_t length, PSMathOpts *opts);
-void PSSumVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
-                       uint64_t length, PSMathOpts *opts);
-void PSSubtractVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
-                            uint64_t length, PSMathOpts *opts);
-void PSSubtractScalarVector(PSFloat b, PSFloat *a, PSFloat *dest,
-                            uint64_t length, PSMathOpts *opts);
-void PSDivideVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
-                          uint64_t length, PSMathOpts *opts);
-void PSDivideScalarVector(PSFloat b, PSFloat *a, PSFloat *dest,
-                          uint64_t length, PSMathOpts *opts);
-void PSVectorTanh(PSFloat *a, PSFloat *dest, uint64_t length,
-                  PSMathOpts *opts);
-void PSVectorSqrt(PSFloat *a, PSFloat *dest, uint64_t length,
-                  PSMathOpts *opts);
-void PSVectorExp(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts);
-void PSVectorNeg(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts);
-void PSVectorAbs(PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts);
-void PSVectorClip(PSFloat *a, PSFloat min, PSFloat max, PSFloat *dest,
-                  uint64_t length, PSMathOpts *opts);
-void PSVectorThreshold(PSFloat *a, PSFloat min, PSFloat *dest,
-                       uint64_t length, PSMathOpts *opts);
-void PSVectorMapWithLimit(PSFloat *a, PSFloat limit, PSFloat mapper,
-                          PSFloat *dest, uint64_t length, PSMathOpts *opts);
+PSFloat *PSVectorNeg(PSFloat *a, PSFloat *dest, uint64_t length,
+                     PSMathOpts *opts);
+PSFloat *PSVectorAbs(PSFloat *a, PSFloat *dest, uint64_t length,
+                     PSMathOpts *opts);
+PSFloat *PSVectorClip(PSFloat *a, PSFloat min, PSFloat max, PSFloat *dest,
+                      uint64_t length, PSMathOpts *opts);
+PSFloat *PSVectorThreshold(PSFloat *a, PSFloat min, PSFloat *dest,
+                           uint64_t length, PSMathOpts *opts);
+PSFloat *PSVectorMapWithLimit(PSFloat *a, PSFloat limit, PSFloat mapper,
+                              PSFloat *dest, uint64_t length, PSMathOpts *opts);
+PSFloat *PSVectorPower(PSFloat *a, PSFloat exp, PSFloat *dest, uint64_t length,
+                       PSMathOpts *opts);
 PSFloat PSVectorMax(PSFloat *a, uint64_t *index, uint64_t length,
                     PSMathOpts *opts);
-PSFloat PSSumVectorElements(PSFloat *a, uint64_t length, PSMathOpts *opts);
-void PSVectorPower(PSFloat *a, PSFloat exp, PSFloat *dest, uint64_t length,
-                   PSMathOpts *opts);
+PSFloat PSVectorReduceSum(PSFloat *a, uint64_t length, PSMathOpts *opts);
 int PSCumulativeSum(PSFloat *a, PSFloat *dest, uint64_t length);
 PSFloat PSMean(PSFloat *a, uint64_t length, PSMathOpts *opts);
 PSFloat PSVariance(PSFloat *a, uint64_t len, PSMathOpts *opts);

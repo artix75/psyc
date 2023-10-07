@@ -278,7 +278,7 @@ int PSPositionalForward(PSLayer *layer, ...) {
     PSFloat *encodings = weights;
     PSMathOpts opts = {.acceleration = layer->network->acceleration};
     for (i = 0; i < seqlen; i++) {
-        PSSumVectors(inputs_p, encodings, dest_p, layer->size, &opts);
+        PSAddVectors(inputs_p, encodings, dest_p, layer->size, &opts);
         dest_p += layer->size;
         inputs_p += layer->size;
         encodings += layer->size;

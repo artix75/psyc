@@ -654,20 +654,20 @@ int mathsSumVBenchmark(PSBenchmarkConfig *cfg, int *num_results,
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
-    PSBenchmarkMeasure(res, PSSumVectors(x, y, dest, size, &opts));
+    PSBenchmarkMeasure(res, PSAddVectors(x, y, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
 #ifdef USE_AVX
     PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     opts.acceleration = PSAcceleration_AVX;
-    PSBenchmarkMeasure(res, PSSumVectors(x, y, dest, size, &opts));
+    PSBenchmarkMeasure(res, PSAddVectors(x, y, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
     PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     opts.acceleration = PSAcceleration_None;
-    PSBenchmarkMeasure(res, PSSumVectors(x, y, dest, size, &opts));
+    PSBenchmarkMeasure(res, PSAddVectors(x, y, dest, size, &opts));
     *num_results += 1;
     res += 1;
 final:
@@ -793,20 +793,20 @@ int mathsAddVSBenchmark(PSBenchmarkConfig *cfg, int *num_results,
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
-    PSBenchmarkMeasure(res, PSSumVectorScalar(x, y, dest, size, &opts));
+    PSBenchmarkMeasure(res, PSAddVectorScalar(x, y, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
 #ifdef USE_AVX
     PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     opts.acceleration = PSAcceleration_AVX;
-    PSBenchmarkMeasure(res, PSSumVectorScalar(x, y, dest, size, &opts));
+    PSBenchmarkMeasure(res, PSAddVectorScalar(x, y, dest, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
     PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     opts.acceleration = PSAcceleration_None;
-    PSBenchmarkMeasure(res, PSSumVectorScalar(x, y, dest, size, &opts));
+    PSBenchmarkMeasure(res, PSAddVectorScalar(x, y, dest, size, &opts));
     *num_results += 1;
     res += 1;
 final:
@@ -884,7 +884,7 @@ int mathsDivVBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     assert(PSMatrixLength(y) == (size_t) size);
     PSMathOpts opts = {.acceleration = PSGlobalAcceleration};
     /* Avoid division by zero */
-    PSSumVectorScalar(y, PSFLOAT_EPS, y, size, &opts);
+    PSAddVectorScalar(y, PSFLOAT_EPS, y, size, &opts);
     PSBenchmarkResults *res = results;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
@@ -974,7 +974,7 @@ int mathsDivSVBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSMatrix x = PSMatrixWithGaussianRandom(1, 1, size);
     PSFloat y = PSGaussianRandom(0, 1);
     if (y == 0) y += PSFLOAT_EPS;
-    PSSumVectorScalar(x, PSFLOAT_EPS, x, size, NULL);
+    PSAddVectorScalar(x, PSFLOAT_EPS, x, size, NULL);
     PSMatrix dest = PSMatrixWithGaussianRandom(1, 1, size), tmpdest = NULL;
     if (x == NULL || dest == NULL) {
         PSPrintMemoryErrorMsg();
@@ -1075,7 +1075,7 @@ int mathsSubSVBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSMatrix x = PSMatrixWithGaussianRandom(1, 1, size);
     PSFloat y = PSGaussianRandom(0, 1);
     if (y == 0) y += PSFLOAT_EPS;
-    PSSumVectorScalar(x, PSFLOAT_EPS, x, size, NULL);
+    PSAddVectorScalar(x, PSFLOAT_EPS, x, size, NULL);
     PSMatrix dest = PSMatrixWithGaussianRandom(1, 1, size), tmpdest = NULL;
     if (x == NULL || dest == NULL) {
         PSPrintMemoryErrorMsg();
@@ -1134,20 +1134,20 @@ int mathsReduceBenchmark(PSBenchmarkConfig *cfg, int *num_results,
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     opts.acceleration = PSAcceleration_ACF;
-    PSBenchmarkMeasure(res, PSSumVectorElements(x, size, &opts));
+    PSBenchmarkMeasure(res, PSVectorReduceSum(x, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
 #ifdef USE_AVX
     PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     opts.acceleration = PSAcceleration_AVX;
-    PSBenchmarkMeasure(res, PSSumVectorElements(x, size, &opts));
+    PSBenchmarkMeasure(res, PSVectorReduceSum(x, size, &opts));
     *num_results += 1;
     res += 1;
 #endif
     PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     opts.acceleration = PSAcceleration_None;
-    PSBenchmarkMeasure(res, PSSumVectorElements(x, size, &opts));
+    PSBenchmarkMeasure(res, PSVectorReduceSum(x, size, &opts));
     *num_results += 1;
     res += 1;
 final:
@@ -2657,16 +2657,16 @@ PSBenchmarkConfig bechmarks[] = {
     {"PSOuterProduct (1000,50000)", &maths_tag, 0, 10,
      mathsVecProdBenchmark, 2, INTARGS(10000, 50000)},
 
-    /* PSSumVectors */
-    {"PSSumVectors (1000)", &maths_tag, 0, 10, mathsSumVBenchmark,
+    /* PSAddVectors */
+    {"PSAddVectors (1000)", &maths_tag, 0, 10, mathsSumVBenchmark,
      1, INTARGS(1000)},
-    {"PSSumVectors (10000)", &maths_tag, 0, 10, mathsSumVBenchmark,
+    {"PSAddVectors (10000)", &maths_tag, 0, 10, mathsSumVBenchmark,
      1, INTARGS(10000)},
-    {"PSSumVectors (100000)", &maths_tag, 0, 10, mathsSumVBenchmark,
+    {"PSAddVectors (100000)", &maths_tag, 0, 10, mathsSumVBenchmark,
      1, INTARGS(100000)},
-    {"PSSumVectors (1000000)", &maths_tag, 0, 10, mathsSumVBenchmark,
+    {"PSAddVectors (1000000)", &maths_tag, 0, 10, mathsSumVBenchmark,
      1, INTARGS(1000000)},
-    {"PSSumVectors (%d)", &maths_tag, 0, 10, mathsSumVBenchmark,
+    {"PSAddVectors (%d)", &maths_tag, 0, 10, mathsSumVBenchmark,
      1, int_argv},
 
     /* PSSubtractVectors */
@@ -2705,16 +2705,16 @@ PSBenchmarkConfig bechmarks[] = {
     {"PSDivideVectors (%d)", &maths_tag, 0, 10, mathsDivVBenchmark,
      1, int_argv},
 
-    /* PSSumVectorScalar */
-    {"PSSumVectorScalar (1000)", &maths_tag, 0, 10, mathsAddVSBenchmark,
+    /* PSAddVectorScalar */
+    {"PSAddVectorScalar (1000)", &maths_tag, 0, 10, mathsAddVSBenchmark,
      1, INTARGS(1000)},
-    {"PSSumVectorScalar (10000)", &maths_tag, 0, 10, mathsAddVSBenchmark,
+    {"PSAddVectorScalar (10000)", &maths_tag, 0, 10, mathsAddVSBenchmark,
      1, INTARGS(10000)},
-    {"PSSumVectorScalar (100000)", &maths_tag, 0, 10, mathsAddVSBenchmark,
+    {"PSAddVectorScalar (100000)", &maths_tag, 0, 10, mathsAddVSBenchmark,
      1, INTARGS(100000)},
-    {"PSSumVectorScalar (1000000)", &maths_tag, 0, 10, mathsAddVSBenchmark,
+    {"PSAddVectorScalar (1000000)", &maths_tag, 0, 10, mathsAddVSBenchmark,
      1, INTARGS(1000000)},
-    {"PSSumVectorScalar (%d)", &maths_tag, 0, 10, mathsAddVSBenchmark,
+    {"PSAddVectorScalar (%d)", &maths_tag, 0, 10, mathsAddVSBenchmark,
      1, int_argv},
 
     /* PSMultiplyVectorScalar */
@@ -2827,16 +2827,16 @@ PSBenchmarkConfig bechmarks[] = {
     {"PSSubtractScalarVector (%d, ADD)", &maths_tag, 0, 10,
         mathsSubSVBenchmark, 2, int_argv, 1, INTARGS(0, PS_STORE_MODE_ADD)},
 
-    /* PSSumVectorElements */
-    {"PSSumVectorElements (1000)", &maths_tag, 0, 10, mathsReduceBenchmark,
+    /* PSVectorReduceSum */
+    {"PSVectorReduceSum (1000)", &maths_tag, 0, 10, mathsReduceBenchmark,
      1, INTARGS(1000)},
-    {"PSSumVectorElements (10000)", &maths_tag, 0, 10, mathsReduceBenchmark,
+    {"PSVectorReduceSum (10000)", &maths_tag, 0, 10, mathsReduceBenchmark,
      1, INTARGS(10000)},
-    {"PSSumVectorElements (100000)", &maths_tag, 0, 10, mathsReduceBenchmark,
+    {"PSVectorReduceSum (100000)", &maths_tag, 0, 10, mathsReduceBenchmark,
      1, INTARGS(100000)},
-    {"PSSumVectorElements (1000000)", &maths_tag, 0, 10, mathsReduceBenchmark,
+    {"PSVectorReduceSum (1000000)", &maths_tag, 0, 10, mathsReduceBenchmark,
      1, INTARGS(1000000)},
-    {"PSSumVectorElements (%d)", &maths_tag, 0, 10, mathsReduceBenchmark,
+    {"PSVectorReduceSum (%d)", &maths_tag, 0, 10, mathsReduceBenchmark,
      1, int_argv},
 
     /* PSMean */
@@ -3344,7 +3344,9 @@ int main(int argc, char **argv) {
         if (exclude_str != NULL && strstr(cfg->name, exclude_str) != NULL)
             continue;
         if (int_argc > 0 && cfg->argv != int_argv) continue;
+        if (int_argc <= 0 && cfg->argv == int_argv) continue;
         if (flt_argc > 0 && cfg->argv != flt_argv) continue;
+        if (flt_argc <= 0 && cfg->argv == flt_argv) continue;
         if (cfg->argv == int_argv && int_argc < cfg->argc)
             if (!setDefaultArgv(cfg, int_argc, int_argv, 1)) continue;
         if (cfg->argv == flt_argv && flt_argc < cfg->argc)
