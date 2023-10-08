@@ -25,6 +25,22 @@ ifneq ($(HAS_MAGICK), false)
         MAGICK_VERSION_MAJOR := $(shell echo $(MAGICK_VERSION) | cut -d '.' -f 1)
 endif
 
+HEADER_FILE_LIST = .make-header-files
+HEADER_FILES := $(strip $(subst all.h,,$(sort $(notdir $(wildcard *.h)))))
+
+$(HEADER_FILE_LIST):
+	@echo 'PREV_HEADER_FILES = $(HEADER_FILES)' > $@
+
+-include $(HEADER_FILE_LIST)
+
+ifneq ($(strip $(PREV_HEADER_FILES)), $(strip $(HEADER_FILES)))
+.PHONY: $(HEADER_FILE_LIST)
+endif
+
+HASH := \#
+FINAL_HEADER_FILES := psyc.h $(subst psyc.h,,$(HEADER_FILES))
+ALL_H_INCLUDE_DIRECTIVES := $(foreach hfile,$(FINAL_HEADER_FILES),echo '$(HASH)include "$(hfile)"' >> all.h;)
+
 PSYCLIB := ../lib/$(LIBNAME)
 PSYC_STATIC_LIB := ../lib/$(STATIC_LIBNAME)
 PSYCL := ../bin/psycl
@@ -38,6 +54,17 @@ Makefile.dep:
 ifeq (0, $(words $(findstring $(MAKECMDGOALS), $(NOBUILD_GOALS))))
 -include Makefile.dep
 endif
+
+all.h: $(HEADER_FILE_LIST) $(PSYCPATH)resources/license_header.h
+	$(call print-action,Creating,$@,$(LINK_ACTION_COLOR))
+	@cat $(PSYCPATH)resources/license_header.h > $@
+	@echo '' >> $@
+	@echo "#ifndef __PS_ALL_H__" >> $@
+	@echo "#define __PS_ALL_H__" >> $@
+	@echo '' >> $@
+	@$(ALL_H_INCLUDE_DIRECTIVES)
+	@echo '' >> $@
+	@echo "#endif /* __PS_ALL_H__ */" >> $@
 
 image_data.o:
 	@echo '#define PSYCH_MAGICK_VERSION $(MAGICK_VERSION_MAJOR)' > magick_conf.h
@@ -83,7 +110,8 @@ static: $(PSYC_STATIC_LIB)
 
 all: $(PSYCL) $(PSYCLIB) $(PSYC_STATIC_LIB) $(PSYC_CC_UTIL)
 
-install: all
+install: all all.h
+	$(call print-action,Installing,PsyC,$(LINK_ACTION_COLOR))
 	@mkdir -p $(BINDIR)
 	@mkdir -p $(LIBDIR)
 	@mkdir -p $(INCLUDEDIR)/psyc
@@ -103,6 +131,7 @@ install: all
 	@if [ "$(PLATFORM)" = "Linux" ]; then /sbin/ldconfig; fi
 
 uninstall:
+	$(call print-action,Uninstalling,PsyC,$(UNINSTALL_COLOR))
 	rm -rvf $(SHAREDIR)
 	rm -f $(BINDIR)/psycl
 	rm -f $(BINDIR)/$(notdir $(basename $(PSYC_CC_UTIL)))
