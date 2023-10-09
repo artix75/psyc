@@ -209,7 +209,7 @@ void PSLogTrainingProgress(PSNeuralNetwork *network, int status, int epochs,
     int batch_num = network->training->current_batch + 1;
     int percent =
         (int) roundf(((float) batch_num / (float) batches) * 100.0f);
-    int pad = 1 + PSMathLog10((PSFloat) batches);
+    int pad = PSCalcIntStringLength(batches);
     int lnflags = PS_LINE_PLAIN_ASCII | PS_LINE_FILL;
     PSLineStart(
         PS_LINE_OVERWRITE, " - Batch %*d/%d %3d%%", pad, batch_num,
@@ -278,7 +278,7 @@ void PSLogTrainingProgressBar(PSNeuralNetwork *network, int status, int epochs,
     }
     int tw = PSGetTerminalColumns();
     int batch_num = network->training->current_batch + 1;
-    int pad = 1 + PSMathLog10((PSFloat) batches);
+    int pad = PSCalcIntStringLength(batches);
     PSLineStart(
         PS_LINE_OVERWRITE, "Batch %*d/%d ", pad, batch_num, batches
     );
@@ -1184,7 +1184,7 @@ void PSPrintLayerInfo(PSLayer *layer) {
         sprintf(onehot_info, " (vector size: %d)", layer->onehot_vector_size);
     static int min_indent = 0;
     if (min_indent == 0) min_indent = strlen("  Layer[]: ");
-    int indent = 1 + (int) PSMathLog10((PSFloat) layer->index) + min_indent;
+    int indent = min_indent + PSCalcIntStringLength(layer->index);
     printf("Layer[%d]: %s, size = %d", layer->index, type_name, layer->size);
     if (Dropout == layer->type) printf(", dropout = %g", PSGetDropout(layer));
     if (onehot_info[0]) printf(" %s", onehot_info);

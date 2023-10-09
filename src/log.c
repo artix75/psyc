@@ -313,7 +313,7 @@ int PSProgressBar(int num, int tot, int style, int color, int flags,
         just_percent = (flags & PS_PROGRESS_FLAG_JUST_PERCENT);
         use_percent = (just_percent || (flags & PS_PROGRESS_FLAG_PERCENT));
         if (!just_percent) {
-            int pad = 1 + (int) PSMathLog10((PSFloat) tot);
+            int pad = PSCalcIntStringLength(tot);
             if (!(flags & PS_PROGRESS_FLAG_NO_TOTAL))
                 nwritten = snprintf(p, maxwrite, "%*d/%d ", pad, num, tot);
             else

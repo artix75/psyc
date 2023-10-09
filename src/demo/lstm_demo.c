@@ -389,10 +389,6 @@ int main(int argc, char** argv) {
 #ifdef USE_AVX
     if (disable_avx)
         PSDisableAcceleration(&network->acceleration, PSAcceleration_AVX);
-    if (PSAVXEnabled(network->acceleration)) printf("on\n");
-    else printf("off\n");
-#else
-    printf("off\n");
 #endif
 
     int flags = TRAINING_ADJUST_RATE;

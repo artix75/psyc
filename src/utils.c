@@ -680,6 +680,17 @@ next:
     return len;
 }
 
+unsigned int PSCalcIntStringLength(long long num) {
+    if (num == 0) return 1;
+    int len = 1;
+    if (num < 0) {
+        num *= -1;
+        len++;
+    }
+    len += log10((double) num);
+    return len;
+}
+
 /* Bitmaps */
 
 size_t PSGetBitmapArrayLength(size_t size) {
