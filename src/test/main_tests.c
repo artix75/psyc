@@ -210,6 +210,7 @@ int testAdaDeltaOptimization(TestCase *tc, Test *test);
 int testWindowGradOptimization(TestCase *tc, Test *test);
 int testAdaGradOptimization(TestCase *tc, Test *test);
 int testAdamOptimization(TestCase *tc, Test *test);
+int testRMSPropOptimization(TestCase *tc, Test *test);
 int testL1WeightDecay(TestCase *tc, Test *test);
 int testL2WeightDecay(TestCase *tc, Test *test);
 int testL1Regularization(TestCase *tc, Test *test);
@@ -775,6 +776,7 @@ int main(int argc, char** argv) {
         addTest(optimizationTests, "WindowGrad", NULL,
             testWindowGradOptimization);
         addTest(optimizationTests, "AdaGrad", NULL, testAdaGradOptimization);
+        addTest(optimizationTests, "RMSProp", NULL, testRMSPropOptimization);
         addTest(optimizationTests, "Adam", NULL, testAdamOptimization);
         addTest(optimizationTests, "L1 W.Decay", NULL, testL1WeightDecay);
         addTest(optimizationTests, "L2 W.Decay", NULL, testL2WeightDecay);
@@ -7253,6 +7255,67 @@ int testAdaGradOptimization(TestCase *tc, Test *test) {
     memset(mem, 0, len * sizeof(PSFloat));
     for (i = 0; i < iterations; i++) {
         ok = PSAdaGradOptimization(
+            params, gradients, mem, NULL, NULL, NULL, NULL, rate, momentum,
+            len, acceleration, i, &optimization_train_opts
+        );
+        testAssert(ok, test);
+    }
+    ok = compareArrays(params, expected, len, test, "AVX", 4, 0);
+    if (!ok) return 0;
+#endif
+    return 1;
+}
+
+int testRMSPropOptimization(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    PSFloat gradients[] = {
+        0.00000302, 0.0, 202.0, 0.0, 0.00000099, 1.0, -0.00580211, -0.00211678
+    };
+    PSFloat orig_params[] = {
+        0.23728831, -0.13215413,  0.22972574, -0.30660592,
+        0.10017828, -0.42993062, 0.0, 1.0
+    };
+    PSFloat expected[] = {
+        0.23709731, -0.13215413,  0.17516139, -0.30660592,  0.10011567,
+        -0.48449495, 0.05392763,  1.05029508
+    };
+    uint64_t len = 8;
+    PSFloat params[len];
+    PSFloat mem[len];
+    memcpy(params, orig_params, len * sizeof(PSFloat));
+    memset(mem, 0, len * sizeof(PSFloat));
+    PSFloat rate = 0.01, momentum = 0.0;
+    int iterations = 2, ok, i;
+    int acceleration = PSAcceleration_None;
+    for (i = 0; i < iterations; i++) {
+        ok = PSRMSPropOptimization(
+            params, gradients, mem, NULL, NULL, NULL, NULL, rate, momentum,
+            len, acceleration, i, &optimization_train_opts
+        );
+        testAssert(ok, test);
+    }
+    ok = compareArrays(params, expected, len, test, "No Accel.", 4, 0);
+    if (!ok) return 0;
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    acceleration = PSAcceleration_ACF;
+    memcpy(params, orig_params, len * sizeof(PSFloat));
+    memset(mem, 0, len * sizeof(PSFloat));
+    for (i = 0; i < iterations; i++) {
+        ok = PSRMSPropOptimization(
+            params, gradients, mem, NULL, NULL, NULL, NULL, rate, momentum,
+            len, acceleration, i, &optimization_train_opts
+        );
+        testAssert(ok, test);
+    }
+    ok = compareArrays(params, expected, len, test, "ACF", 4, 0);
+    if (!ok) return 0;
+#endif
+#ifdef USE_AVX
+    acceleration = PSAcceleration_AVX;
+    memcpy(params, orig_params, len * sizeof(PSFloat));
+    memset(mem, 0, len * sizeof(PSFloat));
+    for (i = 0; i < iterations; i++) {
+        ok = PSRMSPropOptimization(
             params, gradients, mem, NULL, NULL, NULL, NULL, rate, momentum,
             len, acceleration, i, &optimization_train_opts
         );

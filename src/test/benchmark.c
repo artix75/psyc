@@ -2251,6 +2251,74 @@ final:
     return ok;
 }
 
+int optimRMSPropBenchmark(PSBenchmarkConfig *cfg, int *num_results,
+                          PSBenchmarkResults *results)
+{
+    PS_BENCHMARK_PREAMBLE(cfg, results);
+    assert(cfg->argc > 0 && cfg->argv != NULL);
+    int size = *((int *) cfg->argv), ok = 1;
+    assert(size > 0);
+    int use_momentum = 0;
+    if (cfg->argc > 1) use_momentum = *(((int *) cfg->argv) + 1);
+    PSMatrix x = PSMatrixWithGaussianRandom(1, 1, size);
+    PSMatrix y = PSMatrixWithGaussianRandom(1, 1, size);
+    PSFloat *mem = malloc(size * sizeof(PSFloat));
+    if (x == NULL || y == NULL || mem == NULL) {
+        PSPrintMemoryErrorMsg();
+        ok = 0;
+        goto final;
+    }
+    assert(PSMatrixLength(x) == (size_t) size);
+    PSFloat rate = 0.1, momentum = 0.0;
+    if (use_momentum) momentum = 0.9;
+    PSBenchmarkResults *res = results;
+    int acceleration = 0;
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+    acceleration = PSAcceleration_ACF;
+    if (auto_accel) acceleration |= PSAcceleration_Auto;
+    PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
+    PSBenchmarkMeasure(res, (
+        ok = PSRMSPropOptimization(
+            x, y, mem, NULL, NULL, NULL, NULL, rate, momentum,
+            size, acceleration, 0, NULL
+        )
+    ));
+    if (!ok) goto final;
+    *num_results += 1;
+    res += 1;
+#endif
+#ifdef USE_AVX
+    acceleration = PSAcceleration_AVX;
+    if (auto_accel) acceleration |= PSAcceleration_Auto;
+    PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
+    PSBenchmarkMeasure(res, (
+        ok = PSRMSPropOptimization(
+            x, y, mem, NULL, NULL, NULL, NULL, rate, momentum,
+            size, acceleration, 0, NULL
+        )
+    ));
+    if (!ok) goto final;
+    *num_results += 1;
+    res += 1;
+#endif
+    acceleration = PSAcceleration_None;
+    PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
+    PSBenchmarkMeasure(res, (
+        ok = PSRMSPropOptimization(
+            x, y, mem, NULL, NULL, NULL, NULL, rate, momentum,
+            size, acceleration, 0, NULL
+        )
+    ));
+    if (!ok) goto final;
+    *num_results += 1;
+    res += 1;
+final:
+    if (x != NULL) PSMatrixDelete(x);
+    if (y != NULL) PSMatrixDelete(y);
+    free(mem);
+    return ok;
+}
+
 int optimAdaDeltaBenchmark(PSBenchmarkConfig *cfg, int *num_results,
                        PSBenchmarkResults *results)
 {
@@ -3136,6 +3204,16 @@ PSBenchmarkConfig bechmarks[] = {
      optimAdamBenchmark, 1, INTARGS(1000000)},
     {"PSAdamOptimization (%d)", &optimization_tag, 0, 10,
      optimAdamBenchmark, 1, int_argv},
+
+    /* PSRMSPropOptimization */
+    {"PSRMSPropOptimization (10000)", &optimization_tag, 0, 10,
+     optimRMSPropBenchmark, 1, INTARGS(10000)},
+    {"PSRMSPropOptimization (100000)", &optimization_tag, 0, 10,
+     optimRMSPropBenchmark, 1, INTARGS(100000)},
+    {"PSRMSPropOptimization (1000000)", &optimization_tag, 0, 10,
+     optimRMSPropBenchmark, 1, INTARGS(1000000)},
+    {"PSRMSPropOptimization (%d)", &optimization_tag, 0, 10,
+     optimRMSPropBenchmark, 1, int_argv},
 
     /* PSLRegularization */
     {"PSLRegularization (L1,10000)", &optimization_tag, 0, 10,

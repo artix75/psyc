@@ -75,7 +75,7 @@ void print_help(char *progname) {
           "                                        "
           "(adagrad,adadelta,adam,windowgrad,\n"
           "                                         "
-          "nesterov)\n");
+          "nesterov,rmsprop)\n");
     printf("        --epochs EPOCHS                 Epochs (def. %d)\n",
         EPOCHS);
     printf("        --batch-size SIZE               Batch size (def. %d)\n",
@@ -321,6 +321,8 @@ int main(int argc, char** argv) {
                 optimization = PSWindowGradOptimization;
             else if (strcmp("nesterov", optname) == 0)
                 optimization = PSNesterovOptimization;
+            else if (strcmp("rmsprop", optname) == 0)
+                optimization = PSRMSPropOptimization;
             else {
                 fprintf(stderr, "Invalid optmization `%s`\n", optname);
                 fprintf(

@@ -1107,6 +1107,8 @@ void parseOptions(int argc, char **argv) {
                 optimization = PSAdaGradOptimization;
             else if (strcmp("adadelta", optname) == 0)
                 optimization = PSAdaDeltaOptimization;
+            else if (strcmp("rmsprop", optname) == 0)
+                optimization = PSRMSPropOptimization;
             else if (strcmp("windowgrad", optname) == 0)
                 optimization = PSWindowGradOptimization;
             else if (strcmp("nesterov", optname) == 0)
@@ -1573,7 +1575,9 @@ void printHelp(const char* program_path) {
            "regularization\n");
     printf("        --optimization              Training Optimization\n"
            "                                    (adagrad,adadelta,adam,\n"
-           "                                     windowgrad,nesterov,default)\n"
+           "                                     rmsprop,windowgrad,nesterov,"
+           "\n"
+           "                                     default)\n"
     );
     printf("        --training-no-shuffle       Prevent dataset shuffle\n");
     printf("        --training-adjust-rate      Auto-adjust learn rate\n");

@@ -363,6 +363,76 @@ int PSAdaGradOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
     return 1;
 }
 
+int PSRMSPropOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
+                          PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp,
+                          PSFloat *xtmp, PSFloat rate, PSFloat momentum,
+                          uint64_t len, int acceleration, int iteration,
+                          PSTrainingOptions *options)
+{
+    UNUSED(xgrads);
+    UNUSED(mtmp);
+    UNUSED(xtmp);
+    UNUSED(momentum);
+    UNUSED(iteration);
+    if (mgrads == NULL) {
+        PSErr(__func__, "argument `mgrads` is mandatory");
+        return 0;
+    }
+    PSTrainingOptions default_opts = {0};
+    if (options == NULL) {
+        PSSetDefaultTrainingOptions(&default_opts);
+        options = &default_opts;
+    }
+    PSFloat eps = options->eps, decay = options->beta1;
+    if (decay == 0) {
+        PSErr(__func__, "options->beta1 cannot be zero");
+        return 0;
+    }
+    if (!PSIsAccelerationAvailable(acceleration))
+        acceleration = PSAcceleration_None;
+    else if (PSAutoAccelerationEnabled(acceleration)) {
+        if (PSGetCodeOptimizationLevel() > 0)
+            acceleration = PSAcceleration_None;
+    }
+    PSFloat *tmpalloc = NULL;
+    int success = 1;
+    if (acceleration == PSAcceleration_None) {
+        for (uint64_t i = 0; i < len; i++) {
+            mgrads[i] = decay * mgrads[i] + (1 - decay) * (grads[i] * grads[i]);
+            PSFloat dx = - rate / PSSqrt(mgrads[i] + eps) * grads[i];
+            params[i] += dx;
+        }
+    } else {
+        if (tmp == NULL) {
+            tmpalloc = malloc(len * sizeof(PSFloat));
+            success = (tmpalloc != NULL);
+            if (!success) {
+                PSPrintMemoryErrorMsg();
+                goto final;
+            }
+            tmp = tmpalloc;
+        }
+        PSMathOpts mopts = {.acceleration = acceleration};
+        /* mgrads[i] = decay * mgrads[i] + (1 - decay) * (grads[i]*grads[i])*/
+        mopts.store_mode = PS_STORE_MODE_SET;
+        PSMultiplyVectorScalar(mgrads, decay, mgrads, len, &mopts);
+        PSMultiplyVectors(grads, grads, tmp, len, &mopts);
+        PSMultiplyVectorScalar(tmp, (1 - decay), tmp, len, &mopts);
+        PSAddVectors(tmp, mgrads, mgrads, len, &mopts);
+        /* dx = - rate / PSSqrt(mgrads[i] + eps) * grads[i] */
+        PSAddVectorScalar(mgrads, eps, tmp, len, &mopts);
+        PSVectorSqrt(tmp, tmp, len, &mopts);
+        PSDivideScalarVector(rate, tmp, tmp, len, &mopts);
+        PSVectorNeg(tmp, tmp, len, &mopts);
+        PSMultiplyVectors(tmp, grads, tmp, len, &mopts);
+        /* params[i] += dx */
+        PSAddVectors(params, tmp, params, len, &mopts);
+    }
+final:
+    if (tmpalloc != NULL) free(tmpalloc);
+    return success;
+}
+
 int PSAdamOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
                        PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp,
                        PSFloat *xtmp, PSFloat rate, PSFloat momentum,

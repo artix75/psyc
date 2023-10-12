@@ -58,6 +58,12 @@ int PSAdaGradOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
                           uint64_t len, int acceleration, int iteration,
                           struct PSTrainingOptions *options);
 
+int PSRMSPropOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
+                          PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp,
+                          PSFloat *xtmp, PSFloat rate, PSFloat momentum,
+                          uint64_t len, int acceleration, int iteration,
+                          struct PSTrainingOptions *options);
+
 int PSAdamOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
                        PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp,
                        PSFloat *xtmp, PSFloat rate, PSFloat momentum,

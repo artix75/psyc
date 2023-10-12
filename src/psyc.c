@@ -1001,6 +1001,7 @@ char *getOptimizationName(PSOptimization optimization) {
     else if (optimization == PSAdaDeltaOptimization) return "AdaDelta";
     else if (optimization == PSNesterovOptimization) return "Nesterov";
     else if (optimization == PSWindowGradOptimization) return "WindowGrad";
+    else if (optimization == PSRMSPropOptimization) return "RMSProp";
     return "UNKOWN";
 }
 

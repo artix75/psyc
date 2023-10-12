@@ -241,7 +241,7 @@ void printHelp(char *executable) {
           "                                        "
           "(adagrad,adadelta,adam,windowgrad,\n"
           "                                         "
-          "nesterov, none)\n"
+          "nesterov,rmsprop,none)\n"
           "                                        "
           "Default: %s\n", optimization_name
     );
@@ -303,6 +303,8 @@ void parseOptions(int argc, char **argv) {
                 optimization = PSWindowGradOptimization;
             else if (strcmp("nesterov", optname) == 0)
                 optimization = PSNesterovOptimization;
+            else if (strcmp("rmsprop", optname) == 0)
+                optimization = PSRMSPropOptimization;
             else if (strcmp("none", optname) == 0)
                 optimization = PSDefaultOptimization;
             else {

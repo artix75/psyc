@@ -55,9 +55,9 @@ ifeq (0, $(words $(findstring $(MAKECMDGOALS), $(NOBUILD_GOALS))))
 -include Makefile.dep
 endif
 
-all.h: $(HEADER_FILE_LIST) $(PSYCPATH)resources/license_header.h
+all.h: $(HEADER_FILE_LIST) $(PSYCPATH)resources/license-header.h
 	$(call print-action,Creating,$@,$(LINK_ACTION_COLOR))
-	@cat $(PSYCPATH)resources/license_header.h > $@
+	@cat $(PSYCPATH)resources/license-header.h > $@
 	@echo '' >> $@
 	@echo "#ifndef __PS_ALL_H__" >> $@
 	@echo "#define __PS_ALL_H__" >> $@
