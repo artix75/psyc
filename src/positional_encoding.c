@@ -291,7 +291,7 @@ final:
 /* Backpropagation */
 
 int PSPositionalBackprop(PSLayer *layer, PSLayer *previous_layer,
-                      PSGradient *gradients, ...)
+                         PSGradient *gradients, ...)
 {
     UNUSED(gradients);
     PSMatrix delta = layer->delta;

@@ -47,10 +47,10 @@ int PSAdaDeltaOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
                            struct PSTrainingOptions *options);
 
 int PSWindowGradOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
-                            PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp,
-                            PSFloat *xtmp, PSFloat rate, PSFloat momentum,
-                            uint64_t len, int acceleration, int iteration,
-                            struct PSTrainingOptions *options);
+                             PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp,
+                             PSFloat *xtmp, PSFloat rate, PSFloat momentum,
+                             uint64_t len, int acceleration, int iteration,
+                             struct PSTrainingOptions *options);
 
 int PSAdaGradOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
                           PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp,

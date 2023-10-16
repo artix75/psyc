@@ -78,10 +78,10 @@ PSFloat applyGradientOnParameter(
     int param_index
 );
 PSFloat *initLayerStates(PSLayer *layer, uint32_t steps,
-                             int retain_previous, PSFloat *current,
-                             PSFloat **previous);
+                         int retain_previous, PSFloat *current,
+                         PSFloat **previous);
 PSFloat *resizeLayerStates(PSLayer *layer, uint32_t steps,
-                               PSFloat *current, PSFloat **previous);
+                           PSFloat *current, PSFloat **previous);
 int PSResizeLayerStates(PSLayer *layer, uint32_t steps);
 PSMatrix PSInitWeights(PSLayer *layer, int rows, int columns,
                        PSLayerDef *ldef, PSFloat range, PSFloat scale);
@@ -89,8 +89,8 @@ PSFloat PSInitParam(int param_type, PSLayerDef *ldef, PSFloat range,
                     PSFloat scale);
 int PSBeforeSequenceForward(PSLayer *layer, int seqlen, int t);
 int PSOnehotInputsForward(PSLayer *layer, int weights_index,
-                              PSFloat *outputs, int t, int apply_biases,
-                              int do_activate);
+                          PSFloat *outputs, int t, int apply_biases,
+                          int do_activate);
 
 /* LSTM functions */
 

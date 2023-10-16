@@ -1379,7 +1379,7 @@ PSFloat PSQuadraticLoss(PSFloat *outputs, PSFloat *expected, int size,
 }
 
 PSFloat PSCrossEntropyLoss(PSFloat *outputs, PSFloat *expected, int size,
-                        int onehot_size)
+                           int onehot_size)
 {
     PSFloat loss = 0.0;
     int i;
@@ -4595,7 +4595,7 @@ int computeOutputDelta(PSLayer *layer, PSFloat *y, ...) {
 }
 
 int PSFullBackprop(PSLayer *layer, PSLayer *previous_layer,
-                 PSGradient *gradient, ...)
+                   PSGradient *gradient, ...)
 {
     PSMatrix delta = layer->delta;
     if (delta == NULL) return 0;

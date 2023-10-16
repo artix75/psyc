@@ -142,7 +142,8 @@ void printHelp(char *progname) {
     printf("        --heads NUM                     Attention Heads\n");
     printf("        --link-attention-layer          Link to attention layer\n");
     printf("        --no-attention                  Disable Attention\n");
-    printf("        --randomized-autoregression     Randomize autoregression\n");
+    printf("        --randomized-autoregression     Randomize autoregression\n"
+    );
     printf("        --epochs EPOCHS                 Epochs (def. %d)\n",
            EPOCHS);
     printf("        --batch-size SIZE               Batch size (def. %d)\n",
@@ -151,7 +152,6 @@ void printHelp(char *progname) {
     printf("        --disable-avx                   Disable AVX\n");
 #endif
     printf("        --no-shuffle                    Don't shuffle data\n");
-    //printf("        --colors                        Enable colorized output\n");
     printf("        -h, --help                      Print this help\n");
 }
 

@@ -78,7 +78,7 @@
  * etc.).
  * If `is_recurrent`, use `t` for recurrent network values. */
 
-#define AVXIterativeMultiplyValue(size, x, val, dest, i, is_recurrent, t, mode) do { \
+#define AVXIterativeMultiplyValue(size,x,val,dest,i,is_recurrent,t,mode) do { \
     int avx_step_len = AVXGetStepLen(size);\
     int avx_steps = (avx_step_len > 0 ? size / avx_step_len : 0), avx_step;\
     for (avx_step = 0; avx_step < avx_steps; avx_step++) {\

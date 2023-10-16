@@ -196,7 +196,7 @@ memerr:
 }
 
 PSNormalizationLayerCache *createNormalizationCache(PSLayer *layer,
-                                                   uint32_t seqlen)
+                                                    uint32_t seqlen)
 {
     PSNormalizationLayerCache *cache = calloc(seqlen, sizeof(*cache));
     if (cache == NULL) {

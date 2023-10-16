@@ -219,8 +219,9 @@ static void psyc_gemv(PSBLASOrder order, char trans, int m, int n,
 }
 
 static void psyc_gemm(PSBLASOrder order, char trans_a, char trans_b, int m,
-            int n, int k, PSFloat alpha, PSFloat *a, int lda, PSFloat *b,
-            int ldb, PSFloat beta, PSFloat *c, int ldc) {
+                      int n, int k, PSFloat alpha, PSFloat *a, int lda,
+                      PSFloat *b, int ldb, PSFloat beta, PSFloat *c, int ldc)
+{
     static char *params[] = {
         "order", "trans_a", "trans_b", "m", "n", "k", "alpha", "a", "lda", "b",
         "ldb", "beta", "c", "ldc"

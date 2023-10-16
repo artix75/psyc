@@ -187,7 +187,7 @@ void PSReluDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
 }
 
 void PSGeluDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
-                     PSMathOpts *opts)
+                      PSMathOpts *opts)
 {
     PSMathOpts mopts = {0};
     PSInitActivationMathOpts(&mopts, opts);

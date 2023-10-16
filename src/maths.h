@@ -244,7 +244,7 @@ int PSDot(PSMatrix a, PSMatrix b, PSFloat *dest, PSMathOpts *opts);
 int PSDotMV(PSMatrix a, PSFloat *b, PSFloat *dest, PSMathOpts *opts);
 int PSDotVM(PSFloat *a, PSMatrix b, PSMatrix dest, PSMathOpts *opts);
 int PSOuterProduct(PSFloat *a, PSFloat *b, PSFloat *dest,
-                    uint64_t alen, uint64_t blen, PSMathOpts *opts);
+                   uint64_t alen, uint64_t blen, PSMathOpts *opts);
 PSMatrix PSDiagonalMask(int size);
 PSMatrix PSDiagonalFlatten(PSMatrix matrix);
 PSMatrix PSDiagonalFlattenVector(PSFloat *vec, uint64_t len);
