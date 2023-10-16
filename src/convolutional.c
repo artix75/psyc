@@ -320,7 +320,7 @@ static int AcceleratedConvolve(PSLayer *layer, PSFloat *inputs, int input_size,
     int n = layer->size / layer->output_depth;
     int k = settings->filter_width * settings->filter_height *
             settings->input_depth;
-    PSMathOpts opts = {.acceleration = layer->network->acceleration};
+    PSMathOpts opts = {.acceleration = layer->model->acceleration};
     success = PSMatMul(w2c, i2c, outputs, m, n, k, &opts);
 final:
     return success;
@@ -340,7 +340,7 @@ static int AcceleratyedConvBackprop(PSLayer *layer, PSGradient *gradient) {
         PSErr(__func__, "Layer[%d] has no private data");
         return 0;
     }
-    PSMathOpts opts = {.acceleration = layer->network->acceleration};
+    PSMathOpts opts = {.acceleration = layer->model->acceleration};
     PSFloat *delta = layer->delta;
     int use_bias = !(layer->flags & FLAG_NO_BIAS);
     int feature_size = layer->size / layer->output_depth;
@@ -358,7 +358,7 @@ static int AcceleratyedConvBackprop(PSLayer *layer, PSGradient *gradient) {
             PSVectorFill(privdata->bias_mul, 1.0, feature_size, &opts);
         }
         PSMathOpts mmopts = {
-            .acceleration = layer->network->acceleration,
+            .acceleration = layer->model->acceleration,
             .store_mode = PS_STORE_MODE_ADD
         };
         success = PSMatMul(
@@ -384,7 +384,7 @@ static int AcceleratyedConvBackprop(PSLayer *layer, PSGradient *gradient) {
     /* Update gradient weights */
     int m = layer->output_depth, n = ksize, k = feature_size;
     PSMathOpts mmopts = {
-        .acceleration = layer->network->acceleration,
+        .acceleration = layer->model->acceleration,
         .store_mode = PS_STORE_MODE_ADD,
         .transpose = 2
     };
@@ -480,8 +480,8 @@ static PSMatrix initConvWeights(PSLayer *layer, int depth, int rows, int cols,
         weights = PSMatrixWithGaussianRandom(range, 3, depth, rows, cols);
         if (scale > 0 && weights != NULL) {
             int acceleration = PSGlobalAcceleration;
-            if (layer != NULL && layer->network != NULL)
-                acceleration = layer->network->acceleration;
+            if (layer != NULL && layer->model != NULL)
+                acceleration = layer->model->acceleration;
             PSMathOpts opts = {.acceleration = acceleration};
             PSMultiplyVectorScalar(weights, scale, weights, (rows*cols), &opts);
         }
@@ -499,7 +499,7 @@ static PSFloat convRandomBias(PSLayerDef *ldef) {
     return bias;
 }
 
-int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
+int PSInitConvolutionalLayer(PSModel *model, PSLayer *layer,
                              PSLayerDef *layer_def)
 {
     int index = layer->index;
@@ -519,7 +519,7 @@ int PSInitConvolutionalLayer(PSNeuralNetwork *network, PSLayer *layer,
     layer->private = calloc(1, sizeof(PSPrivateConvData));
     if (layer->private == NULL) goto memerr;
     PSConvolutionalSettings *settings = (PSConvolutionalSettings *)layer->extra;
-    PSLayer *previous = network->layers[index - 1];
+    PSLayer *previous = model->layers[index - 1];
     layer->output_depth = layer_def->output_depth;
     if (layer->output_depth <= 0) {
         PSErr(__func__, "output_depth must be > 0 (given: %d)",
@@ -619,16 +619,14 @@ err:
     return 0;
 }
 
-int PSInitPoolingLayer(PSNeuralNetwork *network, PSLayer *layer,
-                       PSLayerDef *layer_def)
-{
+int PSInitPoolingLayer(PSModel *model, PSLayer *layer, PSLayerDef *layer_def) {
     int index = layer->index;
     layer->weights = NULL;
     layer->biases = NULL;
     layer->on_delete = PSDeleteConvolutionalLayer;
     layer->on_copy = PSConvolutionalLayerCopy;
     layer->flags |= FLAG_NON_TRAINABLE;
-    PSLayer *previous = network->layers[index - 1];
+    PSLayer *previous = model->layers[index - 1];
     PSLayerDef default_def = {
         .stride = 1, .filter_width = 2, .filter_height = 2
     };
@@ -693,7 +691,7 @@ memerr:
 /* Forward Functions */
 
 int PSConvolutionalForward(PSLayer *layer, ...) {
-    PSNeuralNetwork *net = NULL;
+    PSModel *model = NULL;
     if (!checkLayerForForward(layer)) goto failed;
     if (PSHandleSequenceAtOnce(layer)) {
         PSErr(
@@ -702,16 +700,16 @@ int PSConvolutionalForward(PSLayer *layer, ...) {
         );
         return 0;
     }
-    net = layer->network;
+    model = layer->model;
     int do_dump =
-        (net->training != NULL && net->training->debug_dump_to != NULL);
+        (model->training != NULL && model->training->debug_dump_to != NULL);
     PSDebugStepInfo dbginfo = {
-        .network = net,
+        .model = model,
         .layer = layer,
         .func = __func__,
         .training_phase = TRAINING_PHASE_FORWARD
     };
-    PSLayer *previous = net->layers[layer->index - 1];
+    PSLayer *previous = model->layers[layer->index - 1];
     if (previous == NULL) {
         PSErr(NULL, "Layer[%d]: previous layer is NULL!", layer->index);
         goto failed;
@@ -745,13 +743,13 @@ int PSConvolutionalForward(PSLayer *layer, ...) {
     int use_bias = !(layer->flags & FLAG_NO_BIAS);
     int input_w = settings->input_width, input_h = settings->input_height;
     int use_acceleration = (
-        net->acceleration != PSAcceleration_None && !is_recurrent
+        model->acceleration != PSAcceleration_None && !is_recurrent
     );
     int previous_feature_size = 0;
     if (previous->output_depth == 0) previous->output_depth = 1;
     previous_feature_size = previous->size / previous->output_depth;
     if (use_acceleration) {
-        PSMathOpts mopts = {.acceleration = net->acceleration};
+        PSMathOpts mopts = {.acceleration = model->acceleration};
         PSFloat *inputs = PSGetStates(previous, t);
         PSFloat *outputs = PSGetStates(layer, t);
         if (inputs == NULL || outputs == NULL) {
@@ -797,7 +795,8 @@ int PSConvolutionalForward(PSLayer *layer, ...) {
                 int widx = k * filter_area;
                 int foffset = k * previous_feature_size;
                 if (do_dump) PSTrainingDebugDump(
-                    net, "#### Previous Feature[%d], offset=%d, weight_offset="
+                    model,
+                    "#### Previous Feature[%d], offset=%d, weight_offset="
                     "%d\n", k, foffset, widx
                 );
                 for (y = r_row; y < max_y; y++) {
@@ -855,19 +854,19 @@ int PSConvolutionalForward(PSLayer *layer, ...) {
                     NULL, "Failed to set state on layer %d, neuron %d",
                     layer->index, idx
                 );
-                PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
+                PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
                 return 0;
             }
         }
     }
     return 1;
 failed:
-    PSSetNetworkStatus(net, STATUS_ERROR, NULL);
+    PSModelSetStatus(model, STATUS_ERROR, NULL);
     return 0;
 }
 
 int PSPool(PSLayer *layer, ...) {
-    PSNeuralNetwork *net = layer->network;
+    PSModel *model = layer->model;
     if (PSHandleSequenceAtOnce(layer)) {
         PSErr(
             NULL, "Layer[%d]: sequence input not currently supported in "
@@ -879,7 +878,7 @@ int PSPool(PSLayer *layer, ...) {
         PSErr(NULL, "Cannot forward on layer 0!");
         return 0;
     }
-    PSLayer *previous = net->layers[layer->index - 1];
+    PSLayer *previous = model->layers[layer->index - 1];
     if (previous == NULL) {
         PSErr(NULL, "Layer[%d]: previous layer is NULL!", layer->index);
         return 0;
@@ -892,9 +891,9 @@ int PSPool(PSLayer *layer, ...) {
     }
     int i, j, x, y, row, col;
     int do_dump =
-        (net->training != NULL && net->training->debug_dump_to != NULL);
+        (model->training != NULL && model->training->debug_dump_to != NULL);
     PSDebugStepInfo dbginfo = {
-        .network = net,
+        .model = model,
         .layer = layer,
         .func = __func__,
         .training_phase = TRAINING_PHASE_FORWARD
@@ -943,7 +942,7 @@ int PSPool(PSLayer *layer, ...) {
                     NULL, "Failed to set state on layer %d, neuron %d",
                     layer->index, idx
                 );
-                PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
+                PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
                 return 0;
             }
         }
@@ -973,15 +972,15 @@ int PSPoolingBackprop(PSLayer *pooling_layer, PSLayer *convolutional_layer,
                          convolutional_layer->output_depth;
     if (settings->filter_height <= 0)
         settings->filter_height = settings->filter_width;
-    PSNeuralNetwork *net = (PSNeuralNetwork *) pooling_layer->network;
+    PSModel *model = (PSModel *) pooling_layer->model;
     int do_dump = 0;
-    if (net != NULL) {
+    if (model != NULL) {
         do_dump = (
-            net->training != NULL && net->training->debug_dump_to != NULL
+            model->training != NULL && model->training->debug_dump_to != NULL
         );
     }
     PSDebugStepInfo dbginfo = {
-        .network = net,
+        .model = model,
         .layer = pooling_layer,
         .func = __func__,
         .training_phase = TRAINING_PHASE_BACKPROP
@@ -1033,12 +1032,12 @@ int PSPoolingBackprop(PSLayer *pooling_layer, PSLayer *convolutional_layer,
 int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
                             PSGradient *gradient, ...)
 {
-    PSNeuralNetwork *net = (PSNeuralNetwork *) convolutional_layer->network;
-    if (net == NULL) return 0;
+    PSModel *model = (PSModel *) convolutional_layer->model;
+    if (model == NULL) return 0;
     if (gradient == NULL) return 0;
     int is_recurrent = PSIsRecurrent(convolutional_layer), t = 0;
     int use_acceleration = (
-        net->acceleration != PSAcceleration_None && !is_recurrent
+        model->acceleration != PSAcceleration_None && !is_recurrent
     );
     if (use_acceleration) {
         if (!AcceleratyedConvBackprop(convolutional_layer, gradient)) {
@@ -1076,13 +1075,13 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
     previous_feature_size = prev_layer->size / prev_depth;
     int weight_size = PSMatrixLength(convolutional_layer->weights[0]);
     int do_dump = 0;
-    if (net != NULL) {
+    if (model != NULL) {
         do_dump = (
-            net->training != NULL && net->training->debug_dump_to != NULL
+            model->training != NULL && model->training->debug_dump_to != NULL
         );
     }
     PSDebugStepInfo dbginfo = {
-        .network = net,
+        .model = model,
         .layer = convolutional_layer,
         .func = __func__,
         .training_phase = TRAINING_PHASE_BACKPROP
@@ -1113,7 +1112,8 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
                 int feature_offset = k * previous_feature_size;
                 int widx = k * filter_area;
                 if (do_dump && k <= 1) PSTrainingDebugDump(
-                    net, "#### Previous Feature[%d], offset=%d, weight_offset="
+                    model,
+                    "#### Previous Feature[%d], offset=%d, weight_offset="
                     "%d\n", k, feature_offset, widx
                 );
                 for (y = r_row; y < max_y; y++) {

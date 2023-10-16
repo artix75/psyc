@@ -233,10 +233,10 @@ static PSFloat *getImagePixels(char *filename, int fit_w, int fit_h,
     return pixels;
 }
 
-int PSClassifyImage(PSNeuralNetwork *network, char *filename, int grayscale,
+int PSClassifyImage(PSModel *model, char *filename, int grayscale,
                     int invert, char* bgcolor, char* dump_file)
 {
-    int input_size = network->input_size;
+    int input_size = model->input_size;
     int w = (int) PSSqrt((PSFloat) input_size);
     PSFloat *pixels = getImagePixels(filename, w, w, grayscale,
                                      invert, bgcolor, dump_file);
@@ -245,7 +245,7 @@ int PSClassifyImage(PSNeuralNetwork *network, char *filename, int grayscale,
         return -1;
     }
     printf("Feeding image: %s\n", filename);
-    int res = PSClassify(network, pixels);
+    int res = PSClassify(model, pixels);
     free(pixels);
     return res;
 }

@@ -135,33 +135,33 @@ void PSErr(const char *tag, const char *format, ...) {
     PSLog(PSLOGLEVEL_ERROR, "\n");
 }
 
-void PSErrNN(const char *tag, PSNeuralNetwork *network, PSLayer *layer,
+void PSErrNN(const char *tag, PSModel *model, PSLayer *layer,
              const char *format, ...)
 {
     if (PSLogLevel > PSLOGLEVEL_ERROR) return;
     PSLog(PSLOGLEVEL_ERROR, "ERROR");
-    int null_network = network == NULL;
-    if (null_network && layer != NULL) network = layer->network;
+    int null_model = model == NULL;
+    if (null_model && layer != NULL) model = layer->model;
     if (tag != NULL) PSLog(PSLOGLEVEL_ERROR, " [%s]: ", tag);
     else PSLog(PSLOGLEVEL_ERROR, ": ");
-    if (network != NULL || layer != NULL) {
-        int printed_network = 1, printed_layer = 0;
-        if (network != NULL && PSGetNetworkChainLength(network) > 1)
-            PSLog(PSLOGLEVEL_ERROR, "Network[%d]", network->index);
-        else if (network && !null_network && network->name != NULL) {
+    if (model != NULL || layer != NULL) {
+        int printed_model = 1, printed_layer = 0;
+        if (model != NULL && PSModelChainLength(model) > 1)
+            PSLog(PSLOGLEVEL_ERROR, "model[%d]", model->index);
+        else if (model && !null_model && model->name != NULL) {
             char *ellipsis = "";
-            if (strlen(network->name) > 15)
+            if (strlen(model->name) > 15)
                 ellipsis = "...";
-            PSLog(PSLOGLEVEL_ERROR, "Network \"%.15s%s\"", network->name,
+            PSLog(PSLOGLEVEL_ERROR, "model \"%.15s%s\"", model->name,
                   ellipsis);
-        } else printed_network = 0;
+        } else printed_model = 0;
         if (layer != NULL) {
-            if (printed_network) PSLog(PSLOGLEVEL_ERROR, ", ");
+            if (printed_model) PSLog(PSLOGLEVEL_ERROR, ", ");
             PSLog(PSLOGLEVEL_ERROR, "Layer[%d] (%s)", layer->index,
                   PSGetLayerTypeLabel(layer));
             printed_layer = 1;
         }
-        if (printed_network || printed_layer)
+        if (printed_model || printed_layer)
             PSLog(PSLOGLEVEL_ERROR, ": ");
     }
     va_list args;

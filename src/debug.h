@@ -25,10 +25,10 @@
 #define DEBUG_PHASE_UPDATE_GRADS     1
 #define DEBUG_PHASE_UPDATE_WEIGHTS   2
 
-#define PSShouldDebugDump(network) (network->training != NULL &&\
- network->training->debug_dump_to != NULL &&\
- network->training->current_element == 0 &&\
- network->training->current_epoch == 0)
+#define PSShouldDebugDump(model) (model->training != NULL &&\
+ model->training->debug_dump_to != NULL &&\
+ model->training->current_element == 0 &&\
+ model->training->current_epoch == 0)
 
 #define PSAssertWithMessage(expr, fmt, ...) do {\
     if (!(expr)) {\
@@ -38,8 +38,8 @@
     }\
 } while (0);
 
-#define PSAddContextualDebug(net,l,n1,n2,prop,v,...) PSAddDebugInfo(\
-    net, __FILE__, __func__, __LINE__, l, n1, n2, prop, v, __VA_ARGS__)
+#define PSAddContextualDebug(model,l,n1,n2,prop,v,...) PSAddDebugInfo(\
+    model, __FILE__, __func__, __LINE__, l, n1, n2, prop, v, __VA_ARGS__)
 
 typedef struct PSDebugInfo {
     char *file;
@@ -70,7 +70,7 @@ typedef struct PSDebugInfo {
 } PSDebugInfo;
 
 typedef struct {
-    PSNeuralNetwork *network;
+    PSModel *model;
     int training_phase;
     const char *func;
     PSLayer *layer;
@@ -81,17 +81,17 @@ int PSIsFunctionAvailable(const char *func);
 int PSCatchFloatingPointExceptions(int except);
 
 char *PSGetNeuronDebugID(PSNeuron *neuron, PSLayer *layer);
-void PSTrainingDebugDump(PSNeuralNetwork *network, char *fmt, ...);
+void PSTrainingDebugDump(PSModel *model, char *fmt, ...);
 void PSTrainingDebugDumpStep(PSDebugStepInfo *info, char *format, ...);
 
-void PSTrainingDebugDumpHeader(PSNeuralNetwork *network,
+void PSTrainingDebugDumpHeader(PSModel *model,
                               int data_size,
                               int test_size,
                               int epochs,
                               PSFloat learning_rate,
                               int batch_size);
 
-void PSTrainingDebugDumpGradient(PSNeuralNetwork *network,
+void PSTrainingDebugDumpGradient(PSModel *model,
                                  int phase,
                                  const char *func,
                                  PSLayer *layer,
@@ -102,11 +102,11 @@ void PSTrainingDebugDumpGradient(PSNeuralNetwork *network,
                                  int avx_len);
 
 void PSResetDebugInfo(void);
-void PSAddDebugInfo(PSNeuralNetwork *network, char *file, const char *func,
+void PSAddDebugInfo(PSModel *model, char *file, const char *func,
                     int line, PSLayer *layer, void *neuron1, void *neuron2,
                     char *prop, double val, ...);
 
 extern int PSOriginalStdOutFD;
 extern char *PSDumpGradientsPath;
-extern int (*PSShouldDumpGradientsCallback) (PSNeuralNetwork *network);
+extern int (*PSShouldDumpGradientsCallback) (PSModel *model);
 #endif /*  __DEBUG_H */

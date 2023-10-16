@@ -97,7 +97,7 @@ char *PSDumpGradientsPath = NULL;
 static void printLastDebugInfo(void);
 int writeSerializedFloat(FILE *out, PSFloat fnum, int opts);
 void DumpLayerInfo(PSLayer *layer, FILE *dump_file, int add_new_line);
-int (*PSShouldDumpGradientsCallback) (PSNeuralNetwork *network) = NULL;
+int (*PSShouldDumpGradientsCallback) (PSModel *model) = NULL;
 int writeSerializedFloat(FILE *out, PSFloat fnum, int opts);
 const char *PSGetActivationName(PSActivationFunction func);
 
@@ -318,7 +318,7 @@ void segvHandler(int sig, siginfo_t *info, void *secret) {
     printf("PSTrainingInfo:    %d\n", (int) sizeof(PSTrainingInfo));
     printf("PSNeuron:          %d\n", (int) sizeof(PSNeuron));
     printf("PSLayer:           %d\n", (int) sizeof(PSLayer));
-    printf("PSNeuralNetwork:   %d\n", (int) sizeof(PSLayer));
+    printf("PSModel:   %d\n", (int) sizeof(PSLayer));
     printf("PSDict:            %d\n", (int) sizeof(PSDict));
     printf("PSDictItem:        %d\n", (int) sizeof(PSDictItem));
     printf("PSVocabulary:      %d\n", (int) sizeof(PSVocabulary));
@@ -431,7 +431,7 @@ int fedisableexcept(unsigned int excepts)
 #endif
 
 char *getLossFunctionName(PSLossFunction function);
-char *getNetworkStatusLabel(PSNeuralNetwork *network);
+char *getModelStatusLabel(PSModel *model);
 
 int PSIsFunctionAvailable(const char *func) {
     return dlsym(RTLD_DEFAULT, func) != NULL;
@@ -456,26 +456,26 @@ char *PSGetNeuronDebugID(PSNeuron *neuron, PSLayer *layer) {
     return neuron_id;
 }
 
-void PSTrainingDebugDump(PSNeuralNetwork *network, char *format, ...) {
-    if (network->training == NULL) return;
-    if (network->training->debug_dump_to == NULL) return;
-    if (network->training->current_element > 0) return;
-    if (network->training->current_batch > 0) return;
-    if (network->training->current_epoch > 0) return;
+void PSTrainingDebugDump(PSModel *model, char *format, ...) {
+    if (model->training == NULL) return;
+    if (model->training->debug_dump_to == NULL) return;
+    if (model->training->current_element > 0) return;
+    if (model->training->current_batch > 0) return;
+    if (model->training->current_epoch > 0) return;
     va_list ap;
     va_start(ap, format);
-    vfprintf(network->training->debug_dump_to, format, ap);
+    vfprintf(model->training->debug_dump_to, format, ap);
     va_end(ap);
 }
 
 void PSTrainingDebugDumpStep(PSDebugStepInfo *info, char *format, ...) {
     if (info == NULL) return;
-    PSNeuralNetwork *network = info->network;
-    if (network->training == NULL) return;
-    if (network->training->debug_dump_to == NULL) return;
-    if (network->training->current_element > 0) return;
-    if (network->training->current_batch > 0) return;
-    if (network->training->current_epoch > 0) return;
+    PSModel *model = info->model;
+    if (model->training == NULL) return;
+    if (model->training->debug_dump_to == NULL) return;
+    if (model->training->current_element > 0) return;
+    if (model->training->current_batch > 0) return;
+    if (model->training->current_epoch > 0) return;
     int training_phase = info->training_phase;
     char *phase_name = NULL;
     if (training_phase == TRAINING_PHASE_FORWARD)
@@ -483,30 +483,30 @@ void PSTrainingDebugDumpStep(PSDebugStepInfo *info, char *format, ...) {
     else if (training_phase == TRAINING_PHASE_BACKPROP) phase_name = "backprop";
     else phase_name = "unknown";
     fprintf(
-        network->training->debug_dump_to,
+        model->training->debug_dump_to,
         "step:phase=%s,func=%s",
         phase_name, info->func
     );
     if (info->layer != NULL) {
         char *type_name = PSGetLayerTypeLabel(info->layer);
-        fprintf(network->training->debug_dump_to,
+        fprintf(model->training->debug_dump_to,
             ",layer=%d,type=%s", info->layer->index, type_name);
         if (info->neuron != NULL) {
             char *neuron_id =
                 PSGetNeuronDebugID(info->neuron, info->layer);
-            fprintf(network->training->debug_dump_to,",neuron=%s",neuron_id);
+            fprintf(model->training->debug_dump_to,",neuron=%s",neuron_id);
         }
     }
     if (format != NULL) {
-        fprintf(network->training->debug_dump_to, ",");
+        fprintf(model->training->debug_dump_to, ",");
         va_list ap;
         va_start(ap, format);
-        vfprintf(network->training->debug_dump_to, format, ap);
+        vfprintf(model->training->debug_dump_to, format, ap);
         va_end(ap);
     }
 }
 
-void PSTrainingDebugDumpGradient(PSNeuralNetwork *network,
+void PSTrainingDebugDumpGradient(PSModel *model,
                                  int phase,
                                  const char *func,
                                  PSLayer *layer,
@@ -516,10 +516,10 @@ void PSTrainingDebugDumpGradient(PSNeuralNetwork *network,
                                  int is_avx,
                                  int avx_len)
 {
-    if (network->training == NULL) return;
-    if (network->training->debug_dump_to == NULL) return;
-    int batch_size = network->training->batch_size;
-    if (network->training->current_element != (batch_size - 1)) return;
+    if (model->training == NULL) return;
+    if (model->training->debug_dump_to == NULL) return;
+    int batch_size = model->training->batch_size;
+    if (model->training->current_element != (batch_size - 1)) return;
     char *phase_name = NULL;
     switch (phase) {
     case DEBUG_PHASE_UPDATE_GRADS: phase_name = "update_gradients"; break;
@@ -527,15 +527,15 @@ void PSTrainingDebugDumpGradient(PSNeuralNetwork *network,
     default: phase_name = "unknown";
     }
     fprintf(
-        network->training->debug_dump_to, "gradient:phase=%s,func=%s",
+        model->training->debug_dump_to, "gradient:phase=%s,func=%s",
         phase_name, func
     );
     if (layer != NULL) {
         char *type_name = PSGetLayerTypeLabel(layer);
-        fprintf(network->training->debug_dump_to,
+        fprintf(model->training->debug_dump_to,
             ",layer=%d,type=%s",layer->index, type_name);
     }
-    fprintf(network->training->debug_dump_to, ",gradient_idx=%d,weight_size=%d",
+    fprintf(model->training->debug_dump_to, ",gradient_idx=%d,weight_size=%d",
         gradient_idx, weight_size);
     int last_widx = -1;
     if (!is_avx) last_widx = weight_size - 1;
@@ -543,45 +543,45 @@ void PSTrainingDebugDumpGradient(PSNeuralNetwork *network,
         int avx_steps = weight_size / avx_len;
         last_widx = (avx_steps * avx_len) - 1;
     }
-    fprintf(network->training->debug_dump_to, ",weight_range=(%d,%d)",
+    fprintf(model->training->debug_dump_to, ",weight_range=(%d,%d)",
         weight_idx, last_widx);
     if (is_avx) {
         fprintf(
-            network->training->debug_dump_to, ",avx=1,avx_step_len=%d\n",
+            model->training->debug_dump_to, ",avx=1,avx_step_len=%d\n",
             avx_len
         );
-    } else fprintf(network->training->debug_dump_to, "\n");
+    } else fprintf(model->training->debug_dump_to, "\n");
 }
 
-void PSTrainingDebugDumpHeader(PSNeuralNetwork *network,
+void PSTrainingDebugDumpHeader(PSModel *model,
                               int data_size,
                               int test_size,
                               int epochs,
                               PSFloat learning_rate,
                               int batch_size)
 {
-    if (network->training == NULL) return;
-    if (network->training->debug_dump_to == NULL) return;
-    PSTrainingDebugDump(network, "### HEADER\n");
-    PSTrainingDebugDump(network, "psyc:version=%s\n", PSYC_VERSION);
-    const char *name = network->name;
-    if (name == NULL || !strlen(name)) name = "UNNAMED NETWORK";
-    char *loss_name = getLossFunctionName(network->loss);
-    int avx_enabled = !PSAVXEnabled(network->acceleration);
-    PSTrainingDebugDump(network,
+    if (model->training == NULL) return;
+    if (model->training->debug_dump_to == NULL) return;
+    PSTrainingDebugDump(model, "### HEADER\n");
+    PSTrainingDebugDump(model, "psyc:version=%s\n", PSYC_VERSION);
+    const char *name = model->name;
+    if (name == NULL || !strlen(name)) name = "UNNAMED MODEL";
+    char *loss_name = getLossFunctionName(model->loss);
+    int avx_enabled = !PSAVXEnabled(model->acceleration);
+    PSTrainingDebugDump(model,
         "network:name=%s,size=%d,loss_function=%s,status=%s,avx=%d\n",
-        name, network->size, loss_name, getNetworkStatusLabel(network),
+        name, model->size, loss_name, getModelStatusLabel(model),
         avx_enabled
     );
     int i;
-    for (i = 0; i < network->size; i++) {
-        PSLayer *layer = network->layers[i];
+    for (i = 0; i < model->size; i++) {
+        PSLayer *layer = model->layers[i];
         PSLayerType ltype = layer->type;
         char *type_name = PSGetLayerTypeLabel(layer);
-        PSTrainingDebugDump(network, "layer:index=%d,type=%s,size=%d",
+        PSTrainingDebugDump(model, "layer:index=%d,type=%s,size=%d",
             i, type_name, layer->size);
         if (i == 0 && layer->flags & FLAG_ONEHOT) {
-            PSTrainingDebugDump(network, ",vector_size=%d",
+            PSTrainingDebugDump(model, ",vector_size=%d",
                                 layer->onehot_vector_size);
         }
         if (ltype == Convolutional || ltype == Pooling) {
@@ -599,7 +599,7 @@ void PSTrainingDebugDumpHeader(PSNeuralNetwork *network,
             }
             if (stride <= 0 && ltype == Pooling) stride = filter_w;
             PSTrainingDebugDump(
-                network,
+                model,
                 ",input_size=%dx%d,output_size=%dx%d,features=%d"
                 ",region=%dx%d,stride=%d",
                 input_w, input_h, layer->output_columns, layer->output_rows,
@@ -608,29 +608,29 @@ void PSTrainingDebugDumpHeader(PSNeuralNetwork *network,
             if (ltype == Convolutional) {
                 if (padding < 0) padding = 0;
                 PSTrainingDebugDump(
-                    network, ",padding=%d", padding
+                    model, ",padding=%d", padding
                 );
             }
             const char *actvname = PSGetActivationName(layer->activate);
             if (actvname != NULL)
-                PSTrainingDebugDump(network, ",activation=%s\n", actvname);
-            else PSTrainingDebugDump(network, "\n");
+                PSTrainingDebugDump(model, ",activation=%s\n", actvname);
+            else PSTrainingDebugDump(model, "\n");
         } else if (ltype == FullyConnected) {
             if (layer->output_depth > 1) {
                 PSTrainingDebugDump(
-                    network, ",features=%d\n", layer->output_depth
+                    model, ",features=%d\n", layer->output_depth
                 );
-            } else PSTrainingDebugDump(network, "\n");
-        } else PSTrainingDebugDump(network, "\n");
+            } else PSTrainingDebugDump(model, "\n");
+        } else PSTrainingDebugDump(model, "\n");
     }
-    PSTrainingDebugDump(network,
+    PSTrainingDebugDump(model,
         "training:started_at=%ld,data_size=%d,test_size=%d,batch_size=%d,"
         "epochs=%d,learning_rate=%.3f\n",
         time(NULL), data_size, test_size, batch_size, epochs, learning_rate
     );
 }
 
-static int dumpNetworkGradients(PSNeuralNetwork *network,
+static int dumpModelGradients(PSModel *model,
                                 PSGradient **gradients,
                                 FILE *f, PSTrainingOptions *opts)
 {
@@ -643,8 +643,8 @@ static int dumpNetworkGradients(PSNeuralNetwork *network,
             clip_l = clip_h * -1;
         }
     }
-    for (i = 0; i < network->size; i++) {
-        PSLayer *layer = network->layers[i];
+    for (i = 0; i < model->size; i++) {
+        PSLayer *layer = model->layers[i];
         DumpLayerInfo(layer, f, 0);
         if (i == 0) {
             fprintf(f, ",weight_gradients=(),bias_gradients=()\n");
@@ -685,16 +685,16 @@ final:
     return success;
 }
 
-int PSDumpGradients(PSNeuralNetwork *network, PSGradient ***gradients,
+int PSDumpGradients(PSModel *model, PSGradient ***gradients,
                     const char* filename, PSTrainingOptions *opts)
 {
-    assert(network != NULL);
-    if (network->size == 0) {
-        PSErr(NULL, "Empty network!\n");
+    assert(model != NULL);
+    if (model->size == 0) {
+        PSErr(NULL, "Empty model!\n");
         return 0;
     }
     if (PSShouldDumpGradientsCallback != NULL) {
-        if (!PSShouldDumpGradientsCallback(network)) return 0;
+        if (!PSShouldDumpGradientsCallback(model)) return 0;
     }
     int success = 1;
     char default_filename[PATH_MAX];
@@ -720,7 +720,7 @@ int PSDumpGradients(PSNeuralNetwork *network, PSGradient ***gradients,
         }
         p += len;
         maxlen -= len;
-        char *name = (char *) network->name;
+        char *name = (char *) model->name;
         if (name == NULL || strlen(name) == 0) name = "unnamed";
         name = strdup(name);
         int namelen = strlen(name);
@@ -730,10 +730,10 @@ int PSDumpGradients(PSNeuralNetwork *network, PSGradient ***gradients,
             if (!valid) name[i] = '-';
             else name[i] = tolower(name[i]);
         }
-        if (network->training != NULL) {
-            int epoch = network->training->current_epoch,
-                batch = network->training->current_batch,
-                elem  = network->training->current_element;
+        if (model->training != NULL) {
+            int epoch = model->training->current_epoch,
+                batch = model->training->current_batch,
+                elem  = model->training->current_element;
             len += snprintf(
                 p, maxlen, "psyc-gradients-%s-%d-%d-%d.dump",
                 name, epoch, batch, elem
@@ -747,13 +747,13 @@ int PSDumpGradients(PSNeuralNetwork *network, PSGradient ***gradients,
         fprintf(stderr, "Cannot open %s for writing!\n", filename);
         return 0;
     }
-    PSNeuralNetwork *current = network;
-    int count = PSGetNetworkChainLength(network), nidx = 0;
-    if (count > 1) current = PSGetNetworkChainHead(network);
+    PSModel *current = model;
+    int count = PSModelChainLength(model), nidx = 0;
+    if (count > 1) current = PSModelChainHead(model);
     success = (current != NULL);
     if (!success) goto final;
     while (current != NULL) {
-        success = dumpNetworkGradients(current, gradients[nidx++], f, opts);
+        success = dumpModelGradients(current, gradients[nidx++], f, opts);
         if (!success) goto final;
         current = current->next;
     }
@@ -772,7 +772,7 @@ void PSResetDebugInfo(void) {
     last_debug_info.weight = -99999;
 }
 
-void PSAddDebugInfo(PSNeuralNetwork *network, char *file, const char *func,
+void PSAddDebugInfo(PSModel *model, char *file, const char *func,
                     int line, PSLayer *layer, void *neuron1, void *neuron2,
                     char *prop, double val_d, ...)
 {
@@ -790,8 +790,8 @@ void PSAddDebugInfo(PSNeuralNetwork *network, char *file, const char *func,
     last_debug_info.neuron2_index = -1;
     last_debug_info.weight = -99999;
     int is_recurrent = 0, t = 0;
-    if (network != NULL) {
-        PSNeuralNetwork *net = (PSNeuralNetwork *) network;
+    if (model != NULL) {
+        PSModel *net = (PSModel *) model;
         last_debug_info.status = net->status;
         if (net->training != NULL) {
             last_debug_info.current_epoch = net->training->current_epoch;

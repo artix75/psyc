@@ -208,7 +208,7 @@ int main(int argc, char** argv) {
     PSCatchFloatingPointExceptions(/*FE_INVALID | */FE_OVERFLOW | FE_DIVBYZERO);
 #endif
     PSHandleSignals(NULL);
-    PSNeuralNetwork *network = NULL;
+    PSModel *model = NULL;
     PSFloat *training_data = NULL;
     PSFloat *test_data = NULL;
     char *mnist_files[] = {NULL, NULL, NULL, NULL};
@@ -248,33 +248,33 @@ int main(int argc, char** argv) {
     int testlen = 0;
     int datalen = 0;
     int loaded = 0;
-    network = PSCreateNetwork("MNIST Demo");
-    success = network != NULL;
+    model = PSModelCreate("MNIST Demo");
+    success = model != NULL;
     if (!success) {
-        PSErr(NULL, "Could not create network!");
+        PSErr(NULL, "Could not create model!");
         goto final;
     }
 
     if (load_from != NULL) {
-        loaded = PSLoadNetwork(network, load_from);
+        loaded = PSModelLoad(model, load_from);
         success = loaded;
         if (!success) {
-            PSErr(NULL, "Could not load pretrained network!");
+            PSErr(NULL, "Could not load pretrained model!");
             goto final;
         }
-        success = network->size > 0;
+        success = model->size > 0;
         if (!success) {
-            PSErr(NULL, "Invalid pretrained network");
+            PSErr(NULL, "Invalid pretrained model");
             goto final;
         }
     } else {
         PSLayerType output_type = (use_softmax ? SoftMax : FullyConnected);
-        PSAddLayer(network, FullyConnected, MNIST_INPUT_SIZE, NULL);
-        PSAddLayer(network, FullyConnected, hidden_size, NULL);
-        PSAddLayer(network, output_type, 10, NULL);
+        PSAddLayer(model, FullyConnected, MNIST_INPUT_SIZE, NULL);
+        PSAddLayer(model, FullyConnected, hidden_size, NULL);
+        PSAddLayer(model, output_type, 10, NULL);
 
-        success = network->size > 0;
-        if (network->size < 1) {
+        success = model->size > 0;
+        if (model->size < 1) {
             PSErr(NULL, "Could not add all layers");
             goto final;
         }
@@ -295,20 +295,20 @@ int main(int argc, char** argv) {
     };
 
     printf("Data len: %d\n", datalen);
-    PSPrintNetworkInfo(network);
+    PSModelPrintInfo(model);
 
-    if (!loaded) PSTrain(network, training_data, datalen, NULL, 0, PSTRAINOPT(
+    if (!loaded) PSTrain(model, training_data, datalen, NULL, 0, PSTRAINOPT(
         .optimization = optimization,
         .learning_rate = learning_rate,
         .batch_size = 10,
         .epochs = epochs
     ));
-    success = (network->status != STATUS_ERROR);
+    success = (model->status != STATUS_ERROR);
     if (!success) goto final;
 
     if (testlen > 0 && test_data != NULL) {
         printf("Test Data len: %d\n", testlen);
-        PSTest(network, test_data, testlen, NULL);
+        PSTest(model, test_data, testlen, NULL);
     }
 final:
     if (found_files_count > 0) {
@@ -318,6 +318,6 @@ final:
     }
     free(training_data);
     free(test_data);
-    PSDeleteNetwork(network);
+    PSModelDelete(model);
     return success ? 0 : 1;
 }

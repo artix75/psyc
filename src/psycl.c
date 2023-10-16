@@ -45,7 +45,7 @@
 #endif
 
 #define PROGRAM_NAME        "PsyC CLI"
-#define NETWORK_NAME        "CLI Network"
+#define MODEL_NAME          "CLI Model"
 
 #define CONV_FEATURE_COUNT  20
 #define CONV_REGION_SIZE    5
@@ -114,19 +114,19 @@ char *image_bgcolor = "white";
 int image_invert = 0;
 int image_grayscale = 0;
 #endif
-PSNeuralNetwork *network = NULL;
+PSModel *model = NULL;
 
 /* Forward declarations */
 void printHelp(const char* program_path);
 int parseOptionsFromFile(const char *filename);
 PSLossFunction getLossFunctionByName(char *name);
-void onBatchTrained(PSNeuralNetwork *network, int epoch, int epochs,
+void onBatchTrained(PSModel *model, int epoch, int epochs,
                     PSFloat loss, PSFloat current_loss, float accuracy,
                     PSFloat *rate, PSFloat *training_data);
-void onEpochTrained(PSNeuralNetwork *network, int epoch, int epochs,
+void onEpochTrained(PSModel *model, int epoch, int epochs,
                     PSFloat loss, PSFloat current_loss, float accuracy,
                     PSFloat *rate, PSFloat *training_data);
-PSLayer *PSMakeLayerPlaceholder(int layer_index, int network_index);
+PSLayer *PSMakeLayerPlaceholder(int layer_index, int model_index);
 int PSIsLayerPlaceholder(PSLayer *layer);
 static void cleanup(void);
 
@@ -490,11 +490,11 @@ static void cleanup(void) {
 #ifdef HAS_MAGICK
     if (image_filename != NULL) free(image_filename);
 #endif
-    if (network != NULL) {
-        if (network->name != (char *)NETWORK_NAME && network->name != NULL)
-            free((void *)network->name);
-        PSDeleteNetwork(network);
-        network = NULL;
+    if (model != NULL) {
+        if (model->name != (char *)MODEL_NAME && model->name != NULL)
+            free((void *)model->name);
+        PSModelDelete(model);
+        model = NULL;
     }
 }
 
@@ -596,8 +596,8 @@ static int parseLayerCoordinates(char *coords, int *nidx, int *lidx) {
     return 1;
 }
 
-static PSLayer *getLayerFromCoordinates(char *coords, int network_idx,
-                                        PSNeuralNetwork *current,
+static PSLayer *getLayerFromCoordinates(char *coords, int model_idx,
+                                        PSModel *current,
                                         int allow_future)
 {
     int nidx = -1, lidx = -1;
@@ -607,15 +607,15 @@ static PSLayer *getLayerFromCoordinates(char *coords, int network_idx,
                 coords);
         return NULL;
     }
-    if (nidx < 0) nidx = network_idx;
-    else if (nidx > network_idx) {
+    if (nidx < 0) nidx = model_idx;
+    else if (nidx > model_idx) {
         fprintf(stderr, "ERROR: Invalid layer coordinates %s"
-                ": network index %d > current: %d\n",
-                coords, nidx, network_idx);
+                ": model index %d > current: %d\n",
+                coords, nidx, model_idx);
         return NULL;
     }
-    if (nidx == network_idx) layer = current->layers[lidx];
-    else layer = PSGetLayerByIndex(network, lidx, nidx);
+    if (nidx == model_idx) layer = current->layers[lidx];
+    else layer = PSGetLayerByIndex(model, lidx, nidx);
     if (layer == NULL && allow_future)
         layer = PSMakeLayerPlaceholder(lidx, nidx);
     if (layer == NULL) {
@@ -627,10 +627,10 @@ static PSLayer *getLayerFromCoordinates(char *coords, int network_idx,
 }
 
 void parseOptions(int argc, char **argv) {
-    int network_idx = 0, i, j;
-    PSNeuralNetwork *current = network, *previous = NULL;
-    PSNeuralNetworkLink *link = NULL;
-    PSNeuralNetworkLink curlink = {0};
+    int model_idx = 0, i, j;
+    PSModel *current = model, *previous = NULL;
+    PSModelLink *link = NULL;
+    PSModelLink curlink = {0};
     for (i = 1; i < argc; i++) {
         /* printf("ARG[%d]: %s\n", i, argv[i]); */
         int is_last = (i == (argc - 1));
@@ -648,26 +648,27 @@ void parseOptions(int argc, char **argv) {
             }
         } else if (strcmp("--load", arg) == 0 && !is_last) {
             char *file = argv[++i];
-            int loaded = PSLoadNetwork(current, file);
+            int loaded = PSModelLoad(current, file);
             if (!loaded) {
-                fprintf(stderr, "ERROR: Could not load pretrained network "
+                fprintf(stderr, "ERROR: Could not load pretrained model "
                         "%s\n", file);
                 goto err;
             }
-        } else if (strcmp("--network", arg) == 0) {
+        } else if (strcmp("--network", arg) == 0 ||
+                   strcmp("--model", arg) == 0) {
             if (previous != NULL) {
-                if (!PSAddNetwork(previous, current, link)) {
-                    fprintf(stderr, "ERROR: Could not add network\n");
+                if (!PSAddModel(previous, current, link)) {
+                    fprintf(stderr, "ERROR: Could not add model\n");
                     goto err;
                 }
             }
             previous = current;
-            current = PSCreateNetwork(NULL);
+            current = PSModelCreate(NULL);
             if (current == NULL) {
-                fprintf(stderr, "ERROR: Could not create network\n");
+                fprintf(stderr, "ERROR: Could not create model\n");
                 goto err;
             }
-            network_idx++;
+            model_idx++;
         } else if (strcmp("--save", arg) == 0 && !is_last) {
             char *file = argv[++i];
             if (strlen(file) > PATH_MAX) {
@@ -846,7 +847,7 @@ void parseOptions(int argc, char **argv) {
                         goto err;
                     }
                     PSLayer *provider = getLayerFromCoordinates(
-                        argv[j], network_idx, current, 0
+                        argv[j], model_idx, current, 0
                     );
                     if (provider == NULL) goto err;
                     i = j;
@@ -883,7 +884,7 @@ void parseOptions(int argc, char **argv) {
                     ldef.attention_scale = scale;
                 } else if (strcmp("--query-provider", carg) == 0 && ++j<argc) {
                     PSLayer *provider = getLayerFromCoordinates(
-                        argv[j], network_idx, current, 1
+                        argv[j], model_idx, current, 1
                     );
                     if (provider == NULL) goto err;
                     if (ltype != Attention) {
@@ -903,7 +904,7 @@ void parseOptions(int argc, char **argv) {
                         goto err;
                     }
                     PSLayer *provider = getLayerFromCoordinates(
-                        argv[j], network_idx, current, 0
+                        argv[j], model_idx, current, 0
                     );
                     if (provider == NULL) goto err;
                     i = j;
@@ -915,14 +916,14 @@ void parseOptions(int argc, char **argv) {
                         goto err;
                     }
                     PSLayer *provider = getLayerFromCoordinates(
-                        argv[j], network_idx, current, 0
+                        argv[j], model_idx, current, 0
                     );
                     if (provider == NULL) goto err;
                     i = j;
                     ldef.values_provider = provider;
                 } else if (strcmp("--link", carg) == 0 && ++j < argc) {
                     link_to = getLayerFromCoordinates(
-                        argv[j], network_idx, current, 0
+                        argv[j], model_idx, current, 0
                     );
                     i = j;
                     if (link_to == NULL) goto err;
@@ -1011,8 +1012,8 @@ void parseOptions(int argc, char **argv) {
                     fprintf(
                         stderr, "ERROR: could not set layer %d:%d (%s) as "
                         "query provider for layer %d:%d\n",
-                        network_idx, layer->index, PSGetLabelForType(ltype),
-                        query_provider_to->network->index,
+                        model_idx, layer->index, PSGetLabelForType(ltype),
+                        query_provider_to->model->index,
                         query_provider_to->index
                     );
                 }
@@ -1223,16 +1224,16 @@ void parseOptions(int argc, char **argv) {
             goto err;
         }
     }
-    if (current != network && !PSNetworkChainContains(network, current)) {
-        if (!PSAddNetwork(network, current, link)) {
-            fprintf(stderr, "ERROR: Could not add network\n");
+    if (current != model && !PSModelChainContains(model, current)) {
+        if (!PSAddModel(model, current, link)) {
+            fprintf(stderr, "ERROR: Could not add model\n");
             goto err;
         }
     }
     return;
 err:
-    if (current != network && !PSNetworkChainContains(network, current))
-        PSDeleteNetwork(current);
+    if (current != model && !PSModelChainContains(model, current))
+        PSModelDelete(current);
     cleanup();
     exit(1);
 }
@@ -1361,7 +1362,7 @@ cleanup:
 
 /* Event functions */
 
-void onTrainEvent(int event_type, PSNeuralNetwork *network, int epoch,
+void onTrainEvent(int event_type, PSModel *model, int epoch,
                   int epochs, PSFloat avg_loss, PSFloat current_loss,
                   float accuracy, PSFloat *rate)
 {
@@ -1380,14 +1381,14 @@ void onTrainEvent(int event_type, PSNeuralNetwork *network, int epoch,
         cmd, CMD_MAX_LEN,
         "%s --event %s-trained --name '%s' --epoch %d --epochs %d "
         "--average-loss %g --current-loss %g --accuracy %g --learning-rate %g",
-        on_batch_trained, event, network->name, epoch, epochs, avg_loss,
+        on_batch_trained, event, model->name, epoch, epochs, avg_loss,
         current_loss, accuracy, *rate
     );
     if (written >= CMD_MAX_LEN) {
         fprintf(stderr, "\nWARN: onBatchTrained command is too big!\n");
         return;
     }
-    PSTrainingInfo *info = network->training;
+    PSTrainingInfo *info = model->training;
     if (info != NULL) {
         char *p = cmd + written;
         written += snprintf(
@@ -1409,47 +1410,47 @@ void onTrainEvent(int event_type, PSNeuralNetwork *network, int epoch,
     }
 }
 
-void onBatchTrained(PSNeuralNetwork *network, int epoch, int epochs,
+void onBatchTrained(PSModel *model, int epoch, int epochs,
                     PSFloat avg_loss, PSFloat current_loss, float accuracy,
                     PSFloat *rate, PSFloat *training_data)
 {
 
     UNUSED(training_data);
     if (on_batch_trained == NULL) return;
-    PSTrainingInfo *info = network->training;
+    PSTrainingInfo *info = model->training;
     if (batch_script_every > 0 && info) {
         if ((info->current_batch % batch_script_every) != 0) return;
     }
     onTrainEvent(
-        TRAIN_EVENT_BATCH, network, epoch, epochs, avg_loss, current_loss,
+        TRAIN_EVENT_BATCH, model, epoch, epochs, avg_loss, current_loss,
         accuracy, rate
     );
 }
 
-void onEpochTrained(PSNeuralNetwork *network, int epoch, int epochs,
+void onEpochTrained(PSModel *model, int epoch, int epochs,
                     PSFloat avg_loss, PSFloat current_loss, float accuracy,
                     PSFloat *rate, PSFloat *training_data)
 {
     UNUSED(training_data);
     if (on_epoch_trained == NULL) return;
     onTrainEvent(
-        TRAIN_EVENT_EPOCH, network, epoch, epochs, avg_loss, current_loss,
+        TRAIN_EVENT_EPOCH, model, epoch, epochs, avg_loss, current_loss,
         accuracy, rate
     );
 }
 
 int main(int argc, char **argv) {
     PSHandleSignals(NULL);
-    network = PSCreateNetwork(NETWORK_NAME);
-    if (network == NULL) {
-        fprintf(stderr, "Failed to create network");
+    model = PSModelCreate(MODEL_NAME);
+    if (model == NULL) {
+        fprintf(stderr, "Failed to create model");
         return 1;
     }
     outputFile[0] = 0;
     parseOptions(argc, argv);
-    if (PSLogLevel <= PSLOGLEVEL_INFO) PSPrintNetworkInfo(network);
+    if (PSLogLevel <= PSLOGLEVEL_INFO) PSModelPrintInfo(model);
     if (training_data != NULL) {
-        int element_size = network->input_size + network->output_size;
+        int element_size = model->input_size + model->output_size;
         int element_count = datalen / element_size;
         if (element_count < train_dataset_len) {
             fprintf(stderr, "Loaded dataset elements %d < %d\n", element_count,
@@ -1487,18 +1488,18 @@ int main(int argc, char **argv) {
             .optimization = optimization,
             .validate_every_batches = validate_every
         };
-        PSTrain(network, training_data, datalen, validation_data, valdlen,
+        PSTrain(model, training_data, datalen, validation_data, valdlen,
                 &options);
         free(training_data);
     }
     if (test_data != NULL) {
-        PSTest(network, test_data, testlen, NULL);
+        PSTest(model, test_data, testlen, NULL);
         free(test_data);
     }
 
 #ifdef HAS_MAGICK
     if (image_filename != NULL) {
-        int res = PSClassifyImage(network, image_filename, image_grayscale,
+        int res = PSClassifyImage(model, image_filename, image_grayscale,
                                   image_invert, image_bgcolor,
                                   image_dump_filename);
         if (res >= 0) {
@@ -1510,13 +1511,13 @@ int main(int argc, char **argv) {
     int outfile_len = strlen(outputFile);
     if (training_data != NULL || outfile_len) {
         if (!outfile_len) {
-            getTempFileName("saved-network", outputFile);
+            getTempFileName("saved-model", outputFile);
         }
-        int saved = PSSaveNetwork(network, outputFile);
+        int saved = PSModelSave(model, outputFile);
         if (!saved) {
-            fprintf(stderr, "Could not save network to %s\n", outputFile);
+            fprintf(stderr, "Could not save model to %s\n", outputFile);
         } else {
-            printf("Network saved to %s\n", outputFile);
+            printf("model saved to %s\n", outputFile);
         }
     }
     cleanup();
@@ -1541,20 +1542,20 @@ void printHelp(const char* program_path) {
     printf("\nUsage: %s [OPTIONS]\n\n", program_path);
     printf("OPTIONS:\n\n");
     printf("    -c, --config FILE               Load options from FILE\n");
-    printf("        --load PRETRAINED           Load a pretrained network\n");
-    printf("        --save FILE                 Save network\n");
-    printf("        --name NAME                 Network name\n");
+    printf("        --load PRETRAINED           Load a pretrained model\n");
+    printf("        --save FILE                 Save model\n");
+    printf("        --name NAME                 Model name\n");
     printf("        --layer TYPE SIZE|OPTIONS   Add layer\n");
     printf("        --onehot                    "
            "Sets one-hot-vector flag for input\n");
     printf("                                    "
            "(if before 1st layer) or desired output\n");
     printf("                                    (if after output layer)\n");
-    printf("        --network                   Start new network "
+    printf("        --model                     Start new model "
            "definition\n");
-    printf("                                    (multiple networks will be "
+    printf("                                    (multiple models will be "
            "chained\n");
-    printf("        --train [OPT] TRAIN_DATASET Train network\n");
+    printf("        --train [OPT] TRAIN_DATASET Train model\n");
     printf("        --test [OPT] TEST_DATASET   Perform tests\n");
 #ifdef HAS_MAGICK
     printf("        --classify-image FILE [OPT] Perform tests\n");
@@ -1669,7 +1670,7 @@ void printHelp(const char* program_path) {
            "                                  (See LAYER COORDINATES section\n"
            "                                  for details about COORDS)\n"
     );
-    printf("        --link COORDS             Link layer to previous network\n"
+    printf("        --link COORDS             Link layer to previous model\n"
            "                                  (See LAYER COORDINATES section\n"
            "                                  for details about COORDS)\n"
     );
@@ -1690,10 +1691,10 @@ void printHelp(const char* program_path) {
            "Convolutional Layers)\n");*/
     printf("\n");
     printf("LAYER COORDINATES:\n\n");
-    printf("        Format: [NETWORK_INDEX:]LAYER_INDEX\n");
+    printf("        Format: [model_index:]LAYER_INDEX\n");
     printf("        Examples:\n");
-    printf("            1:2     - Third layer (2) of second network(1)\n");
-    printf("            3       - Fourth layer (3) of current network\n");
+    printf("            1:2     - Third layer (2) of second model(1)\n");
+    printf("            3       - Fourth layer (3) of current model\n");
     printf("\n");
     printf("LOG LEVELS:\n\n");
     printf("        "); printLogLevels(stdout); printf("\n\n");
@@ -1724,7 +1725,7 @@ void printHelp(const char* program_path) {
         "  it's possible to execute an arbitrary external script when such\n"
         "  events happen. The scripts will eventually receive the following\n"
         "  arguments:\n"
-        "    --event TYPE, --name NETWORK_NAME --epoch CURRENT_EPOCH\n"
+        "    --event TYPE, --name MODEL_NAME --epoch CURRENT_EPOCH\n"
         "    --epochs TOT_EPOCHS --average-loss AVERAGE_LOSS --current-loss\n"
         "    CURRENT_LOSS --accuracy CURRENT_ACCURACY --learning-rate RATE\n"
     );

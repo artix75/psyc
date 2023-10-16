@@ -175,7 +175,7 @@ int PSResizeGRUStates(PSLayer *layer, uint32_t steps, uint32_t prev_steps) {
     if (candidates == NULL) {
         PSMatrixDelete(cell->candidates);
         cell->candidates = NULL;
-        PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
+        PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
         return 0;
     }
     cell->candidates = candidates;
@@ -186,7 +186,7 @@ int PSResizeGRUStates(PSLayer *layer, uint32_t steps, uint32_t prev_steps) {
     if (update_gates == NULL) {
         PSMatrixDelete(cell->update_gates);
         cell->update_gates = NULL;
-        PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
+        PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
         return 0;
     }
     cell->update_gates = update_gates;
@@ -197,7 +197,7 @@ int PSResizeGRUStates(PSLayer *layer, uint32_t steps, uint32_t prev_steps) {
     if (reset_gates == NULL) {
         PSMatrixDelete(cell->reset_gates);
         cell->reset_gates = NULL;
-        PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
+        PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
         return 0;
     }
     cell->reset_gates = reset_gates;
@@ -280,8 +280,8 @@ int setGRUState(PSLayer *layer, int index, PSFloat state, int t, int type) {
     PSFloat *state_ptr = NULL, *previous_ptr = NULL;
     if (t >= (int) PSStateSequenceLength(layer)) {
         if (!PSResizeLayerStates(layer, t + 1)) {
-            if (layer->network)
-                PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
+            if (layer->model)
+                PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
             PSErr(
                 NULL, "Could not resize recurrent hidden states for "
                 "layer %d", layer->index
@@ -396,8 +396,8 @@ memerr:
 
 /* Init Functions */
 
-int PSInitGRULayer(PSNeuralNetwork *network, PSLayer *layer,
-                    int size, int ws, PSLayerDef *ldef)
+int PSInitGRULayer(PSModel *model, PSLayer *layer, int size, int ws,
+                   PSLayerDef *ldef)
 {
     int i, bias_count = size * 3;
     layer->on_delete = PSDeleteGRULayer;
@@ -438,7 +438,7 @@ int PSInitGRULayer(PSNeuralNetwork *network, PSLayer *layer,
     }
     layer->forward = PSGRUForward;
     layer->backprop = PSGRUBackprop;
-    network->flags |= FLAG_RECURRENT;
+    model->flags |= FLAG_RECURRENT;
     return 1;
 memerr:
     PSPrintMemoryErrorMsg();
@@ -449,7 +449,7 @@ memerr:
 
 int PSGRUForward(PSLayer *layer, ...) {
     if (!checkLayerForForward(layer)) return 0;
-    PSNeuralNetwork *net = layer->network;
+    PSModel *model = layer->model;
     int success = 1;
     PSFloat *cache = NULL;
     va_list args;
@@ -459,14 +459,14 @@ int PSGRUForward(PSLayer *layer, ...) {
     va_end(args);
     if (!PSBeforeSequenceForward(layer, steps, t)) return 0;
     PSLayer *previous = PSGetPreviousLayer(layer);
-    PSLayer *first_recurrent = PSGetFirstRecurrentLayer(net);
+    PSLayer *first_recurrent = PSGetFirstRecurrentLayer(model);
     PSGRUCell *cell = PSGetGRUCell(layer);
     if (cell == NULL) return 0;
     int onehot = previous->flags & FLAG_ONEHOT;
     int ignore_inputs = 0;
     int prev_t = t - 1;
     int use_bias = !(layer->flags & FLAG_NO_BIAS);
-    PSMathOpts mopts = {.acceleration = net->acceleration};
+    PSMathOpts mopts = {.acceleration = model->acceleration};
     PSFloat *prev_states = NULL;
     PSFloat *candidates = getCandidates(layer, t);
     PSFloat *update_gates = getUpdateGates(layer, t);
@@ -482,7 +482,7 @@ int PSGRUForward(PSLayer *layer, ...) {
         success = 0;
         goto final;
     }
-    /* If layer is the first recurrent layer of a one-to-many network, updates
+    /* If layer is the first recurrent layer of a one-to-many model, updates
      * are fed just in the very first step. */
     if (!PSIsRecurrent(previous) && layer == first_recurrent)
         ignore_inputs = (t > 0);
@@ -595,7 +595,7 @@ final:
 /* Backpropagation Functions */
 
 int PSGRUBackprop(PSLayer *layer, PSLayer *previous_layer,
-                   PSGradient *lgradients, ...)
+                  PSGradient *lgradients, ...)
 {
     PSGRUCell *cell = (PSGRUCell *) layer->extra;
     if (cell == NULL) {
@@ -606,7 +606,7 @@ int PSGRUBackprop(PSLayer *layer, PSLayer *previous_layer,
     va_start(args, lgradients);
     int t = va_arg(args, int);
     va_end(args);
-    PSMathOpts mopts = {.acceleration = layer->network->acceleration};
+    PSMathOpts mopts = {.acceleration = layer->model->acceleration};
     int onehot = previous_layer->flags & FLAG_ONEHOT;
     int lsize = layer->size, prev_t = t - 1, success = 1;
     int input_size = previous_layer->size;

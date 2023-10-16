@@ -62,9 +62,9 @@ int main(int argc, char** argv) {
                                   &test_data);
     }
 
-    PSNeuralNetwork *network = PSCreateNetwork("CNN MNIST Demo");
-    if (network == NULL) {
-        fprintf(stderr, "Could not create network!\n");
+    PSModel *model = PSModelCreate("CNN MNIST Demo");
+    if (model == NULL) {
+        fprintf(stderr, "Could not create model!\n");
         if (training_data != NULL) free(training_data);
         if (test_data != NULL) free(test_data);
         return 1;
@@ -78,29 +78,29 @@ int main(int argc, char** argv) {
             .output_depth = FEATURES_COUNT, .filter_width = POOL_SIZE
         };
 
-        PSAddLayer(network, FullyConnected, INPUT_SIZE, NULL);
-        PSAddConvolutionalLayer(network, &convdef);
-        PSAddPoolingLayer(network, &pooldef);
-        PSAddLayer(network, FullyConnected, 30, NULL);
-        /* PSAddLayer(network, FullyConnected, 10, NULL); */
-        PSAddLayer(network, SoftMax, 10, NULL);
+        PSAddLayer(model, FullyConnected, INPUT_SIZE, NULL);
+        PSAddConvolutionalLayer(model, &convdef);
+        PSAddPoolingLayer(model, &pooldef);
+        PSAddLayer(model, FullyConnected, 30, NULL);
+        /* PSAddLayer(model, FullyConnected, 10, NULL); */
+        PSAddLayer(model, SoftMax, 10, NULL);
 
-        if (network->size < 1) {
+        if (model->size < 1) {
             fprintf(stderr, "Could not add all layers!\n");
-            PSDeleteNetwork(network);
+            PSModelDelete(model);
             if (training_data != NULL) free(training_data);
             if (test_data != NULL) free(test_data);
             return 1;
         }
 
-        int element_size = network->input_size + network->output_size;
+        int element_size = model->input_size + model->output_size;
         int element_count = datalen / element_size;
         if (element_count < train_dataset_len) {
             printf("Loaded dataset elements %d < %d\n", element_count,
                    TRAIN_DATASET_LEN);
             if (training_data != NULL) free(training_data);
             if (test_data != NULL) free(test_data);
-            PSDeleteNetwork(network);
+            PSModelDelete(model);
             return 1;
         } else {
             int remaining = element_count - train_dataset_len;
@@ -121,15 +121,15 @@ int main(int argc, char** argv) {
         }
 
     } else {
-        int loaded = PSLoadNetwork(network, pretrained_file);
+        int loaded = PSModelLoad(model, pretrained_file);
         if (!loaded) {
             printf("Could not load pretrained data %s\n", pretrained_file);
-            PSDeleteNetwork(network);
+            PSModelDelete(model);
             return 1;
         }
-        if (network->size < 1) {
+        if (model->size < 1) {
             fprintf(stderr, "Could not add all layers!\n");
-            PSDeleteNetwork(network);
+            PSModelDelete(model);
             return 1;
         }
     }
@@ -140,12 +140,12 @@ int main(int argc, char** argv) {
             .learning_rate = 1.5,
             .batch_size = 10
         };
-        PSTrain(network, training_data, datalen, validation_data, valdlen,
+        PSTrain(model, training_data, datalen, validation_data, valdlen,
                 &opts);
     }
 
-    if (network->status == STATUS_ERROR) {
-        PSDeleteNetwork(network);
+    if (model->status == STATUS_ERROR) {
+        PSModelDelete(model);
         if (training_data != NULL) free(training_data);
         if (test_data != NULL) free(test_data);
         return 1;
@@ -153,11 +153,11 @@ int main(int argc, char** argv) {
 
     if (testlen > 0 && test_data != NULL) {
         printf("Test Data len: %d\n", testlen);
-        PSTest(network, test_data, testlen, NULL);
+        PSTest(model, test_data, testlen, NULL);
     }
     if (pretrained_file == NULL)
-        PSSaveNetwork(network, "/tmp/pretrained.cnn.psmodel");
-    PSDeleteNetwork(network);
+        PSModelSave(model, "/tmp/pretrained.cnn.psmodel");
+    PSModelDelete(model);
     if (training_data != NULL) free(training_data);
     if (test_data != NULL) free(test_data);
     return 0;

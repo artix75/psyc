@@ -66,7 +66,7 @@ void PSDeleteRNNLayer(PSLayer *layer) {
     layer->extra = NULL;
 }
 
-int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
+int PSInitRecurrentLayer(PSModel *model, PSLayer *layer,
                          int size, int ws, PSLayerDef *ldef)
 {
     int i;
@@ -102,7 +102,7 @@ int PSInitRecurrentLayer(PSNeuralNetwork *network, PSLayer *layer,
     }
     layer->forward = PSRecurrentForward;
     layer->backprop = PSRecurrentBackprop;
-    network->flags |= FLAG_RECURRENT;
+    model->flags |= FLAG_RECURRENT;
     return 1;
 memerr:
     PSPrintMemoryErrorMsg();
@@ -127,10 +127,10 @@ PSFloat *PSGetRecurrentNeuronHiddenWeights(PSNeuron *neuron) {
 
 int PSRecurrentForward(PSLayer *layer, ...) {
     if (!checkLayerForForward(layer)) return 0;
-    PSNeuralNetwork *network = layer->network;
-    PSMathOpts dpopt = {.acceleration = network->acceleration};
+    PSModel *model = layer->model;
+    PSMathOpts dpopt = {.acceleration = model->acceleration};
     handleLayerForwardDebug(layer, __func__, &dpopt);
-    PSLayer *previous = network->layers[layer->index - 1];
+    PSLayer *previous = model->layers[layer->index - 1];
     va_list args;
     va_start(args, layer);
     int steps = va_arg(args, int);
@@ -139,12 +139,12 @@ int PSRecurrentForward(PSLayer *layer, ...) {
     /* Checks */
     if (!PSBeforeSequenceForward(layer, steps, t)) return 0;
     PSFloat *hidden_values = (PSFloat *) layer->extra;
-    PSLayer *first_recurrent = PSGetFirstRecurrentLayer(network);
+    PSLayer *first_recurrent = PSGetFirstRecurrentLayer(model);
     int onehot = previous->flags & FLAG_ONEHOT;
     int use_bias = !(layer->flags & FLAG_NO_BIAS);
     int ignore_inputs = 0;
     int feed_previous_step = (t > 0 || layer->initial_states != NULL);
-    /* If layer is the first recurrent layer of a one-to-many network, inputs
+    /* If layer is the first recurrent layer of a one-to-many model, inputs
      * are fed just in the very first step. */
     if (!PSIsRecurrent(previous) && layer == first_recurrent)
         ignore_inputs = (t > 0);
@@ -216,7 +216,7 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previous_layer,
         if (onehot_vector_size == 0) return 0;
     }
     uint64_t input_weight_size = PSMatrixLength(layer->weights[0]);
-    PSMathOpts mopts = {.acceleration = layer->network->acceleration};
+    PSMathOpts mopts = {.acceleration = layer->model->acceleration};
     PSMatrix hidden_weights = layer->weights[1];
     PSFloat *gradient_hidden_weights = gradients->weights + input_weight_size;
     /* Cycle over previous time steps until lowest step (`lowest_t`) defined

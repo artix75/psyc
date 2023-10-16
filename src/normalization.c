@@ -278,7 +278,7 @@ memerr:
     if (new_cache != NULL) deleteNormalizationCache(new_cache, seqlen);
     deleteNormalizationLayerCache(layer);
     layer->private = NULL;
-    PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
+    PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
     return 0;
 }
 
@@ -419,7 +419,7 @@ int PSNormalizationForward(PSLayer *layer, ...) {
     PSFloat epsilon = PSDEFAULT_NORM_EPSILON;
     if (settings != NULL) epsilon = settings->epsilon;
     if (epsilon == 0) epsilon = PSDEFAULT_NORM_EPSILON;
-    PSMathOpts mopts = {.acceleration = layer->network->acceleration};
+    PSMathOpts mopts = {.acceleration = layer->model->acceleration};
     PSFloat *input_p = inputs, *output_p = outputs;
     int size = layer->size, n_features = layer->output_depth,
         trainable = !(layer->flags & FLAG_NON_TRAINABLE), i, j;
@@ -482,7 +482,7 @@ int PSNormalizationBackprop(PSLayer *layer, PSLayer *previous,
     PSFloat epsilon = PSDEFAULT_NORM_EPSILON;
     if (settings != NULL) epsilon = settings->epsilon;
     if (epsilon == 0) epsilon = PSDEFAULT_NORM_EPSILON;
-    PSMathOpts mopts = {.acceleration = layer->network->acceleration};
+    PSMathOpts mopts = {.acceleration = layer->model->acceleration};
     size_t alloc_size = layer->size * sizeof(PSFloat);
     int n_features = layer->output_depth, size = layer->size, i, j;
     if (n_features < 1) n_features = 1;

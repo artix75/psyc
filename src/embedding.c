@@ -135,12 +135,12 @@ fail:
 
 /* Pretraining */
 
-PSNeuralNetwork *PSCreateEmbeddingTrainer(PSLayer *layer) {
-    PSNeuralNetwork *trainer = NULL;
+PSModel *PSCreateEmbeddingTrainer(PSLayer *layer) {
+    PSModel *trainer = NULL;
     if (layer == NULL) return NULL;
     if (layer->type != Embedding) return NULL;
     if (layer->pretrainer != NULL) return layer->pretrainer;
-    if (layer->network != NULL && layer->network->flags & FLAG_PRETRAINER)
+    if (layer->model != NULL && layer->model->flags & FLAG_PRETRAINER)
         return NULL;
     PSEmbeddingSettings *settings = GetEmbeddingSettings(layer);
     int vocabulary_size = 0;
@@ -158,18 +158,18 @@ PSNeuralNetwork *PSCreateEmbeddingTrainer(PSLayer *layer) {
             return NULL;
         }
     }
-    trainer = PSCreateNetwork("Embedding Layer Trainer");
+    trainer = PSModelCreate("Embedding Layer Trainer");
     trainer->flags |= FLAG_PRETRAINER;
-    int onehot_network = (layer->network->flags & FLAG_ONEHOT);
-    if (onehot_network) trainer->flags |= FLAG_ONEHOT;
+    int onehot_model = (layer->model->flags & FLAG_ONEHOT);
+    if (onehot_model) trainer->flags |= FLAG_ONEHOT;
     int input_flags = (previous != NULL ? previous->flags : 0);
     PSRemoveFlag(input_flags, FLAG_RECURRENT);
-    if (onehot_network) input_flags |= FLAG_ONEHOT;
+    if (onehot_model) input_flags |= FLAG_ONEHOT;
     int onehot_input = input_flags & FLAG_ONEHOT;
     PSLayer *input_layer = PSAddLayer(
         trainer, FullyConnected, vocabulary_size, PSLDEF(.flags = input_flags)
     );
-    int onehot = onehot_network | onehot_input;
+    int onehot = onehot_model | onehot_input;
     if (input_layer == NULL) goto fail;
     PSLayer *embedding_layer = PSAddLayer(
         trainer, Embedding, layer->size, NULL
@@ -180,7 +180,7 @@ PSNeuralNetwork *PSCreateEmbeddingTrainer(PSLayer *layer) {
     layer->pretrainer = trainer;
     return trainer;
 fail:
-    if (trainer != NULL) PSDeleteNetwork(trainer);
+    if (trainer != NULL) PSModelDelete(trainer);
     return NULL;
 }
 
@@ -188,9 +188,9 @@ int PSPretrainEmbeddingLayer(PSLayer *layer, PSFloat *training_data,
                              int data_size)
 {
     if (layer == NULL) return 0;
-    PSNeuralNetwork *network = layer->network;
-    if (network == NULL) {
-        PSErr(__func__, "Layer[%d] has no network");
+    PSModel *model = layer->model;
+    if (model == NULL) {
+        PSErr(__func__, "Layer[%d] has no model");
         return 0;
     }
     PSEmbeddingSettings *settings = GetEmbeddingSettings(layer);
@@ -223,21 +223,20 @@ int PSPretrainEmbeddingLayer(PSLayer *layer, PSFloat *training_data,
         goto final;
     }
     int num_tokens = 0;
-    PSLayer *output_layer = network->layers[network->size - 1];
+    PSLayer *output_layer = model->layers[model->size - 1];
     if (output_layer == NULL) {
-        PSErr(__func__, "Network '%d' has no output layer",
-              network->name);
+        PSErr(__func__, "Model '%d' has no output layer",
+              model->name);
         success = 0;
         goto final;
     }
     int ysize = (output_layer->flags & FLAG_ONEHOT ? 1 : output_layer->size);
-    int recurrent_input = PSIsRecurrent(network->layers[0]),
+    int recurrent_input = PSIsRecurrent(model->layers[0]),
         recurrent_output = PSIsRecurrent(output_layer);
-    tokens = PSGetInputsFromTrainingData(training_data, data_size,
-                                     0, network->input_size,
-                                     ysize, recurrent_input,
-                                     recurrent_output,
-                                     &num_tokens, NULL);
+    tokens = PSGetInputsFromTrainingData(
+        training_data, data_size, 0, model->input_size, ysize, recurrent_input,
+        recurrent_output, &num_tokens, NULL
+    );
     if (tokens == NULL) {
         PSErr(__func__, "Layer[%d]: failed to extract tokens from "
               "training data", layer->index);
@@ -264,7 +263,7 @@ int PSPretrainEmbeddingLayer(PSLayer *layer, PSFloat *training_data,
     }
     free(tokens);
     tokens = NULL;
-    PSNeuralNetwork *pretrainer = PSCreateEmbeddingTrainer(layer);
+    PSModel *pretrainer = PSCreateEmbeddingTrainer(layer);
     if (pretrainer == NULL) {
         PSErr(__func__, "Layer[%d]: failed to build pretrainer",
               layer->index);
@@ -278,7 +277,7 @@ int PSPretrainEmbeddingLayer(PSLayer *layer, PSFloat *training_data,
         options->learning_rate = 0.1; /* TODO: use a constant or autocalc.*/
     PSTrain(pretrainer, pretrain_data, pretaing_num_elements, NULL, 0,
             options);
-    if (PSGetNetworkStatus(pretrainer) == STATUS_ERROR) {
+    if (PSModelGetStatus(pretrainer) == STATUS_ERROR) {
         PSErr(__func__, "Layer[%d]: pretraining failed!",
               layer->index);
         success = 0;

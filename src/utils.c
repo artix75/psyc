@@ -294,22 +294,22 @@ void PSDictRelease(PSDict *dict) {
     free(dict);
 }
 
-/* Network Functions */
+/* Neural Network Functions */
 
-void PSAbortLayer(PSNeuralNetwork *network, PSLayer *layer) {
-    if (network->size == 0) return;
-    if (layer->index == (network->size - 1)) {
-        network->size--;
-        if (network->size == 0) {
-            network->input_size = 0;
-            network->output_size = 0;
+void PSAbortLayer(PSModel *model, PSLayer *layer) {
+    if (model->size == 0) return;
+    if (layer->index == (model->size - 1)) {
+        model->size--;
+        if (model->size == 0) {
+            model->input_size = 0;
+            model->output_size = 0;
         } else {
-            PSLayer *outputLayer = network->layers[network->size - 1];
-            if (outputLayer) network->output_size = outputLayer->size;
-            else network->output_size = 0;
-            PSLayer *inputLayer = network->layers[0];
-            if (inputLayer) network->input_size = inputLayer->size;
-            else network->input_size = 0;
+            PSLayer *outputLayer = model->layers[model->size - 1];
+            if (outputLayer) model->output_size = outputLayer->size;
+            else model->output_size = 0;
+            PSLayer *inputLayer = model->layers[0];
+            if (inputLayer) model->input_size = inputLayer->size;
+            else model->input_size = 0;
         }
         PSDeleteLayer(layer);
     }

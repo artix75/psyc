@@ -18,8 +18,42 @@
 #ifndef __PS_LEGACY_H__
 #define __PS_LEGACY_H__
 
+/* Maths */
 #define PSSumVectors            PSAddVectors
 #define PSSumVectorElements     PSVectorReduceSum
 #define PSSumVectorScalar       PSAddVectorScalar
+
+/* Model/Neural Netwrok */
+
+#define PSIsNetworkChain(model)             PSIsModelChain(model)
+#define PSGetNetworkChainLength(model)      PSModelChainLength(model)
+#define PSGetNetworkChainHead(model)        PSModelChainHead(model)
+#define PSGetNetworkChainTail(model)        PSModelChainTail(model)
+#define PSNetworkChainContains(chain, model) \
+    PSModelChainContains(chain, model)
+#define PSGetNetworkAtIndex(entrypoint,idx) PSGetModelAtIndex(entrypoint,idx)
+#define PSIsNetworkTraining(model)          PSIsModelTraining(model)
+#define PSCreateNetwork(name)               PSModelCreate(name)
+#define PSAddNetwork(parent, model, link)   PSAddModel(parent, model, link)
+#define PSCloneNetwork(model, layout_only)  PSModelClone(model, layout_only)
+#define PSLoadNetwork(model, filename)      PSModelLoad(model, filename)
+#define PSSaveNetwork(model, filename)      PSModelSave(model, filename)
+#define PSSetNetworkStatus(model, status, old) \
+    PSModelSetStatus(model, status, old)
+#define PSGetNetworkStatus(model)           PSModelGetStatus(model)
+#define PSResetNetworkStateSequences(model, steps, retain_previous) \
+    PSResetModelStateSequences(model, steps, retain_previous)
+#define PSDeleteNetwork(model)              PSModelDelete(model)
+#define PSDeleteNetworkGradients(gradients, model) \
+    PSDeleteModelGradients(gradients, model)
+#define PSCheckNetwork(model)               PSModelCheck(model)
+#define PSIsNetworkBuilt(model)             PSModelIsBuilt(model)
+#define PSBuildNetwork(model)               PSModelBuild(model)
+#define PSRebuildNetwork(model)             PSModelRebuild(model)
+#define PSPrintNetworkInfo(model)           PSModelPrintInfo(model)
+#define PSDumpNetworkStates(model, fname)   PSModelDumpStates(model, fname)
+#define PSDumpNetworkDeltas(model, fname)   PSModelDumpDeltas(model, fname)
+
+typedef PSModelLink PSNeuralNetworkLink;
 
 #endif /* __PS_LEGACY_H__ */

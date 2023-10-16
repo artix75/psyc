@@ -91,6 +91,6 @@ int PSLoadMNISTData(int type, const char *images_file, const char *labels_file,
 
 int PSLoadCIFARData(int type, int classes, const char *dataset_path,
                     PSFloat **data, int max_files, int max_elements);
-PSLayer *PSAddCIFARInputLayer(PSNeuralNetwork *network);
+PSLayer *PSAddCIFARInputLayer(PSModel *model);
 
 #endif /* __PS_DATASET_H */

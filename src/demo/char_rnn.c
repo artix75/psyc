@@ -81,7 +81,7 @@ int log_sequences = 0;
 char *load_model_file = NULL;
 char *output_path = DEFAULT_OUTPUT_FILE;
 
-void printSample(PSNeuralNetwork *network, int input_idx, int len);
+void printSample(PSModel *model, int input_idx, int len);
 char *getOptimizationName(PSOptimization optimization);
 
 int compareFloats(const void *p1, const void *p2) {
@@ -100,7 +100,7 @@ int randomChoice(PSFloat *weights, int count) {
     return -1;
 }
 
-void onBatchTrained(PSNeuralNetwork *network, int epoch, int epochs,
+void onBatchTrained(PSModel *model, int epoch, int epochs,
                     PSFloat loss, PSFloat current_loss, float accuracy,
                     PSFloat *rate, PSFloat *training_data)
 {
@@ -108,7 +108,7 @@ void onBatchTrained(PSNeuralNetwork *network, int epoch, int epochs,
     UNUSED(loss);
     UNUSED(accuracy);
     UNUSED(rate);
-    UNUSED(network);
+    UNUSED(model);
     UNUSED(epochs);
     UNUSED(training_data);
     last_batch_loss = current_loss;
@@ -117,7 +117,7 @@ void onBatchTrained(PSNeuralNetwork *network, int epoch, int epochs,
         PSFloat *seq = training_data + 1,
                 *y = seq + seqlen;
         printf("\nBatch[%d] Seq(len = %d):\n         \"",
-            network->training->current_batch, seqlen);
+            model->training->current_batch, seqlen);
         for (i = 0; i < seqlen; i++) {
             char c = characters[(int) seq[i]];
             if (c == '\n') c = '-';
@@ -134,7 +134,7 @@ void onBatchTrained(PSNeuralNetwork *network, int epoch, int epochs,
     }
 }
 
-void onEpochTrained(PSNeuralNetwork *network, int epoch, int epochs,
+void onEpochTrained(PSModel *model, int epoch, int epochs,
                     PSFloat loss, PSFloat current_loss, float accuracy,
                     PSFloat *rate, PSFloat *training_data)
 {
@@ -147,8 +147,8 @@ void onEpochTrained(PSNeuralNetwork *network, int epoch, int epochs,
     UNUSED(training_data);
     if (sample_every > 0 && (epoch % sample_every) != 0) return;
     int iteration =
-        (epoch * num_elements) + network->training->current_element;
-    printSample(network, 0, SAMPLE_LEN);
+        (epoch * num_elements) + model->training->current_element;
+    printSample(model, 0, SAMPLE_LEN);
     if (last_batch_loss != 0) {
         PSFloat curloss = last_batch_loss * 25;
         smooth_loss = smooth_loss * 0.999 + curloss * 0.001;
@@ -158,24 +158,24 @@ void onEpochTrained(PSNeuralNetwork *network, int epoch, int epochs,
     fflush(stdout);
 }
 
-void printSample(PSNeuralNetwork *network, int input_idx, int len) {
+void printSample(PSModel *model, int input_idx, int len) {
     int index = 2 + input_idx;
     if (index >= TRAIN_DATA_LEN) {
         fprintf(stderr, "ERROR (%s): Invalid input %d\n", __func__, input_idx);
         return;
     }
-    if (!PSResetNetworkStateSequences(network, 0, 0)) {
+    if (!PSResetModelStateSequences(model, 0, 0)) {
         fprintf(stderr, "ERROR (%s): Failed to reset states\n", __func__);
         return;
     }
-    PSLayer *out = network->layers[network->size - 1];
+    PSLayer *out = model->layers[model->size - 1];
     PSFloat word_idx = training_data[index];
     PSFloat data[2];
     data[0] = 1.0;
     data[1] = word_idx;
     int c = len;
-    int oldstatus = network->status;
-    network->status = STATUS_PAUSED;
+    int oldstatus = model->status;
+    model->status = STATUS_PAUSED;
     if (PSLogColorEnabled()) printf(PSCOLOR_BOLD);
     printf("\n\n==== SAMPLE ====\n\n");
     if (PSLogColorEnabled()) printf(PSCOLOR_RESET);
@@ -183,9 +183,9 @@ void printSample(PSNeuralNetwork *network, int input_idx, int len) {
     char character = characters[(unsigned) word_idx];
     printf("%c", character);
     while (c-- >= 0) {
-        int ok = PSForward(network, data);
+        int ok = PSForward(model, data);
         if (!ok) {
-            network->status = oldstatus;
+            model->status = oldstatus;
             fprintf(
                 stderr, "ERROR (%s): Failed to feed data at t=%d",
                 __func__, c + 1
@@ -196,7 +196,7 @@ void printSample(PSNeuralNetwork *network, int input_idx, int len) {
         int t = ((unsigned int) data[0]) - 1;
         if (!use_random_choice) {
             if (!PSFindLayerMaxState(out, NULL, &max_idx, t)) {
-                network->status = oldstatus;
+                model->status = oldstatus;
                 PSErr(__func__, "Failed to find neuron with max value");
                 return;
             }
@@ -205,7 +205,7 @@ void printSample(PSNeuralNetwork *network, int input_idx, int len) {
             max_idx = randomChoice(states, out->size);
             if (max_idx < 0) {
                 if (!PSFindLayerMaxState(out, NULL, &max_idx, t)) {
-                    network->status = oldstatus;
+                    model->status = oldstatus;
                     PSErr(__func__, "Failed to find neuron with max value");
                     return;
                 }
@@ -216,7 +216,7 @@ void printSample(PSNeuralNetwork *network, int input_idx, int len) {
         printf("%c", character);
         data[1] = (PSFloat) max_idx;
     }
-    network->status = oldstatus;
+    model->status = oldstatus;
     printf("\n\n");
     fflush(stdout);
 }
@@ -350,14 +350,14 @@ void parseOptions(int argc, char **argv) {
     }
 }
 
-void initLSTMGRUParams(PSNeuralNetwork *network) {
-    PSLayer *layer = network->layers[1];
+void initLSTMGRUParams(PSModel *model) {
+    PSLayer *layer = model->layers[1];
     if (layer->type != LSTM && layer->type != GRU) {
         PSErr(__func__, "Layer[1] is not LSTM nor GRU");
-        PSDeleteNetwork(network);
+        PSModelDelete(model);
         exit(1);
     }
-    PSMathOpts opts = {.acceleration = network->acceleration};
+    PSMathOpts opts = {.acceleration = model->acceleration};
     for (int i = 0; i < layer->weight_types_count; i++) {
         PSMatrix weights = layer->weights[i];
         if (weights == NULL) continue;
@@ -396,40 +396,40 @@ int main(int argc, char **argv) {
     int ok = 1;
     smooth_loss =
         -PSMathLog(1.0 / (PSFloat) VOCABULARY_SIZE)*(PSFloat)seq_length;
-    PSNeuralNetwork *network = PSCreateNetwork("Char RNN");
-    if (network == NULL) {
-        fprintf(stderr, "FATAL: Could not create network\n");
+    PSModel *model = PSModelCreate("Char RNN");
+    if (model == NULL) {
+        fprintf(stderr, "FATAL: Could not create model\n");
         return 1;
     }
     if (load_model_file == NULL) {
-        network->flags |= FLAG_ONEHOT;
-        PSAddLayer(network, FullyConnected, VOCABULARY_SIZE, NULL);
-        PSAddLayer(network, recurrent_ltype, hidden_size, NULL);
-        PSAddLayer(network, SoftMax, VOCABULARY_SIZE, NULL);
-        network->layers[network->size - 1]->flags |= FLAG_ONEHOT;
+        model->flags |= FLAG_ONEHOT;
+        PSAddLayer(model, FullyConnected, VOCABULARY_SIZE, NULL);
+        PSAddLayer(model, recurrent_ltype, hidden_size, NULL);
+        PSAddLayer(model, SoftMax, VOCABULARY_SIZE, NULL);
+        model->layers[model->size - 1]->flags |= FLAG_ONEHOT;
         if (LSTM == recurrent_ltype || GRU == recurrent_ltype)
-            initLSTMGRUParams(network);
+            initLSTMGRUParams(model);
     } else {
-        ok = PSLoadNetwork(network, load_model_file);
+        ok = PSModelLoad(model, load_model_file);
         if (!ok) {
             PSErr(NULL, "Could not load model file");
-            PSDeleteNetwork(network);
+            PSModelDelete(model);
             return 1;
         }
     }
 
-    if (!PSIsNetworkBuilt(network)) {
-        if (!PSBuildNetwork(network)) {
-            fprintf(stderr, "Could not build network!\n");
-            PSDeleteNetwork(network);
+    if (!PSModelIsBuilt(model)) {
+        if (!PSModelBuild(model)) {
+            fprintf(stderr, "Could not build model!\n");
+            PSModelDelete(model);
             return 1;
         }
     }
-    network->acceleration = PSGlobalAcceleration;
-    network->loss = PSCrossEntropyLoss;
-    PSPrintNetworkInfo(network);
-    network->onEpochTrained = onEpochTrained;
-    network->onBatchTrained = onBatchTrained;
+    model->acceleration = PSGlobalAcceleration;
+    model->loss = PSCrossEntropyLoss;
+    PSModelPrintInfo(model);
+    model->onEpochTrained = onEpochTrained;
+    model->onBatchTrained = onBatchTrained;
 
     uint32_t flags = (TRAINING_NO_SHUFFLE | TRAINING_EPOCH_AS_SEQUENCE);
     PSTrainingOptions opts = {
@@ -453,11 +453,10 @@ int main(int argc, char **argv) {
            "Wikipedia's article about planet\nSaturn: "
            "(https://en.wikipedia.org/wiki/Saturn).\n\n");
     if (PSLogColorEnabled()) printf(PSCOLOR_RESET);
-    PSTrain(network, training_data, TRAIN_DATA_LEN, test_data, test_data_len,
+    PSTrain(model, training_data, TRAIN_DATA_LEN, test_data, test_data_len,
             &opts);
-    if (output_path != NULL)
-        PSSaveNetwork(network, output_path);
+    if (output_path != NULL) PSModelSave(model, output_path);
 final:
-    PSDeleteNetwork(network);
+    PSModelDelete(model);
     return (ok ? 0 : 1);
 }

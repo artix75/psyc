@@ -27,7 +27,7 @@
 #include "activation.h"
 #include "optimization.h"
 
-#define PSYC_VERSION      "0.9.2"
+#define PSYC_VERSION      "0.9.3"
 
 #define LAYER_TYPES     14
 
@@ -72,7 +72,7 @@
 
 #define PS_NULL_VALUE PSFLOAT_MIN
 
-/* Layer/Network Flags */
+/* Layer/Model Flags */
 #define FLAG_NONE 0
 #define FLAG_RECURRENT      (1 << 0)
 #define FLAG_ONEHOT         (1 << 1)
@@ -108,16 +108,14 @@
 #define PSUseSequences(o) \
     (o->flags & (FLAG_RECURRENT | FLAG_USE_SEQUENCES))
 #define PSHandleSequenceAtOnce(o) (PSUseSequences(o) && !PSIsRecurrent(o))
-#define PSIsNetworkChain(network) \
-    (network->previous != NULL || network->next != NULL)
+#define PSIsModelChain(model) (model->previous != NULL || model->next != NULL)
 #define PSLDEF(...) ((PSLayerDef *) &((PSLayerDef) {__VA_ARGS__}))
 #define PSTRAINOPT(...) \
     ((PSTrainingOptions *) &((PSTrainingOptions) {__VA_ARGS__}))
 #define PSDisablePretraining(layer) (layer->pretrain = NULL)
-#define PSIsNetworkTraining(network) \
-    (PSGetNetworkStatus(network) == STATUS_TRAINING)
+#define PSIsModelTraining(model) (PSModelGetStatus(model) == STATUS_TRAINING)
 
-struct PSNeuralNetwork;
+struct PSModel;
 struct PSLayer;
 struct PSGradient;
 struct PSTrainingOptions;
@@ -140,22 +138,22 @@ typedef int      (*PSResizeStatesFunc) (struct PSLayer *layer, uint32_t steps,
                                         uint32_t previous_steps);
 typedef PSFloat  (*PSLossFunction) (PSFloat* x, PSFloat* y, int size,
                                     int onehot_size);
-typedef void     (*PSTrainCallback) (struct PSNeuralNetwork *network,
+typedef void     (*PSTrainCallback) (struct PSModel *model,
                                      int epoch, int epochs,
                                      PSFloat average_loss,
                                      PSFloat current_loss,
                                      float accuracy, PSFloat *rate,
                                      PSFloat *training_data);
 typedef int      (*PSLinkDataRetriever) (struct PSLayer *layer);
-typedef int      (*PSBeforeForwardCallback) (struct PSNeuralNetwork *network,
+typedef int      (*PSBeforeForwardCallback) (struct PSModel *model,
                                              PSFloat *inputs,
                                              int seqlen, int backprop,
                                              void *opts);
-typedef int      (*PSBeforeBackpropCallback) (struct PSNeuralNetwork *network,
+typedef int      (*PSBeforeBackpropCallback) (struct PSModel *model,
                                               PSFloat *y,
                                               struct PSTrainingOptions *opts,
                                               struct PSGradient **gradients);
-typedef void     (*PSLogTrainingProgressFunc) (struct PSNeuralNetwork *network,
+typedef void     (*PSLogTrainingProgressFunc) (struct PSModel *model,
                                                int status, int epochs,
                                                int batches, PSFloat *loss,
                                                PSFloat *accuracy,
@@ -326,16 +324,16 @@ typedef struct PSLayer {
     PSResizeStatesFunc          on_states_resize;
     PSPretrainLayerFunction     pretrain;
     PSLinkDataRetriever         get_input_from_link;
-    struct PSNeuralNetwork      *network;
-    struct PSNeuralNetwork      *pretrainer;
+    struct PSModel      *model;
+    struct PSModel      *pretrainer;
 } PSLayer;
 
-typedef struct PSNeuralNetworkLink {
+typedef struct PSModelLink {
     PSLayer *layer;
     PSLayer *previous_layer;
-} PSNeuralNetworkLink;
+} PSModelLink;
 
-typedef struct PSNeuralNetwork {
+typedef struct PSModel {
     const char                  *name;
     int                         size;
     int                         index;
@@ -346,9 +344,9 @@ typedef struct PSNeuralNetwork {
     uint8_t                     status;
     uint32_t                    input_size;
     uint32_t                    output_size;
-    struct PSNeuralNetwork      *previous;
-    struct PSNeuralNetwork      *next;
-    PSNeuralNetworkLink         *previous_network_link;
+    struct PSModel              *previous;
+    struct PSModel              *next;
+    PSModelLink                 *previous_model_link;
     PSSequenceSettings          sequence_settings;
     PSRecurrentNetworkMode      rnn_mode;
     PSTrainingInfo              *training;
@@ -357,37 +355,35 @@ typedef struct PSNeuralNetwork {
     PSTrainCallback             onEpochTrained;
     PSTrainCallback             onBatchTrained;
     void                        *context;
-} PSNeuralNetwork;
+} PSModel;
 
-PSNeuralNetwork *PSCreateNetwork(const char* name);
-int PSAddNetwork(PSNeuralNetwork *parent, PSNeuralNetwork *network,
-                 PSNeuralNetworkLink *link);
-PSNeuralNetwork *PSCloneNetwork(PSNeuralNetwork *network, int layout_only);
-int PSLoadNetwork(PSNeuralNetwork *network, const char* filename);
-int PSSaveNetwork(PSNeuralNetwork *network, const char* filename);
+PSModel *PSModelCreate(const char* name);
+int PSAddModel(PSModel *parent, PSModel *model, PSModelLink *link);
+PSModel *PSModelClone(PSModel *model, int layout_only);
+int PSModelLoad(PSModel *model, const char* filename);
+int PSModelSave(PSModel *model, const char* filename);
 int PSLoadLayer(PSLayer *layer, const char *filepath);
 int PSSaveLayer(PSLayer *layer, const char *filepath, int opts);
-void PSSetNetworkStatus(PSNeuralNetwork *network, int status, int *old);
-int PSGetNetworkStatus(PSNeuralNetwork *network);
-PSLayer *PSAddLayer(PSNeuralNetwork *network, PSLayerType type, int size,
+void PSModelSetStatus(PSModel *model, int status, int *old);
+int PSModelGetStatus(PSModel *model);
+PSLayer *PSAddLayer(PSModel *model, PSLayerType type, int size,
                     PSLayerDef *layer_def);
-PSLayer *PSAddConvolutionalLayer(PSNeuralNetwork *network, PSLayerDef *ldef);
-PSLayer *PSAddPoolingLayer(PSNeuralNetwork *network, PSLayerDef *ldef);
+PSLayer *PSAddConvolutionalLayer(PSModel *model, PSLayerDef *ldef);
+PSLayer *PSAddPoolingLayer(PSModel *model, PSLayerDef *ldef);
 int PSGetOneHotLayerVectorSize(PSLayer *layer);
 uint64_t PSGetLayerParametersCount(PSLayer *layer, int param_type);
 PSLayer *PSGetPreviousLayer(PSLayer *layer);
 PSLayer *PSGetNextLayer(PSLayer *layer);
-PSLayer *PSGetOutputLayer(PSNeuralNetwork *network);
-PSLayer *PSGetLayerByIndex(PSNeuralNetwork *network, int layer_index,
-                            int network_index);
+PSLayer *PSGetOutputLayer(PSModel *model);
+PSLayer *PSGetLayerByIndex(PSModel *model, int layer_index, int model_index);
 int PSGetLayerInputSize(PSLayer *layer);
 uint64_t PSGetLayerInputWeightsCount(PSLayer *layer, int per_neuron);
 PSFloat *PSGetNeuronInputWeights(PSNeuron *neuron);
 
 int PSResetLayerStateSequence(PSLayer *layer, uint32_t steps,
                               int retain_previous);
-int PSResetNetworkStateSequences(PSNeuralNetwork *network, uint32_t steps,
-                                 int retain_previous);
+int PSResetModelStateSequences(PSModel *model, uint32_t steps,
+                               int retain_previous);
 PSFloat PSGetState(PSLayer *layer, int index, ...);
 PSFloat *PSGetStates(PSLayer *layer, ...);
 PSFloat PSGetNeuronState(PSNeuron *neuron, ...);
@@ -396,50 +392,48 @@ int PSSetState(PSLayer *layer, PSFloat state, int index, ...);
 int PSSetNeuronState(PSNeuron *neuron, double state, ...);
 PSNeuron *PSGetNeuron(PSLayer *layer, int index, PSNeuron *neuron);
 int PSStateSequenceLength(PSLayer *layer);
-int PSForward(PSNeuralNetwork *network, PSFloat *values);
-int PSAutoregression(PSNeuralNetwork *network, PSFloat *inputs,
+int PSForward(PSModel *model, PSFloat *values);
+int PSAutoregression(PSModel *model, PSFloat *inputs,
                      int randomized, PSSequenceSettings *sequence_settings);
-int PSClassify(PSNeuralNetwork *network, PSFloat *values);
+int PSClassify(PSModel *model, PSFloat *values);
 int PSFindLayerMaxState(PSLayer *layer, PSFloat *max_p, int *index_p,...);
 
-void PSResetTransposedWeights(PSNeuralNetwork *network);
-void PSDeleteNetwork(PSNeuralNetwork *network);
+void PSResetTransposedWeights(PSModel *model);
+void PSModelDelete(PSModel *model);
 void PSDeleteLayer(PSLayer *layer);
 void PSDeleteNeuron(PSNeuron *neuron);
 void PSDeleteGradient(PSGradient *gradient);
-void PSDeleteNetworkGradients(PSGradient **gradients, PSNeuralNetwork *net);
-void PSDeleteGradientsChain(PSGradient ***gradients, PSNeuralNetwork *network);
-void PSTrain(PSNeuralNetwork *network,
+void PSDeleteModelGradients(PSGradient **gradients, PSModel *net);
+void PSDeleteGradientsChain(PSGradient ***gradients, PSModel *model);
+void PSTrain(PSModel *model,
              PSFloat *training_data,
              int data_size,
              PSFloat *test_data,
              int test_size,
              PSTrainingOptions *options);
-void PSPauseTraining(PSNeuralNetwork *network);
-void PSAbortTraining(PSNeuralNetwork *network);
-float PSTest(PSNeuralNetwork *network, PSFloat *test_data, int data_size,
+void PSPauseTraining(PSModel *model);
+void PSAbortTraining(PSModel *model);
+float PSTest(PSModel *model, PSFloat *test_data, int data_size,
              PSTrainingOptions *options);
-int PSCheckNetwork(PSNeuralNetwork *network);
+int PSModelCheck(PSModel *model);
 /* int arrayMaxIndex(PSFloat *array, int len); */
 char *PSGetLabelForType(PSLayerType type);
 char *PSGetLayerTypeLabel(PSLayer *layer);
-int PSIsNetworkBuilt(PSNeuralNetwork *network);
-int PSBuildNetwork(PSNeuralNetwork *network);
-int PSRebuildNetwork(PSNeuralNetwork *network);
-void PSPrintNetworkInfo(PSNeuralNetwork *network);
-int PSDumpNetworkStates(PSNeuralNetwork *network, const char* filename);
-int PSDumpNetworkDeltas(PSNeuralNetwork *network, const char* filename);
+int PSModelIsBuilt(PSModel *model);
+int PSModelBuild(PSModel *model);
+int PSModelRebuild(PSModel *model);
+void PSModelPrintInfo(PSModel *model);
+int PSModelDumpStates(PSModel *model, const char* filename);
+int PSModelDumpDeltas(PSModel *model, const char* filename);
 void PSSetDefaultTrainingOptions(PSTrainingOptions *options);
-int PSSetRecurrentNetworkMode(
-    PSNeuralNetwork *network, PSRecurrentNetworkMode mode
-);
-PSLayer *PSGetFirstRecurrentLayer(PSNeuralNetwork *network);
-PSLayer *PSGetLastRecurrentLayer(PSNeuralNetwork *network);
-int PSGetNetworkChainLength(PSNeuralNetwork *network);
-PSNeuralNetwork *PSGetNetworkAtIndex(PSNeuralNetwork *entrypoint, int index);
-PSNeuralNetwork *PSGetNetworkChainHead(PSNeuralNetwork *network);
-PSNeuralNetwork *PSGetNetworkChainTail(PSNeuralNetwork *network);
-int PSNetworkChainContains(PSNeuralNetwork *chain, PSNeuralNetwork *network);
+int PSSetRecurrentNetworkMode(PSModel *model, PSRecurrentNetworkMode mode);
+PSLayer *PSGetFirstRecurrentLayer(PSModel *model);
+PSLayer *PSGetLastRecurrentLayer(PSModel *model);
+int PSModelChainLength(PSModel *model);
+PSModel *PSGetModelAtIndex(PSModel *entrypoint, int index);
+PSModel *PSModelChainHead(PSModel *model);
+PSModel *PSModelChainTail(PSModel *model);
+int PSModelChainContains(PSModel *chain, PSModel *model);
 
 /*  Loss functions */
 
@@ -447,7 +441,7 @@ PSFloat PSQuadraticLoss(PSFloat *x, PSFloat *y, int size, int onehot_size);
 PSFloat PSCrossEntropyLoss(PSFloat *x, PSFloat *y, int size, int onehot_size);
 
 /* Training progress logging functions */
-void PSLogTrainingProgressBar(PSNeuralNetwork *network, int status, int epochs,
+void PSLogTrainingProgressBar(PSModel *model, int status, int epochs,
                               int batches, PSFloat *loss, PSFloat *accuracy,
                               time_t *elapsed, int validating_current,
                               int validating_tot);
@@ -458,5 +452,9 @@ void PSHandleSignals(PSSignalHandler shutdown_handler);
 size_t PSIterateLossFunctions(
     void ( *callback) (const char *name, PSLossFunction func)
 );
+
+/* Kept type name used in older version since I still love it :)
+ * (and it also sounds more 'Psyc-y') */
+typedef PSModel PSNeuralNetwork;
 
 #endif /*  __PSYC_H */

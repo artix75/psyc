@@ -147,9 +147,9 @@ int PSInitPositionalLayer(PSLayer *layer, PSLayerDef *layer_def) {
               "size zero");
         return 0;
     }
-    PSNeuralNetwork *network = layer->network;
-    if (!PSHandleSequenceAtOnce(network)) {
-        PSErr(NULL, "PositionalEncoding layer can only be used in networks "
+    PSModel *model = layer->model;
+    if (!PSHandleSequenceAtOnce(model)) {
+        PSErr(NULL, "PositionalEncoding layer can only be used in models "
               "handling whole sequences at onece");
         return 0;
     }
@@ -158,7 +158,7 @@ int PSInitPositionalLayer(PSLayer *layer, PSLayerDef *layer_def) {
     layer->flags |= (FLAG_NO_BIAS | FLAG_NON_TRAINABLE);
     int onehot_input = (
         previous->flags & FLAG_ONEHOT ||
-        ((network->flags & FLAG_ONEHOT) && previous->size == 1)
+        ((model->flags & FLAG_ONEHOT) && previous->size == 1)
     );
     int min_capacity = 0;
     if (onehot_input) {
@@ -225,7 +225,7 @@ int PSPositionalForward(PSLayer *layer, ...) {
     PSMatrix inputs = NULL, tmpinputs = NULL;
     int onehot_input = (
         previous->flags & FLAG_ONEHOT ||
-        ((layer->network->flags & FLAG_ONEHOT) && previous->size == 1)
+        ((layer->model->flags & FLAG_ONEHOT) && previous->size == 1)
     );
     PSMatrix weights = layer->weights[0];
     if (!onehot_input) inputs = previous->states;
@@ -276,7 +276,7 @@ int PSPositionalForward(PSLayer *layer, ...) {
     PSFloat *dest_p = layer->states;
     PSFloat *inputs_p = inputs;
     PSFloat *encodings = weights;
-    PSMathOpts opts = {.acceleration = layer->network->acceleration};
+    PSMathOpts opts = {.acceleration = layer->model->acceleration};
     for (i = 0; i < seqlen; i++) {
         PSAddVectors(inputs_p, encodings, dest_p, layer->size, &opts);
         dest_p += layer->size;

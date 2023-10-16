@@ -52,27 +52,27 @@
 #include "../avx.h"
 #endif
 
-#define PRETRAINED_FULL_NETWORK "resources/pretrained.mnist.psmodel"
-#define CONVOLUTIONAL_NETWORK "resources/cnn.data"
-#define CONVOLUTIONAL_TRAINED_NETWORK "resources/pretrained.cnn.psmodel"
-#define CONVOLUTIONAL_CIFAR_NETWORK "resources/cifar-cnn.psmodel"
+#define PRETRAINED_FULL_MODEL "resources/pretrained.mnist.psmodel"
+#define CONVOLUTIONAL_MODEL "resources/cnn.data"
+#define CONVOLUTIONAL_TRAINED_MODEL "resources/pretrained.cnn.psmodel"
+#define CONVOLUTIONAL_CIFAR_MODEL "resources/cifar-cnn.psmodel"
 #define CIFAR_IMAGE_PATH "resources/cifar-image.data"
 #define CIFAR_LABEL_PATH "resources/cifar-label.data"
-#define RECURRENT_NETWORK "resources/rnn.data"
-#define NORMALIZATION_NETWORK "resources/normalization_nn.psmodel"
-#define NORMALIZATION_NETWORK_BP "resources/normalization_nn_bp.psmodel"
-#define DROPOUT_NETWORK "resources/dropout_nn.psmodel"
-#define OP_CONCAT_NETWORK "resources/concatenate-operator-layer.psmodel"
-#define OP_ADD_NETWORK "resources/add-operator-layer.psmodel"
-#define OP_MUL_NETWORK "resources/multiply-operator-layer.psmodel"
-#define ENCDEC_BASIC_NETWORK "resources/encoder-decoder.basic.psmodel"
-#define POSITIONAL_NETWORK  "resources/positional_embed.psmodel"
-#define ADD_ATTENTION_NETWORK "resources/pretrained.additive-attention.psmodel"
-#define DOT_ATTENTION_NETWORK \
+#define RECURRENT_MODEL "resources/rnn.data"
+#define NORMALIZATION_MODEL "resources/normalization_nn.psmodel"
+#define NORMALIZATION_MODEL_BP "resources/normalization_nn_bp.psmodel"
+#define DROPOUT_MODEL "resources/dropout_nn.psmodel"
+#define OP_CONCAT_MODEL "resources/concatenate-operator-layer.psmodel"
+#define OP_ADD_MODEL "resources/add-operator-layer.psmodel"
+#define OP_MUL_MODEL "resources/multiply-operator-layer.psmodel"
+#define ENCDEC_BASIC_MODEL "resources/encoder-decoder.basic.psmodel"
+#define POSITIONAL_MODEL  "resources/positional_embed.psmodel"
+#define ADD_ATTENTION_MODEL "resources/pretrained.additive-attention.psmodel"
+#define DOT_ATTENTION_MODEL \
     "resources/pretrained.dot-product-attention.psmodel"
-#define MH_ATTENTION_NETWORK \
+#define MH_ATTENTION_MODEL \
     "resources/pretrained.mh-dot-product-attention.psmodel"
-#define MH_CAUSAL_SELFATTENTION_NETWORK \
+#define MH_CAUSAL_SELFATTENTION_MODEL \
     "resources/pretrained.mh-causal-attention.psmodel"
 #define TEST_IMAGE_FILE "resources/t10k-images-idx3-ubyte.gz"
 #define TEST_LABEL_FILE "resources/t10k-labels-idx1-ubyte.gz"
@@ -82,7 +82,7 @@
 #define BP_CONV_GRADIENTS_CHECKS 4
 #define CONV_L1F0_BIAS 0.02630446809718423
 
-#define PRETRAINED_MNIST_NETSIZE 3
+#define PRETRAINED_MNIST_NLAYERS 3
 
 #define RNN_INPUT_SIZE  4
 #define RNN_HIDDEN_SIZE 2
@@ -94,7 +94,7 @@
 #define LSTM_EPOCHS 1
 #define LSTM_BATCHES 1
 
-#define getNetwork(tc) ((PSNeuralNetwork*)(tc->data[0]))
+#define getModel(tc) ((PSModel*)(tc->data[0]))
 #define getTestData(tc) ((PSFloat*)(tc->data[1]))
 #ifdef PS_DOUBLE_PRECISION
 #define NORMAL_PRECISION_DEC    6
@@ -109,13 +109,13 @@
 
 typedef int (*testMatrixOpFunc)(PSMatrix, PSMatrix, PSMatrix *, PSMathOpts *);
 
-TestCase *fullNetworkTests;
-TestCase *convNetworkTests;
-TestCase *recurrentNetworkTests;
-TestCase *LSTMNetworkTests;
-TestCase *GRUNetworkTests;
-TestCase *NormalizationNetworkTests;
-TestCase *DropoutNetworkTests;
+TestCase *FCTests;
+TestCase *CNNTests;
+TestCase *RNNTests;
+TestCase *LSTMTests;
+TestCase *GRUTests;
+TestCase *NormalizationTests;
+TestCase *DropoutTests;
 TestCase *ConcatOperatorLayerTests;
 TestCase *AddOperatorLayerTests;
 TestCase *MulOperatorLayerTests;
@@ -282,13 +282,13 @@ int testMHCausalSelfAttentionBackprop(TestCase *test_case, Test *test);
 
 /* psyc.c function prototypes */
 
-PSGradient ***backprop(PSNeuralNetwork *network, PSFloat *x, PSFloat *y,
+PSGradient ***backprop(PSModel *model, PSFloat *x, PSFloat *y,
                        PSTrainingOptions *opts, PSGradient **gradients);
 
-PSFloat updateNetworkParameters(PSNeuralNetwork *network,
-                                PSFloat *training_data,
-                                int batch_size, int elements_count,
-                                PSFloat rate, PSTrainingOptions* opts, ...);
+PSFloat updateModelParameters(PSModel *model,
+                              PSFloat *training_data,
+                              int batch_size, int elements_count,
+                              PSFloat rate, PSTrainingOptions* opts, ...);
 
 PSFloat *PSGetDropoutMask(PSLayer *layer, int t);
 
@@ -301,7 +301,7 @@ int PSUpdateDelta(PSMatrix destdelta, PSMatrix srcdelta, PSMatrix weights,
 
 int testlen = 0;
 
-int pretrained_mnist_layers_size[PRETRAINED_MNIST_NETSIZE] = {784,30,10};
+int pretrained_mnist_layers_size[PRETRAINED_MNIST_NLAYERS] = {784,30,10};
 
 PSFloat fullNetworkForwardResults[] = {
     0.000000,
@@ -496,10 +496,10 @@ PSFloat gru_expected_br[2] = {0.00974497, 0.04311221};
 
 PSTrainingOptions optimization_train_opts = {0};
 
-int compareNetworks(PSNeuralNetwork *net1, PSNeuralNetwork *net2, Test* test);
-int compareNetworkChain(PSNeuralNetwork *net1, PSNeuralNetwork *net2, Test* test);
+int compareModels(PSModel *model1, PSModel *model2, Test* test);
+int compareModelChain(PSModel *model1, PSModel *model2, Test* test);
 
-static int testRecurrentNetworkMode(PSNeuralNetwork *network,
+static int testRecurrentNetworkMode(PSModel *model,
                                     PSRecurrentNetworkMode mode, Test *test);
 PSFloat *readSerializedFloatArray(FILE *in, char *sep, int *length,
                                   int maxlen, int capacity);
@@ -789,112 +789,112 @@ int main(int argc, char** argv) {
     }
 
     if (fullnet_tests) {
-        fullNetworkTests = createTest("Fully Connected Network");
-        fullNetworkTests->setup = genericSetup;
-        fullNetworkTests->teardown = genericTeardown;
-        addTest(fullNetworkTests, "Load", NULL, testFullLoad);
-        addTest(fullNetworkTests, "Forward", NULL, testFullForward);
-        addTest(fullNetworkTests, "Accuracy", NULL, testFullAccuracy);
-        addTest(fullNetworkTests, "Backprop", NULL, testFullBackprop);
-        addTest(fullNetworkTests, "Clone", NULL, testGenericClone);
-        addTest(fullNetworkTests, "Save", NULL, testGenericSave);
-        performTests(fullNetworkTests);
-        tot_tests += fullNetworkTests->count;
-        tot_failed += fullNetworkTests->failed_count;
-        deleteTest(fullNetworkTests);
+        FCTests = createTest("Fully Connected Neural Network");
+        FCTests->setup = genericSetup;
+        FCTests->teardown = genericTeardown;
+        addTest(FCTests, "Load", NULL, testFullLoad);
+        addTest(FCTests, "Forward", NULL, testFullForward);
+        addTest(FCTests, "Accuracy", NULL, testFullAccuracy);
+        addTest(FCTests, "Backprop", NULL, testFullBackprop);
+        addTest(FCTests, "Clone", NULL, testGenericClone);
+        addTest(FCTests, "Save", NULL, testGenericSave);
+        performTests(FCTests);
+        tot_tests += FCTests->count;
+        tot_failed += FCTests->failed_count;
+        deleteTest(FCTests);
     }
 
     if (convnet_tests) {
-        convNetworkTests = createTest("Convolutional Network");
-        convNetworkTests->setup = genericSetup;
-        convNetworkTests->teardown = genericTeardown;
-        addTest(convNetworkTests, "Load", NULL, testConvLoad);
-        addTest(convNetworkTests, "Forward", NULL, testConvForward);
-        addTest(convNetworkTests, "Backprop", NULL, testConvBackprop);
-        /*addTest(convNetworkTests, "Accuracy", NULL, testConvAccuracy);*/
-        addTest(convNetworkTests, "CIFAR Backprop", NULL, testConvCIFAR);
-        addTest(convNetworkTests, "Clone", NULL, testGenericClone);
-        addTest(convNetworkTests, "Save", NULL, testGenericSave);
-        performTests(convNetworkTests);
-        tot_tests += convNetworkTests->count;
-        tot_failed += convNetworkTests->failed_count;
-        deleteTest(convNetworkTests);
+        CNNTests = createTest("Convolutional Neural Network");
+        CNNTests->setup = genericSetup;
+        CNNTests->teardown = genericTeardown;
+        addTest(CNNTests, "Load", NULL, testConvLoad);
+        addTest(CNNTests, "Forward", NULL, testConvForward);
+        addTest(CNNTests, "Backprop", NULL, testConvBackprop);
+        /*addTest(CNNTests, "Accuracy", NULL, testConvAccuracy);*/
+        addTest(CNNTests, "CIFAR Backprop", NULL, testConvCIFAR);
+        addTest(CNNTests, "Clone", NULL, testGenericClone);
+        addTest(CNNTests, "Save", NULL, testGenericSave);
+        performTests(CNNTests);
+        tot_tests += CNNTests->count;
+        tot_failed += CNNTests->failed_count;
+        deleteTest(CNNTests);
     }
 
     if (rnn_tests) {
-        recurrentNetworkTests = createTest("Recurrent Network");
-        recurrentNetworkTests->setup = RNNSetup;
-        recurrentNetworkTests->teardown = RNNTeardown;
-        addTest(recurrentNetworkTests, "Load", NULL, testRNNLoad);
-        addTest(recurrentNetworkTests, "Forward", NULL, testRNNForward);
-        addTest(recurrentNetworkTests, "Backprop", NULL, testRNNBackprop);
-        addTest(recurrentNetworkTests, "Step", NULL, testRNNStep);
-        addTest(recurrentNetworkTests, "Clone", NULL, testGenericClone);
-        addTest(recurrentNetworkTests, "Save", NULL, testGenericSave);
-        addTest(recurrentNetworkTests, "OneHot", NULL, testRNNOneHot);
-        performTests(recurrentNetworkTests);
-        tot_tests += recurrentNetworkTests->count;
-        tot_failed += recurrentNetworkTests->failed_count;
-        deleteTest(recurrentNetworkTests);
+        RNNTests = createTest("Recurrent Neural Network");
+        RNNTests->setup = RNNSetup;
+        RNNTests->teardown = RNNTeardown;
+        addTest(RNNTests, "Load", NULL, testRNNLoad);
+        addTest(RNNTests, "Forward", NULL, testRNNForward);
+        addTest(RNNTests, "Backprop", NULL, testRNNBackprop);
+        addTest(RNNTests, "Step", NULL, testRNNStep);
+        addTest(RNNTests, "Clone", NULL, testGenericClone);
+        addTest(RNNTests, "Save", NULL, testGenericSave);
+        addTest(RNNTests, "OneHot", NULL, testRNNOneHot);
+        performTests(RNNTests);
+        tot_tests += RNNTests->count;
+        tot_failed += RNNTests->failed_count;
+        deleteTest(RNNTests);
     }
 
     if (lstm_tests) {
-        LSTMNetworkTests = createTest("LSTM Network");
-        LSTMNetworkTests->setup = LSTMSetup;
-        LSTMNetworkTests->teardown = RNNTeardown;
-        /* addTest(LSTMNetworkTests, "Load", NULL, testLSTMLoad); */
-        addTest(LSTMNetworkTests, "Train", NULL, testLSTMTrain);
-        addTest(LSTMNetworkTests, "Backprop", NULL, testLSTMBackprop);
-        addTest(LSTMNetworkTests, "Clone", NULL, testGenericClone);
-        addTest(LSTMNetworkTests, "Save", NULL, testGenericSave);
-        performTests(LSTMNetworkTests);
-        tot_tests += LSTMNetworkTests->count;
-        tot_failed += LSTMNetworkTests->failed_count;
-        deleteTest(LSTMNetworkTests);
+        LSTMTests = createTest("LSTM Neural Network");
+        LSTMTests->setup = LSTMSetup;
+        LSTMTests->teardown = RNNTeardown;
+        /* addTest(LSTMTests, "Load", NULL, testLSTMLoad); */
+        addTest(LSTMTests, "Train", NULL, testLSTMTrain);
+        addTest(LSTMTests, "Backprop", NULL, testLSTMBackprop);
+        addTest(LSTMTests, "Clone", NULL, testGenericClone);
+        addTest(LSTMTests, "Save", NULL, testGenericSave);
+        performTests(LSTMTests);
+        tot_tests += LSTMTests->count;
+        tot_failed += LSTMTests->failed_count;
+        deleteTest(LSTMTests);
     }
     if (gru_tests) {
-        GRUNetworkTests = createTest("GRU Network");
-        GRUNetworkTests->setup = GRUSetup;
-        GRUNetworkTests->teardown = RNNTeardown;
-        /* addTest(GRUNetworkTests, "Load", NULL, testGRULoad); */
-        addTest(GRUNetworkTests, "Train", NULL, testGRUTrain);
-        addTest(GRUNetworkTests, "Backprop", NULL, testGRUBackprop);
-        addTest(GRUNetworkTests, "Clone", NULL, testGenericClone);
-        addTest(GRUNetworkTests, "Save", NULL, testGenericSave);
-        performTests(GRUNetworkTests);
-        tot_tests += GRUNetworkTests->count;
-        tot_failed += GRUNetworkTests->failed_count;
-        deleteTest(GRUNetworkTests);
+        GRUTests = createTest("GRU Neural Network");
+        GRUTests->setup = GRUSetup;
+        GRUTests->teardown = RNNTeardown;
+        /* addTest(GRUTests, "Load", NULL, testGRULoad); */
+        addTest(GRUTests, "Train", NULL, testGRUTrain);
+        addTest(GRUTests, "Backprop", NULL, testGRUBackprop);
+        addTest(GRUTests, "Clone", NULL, testGenericClone);
+        addTest(GRUTests, "Save", NULL, testGenericSave);
+        performTests(GRUTests);
+        tot_tests += GRUTests->count;
+        tot_failed += GRUTests->failed_count;
+        deleteTest(GRUTests);
     }
     if (normalization_tests) {
-        NormalizationNetworkTests = createTest("Normalization Network");
-        NormalizationNetworkTests->setup = genericSetup;
-        NormalizationNetworkTests->teardown = genericTeardown;
-        addTest(NormalizationNetworkTests, "Load", NULL, testNormalizationLoad);
-        addTest(NormalizationNetworkTests, "Forward", NULL,
+        NormalizationTests = createTest("Normalization Layer");
+        NormalizationTests->setup = genericSetup;
+        NormalizationTests->teardown = genericTeardown;
+        addTest(NormalizationTests, "Load", NULL, testNormalizationLoad);
+        addTest(NormalizationTests, "Forward", NULL,
                testNormalizationForward);
-        addTest(NormalizationNetworkTests, "Backprop", NULL,
+        addTest(NormalizationTests, "Backprop", NULL,
                testNormalizationBackprop);
-        addTest(NormalizationNetworkTests, "Save", NULL, testGenericSave);
-        performTests(NormalizationNetworkTests);
-        tot_tests += NormalizationNetworkTests->count;
-        tot_failed += NormalizationNetworkTests->failed_count;
-        deleteTest(NormalizationNetworkTests);
+        addTest(NormalizationTests, "Save", NULL, testGenericSave);
+        performTests(NormalizationTests);
+        tot_tests += NormalizationTests->count;
+        tot_failed += NormalizationTests->failed_count;
+        deleteTest(NormalizationTests);
     }
     if (dropout_tests) {
-        DropoutNetworkTests = createTest("Dropout Network");
-        DropoutNetworkTests->setup = genericSetup;
-        DropoutNetworkTests->teardown = genericTeardown;
-        addTest(DropoutNetworkTests, "Load", NULL, testDropoutLoad);
-        addTest(DropoutNetworkTests, "Forward", NULL,
+        DropoutTests = createTest("Dropout Layer");
+        DropoutTests->setup = genericSetup;
+        DropoutTests->teardown = genericTeardown;
+        addTest(DropoutTests, "Load", NULL, testDropoutLoad);
+        addTest(DropoutTests, "Forward", NULL,
                testDropoutForward);
-        addTest(DropoutNetworkTests, "Backprop", NULL,
+        addTest(DropoutTests, "Backprop", NULL,
                testDropoutBackprop);
-        addTest(DropoutNetworkTests, "Save", NULL, testGenericSave);
-        performTests(DropoutNetworkTests);
-        tot_tests += DropoutNetworkTests->count;
-        tot_failed += DropoutNetworkTests->failed_count;
-        deleteTest(DropoutNetworkTests);
+        addTest(DropoutTests, "Save", NULL, testGenericSave);
+        performTests(DropoutTests);
+        tot_tests += DropoutTests->count;
+        tot_failed += DropoutTests->failed_count;
+        deleteTest(DropoutTests);
     }
     if (concat_op_tests) {
         ConcatOperatorLayerTests = createTest("Concatenate Operator Layer");
@@ -1044,17 +1044,17 @@ int main(int argc, char** argv) {
 }
 
 int genericSetup(TestCase *test_case) {
-    PSNeuralNetwork *network = PSCreateNetwork("Test Network");
-    if (network == NULL) {
-        fprintf(stderr, "\nCould not create network!\n");
+    PSModel *model = PSModelCreate("Test Model");
+    if (model == NULL) {
+        fprintf(stderr, "\ncould not create model\n");
         return 0;
     }
     test_case->data = malloc(2 * sizeof(void*));
     if (test_case->data == NULL) {
-        fprintf(stderr, "\nCould not allocate memory!\n");
+        fprintf(stderr, "\ncould not allocate memory!\n");
         return 0;
     }
-    test_case->data[0] = network;
+    test_case->data[0] = model;
     PSFloat *test_data = NULL;
     char test_img_path[PATH_MAX] = {0};
     char test_lbl_path[PATH_MAX] = {0};
@@ -1096,8 +1096,8 @@ int genericSetup(TestCase *test_case) {
 }
 
 int genericTeardown(TestCase *test_case) {
-    PSNeuralNetwork *network = getNetwork(test_case);
-    if (network != NULL) PSDeleteNetwork(network);
+    PSModel *model = getModel(test_case);
+    if (model != NULL) PSModelDelete(model);
     PSFloat *test_data = getTestData(test_case);
     if (test_data != NULL) free(test_data);
     free(test_case->data);
@@ -1106,25 +1106,25 @@ int genericTeardown(TestCase *test_case) {
 }
 
 int RNNSetup(TestCase *test_case) {
-    PSNeuralNetwork *network = PSCreateNetwork("RNN Test Network");
-    if (network == NULL) {
-        PSErr(NULL, "\nCould not create network!");
+    PSModel *model = PSModelCreate("RNN Test Model");
+    if (model == NULL) {
+        PSErr(NULL, "\nCould not create model!");
         return 0;
     }
-    network->flags |= FLAG_ONEHOT;
-    PSAddLayer(network, FullyConnected, RNN_INPUT_SIZE, NULL);
-    PSAddLayer(network, Recurrent, RNN_HIDDEN_SIZE, NULL);
-    PSAddLayer(network, SoftMax, RNN_INPUT_SIZE, NULL);
-    if (network->size < 1) {
+    model->flags |= FLAG_ONEHOT;
+    PSAddLayer(model, FullyConnected, RNN_INPUT_SIZE, NULL);
+    PSAddLayer(model, Recurrent, RNN_HIDDEN_SIZE, NULL);
+    PSAddLayer(model, SoftMax, RNN_INPUT_SIZE, NULL);
+    if (model->size < 1) {
         PSErr(NULL, "\nCould not add all layers!");
         return 0;
     }
-    network->layers[1]->flags |= FLAG_NO_BIAS;
-    network->layers[network->size - 1]->flags |= FLAG_ONEHOT;
+    model->layers[1]->flags |= FLAG_NO_BIAS;
+    model->layers[model->size - 1]->flags |= FLAG_ONEHOT;
 
     int i, j, w;
-    for (i = 1; i < network->size; i++) {
-        PSLayer *layer = network->layers[i];
+    for (i = 1; i < model->size; i++) {
+        PSLayer *layer = model->layers[i];
         if (layer->weights == NULL) {
             PSErr(NULL, "\nLayer[%d] weights is NULL", i);
             return 0;
@@ -1161,20 +1161,20 @@ int RNNSetup(TestCase *test_case) {
             }
         } else {
             for (j = 0; j < layer->size; j++) {
-                int prev_size = network->layers[i - 1]->size;
+                int prev_size = model->layers[i - 1]->size;
                 PSFloat *input_weights = layer->weights[0] + (j * prev_size);
                 for (w = 0; w < prev_size; w++)
                     input_weights[w] = rnn_inputs_weights[j][w];
             }
         }
     }
-    if (!PSIsNetworkBuilt(network)) {
-        if (!PSBuildNetwork(network)) {
-            fprintf(stderr, "\nFailed to build network!\n");
+    if (!PSModelIsBuilt(model)) {
+        if (!PSModelBuild(model)) {
+            fprintf(stderr, "\nFailed to build model!\n");
             return 0;
         }
     }
-    PSRecurrentNetworkMode rnn_mode = network->rnn_mode;
+    PSRecurrentNetworkMode rnn_mode = model->rnn_mode;
     if (rnn_mode != ManyToMany) {
         fprintf(
             stderr, "\nInvalid Recurrent Network Mode: '%s'\n",
@@ -1188,7 +1188,7 @@ int RNNSetup(TestCase *test_case) {
         fprintf(stderr, "\nCould not allocate memory!\n");
         return 0;
     }
-    test_case->data[0] = network;
+    test_case->data[0] = model;
     int train_data_len = 1 + (RNN_TIMES * 2);
     int labels_offset = 1 + RNN_TIMES;
     PSFloat *training_data = malloc(train_data_len * sizeof(PSFloat));
@@ -1205,8 +1205,8 @@ int RNNSetup(TestCase *test_case) {
 }
 
 int RNNTeardown(TestCase *test_case) {
-    PSNeuralNetwork *network = getNetwork(test_case);
-    if (network != NULL) PSDeleteNetwork(network);
+    PSModel *model = getModel(test_case);
+    if (model != NULL) PSModelDelete(model);
     PSFloat *test_data = getTestData(test_case);
     if (test_data != NULL) free(test_data);
     free(test_case->data);
@@ -1215,25 +1215,25 @@ int RNNTeardown(TestCase *test_case) {
 }
 
 int LSTMSetup(TestCase *test_case) {
-    PSNeuralNetwork *network = PSCreateNetwork("LSTM Test Network");
-    if (network == NULL) {
-        fprintf(stderr, "\nCould not create network!\n");
+    PSModel *model = PSModelCreate("LSTM Test Model");
+    if (model == NULL) {
+        fprintf(stderr, "\nCould not create model!\n");
         return 0;
     }
-    network->flags |= FLAG_ONEHOT;
-    PSAddLayer(network, FullyConnected, RNN_INPUT_SIZE, NULL);
-    PSAddLayer(network, LSTM, RNN_HIDDEN_SIZE, NULL);
-    PSAddLayer(network, SoftMax, RNN_INPUT_SIZE, NULL);
-    if (network->size < 1) {
+    model->flags |= FLAG_ONEHOT;
+    PSAddLayer(model, FullyConnected, RNN_INPUT_SIZE, NULL);
+    PSAddLayer(model, LSTM, RNN_HIDDEN_SIZE, NULL);
+    PSAddLayer(model, SoftMax, RNN_INPUT_SIZE, NULL);
+    if (model->size < 1) {
         fprintf(stderr, "\nCould not add all layers!\n");
         return 0;
     }
-    PSLayer *out = network->layers[network->size - 1];
+    PSLayer *out = model->layers[model->size - 1];
     out->flags |= FLAG_ONEHOT;
-    PSLayer *layer = network->layers[1];
-    if (!PSIsNetworkBuilt(network)) {
-        if (!PSBuildNetwork(network)) {
-            fprintf(stderr, "\nFailed to build network!\n");
+    PSLayer *layer = model->layers[1];
+    if (!PSModelIsBuilt(model)) {
+        if (!PSModelBuild(model)) {
+            fprintf(stderr, "\nFailed to build model!\n");
             return 0;
         }
     }
@@ -1288,7 +1288,7 @@ int LSTMSetup(TestCase *test_case) {
         fprintf(stderr, "\nCould not allocate memory!\n");
         return 0;
     }
-    test_case->data[0] = network;
+    test_case->data[0] = model;
     int train_data_len = 2 + (LSTM_TIMES * 2);
     PSFloat *training_data = malloc(train_data_len * sizeof(PSFloat));
     if (training_data == NULL) {
@@ -1301,25 +1301,25 @@ int LSTMSetup(TestCase *test_case) {
 }
 
 int GRUSetup(TestCase *test_case) {
-    PSNeuralNetwork *network = PSCreateNetwork("GRU Test Network");
-    if (network == NULL) {
-        fprintf(stderr, "\nCould not create network!\n");
+    PSModel *model = PSModelCreate("GRU Test");
+    if (model == NULL) {
+        fprintf(stderr, "\nCould not create model!\n");
         return 0;
     }
-    network->flags |= FLAG_ONEHOT;
-    PSAddLayer(network, FullyConnected, RNN_INPUT_SIZE, NULL);
-    PSAddLayer(network, GRU, RNN_HIDDEN_SIZE, NULL);
-    PSAddLayer(network, SoftMax, RNN_INPUT_SIZE, NULL);
-    if (network->size < 1) {
+    model->flags |= FLAG_ONEHOT;
+    PSAddLayer(model, FullyConnected, RNN_INPUT_SIZE, NULL);
+    PSAddLayer(model, GRU, RNN_HIDDEN_SIZE, NULL);
+    PSAddLayer(model, SoftMax, RNN_INPUT_SIZE, NULL);
+    if (model->size < 1) {
         fprintf(stderr, "\nCould not add all layers!\n");
         return 0;
     }
-    PSLayer *out = network->layers[network->size - 1];
+    PSLayer *out = model->layers[model->size - 1];
     out->flags |= FLAG_ONEHOT;
-    PSLayer *layer = network->layers[1];
-    if (!PSIsNetworkBuilt(network)) {
-        if (!PSBuildNetwork(network)) {
-            fprintf(stderr, "\nFailed to build network!\n");
+    PSLayer *layer = model->layers[1];
+    if (!PSModelIsBuilt(model)) {
+        if (!PSModelBuild(model)) {
+            fprintf(stderr, "\nFailed to build model!\n");
             return 0;
         }
     }
@@ -1371,7 +1371,7 @@ int GRUSetup(TestCase *test_case) {
         fprintf(stderr, "\nCould not allocate memory!\n");
         return 0;
     }
-    test_case->data[0] = network;
+    test_case->data[0] = model;
     int train_data_len = 2 + (LSTM_TIMES * 2);
     PSFloat *training_data = malloc(train_data_len * sizeof(PSFloat));
     if (training_data == NULL) {
@@ -1383,12 +1383,12 @@ int GRUSetup(TestCase *test_case) {
     return 1;
 }
 
-int NetworkBackpropTest(Test *test, char *model_file, char *data_file_prefix,
-                        char *training_data_file, char *labels_data_file,
-                        int training_data_len, int label_data_len,
-                        char *model_name, PSTrainingOptions *topts,
-                        int rounding, int precision, int expected_size,
-                        int acceleration)
+int ModelBackpropTest(Test *test, char *model_file, char *data_file_prefix,
+                      char *training_data_file, char *labels_data_file,
+                      int training_data_len, int label_data_len,
+                      char *model_name, PSTrainingOptions *topts,
+                      int rounding, int precision, int expected_size,
+                      int acceleration)
 {
     assert(test != NULL);
     assert(model_file != NULL);
@@ -1407,29 +1407,29 @@ int NetworkBackpropTest(Test *test, char *model_file, char *data_file_prefix,
         joinPath(executable_path, model_file, path), test
     );
     if (model_name != NULL) model_name = "Backprop Model";
-    PSNeuralNetwork *network = PSCreateNetwork(model_name);
-    testAssertNotNull(network, test);
-    ok = PSLoadNetwork(network, path);
+    PSModel *model = PSModelCreate(model_name);
+    testAssertNotNull(model, test);
+    ok = PSModelLoad(model, path);
     testAssertWithMessageOrGoto(
-        ok, final, test, "Failed to load network from '%s'", path
+        ok, final, test, "Failed to load model from '%s'", path
     );
-    if (!PSIsNetworkBuilt(network)) {
-        ok = PSBuildNetwork(network);
+    if (!PSModelIsBuilt(model)) {
+        ok = PSModelBuild(model);
         if (!ok) {
-            fprintf(stderr, "\nFailed to build network!\n");
+            fprintf(stderr, "\nFailed to build model!\n");
             goto final;
         }
     }
-    ok = network->layers != NULL;
+    ok = model->layers != NULL;
     testAssertWithMessageOrGoto(
         ok, final, test,
-        "network %s has no layers",network->name
+        "model %s has no layers",model->name
     );
     if (expected_size > 0) {
-        ok = network->size == expected_size;
+        ok = model->size == expected_size;
         testAssertWithMessageOrGoto(
             ok, final, test,
-            "network has %d layers, expected %d", network->size, expected_size
+            "model has %d layers, expected %d", model->size, expected_size
         );
     }
     ok = joinPath(executable_path, training_data_file, path);
@@ -1478,21 +1478,21 @@ int NetworkBackpropTest(Test *test, char *model_file, char *data_file_prefix,
             label_data_len, label_len
         );
     }
-    network->acceleration = acceleration;
-    gradients = backprop(network, x, y, topts, NULL);
+    model->acceleration = acceleration;
+    gradients = backprop(model, x, y, topts, NULL);
     ok = gradients != NULL;
     testAssertWithMessageOrGoto(
-        ok, final, test, "Backprop failed for network %s (acceleration: %s)",
-        network->name, acceleration_name
+        ok, final, test, "Backprop failed for model %s (acceleration: %s)",
+        model->name, acceleration_name
     );
     PSGradient **netgradients = gradients[0];
     ok = netgradients != NULL;
     testAssertWithMessageOrGoto(
         ok, final, test, "Gradients[0] is NULL",
-        network->name, acceleration_name
+        model->name, acceleration_name
     );
-    for (int i = 0; i < network->size; i++) {
-        PSLayer *layer = network->layers[i];
+    for (int i = 0; i < model->size; i++) {
+        PSLayer *layer = model->layers[i];
         char testlabel[1024];
         int lsize = layer->size;
         char fname[PATH_MAX] = {0};
@@ -1646,9 +1646,9 @@ weight_gradients:
         }
     }
 final:
-    if (gradients != NULL && network != NULL)
-        PSDeleteGradientsChain(gradients, network);
-    PSDeleteNetwork(network);
+    if (gradients != NULL && model != NULL)
+        PSDeleteGradientsChain(gradients, model);
+    PSModelDelete(model);
     free(x);
     free(y);
     free(states);
@@ -1658,25 +1658,25 @@ final:
 }
 
 int testFullLoad(TestCase *test_case, Test *test) {
-    PSNeuralNetwork *network = getNetwork(test_case);
+    PSModel *model = getModel(test_case);
     char path[PATH_MAX] = {0};
-    testAssert(joinPath(executable_path, PRETRAINED_FULL_NETWORK, path), test);
-    int loaded = PSLoadNetwork(network, path);
+    testAssert(joinPath(executable_path, PRETRAINED_FULL_MODEL, path), test);
+    int loaded = PSModelLoad(model, path);
     testAssert(loaded, test);
-    testAssertEqual(network->size, 3, test);
+    testAssertEqual(model->size, 3, test);
     testAssertEqual(
-        network->layers[0]->size, pretrained_mnist_layers_size[0], test
+        model->layers[0]->size, pretrained_mnist_layers_size[0], test
     );
     testAssertEqual(
-        network->layers[1]->size, pretrained_mnist_layers_size[1], test
+        model->layers[1]->size, pretrained_mnist_layers_size[1], test
     );
     testAssertEqual(
-        network->layers[2]->size, pretrained_mnist_layers_size[2], test
+        model->layers[2]->size, pretrained_mnist_layers_size[2], test
     );
-    testAssertNotNull(network->layers[1]->biases, test);
-    testAssertNotNull(network->layers[1]->weights, test);
-    testAssertNotNull(network->layers[1]->weights[0], test);
-    network->acceleration = PSGlobalAcceleration;
+    testAssertNotNull(model->layers[1]->biases, test);
+    testAssertNotNull(model->layers[1]->weights, test);
+    testAssertNotNull(model->layers[1]->weights[0], test);
+    model->acceleration = PSGlobalAcceleration;
     PSFloat expected_biases[2][2] = {
         {-1.1618, -2.3288},
         {-6.0822, 0.8330}
@@ -1685,17 +1685,17 @@ int testFullLoad(TestCase *test_case, Test *test) {
         {-1.8497, -0.5419},
         {-1.2359, -4.677}
     };
-    for(int l = 1; l < network->size; l++) {
+    for(int l = 1; l < model->size; l++) {
         for (int i = 0; i < 2; i++) {
             PSFloat expected_bias = expected_biases[l - 1][i];
-            PSFloat bias = getRoundedFloatDec(network->layers[l]->biases[i], 4);
+            PSFloat bias = getRoundedFloatDec(model->layers[l]->biases[i], 4);
             testAssertWithMessage(
                 bias == expected_bias, test,
                 "Layer[%d] Bias[%d] expected to be %g, got %g",
                 l, i, expected_bias, bias
             );
             PSNeuron n = {0};
-            testAssertNotNull(PSGetNeuron(network->layers[l], i, &n), test);
+            testAssertNotNull(PSGetNeuron(model->layers[l], i, &n), test);
             testAssertNotNull(n.weights, test);
             PSFloat expected_w = expected_weights[l - 1][i];
             PSFloat w = getRoundedFloatDec(n.weights[0], 4);
@@ -1710,17 +1710,17 @@ int testFullLoad(TestCase *test_case, Test *test) {
 }
 
 int testFullForward(TestCase *test_case, Test *test) {
-    PSNeuralNetwork *network = getNetwork(test_case);
-    if (!PSIsNetworkBuilt(network)) {
-        if (!PSBuildNetwork(network)) {
-            fprintf(stderr, "\nFailed to build network!\n");
+    PSModel *model = getModel(test_case);
+    if (!PSModelIsBuilt(model)) {
+        if (!PSModelBuild(model)) {
+            fprintf(stderr, "\nFailed to build model!\n");
             return 0;
         }
     }
     PSFloat *test_data = getTestData(test_case);
-    PSForward(network, test_data);
+    PSForward(model, test_data);
 
-    PSLayer *output = network->layers[network->size - 1];
+    PSLayer *output = model->layers[model->size - 1];
     int i, res = 1;
     for (i = 0; i < output->size; i++) {
         PSFloat a = PSGetState(output, i);
@@ -1735,15 +1735,15 @@ int testFullForward(TestCase *test_case, Test *test) {
 }
 
 int testFullAccuracy(TestCase *test_case, Test *test) {
-    PSNeuralNetwork *network = getNetwork(test_case);
+    PSModel *model = getModel(test_case);
     PSFloat *test_data = getTestData(test_case);
-    if (!PSIsNetworkBuilt(network)) {
-        if (!PSBuildNetwork(network)) {
-            fprintf(stderr, "\nFailed to build network!\n");
+    if (!PSModelIsBuilt(model)) {
+        if (!PSModelBuild(model)) {
+            fprintf(stderr, "\nFailed to build model!\n");
             return 0;
         }
     }
-    PSFloat accuracy = PSTest(network, test_data, testlen, NULL),
+    PSFloat accuracy = PSTest(model, test_data, testlen, NULL),
             expected = 95.0;
     accuracy = PSRound(accuracy * 100.0);
     testAssertWithMessage(
@@ -1754,12 +1754,12 @@ int testFullAccuracy(TestCase *test_case, Test *test) {
 }
 
 int testFullBackprop(TestCase *test_case, Test *test) {
-    PSNeuralNetwork *network = getNetwork(test_case);
+    PSModel *model = getModel(test_case);
     PSFloat *test_data = getTestData(test_case);
-    int input_size = network->layers[0]->size;
+    int input_size = model->layers[0]->size;
     PSFloat *x = test_data;
     PSFloat *y = test_data + input_size;
-    PSGradient ***grads = backprop(network, x, y, NULL, NULL);
+    PSGradient ***grads = backprop(model, x, y, NULL, NULL);
     testAssertNotNull(grads, test);
     PSGradient **gradients = grads[0];
     testAssertNotNull(gradients, test);
@@ -1775,7 +1775,7 @@ int testFullBackprop(TestCase *test_case, Test *test) {
 
         PSGradient *dl = gradients[lidx - 1];
         testAssertNotNull(dl, test);
-        PSLayer *layer = network->layers[lidx];
+        PSLayer *layer = model->layers[lidx];
         testAssertNotNull(layer, test);
         testAssertNotNull(dl->biases, test);
         PSFloat val = getRoundedFloat(dl->biases[nidx]);
@@ -1806,27 +1806,27 @@ int testFullBackprop(TestCase *test_case, Test *test) {
             lidx - 1, nidx, widx2, val, w2
         );
     }
-    PSDeleteGradientsChain(grads, network);
+    PSDeleteGradientsChain(grads, model);
     return 1;
 on_fail:
-    PSDeleteGradientsChain(grads, network);
+    PSDeleteGradientsChain(grads, model);
     return 0;
 }
 
 int testConvLoad(TestCase *test_case, Test *test) {
-    PSNeuralNetwork *network = getNetwork(test_case);
+    PSModel *model = getModel(test_case);
     char path[PATH_MAX] = {0};
-    testAssert(joinPath(executable_path, CONVOLUTIONAL_NETWORK, path), test);
-    int loaded = PSLoadNetwork(network, path);
+    testAssert(joinPath(executable_path, CONVOLUTIONAL_MODEL, path), test);
+    int loaded = PSModelLoad(model, path);
     testAssertWithMessage(loaded, test, "Failed to load %s", path);
-    network->acceleration = PSGlobalAcceleration;
-    if (!PSIsNetworkBuilt(network)) {
-        if (!PSBuildNetwork(network)) {
-            fprintf(stderr, "\nFailed to build network!\n");
+    model->acceleration = PSGlobalAcceleration;
+    if (!PSModelIsBuilt(model)) {
+        if (!PSModelBuild(model)) {
+            fprintf(stderr, "\nFailed to build model!\n");
             return 0;
         }
     }
-    PSLayer *layer = network->layers[1];
+    PSLayer *layer = model->layers[1];
     PSFloat bias = layer->biases[0];
     bias = getRoundedFloat(bias);
     PSFloat expected = CONV_L1F0_BIAS;
@@ -1840,10 +1840,10 @@ int testConvLoad(TestCase *test_case, Test *test) {
 }
 
 int testConvForward(TestCase *test_case, Test *test) {
-    PSNeuralNetwork *network = getNetwork(test_case);
+    PSModel *model = getModel(test_case);
     PSFloat *test_data = getTestData(test_case);
-    PSForward(network, test_data);
-    PSLayer *output = network->layers[network->size - 1];
+    PSForward(model, test_data);
+    PSLayer *output = model->layers[model->size - 1];
     int i;
     for (i = 0; i < output->size; i++) {
         PSFloat a = PSGetState(output, i);
@@ -1859,13 +1859,13 @@ int testConvForward(TestCase *test_case, Test *test) {
 }
 
 int testConvBackprop(TestCase *test_case, Test *test) {
-    PSNeuralNetwork *network = getNetwork(test_case);
-    testAssert(network->acceleration == PSGlobalAcceleration, test);
+    PSModel *model = getModel(test_case);
+    testAssert(model->acceleration == PSGlobalAcceleration, test);
     PSFloat *test_data = getTestData(test_case);
-    int input_size = network->layers[0]->size;
+    int input_size = model->layers[0]->size;
     PSFloat *x = test_data;
     PSFloat *y = test_data + input_size;
-    PSGradient ***grads = backprop(network, x, y, NULL, NULL);
+    PSGradient ***grads = backprop(model, x, y, NULL, NULL);
     testAssertNotNull(grads, test);
     PSGradient **gradients = grads[0];
     testAssertNotNull(gradients, test);
@@ -1879,7 +1879,7 @@ int testConvBackprop(TestCase *test_case, Test *test) {
         PSFloat w2 = backpropConvGradients[i][6];
         PSGradient *dl = gradients[lidx - 1];
         if (dl == NULL) continue;
-        PSLayer *layer = network->layers[lidx];
+        PSLayer *layer = model->layers[lidx];
         testAssertNotNull(layer->weights, test);
         testAssertNotNull(layer->weights[0], test);
         int wsize = (int) PSMatrixLength(layer->weights[0]);
@@ -1907,33 +1907,33 @@ int testConvBackprop(TestCase *test_case, Test *test) {
             lidx - 1, nidx, widx2, val, w2
         );
     }
-    PSDeleteGradientsChain(grads, network);
+    PSDeleteGradientsChain(grads, model);
     return 1;
 on_fail:
-    PSDeleteGradientsChain(grads, network);
+    PSDeleteGradientsChain(grads, model);
     return 0;
 }
 
 int testConvAccuracy(TestCase *test_case, Test *test) {
     PSFloat *test_data = getTestData(test_case);
-    PSNeuralNetwork *network = PSCreateNetwork("CNN Test Network");
+    PSModel *model = PSModelCreate("CNN Test");
     char path[PATH_MAX] = {0};
     testAssert(
-        joinPath(executable_path, CONVOLUTIONAL_TRAINED_NETWORK, path), test
+        joinPath(executable_path, CONVOLUTIONAL_TRAINED_MODEL, path), test
     );
-    int loaded = PSLoadNetwork(network, path);
+    int loaded = PSModelLoad(model, path);
     testAssertWithMessage(loaded, test, "Failed to load %s", path);
-    network->acceleration = PSGlobalAcceleration;
-    if (!PSIsNetworkBuilt(network)) {
-        if (!PSBuildNetwork(network)) {
-            fprintf(stderr, "\nFailed to build network!\n");
+    model->acceleration = PSGlobalAcceleration;
+    if (!PSModelIsBuilt(model)) {
+        if (!PSModelBuild(model)) {
+            fprintf(stderr, "\nFailed to build model!\n");
             return 0;
         }
     }
-    PSForward(network, test_data);
-    PSFloat accuracy = PSTest(network, test_data, testlen, NULL),
+    PSForward(model, test_data);
+    PSFloat accuracy = PSTest(model, test_data, testlen, NULL),
             expected = 98.0;
-    PSDeleteNetwork(network);
+    PSModelDelete(model);
     accuracy = PSRound(accuracy * 100.0);
     testAssertWithMessage(
         (accuracy == 98.0), test,
@@ -1944,33 +1944,33 @@ int testConvAccuracy(TestCase *test_case, Test *test) {
 
 int testConvCIFAR(TestCase *test_case, Test *test) {
     UNUSED(test_case);
-    int ok = NetworkBackpropTest(test, CONVOLUTIONAL_CIFAR_NETWORK,
+    int ok = ModelBackpropTest(test, CONVOLUTIONAL_CIFAR_MODEL,
                                  "cifar", CIFAR_IMAGE_PATH, CIFAR_LABEL_PATH,
                                  CIFAR_IMAGE_SIZE, 10, "CIFAR CNN", NULL,
                                  2, 0, 8, PSGlobalAcceleration);
     if (!ok) return 0;
 #ifdef HAS_BLAS
-    ok = NetworkBackpropTest(test, CONVOLUTIONAL_CIFAR_NETWORK,
+    ok = ModelBackpropTest(test, CONVOLUTIONAL_CIFAR_MODEL,
                              "cifar", CIFAR_IMAGE_PATH, CIFAR_LABEL_PATH,
                               CIFAR_IMAGE_SIZE, 10, "CIFAR CNN", NULL,
                               2, 0, 8, PSAcceleration_BLAS);
     if (!ok) return 0;
 #endif
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    ok = NetworkBackpropTest(test, CONVOLUTIONAL_CIFAR_NETWORK,
+    ok = ModelBackpropTest(test, CONVOLUTIONAL_CIFAR_MODEL,
                              "cifar", CIFAR_IMAGE_PATH, CIFAR_LABEL_PATH,
                               CIFAR_IMAGE_SIZE, 10, "CIFAR CNN", NULL,
                               2, 0, 8, PSAcceleration_ACF);
     if (!ok) return 0;
 #endif
 #ifdef USE_AVX
-    ok = NetworkBackpropTest(test, CONVOLUTIONAL_CIFAR_NETWORK,
+    ok = ModelBackpropTest(test, CONVOLUTIONAL_CIFAR_MODEL,
                              "cifar", CIFAR_IMAGE_PATH, CIFAR_LABEL_PATH,
                               CIFAR_IMAGE_SIZE, 10, "CIFAR CNN", NULL,
                               2, 0, 8, PSAcceleration_AVX);
     if (!ok) return 0;
 #endif
-    ok = NetworkBackpropTest(test, CONVOLUTIONAL_CIFAR_NETWORK,
+    ok = ModelBackpropTest(test, CONVOLUTIONAL_CIFAR_MODEL,
                              "cifar", CIFAR_IMAGE_PATH, CIFAR_LABEL_PATH,
                               CIFAR_IMAGE_SIZE, 10, "CIFAR CNN", NULL,
                               2, 0, 8, PSAcceleration_None);
@@ -1978,15 +1978,15 @@ int testConvCIFAR(TestCase *test_case, Test *test) {
 }
 
 int testRNNLoad(TestCase *test_case, Test *test) {
-    PSNeuralNetwork *network = getNetwork(test_case);
+    PSModel *model = getModel(test_case);
     char path[PATH_MAX] = {0};
-    testAssert(joinPath(executable_path,RECURRENT_NETWORK, path), test);
-    int loaded = PSLoadNetwork(network, path);
+    testAssert(joinPath(executable_path,RECURRENT_MODEL, path), test);
+    int loaded = PSModelLoad(model, path);
     testAssertWithMessage(loaded, test, "Failed to load %s", path);
-    network->acceleration = PSGlobalAcceleration;
+    model->acceleration = PSGlobalAcceleration;
     int i, j, w, rnn_size = 0;
-    for (i = 1; i < network->size; i++) {
-        PSLayer *layer = network->layers[i];
+    for (i = 1; i < model->size; i++) {
+        PSLayer *layer = model->layers[i];
         int exp_weight_types_count = 1, is_rnn_layer = (i == 1);
         uint64_t input_weight_count = 0, hidden_weight_count = 0;
         if (is_rnn_layer) {
@@ -2062,17 +2062,17 @@ int testRNNLoad(TestCase *test_case, Test *test) {
 }
 
 int testRNNForward(TestCase *test_case, Test *test) {
-    PSNeuralNetwork *network = getNetwork(test_case);
-    if (!PSIsNetworkBuilt(network)) {
-        if (!PSBuildNetwork(network)) {
-            fprintf(stderr, "\nFailed to build network!\n");
+    PSModel *model = getModel(test_case);
+    if (!PSModelIsBuilt(model)) {
+        if (!PSModelBuild(model)) {
+            fprintf(stderr, "\nFailed to build model!\n");
             return 0;
         }
     }
-    PSForward(network, rnn_inputs);
-    if (!testRecurrentNetworkMode(network, ManyToMany, test)) return 0;
+    PSForward(model, rnn_inputs);
+    if (!testRecurrentNetworkMode(model, ManyToMany, test)) return 0;
 
-    PSLayer *output = network->layers[network->size - 1];
+    PSLayer *output = model->layers[model->size - 1];
     int i, j, seqlen = PSStateSequenceLength(output);
     for (i = 0; i < output->size; i++) {
         for (j = 0; j < seqlen; j++) {
@@ -2089,27 +2089,27 @@ int testRNNForward(TestCase *test_case, Test *test) {
 }
 
 int testRNNBackpropOld(TestCase *test_case, Test *test) {
-    PSNeuralNetwork *network = getNetwork(test_case);
-    if (!PSIsNetworkBuilt(network)) {
-        if (!PSBuildNetwork(network)) {
-            fprintf(stderr, "\nFailed to build network!\n");
+    PSModel *model = getModel(test_case);
+    if (!PSModelIsBuilt(model)) {
+        if (!PSModelBuild(model)) {
+            fprintf(stderr, "\nFailed to build model!\n");
             return 0;
         }
     }
     int i, j, w;
 
-    if (!testRecurrentNetworkMode(network, ManyToMany, test)) return 0;
+    if (!testRecurrentNetworkMode(model, ManyToMany, test)) return 0;
     PSTrainingOptions opts = {
         .bptt_truncate = 4
     };
-    PSGradient ***grads =backprop(network, rnn_inputs, rnn_labels, &opts, NULL);
+    PSGradient ***grads =backprop(model, rnn_inputs, rnn_labels, &opts, NULL);
     testAssertNotNull(grads, test);
     PSGradient **gradients = grads[0];
     testAssertNotNull(gradients, test);
-    int dsize = network->size - 1;
+    int dsize = model->size - 1;
     for (i = 0; i < dsize; i++) {
         PSGradient *gradient = gradients[i];
-        PSLayer *l = network->layers[i + 1];
+        PSLayer *l = model->layers[i + 1];
         testAssertNotNull(l->weights, test);
         testAssertNotNull(l->weights[0], test);
         int input_size = gradient->weight_count;
@@ -2147,16 +2147,16 @@ int testRNNBackpropOld(TestCase *test_case, Test *test) {
             }
         }
     }
-    PSDeleteGradientsChain(grads, network);
+    PSDeleteGradientsChain(grads, model);
     return 1;
 on_fail:
-    PSDeleteGradientsChain(grads, network);
+    PSDeleteGradientsChain(grads, model);
     return 0;
 }
 
 int testRNNBackprop(TestCase *test_case, Test *test) {
     UNUSED(test_case);
-    char *network_file = "resources/basic-rnn.psmodel";
+    char *model_file = "resources/basic-rnn.psmodel";
     char *inputs_file = "resources/rnn-inputs.data";
     char *labels_file = "resources/rnn-labels.data";
     int input_len = 26;
@@ -2167,56 +2167,56 @@ int testRNNBackprop(TestCase *test_case, Test *test) {
         .flags = train_flags,
         .clip = 5
     };
-    int ok = NetworkBackpropTest(test, network_file,
-                                 "rnn", inputs_file, labels_file,
-                                 input_len, label_len, "RNN", &opts, 3, 0, 3,
-                                 PSGlobalAcceleration);
+    int ok = ModelBackpropTest(test, model_file,
+                               "rnn", inputs_file, labels_file,
+                               input_len, label_len, "RNN", &opts, 3, 0, 3,
+                               PSGlobalAcceleration);
     if (!ok) return 0;
 #ifdef HAS_BLAS
-    ok = NetworkBackpropTest(test, network_file,
-                             "rnn", inputs_file, labels_file,
-                              input_len, label_len, "RNN", &opts, 3, 0, 3,
-                              PSAcceleration_BLAS);
+    ok = ModelBackpropTest(test, model_file,
+                           "rnn", inputs_file, labels_file,
+                           input_len, label_len, "RNN", &opts, 3, 0, 3,
+                           PSAcceleration_BLAS);
     if (!ok) return 0;
 #endif
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    ok = NetworkBackpropTest(test, network_file,
-                             "rnn", inputs_file, labels_file,
-                              input_len, label_len, "RNN", &opts, 3, 0, 3,
-                              PSAcceleration_ACF);
+    ok = ModelBackpropTest(test, model_file,
+                           "rnn", inputs_file, labels_file,
+                           input_len, label_len, "RNN", &opts, 3, 0, 3,
+                           PSAcceleration_ACF);
     if (!ok) return 0;
 #endif
 #ifdef USE_AVX
-    ok = NetworkBackpropTest(test, network_file,
+    ok = ModelBackpropTest(test, model_file,
                              "rnn", inputs_file, labels_file,
                               input_len, label_len, "RNN", &opts, 3, 0, 3,
                               PSAcceleration_AVX);
     if (!ok) return 0;
 #endif
-    ok = NetworkBackpropTest(test, network_file,
-                             "rnn", inputs_file, labels_file,
-                              input_len, label_len, "RNN", &opts, 3, 0, 3,
-                              PSAcceleration_None);
+    ok = ModelBackpropTest(test, model_file,
+                           "rnn", inputs_file, labels_file,
+                           input_len, label_len, "RNN", &opts, 3, 0, 3,
+                           PSAcceleration_None);
     return ok;
 }
 
 int testRNNStep(TestCase *test_case, Test *test) {
-    PSNeuralNetwork *network = getNetwork(test_case);
+    PSModel *model = getModel(test_case);
     /*int train_data_len = 1 + (RNN_TIMES * 2);*/
-    if (!testRecurrentNetworkMode(network, ManyToMany, test)) return 0;
-    PSResetNetworkStateSequences(network, 0, 0);
+    if (!testRecurrentNetworkMode(model, ManyToMany, test)) return 0;
+    PSResetModelStateSequences(model, 0, 0);
     PSFloat *training_data = getTestData(test_case);
     PSFloat **sequences = &training_data;
     int elements_count = (int) *training_data;
 
     int i, j, w;
-    PSFloat loss = updateNetworkParameters(
-        network, training_data, 1, elements_count, RNN_LEARNING_RATE,
+    PSFloat loss = updateModelParameters(
+        model, training_data, 1, elements_count, RNN_LEARNING_RATE,
         NULL, sequences
     );
     UNUSED(loss);
-    for (i = 1; i < network->size; i++) {
-        PSLayer *layer = network->layers[i];
+    for (i = 1; i < model->size; i++) {
+        PSLayer *layer = model->layers[i];
         int wsize = (int) PSGetLayerInputWeightsCount(layer, 1);
         if (layer->type == Recurrent) wsize += layer->size;
         for (j = 0; j < layer->size; j++) {
@@ -2255,33 +2255,33 @@ int testRNNStep(TestCase *test_case, Test *test) {
 
 int testRNNOneHot(TestCase *test_case, Test *test) {
     UNUSED(test_case);
-    PSNeuralNetwork *onehot_network = PSCreateNetwork("Onehot RNN");
-    PSNeuralNetwork *standard_network = PSCreateNetwork("Standard RNN");
-    PSNeuralNetwork *dummy_network = PSCreateNetwork("Dummy");
+    PSModel *onehot_model = PSModelCreate("Onehot RNN");
+    PSModel *standard_model = PSModelCreate("Standard RNN");
+    PSModel *dummy_model = PSModelCreate("Dummy");
     PSFloat *onehot_data = NULL;
     PSFloat *standard_data = NULL;
     char path[PATH_MAX] = {0};
-    testAssert(joinPath(executable_path, RECURRENT_NETWORK, path), test);
-    int loaded = PSLoadNetwork(onehot_network, path);
+    testAssert(joinPath(executable_path, RECURRENT_MODEL, path), test);
+    int loaded = PSModelLoad(onehot_model, path);
     testAssertWithMessage(loaded, test, "Failed to load %s", path);
-    onehot_network->acceleration = PSGlobalAcceleration;
-    int ok = PSLoadNetwork(standard_network, path);
+    onehot_model->acceleration = PSGlobalAcceleration;
+    int ok = PSModelLoad(standard_model, path);
     testAssertWithMessageOrGoto(loaded, final, test, "Failed to load %s", path);
-    if (!PSIsNetworkBuilt(onehot_network)) {
-        if (!PSBuildNetwork(onehot_network)) {
-            fprintf(stderr, "\nFailed to build onehot network!\n");
+    if (!PSModelIsBuilt(onehot_model)) {
+        if (!PSModelBuild(onehot_model)) {
+            fprintf(stderr, "\nFailed to build onehot model!\n");
             return 0;
         }
     }
-    if (!PSIsNetworkBuilt(standard_network)) {
-        if (!PSBuildNetwork(standard_network)) {
-            fprintf(stderr, "\nFailed to build standard network!\n");
+    if (!PSModelIsBuilt(standard_model)) {
+        if (!PSModelBuild(standard_model)) {
+            fprintf(stderr, "\nFailed to build standard model!\n");
             return 0;
         }
     }
-    standard_network->acceleration = PSGlobalAcceleration;
-    PSRecurrentNetworkMode onehot_rnn_mode = onehot_network->rnn_mode;
-    PSRecurrentNetworkMode std_rnn_mode = standard_network->rnn_mode;
+    standard_model->acceleration = PSGlobalAcceleration;
+    PSRecurrentNetworkMode onehot_rnn_mode = onehot_model->rnn_mode;
+    PSRecurrentNetworkMode std_rnn_mode = standard_model->rnn_mode;
     ok = (onehot_rnn_mode == ManyToMany);
     testAssertWithMessageOrGoto(
         ok, final, test, "OneHot recurrent network mode is: '%s'",
@@ -2292,64 +2292,64 @@ int testRNNOneHot(TestCase *test_case, Test *test) {
         ok, final, test, "Standard recurrent network mode is: '%s'",
         PSGetRecurrentModeLabel(std_rnn_mode)
     );
-    ok = onehot_network->flags & FLAG_ONEHOT;
+    ok = onehot_model->flags & FLAG_ONEHOT;
     testAssertWithMessageOrGoto(
-        ok, final, test, "%s network is not OneHot!", onehot_network->name
+        ok, final, test, "%s model is not OneHot!", onehot_model->name
     );
-    ok = onehot_network->layers[0]->flags & FLAG_ONEHOT;
+    ok = onehot_model->layers[0]->flags & FLAG_ONEHOT;
     testAssertWithMessageOrGoto(
-        ok, final, test, "%s network layer[0] is not OneHot!",
-        onehot_network->name
+        ok, final, test, "%s model layer[0] is not OneHot!",
+        onehot_model->name
     );
-    int last_layer = onehot_network->size - 1;
-    ok = onehot_network->layers[last_layer]->flags & FLAG_ONEHOT;
+    int last_layer = onehot_model->size - 1;
+    ok = onehot_model->layers[last_layer]->flags & FLAG_ONEHOT;
     testAssertWithMessageOrGoto(
-        ok, final, test, "%s network layer[%d] is not OneHot!",
-        onehot_network->name, last_layer
+        ok, final, test, "%s model layer[%d] is not OneHot!",
+        onehot_model->name, last_layer
     );
     int no_onehot = ~((unsigned) FLAG_ONEHOT);
-    standard_network->flags &= no_onehot;
-    standard_network->layers[0]->flags &= no_onehot;
-    standard_network->layers[last_layer]->flags &= no_onehot;
-    ok = !(standard_network->flags & FLAG_ONEHOT);
+    standard_model->flags &= no_onehot;
+    standard_model->layers[0]->flags &= no_onehot;
+    standard_model->layers[last_layer]->flags &= no_onehot;
+    ok = !(standard_model->flags & FLAG_ONEHOT);
     testAssertWithMessageOrGoto(
-        ok, final, test, "%s network is OneHot!", standard_network->name
+        ok, final, test, "%s model is OneHot!", standard_model->name
     );
-    ok = !(standard_network->layers[0]->flags & FLAG_ONEHOT);
+    ok = !(standard_model->layers[0]->flags & FLAG_ONEHOT);
     testAssertWithMessageOrGoto(
-        ok, final, test, "%s network layer[0] is OneHot!",
-        standard_network->name
+        ok, final, test, "%s model layer[0] is OneHot!",
+        standard_model->name
     );
-    ok = !(standard_network->layers[last_layer]->flags & FLAG_ONEHOT);
+    ok = !(standard_model->layers[last_layer]->flags & FLAG_ONEHOT);
     testAssertWithMessageOrGoto(
-        ok, final, test, "%s network layer[%d] is OneHot!",
-        standard_network->name, last_layer
+        ok, final, test, "%s model layer[%d] is OneHot!",
+        standard_model->name, last_layer
     );
-    int vector_size = onehot_network->layers[0]->onehot_vector_size;
+    int vector_size = onehot_model->layers[0]->onehot_vector_size;
     ok = (vector_size > 0);
     testAssertWithMessageOrGoto(
         vector_size > 0, final, test,
-        "%s network layer[0] vector size is %d", vector_size
+        "%s model layer[0] vector size is %d", vector_size
     );
     PSLayer *standard_input_layer =
-        PSAddLayer(dummy_network, FullyConnected, vector_size, NULL);
+        PSAddLayer(dummy_model, FullyConnected, vector_size, NULL);
     ok = (standard_input_layer != NULL);
     testAssertWithMessageOrGoto(
         standard_input_layer != NULL, final, test,
         "Failed to create standard input layer with size %d",
         vector_size
     );
-    PSLayer *curlayer = standard_network->layers[0];
-    standard_network->layers[0] = standard_input_layer;
-    standard_input_layer->network = standard_network;
-    standard_network->input_size = vector_size;
+    PSLayer *curlayer = standard_model->layers[0];
+    standard_model->layers[0] = standard_input_layer;
+    standard_input_layer->model = standard_model;
+    standard_model->input_size = vector_size;
     standard_input_layer->flags |= FLAG_RECURRENT;
-    curlayer->network = NULL;
+    curlayer->model = NULL;
     PSDeleteLayer(curlayer);
-    dummy_network->size = 0;
-    dummy_network->layers[0] = NULL;
-    PSDeleteNetwork(dummy_network);
-    dummy_network = NULL;
+    dummy_model->size = 0;
+    dummy_model->layers[0] = NULL;
+    PSModelDelete(dummy_model);
+    dummy_model = NULL;
     int onehot_datalen =
         (int) ((sizeof(rnn_inputs) + sizeof(rnn_labels)) / sizeof(PSFloat));
     int timesteps = (int) rnn_inputs[0];
@@ -2420,25 +2420,25 @@ int testRNNOneHot(TestCase *test_case, Test *test) {
             i, vecidx, ((onehot_idx * vector_size) + 1), vector_size, idx
         );
     }
-    if (!PSRebuildNetwork(standard_network)) {
-        fprintf(stderr, "\nFailed to re-build standard network!\n");
+    if (!PSModelRebuild(standard_model)) {
+        fprintf(stderr, "\nFailed to re-build standard model!\n");
         return 0;
     }
     PSFloat onehot_accuracy = PSTest(
-        onehot_network, onehot_data, onehot_datalen, NULL
+        onehot_model, onehot_data, onehot_datalen, NULL
     );
     PSFloat std_accuracy = PSTest(
-        standard_network, standard_data, standard_datalen, NULL
+        standard_model, standard_data, standard_datalen, NULL
     );
-    ok = (onehot_network->status != STATUS_ERROR);
+    ok = (onehot_model->status != STATUS_ERROR);
     testAssertWithMessageOrGoto(
-        ok, final, test, "Network %s: error during validation",
-        onehot_network->name
+        ok, final, test, "Model %s: error during validation",
+        onehot_model->name
     );
-    ok = (standard_network->status != STATUS_ERROR);
+    ok = (standard_model->status != STATUS_ERROR);
     testAssertWithMessageOrGoto(
-        ok, final, test, "Network %s: error during validation",
-        standard_network->name
+        ok, final, test, "Model %s: error during validation",
+        standard_model->name
     );
     ok = (onehot_accuracy == std_accuracy);
     testAssertWithMessageOrGoto(
@@ -2446,16 +2446,16 @@ int testRNNOneHot(TestCase *test_case, Test *test) {
         onehot_accuracy, std_accuracy
     );
 final:
-    if (onehot_network != NULL) PSDeleteNetwork(onehot_network);
-    if (standard_network != NULL) PSDeleteNetwork(standard_network);
-    if (dummy_network != NULL) PSDeleteNetwork(dummy_network);
+    if (onehot_model != NULL) PSModelDelete(onehot_model);
+    if (standard_model != NULL) PSModelDelete(standard_model);
+    if (dummy_model != NULL) PSModelDelete(dummy_model);
     if (onehot_data != NULL) free(onehot_data);
     if (standard_data != NULL) free(standard_data);
     return ok;
 }
 
 int testLSTMTrain(TestCase *test_case, Test *test) {
-    PSNeuralNetwork *network = getNetwork(test_case);
+    PSModel *model = getModel(test_case);
     /*int train_data_len = 2 + (LSTM_TIMES * 2);
     UNUSED(train_data_len);*/
     PSFloat *training_data = getTestData(test_case);
@@ -2468,9 +2468,9 @@ int testLSTMTrain(TestCase *test_case, Test *test) {
         .l2_decay = 0.0,
         .bptt_truncate = 4
     };
-    PSTrain(network, training_data, 8, NULL, 0, &options);
+    PSTrain(model, training_data, 8, NULL, 0, &options);
 
-    PSLayer *layer = network->layers[1];
+    PSLayer *layer = model->layers[1];
     int i, t, w, precision = NORMAL_PRECISION_DEC - 2;
 
     PSLSTMCell *cell = PSGetLSTMCell(layer);
@@ -2607,7 +2607,7 @@ int testLSTMTrain(TestCase *test_case, Test *test) {
             );
         }
     }
-    PSLayer *out = network->layers[network->size - 1];
+    PSLayer *out = model->layers[model->size - 1];
 
     for (i = 0; i < out->size; i++) {
         int times = PSStateSequenceLength(out);
@@ -2625,7 +2625,7 @@ int testLSTMTrain(TestCase *test_case, Test *test) {
 
 int testLSTMBackprop(TestCase *test_case, Test *test) {
     UNUSED(test_case);
-    char *network_file = "resources/basic-lstm.psmodel";
+    char *model_file = "resources/basic-lstm.psmodel";
     char *inputs_file = "resources/gru-inputs.data";
     char *labels_file = "resources/gru-labels.data";
     int input_len = 26;
@@ -2636,33 +2636,33 @@ int testLSTMBackprop(TestCase *test_case, Test *test) {
         .flags = train_flags,
         .clip = 5
     };
-    int ok = NetworkBackpropTest(test, network_file,
-                                 "lstm", inputs_file, labels_file,
-                                 input_len, label_len, "LSTM", &opts, 0, 3, 3,
-                                 PSGlobalAcceleration);
+    int ok = ModelBackpropTest(test, model_file,
+                               "lstm", inputs_file, labels_file,
+                               input_len, label_len, "LSTM", &opts, 0, 3, 3,
+                               PSGlobalAcceleration);
     if (!ok) return 0;
 #ifdef HAS_BLAS
-    ok = NetworkBackpropTest(test, network_file,
+    ok = ModelBackpropTest(test, model_file,
                              "lstm", inputs_file, labels_file,
                               input_len, label_len, "LSTM", &opts, 0, 2, 3,
                               PSAcceleration_BLAS);
     if (!ok) return 0;
 #endif
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    ok = NetworkBackpropTest(test, network_file,
+    ok = ModelBackpropTest(test, model_file,
                              "lstm", inputs_file, labels_file,
                              input_len, label_len, "LSTM", &opts, 0, 3, 3,
                              PSAcceleration_ACF);
     if (!ok) return 0;
 #endif
 #ifdef USE_AVX
-    ok = NetworkBackpropTest(test, network_file,
+    ok = ModelBackpropTest(test, model_file,
                              "lstm", inputs_file, labels_file,
                              input_len, label_len, "LSTM", &opts, 0, 3, 3,
                              PSAcceleration_AVX);
     if (!ok) return 0;
 #endif
-    ok = NetworkBackpropTest(test, network_file,
+    ok = ModelBackpropTest(test, model_file,
                              "lstm", inputs_file, labels_file,
                              input_len, label_len, "LSTM", &opts, 0, 2, 3,
                              PSAcceleration_None);
@@ -2670,7 +2670,7 @@ int testLSTMBackprop(TestCase *test_case, Test *test) {
 }
 
 int testGRUTrain(TestCase *test_case, Test *test) {
-    PSNeuralNetwork *network = getNetwork(test_case);
+    PSModel *model = getModel(test_case);
     PSFloat *training_data = getTestData(test_case);
 
     PSTrainingOptions options = {
@@ -2681,9 +2681,9 @@ int testGRUTrain(TestCase *test_case, Test *test) {
         .l2_decay = 0.0,
         .bptt_truncate = 4
     };
-    PSTrain(network, training_data, 8, NULL, 0, &options);
+    PSTrain(model, training_data, 8, NULL, 0, &options);
 
-    PSLayer *layer = network->layers[1];
+    PSLayer *layer = model->layers[1];
     int i, t, w, precision = 2;
 
     PSGRUCell *cell = PSGetGRUCell(layer);
@@ -2791,7 +2791,7 @@ int testGRUTrain(TestCase *test_case, Test *test) {
             );
         }
     }
-    PSLayer *out = network->layers[network->size - 1];
+    PSLayer *out = model->layers[model->size - 1];
 
     for (i = 0; i < out->size; i++) {
         int times = PSStateSequenceLength(out);
@@ -2809,7 +2809,7 @@ int testGRUTrain(TestCase *test_case, Test *test) {
 
 int testGRUBackprop(TestCase *test_case, Test *test) {
     UNUSED(test_case);
-    char *network_file = "resources/basic-gru.psmodel";
+    char *model_file = "resources/basic-gru.psmodel";
     char *inputs_file = "resources/gru-inputs.data";
     char *labels_file = "resources/gru-labels.data";
     int input_len = 26;
@@ -2820,33 +2820,33 @@ int testGRUBackprop(TestCase *test_case, Test *test) {
         .flags = train_flags,
         .clip = 5
     };
-    int ok = NetworkBackpropTest(test, network_file,
+    int ok = ModelBackpropTest(test, model_file,
                                  "gru", inputs_file, labels_file,
                                  input_len, label_len, "GRU", &opts, 3, 0, 3,
                                  PSGlobalAcceleration);
     if (!ok) return 0;
 #ifdef HAS_BLAS
-    ok = NetworkBackpropTest(test, network_file,
+    ok = ModelBackpropTest(test, model_file,
                              "gru", inputs_file, labels_file,
                               input_len, label_len, "GRU", &opts, 3, 0, 3,
                               PSAcceleration_BLAS);
     if (!ok) return 0;
 #endif
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    ok = NetworkBackpropTest(test, network_file,
+    ok = ModelBackpropTest(test, model_file,
                              "gru", inputs_file, labels_file,
                               input_len, label_len, "GRU", &opts, 3, 0, 3,
                               PSAcceleration_ACF);
     if (!ok) return 0;
 #endif
 #ifdef USE_AVX
-    ok = NetworkBackpropTest(test, network_file,
+    ok = ModelBackpropTest(test, model_file,
                              "gru", inputs_file, labels_file,
                               input_len, label_len, "GRU", &opts, 3, 0, 3,
                               PSAcceleration_AVX);
     if (!ok) return 0;
 #endif
-    ok = NetworkBackpropTest(test, network_file,
+    ok = ModelBackpropTest(test, model_file,
                              "gru", inputs_file, labels_file,
                               input_len, label_len, "GRU", &opts, 3, 0, 3,
                               PSAcceleration_None);
@@ -2854,14 +2854,14 @@ int testGRUBackprop(TestCase *test_case, Test *test) {
 }
 
 int testNormalizationLoad(TestCase *test_case, Test *test) {
-    PSNeuralNetwork *network = getNetwork(test_case);
+    PSModel *model = getModel(test_case);
     char path[PATH_MAX] = {0};
-    testAssert(joinPath(executable_path, NORMALIZATION_NETWORK, path), test);
-    int loaded = PSLoadNetwork(network, path);
+    testAssert(joinPath(executable_path, NORMALIZATION_MODEL, path), test);
+    int loaded = PSModelLoad(model, path);
     testAssertWithMessage(loaded, test, "Failed to load %s", path);
-    network->acceleration = PSGlobalAcceleration;
-    PSLayer *normlayer = network->layers[1];
-    PSLayer *softmax = network->layers[2];
+    model->acceleration = PSGlobalAcceleration;
+    PSLayer *normlayer = model->layers[1];
+    PSLayer *softmax = model->layers[2];
     testAssertNotNull(normlayer, test);
     testAssert(normlayer->type == Normalization, test);
     testAssert(normlayer->size == 4, test);
@@ -2869,8 +2869,8 @@ int testNormalizationLoad(TestCase *test_case, Test *test) {
     testAssert(softmax->type == SoftMax, test);
     testAssert(softmax->size == 2, test);
     testAssert(!(normlayer->flags & FLAG_NON_TRAINABLE), test);
-    if (!PSIsNetworkBuilt(network)) {
-        int built = PSBuildNetwork(network);
+    if (!PSModelIsBuilt(model)) {
+        int built = PSModelBuild(model);
         testAssert(built, test);
     }
     return 1;
@@ -2879,9 +2879,9 @@ int testNormalizationLoad(TestCase *test_case, Test *test) {
 int testNormalizationForward(TestCase *test_case, Test *test) {
     static PSFloat data[] = {90.3487, 198.1253, 18.3623, 162.5884, 0, 0};
     static PSFloat normalized[] = {-0.3909, 1.1689, -1.4326, 0.6546};
-    PSNeuralNetwork *network = getNetwork(test_case);
-    PSForward(network, data);
-    PSLayer *normlayer = network->layers[1];
+    PSModel *model = getModel(test_case);
+    PSForward(model, data);
+    PSLayer *normlayer = model->layers[1];
     testAssertNotNull(normlayer, test);
     PSFloat *states = PSGetStates(normlayer, 0);
     testAssertNotNull(states, test);
@@ -2912,41 +2912,41 @@ int testNormalizationBackprop(TestCase *test_case, Test *test) {
     };
     int ok = 1;
     PSGradient ***grads = NULL;
-    PSNeuralNetwork *network = PSCreateNetwork("Normalization Backprop");
-    testAssertNotNull(network, test);
+    PSModel *model = PSModelCreate("Normalization Backprop");
+    testAssertNotNull(model, test);
     char path[PATH_MAX] = {0};
-    testAssert(joinPath(executable_path, NORMALIZATION_NETWORK_BP, path),test);
-    ok = PSLoadNetwork(network, path);
+    testAssert(joinPath(executable_path, NORMALIZATION_MODEL_BP, path),test);
+    ok = PSModelLoad(model, path);
     testAssertWithMessageOrGoto(
-        ok, final, test, "Could not load network from '%s'", path
+        ok, final, test, "Could not load model from '%s'", path
     );
-    network->acceleration = PSGlobalAcceleration;
-    ok = PSBuildNetwork(network);
+    model->acceleration = PSGlobalAcceleration;
+    ok = PSModelBuild(model);
     testAssertWithMessageOrGoto(
-        ok, final, test, "Could not build network '%s'", network->name
+        ok, final, test, "Could not build model '%s'", model->name
     );
-    ok = PSForward(network, x);
+    ok = PSForward(model, x);
     testAssertWithMessageOrGoto(
-        ok, final, test, "Forward failed to network %s", network->name
+        ok, final, test, "Forward failed to model %s", model->name
     );
-    PSLayer *outlayer = network->layers[network->size - 1];
+    PSLayer *outlayer = model->layers[model->size - 1];
     testAssertNotNull(outlayer, test);
     PSFloat *outstates = PSGetStates(outlayer, 0);
     testAssertNotNull(outstates, test);
-    PSLayer *normlayer = network->layers[2];
+    PSLayer *normlayer = model->layers[2];
     testAssertNotNull(normlayer, test);
     ok = compareArrays(outstates, expected_softmax, outlayer->size, test,
                        "output states", 4, 0);
     if (!ok) goto final;
-    grads = backprop(network, x, y, NULL, NULL);
+    grads = backprop(model, x, y, NULL, NULL);
     ok = grads != NULL;
     testAssertWithMessageOrGoto(
-        ok, final, test, "Backprop failed for network %s", network->name
+        ok, final, test, "Backprop failed for model %s", model->name
     );
     PSGradient **gradients = grads[0];
     ok = gradients != NULL;
     testAssertWithMessageOrGoto(
-        ok, final, test, "Gradients[0] is NULL", network->name
+        ok, final, test, "Gradients[0] is NULL", model->name
     );
     PSMatrix normdelta = normlayer->delta;
     testAssertWithMessageOrGoto(
@@ -3015,22 +3015,22 @@ int testNormalizationBackprop(TestCase *test_case, Test *test) {
         ok, final, test, "Normalization gradient weights mismatch%s", ""
     );
 final:
-    if (network != NULL) {
-        if (grads != NULL) PSDeleteGradientsChain(grads, network);
-        PSDeleteNetwork(network);
+    if (model != NULL) {
+        if (grads != NULL) PSDeleteGradientsChain(grads, model);
+        PSModelDelete(model);
     }
     return ok;
 }
 
 int testDropoutLoad(TestCase *test_case, Test *test) {
-    PSNeuralNetwork *network = getNetwork(test_case);
+    PSModel *model = getModel(test_case);
     char path[PATH_MAX] = {0};
-    testAssert(joinPath(executable_path, DROPOUT_NETWORK, path), test);
-    int loaded = PSLoadNetwork(network, path);
+    testAssert(joinPath(executable_path, DROPOUT_MODEL, path), test);
+    int loaded = PSModelLoad(model, path);
     testAssertWithMessage(loaded, test, "Failed to load %s", path);
-    network->acceleration = PSGlobalAcceleration;
-    PSLayer *dropout_layer = network->layers[2];
-    PSLayer *softmax = network->layers[network->size - 1];
+    model->acceleration = PSGlobalAcceleration;
+    PSLayer *dropout_layer = model->layers[2];
+    PSLayer *softmax = model->layers[model->size - 1];
     testAssertNotNull(dropout_layer, test);
     testAssert(dropout_layer->type == Dropout, test);
     testAssert(dropout_layer->size == 4, test);
@@ -3044,8 +3044,8 @@ int testDropoutLoad(TestCase *test_case, Test *test) {
         dropout == expected, test, "Dropout should be %g, got %g",
         expected, dropout
     );
-    if (!PSIsNetworkBuilt(network)) {
-        int built = PSBuildNetwork(network);
+    if (!PSModelIsBuilt(model)) {
+        int built = PSModelBuild(model);
         testAssert(built, test);
     }
     return 1;
@@ -3054,11 +3054,11 @@ int testDropoutLoad(TestCase *test_case, Test *test) {
 int testDropoutForward(TestCase *test_case, Test *test) {
     static PSFloat data[] = {90.3487, 198.1253};
     int ok = 1;
-    PSNeuralNetwork *network = getNetwork(test_case);
-    testAssertNotNull(network, test);
-    ok = PSForward(network, data);
+    PSModel *model = getModel(test_case);
+    testAssertNotNull(model, test);
+    ok = PSForward(model, data);
     testAssert(ok, test);
-    PSLayer *dropout_layer = network->layers[2];
+    PSLayer *dropout_layer = model->layers[2];
     PSFloat dropout = PSGetDropout(dropout_layer);
     PSLayer *prev = PSGetPreviousLayer(dropout_layer);
     testAssertNotNull(prev, test);
@@ -3084,22 +3084,22 @@ int testDropoutBackprop(TestCase *test_case, Test *test) {
     static PSFloat y[] = {1.0, 0.0};
     PSGradient ***grads = NULL;
     int ok = 1;
-    PSNeuralNetwork *network = getNetwork(test_case);
-    testAssertNotNull(network, test);
-    PSLayer *dropout_layer = network->layers[2];
+    PSModel *model = getModel(test_case);
+    testAssertNotNull(model, test);
+    PSLayer *dropout_layer = model->layers[2];
     PSLayer *prev = PSGetPreviousLayer(dropout_layer);
     testAssertNotNull(prev, test);
-    int old_status = network->status;
-    network->status = STATUS_TRAINING;
-    grads = backprop(network, x, y, NULL, NULL);
+    int old_status = model->status;
+    model->status = STATUS_TRAINING;
+    grads = backprop(model, x, y, NULL, NULL);
     ok = grads != NULL;
     testAssertWithMessageOrGoto(
-        ok, final, test, "Backprop failed for network %s", network->name
+        ok, final, test, "Backprop failed for model %s", model->name
     );
     PSGradient **gradients = grads[0];
     ok = gradients != NULL;
     testAssertWithMessageOrGoto(
-        ok, final, test, "Gradients[0] is NULL", network->name
+        ok, final, test, "Gradients[0] is NULL", model->name
     );
     PSMatrix prevdelta = prev->delta;
     testAssertWithMessageOrGoto(
@@ -3120,34 +3120,34 @@ int testDropoutBackprop(TestCase *test_case, Test *test) {
         );
     }
 final:
-    network->status = old_status;
-    if (grads != NULL) PSDeleteGradientsChain(grads, network);
+    model->status = old_status;
+    if (grads != NULL) PSDeleteGradientsChain(grads, model);
     return ok;
 }
 
 int testConcatOperatorLoad(TestCase *test_case, Test *test) {
-    PSNeuralNetwork *network = getNetwork(test_case);
-    testAssertNotNull(network, test);
+    PSModel *model = getModel(test_case);
+    testAssertNotNull(model, test);
     char path[PATH_MAX] = {0};
-    testAssert(joinPath(executable_path, OP_CONCAT_NETWORK, path), test);
-    int loaded = PSLoadNetwork(network, path);
+    testAssert(joinPath(executable_path, OP_CONCAT_MODEL, path), test);
+    int loaded = PSModelLoad(model, path);
     testAssertWithMessage(loaded, test, "Failed to load %s", path);
-    network->acceleration = PSGlobalAcceleration;
-    PSLayer *oplayer = network->layers[3];
+    model->acceleration = PSGlobalAcceleration;
+    PSLayer *oplayer = model->layers[3];
     testAssertNotNull(oplayer, test);
     testAssert(oplayer->type == OperatorLayer, test);
     PSOperatorType op = PSGetOperatorLayerType(oplayer);
     testAssert(op == PSConcatenateOperator, test);
-    int expected_size = network->layers[1]->size + network->layers[2]->size,
+    int expected_size = model->layers[1]->size + model->layers[2]->size,
         providers_count;
     testAssert(expected_size == oplayer->size, test);
     PSLayer **providers = PSGetOperatorLayerProviders(oplayer,&providers_count);
     testAssertNotNull(providers, test);
     testAssert(providers_count == 2, test);
-    testAssert(providers[0] == network->layers[1], test);
-    testAssert(providers[1] == network->layers[2], test);
-    if (!PSIsNetworkBuilt(network)) {
-        int built = PSBuildNetwork(network);
+    testAssert(providers[0] == model->layers[1], test);
+    testAssert(providers[1] == model->layers[2], test);
+    if (!PSModelIsBuilt(model)) {
+        int built = PSModelBuild(model);
         testAssert(built, test);
     }
     return 1;
@@ -3155,13 +3155,13 @@ int testConcatOperatorLoad(TestCase *test_case, Test *test) {
 
 int testConcatOperatorForward(TestCase *test_case, Test *test) {
     int ok = 1;
-    PSNeuralNetwork *network = getNetwork(test_case);
-    testAssertNotNull(network, test);
+    PSModel *model = getModel(test_case);
+    testAssertNotNull(model, test);
     PSFloat inputs[] = {0.932902753, 1.48698103, -0.75523293};
-    ok = PSForward(network, inputs);
+    ok = PSForward(model, inputs);
     testAssert(ok, test);
-    PSLayer *op_layer = network->layers[3], *l1 = network->layers[1],
-            *l2 = network->layers[2];
+    PSLayer *op_layer = model->layers[3], *l1 = model->layers[1],
+            *l2 = model->layers[2];
     PSFloat *concatenated = PSGetStates(op_layer, 0);
     testAssertNotNull(concatenated, test);
     PSFloat *l1_out = PSGetStates(l1, 0);
@@ -3178,16 +3178,16 @@ int testConcatOperatorForward(TestCase *test_case, Test *test) {
 
 int testConcatOperatorBackprop(TestCase *test_case, Test *test) {
     int ok = 1;
-    PSNeuralNetwork *network = getNetwork(test_case);
-    testAssertNotNull(network, test);
+    PSModel *model = getModel(test_case);
+    testAssertNotNull(model, test);
     PSMatrix l1_delta = NULL;
-    PSLayer *op_layer = network->layers[3], *l1 = network->layers[1],
-            *l2 = network->layers[2];
+    PSLayer *op_layer = model->layers[3], *l1 = model->layers[1],
+            *l2 = model->layers[2];
     PSFloat x[] = {0.932902753, 1.48698103, -0.75523293};
-    PSFloat y[network->output_size];
-    for (uint32_t i = 0; i < network->output_size; i++)
+    PSFloat y[model->output_size];
+    for (uint32_t i = 0; i < model->output_size; i++)
         y[i] = PSGaussianRandom(0, 1);
-    PSGradient ***grads = backprop(network, x, y, NULL, NULL);
+    PSGradient ***grads = backprop(model, x, y, NULL, NULL);
     testAssertNotNull(grads, test);
     testAssertWithMessageOrGoto(
         l1->delta != NULL, final, test, "layer[%d] delta is null", 1
@@ -3204,12 +3204,12 @@ int testConcatOperatorBackprop(TestCase *test_case, Test *test) {
         "shape", 1
     );
     ok = PSUpdateDelta(l1_delta, l2->delta, l2->weights[0], 1,
-                       network->acceleration);
+                       model->acceleration);
     testAssertWithMessageOrGoto(
         ok, final, test, "could not compute delta propagated from layer[%d] "
         "to layer[%d]", 2, 1
     );
-    PSMathOpts opts = {.acceleration = network->acceleration};
+    PSMathOpts opts = {.acceleration = model->acceleration};
     PSSubtractVectors(l1->delta, l1_delta, l1_delta, l1->size, &opts);
     ok = compareArrays(op_layer->delta, l1_delta, l1->size, test,
                        NULL, 0, 4);
@@ -3217,34 +3217,34 @@ int testConcatOperatorBackprop(TestCase *test_case, Test *test) {
     ok = compareArrays(op_layer->delta + l1->size, l2->delta, l2->size, test,
                        NULL, 0, 4);
 final:
-    if (grads != NULL) PSDeleteGradientsChain(grads, network);
+    if (grads != NULL) PSDeleteGradientsChain(grads, model);
     PSMatrixDelete(l1_delta);
     return ok;
 }
 
 int testAddOperatorLoad(TestCase *test_case, Test *test) {
-    PSNeuralNetwork *network = getNetwork(test_case);
-    testAssertNotNull(network, test);
+    PSModel *model = getModel(test_case);
+    testAssertNotNull(model, test);
     char path[PATH_MAX] = {0};
-    testAssert(joinPath(executable_path, OP_ADD_NETWORK, path), test);
-    int loaded = PSLoadNetwork(network, path);
+    testAssert(joinPath(executable_path, OP_ADD_MODEL, path), test);
+    int loaded = PSModelLoad(model, path);
     testAssertWithMessage(loaded, test, "Failed to load %s", path);
-    network->acceleration = PSGlobalAcceleration;
-    PSLayer *oplayer = network->layers[3];
+    model->acceleration = PSGlobalAcceleration;
+    PSLayer *oplayer = model->layers[3];
     testAssertNotNull(oplayer, test);
     testAssert(oplayer->type == OperatorLayer, test);
     PSOperatorType op = PSGetOperatorLayerType(oplayer);
     testAssert(op == PSAddOperator, test);
-    int expected_size = network->layers[1]->size, providers_count;
+    int expected_size = model->layers[1]->size, providers_count;
     testAssert(expected_size == oplayer->size, test);
-    testAssert(expected_size == network->layers[2]->size, test);
+    testAssert(expected_size == model->layers[2]->size, test);
     PSLayer **providers = PSGetOperatorLayerProviders(oplayer,&providers_count);
     testAssertNotNull(providers, test);
     testAssert(providers_count == 2, test);
-    testAssert(providers[0] == network->layers[1], test);
-    testAssert(providers[1] == network->layers[2], test);
-    if (!PSIsNetworkBuilt(network)) {
-        int built = PSBuildNetwork(network);
+    testAssert(providers[0] == model->layers[1], test);
+    testAssert(providers[1] == model->layers[2], test);
+    if (!PSModelIsBuilt(model)) {
+        int built = PSModelBuild(model);
         testAssert(built, test);
     }
     return 1;
@@ -3252,13 +3252,13 @@ int testAddOperatorLoad(TestCase *test_case, Test *test) {
 
 int testAddOperatorForward(TestCase *test_case, Test *test) {
     int ok = 1;
-    PSNeuralNetwork *network = getNetwork(test_case);
-    testAssertNotNull(network, test);
+    PSModel *model = getModel(test_case);
+    testAssertNotNull(model, test);
     PSFloat inputs[] = {0.932902753, 1.48698103, -0.75523293};
-    ok = PSForward(network, inputs);
+    ok = PSForward(model, inputs);
     testAssert(ok, test);
-    PSLayer *op_layer = network->layers[3], *l1 = network->layers[1],
-            *l2 = network->layers[2];
+    PSLayer *op_layer = model->layers[3], *l1 = model->layers[1],
+            *l2 = model->layers[2];
     PSFloat *opstates = PSGetStates(op_layer, 0);
     testAssertNotNull(opstates, test);
     PSFloat *l1_out = PSGetStates(l1, 0);
@@ -3281,16 +3281,16 @@ int testAddOperatorForward(TestCase *test_case, Test *test) {
 
 int testAddOperatorBackprop(TestCase *test_case, Test *test) {
     int ok = 1;
-    PSNeuralNetwork *network = getNetwork(test_case);
-    testAssertNotNull(network, test);
+    PSModel *model = getModel(test_case);
+    testAssertNotNull(model, test);
     PSMatrix l1_delta = NULL;
-    PSLayer *op_layer = network->layers[3], *l1 = network->layers[1],
-            *l2 = network->layers[2];
+    PSLayer *op_layer = model->layers[3], *l1 = model->layers[1],
+            *l2 = model->layers[2];
     PSFloat x[] = {0.932902753, 1.48698103, -0.75523293};
-    PSFloat y[network->output_size];
-    for (uint32_t i = 0; i < network->output_size; i++)
+    PSFloat y[model->output_size];
+    for (uint32_t i = 0; i < model->output_size; i++)
         y[i] = PSGaussianRandom(0, 1);
-    PSGradient ***grads = backprop(network, x, y, NULL, NULL);
+    PSGradient ***grads = backprop(model, x, y, NULL, NULL);
     testAssertNotNull(grads, test);
     testAssertWithMessageOrGoto(
         l1->delta != NULL, final, test, "layer[%d] delta is null", 1
@@ -3307,45 +3307,45 @@ int testAddOperatorBackprop(TestCase *test_case, Test *test) {
         "shape", 1
     );
     ok = PSUpdateDelta(l1_delta, l2->delta, l2->weights[0], 1,
-                       network->acceleration);
+                       model->acceleration);
     testAssertWithMessageOrGoto(
         ok, final, test, "could not compute delta propagated from layer[%d] "
         "to layer[%d]", 2, 1
     );
-    PSMathOpts opts = {.acceleration = network->acceleration};
+    PSMathOpts opts = {.acceleration = model->acceleration};
     PSSubtractVectors(l1->delta, l1_delta, l1_delta, l1->size, &opts);
     ok = compareArrays(l1_delta, l2->delta, l1->size, test,
                        NULL, 0, 4);
     if (!ok) return 0;
 final:
-    if (grads != NULL) PSDeleteGradientsChain(grads, network);
+    if (grads != NULL) PSDeleteGradientsChain(grads, model);
     PSMatrixDelete(l1_delta);
     return ok;
 }
 
 int testMulOperatorLoad(TestCase *test_case, Test *test) {
-    PSNeuralNetwork *network = getNetwork(test_case);
-    testAssertNotNull(network, test);
+    PSModel *model = getModel(test_case);
+    testAssertNotNull(model, test);
     char path[PATH_MAX] = {0};
-    testAssert(joinPath(executable_path, OP_MUL_NETWORK, path), test);
-    int loaded = PSLoadNetwork(network, path);
+    testAssert(joinPath(executable_path, OP_MUL_MODEL, path), test);
+    int loaded = PSModelLoad(model, path);
     testAssertWithMessage(loaded, test, "Failed to load %s", path);
-    network->acceleration = PSGlobalAcceleration;
-    PSLayer *oplayer = network->layers[3];
+    model->acceleration = PSGlobalAcceleration;
+    PSLayer *oplayer = model->layers[3];
     testAssertNotNull(oplayer, test);
     testAssert(oplayer->type == OperatorLayer, test);
     PSOperatorType op = PSGetOperatorLayerType(oplayer);
     testAssert(op == PSMultiplyOperator, test);
-    int expected_size = network->layers[1]->size, providers_count;
+    int expected_size = model->layers[1]->size, providers_count;
     testAssert(expected_size == oplayer->size, test);
-    testAssert(expected_size == network->layers[2]->size, test);
+    testAssert(expected_size == model->layers[2]->size, test);
     PSLayer **providers = PSGetOperatorLayerProviders(oplayer,&providers_count);
     testAssertNotNull(providers, test);
     testAssert(providers_count == 2, test);
-    testAssert(providers[0] == network->layers[1], test);
-    testAssert(providers[1] == network->layers[2], test);
-    if (!PSIsNetworkBuilt(network)) {
-        int built = PSBuildNetwork(network);
+    testAssert(providers[0] == model->layers[1], test);
+    testAssert(providers[1] == model->layers[2], test);
+    if (!PSModelIsBuilt(model)) {
+        int built = PSModelBuild(model);
         testAssert(built, test);
     }
     return 1;
@@ -3353,13 +3353,13 @@ int testMulOperatorLoad(TestCase *test_case, Test *test) {
 
 int testMulOperatorForward(TestCase *test_case, Test *test) {
     int ok = 1;
-    PSNeuralNetwork *network = getNetwork(test_case);
-    testAssertNotNull(network, test);
+    PSModel *model = getModel(test_case);
+    testAssertNotNull(model, test);
     PSFloat inputs[] = {0.932902753, 1.48698103, -0.75523293};
-    ok = PSForward(network, inputs);
+    ok = PSForward(model, inputs);
     testAssert(ok, test);
-    PSLayer *op_layer = network->layers[3], *l1 = network->layers[1],
-            *l2 = network->layers[2];
+    PSLayer *op_layer = model->layers[3], *l1 = model->layers[1],
+            *l2 = model->layers[2];
     PSFloat *opstates = PSGetStates(op_layer, 0);
     testAssertNotNull(opstates, test);
     PSFloat *l1_out = PSGetStates(l1, 0);
@@ -3382,16 +3382,16 @@ int testMulOperatorForward(TestCase *test_case, Test *test) {
 
 int testMulOperatorBackprop(TestCase *test_case, Test *test) {
     int ok = 1;
-    PSNeuralNetwork *network = getNetwork(test_case);
-    testAssertNotNull(network, test);
+    PSModel *model = getModel(test_case);
+    testAssertNotNull(model, test);
     PSMatrix l1_delta = NULL;
-    PSLayer *op_layer = network->layers[3], *l1 = network->layers[1],
-            *l2 = network->layers[2];
+    PSLayer *op_layer = model->layers[3], *l1 = model->layers[1],
+            *l2 = model->layers[2];
     PSFloat x[] = {0.932902753, 1.48698103, -0.75523293};
     PSFloat y[] = {-1.19145763, -0.723464847, 0.460539848};
     PSFloat l1_expct[] = {-0.423889, 0.112024, 4.51742, -1.43311, -1.15413};
     PSFloat l2_expct[] = {-0.0644108, -0.0631921, 1.18236, -2.13912, -1.77627};
-    PSGradient ***grads = backprop(network, x, y, NULL, NULL);
+    PSGradient ***grads = backprop(model, x, y, NULL, NULL);
     testAssertNotNull(grads, test);
     testAssertWithMessageOrGoto(
         l1->delta != NULL, final, test, "layer[%d] delta is null", 1
@@ -3408,37 +3408,37 @@ int testMulOperatorBackprop(TestCase *test_case, Test *test) {
         "shape", 1
     );
     ok = PSUpdateDelta(l1_delta, l2->delta, l2->weights[0], 1,
-                       network->acceleration);
+                       model->acceleration);
     testAssertWithMessageOrGoto(
         ok, final, test, "could not compute delta propagated from layer[%d] "
         "to layer[%d]", 2, 1
     );
-    PSMathOpts opts = {.acceleration = network->acceleration};
+    PSMathOpts opts = {.acceleration = model->acceleration};
     PSSubtractVectors(l1->delta, l1_delta, l1_delta, l1->size, &opts);
     ok = compareArrays(l1_delta, l1_expct, l1->size, test, "L1 DELTA: ", 0, 4);
     if (!ok) goto final;
     ok = compareArrays(l2->delta, l2_expct, l2->size, test, "L2 DELTA", 0, 4);
 final:
-    if (grads != NULL) PSDeleteGradientsChain(grads, network);
+    if (grads != NULL) PSDeleteGradientsChain(grads, model);
     PSMatrixDelete(l1_delta);
     return ok;
 }
 
 int testPositionalEmbedLoad(TestCase *test_case, Test *test) {
-    PSNeuralNetwork *network = getNetwork(test_case);
-    testAssertNotNull(network, test);
+    PSModel *model = getModel(test_case);
+    testAssertNotNull(model, test);
     char path[PATH_MAX] = {0};
-    testAssert(joinPath(executable_path, POSITIONAL_NETWORK, path), test);
-    int loaded = PSLoadNetwork(network, path);
+    testAssert(joinPath(executable_path, POSITIONAL_MODEL, path), test);
+    int loaded = PSModelLoad(model, path);
     testAssertWithMessage(loaded, test, "Failed to load %s", path);
-    network->acceleration = PSGlobalAcceleration;
-    PSLayer *poslayer = network->layers[network->size - 1];
+    model->acceleration = PSGlobalAcceleration;
+    PSLayer *poslayer = model->layers[model->size - 1];
     testAssertNotNull(poslayer, test);
     testAssert(poslayer->type == PositionalEncoding, test);
     int expected_size = 6;
     testAssert(expected_size == poslayer->size, test);
-    if (!PSIsNetworkBuilt(network)) {
-        int built = PSBuildNetwork(network);
+    if (!PSModelIsBuilt(model)) {
+        int built = PSModelBuild(model);
         testAssert(built, test);
     }
     return 1;
@@ -3446,8 +3446,8 @@ int testPositionalEmbedLoad(TestCase *test_case, Test *test) {
 
 int testPositionalEmbedForward(TestCase *test_case, Test *test) {
     int ok = 1;
-    PSNeuralNetwork *network = getNetwork(test_case);
-    testAssertNotNull(network, test);
+    PSModel *model = getModel(test_case);
+    testAssertNotNull(model, test);
     PSFloat inputs[] = {5, 1, 9, 7, 3, 5};
     PSFloat expected_y[] = {
         0.841471, 1.5403, 0.0463992, 1.99892, 0.00215443, 2, 1.25359,
@@ -3456,9 +3456,9 @@ int testPositionalEmbedForward(TestCase *test_case, Test *test) {
         1.98064, 0.0129265, 1.99996, -1.71573, -0.369981, 0.4146, 1.956,
         0.0193896, 1.9999
     };
-    ok = PSForward(network, inputs);
+    ok = PSForward(model, inputs);
     testAssert(ok, test);
-    PSLayer *poslayer = network->layers[network->size - 1];
+    PSLayer *poslayer = model->layers[model->size - 1];
     PSFloat *states = PSGetStates(poslayer, 0);
     testAssertNotNull(states, test);
     uint64_t explen = (uint64_t) (sizeof(expected_y) / sizeof(PSFloat));
@@ -3469,9 +3469,9 @@ int testPositionalEmbedForward(TestCase *test_case, Test *test) {
 }
 
 int encoderDecoderSetup(TestCase *test_case) {
-    PSNeuralNetwork *network = PSCreateNetwork("Encoder-Decoder");
-    if (network == NULL) {
-        PSErr(NULL, "\nCould not create network!");
+    PSModel *model = PSModelCreate("Encoder-Decoder");
+    if (model == NULL) {
+        PSErr(NULL, "\nCould not create model!");
         return 0;
     }
     test_case->data = malloc(2 * sizeof(void*));
@@ -3479,82 +3479,82 @@ int encoderDecoderSetup(TestCase *test_case) {
         fprintf(stderr, "\nCould not allocate memory!\n");
         return 0;
     }
-    test_case->data[0] = network;
+    test_case->data[0] = model;
     test_case->data[1] = NULL;
     return 1;
 }
 
 int encoderDecoderTeardown(TestCase *test_case) {
-    PSNeuralNetwork *network = getNetwork(test_case);
-    if (network) PSDeleteNetwork(network);
+    PSModel *model = getModel(test_case);
+    if (model) PSModelDelete(model);
     return 1;
 }
 
 int testEncodedDecoderLoad(TestCase *test_case, Test *test) {
-    PSNeuralNetwork *network = getNetwork(test_case);
-    testAssertNotNull(network, test);
+    PSModel *model = getModel(test_case);
+    testAssertNotNull(model, test);
     char path[PATH_MAX] = {0};
     testAssert(
-        joinPath(executable_path, ENCDEC_BASIC_NETWORK, path), test
+        joinPath(executable_path, ENCDEC_BASIC_MODEL, path), test
     );
-    int ok = PSLoadNetwork(network, path);
+    int ok = PSModelLoad(model, path);
     testAssert(ok, test);
-    testAssert(PSGetNetworkChainLength(network) == 2, test);
+    testAssert(PSModelChainLength(model) == 2, test);
     return ok;
 }
 
 int testEncodedDecoderSave(TestCase *test_case, Test *test) {
-    PSNeuralNetwork *network = getNetwork(test_case);
-    testAssertNotNull(network, test);
-    testAssert(network->size > 0, test);
-    testAssert(PSGetNetworkChainLength(network) == 2, test);
+    PSModel *model = getModel(test_case);
+    testAssertNotNull(model, test);
+    testAssert(model->size > 0, test);
+    testAssert(PSModelChainLength(model) == 2, test);
     const char *fpath = "/tmp/psyc-enc-dec-test.psmodel";
-    int ok = PSSaveNetwork(network, fpath);
+    int ok = PSModelSave(model, fpath);
     testAssert(ok, test);
-    PSNeuralNetwork *loaded = PSCreateNetwork(NULL);
+    PSModel *loaded = PSModelCreate(NULL);
     testAssertNotNull(loaded, test);
-    ok = PSLoadNetwork(loaded, fpath);
+    ok = PSModelLoad(loaded, fpath);
     testAssertWithMessageOrGoto(
-        ok, final, test, "Failed to load network from '%s'", fpath
+        ok, final, test, "Failed to load model from '%s'", fpath
     );
-    ok = compareNetworkChain(network, loaded, test);
+    ok = compareModelChain(model, loaded, test);
 final:
-    if (loaded != NULL) PSDeleteNetwork(loaded);
+    if (loaded != NULL) PSModelDelete(loaded);
     return ok;
 }
 
 int testEncodedDecoderClone(TestCase *test_case, Test *test) {
-    PSNeuralNetwork *network = getNetwork(test_case);
-    testAssertNotNull(network, test);
-    testAssert(network->size > 0, test);
-    testAssert(PSGetNetworkChainLength(network) == 2, test);
-    PSNeuralNetwork *clone = PSCloneNetwork(network, 0);
+    PSModel *model = getModel(test_case);
+    testAssertNotNull(model, test);
+    testAssert(model->size > 0, test);
+    testAssert(PSModelChainLength(model) == 2, test);
+    PSModel *clone = PSModelClone(model, 0);
     testAssertNotNull(clone, test);
-    int ok = compareNetworkChain(network, clone, test);
+    int ok = compareModelChain(model, clone, test);
 final:
-    if (clone != NULL) PSDeleteNetwork(clone);
+    if (clone != NULL) PSModelDelete(clone);
     return ok;
 }
 
 int testEncodedDecoderPredict(TestCase *test_case, Test *test) {
     int ok = 1;
-    PSNeuralNetwork *network = getNetwork(test_case);
-    testAssertNotNull(network, test);
-    testAssert(network->size > 0, test);
-    testAssert(PSGetNetworkChainLength(network) == 2, test);
+    PSModel *model = getModel(test_case);
+    testAssertNotNull(model, test);
+    testAssert(model->size > 0, test);
+    testAssert(PSModelChainLength(model) == 2, test);
     PSFloat x[] = {2, 2, 1};
     PSFloat expected[2][4] = {
           {0.00577807,0.0132289,0.978728,0.00226505},
           {0.998611,0.000101474,0.00128536,2.34558e-06}
     };
-    PSNeuralNetwork *decoder = network->next;
+    PSModel *decoder = model->next;
     testAssertNotNull(decoder, test);
     decoder->sequence_settings.end = 0;
-    ok = PSAutoregression(network, x, 0, NULL);
+    ok = PSAutoregression(model, x, 0, NULL);
     testAssert(ok, test);
-    PSLayer *out = PSGetOutputLayer(network);
+    PSLayer *out = PSGetOutputLayer(model);
     testAssertNotNull(out, test);
-    testAssert(out->network == decoder, test);
+    testAssert(out->model == decoder, test);
     int seqlen = PSStateSequenceLength(out), t;
     testAssert(seqlen == 2, test);
     for (t = 0; t < seqlen; t++) {
@@ -3567,7 +3567,7 @@ int testEncodedDecoderPredict(TestCase *test_case, Test *test) {
 }
 
 Test *encDecBackpropTest = NULL;
-static int beforeDecoderForward(PSNeuralNetwork *decoder,
+static int beforeDecoderForward(PSModel *decoder,
                                 PSFloat *inputs, int seqlen, int backprop,
                                 void *opts)
 {
@@ -3578,7 +3578,7 @@ static int beforeDecoderForward(PSNeuralNetwork *decoder,
     assert(encDecBackpropTest != NULL);
     Test *test = encDecBackpropTest;
     int ok = 1;
-    PSNeuralNetworkLink *link = decoder->previous_network_link;
+    PSModelLink *link = decoder->previous_model_link;
     testAssertNotNull(link, test);
     testAssertNotNull(link->layer, test);
     testAssertNotNull(link->previous_layer, test);
@@ -3594,7 +3594,7 @@ static int beforeDecoderForward(PSNeuralNetwork *decoder,
     return ok;
 }
 
-int beforeEncoderBackprop(PSNeuralNetwork *encoder, PSFloat *y,
+int beforeEncoderBackprop(PSModel *encoder, PSFloat *y,
                           PSTrainingOptions *opts, PSGradient **gradients)
 {
     UNUSED(y);
@@ -3603,9 +3603,9 @@ int beforeEncoderBackprop(PSNeuralNetwork *encoder, PSFloat *y,
     assert(encDecBackpropTest != NULL);
     Test *test = encDecBackpropTest;
     int ok = 1;
-    PSNeuralNetwork *decoder = encoder->next;
+    PSModel *decoder = encoder->next;
     testAssertNotNull(decoder, test);
-    PSNeuralNetworkLink *link = decoder->previous_network_link;
+    PSModelLink *link = decoder->previous_model_link;
     testAssertNotNull(link, test);
     testAssertNotNull(link->layer, test);
     testAssertNotNull(link->previous_layer, test);
@@ -3627,14 +3627,14 @@ int testEncodedDecoderBackprop(TestCase *test_case, Test *test) {
     PSFloat training_data[] = {
         2, 2, 1, 1, 2,
     };
-    PSNeuralNetwork *network = getNetwork(test_case);
-    testAssertNotNull(network, test);
-    testAssert(network->size > 0, test);
-    testAssert(PSGetNetworkChainLength(network) == 2, test);
-    PSNeuralNetwork *decoder = network->next;
+    PSModel *model = getModel(test_case);
+    testAssertNotNull(model, test);
+    testAssert(model->size > 0, test);
+    testAssert(PSModelChainLength(model) == 2, test);
+    PSModel *decoder = model->next;
     testAssertNotNull(decoder, test);
     decoder->sequence_settings.end = -1;
-    PSLayer *out = PSGetOutputLayer(network);
+    PSLayer *out = PSGetOutputLayer(model);
     testAssertNotNull(out, test);
     testAssert(out->flags & FLAG_ONEHOT, test);
     PSTrainingOptions opts = {
@@ -3644,24 +3644,24 @@ int testEncodedDecoderBackprop(TestCase *test_case, Test *test) {
         .batch_size = 1,
         .bptt_truncate = 0,
     };
-    network->beforeBackprop = beforeEncoderBackprop;
+    model->beforeBackprop = beforeEncoderBackprop;
     decoder->beforeForward = beforeDecoderForward;
     PSFloat *seq[] = {NULL};
     seq[0] = training_data;
-    PSFloat loss = updateNetworkParameters(
-        network, training_data, 1, elements_count, 0.3, &opts, seq
+    PSFloat loss = updateModelParameters(
+        model, training_data, 1, elements_count, 0.3, &opts, seq
     );
     UNUSED(loss);
-    ok = (network->status != STATUS_ERROR);
+    ok = (model->status != STATUS_ERROR);
     if (ok) ok = (decoder->status != STATUS_ERROR);
     encDecBackpropTest = NULL;
     return ok;
 }
 
 int attentionSetup(TestCase *test_case) {
-    PSNeuralNetwork *network = PSCreateNetwork("Attention Test");
-    if (network == NULL) {
-        PSErr(NULL, "\nCould not create network!");
+    PSModel *model = PSModelCreate("Attention Test");
+    if (model == NULL) {
+        PSErr(NULL, "\nCould not create model!");
         return 0;
     }
     test_case->data = malloc(2 * sizeof(void*));
@@ -3669,28 +3669,28 @@ int attentionSetup(TestCase *test_case) {
         fprintf(stderr, "\nCould not allocate memory!\n");
         return 0;
     }
-    test_case->data[0] = network;
+    test_case->data[0] = model;
     test_case->data[1] = NULL;
     return 1;
 }
 
 int attentionTeardown(TestCase *test_case) {
-    PSNeuralNetwork *network = getNetwork(test_case);
-    if (network) PSDeleteNetwork(network);
+    PSModel *model = getModel(test_case);
+    if (model) PSModelDelete(model);
     return 1;
 }
 
-int testGenericAttentionBackprop(PSNeuralNetwork *network, char *file_prefix,
+int testGenericAttentionBackprop(PSModel *model, char *file_prefix,
                                  Test *test)
 {
     int ok = 1, xlen = 0, ylen = 0, olen = 0, i;
-    int old_status = network->status;
+    int old_status = model->status;
     PSGradient ***grads = NULL;
     FILE *f = NULL;
     PSFloat *x = NULL, *y = NULL, *inputs = NULL, *targets = NULL,
             *outputs = NULL;
     PSFloat **expgrads_w = NULL, **expgrads_b = NULL;
-    PSNeuralNetwork *tail = PSGetNetworkChainTail(network);
+    PSModel *tail = PSModelChainTail(model);
     testAssertNotNull(tail, test);
     PSLayer *attn_layer = NULL;
     for (i = 0; i < tail->size; i++) {
@@ -3701,8 +3701,8 @@ int testGenericAttentionBackprop(PSNeuralNetwork *network, char *file_prefix,
         }
     }
     testAssertWithMessage(attn_layer != NULL, test,
-                          "attention layer not found in network %s",
-                          network->name);
+                          "attention layer not found in model %s",
+                          model->name);
     char fname[PATH_MAX] = {0};
     char path[PATH_MAX] = {0};
     /* Load inputs */
@@ -3818,8 +3818,8 @@ int testGenericAttentionBackprop(PSNeuralNetwork *network, char *file_prefix,
     PSVectorCopy(y, targets, ylen);
     PSTrainingOptions topts = {0};
     PSSetDefaultTrainingOptions(&topts);
-    PSSetNetworkStatus(network, STATUS_TRAINING, NULL);
-    grads = backprop(network, x, y, &topts, NULL);
+    PSModelSetStatus(model, STATUS_TRAINING, NULL);
+    grads = backprop(model, x, y, &topts, NULL);
     ok = (grads != NULL);
     testAssertWithMessageOrGoto(
         ok, final, test, "backpropagation failed%s",""
@@ -3832,11 +3832,11 @@ int testGenericAttentionBackprop(PSNeuralNetwork *network, char *file_prefix,
     ok = compareArrays(attn_out, outputs, PSMatrixLength(attn_out), test,
                        "Attention Layer Outputs:", 0, 4);
     if (!ok) goto final;
-    PSGradient **n_grads = grads[attn_layer->network->index];
+    PSGradient **n_grads = grads[attn_layer->model->index];
     ok = (n_grads != NULL);
     testAssertWithMessageOrGoto(
-        ok, final, test, "missing gradients for network %d",
-        attn_layer->network->index
+        ok, final, test, "missing gradients for model %d",
+        attn_layer->model->index
     );
     int gidx = attn_layer->index - 1;
     PSGradient *attn_grads = n_grads[gidx];
@@ -3899,143 +3899,141 @@ final:
     free(inputs);
     free(targets);
     free(outputs);
-    PSSetNetworkStatus(network, old_status, NULL);
-    if (grads != NULL) PSDeleteGradientsChain(grads, network);
+    PSModelSetStatus(model, old_status, NULL);
+    if (grads != NULL) PSDeleteGradientsChain(grads, model);
     return ok;
 }
 
 int testAdditiveAttentionLoad(TestCase *test_case, Test *test) {
-    PSNeuralNetwork *network = getNetwork(test_case);
-    testAssertNotNull(network, test);
+    PSModel *model = getModel(test_case);
+    testAssertNotNull(model, test);
     char path[PATH_MAX] = {0};
     testAssert(
-        joinPath(executable_path, ADD_ATTENTION_NETWORK, path), test
+        joinPath(executable_path, ADD_ATTENTION_MODEL, path), test
     );
-    int ok = PSLoadNetwork(network, path);
+    int ok = PSModelLoad(model, path);
     testAssert(ok, test);
-    testAssert(PSGetNetworkChainLength(network) == 2, test);
+    testAssert(PSModelChainLength(model) == 2, test);
     return ok;
 }
 
 
 int testAdditiveAttentionBackprop(TestCase *test_case, Test *test) {
-    PSNeuralNetwork *network = getNetwork(test_case);
-    testAssertNotNull(network, test);
+    PSModel *model = getModel(test_case);
+    testAssertNotNull(model, test);
     int ok = testGenericAttentionBackprop(
-        network, "pretrained.additive-attention", test
+        model, "pretrained.additive-attention", test
     );
     return ok;
 }
 
 int testDotAttentionLoad(TestCase *test_case, Test *test) {
-    PSNeuralNetwork *network = getNetwork(test_case);
-    testAssertNotNull(network, test);
+    PSModel *model = getModel(test_case);
+    testAssertNotNull(model, test);
     char path[PATH_MAX] = {0};
     testAssert(
-        joinPath(executable_path, DOT_ATTENTION_NETWORK, path), test
+        joinPath(executable_path, DOT_ATTENTION_MODEL, path), test
     );
-    int ok = PSLoadNetwork(network, path);
+    int ok = PSModelLoad(model, path);
     testAssert(ok, test);
-    testAssert(PSGetNetworkChainLength(network) == 2, test);
+    testAssert(PSModelChainLength(model) == 2, test);
     return ok;
 }
 
 
 int testDotAttentionBackprop(TestCase *test_case, Test *test) {
-    PSNeuralNetwork *network = getNetwork(test_case);
-    testAssertNotNull(network, test);
+    PSModel *model = getModel(test_case);
+    testAssertNotNull(model, test);
     int ok = testGenericAttentionBackprop(
-        network, "pretrained.dot-product-attention", test
+        model, "pretrained.dot-product-attention", test
     );
     return ok;
 }
 
 int testMHAttentionLoad(TestCase *test_case, Test *test) {
-    PSNeuralNetwork *network = getNetwork(test_case);
-    testAssertNotNull(network, test);
+    PSModel *model = getModel(test_case);
+    testAssertNotNull(model, test);
     char path[PATH_MAX] = {0};
     testAssert(
-        joinPath(executable_path, MH_ATTENTION_NETWORK, path), test
+        joinPath(executable_path, MH_ATTENTION_MODEL, path), test
     );
-    int ok = PSLoadNetwork(network, path);
+    int ok = PSModelLoad(model, path);
     testAssert(ok, test);
-    testAssert(PSGetNetworkChainLength(network) == 2, test);
+    testAssert(PSModelChainLength(model) == 2, test);
     return ok;
 }
 
 
 int testMHAttentionBackprop(TestCase *test_case, Test *test) {
-    PSNeuralNetwork *network = getNetwork(test_case);
-    testAssertNotNull(network, test);
+    PSModel *model = getModel(test_case);
+    testAssertNotNull(model, test);
     int ok = testGenericAttentionBackprop(
-        network, "pretrained.mh-dot-product-attention", test
+        model, "pretrained.mh-dot-product-attention", test
     );
     return ok;
 }
 
 int testMHCausalSelfAttentionLoad(TestCase *test_case, Test *test) {
-    PSNeuralNetwork *network = getNetwork(test_case);
-    testAssertNotNull(network, test);
+    PSModel *model = getModel(test_case);
+    testAssertNotNull(model, test);
     char path[PATH_MAX] = {0};
     testAssert(
-        joinPath(executable_path, MH_CAUSAL_SELFATTENTION_NETWORK, path), test
+        joinPath(executable_path, MH_CAUSAL_SELFATTENTION_MODEL, path), test
     );
-    int ok = PSLoadNetwork(network, path);
+    int ok = PSModelLoad(model, path);
     testAssert(ok, test);
-    testAssert(PSGetNetworkChainLength(network) == 1, test);
+    testAssert(PSModelChainLength(model) == 1, test);
     return ok;
 }
 
 
 int testMHCausalSelfAttentionBackprop(TestCase *test_case, Test *test) {
-    PSNeuralNetwork *network = getNetwork(test_case);
-    testAssertNotNull(network, test);
+    PSModel *model = getModel(test_case);
+    testAssertNotNull(model, test);
     int ok = testGenericAttentionBackprop(
-        network, "pretrained.mh-causal-attention", test
+        model, "pretrained.mh-causal-attention", test
     );
     return ok;
 }
 
 int testGenericClone(TestCase *test_case, Test *test) {
-    PSNeuralNetwork *network = getNetwork(test_case);
-    PSNeuralNetwork *clone = PSCloneNetwork(network, 0);
+    PSModel *model = getModel(test_case);
+    PSModel *clone = PSModelClone(model, 0);
     testAssertNotNull(clone, test);
-    int ok = compareNetworks(network, clone, test);
-    PSDeleteNetwork(clone);
+    int ok = compareModels(model, clone, test);
+    PSModelDelete(clone);
     return ok;
 }
 
 int testGenericSave(TestCase *test_case, Test *test) {
-    PSNeuralNetwork *network = getNetwork(test_case);
-    assert(network->size > 0);
+    PSModel *model = getModel(test_case);
+    assert(model->size > 0);
     char tmpfile[255];
     getTmpFileName("tests-save-nn", ".psmodel", tmpfile);
-    int ok = PSSaveNetwork(network, tmpfile);
-    testAssertWithMessage(ok, test, "Could not save network %s", network->name);
-    PSNeuralNetwork *clone = PSCreateNetwork("Clone Test Network");
+    int ok = PSModelSave(model, tmpfile);
+    testAssertWithMessage(ok, test, "Could not save model %s", model->name);
+    PSModel *clone = PSModelCreate("Clone Test Model");
     testAssertNotNull(clone, test);
-    ok = PSLoadNetwork(clone, tmpfile);
+    ok = PSModelLoad(clone, tmpfile);
     testAssertWithMessageOrGoto(
-        ok, final, test, "Could not load network from %s",tmpfile
+        ok, final, test, "Could not load model from %s",tmpfile
     );
-    ok = compareNetworks(network, clone, test);
+    ok = compareModels(model, clone, test);
     remove(tmpfile);
 final:
-    PSDeleteNetwork(clone);
+    PSModelDelete(clone);
     return ok;
 }
 
-int compareNetworks(PSNeuralNetwork *network, PSNeuralNetwork *clone,
-                    Test* test)
-{
+int compareModels(PSModel *model, PSModel *clone, Test* test) {
     int ok = 1, i, k;
-    ok = network->size == clone->size;
+    ok = model->size == clone->size;
     testAssertWithMessage(
-        (network->size == clone->size), test,
+        (model->size == clone->size), test,
         "Source size %d != Clone size %d",
-        network->size, clone->size
+        model->size, clone->size
     );
-    int recurrent_source = PSIsRecurrent(network),
+    int recurrent_source = PSIsRecurrent(model),
         recurrent_clone = PSIsRecurrent(clone);
     testAssertWithMessage(
         (recurrent_source == recurrent_clone), test,
@@ -4043,15 +4041,15 @@ int compareNetworks(PSNeuralNetwork *network, PSNeuralNetwork *clone,
         recurrent_source, recurrent_clone
     );
     if (recurrent_source) {
-        PSLayer *src_first_recurrent_layer = PSGetFirstRecurrentLayer(network),
-                *src_last_recurrent_layer = PSGetLastRecurrentLayer(network),
+        PSLayer *src_first_recurrent_layer = PSGetFirstRecurrentLayer(model),
+                *src_last_recurrent_layer = PSGetLastRecurrentLayer(model),
                 *clone_first_recurrent_layer = PSGetFirstRecurrentLayer(clone),
                 *clone_last_recurrent_layer = PSGetLastRecurrentLayer(clone);
-        PSRecurrentNetworkMode srcmode = network->rnn_mode,
+        PSRecurrentNetworkMode srcmode = model->rnn_mode,
                                clonemode = clone->rnn_mode;
-        int src_max_steps = network->sequence_settings.max_length,
+        int src_max_steps = model->sequence_settings.max_length,
             clone_max_steps = clone->sequence_settings.max_length,
-            src_eos = network->sequence_settings.end,
+            src_eos = model->sequence_settings.end,
             clone_eos = clone->sequence_settings.end;
         testAssertWithMessage(
             (srcmode == clonemode), test,
@@ -4061,13 +4059,13 @@ int compareNetworks(PSNeuralNetwork *network, PSNeuralNetwork *clone,
         );
         testAssertWithMessage(
             (src_max_steps == clone_max_steps), test,
-             "network->sequence_settings.max_length != "
+             "model->sequence_settings.max_length != "
              "clone->sequence_settings.max_length: %d != %d",
              src_max_steps, clone_max_steps
         );
         testAssertWithMessage(
             (src_eos == clone_eos), test,
-             "network->sequence_settings.end != "
+             "model->sequence_settings.end != "
              "clone->sequence_settings.end: %d != %d ",
              src_eos, clone_eos
         );
@@ -4079,7 +4077,7 @@ int compareNetworks(PSNeuralNetwork *network, PSNeuralNetwork *clone,
             int cln_idx = clone_first_recurrent_layer->index;
             testAssertWithMessage(
                 (src_idx == cln_idx), test,
-                "network first recurrent layer index != "
+                "model first recurrent layer index != "
                 "clone first recurrent layer index: %d != %d",
                 src_idx, cln_idx
             );
@@ -4092,19 +4090,19 @@ int compareNetworks(PSNeuralNetwork *network, PSNeuralNetwork *clone,
             int cln_idx = clone_last_recurrent_layer->index;
             testAssertWithMessage(
                 (src_idx == cln_idx), test,
-                "network last recurrent layer index != "
+                "model last recurrent layer index != "
                 "clone last recurrent layer index: %d != %d",
                 src_idx, cln_idx
             );
         }
     }
     testAssertWithMessage(
-        network->flags == clone->flags, test,
+        model->flags == clone->flags, test,
         "Source flags %d != Clone flags %d",
-        network->flags, clone->flags
+        model->flags, clone->flags
     );
-    for (i = 0; i < network->size; i++) {
-        PSLayer *orig_l = network->layers[i];
+    for (i = 0; i < model->size; i++) {
+        PSLayer *orig_l = model->layers[i];
         PSLayer *clone_l = clone->layers[i];
         PSLayerType otype = orig_l->type;
         PSLayerType ctype = clone_l->type;
@@ -4165,13 +4163,13 @@ int compareNetworks(PSNeuralNetwork *network, PSNeuralNetwork *clone,
                 PSLayer *clone_prv = clone_providers[j];
                 testAssertNotNull(orig_prv, test);
                 testAssertNotNull(clone_prv, test);
-                testAssertNotNull(orig_prv->network, test);
-                testAssertNotNull(clone_prv->network, test);
+                testAssertNotNull(orig_prv->model, test);
+                testAssertNotNull(clone_prv->model, test);
                 testAssertWithMessage(
-                    orig_prv->network->index == clone_prv->network->index,
-                    test, "Layer[%d]: Source provider[%d] network[%d] != "
-                    "Clone provider network[%d]", i, j,
-                    orig_prv->network->index, clone_prv->network->index
+                    orig_prv->model->index == clone_prv->model->index,
+                    test, "Layer[%d]: Source provider[%d] model[%d] != "
+                    "Clone provider model[%d]", i, j,
+                    orig_prv->model->index, clone_prv->model->index
                 );
                 testAssertWithMessage(
                     orig_prv->index == clone_prv->index,
@@ -4242,10 +4240,10 @@ int compareNetworks(PSNeuralNetwork *network, PSNeuralNetwork *clone,
                     "cloned doesn't", i
                 );
                 testAssertWithMessage(
-                    qprov_o->network->index == qprov_c->network->index, test,
-                    "Layer[%d] query provider's network index is %d, but "
-                    "clone one is %d", i, qprov_o->network->index,
-                    qprov_c->network->index
+                    qprov_o->model->index == qprov_c->model->index, test,
+                    "Layer[%d] query provider's model index is %d, but "
+                    "clone one is %d", i, qprov_o->model->index,
+                    qprov_c->model->index
                 );
                 testAssertWithMessage(
                     qprov_o->index == qprov_c->index, test, "Layer[%d] query "
@@ -4272,10 +4270,10 @@ int compareNetworks(PSNeuralNetwork *network, PSNeuralNetwork *clone,
                     "cloned doesn't", i
                 );
                 testAssertWithMessage(
-                    kprov_o->network->index == kprov_c->network->index, test,
-                    "Layer[%d] key provider's network index is %d, but "
-                    "clone one is %d", i, kprov_o->network->index,
-                    kprov_c->network->index
+                    kprov_o->model->index == kprov_c->model->index, test,
+                    "Layer[%d] key provider's model index is %d, but "
+                    "clone one is %d", i, kprov_o->model->index,
+                    kprov_c->model->index
                 );
                 testAssertWithMessage(
                     kprov_o->index == kprov_c->index, test, "Layer[%d] key "
@@ -4302,10 +4300,10 @@ int compareNetworks(PSNeuralNetwork *network, PSNeuralNetwork *clone,
                     "cloned doesn't", i
                 );
                 testAssertWithMessage(
-                    vprov_o->network->index == vprov_c->network->index, test,
-                    "Layer[%d] value provider's network index is %d, but "
-                    "clone one is %d", i, vprov_o->network->index,
-                    vprov_c->network->index
+                    vprov_o->model->index == vprov_c->model->index, test,
+                    "Layer[%d] value provider's model index is %d, but "
+                    "clone one is %d", i, vprov_o->model->index,
+                    vprov_c->model->index
                 );
                 testAssertWithMessage(
                     vprov_o->index == vprov_c->index, test, "Layer[%d] value "
@@ -4415,13 +4413,11 @@ int compareNetworks(PSNeuralNetwork *network, PSNeuralNetwork *clone,
     return ok;
 }
 
-int compareNetworkChain(PSNeuralNetwork *network, PSNeuralNetwork *clone,
-                        Test* test)
-{
+int compareModelChain(PSModel *model, PSModel *clone, Test* test) {
     int ok = 1;
-    PSNeuralNetwork *n1 = network, *n2 = clone;
+    PSModel *n1 = model, *n2 = clone;
     while (n1 != NULL && n2 != NULL) {
-        ok = compareNetworks(n1, n2, test);
+        ok = compareModels(n1, n2, test);
         if (!ok) break;
         n1 = n1->next;
         n2 = n2->next;
@@ -4431,33 +4427,33 @@ int compareNetworkChain(PSNeuralNetwork *network, PSNeuralNetwork *clone,
     return ok;
 }
 
-static int testRecurrentNetworkMode(PSNeuralNetwork *network,
+static int testRecurrentNetworkMode(PSModel *model,
                                     PSRecurrentNetworkMode mode,
                                     Test *test)
 {
-    testAssertNotNull(network, test);
-    if (network->size == 0) return 1;
-    PSRecurrentNetworkMode network_rnn_mode = network->rnn_mode;
+    testAssertNotNull(model, test);
+    if (model->size == 0) return 1;
+    PSRecurrentNetworkMode model_rnn_mode = model->rnn_mode;
     testAssertWithMessage(
-        network_rnn_mode == mode, test,
+        model_rnn_mode == mode, test,
         "Recurrent network mode %s != expected %s",
-        PSGetRecurrentModeLabel(network_rnn_mode),
+        PSGetRecurrentModeLabel(model_rnn_mode),
         PSGetRecurrentModeLabel(mode)
     );
-    PSLayer *first_recurrent = PSGetFirstRecurrentLayer(network),
-            *last_recurrent = PSGetLastRecurrentLayer(network),
-            *input_layer = network->layers[0],
-            *output_layer = network->layers[network->size - 1];
+    PSLayer *first_recurrent = PSGetFirstRecurrentLayer(model),
+            *last_recurrent = PSGetLastRecurrentLayer(model),
+            *input_layer = model->layers[0],
+            *output_layer = model->layers[model->size - 1];
     if (mode == NonRecurrent) {
         testAssertWithMessage(
-            !PSIsRecurrent(network), test,
-            "Network is recurrent despite mode is %s",
+            !PSIsRecurrent(model), test,
+            "Model is recurrent despite mode is %s",
             PSGetRecurrentModeLabel(mode)
         );
     } else {
         testAssertWithMessage(
-            PSIsRecurrent(network), test,
-            "Network is not recurrent despite mode is %s",
+            PSIsRecurrent(model), test,
+            "Model is not recurrent despite mode is %s",
             PSGetRecurrentModeLabel(mode)
         );
         testAssertNotNull(first_recurrent, test);
@@ -4497,8 +4493,8 @@ static int testRecurrentNetworkMode(PSNeuralNetwork *network,
             );
         }
     }
-    for (int i = 0; i < network->size; i++) {
-        PSLayer *layer = network->layers[i];
+    for (int i = 0; i < model->size; i++) {
+        PSLayer *layer = model->layers[i];
         if (mode == NonRecurrent) {
             testAssertWithMessage(
                 !PSIsRecurrent(layer), test,

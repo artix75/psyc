@@ -30,19 +30,19 @@ PSFloat normalized_rand() {
 }
 
 int main(int argc, char** argv) {
-    PSNeuralNetwork *network = PSCreateNetwork(NULL);
-    PSAddLayer(network, FullyConnected, INPUTS_SIZE, NULL);
-    PSAddLayer(network, FullyConnected, 30, NULL);
-    PSAddLayer(network, FullyConnected, 10, NULL);
+    PSModel *model = PSModelCreate(NULL);
+    PSAddLayer(model, FullyConnected, INPUTS_SIZE, NULL);
+    PSAddLayer(model, FullyConnected, 30, NULL);
+    PSAddLayer(model, FullyConnected, 10, NULL);
 
     PSFloat values[INPUTS_SIZE];
     int i;
     for (i = 0; i < INPUTS_SIZE; i++) {
         values[i] = normalized_rand();
     }
-    PSForward(network, values);
+    PSForward(model, values);
 
-    PSDeleteNetwork(network);
+    PSModelDelete(model);
 
     PSFloat nums[] = {1,2,3,4,5,6,7,8,9,10,11,12};
     testShuffle(nums, 6, 2);

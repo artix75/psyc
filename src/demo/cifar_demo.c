@@ -56,7 +56,7 @@
 
 #define UNUSED(V) ((void) V)
 
-PSNeuralNetwork *network = NULL;
+PSModel *model = NULL;
 char *output_path = DEFAULT_OUTPUT_FILE;
 int pause_requested;
 
@@ -134,20 +134,20 @@ int max_batches = 0;
 
 void handler(int sig) {
     UNUSED(sig);
-    if (network != NULL) {
+    if (model != NULL) {
         if (!pause_requested) {
-            PSPauseTraining(network);
+            PSPauseTraining(model);
             pause_requested = 1;
-        } else PSAbortTraining(network);
+        } else PSAbortTraining(model);
         /*printf("\n");
-        PSSaveNetwork(network, "/tmp/pretrained.cnn.psmodel");
-        printf("Deleting network...\n");
-        PSDeleteNetwork(network);
+        PSModelSave(model, "/tmp/pretrained.cnn.psmodel");
+        printf("Deleting model...\n");
+        PSModelDelete(model);
         printf("Exiting...\n");*/
     }
 }
 
-void onBatchTrained(PSNeuralNetwork *network, int epoch, int epochs,
+void onBatchTrained(PSModel *model, int epoch, int epochs,
                     PSFloat loss, PSFloat batch_loss, float accuracy,
                     PSFloat *rate, PSFloat *training_data)
 {
@@ -158,9 +158,9 @@ void onBatchTrained(PSNeuralNetwork *network, int epoch, int epochs,
     UNUSED(accuracy);
     UNUSED(rate);
     if (dump_activations_str == NULL && max_batches <= 0) return;
-    if (network == NULL) return;
-    if (network->training == NULL) return;
-    int batch = network->training->current_batch;
+    if (model == NULL) return;
+    if (model->training == NULL) return;
+    int batch = model->training->current_batch;
     if (max_batches > 0 && batch >= max_batches) {
         raise(SIGINT);
         raise(SIGINT);
@@ -170,10 +170,10 @@ void onBatchTrained(PSNeuralNetwork *network, int epoch, int epochs,
     char fname[1024];
     snprintf(fname, 1023, "%s/psyc-activations-batch-%d.dump",
              dump_activations_str, batch);
-    PSDumpNetworkStates(network, fname);
+    PSModelDumpStates(model, fname);
     snprintf(fname, 1023, "%s/psyc-deltas-batch-%d.dump",
              dump_activations_str, batch);
-    PSDumpNetworkDeltas(network, fname);
+    PSModelDumpDeltas(model, fname);
     PSFloat *labels = training_data + CIFAR_IMAGE_SIZE;
     snprintf(fname, 1023, "%s/psyc-labels-batch-%d.dump",
              dump_activations_str, batch);
@@ -498,37 +498,37 @@ int main(int argc, char** argv) {
         }
     }
 
-    network = PSCreateNetwork("CNN CIFAR Demo");
-    if (network == NULL) {
-        fprintf(stderr, "Could not create network!\n");
+    model = PSModelCreate("CNN CIFAR Demo");
+    if (model == NULL) {
+        fprintf(stderr, "Could not create model!\n");
         if (training_data != NULL) free(training_data);
         if (test_data != NULL) free(test_data);
         return 1;
     }
     if (dump_activations_str != NULL || max_batches > 0) {
-        network->onBatchTrained = onBatchTrained;
+        model->onBatchTrained = onBatchTrained;
         PSDumpGradientsPath = dump_activations_str;
     }
-    printf("Network created!\n");
+    printf("Model created!\n");
     printf("AVX: ");
 #ifdef USE_AVX
     if (disable_avx)
-        PSDisableAcceleration(&network->acceleration, PSAcceleration_AVX);
-    if (PSAVXEnabled(network->acceleration)) printf("on\n");
+        PSDisableAcceleration(&model->acceleration, PSAcceleration_AVX);
+    if (PSAVXEnabled(model->acceleration)) printf("on\n");
     else printf("off\n");
 #else
     printf("off\n");
 #endif
     if (disable_acf)
-        PSDisableAcceleration(&(network->acceleration), PSAcceleration_ACF);
+        PSDisableAcceleration(&(model->acceleration), PSAcceleration_ACF);
     if (disable_blas)
-        PSDisableAcceleration(&(network->acceleration), PSAcceleration_BLAS);
-    if (no_acceleration) network->acceleration = PSAcceleration_None;
+        PSDisableAcceleration(&(model->acceleration), PSAcceleration_BLAS);
+    if (no_acceleration) model->acceleration = PSAcceleration_None;
     printf("Accelerate Framework: ");
-    if (PSACFEnabled(network->acceleration)) printf("on\n");
+    if (PSACFEnabled(model->acceleration)) printf("on\n");
     else printf("off\n");
     printf("BLAS: ");
-    if (PSBLASEnabled(network->acceleration)) printf("on\n");
+    if (PSBLASEnabled(model->acceleration)) printf("on\n");
     else printf("off\n");
     printf("Size of PSFloat: %d\n", (int) sizeof(PSFloat));
 
@@ -548,34 +548,34 @@ int main(int argc, char** argv) {
             .filter_width = 2, .filter_height = 2
         };
 
-        PSAddLayer(network, FullyConnected, CIFAR_IMAGE_SIZE, &input_def);
-        PSAddConvolutionalLayer(network, &conv_def);
-        PSAddPoolingLayer(network, &pool_def);
+        PSAddLayer(model, FullyConnected, CIFAR_IMAGE_SIZE, &input_def);
+        PSAddConvolutionalLayer(model, &conv_def);
+        PSAddPoolingLayer(model, &pool_def);
 
         for (i = 0; i < additional_layers; i++) {
             conv_def.output_depth = 20;
-            PSAddConvolutionalLayer(network, &conv_def);
-            PSAddPoolingLayer(network, &pool_def);
+            PSAddConvolutionalLayer(model, &conv_def);
+            PSAddPoolingLayer(model, &pool_def);
         }
 
-        /* PSAddLayer(network, FullyConnected, 512, NULL); */
+        /* PSAddLayer(model, FullyConnected, 512, NULL); */
         if (add_fully_connected && fc_preoutput_size >= 10)
-            PSAddLayer(network, FullyConnected, fc_preoutput_size, NULL);
-        if (softmax_output) PSAddLayer(network, SoftMax, classes, NULL);
-        else PSAddLayer(network, FullyConnected, classes, NULL);
-        network->loss = PSCrossEntropyLoss;
+            PSAddLayer(model, FullyConnected, fc_preoutput_size, NULL);
+        if (softmax_output) PSAddLayer(model, SoftMax, classes, NULL);
+        else PSAddLayer(model, FullyConnected, classes, NULL);
+        model->loss = PSCrossEntropyLoss;
 
-        if (network->size < 1) {
+        if (model->size < 1) {
             fprintf(stderr, "Could not add all layers!\n");
-            PSDeleteNetwork(network);
+            PSModelDelete(model);
             if (training_data != NULL) free(training_data);
             if (test_data != NULL) free(test_data);
             return 1;
         }
 
-        int element_size = network->input_size + network->output_size;
+        int element_size = model->input_size + model->output_size;
         printf("Element Size = %d (%d + %d)\n", element_size,
-            network->input_size, network->output_size);
+            model->input_size, model->output_size);
         int element_count = datalen / element_size;
         printf("Training elements (initial): %d\n", element_count);
         if (element_count < train_dataset_len) {
@@ -583,7 +583,7 @@ int main(int argc, char** argv) {
                    TRAIN_DATASET_LEN);
             if (training_data != NULL) free(training_data);
             if (test_data != NULL) free(test_data);
-            PSDeleteNetwork(network);
+            PSModelDelete(model);
             return 1;
         } else {
             int remaining = element_count - train_dataset_len;
@@ -612,23 +612,23 @@ int main(int argc, char** argv) {
             }
         }
     } else {
-        int loaded = PSLoadNetwork(network, pretrained_file);
+        int loaded = PSModelLoad(model, pretrained_file);
         if (!loaded) {
             printf("Could not load pretrained data %s\n", pretrained_file);
-            PSDeleteNetwork(network);
+            PSModelDelete(model);
             return 1;
         }
-        if (network->size < 1) {
+        if (model->size < 1) {
             fprintf(stderr, "Could not add all layers!\n");
-            PSDeleteNetwork(network);
+            PSModelDelete(model);
             return 1;
         }
     }
-    PSPrintNetworkInfo(network);
+    PSModelPrintInfo(model);
     if (datalen > 0) {
         /*signal(SIGINT, handler);*/
         if (dump_pretrained_fname != NULL)
-            PSSaveNetwork(network, dump_pretrained_fname);
+            PSModelSave(model, dump_pretrained_fname);
         int flags = 0;
         if (no_shuffle) flags |= TRAINING_NO_SHUFFLE;
         PSTrainingOptions train_opts = {
@@ -645,23 +645,23 @@ int main(int argc, char** argv) {
         if (optimization != PSDefaultOptimization)
             train_opts.optimization = optimization;
         if (progbar) train_opts.log_progress = PSLogTrainingProgressBar;
-        PSTrain(network, training_data, datalen, validation_data, valdlen,
+        PSTrain(model, training_data, datalen, validation_data, valdlen,
                 &train_opts);
     }
-    if (network->status == STATUS_ERROR) {
-        PSDeleteNetwork(network);
+    if (model->status == STATUS_ERROR) {
+        PSModelDelete(model);
         if (training_data != NULL) free(training_data);
         if (test_data != NULL) free(test_data);
         return 1;
     }
-    if (testlen > 0 && test_data != NULL && network->status == STATUS_TRAINED) {
+    if (testlen > 0 && test_data != NULL && model->status == STATUS_TRAINED) {
         printf("Test Data len: %d\n", testlen);
-        PSTest(network, test_data, testlen, NULL);
+        PSTest(model, test_data, testlen, NULL);
     }
     /* if (pretrained_file == NULL) */
-    PSSaveNetwork(network, output_path);
-    /* printf("Network saved to: /tmp/pretrained.cnn.psmodel\n"); */
-    PSDeleteNetwork(network);
+    PSModelSave(model, output_path);
+    /* printf("Model saved to: /tmp/pretrained.cnn.psmodel\n"); */
+    PSModelDelete(model);
     if (training_data != NULL) free(training_data);
     if (test_data != NULL) free(test_data);
 final:

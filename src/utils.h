@@ -138,7 +138,7 @@ int PSDownloadFile(const char *url, const char *dest_dir);
 
 /* Neural Network Functions */
 
-void PSAbortLayer(PSNeuralNetwork *network, PSLayer *layer);
+void PSAbortLayer(PSModel *model, PSLayer *layer);
 
 /* Misc */
 

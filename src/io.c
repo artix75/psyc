@@ -100,18 +100,18 @@ typedef struct PSBinaryFileHeader {
     char version[255];
 } PSBinaryFileHeader;
 
-PSTrainingOptions *PSGetNetworkTrainingOptions(PSNeuralNetwork *network);
-int PSGetTrainingMemoryGradients(PSNeuralNetwork *network,
+PSTrainingOptions *PSGetModelTrainingOptions(PSModel *model);
+int PSGetTrainingMemoryGradients(PSModel *model,
                                  PSGradient ***grads_p);
-int initTrainingContext(PSNeuralNetwork *network, PSTrainingOptions *opts,
+int initTrainingContext(PSModel *model, PSTrainingOptions *opts,
                         int mem_gradients_count);
 int PSCompareVersion(const char* vers1, const char* vers2);
 int getLossFunctionIndex(PSLossFunction function);
 PSLossFunction getLossFunctionAtIndex(int index);
 void PSPrintLayerInfo(PSLayer *layer);
 const char *PSGetActivationName(PSActivationFunction func);
-PSFloat *PSSetSequenceStart(PSNeuralNetwork *network, PSFloat *start, int len);
-PSLayer *PSMakeLayerPlaceholder(int layer_index, int network_index);
+PSFloat *PSSetSequenceStart(PSModel *model, PSFloat *start, int len);
+PSLayer *PSMakeLayerPlaceholder(int layer_index, int model_index);
 
 uint16_t swap_uint16(uint16_t val) {
     return (val << 8) | (val >> 8 );
@@ -219,17 +219,17 @@ int string2int(char *str, int *valid) {
     return num;
 }
 
-static PSLayer *layerByIndex(PSNeuralNetwork *network, PSNeuralNetwork *parent,
+static PSLayer *layerByIndex(PSModel *model, PSModel *parent,
                              int nidx, int lidx)
 {
-    if (parent == NULL || PSIsNetworkChain(network))
-        return PSGetLayerByIndex(network, lidx, nidx);
+    if (parent == NULL || PSIsModelChain(model))
+        return PSGetLayerByIndex(model, lidx, nidx);
     int last_idx = 0;
-    if (PSIsNetworkChain(parent)) {
-        PSNeuralNetwork *tail = PSGetNetworkChainTail(parent);
+    if (PSIsModelChain(parent)) {
+        PSModel *tail = PSModelChainTail(parent);
         if (tail != NULL) last_idx = tail->index;
     }
-    if (nidx > last_idx) return PSGetLayerByIndex(network, lidx, 0);
+    if (nidx > last_idx) return PSGetLayerByIndex(model, lidx, 0);
     else return PSGetLayerByIndex(parent, lidx, nidx);
 }
 
@@ -1047,19 +1047,19 @@ final:
     return array;
 }
 
-int writeGradients(PSNeuralNetwork *network, PSGradient **gradients,
+int writeGradients(PSModel *model, PSGradient **gradients,
                    int opts, FILE *f)
 {
-    if (network == NULL || network->size == 0) return 0;
-    for (int i = 1; i < network->size; i++) {
+    if (model == NULL || model->size == 0) return 0;
+    for (int i = 1; i < model->size; i++) {
         PSGradient *gradient = gradients[i - 1];
         if (gradient == NULL) continue;
         if (gradient->bias_count > 0 && gradient->biases == NULL) {
-            PSErr("PSSaveNetwork", "invalid gradient biases");
+            PSErr("PSModelSave", "invalid gradient biases");
             return 0;
         }
         if (gradient->weight_count > 0 && gradient->weights == NULL) {
-            PSErr("PSSaveNetwork", "invalid gradient weights");
+            PSErr("PSModelSave", "invalid gradient weights");
             return 0;
         }
         fprintf(
@@ -1128,16 +1128,16 @@ int writeLayerDefinition(PSLayer *layer, FILE *f) {
                 PSGetAttentionTrainableParameters(layer));
         PSLayer *qprovider = NULL, *kprovider = NULL, *vprovider = NULL;
         PSGetAttentionProviders(layer, &qprovider, &kprovider, &vprovider);
-        if (qprovider != NULL && qprovider->network != NULL) {
-            fprintf(f, ",query_provider=%d:%d", qprovider->network->index,
+        if (qprovider != NULL && qprovider->model != NULL) {
+            fprintf(f, ",query_provider=%d:%d", qprovider->model->index,
                     qprovider->index);
         }
-        if (kprovider != NULL && kprovider->network != NULL) {
-            fprintf(f, ",keys_provider=%d:%d", kprovider->network->index,
+        if (kprovider != NULL && kprovider->model != NULL) {
+            fprintf(f, ",keys_provider=%d:%d", kprovider->model->index,
                     kprovider->index);
         }
-        if (vprovider != NULL && vprovider->network != NULL) {
-            fprintf(f, ",values_provider=%d:%d", vprovider->network->index,
+        if (vprovider != NULL && vprovider->model != NULL) {
+            fprintf(f, ",values_provider=%d:%d", vprovider->model->index,
                     vprovider->index);
         }
     } else if (OperatorLayer == layer->type) {
@@ -1153,9 +1153,9 @@ int writeLayerDefinition(PSLayer *layer, FILE *f) {
                     PSErrNN(NULL, NULL, layer, "provider[%d] is null", i);
                     return 0;
                 }
-                if (provider->network == NULL) return 0;
+                if (provider->model == NULL) return 0;
                 fprintf(
-                    f, "%s%d:%d", (i > 0 ? "-" : ""), provider->network->index,
+                    f, "%s%d:%d", (i > 0 ? "-" : ""), provider->model->index,
                     provider->index
                 );
             }
@@ -1218,15 +1218,15 @@ int writeLayerParameters(PSLayer *layer, int opts, FILE *f, const char *func) {
     return 1;
 }
 
-static int loadLegacyLayerDefinitions(PSNeuralNetwork *network, char *vers,
-                                      int netsize, int empty,
+static int loadLegacyLayerDefinitions(PSModel *model, char *vers,
+                                      int nlayers, int empty,
                                       const char *filepath, FILE *f)
 {
     int min_argc = 1, i, ok;
     if (PSCompareVersion(vers, "0.2.2") == 1) min_argc = DATA_LAYER_MIN_ARGC;
     else if (PSCompareVersion(vers, "0.0.0") == 1) min_argc = 2;
     PSLayer *layer = NULL;
-    for (i = 0; i < netsize; i++) {
+    for (i = 0; i < nlayers; i++) {
         int lsize = 0;
         int lflags = 0;
         PSFloat dropout = 0.0;
@@ -1294,7 +1294,7 @@ static int loadLegacyLayerDefinitions(PSNeuralNetwork *network, char *vers,
             if (!ok) return 0;
         }
         if (!empty) {
-            layer = network->layers[i];
+            layer = model->layers[i];
             if (layer->size != lsize) {
                 loadErr(filepath, NULL, "Layer %d size %d differs from %d!",
                     i, layer->size, lsize);
@@ -1413,9 +1413,9 @@ static int loadLegacyLayerDefinitions(PSNeuralNetwork *network, char *vers,
                     }
                 }
             } else {
-                if (network->size == 0 && (lflags & FLAG_ONEHOT) && argc > 0) {
+                if (model->size == 0 && (lflags & FLAG_ONEHOT) && argc > 0) {
                     lsize = args[0];
-                    network->flags |= FLAG_ONEHOT;
+                    model->flags |= FLAG_ONEHOT;
                 } else if (argc > 0) {
                     /*loadErr(filepath, f, "Unknown arguments");
                     return 0;*/
@@ -1430,7 +1430,7 @@ static int loadLegacyLayerDefinitions(PSNeuralNetwork *network, char *vers,
                     }
                 }
             }
-            layer = PSAddLayer(network, ltype, lsize, &ldef);
+            layer = PSAddLayer(model, ltype, lsize, &ldef);
             if (layer == NULL) {
                 PSErr(__func__, "Could not create layer %d", i);
                 return 0;
@@ -1439,7 +1439,7 @@ static int loadLegacyLayerDefinitions(PSNeuralNetwork *network, char *vers,
             if (dropout > 0) {
                 PSLayerDef dropout_ldef = {.dropout = dropout};
                 PSLayer *dropout_layer = PSAddLayer(
-                    network, Dropout, lsize, &dropout_ldef
+                    model, Dropout, lsize, &dropout_ldef
                 );
                 if (dropout_layer == NULL) {
                     PSErr(__func__, "Could not create dropout layer %d", i + 1);
@@ -1451,14 +1451,14 @@ static int loadLegacyLayerDefinitions(PSNeuralNetwork *network, char *vers,
     return 1;
 }
 
-static int loadLayerDefinitions(PSNeuralNetwork *network, char *vers,
-                                int netsize, int empty,
-                                PSNeuralNetwork *parent,
+static int loadLayerDefinitions(PSModel *model, char *vers,
+                                int nlayers, int empty,
+                                PSModel *parent,
                                 const char *filepath, FILE *f)
 {
     UNUSED(vers);
     PSLayer *layer = NULL;
-    for (int i = 0; i < netsize; i++) {
+    for (int i = 0; i < nlayers; i++) {
         int idx = 0, lsize = 0, lflags = 0, type = 0;
         PSLayerType ltype = FullyConnected;
         PSLayer *providers[PS_MAX_PROVIDERS];
@@ -1478,9 +1478,9 @@ static int loadLayerDefinitions(PSNeuralNetwork *network, char *vers,
             return 0;
         }
         if (!empty) {
-            layer = network->layers[i];
+            layer = model->layers[i];
             if (layer == NULL) {
-                loadErr(filepath, NULL, "Network has no layer at index %d", i);
+                loadErr(filepath, NULL, "model has no layer at index %d", i);
                 return 0;
             }
             if (layer->size != lsize) {
@@ -1661,7 +1661,7 @@ static int loadLayerDefinitions(PSNeuralNetwork *network, char *vers,
                     loadErr(filepath, f, "Invalid query_provider value");
                     return 0;
                 }
-                PSLayer *provider = layerByIndex(network, parent, nidx, lidx);
+                PSLayer *provider = layerByIndex(model, parent, nidx, lidx);
                 if (provider == NULL)
                     provider = PSMakeLayerPlaceholder(lidx, nidx);
                 if (provider == NULL) {
@@ -1677,7 +1677,7 @@ static int loadLayerDefinitions(PSNeuralNetwork *network, char *vers,
                     loadErr(filepath, f, "Invalid keys_provider value");
                     return 0;
                 }
-                PSLayer *provider = layerByIndex(network, parent, nidx, lidx);
+                PSLayer *provider = layerByIndex(model, parent, nidx, lidx);
                 if (provider == NULL)
                     provider = PSMakeLayerPlaceholder(lidx, nidx);
                 if (provider == NULL) {
@@ -1693,7 +1693,7 @@ static int loadLayerDefinitions(PSNeuralNetwork *network, char *vers,
                     loadErr(filepath, f, "Invalid values_provider value");
                     return 0;
                 }
-                PSLayer *provider = layerByIndex(network, parent, nidx, lidx);
+                PSLayer *provider = layerByIndex(model, parent, nidx, lidx);
                 if (provider == NULL)
                     provider = PSMakeLayerPlaceholder(lidx, nidx);
                 if (provider == NULL) {
@@ -1740,7 +1740,7 @@ static int loadLayerDefinitions(PSNeuralNetwork *network, char *vers,
                         loadErr(filepath, f, "invalid provider[%d]", j);
                         return 0;
                     }
-                    PSLayer *provider = layerByIndex(network, parent,nidx,lidx);
+                    PSLayer *provider = layerByIndex(model, parent,nidx,lidx);
                     /*if (provider == NULL)
                         provider = PSMakeLayerPlaceholder(lidx, nidx);*/
                     if (provider == NULL) {
@@ -1765,7 +1765,7 @@ static int loadLayerDefinitions(PSNeuralNetwork *network, char *vers,
             continue;
         }
         ltype = (PSLayerType) type;
-        layer = PSAddLayer(network, ltype, lsize, &ldef);
+        layer = PSAddLayer(model, ltype, lsize, &ldef);
         if (layer == NULL) {
             PSErr(__func__, "Could not create layer %d", i);
             return 0;
@@ -1774,15 +1774,15 @@ static int loadLayerDefinitions(PSNeuralNetwork *network, char *vers,
     return 1;
 }
 
-static int loadLegacyLayersParameters(PSNeuralNetwork *network,
+static int loadLegacyLayersParameters(PSModel *model,
                                       const char *filepath,
                                       FILE *f, int verbose)
 {
     int i;
     char *lstm_fmt = PSFLOAT_FORMAT "," PSFLOAT_FORMAT "," PSFLOAT_FORMAT
         "," PSFLOAT_FORMAT "|";
-    for (i = 1; i < network->size; i++) {
-        PSLayer *layer = network->layers[i];
+    for (i = 1; i < model->size; i++) {
+        PSLayer *layer = model->layers[i];
         int lsize = 0;
         if (layer->type == Convolutional) {
             lsize = layer->output_depth;
@@ -2043,29 +2043,29 @@ static int loadLayerParameters(PSLayer *layer, const char *filepath, FILE *f,
     return ok;
 }
 
-static int loadLayersParameters(PSNeuralNetwork *network,
+static int loadLayersParameters(PSModel *model,
                                 const char *filepath,
                                 FILE *f, int verbose)
 {
-    for (int i = 1; i < network->size; i++) {
-        PSLayer *layer = network->layers[i];
+    for (int i = 1; i < model->size; i++) {
+        PSLayer *layer = model->layers[i];
         if (layer->type == Pooling || layer->type == Dropout) continue;
         if (!loadLayerParameters(layer, filepath, f, 1, verbose)) return 0;
     }
     return 1;
 }
 
-static int loadLegacyGradients(PSNeuralNetwork *network, const char *filepath,
+static int loadLegacyGradients(PSModel *model, const char *filepath,
                                FILE *f, PSGradient **gradients, int i)
 {
     char *lstm_fmt = PSFLOAT_FORMAT "," PSFLOAT_FORMAT "," PSFLOAT_FORMAT
         "," PSFLOAT_FORMAT "|";
     char sep[2];
     sep[0] = '\0';
-    for (int j = 1; j < network->size; j++) {
+    for (int j = 1; j < model->size; j++) {
         PSGradient *lgradients = gradients[j - 1];
         if (lgradients == NULL) continue;
-        PSLayer *layer = network->layers[j];
+        PSLayer *layer = model->layers[j];
         assert(layer != NULL);
         int lsize = 0, wsize = 0;
         if (layer->type == Pooling || layer->type == Dropout) continue;
@@ -2149,10 +2149,10 @@ static int loadLegacyGradients(PSNeuralNetwork *network, const char *filepath,
     return 1;
 }
 
-static int loadGradients(PSNeuralNetwork *network, const char *filepath,
+static int loadGradients(PSModel *model, const char *filepath,
                          FILE *f, PSGradient **gradients, int i)
 {
-    for (int j = 1; j < network->size; j++) {
+    for (int j = 1; j < model->size; j++) {
         int grad_idx = j - 1, gidx, bias_count, weight_count, ok, k;
         PSGradient *lgradients = gradients[grad_idx];
         if (lgradients == NULL) continue;
@@ -2310,7 +2310,7 @@ int PSSaveLayer(PSLayer *layer, const char *filepath, int opts) {
     return saved;
 }
 
-int loadModelDefinition(PSNeuralNetwork *network, FILE *f, char *vers) {
+int loadModelDefinition(PSModel *model, FILE *f, char *vers) {
     int ok = 1;
     int idx = 0, val = 0;
     int epochs = 0, batch_count = 0, elements = 0, status = STATUS_UNTRAINED,
@@ -2322,8 +2322,8 @@ int loadModelDefinition(PSNeuralNetwork *network, FILE *f, char *vers) {
     sep[0] = '\0';
     while (scanFile(f, "%d%1[,\n]", 2, NULL, &val, sep)) {
         switch (idx++) {
-            case 0:  network->flags |= val; break;
-            case 1:  network->loss = getLossFunctionAtIndex(val); break;
+            case 0:  model->flags |= val; break;
+            case 1:  model->loss = getLossFunctionAtIndex(val); break;
             case 2:  epochs = val; break;
             case 3:  batch_count = val; break;
             case 4:  status = val; break;
@@ -2339,34 +2339,34 @@ int loadModelDefinition(PSNeuralNetwork *network, FILE *f, char *vers) {
     }
     UNUSED(is_built);
     if (rnn_mode != NonRecurrent)
-        PSSetRecurrentNetworkMode(network, rnn_mode);
+        PSSetRecurrentNetworkMode(model, rnn_mode);
     if (max_sequence_len > 0 || sequence_end >= 0) {
-        network->sequence_settings.max_length = max_sequence_len;
-        network->sequence_settings.end = sequence_end;
+        model->sequence_settings.max_length = max_sequence_len;
+        model->sequence_settings.end = sequence_end;
     }
-    network->status = status;
+    model->status = status;
     if (status != STATUS_UNTRAINED) {
-        if (network->training == NULL) {
-            network->training = malloc(sizeof(PSTrainingInfo));
-            network->training->requested_action = ACTION_NONE;
-            network->training->debug_dump_to = NULL;
+        if (model->training == NULL) {
+            model->training = malloc(sizeof(PSTrainingInfo));
+            model->training->requested_action = ACTION_NONE;
+            model->training->debug_dump_to = NULL;
         }
-        network->training->current_epoch = epochs;
-        network->training->current_batch = batch_count;
-        network->training->current_element = elements;
-        network->training->batch_size = batch_size;
+        model->training->current_epoch = epochs;
+        model->training->current_batch = batch_count;
+        model->training->current_element = elements;
+        model->training->batch_size = batch_size;
     }
     if (PSCompareVersion(vers, "0.4.0") >= 0) {
-        PSEnableAcceleration(&(network->acceleration), acceleration);
-        if (acceleration != network->acceleration)
+        PSEnableAcceleration(&(model->acceleration), acceleration);
+        if (acceleration != model->acceleration)
             PSWarn("Could not enable all saved accelerations");
-    } else if (network->flags & FLAG_ACCEL_DISABLED)
-        network->acceleration = 0;
+    } else if (model->flags & FLAG_ACCEL_DISABLED)
+        model->acceleration = 0;
     return ok;
 }
 
-int loadNetworkTrainingData(PSNeuralNetwork *network, FILE *f,
-                            const char* filepath, int legacy_model)
+int loadModelTrainingData(PSModel *model, FILE *f, const char* filepath,
+                          int legacy_model)
 {
     int ok = 1;
     if (scanFileNoMatch(f, MODEL_TRAINING_DATA_SEP)) {
@@ -2377,20 +2377,20 @@ int loadNetworkTrainingData(PSNeuralNetwork *network, FILE *f,
             loadErr(filepath, f, "Invalid or missing 'memory_gradients'");
             goto final;
         }
-        ok = initTrainingContext(network, NULL, numgradients);
+        ok = initTrainingContext(model, NULL, numgradients);
         if (!ok) {
-            PSErr(__func__, "Failed to initialize network training data");
+            PSErr(__func__, "Failed to initialize model training data");
             goto final;
         }
-        PSTrainingOptions *topts = PSGetNetworkTrainingOptions(network);
+        PSTrainingOptions *topts = PSGetModelTrainingOptions(model);
         if (topts == NULL) {
-            PSErr(__func__, "Invalid network training data (missing options)");
+            PSErr(__func__, "Invalid model training data (missing options)");
             goto final;
         }
         PSGradient **memory_gradients[PS_MAX_MEMORY_GRADIENTS] = {0};
         if (numgradients > 0) {
             int foundgradients = PSGetTrainingMemoryGradients(
-                network, memory_gradients
+                model, memory_gradients
             );
             ok = (foundgradients == numgradients);
             if (ok) {
@@ -2399,7 +2399,7 @@ int loadNetworkTrainingData(PSNeuralNetwork *network, FILE *f,
             }
             if (!ok) {
                 loadErr(
-                    filepath, NULL, "invalid network training data (missing "
+                    filepath, NULL, "invalid model training data (missing "
                     "gradients)"
                 );
                 goto final;
@@ -2422,9 +2422,9 @@ int loadNetworkTrainingData(PSNeuralNetwork *network, FILE *f,
                 goto final;
             }
             if (legacy_model)
-                ok = loadLegacyGradients(network, filepath, f, memg, i);
+                ok = loadLegacyGradients(model, filepath, f, memg, i);
             else
-                ok = loadGradients(network, filepath, f, memg, i);
+                ok = loadGradients(model, filepath, f, memg, i);
             if (!ok) {
                 loadErr(
                     filepath, NULL, "failed to load memory gradients %s", i
@@ -2437,98 +2437,102 @@ final:
     return ok;
 }
 
-int loadLegacyModel(PSNeuralNetwork *network, FILE *f, const char* filepath,
+int loadLegacyModel(PSModel *model, FILE *f, const char* filepath,
                     char *vers, int has_model_def, int empty)
 {
-    int netsize, ok = 1;
+    int nlayers, ok = 1;
     int verbose = PSLogLevel == PSLOGLEVEL_DEBUG;
     if (has_model_def) {
-        ok = loadModelDefinition(network, f, vers);
+        ok = loadModelDefinition(model, f, vers);
         if (!ok) return 0;
     }
-    ok = scanFile(f, "%d:", 1, NULL, &netsize);
+    ok = scanFile(f, "%d:", 1, NULL, &nlayers);
     if (!ok) {
-        loadErr(filepath, f, "Missing network size definition");
+        loadErr(filepath, f, "Missing model size definition");
         goto final;
     }
-    if (netsize == 0) {
-        loadErr(filepath, NULL, "Empty network model!");
+    if (nlayers == 0) {
+        loadErr(filepath, NULL, "Empty model model!");
         ok = 0;
         goto final;
     }
-    if (!empty && network->size != netsize) {
-        loadErr(filepath, NULL, "Network size differs!");
+    if (!empty && model->size != nlayers) {
+        loadErr(filepath, NULL, "model size differs!");
         ok = 0;
         goto final;
     }
-    ok = loadLegacyLayerDefinitions(network, vers, netsize, empty, filepath,f);
+    ok = loadLegacyLayerDefinitions(model, vers, nlayers, empty, filepath,f);
     if (!ok) goto final;
-    ok = loadLegacyLayersParameters(network, filepath, f, verbose);
+    ok = loadLegacyLayersParameters(model, filepath, f, verbose);
     if (verbose) printf("\n");
     if (!ok) goto final;
     /* Check for traing data */
-    ok = loadNetworkTrainingData(network, f, filepath, 1);
+    ok = loadModelTrainingData(model, f, filepath, 1);
     if (!ok) goto final;
-    PSBuildNetwork(network);
+    PSModelBuild(model);
 final:
     return ok;
 }
 
-int readNetwork(PSNeuralNetwork *network, FILE *f, const char* filepath,
-                char *vers, int empty, PSNeuralNetwork *parent)
+int readModel(PSModel *model, FILE *f, const char* filepath,
+              char *vers, int empty, PSModel *parent)
 {
-    int ok = 1, netsize = 0;
+    int ok = 1, nlayers = 0;
     int verbose = PSLogLevel == PSLOGLEVEL_DEBUG;
-    ok = loadModelDefinition(network, f, vers);
-    ok = scanFile(f, "layers:%d\n", 1, NULL, &netsize);
+    ok = loadModelDefinition(model, f, vers);
+    ok = scanFile(f, "layers:%d\n", 1, NULL, &nlayers);
     if (!ok) {
-        loadErr(filepath, f, "Missing network size definition");
+        loadErr(filepath, f, "Missing model size definition");
         goto final;
     }
-    if (netsize == 0) {
-        loadErr(filepath, NULL, "Empty network model!");
+    if (nlayers == 0) {
+        loadErr(filepath, NULL, "Empty model model!");
         ok = 0;
         goto final;
     }
-    if (!empty && network->size != netsize) {
-        loadErr(filepath, NULL, "Network size differs!");
+    if (!empty && model->size != nlayers) {
+        loadErr(filepath, NULL, "Model size differs!");
         ok = 0;
         goto final;
     }
-    ok = loadLayerDefinitions(network, vers, netsize, empty, parent,
+    ok = loadLayerDefinitions(model, vers, nlayers, empty, parent,
                               filepath, f);
     if (!ok) goto final;
-    ok = loadLayersParameters(network, filepath, f, verbose);
+    ok = loadLayersParameters(model, filepath, f, verbose);
     if (verbose) printf("\n");
     if (!ok) goto final;
-    PSNeuralNetworkLink link = {0};
-    PSNeuralNetworkLink *prev_link = NULL;
+    PSModelLink link = {0};
+    PSModelLink *prev_link = NULL;
+    char *link_name = "model_link";
+    if (PSCompareVersion(vers, "0.9.3") < 0) link_name = "network_link";
+    char link_prop[255] = {0};
+    snprintf(link_prop, 255, "%s:", link_name);
     if (parent != NULL && empty) {
         link.layer = NULL;
         link.previous_layer = NULL;
-        if (scanFileNoMatch(f, "network_link:")) {
+        if (scanFileNoMatch(f, link_prop)) {
             int layer_idx = -1, prev_net_idx = -1, prev_layer_idx = -1;
             ok = scanFile(f, "%d,%d,%d\n", 3, NULL, &layer_idx, &prev_net_idx,
                           &prev_layer_idx);
             if (!ok) {
-                loadErr(filepath, f, "Invalid network_link definition");
+                loadErr(filepath, f, "Invalid %d definition", link_name);
                 goto final;
             }
-            ok = layer_idx >= 0 || layer_idx < network->size;
+            ok = layer_idx >= 0 || layer_idx < model->size;
             if (!ok) {
                 loadErr(filepath, f, "Invalid layer index: %d", layer_idx);
                 goto final;
             }
-            link.layer = network->layers[layer_idx];
+            link.layer = model->layers[layer_idx];
             ok = link.layer != NULL;
             if (!ok) {
                 loadErr(filepath, f, "Invalid layer at %d", layer_idx);
                 goto final;
             }
-            PSNeuralNetwork *prevn = PSGetNetworkAtIndex(parent, prev_net_idx);
+            PSModel *prevn = PSGetModelAtIndex(parent, prev_net_idx);
             ok = prevn != NULL;
             if (!ok) {
-                loadErr(filepath, f, "No previous network at index %d",
+                loadErr(filepath, f, "No previous model at index %d",
                         prev_net_idx);
                 goto final;
             }
@@ -2545,24 +2549,24 @@ int readNetwork(PSNeuralNetwork *network, FILE *f, const char* filepath,
             }
             prev_link = &link;
         }
-        ok = PSAddNetwork(parent, network, prev_link);
+        ok = PSAddModel(parent, model, prev_link);
         if (!ok) {
-            loadErr(filepath, NULL, "failed to add network");
+            loadErr(filepath, NULL, "failed to add model");
             goto final;
         }
     }
     if (scanFileNoMatch(f, "sequence_start:")) {
         int seqstartlen = 0;
         PSFloat *seqstart = readSerializedFloatArray(
-            f, ",\n", &seqstartlen, 0, network->input_size
+            f, ",\n", &seqstartlen, 0, model->input_size
         );
-        ok = seqstart != NULL && (uint32_t)seqstartlen == network->input_size;
+        ok = seqstart != NULL && (uint32_t)seqstartlen == model->input_size;
         if (!ok) {
             free(seqstart);
             loadErr(filepath, f, "Invalid sequence_start");
             goto final;
         }
-        if (!PSSetSequenceStart(network, seqstart, seqstartlen)) {
+        if (!PSSetSequenceStart(model, seqstart, seqstartlen)) {
             ok = 0;
             free(seqstart);
             loadErr(filepath, NULL, "Failed to set sequence start");
@@ -2570,23 +2574,23 @@ int readNetwork(PSNeuralNetwork *network, FILE *f, const char* filepath,
         }
     }
     /* Check for training data */
-    ok = loadNetworkTrainingData(network, f, filepath, 0);
+    ok = loadModelTrainingData(model, f, filepath, 0);
     if (!ok) goto final;
-    ok = PSBuildNetwork(network);
+    ok = PSModelBuild(model);
 final:
     return ok;
 }
 
-int PSLoadNetwork(PSNeuralNetwork *network, const char* filepath) {
-    if (network == NULL) return 0;
+int PSModelLoad(PSModel *model, const char* filepath) {
+    if (model == NULL) return 0;
     FILE *f = fopen(filepath, "r");
-    PSInfo("Loading network from %s", filepath);
+    PSInfo("Loading model from %s", filepath);
     if (f == NULL) {
         PSErr(__func__, "Could not open '%s'", filepath);
         return 0;
     }
     int verbose = PSLogLevel == PSLOGLEVEL_DEBUG;
-    int empty = network->size == 0;
+    int empty = model->size == 0;
     char vers[20] = "0.0.0";
     int v0 = 0, v1 = 0, v2 = 0;
     int ok = 1, has_model_def = 0, legacy_model = 0;
@@ -2623,7 +2627,7 @@ int PSLoadNetwork(PSNeuralNetwork *network, const char* filepath) {
     }
     if (!legacy_model) legacy_model = (PSCompareVersion(vers, "0.9.0") < 0);
     if (legacy_model) {
-        ok = loadLegacyModel(network,f,filepath,vers,has_model_def,empty);
+        ok = loadLegacyModel(model,f,filepath,vers,has_model_def,empty);
         goto final;
     }
     ok = scanFileNoMatch(f, "model:");
@@ -2631,97 +2635,97 @@ int PSLoadNetwork(PSNeuralNetwork *network, const char* filepath) {
         loadErr(filepath, f, "Missing `model:` definition");
         goto final;
     }
-    ok = readNetwork(network, f, filepath, vers, empty, NULL);
+    ok = readModel(model, f, filepath, vers, empty, NULL);
     if (!ok) goto final;
-    int network_count = 1, loaded_networks = 1;
-    if (!empty) network_count = PSGetNetworkChainLength(network);
-    PSNeuralNetwork *current = network;
+    int num_models = 1, loaded_models = 1;
+    if (!empty) num_models = PSModelChainLength(model);
+    PSModel *current = model;
     while (scanFileNoMatch(f, "model:")) {
         if (!empty) {
-            current = network->next;
+            current = model->next;
             ok = (current != NULL);
             if (!ok) {
                 loadErr(
-                    filepath, f, "Non-empty model only has %d network(s), "
-                    "but model file still has networks to load",
-                    network_count
+                    filepath, f, "Non-empty model only has %d model(s), "
+                    "but model file still has models to load",
+                    num_models
                 );
                 goto final;
             }
         } else {
-            current = PSCreateNetwork(NULL);
+            current = PSModelCreate(NULL);
             ok = current != NULL;
             if (!ok) {
                 PSPrintMemoryErrorMsg();
                 goto final;
             }
         }
-        ok = readNetwork(current, f, filepath, vers, empty, network);
+        ok = readModel(current, f, filepath, vers, empty, model);
         if (!ok) {
-            if (empty) PSDeleteNetwork(current);
+            if (empty) PSModelDelete(current);
             goto final;
         }
-        loaded_networks++;
+        loaded_models++;
     }
 final:
     if (f != NULL) fclose(f);
     return ok;
 }
 
-static int writeNetwork(PSNeuralNetwork *network, FILE *f) {
+static int writeModel(PSModel *model, FILE *f) {
     int ok = 1, opts = 0, i;
     int current_epoch = 0, current_batch = 0, current_element = 0,
         batch_size = 0;
-    if (network->training != NULL) {
-        current_epoch = network->training->current_epoch;
-        current_batch = network->training->current_batch;
-        current_element = network->training->current_element;
-        batch_size = network->training->batch_size;
+    if (model->training != NULL) {
+        current_epoch = model->training->current_epoch;
+        current_batch = model->training->current_batch;
+        current_element = model->training->current_element;
+        batch_size = model->training->batch_size;
     }
-    PSRecurrentNetworkMode rnn_mode = network->rnn_mode;
-    int max_steps = network->sequence_settings.max_length;
-    int eos = network->sequence_settings.end;
-    int loss_function = getLossFunctionIndex(network->loss);
-    fprintf(f, "model:%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n", network->flags,
-            loss_function, current_epoch, current_batch, network->status,
+    PSRecurrentNetworkMode rnn_mode = model->rnn_mode;
+    int max_steps = model->sequence_settings.max_length;
+    int eos = model->sequence_settings.end;
+    int loss_function = getLossFunctionIndex(model->loss);
+    fprintf(f, "model:%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n", model->flags,
+            loss_function, current_epoch, current_batch, model->status,
             current_element, batch_size, (int) rnn_mode,
-            max_steps, eos, PSIsNetworkBuilt(network));
-    fprintf(f, "layers:%d\n", network->size);
-    for (i = 0; i < network->size; i++) {
-        PSLayer *layer = network->layers[i];
+            max_steps, eos, PSModelIsBuilt(model));
+    fprintf(f, "layers:%d\n", model->size);
+    for (i = 0; i < model->size; i++) {
+        PSLayer *layer = model->layers[i];
         if (!writeLayerDefinition(layer, f)) return 0;
     }
-    for (i = 1; i < network->size; i++) {
-        PSLayer *layer = network->layers[i];
+    for (i = 1; i < model->size; i++) {
+        PSLayer *layer = model->layers[i];
         PSLayerType ltype = layer->type;
         if (Pooling == ltype || layer->type == Dropout) continue;
         if (!writeLayerParameters(layer, opts, f, __func__)) return 0;
     }
-    if (network->previous != NULL && network->previous_network_link != NULL) {
-        PSNeuralNetworkLink *link = network->previous_network_link;
+    if (model->previous != NULL && model->previous_model_link != NULL) {
+        PSModelLink *link = model->previous_model_link;
         if (link->layer == NULL || link->previous_layer == NULL ||
-            link->layer->network == NULL ||
-            link->previous_layer->network == NULL ||
-            link->layer->network != network)
+            link->layer->model == NULL ||
+            link->previous_layer->model == NULL ||
+            link->layer->model != model)
         {
-            PSErr(NULL, "invalid previous_network_link for network %d",
-                  network->index);
+            PSErr(NULL, "invalid previous_model_link for model %d",
+                  model->index);
             return 0;
         }
-        fprintf(f, "network_link:%d,%d,%d\n",
-                link->layer->index, link->previous_layer->network->index,
+        fprintf(f, "model_link:%d,%d,%d\n",
+                link->layer->index, link->previous_layer->model->index,
                 link->previous_layer->index);
     }
-    if (network->sequence_settings.start != NULL) {
+    if (model->sequence_settings.start != NULL) {
         fprintf(f, "sequence_start:");
-        ok = writeSerializedFloatArray(f, network->input_size, ",", 0,
-                                       network->sequence_settings.start);
+        ok = writeSerializedFloatArray(f, model->input_size, ",", 0,
+                                       model->sequence_settings.start);
         if (!ok) return 0;
         fprintf(f, "\n");
     }
-    PSTrainingOptions *topts = PSGetNetworkTrainingOptions(network);
+    PSTrainingOptions *topts = PSGetModelTrainingOptions(model);
     PSGradient **memory_gradients[PS_MAX_MEMORY_GRADIENTS] = {0};
-    int numgradients = PSGetTrainingMemoryGradients(network, memory_gradients);
+    int numgradients = PSGetTrainingMemoryGradients(model, memory_gradients);
     if (topts != NULL || numgradients > 0) {
         fprintf(f, MODEL_TRAINING_DATA_SEP);
         fprintf(f, "memory_gradients:%d\n", numgradients);
@@ -2758,19 +2762,19 @@ static int writeNetwork(PSNeuralNetwork *network, FILE *f) {
                 return 0;
             }
             fprintf(f, "memory_gradients[%d]:\n", i);
-            if (!writeGradients(network, memg, opts, f)) return 0;
+            if (!writeGradients(model, memg, opts, f)) return 0;
         }
     }
     return 1;
 }
 
-int PSSaveNetwork(PSNeuralNetwork *network, const char* filepath) {
-    if (network->size == 0) {
-        PSErr(__func__, "Empty network!");
+int PSModelSave(PSModel *model, const char* filepath) {
+    if (model->size == 0) {
+        PSErr(__func__, "Empty model!");
         return 0;
     }
     FILE *f = fopen(filepath, "w");
-    PSInfo("Saving network to %s", filepath);
+    PSInfo("Saving model to %s", filepath);
     if (f == NULL) {
         PSErr(__func__, "Cannot open %s for writing!", filepath);
         return 0;
@@ -2798,10 +2802,10 @@ int PSSaveNetwork(PSNeuralNetwork *network, const char* filepath) {
         acf_available, sysinfo.sysname, sysinfo.release, sysinfo.machine,
         PSGlobalFlags, PSGlobalAcceleration, time(NULL)
     );
-    while (network != NULL) {
-        ok = writeNetwork(network, f);
+    while (model != NULL) {
+        ok = writeModel(model, f);
         if (!ok) goto final;
-        network = network->next;
+        model = model->next;
     }
 final:
     fclose(f);

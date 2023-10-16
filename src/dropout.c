@@ -100,7 +100,7 @@ int PSResizeDropoutMask(PSLayer *layer, uint32_t seqlen, uint32_t prevlen) {
         free(data->dropout_mask);
         data->dropout_mask = NULL;
         PSPrintMemoryErrorMsg();
-        PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
+        PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
         return 0;
     }
     int diff = seqlen - prevlen;
@@ -185,10 +185,10 @@ void PSDeleteDropoutLayer(PSLayer *layer) {
     layer->extra = NULL;
 }
 
-int PSInitDropoutLayer(PSNeuralNetwork *network, PSLayer *layer,
+int PSInitDropoutLayer(PSModel *model, PSLayer *layer,
                        PSLayerDef *layer_def)
 {
-    UNUSED(network);
+    UNUSED(model);
     if (layer->index == 0) {
         PSErr(NULL, "Dropout layer cannot be the first layer");
         return 0;
@@ -263,7 +263,7 @@ int PSInitDropoutLayer(PSNeuralNetwork *network, PSLayer *layer,
 
 int PSDropoutForward(PSLayer *layer, ...) {
     if (!checkLayerForForward(layer)) return 0;
-    PSNeuralNetwork *net = layer->network;
+    PSModel *model = layer->model;
     int success = 1, t = 0, seqlen = 1, is_recurrent = PSIsRecurrent(layer),
         handles_seq = PSHandleSequenceAtOnce(layer);
     PSLayer *previous = PSGetPreviousLayer(layer);
@@ -286,10 +286,10 @@ int PSDropoutForward(PSLayer *layer, ...) {
         return 0;
     }
     PSFloat dropout = PSGetDropout(layer);
-    PSMathOpts mopts = {.acceleration = layer->network->acceleration};
+    PSMathOpts mopts = {.acceleration = layer->model->acceleration};
     uint64_t len = layer->size;
     if (handles_seq && seqlen > 1) len *= seqlen;
-    if (net->status != STATUS_TRAINING) {
+    if (PSModelGetStatus(model) != STATUS_TRAINING) {
         PSVectorCopy(outputs, inputs, len);
         PSMultiplyVectorScalar(outputs, dropout, outputs, len, &mopts);
         return 1;
@@ -336,7 +336,7 @@ int PSDropoutBackprop(PSLayer *layer, PSLayer *previous_layer,
     uint64_t len = layer->size;
     if (handles_seq && seqlen > 1) len *= seqlen;
     PSMathOpts mopts = {
-        .acceleration = layer->network->acceleration,
+        .acceleration = layer->model->acceleration,
         .store_mode = PS_STORE_MODE_ADD
     };
     PSMultiplyVectors(

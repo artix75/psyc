@@ -56,7 +56,7 @@ int main(int argc, char** argv) {
                                   "../../resources/t10k-labels-idx1-ubyte.gz",
                                   &test_data);
     UNUSED(testlen);
-    PSNeuralNetwork *network = PSCreateNetwork("Profiling Network");
+    PSModel *model = PSModelCreate("Profiling Model");
 
     PSLayerDef cdef = {
         .output_depth = FEATURES_COUNT, .filter_width = REGIONS_SIZE,
@@ -65,59 +65,59 @@ int main(int argc, char** argv) {
     PSLayerDef pdef = {
         .filter_width = REGIONS_SIZE, .filter_height = REGIONS_SIZE
     };
-    PSAddLayer(network, FullyConnected, INPUT_SIZE, NULL);
-    PSAddConvolutionalLayer(network, &cdef);
-    PSAddPoolingLayer(network, &pdef);
-    PSAddLayer(network, FullyConnected, 30, NULL);
-    /* PSAddLayer(network, FullyConnected, 10, NULL); */
-    PSAddLayer(network, SoftMax, 10, NULL);
+    PSAddLayer(model, FullyConnected, INPUT_SIZE, NULL);
+    PSAddConvolutionalLayer(model, &cdef);
+    PSAddPoolingLayer(model, &pdef);
+    PSAddLayer(model, FullyConnected, 30, NULL);
+    /* PSAddLayer(model, FullyConnected, 10, NULL); */
+    PSAddLayer(model, SoftMax, 10, NULL);
 
-    int element_size = network->input_size + network->output_size;
+    int element_size = model->input_size + model->output_size;
     datalen = element_size *TRAIN_DATASET_LEN;
     eval_data = train_data + datalen;
     int eval_datalen = element_size *EVAL_DATASET_LEN;
 
-    PSTrain(network, train_data, datalen, eval_data, eval_datalen, PSTRAINOPT(
+    PSTrain(model, train_data, datalen, eval_data, eval_datalen, PSTRAINOPT(
         .epochs = EPOCHS,
         .learning_rate = 1.5,
         .batch_size = 1
     ));
 
-    PSTest(network, test_data, datalen, NULL);
+    PSTest(model, test_data, datalen, NULL);
 
-    PSDeleteNetwork(network);
+    PSModelDelete(model);
     free(train_data);
     free(test_data);
 
-    network = PSCreateNetwork("Profiling RNN");
-    network->flags |= FLAG_ONEHOT;
-    PSAddLayer(network, FullyConnected, RNN_INPUT_SIZE, NULL);
-    PSAddLayer(network, Recurrent, RNN_HIDDEN_SIZE, NULL);
-    PSAddLayer(network, SoftMax, RNN_INPUT_SIZE, NULL);
-    network->layers[network->size - 1]->flags |= FLAG_ONEHOT;
+    model = PSModelCreate("Profiling RNN");
+    model->flags |= FLAG_ONEHOT;
+    PSAddLayer(model, FullyConnected, RNN_INPUT_SIZE, NULL);
+    PSAddLayer(model, Recurrent, RNN_HIDDEN_SIZE, NULL);
+    PSAddLayer(model, SoftMax, RNN_INPUT_SIZE, NULL);
+    model->layers[model->size - 1]->flags |= FLAG_ONEHOT;
 
-    PSTrain(network, rnn_train_data, 10, NULL, 0, PSTRAINOPT(
+    PSTrain(model, rnn_train_data, 10, NULL, 0, PSTRAINOPT(
         .epochs = EPOCHS,
         .learning_rate = RNN_LEARNING_RATE,
         .batch_size = 1
     ));
 
-    PSDeleteNetwork(network);
+    PSModelDelete(model);
 
-    network = PSCreateNetwork("Profiling LSTM");
-    network->flags |= FLAG_ONEHOT;
-    PSAddLayer(network, FullyConnected, RNN_INPUT_SIZE, NULL);
-    PSAddLayer(network, LSTM, RNN_HIDDEN_SIZE, NULL);
-    PSAddLayer(network, SoftMax, RNN_INPUT_SIZE, NULL);
-    network->layers[network->size - 1]->flags |= FLAG_ONEHOT;
+    model = PSModelCreate("Profiling LSTM");
+    model->flags |= FLAG_ONEHOT;
+    PSAddLayer(model, FullyConnected, RNN_INPUT_SIZE, NULL);
+    PSAddLayer(model, LSTM, RNN_HIDDEN_SIZE, NULL);
+    PSAddLayer(model, SoftMax, RNN_INPUT_SIZE, NULL);
+    model->layers[model->size - 1]->flags |= FLAG_ONEHOT;
 
-    PSTrain(network, rnn_train_data, 10, NULL, 0, PSTRAINOPT(
+    PSTrain(model, rnn_train_data, 10, NULL, 0, PSTRAINOPT(
         .epochs = EPOCHS,
         .learning_rate = RNN_LEARNING_RATE,
         .batch_size = 1
     ));
 
-    PSDeleteNetwork(network);
+    PSModelDelete(model);
 
     return 0;
 }

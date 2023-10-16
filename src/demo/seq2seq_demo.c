@@ -319,14 +319,14 @@ int main(int argc, char **argv) {
     }
 
     PSLayerDef common_ldef = {.init_range = INIT_RANGE};
-    PSNeuralNetwork *encoder = NULL, *decoder = NULL;
+    PSModel *encoder = NULL, *decoder = NULL;
     PSLayer *encoder_rnn = NULL, *decoder_rnn = NULL,
             *decoder_embed = NULL, *decoder_attn = NULL;
     int do_train = 1;
 
     if (load_model_file == NULL) {
         /* Encoder */
-        encoder = PSCreateNetwork("Encoder");
+        encoder = PSModelCreate("Encoder");
         success = encoder != NULL;
         if (!success) goto final;
         PSLayer *l = PSAddLayer(encoder, FullyConnected, input_size, PSLDEF(
@@ -344,7 +344,7 @@ int main(int argc, char **argv) {
         encoder_rnn = l;
 
         /* Decoder */
-        decoder = PSCreateNetwork("Decoder");
+        decoder = PSModelCreate("Decoder");
         success = decoder != NULL;
         if (!success) goto final;
         l = PSAddLayer(decoder, FullyConnected, output_size, PSLDEF(
@@ -390,17 +390,17 @@ int main(int argc, char **argv) {
         decoder->sequence_settings.end = 0;
 
 
-        PSNeuralNetworkLink link = {
+        PSModelLink link = {
             .layer = decoder_rnn,
             .previous_layer = encoder_rnn
         };
         if (link2attn) link.layer = decoder_attn;
-        success = PSAddNetwork(encoder, decoder, &link);
+        success = PSAddModel(encoder, decoder, &link);
     } else {
-        encoder = PSCreateNetwork("Encoder");
+        encoder = PSModelCreate("Encoder");
         success = encoder != NULL;
         if (!success) goto final;
-        success = PSLoadNetwork(encoder, load_model_file);
+        success = PSModelLoad(encoder, load_model_file);
         if (success) success = (encoder != NULL && encoder->layers != NULL);
         if (!success) goto final;
         decoder = encoder->next;
@@ -416,15 +416,15 @@ int main(int argc, char **argv) {
         if (train_mul_table && table == NULL)
             table = getMultiplicationTable(MULTABLE_NROWS);
     }
-    if (!PSBuildNetwork(encoder)) {
+    if (!PSModelBuild(encoder)) {
         success = 0;
         goto final;
     }
-    if (!PSBuildNetwork(decoder)) {
+    if (!PSModelBuild(decoder)) {
         success = 0;
         goto final;
     }
-    PSPrintNetworkInfo(encoder);
+    PSModelPrintInfo(encoder);
     PSTrainingOptions opts = {
         .flags = TRAINING_FLAG_TEACHER_FORCING | TRAINING_FLAG_SEQ2SEQ |
                  TRAINING_NO_SHUFFLE,
@@ -436,8 +436,8 @@ int main(int argc, char **argv) {
     };
     if (do_train) {
         PSTrain(encoder, training_data, data_size, NULL, 0, &opts);
-        PSResetNetworkStateSequences(encoder, 0, 0);
-        PSResetNetworkStateSequences(decoder, 0, 0);
+        PSResetModelStateSequences(encoder, 0, 0);
+        PSResetModelStateSequences(decoder, 0, 0);
     }
     PSFloat x_table[4] = {3, 0, 0, 0};
     PSFloat y_table[4] = {3, 0, 0, 0};
@@ -481,10 +481,9 @@ int main(int argc, char **argv) {
         printf("%d\n", max_idx);
         printf(PSCOLOR_RESET);
     }
-    if (output_path != NULL && do_train)
-        PSSaveNetwork(encoder, output_path);
+    if (output_path != NULL && do_train) PSModelSave(encoder, output_path);
 final:
-    if (encoder != NULL) PSDeleteNetwork(encoder);
+    if (encoder != NULL) PSModelDelete(encoder);
     free(table_train_data);
     if (!success) PSErr(NULL, "some error occurred");
     return (success ? 0 : 1);

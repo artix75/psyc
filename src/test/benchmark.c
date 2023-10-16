@@ -133,7 +133,7 @@ int disable_prerun = 0;
 int verbose = 0;
 
 /* Forward decl. */
-PSGradient **backprop(PSNeuralNetwork *network, PSFloat *x, PSFloat *y,
+PSGradient **backprop(PSModel *model, PSFloat *x, PSFloat *y,
                       PSTrainingOptions *opts, PSGradient **gradients);
 
 /* Helpers */
@@ -407,17 +407,17 @@ static void disableAllTags(void) {
     }
 }
 
-static PSNeuralNetwork *makeCIFARLikeCNN(void) {
-    PSNeuralNetwork *network = PSCreateNetwork("CIFAR CNN");
-    if (network == NULL) return NULL;
+static PSModel *makeCIFARLikeCNN(void) {
+    PSModel *model = PSModelCreate("CIFAR CNN");
+    if (model == NULL) return NULL;
     PSLayer *l = NULL;
-    l = PSAddLayer(network, FullyConnected, CIFAR_IMAGE_SIZE, PSLDEF(
+    l = PSAddLayer(model, FullyConnected, CIFAR_IMAGE_SIZE, PSLDEF(
         .output_depth = 3,
         .output_columns = 32,
         .output_rows = 32
     ));
     if (!l) goto fail;
-    l = PSAddConvolutionalLayer(network, PSLDEF(
+    l = PSAddConvolutionalLayer(model, PSLDEF(
         .output_depth = 16,
         .filter_width = 5,
         .filter_height = 5,
@@ -426,13 +426,13 @@ static PSNeuralNetwork *makeCIFARLikeCNN(void) {
         .activation = PSRelu
     ));
     if (!l) goto fail;
-    l = PSAddPoolingLayer(network, PSLDEF(
+    l = PSAddPoolingLayer(model, PSLDEF(
         .stride = 2,
         .filter_width = 2,
         .filter_height = 2
     ));
     if (!l) goto fail;
-    l = PSAddConvolutionalLayer(network, PSLDEF(
+    l = PSAddConvolutionalLayer(model, PSLDEF(
         .output_depth = 20,
         .filter_width = 5,
         .filter_height = 5,
@@ -441,13 +441,13 @@ static PSNeuralNetwork *makeCIFARLikeCNN(void) {
         .activation = PSRelu
     ));
     if (!l) goto fail;
-    l = PSAddPoolingLayer(network, PSLDEF(
+    l = PSAddPoolingLayer(model, PSLDEF(
         .stride = 2,
         .filter_width = 2,
         .filter_height = 2
     ));
     if (!l) goto fail;
-    l = PSAddConvolutionalLayer(network, PSLDEF(
+    l = PSAddConvolutionalLayer(model, PSLDEF(
         .output_depth = 20,
         .filter_width = 5,
         .filter_height = 5,
@@ -456,17 +456,17 @@ static PSNeuralNetwork *makeCIFARLikeCNN(void) {
         .activation = PSRelu
     ));
     if (!l) goto fail;
-    l = PSAddPoolingLayer(network, PSLDEF(
+    l = PSAddPoolingLayer(model, PSLDEF(
         .stride = 2,
         .filter_width = 2,
         .filter_height = 2
     ));
     if (!l) goto fail;
-    l = PSAddLayer(network, SoftMax, 10, NULL);
+    l = PSAddLayer(model, SoftMax, 10, NULL);
     if (!l) goto fail;
-    return network;
+    return model;
 fail:
-    if (network != NULL) PSDeleteNetwork(network);
+    if (model != NULL) PSModelDelete(model);
     return NULL;
 }
 
@@ -2554,56 +2554,56 @@ int fullnetForwardBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     int input_size = intargs[0], layer_size = intargs[1], ok = 1;
     assert(input_size > 0);
     assert(layer_size > 0);
-    PSNeuralNetwork *network = PSCreateNetwork("Fullly connected benchmark");
+    PSModel *model = PSModelCreate("Fullly connected benchmark");
     PSMatrix x = PSMatrixWithGaussianRandom(1, 1, input_size);
-    if (x == NULL || network == NULL) {
+    if (x == NULL || model == NULL) {
         PSPrintMemoryErrorMsg();
         ok = 0;
         goto final;
     }
-    ok = PSAddLayer(network, FullyConnected, input_size, NULL) != NULL;
+    ok = PSAddLayer(model, FullyConnected, input_size, NULL) != NULL;
     if (!ok) goto final;
-    ok = PSAddLayer(network, FullyConnected, layer_size, NULL) != NULL;
-    if (!PSIsNetworkBuilt(network)) PSBuildNetwork(network);
-    ok = PSIsNetworkBuilt(network);
+    ok = PSAddLayer(model, FullyConnected, layer_size, NULL) != NULL;
+    if (!PSModelIsBuilt(model)) PSModelBuild(model);
+    ok = PSModelIsBuilt(model);
     if (!ok) {
-        PSErr(__func__, "Could not build network");
+        PSErr(__func__, "Could not build model");
         goto final;
     }
     PSBenchmarkResults *res = results;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    network->acceleration = PSAcceleration_ACF;
-    if (auto_accel) network->acceleration |= PSAcceleration_Auto;
+    model->acceleration = PSAcceleration_ACF;
+    if (auto_accel) model->acceleration |= PSAcceleration_Auto;
     PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     PSBenchmarkMeasure(res, (
-        ok = PSForward(network, x)
+        ok = PSForward(model, x)
     ));
     if (!ok) goto final;
     *num_results += 1;
     res += 1;
 #endif
 #ifdef USE_AVX
-    network->acceleration = PSAcceleration_AVX;
-    if (auto_accel) network->acceleration |= PSAcceleration_Auto;
+    model->acceleration = PSAcceleration_AVX;
+    if (auto_accel) model->acceleration |= PSAcceleration_Auto;
     PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     PSBenchmarkMeasure(res, (
-        ok = PSForward(network, x)
+        ok = PSForward(model, x)
     ));
     if (!ok) goto final;
     *num_results += 1;
     res += 1;
 #endif
-    network->acceleration = PSAcceleration_None;
+    model->acceleration = PSAcceleration_None;
     PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     PSBenchmarkMeasure(res, (
-        ok = PSForward(network, x)
+        ok = PSForward(model, x)
     ));
     if (!ok) goto final;
     *num_results += 1;
     res += 1;
 final:
     if (x != NULL) PSMatrixDelete(x);
-    if (network != NULL) PSDeleteNetwork(network);
+    if (model != NULL) PSModelDelete(model);
     return ok;
 }
 
@@ -2613,37 +2613,37 @@ int cifarCNNBackpropBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PS_BENCHMARK_PREAMBLE(cfg, results);
     int ok = 1;
     PSMatrix x = NULL;
-    PSNeuralNetwork *network = makeCIFARLikeCNN();
+    PSModel *model = makeCIFARLikeCNN();
     PSGradient **gradients = NULL;
-    ok = network != NULL;
+    ok = model != NULL;
     if (!ok) goto final;
     x = PSMatrixWithGaussianRandom(1, 1, CIFAR_IMAGE_SIZE);
     ok = (x != NULL);
     if (!ok) goto final;
     PSFloat y[10] = {0};
     y[9] = 1.0;
-    if (!PSIsNetworkBuilt(network)) PSBuildNetwork(network);
-    ok = PSIsNetworkBuilt(network);
+    if (!PSModelIsBuilt(model)) PSModelBuild(model);
+    ok = PSModelIsBuilt(model);
     if (!ok) {
-        PSErr(__func__, "Could not build network");
+        PSErr(__func__, "Could not build model");
         goto final;
     }
     PSBenchmarkResults *res = results;
-    network->acceleration = PSGlobalAcceleration;
+    model->acceleration = PSGlobalAcceleration;
     PS_INIT_BENCHMARK(cfg, num_results, res, "Default Acceleration");
     PSBenchmarkMeasure(res, (
-        gradients = backprop(network, x, y, NULL, NULL)
+        gradients = backprop(model, x, y, NULL, NULL)
     ));
     ok = gradients != NULL;
     if (!ok) goto final;
     *num_results += 1;
     res += 1;
 #if HAS_BLAS
-    network->acceleration = PSAcceleration_BLAS;
-    if (auto_accel) network->acceleration |= PSAcceleration_Auto;
+    model->acceleration = PSAcceleration_BLAS;
+    if (auto_accel) model->acceleration |= PSAcceleration_Auto;
     PS_INIT_BENCHMARK(cfg, num_results, res, "BLAS");
     PSBenchmarkMeasure(res, (
-        gradients = backprop(network, x, y, NULL, NULL)
+        gradients = backprop(model, x, y, NULL, NULL)
     ));
     ok = gradients != NULL;
     if (!ok) goto final;
@@ -2651,11 +2651,11 @@ int cifarCNNBackpropBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     res += 1;
 #endif
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    network->acceleration = PSAcceleration_ACF;
-    if (auto_accel) network->acceleration |= PSAcceleration_Auto;
+    model->acceleration = PSAcceleration_ACF;
+    if (auto_accel) model->acceleration |= PSAcceleration_Auto;
     PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     PSBenchmarkMeasure(res, (
-        gradients = backprop(network, x, y, NULL, NULL)
+        gradients = backprop(model, x, y, NULL, NULL)
     ));
     ok = gradients != NULL;
     if (!ok) goto final;
@@ -2663,30 +2663,30 @@ int cifarCNNBackpropBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     res += 1;
 #endif
 #ifdef USE_AVX
-    network->acceleration = PSAcceleration_AVX;
-    if (auto_accel) network->acceleration |= PSAcceleration_Auto;
+    model->acceleration = PSAcceleration_AVX;
+    if (auto_accel) model->acceleration |= PSAcceleration_Auto;
     PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     PSBenchmarkMeasure(res, (
-        gradients = backprop(network, x, y, NULL, NULL)
+        gradients = backprop(model, x, y, NULL, NULL)
     ));
     ok = gradients != NULL;
     if (!ok) goto final;
     *num_results += 1;
     res += 1;
 #endif
-    network->acceleration = PSAcceleration_None;
+    model->acceleration = PSAcceleration_None;
     PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     PSBenchmarkMeasure(res, (
-        gradients = backprop(network, x, y, NULL, NULL)
+        gradients = backprop(model, x, y, NULL, NULL)
     ));
     ok = gradients != NULL;
     if (!ok) goto final;
     *num_results += 1;
     res += 1;
 final:
-    if (gradients != NULL && network != NULL)
-        PSDeleteNetworkGradients(gradients, network);
-    if (network != NULL) PSDeleteNetwork(network);
+    if (gradients != NULL && model != NULL)
+        PSDeleteModelGradients(gradients, model);
+    if (model != NULL) PSModelDelete(model);
     PSMatrixDelete(x);
     return ok;
 }

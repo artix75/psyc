@@ -49,7 +49,7 @@
 
 #define UNUSED(V) ((void) V)
 
-PSNeuralNetwork *network = NULL;
+PSModel *model = NULL;
 char *output_path = DEFAULT_OUTPUT_FILE;
 int pause_requested = 0;
 int use_random_choice = 0;
@@ -102,12 +102,12 @@ void print_help(char *progname) {
 
 void handler(int sig) {
     UNUSED(sig);
-    if (network != NULL) {
+    if (model != NULL) {
         if (!pause_requested) {
-            PSPauseTraining(network);
+            PSPauseTraining(model);
             pause_requested = 1;
         } else {
-            PSAbortTraining(network);
+            PSAbortTraining(model);
             exit(1);
         }
     } else exit(1);
@@ -123,24 +123,24 @@ int randomChoice(PSFloat *weights, int count) {
     return -1;
 }
 
-void printSample(PSNeuralNetwork *network, int input_idx, int len) {
+void printSample(PSModel *model, int input_idx, int len) {
     int index = 2 + input_idx;
     if (index >= TRAIN_DATA_LEN) {
         fprintf(stderr, "ERROR (%s): Invalid input %d\n", __func__, input_idx);
         return;
     }
-    if (!PSResetNetworkStateSequences(network, 0, 0)) {
+    if (!PSResetModelStateSequences(model, 0, 0)) {
         fprintf(stderr, "ERROR (%s): Failed to reset states\n", __func__);
         return;
     }
-    PSLayer *out = network->layers[network->size - 1];
+    PSLayer *out = model->layers[model->size - 1];
     PSFloat word_idx = training_data[index];
     PSFloat data[2];
     data[0] = 1.0;
     data[1] = word_idx;
     int c = len;
-    int oldstatus = network->status;
-    network->status = STATUS_PAUSED;
+    int oldstatus = model->status;
+    model->status = STATUS_PAUSED;
     if (PSLogColorEnabled()) printf(PSCOLOR_BOLD);
     printf("\n\n==== SAMPLE ====\n\n");
     if (PSLogColorEnabled()) printf(PSCOLOR_RESET);
@@ -149,9 +149,9 @@ void printSample(PSNeuralNetwork *network, int input_idx, int len) {
     char *last_word = word;
     printf("%s", word);
     while (c-- >= 0) {
-        int ok = PSForward(network, data);
+        int ok = PSForward(model, data);
         if (!ok) {
-            network->status = oldstatus;
+            model->status = oldstatus;
             fprintf(
                 stderr, "ERROR (%s): Failed to feed data at t=%d",
                 __func__, c + 1
@@ -162,7 +162,7 @@ void printSample(PSNeuralNetwork *network, int input_idx, int len) {
         int t = ((unsigned int) data[0]) - 1;
         if (!use_random_choice) {
             if (!PSFindLayerMaxState(out, NULL, &max_idx, t)) {
-                network->status = oldstatus;
+                model->status = oldstatus;
                 PSErr(__func__, "Failed to find neuron with max value");
                 return;
             }
@@ -171,7 +171,7 @@ void printSample(PSNeuralNetwork *network, int input_idx, int len) {
             max_idx = randomChoice(states, out->size);
             if (max_idx < 0) {
                 if (!PSFindLayerMaxState(out, NULL, &max_idx, t)) {
-                    network->status = oldstatus;
+                    model->status = oldstatus;
                     PSErr(__func__, "Failed to find neuron with max value");
                     return;
                 }
@@ -186,7 +186,7 @@ void printSample(PSNeuralNetwork *network, int input_idx, int len) {
         data[1] = (PSFloat) max_idx;
         last_word = word;
     }
-    network->status = oldstatus;
+    model->status = oldstatus;
     printf("\n\n");
     fflush(stdout);
 }
@@ -223,12 +223,12 @@ int main(int argc, char** argv) {
     int return_status = 0;
     UNUSED(disable_avx); /* Actually not used if USE_AVX macro not defined */
 
-    network = PSCreateNetwork("RNN Demo");
-    if (network == NULL) {
-        fprintf(stderr, "Could not create network!\n");
+    model = PSModelCreate("LSTM Demo");
+    if (model == NULL) {
+        fprintf(stderr, "Could not create model!\n");
         return 1;
     }
-    network->flags |= FLAG_ONEHOT;
+    model->flags |= FLAG_ONEHOT;
 
     for (i = 1; i < argc; i++) {
         char *arg = argv[i];
@@ -347,14 +347,14 @@ int main(int argc, char** argv) {
             PSErr(NULL, "Option `--embedding` needed by `--embedding-load`");
             return 1;
         }
-        PSAddLayer(network, FullyConnected, VOCABULARY_SIZE, NULL);
+        PSAddLayer(model, FullyConnected, VOCABULARY_SIZE, NULL);
         if (embedding_size > 0) {
             PSTrainingOptions embedding_training_opts = {
                 .epochs = embedding_epochs,
                 .learning_rate = embedding_learning_rate
             };
             PSLayer *embedding = PSAddLayer(
-                network, Embedding, embedding_size, PSLDEF(
+                model, Embedding, embedding_size, PSLDEF(
                 .pretraining_options = &embedding_training_opts,
                 .load_from = embedding_load_from,
                 .save_pretrained_to = embedding_save_to
@@ -366,31 +366,31 @@ int main(int argc, char** argv) {
             }
             embedding->pretrained = (embedding_load_from != NULL);
         }
-        PSAddLayer(network, LSTM, hidden_size, NULL);
-        PSAddLayer(network, SoftMax, VOCABULARY_SIZE, NULL);
-        network->layers[network->size - 1]->flags |= FLAG_ONEHOT;
-        if (network->size < 1) {
+        PSAddLayer(model, LSTM, hidden_size, NULL);
+        PSAddLayer(model, SoftMax, VOCABULARY_SIZE, NULL);
+        model->layers[model->size - 1]->flags |= FLAG_ONEHOT;
+        if (model->size < 1) {
             fprintf(stderr, "Could not add all layers!\n");
-            PSDeleteNetwork(network);
+            PSModelDelete(model);
             return 1;
         }
     } else {
-        int loaded = PSLoadNetwork(network, pretrained_file);
+        int loaded = PSModelLoad(model, pretrained_file);
         if (!loaded) {
             printf("Could not load pretrained data %s\n", pretrained_file);
-            PSDeleteNetwork(network);
+            PSModelDelete(model);
             return 1;
         }
-        if (network->size < 1) {
+        if (model->size < 1) {
             fprintf(stderr, "Could not add all layers!\n");
-            PSDeleteNetwork(network);
+            PSModelDelete(model);
             return 1;
         }
     }
-    PSPrintNetworkInfo(network);
+    PSModelPrintInfo(model);
 #ifdef USE_AVX
     if (disable_avx)
-        PSDisableAcceleration(&network->acceleration, PSAcceleration_AVX);
+        PSDisableAcceleration(&model->acceleration, PSAcceleration_AVX);
 #endif
 
     int flags = TRAINING_ADJUST_RATE;
@@ -409,18 +409,18 @@ int main(int argc, char** argv) {
         .momentum = momentum,
         .optimization = optimization
     };
-    PSTrain(network, training_data, TRAIN_DATA_LEN, training_data,
+    PSTrain(model, training_data, TRAIN_DATA_LEN, training_data,
             TRAIN_DATA_LEN, &options);
 
     /*if (TEST_DATA_LEN > 0) {
         printf("Test Data len: %d\n", TEST_DATA_LEN);
-        PSTest(network, test_data, TEST_DATA_LEN, NULL);
+        PSTest(model, test_data, TEST_DATA_LEN, NULL);
     }*/
-    if (print_sample) printSample(network, 0, sample_len);
+    if (print_sample) printSample(model, 0, sample_len);
     if (pretrained_file == NULL)
-        PSSaveNetwork(network, "/tmp/pretrained.lstm.psmodel");
+        PSModelSave(model, "/tmp/pretrained.lstm.psmodel");
 final:
-    PSDeleteNetwork(network);
+    PSModelDelete(model);
     /* free(training_data); */
     /* if (TEST_DATA_LEN) free(test_data); */
     return return_status;

@@ -115,7 +115,7 @@ static void onDictStringRelease(PSDictItem *item) {
 uint32_t BytesToUnicode[B2U_SIZE] = {0};
 uint32_t UnicodeToBytes[U2B_SIZE] = {0};
 
-static int printProgressBar(PSNeuralNetwork *model) {
+static int printProgressBar(PSModel *model) {
     if (PSLogLevel < PSLOGLEVEL_NOTICE) return 0;
     return PSProgressBar(model->size, GPT2_TOT_LAYERS, PS_PROGRESS_STYLE_LINE,
                          1, PS_PROGRESS_FLAG_XTERM256_CODE, 0, "Layer");
@@ -945,7 +945,7 @@ final:
 
 */
 
-int PSAddGPT2TransformerBlock(PSNeuralNetwork *model, int index,
+int PSAddGPT2TransformerBlock(PSModel *model, int index,
                               GPT2HyperParameters *hpar, char *dir)
 {
     int ok = 1, has_bin = 0;
@@ -1308,7 +1308,7 @@ static int readPromptFromStdin(char *prompt, size_t max_size) {
     return totread;
 }
 
-static int getNextIndex(PSNeuralNetwork *gpt2_model, PSFloat temperature) {
+static int getNextIndex(PSModel *gpt2_model, PSFloat temperature) {
     if (gpt2_model == NULL) return -1;
     PSLayer *outlayer = PSGetOutputLayer(gpt2_model);
     if (outlayer == NULL) return -1;
@@ -1345,7 +1345,7 @@ static int getNextIndex(PSNeuralNetwork *gpt2_model, PSFloat temperature) {
     return next_id;
 }
 
-static int generate(PSNeuralNetwork *gpt2_model, char *prompt,
+static int generate(PSModel *gpt2_model, char *prompt,
                     int max_output_tokens, PSVocabulary *vocabulary,
                     PSDict *bpe, GPT2HyperParameters *hparams, int verbose)
 {
@@ -1460,7 +1460,7 @@ static void processInteractivePromptCommands(char *prompt, int max_ctx) {
     }
 }
 
-static int startInteractivePrompt(PSNeuralNetwork *gpt2_model,
+static int startInteractivePrompt(PSModel *gpt2_model,
                                   PSVocabulary *vocabulary,
                                   PSDict *bpe, GPT2HyperParameters *hparams)
 {
@@ -1502,7 +1502,7 @@ next:
         add_history(prompt);
         free(prompt);
 #endif
-        /* PSResetNetworkStateSequences(gpt2_model, 0, 0); */
+        /* PSResetModelStateSequences(gpt2_model, 0, 0); */
     }
     return 1;
 }
@@ -1614,7 +1614,7 @@ int main(int argc, char **argv) {
     if (interactive) rl_bind_key('\t', rl_complete);
     using_history();
 #endif
-    PSNeuralNetwork *gpt2_model = NULL;
+    PSModel *gpt2_model = NULL;
     PSVocabulary *vocabulary = NULL;
     PSDict *bpe = NULL;
     int ok = 1, i;
@@ -1643,7 +1643,7 @@ int main(int argc, char **argv) {
     PSLayer *l = NULL;
 
     /* Create Model */
-    gpt2_model = PSCreateNetwork("GPT2");
+    gpt2_model = PSModelCreate("GPT2");
     ok = (gpt2_model != NULL);
     if (!ok) goto final;
     gpt2_model->flags |= (
@@ -1720,11 +1720,11 @@ int main(int argc, char **argv) {
     printf("\n");
     fflush(stdout);
 
-    ok = PSBuildNetwork(gpt2_model);
+    ok = PSModelBuild(gpt2_model);
     if (!ok) goto final;
     if (prompt == NULL) interactive = 1;
     if (verbose || (prompt == NULL && !interactive))
-        PSPrintNetworkInfo(gpt2_model);
+        PSModelPrintInfo(gpt2_model);
 
 make_input:
     vocabulary = loadVocabulary(model_dir, hparams.n_vocab);
@@ -1755,7 +1755,7 @@ make_input:
 final:
     PSLogLevel = default_loglevel;
     if (model_dir != custom_model_dir) free(model_dir);
-    PSDeleteNetwork(gpt2_model);
+    PSModelDelete(gpt2_model);
     PSVocabularyRelease(vocabulary);
     PSDictRelease(bpe);
     free(params_path);

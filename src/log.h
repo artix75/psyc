@@ -116,7 +116,7 @@ void PSInfo(const char *format, ...);
 void PSNotice(const char *format, ...);
 void PSWarn(const char *format, ...);
 void PSErr(const char *tag, const char *format, ...);
-void PSErrNN(const char *tag, PSNeuralNetwork *network, PSLayer *layer,
+void PSErrNN(const char *tag, PSModel *model, PSLayer *layer,
              const char *format, ...);
 const char *PSLogLevelName(int level);
 int PSLogLevelByName(const char *name);

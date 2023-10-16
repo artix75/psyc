@@ -735,13 +735,13 @@ int PSLoadCIFARData(int type, int classes, const char *dataset_path,
     return dataset_size;
 }
 
-PSLayer *PSAddCIFARInputLayer(PSNeuralNetwork *network) {
-    if (network->size > 0) {
+PSLayer *PSAddCIFARInputLayer(PSModel *model) {
+    if (model->size > 0) {
         PSErr(__func__, "CIFAR layer must be input layer!\n");
         return NULL;
     }
     PSLayerDef ldef = {
         .output_depth = 3, .output_columns = 32, .output_rows = 32
     };
-    return PSAddLayer(network, FullyConnected, CIFAR_IMAGE_SIZE, &ldef);
+    return PSAddLayer(model, FullyConnected, CIFAR_IMAGE_SIZE, &ldef);
 }

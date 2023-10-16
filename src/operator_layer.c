@@ -40,9 +40,9 @@ typedef struct {
 /* Forward declarations */
 int checkLayerForForward(PSLayer *layer);
 int PSBeforeSequenceForward(PSLayer *layer, int seqlen, int t);
-PSLayer *PSResolveLayerPlaceholder(PSLayer *placeholder, PSNeuralNetwork *net);
+PSLayer *PSResolveLayerPlaceholder(PSLayer *placeholder, PSModel *model);
 int PSIsLayerPlaceholder(PSLayer *layer);
-PSLayer *PSMakeLayerPlaceholder(int layer_index, int network_index);
+PSLayer *PSMakeLayerPlaceholder(int layer_index, int model_index);
 int PSOperatorForward(PSLayer *layer, ...);
 int PSOperatorBackprop(PSLayer *layer, PSLayer *previous,
                             PSGradient *gradient, ...);
@@ -58,7 +58,7 @@ static PSLayer *resolveProviderPlaceholder(PSLayer *layer, PSLayer *provider) {
         return NULL;
     }
     PSLayer *placeholder = provider;
-    provider = PSResolveLayerPlaceholder(placeholder, layer->network);
+    provider = PSResolveLayerPlaceholder(placeholder, layer->model);
     if (provider == NULL) {
         PSErrNN(NULL, NULL, layer, "invalid provider placeholder");
         return NULL;
@@ -129,9 +129,9 @@ static int copyOperatorLayer(PSLayer *layer, PSLayer *src) {
         for (i = 0; i < srcsettings->providers_count; i++) {
             PSLayer *srcprovider = srcsettings->providers[i];
             if (srcprovider == NULL) continue;
-            PSNeuralNetwork *provider_network = srcprovider->network;
-            if (provider_network == NULL) {
-                PSErrNN(NULL, NULL, src, "provider[%d] has no netwoek");
+            PSModel *provider_model = srcprovider->model;
+            if (provider_model == NULL) {
+                PSErrNN(NULL, NULL, src, "provider[%d] has no model");
                 return 0;
             }
             int is_placeholder = PSBitmapGetBit(srcsettings->placeholders, i);
@@ -153,16 +153,16 @@ static int copyOperatorLayer(PSLayer *layer, PSLayer *src) {
                 if (dstsettings->providers[i] == NULL) return 0;
             } else {
                 PSLayer *dstprovider = NULL;
-                if (layer->network == NULL) {
-                    PSErrNN(NULL, NULL, layer, "layer has no network");
+                if (layer->model == NULL) {
+                    PSErrNN(NULL, NULL, layer, "layer has no model");
                     return 0;
                 }
                 dstprovider = PSGetLayerByIndex(
-                    layer->network, srcprovider->index, provider_network->index
+                    layer->model, srcprovider->index, provider_model->index
                 );
                 if (dstprovider == NULL) {
                     dstprovider = PSMakeLayerPlaceholder(
-                        srcprovider->index, provider_network->index
+                        srcprovider->index, provider_model->index
                     );
                 }
                 if (dstprovider == NULL) return 0;
@@ -211,7 +211,7 @@ static PSFloat *getInputsFromProvider(PSLayer *layer, PSLayer *provider, int t)
         }
     }
     if (!PSUseSequences(provider)) return PSGetStates(provider, 0);
-    if (layer->network->index > provider->network->index)
+    if (layer->model->index > provider->model->index)
         return PSGetOutputs(provider);
     if (provider->index > layer->index && t >= 0) t--;
     if (!PSUseSequences(layer)) return PSGetOutputs(provider);
@@ -260,7 +260,7 @@ int PSOperationForward(PSLayer *layer, int seqlen, int t) {
     } else seqlen = 1;
     PSOperatorType op = settings->operator;
     PSFloat *outputs = PSGetStates(layer, t);
-    PSMathOpts opts = {.acceleration = layer->network->acceleration};
+    PSMathOpts opts = {.acceleration = layer->model->acceleration};
     int is_add = op == PSAddOperator;
     for (i = 0; i < providers_count; i++) {
         PSLayer *provider = settings->providers[i];
@@ -294,7 +294,7 @@ int PSConcatenateBackward(PSLayer *layer, int seqlen, int t) {
         seqlen = 1;
     }
     PSMathOpts opts = {
-        .acceleration = layer->network->acceleration,
+        .acceleration = layer->model->acceleration,
         .store_mode = PS_STORE_MODE_ADD
     };
     for (; t < seqlen; t++) {
@@ -338,7 +338,7 @@ int PSOperationBackward(PSLayer *layer, int seqlen, int t) {
         return 0;
     }
     PSOperatorType op = settings->operator;
-    PSMathOpts opts = {.acceleration = layer->network->acceleration};
+    PSMathOpts opts = {.acceleration = layer->model->acceleration};
     PSMultiplyVectors(layer->delta, outputs, delta, len, &opts);
     int is_add = (PSAddOperator == op), is_mul = (PSMultiplyOperator == op);
     for (int i = 0; i < providers_count; i++) {

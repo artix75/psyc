@@ -210,7 +210,7 @@ int PSResizeLSTMStates(PSLayer *layer, uint32_t steps, uint32_t prev_steps) {
     if (candidates == NULL) {
         PSMatrixDelete(cell->candidates);
         cell->candidates = NULL;
-        PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
+        PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
         return 0;
     }
     cell->candidates = candidates;
@@ -221,7 +221,7 @@ int PSResizeLSTMStates(PSLayer *layer, uint32_t steps, uint32_t prev_steps) {
     if (input_gates == NULL) {
         PSMatrixDelete(cell->input_gates);
         cell->input_gates = NULL;
-        PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
+        PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
         return 0;
     }
     cell->input_gates = input_gates;
@@ -232,7 +232,7 @@ int PSResizeLSTMStates(PSLayer *layer, uint32_t steps, uint32_t prev_steps) {
     if (output_gates == NULL) {
         PSMatrixDelete(cell->output_gates);
         cell->output_gates = NULL;
-        PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
+        PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
         return 0;
     }
     cell->output_gates = output_gates;
@@ -243,7 +243,7 @@ int PSResizeLSTMStates(PSLayer *layer, uint32_t steps, uint32_t prev_steps) {
     if (forget_gates == NULL) {
         PSMatrixDelete(cell->forget_gates);
         cell->forget_gates = NULL;
-        PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
+        PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
         return 0;
     }
     cell->forget_gates = forget_gates;
@@ -254,7 +254,7 @@ int PSResizeLSTMStates(PSLayer *layer, uint32_t steps, uint32_t prev_steps) {
         PSMatrixDelete(cell->raw_states);
         cell->raw_states = NULL;
         cell->initial_raw_states = NULL;
-        PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
+        PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
         return 0;
     }
     cell->raw_states = raw_states;
@@ -343,8 +343,8 @@ int setLSTMState(PSLayer *layer, int index, PSFloat state, int t, int type) {
     PSFloat *state_ptr = NULL, *previous_ptr = NULL;
     if (t >= (int) PSStateSequenceLength(layer)) {
         if (!PSResizeLayerStates(layer, t + 1)) {
-            if (layer->network)
-                PSSetNetworkStatus(layer->network, STATUS_ERROR, NULL);
+            if (layer->model)
+                PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
             PSErr(
                 NULL, "Could not resize recurrent hidden states for "
                 "layer %d", layer->index
@@ -472,7 +472,7 @@ memerr:
 
 /* Init Functions */
 
-int PSInitLSTMLayer(PSNeuralNetwork *network, PSLayer *layer,
+int PSInitLSTMLayer(PSModel *model, PSLayer *layer,
                     int size, int ws, PSLayerDef *ldef)
 {
     int i, bias_count = size * 4;
@@ -514,7 +514,7 @@ int PSInitLSTMLayer(PSNeuralNetwork *network, PSLayer *layer,
     }
     layer->forward = PSLSTMForward;
     layer->backprop = PSLSTMBackprop;
-    network->flags |= FLAG_RECURRENT;
+    model->flags |= FLAG_RECURRENT;
     return 1;
 memerr:
     PSPrintMemoryErrorMsg();
@@ -525,15 +525,15 @@ memerr:
 
 int PSLSTMForward(PSLayer *layer, ...) {
     if (!checkLayerForForward(layer)) return 0;
-    PSNeuralNetwork *net = layer->network;
+    PSModel *model = layer->model;
     va_list args;
     va_start(args, layer);
     int steps = va_arg(args, int);
     int t = va_arg(args, int);
     va_end(args);
     if (!PSBeforeSequenceForward(layer, steps, t)) return 0;
-    PSLayer *previous = net->layers[layer->index - 1];
-    PSLayer *first_recurrent = PSGetFirstRecurrentLayer(net);
+    PSLayer *previous = model->layers[layer->index - 1];
+    PSLayer *first_recurrent = PSGetFirstRecurrentLayer(model);
     PSLSTMCell *cell = PSGetLSTMCell(layer);
     if (cell == NULL) return 0;
     int onehot = previous->flags & FLAG_ONEHOT;
@@ -542,7 +542,7 @@ int PSLSTMForward(PSLayer *layer, ...) {
     int prev_t = t - 1;
     int use_bias = !(layer->flags & FLAG_NO_BIAS);
     int success = 1;
-    PSMathOpts mopts = {.acceleration = net->acceleration};
+    PSMathOpts mopts = {.acceleration = model->acceleration};
     PSFloat *prev_states = NULL, *prev_z = NULL;
     PSFloat *candidates = getCandidates(layer, t);
     PSFloat *input_gates = getInputGates(layer, t);
@@ -555,7 +555,7 @@ int PSLSTMForward(PSLayer *layer, ...) {
         PSErr(NULL, "Layer[%d]: missing states");
         return 0;
     }
-    /* If layer is the first recurrent layer of a one-to-many network, inputs
+    /* If layer is the first recurrent layer of a one-to-many model, inputs
      * are fed just in the very first step. */
     if (!PSIsRecurrent(previous) && layer == first_recurrent)
         ignore_inputs = (t > 0);
@@ -653,7 +653,7 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previous_layer,
     va_start(args, lgradients);
     int t = va_arg(args, int);
     va_end(args);
-    PSMathOpts mopts = {.acceleration = layer->network->acceleration};
+    PSMathOpts mopts = {.acceleration = layer->model->acceleration};
     int onehot = previous_layer->flags & FLAG_ONEHOT;
     int lsize = layer->size, prev_t = t - 1, success = 1;
     int input_size = previous_layer->size;

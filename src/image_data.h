@@ -20,7 +20,7 @@
 
 #include "psyc.h"
 
-int PSClassifyImage(PSNeuralNetwork *network, char *filename, int grayscale,
+int PSClassifyImage(PSModel *model, char *filename, int grayscale,
                     int invert, char* bgcolor, char* dump_file);
 
 #endif /*  __PS_IMAGE_DATA_H */
