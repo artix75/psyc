@@ -37,6 +37,8 @@ ifneq ($(strip $(PREV_HEADER_FILES)), $(strip $(HEADER_FILES)))
 .PHONY: $(HEADER_FILE_LIST)
 endif
 
+.PHONY: list-available-options show-build-info
+
 HASH := \#
 FINAL_HEADER_FILES := psyc.h $(subst psyc.h,,$(HEADER_FILES))
 ALL_H_INCLUDE_DIRECTIVES := $(foreach hfile,$(FINAL_HEADER_FILES),echo '$(HASH)include "$(hfile)"' >> all.h;)
@@ -167,4 +169,4 @@ list-available-options:
 	@echo "MAGICK           (on|off)    ImageMagick support $(MAGICK)"
 	@echo "TESTS            TESTS       Only perform specific tests"
 	@echo "BUILD_ONLY                   Only build, do not execute (ie. tests)"
-	@echo "COLORS           (on|off)    Colorized output (default 'on')""
+	@echo "COLORS           (on|off)    Colorized output (default 'on')"
