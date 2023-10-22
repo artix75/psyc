@@ -483,7 +483,7 @@ int main(int argc, char **argv) {
     }
     if (output_path != NULL && do_train) PSModelSave(encoder, output_path);
 final:
-    if (encoder != NULL) PSModelDelete(encoder);
+    if (encoder != NULL) PSModelFree(encoder);
     free(table_train_data);
     if (!success) PSErr(NULL, "some error occurred");
     return (success ? 0 : 1);

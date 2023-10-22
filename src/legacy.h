@@ -43,7 +43,7 @@
 #define PSGetNetworkStatus(model)           PSModelGetStatus(model)
 #define PSResetNetworkStateSequences(model, steps, retain_previous) \
     PSResetModelStateSequences(model, steps, retain_previous)
-#define PSDeleteNetwork(model)              PSModelDelete(model)
+#define PSDeleteNetwork(model)              PSModelFree(model)
 #define PSDeleteNetworkGradients(gradients, model) \
     PSDeleteModelGradients(gradients, model)
 #define PSCheckNetwork(model)               PSModelCheck(model)
@@ -53,6 +53,10 @@
 #define PSPrintNetworkInfo(model)           PSModelPrintInfo(model)
 #define PSDumpNetworkStates(model, fname)   PSModelDumpStates(model, fname)
 #define PSDumpNetworkDeltas(model, fname)   PSModelDumpDeltas(model, fname)
+#define PSMatrixDelete(matrix)              PSMatrixFree(matrix)
+#define PSDictRelease(dict)                 PSDictFree(dict)
+#define PSDictDelete(dict, key)             PSDictRemove(dict, key)
+#define PSVocabularyRelease(vocab)          PSVocabularyFree(vocab)
 
 typedef PSModelLink PSNeuralNetworkLink;
 

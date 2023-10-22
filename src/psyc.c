@@ -1549,7 +1549,7 @@ int PSInitLayerStates(PSLayer *layer, uint32_t seqlen, int retain_previous) {
     if (cur_seqlen <= 0 || states == NULL) retain_previous = 0;
     if (seqlen == 0 && !retain_previous) {
         layer->states = NULL;
-        PSMatrixDelete(states);
+        PSMatrixFree(states);
         layer->initial_states = NULL;
         if (layer->on_states_init != NULL)
             if (!layer->on_states_init(layer, 0, 0)) goto err;
@@ -1561,7 +1561,7 @@ int PSInitLayerStates(PSLayer *layer, uint32_t seqlen, int retain_previous) {
     );
     if (hstates == NULL) return 0;
     layer->states = hstates;
-    PSMatrixDelete(states);
+    PSMatrixFree(states);
     hstates = NULL;
     if (layer->on_states_init != NULL) {
         if (!layer->on_states_init(layer, seqlen, retain_previous))
@@ -1569,8 +1569,8 @@ int PSInitLayerStates(PSLayer *layer, uint32_t seqlen, int retain_previous) {
     }
     return 1;
 err:
-    if (hstates != NULL) PSMatrixDelete(hstates);
-    if (layer->states != NULL) PSMatrixDelete(layer->states);
+    if (hstates != NULL) PSMatrixFree(hstates);
+    if (layer->states != NULL) PSMatrixFree(layer->states);
     layer->states = NULL;
     PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
     return 0;
@@ -1600,7 +1600,7 @@ int PSResizeLayerStates(PSLayer *layer, uint32_t seqlen) {
         layer, seqlen, states, &layer->initial_states
     );
     if (hstates == NULL) {
-        PSMatrixDelete(states);
+        PSMatrixFree(states);
         layer->states = NULL;
         layer->initial_states = NULL;
         PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
@@ -2096,7 +2096,7 @@ PSModel *PSModelCreate(const char* name) {
     sequence_settings->end = -1;
     return model;
 memory_err:
-    if (model != NULL) PSModelDelete(model);
+    if (model != NULL) PSModelFree(model);
     PSErr(__func__, "could not allocate memory for model");
     return NULL;
 }
@@ -2284,7 +2284,7 @@ int cloneModelChain(PSModel *model, PSModel *clone, int layout_only) {
             {
                 PSErr("PSModelClone", "invalid link in model %d",
                       next->index);
-                PSModelDelete(clone_next);
+                PSModelFree(clone_next);
                 return 0;
             }
             if (link->layer->index >= clone_next->size ||
@@ -2292,7 +2292,7 @@ int cloneModelChain(PSModel *model, PSModel *clone, int layout_only) {
             {
                 PSErr("PSModelClone", "missing layer %d in cloned model %d",
                       link->layer->index, next->index);
-                PSModelDelete(clone_next);
+                PSModelFree(clone_next);
                 return 0;
             }
             PSModel *prev_model = NULL, *cur = clone;
@@ -2308,7 +2308,7 @@ int cloneModelChain(PSModel *model, PSModel *clone, int layout_only) {
             if (prev_model == NULL) {
                 PSErr("PSModelClone", "could not find linked model %d",
                       prev_idx);
-                PSModelDelete(clone_next);
+                PSModelFree(clone_next);
                 return 0;
             }
             if (link->previous_layer->index >= prev_model->size ||
@@ -2316,13 +2316,13 @@ int cloneModelChain(PSModel *model, PSModel *clone, int layout_only) {
             {
                 PSErr("PSModelClone", "missing layer %d in cloned model %d",
                       link->previous_layer->index, prev_model->index);
-                PSModelDelete(clone_next);
+                PSModelFree(clone_next);
                 return 0;
             }
             clone_link = malloc(sizeof(*clone_link));
             if (clone_link == NULL) {
                 PSPrintMemoryErrorMsg();
-                PSModelDelete(clone_next);
+                PSModelFree(clone_next);
                 return 0;
             }
             clone_link->layer = clone_next->layers[link->layer->index];
@@ -2332,14 +2332,14 @@ int cloneModelChain(PSModel *model, PSModel *clone, int layout_only) {
         if (clone_link == NULL) {
             PSErr("PSModelClone", "could not make link for cloned model %d",
                   next->index);
-            PSModelDelete(clone_next);
+            PSModelFree(clone_next);
             return 0;
         }
         int added = PSAddModel(clone, clone_next, clone_link);
         if (!added) {
             PSErr("PSModelClone", "unable to add cloned model %d",
                   next->index);
-            PSModelDelete(clone_next);
+            PSModelFree(clone_next);
             free(clone_link);
             return 0;
         }
@@ -2502,13 +2502,13 @@ static PSModel *cloneModel(PSModel *model, int layout_only, PSModel *parent) {
         ldef.pretrained = layer->pretrained;
         PSLayer *cloned_layer = PSAddLayer(clone, type, layer->size, &ldef);
         if (cloned_layer == NULL) {
-            PSModelDelete(clone);
+            PSModelFree(clone);
             return NULL;
         }
         cloned_layer->flags = layer->flags;
         if (!layout_only) {
             if (cloned_layer->states != NULL) {
-                PSMatrixDelete(cloned_layer->states);
+                PSMatrixFree(cloned_layer->states);
                 cloned_layer->states = NULL;
             }
             if (layer->states != NULL) {
@@ -2544,13 +2544,13 @@ static PSModel *cloneModel(PSModel *model, int layout_only, PSModel *parent) {
                         goto err;
                     }
                     if (cloned_layer->weights[j] != NULL)
-                        PSMatrixDelete(cloned_layer->weights[j]);
+                        PSMatrixFree(cloned_layer->weights[j]);
                     cloned_layer->weights[j] = PSMatrixDup(layer->weights[j]);
                     if (cloned_layer->weights[j] == NULL) goto memerr;
                 }
             } else if (cloned_layer->weights != NULL) {
                 for (j = 0; j < layer->weight_types_count; j++)
-                    PSMatrixDelete(cloned_layer->weights[j]);
+                    PSMatrixFree(cloned_layer->weights[j]);
                 free(cloned_layer->weights);
                 cloned_layer->weights = NULL;
             }
@@ -2660,7 +2660,7 @@ static PSModel *cloneModel(PSModel *model, int layout_only, PSModel *parent) {
 memerr:
     PSPrintMemoryErrorMsg();
 err:
-    if (clone != NULL) PSModelDelete(clone);
+    if (clone != NULL) PSModelFree(clone);
     return NULL;
 }
 
@@ -2668,7 +2668,7 @@ PSModel *PSModelClone(PSModel *model, int layout_only) {
     PSModel *clone =  cloneModel(model, layout_only, NULL);
     if (clone == NULL) return NULL;
     if (PSModelIsBuilt(model) && !PSModelBuild(clone)) {
-        PSModelDelete(clone);
+        PSModelFree(clone);
         return NULL;
     }
     return clone;
@@ -2929,7 +2929,7 @@ static void deleteModelContext(PSModelContext *ctx, PSModel *model) {
     free(ctx);
 }
 
-void PSModelDelete(PSModel *model) {
+void PSModelFree(PSModel *model) {
     if (model == NULL) return;
     PSModelContext *ctx = getModelContext(model);
     if (ctx != NULL) deleteModelContext(model->context, model);
@@ -2951,7 +2951,7 @@ void PSModelDelete(PSModel *model) {
     if (prev != NULL && prev->next == model) prev->next = NULL;
     if (next != NULL && next->previous == model) {
         next->previous = NULL;
-        PSModelDelete(next);
+        PSModelFree(next);
     }
     free(link);
 }
@@ -3319,7 +3319,7 @@ void PSDeleteLayer(PSLayer* layer) {
     if (layer->weights != NULL) {
         for (i = 0; i < layer->weight_types_count; i++) {
             PSMatrix weights = layer->weights[i];
-            if (weights != NULL) PSMatrixDelete(weights);
+            if (weights != NULL) PSMatrixFree(weights);
         }
         free(layer->weights);
     }
@@ -3327,9 +3327,9 @@ void PSDeleteLayer(PSLayer* layer) {
     if (layer->on_delete != NULL) layer->on_delete(layer);
     void *extra = layer->extra;
     if (extra != NULL) free(layer->extra);
-    if (layer->delta != NULL) PSMatrixDelete(layer->delta);
-    if (layer->states != NULL) PSMatrixDelete(layer->states);
-    if (layer->pretrainer != NULL) PSModelDelete(layer->pretrainer);
+    if (layer->delta != NULL) PSMatrixFree(layer->delta);
+    if (layer->states != NULL) PSMatrixFree(layer->states);
+    if (layer->pretrainer != NULL) PSModelFree(layer->pretrainer);
     free(layer);
 }
 
@@ -4136,7 +4136,7 @@ static int resetLayerDeltas(PSLayer *layer, int full_reset) {
         int delta_seqlen = PSMatrixDim(layer->delta, 0);
         if (seqlen < 1) seqlen = 1;
         if (seqlen != delta_seqlen) {
-            PSMatrixDelete(layer->delta);
+            PSMatrixFree(layer->delta);
             layer->delta = PSMatrixZeros(2, seqlen, layer->size);
             return layer->delta != NULL;
         }
@@ -4176,7 +4176,7 @@ static int propagateDeltaFromNextModel(PSModel *model) {
         return 0;
     }
     if (link->previous_layer->delta != NULL) {
-        PSMatrixDelete(link->previous_layer->delta);
+        PSMatrixFree(link->previous_layer->delta);
         link->previous_layer->delta = NULL;
     }
     if (LSTM == link->previous_layer->type && link->layer->type != LSTM) {
@@ -4503,9 +4503,9 @@ int PSSoftmaxBackward(PSFloat *softmax_out, PSFloat *delta, PSFloat *dest,
     opts.argtype[1] = 'V';
     success = PSMatrixProductVM(delta, diagonal, len, &dest, &opts);
 final:
-    PSMatrixDelete(diagonal);
-    PSMatrixDelete(tmpdest);
-    PSMatrixDelete(sout);
+    PSMatrixFree(diagonal);
+    PSMatrixFree(tmpdest);
+    PSMatrixFree(sout);
     return success;
 }
 

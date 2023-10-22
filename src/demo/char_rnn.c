@@ -354,7 +354,7 @@ void initLSTMGRUParams(PSModel *model) {
     PSLayer *layer = model->layers[1];
     if (layer->type != LSTM && layer->type != GRU) {
         PSErr(__func__, "Layer[1] is not LSTM nor GRU");
-        PSModelDelete(model);
+        PSModelFree(model);
         exit(1);
     }
     PSMathOpts opts = {.acceleration = model->acceleration};
@@ -413,7 +413,7 @@ int main(int argc, char **argv) {
         ok = PSModelLoad(model, load_model_file);
         if (!ok) {
             PSErr(NULL, "Could not load model file");
-            PSModelDelete(model);
+            PSModelFree(model);
             return 1;
         }
     }
@@ -421,7 +421,7 @@ int main(int argc, char **argv) {
     if (!PSModelIsBuilt(model)) {
         if (!PSModelBuild(model)) {
             fprintf(stderr, "Could not build model!\n");
-            PSModelDelete(model);
+            PSModelFree(model);
             return 1;
         }
     }
@@ -457,6 +457,6 @@ int main(int argc, char **argv) {
             &opts);
     if (output_path != NULL) PSModelSave(model, output_path);
 final:
-    PSModelDelete(model);
+    PSModelFree(model);
     return (ok ? 0 : 1);
 }

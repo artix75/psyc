@@ -137,23 +137,23 @@ int PSInitLSTMStates(PSLayer *layer, uint32_t steps, int retain_previous) {
     }
     if (steps == 0) {
         if (cell->candidates != NULL) {
-            PSMatrixDelete(cell->candidates);
+            PSMatrixFree(cell->candidates);
             cell->candidates = NULL;
         }
         if (cell->input_gates != NULL) {
-            PSMatrixDelete(cell->input_gates);
+            PSMatrixFree(cell->input_gates);
             cell->input_gates = NULL;
         }
         if (cell->output_gates != NULL) {
-            PSMatrixDelete(cell->output_gates);
+            PSMatrixFree(cell->output_gates);
             cell->output_gates = NULL;
         }
         if (cell->forget_gates != NULL) {
-            PSMatrixDelete(cell->forget_gates);
+            PSMatrixFree(cell->forget_gates);
             cell->forget_gates = NULL;
         }
         if (cell->raw_states != NULL) {
-            PSMatrixDelete(cell->raw_states);
+            PSMatrixFree(cell->raw_states);
             cell->raw_states = NULL;
         }
         return 1;
@@ -162,28 +162,28 @@ int PSInitLSTMStates(PSLayer *layer, uint32_t steps, int retain_previous) {
         layer, steps, 0, cell->candidates, NULL
     );
     if (candidates == NULL) return 0;
-    if (cell->candidates != NULL) PSMatrixDelete(cell->candidates);
+    if (cell->candidates != NULL) PSMatrixFree(cell->candidates);
     cell->candidates = candidates;
 
     PSMatrix input_gates = initLayerStates(
         layer, steps, 0, cell->input_gates, NULL
     );
     if (input_gates == NULL) return 0;
-    if (cell->input_gates != NULL) PSMatrixDelete(cell->input_gates);
+    if (cell->input_gates != NULL) PSMatrixFree(cell->input_gates);
     cell->input_gates = input_gates;
 
     PSMatrix output_gates = initLayerStates(
         layer, steps, 0, cell->output_gates, NULL
     );
     if (output_gates == NULL) return 0;
-    if (cell->output_gates != NULL) PSMatrixDelete(cell->output_gates);
+    if (cell->output_gates != NULL) PSMatrixFree(cell->output_gates);
     cell->output_gates = output_gates;
 
     PSMatrix forget_gates = initLayerStates(
         layer, steps, 0, cell->forget_gates, NULL
     );
     if (forget_gates == NULL) return 0;
-    if (cell->forget_gates != NULL) PSMatrixDelete(cell->forget_gates);
+    if (cell->forget_gates != NULL) PSMatrixFree(cell->forget_gates);
     cell->forget_gates = forget_gates;
 
     PSMatrix raw_states = initLayerStates(
@@ -191,7 +191,7 @@ int PSInitLSTMStates(PSLayer *layer, uint32_t steps, int retain_previous) {
         &cell->initial_raw_states
     );
     if (raw_states == NULL) return 0;
-    if (cell->raw_states != NULL) PSMatrixDelete(cell->raw_states);
+    if (cell->raw_states != NULL) PSMatrixFree(cell->raw_states);
     cell->raw_states = raw_states;
     return 1;
 }
@@ -208,7 +208,7 @@ int PSResizeLSTMStates(PSLayer *layer, uint32_t steps, uint32_t prev_steps) {
         layer, steps, cell->candidates, NULL
     );
     if (candidates == NULL) {
-        PSMatrixDelete(cell->candidates);
+        PSMatrixFree(cell->candidates);
         cell->candidates = NULL;
         PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
         return 0;
@@ -219,7 +219,7 @@ int PSResizeLSTMStates(PSLayer *layer, uint32_t steps, uint32_t prev_steps) {
         layer, steps, cell->input_gates, NULL
     );
     if (input_gates == NULL) {
-        PSMatrixDelete(cell->input_gates);
+        PSMatrixFree(cell->input_gates);
         cell->input_gates = NULL;
         PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
         return 0;
@@ -230,7 +230,7 @@ int PSResizeLSTMStates(PSLayer *layer, uint32_t steps, uint32_t prev_steps) {
         layer, steps, cell->output_gates, NULL
     );
     if (output_gates == NULL) {
-        PSMatrixDelete(cell->output_gates);
+        PSMatrixFree(cell->output_gates);
         cell->output_gates = NULL;
         PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
         return 0;
@@ -241,7 +241,7 @@ int PSResizeLSTMStates(PSLayer *layer, uint32_t steps, uint32_t prev_steps) {
         layer, steps, cell->forget_gates, NULL
     );
     if (forget_gates == NULL) {
-        PSMatrixDelete(cell->forget_gates);
+        PSMatrixFree(cell->forget_gates);
         cell->forget_gates = NULL;
         PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
         return 0;
@@ -251,7 +251,7 @@ int PSResizeLSTMStates(PSLayer *layer, uint32_t steps, uint32_t prev_steps) {
         layer, steps, cell->raw_states, &cell->initial_raw_states
     );
     if (raw_states == NULL) {
-        PSMatrixDelete(cell->raw_states);
+        PSMatrixFree(cell->raw_states);
         cell->raw_states = NULL;
         cell->initial_raw_states = NULL;
         PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
@@ -418,11 +418,11 @@ memerr:
 }
 
 void PSDeleteLSTMCell(PSLSTMCell *cell) {
-    if (cell->raw_states != NULL) PSMatrixDelete(cell->raw_states);
-    if (cell->candidates != NULL) PSMatrixDelete(cell->candidates);
-    if (cell->input_gates != NULL) PSMatrixDelete(cell->input_gates);
-    if (cell->output_gates != NULL) PSMatrixDelete(cell->output_gates);
-    if (cell->forget_gates != NULL) PSMatrixDelete(cell->forget_gates);
+    if (cell->raw_states != NULL) PSMatrixFree(cell->raw_states);
+    if (cell->candidates != NULL) PSMatrixFree(cell->candidates);
+    if (cell->input_gates != NULL) PSMatrixFree(cell->input_gates);
+    if (cell->output_gates != NULL) PSMatrixFree(cell->output_gates);
+    if (cell->forget_gates != NULL) PSMatrixFree(cell->forget_gates);
     free(cell);
 }
 
@@ -448,19 +448,19 @@ int PSLSTMLayerCopy(PSLayer *layer, PSLayer *src) {
             return 0;
         }
         if (src->initial_states != NULL) c++;
-        if (cell->candidates != NULL) PSMatrixDelete(cell->candidates);
+        if (cell->candidates != NULL) PSMatrixFree(cell->candidates);
         cell->candidates = PSMatrixDup(srccell->candidates);
         if (cell->candidates == NULL) goto memerr;
-        if (cell->input_gates != NULL) PSMatrixDelete(cell->input_gates);
+        if (cell->input_gates != NULL) PSMatrixFree(cell->input_gates);
         cell->input_gates = PSMatrixDup(srccell->input_gates);
         if (cell->input_gates == NULL) goto memerr;
-        if (cell->output_gates != NULL) PSMatrixDelete(cell->output_gates);
+        if (cell->output_gates != NULL) PSMatrixFree(cell->output_gates);
         cell->output_gates = PSMatrixDup(srccell->output_gates);
         if (cell->output_gates == NULL) goto memerr;
-        if (cell->forget_gates != NULL) PSMatrixDelete(cell->forget_gates);
+        if (cell->forget_gates != NULL) PSMatrixFree(cell->forget_gates);
         cell->forget_gates = PSMatrixDup(srccell->output_gates);
         if (cell->forget_gates == NULL) goto memerr;
-        if (cell->raw_states != NULL) PSMatrixDelete(cell->raw_states);
+        if (cell->raw_states != NULL) PSMatrixFree(cell->raw_states);
         cell->raw_states = PSMatrixDup(srccell->raw_states);
         if (cell->raw_states == NULL) goto memerr;
     }

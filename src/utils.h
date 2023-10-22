@@ -100,12 +100,12 @@ void *PSDictGetPointer(PSDict *dict, const char *key);
 int PSDictHasKey(PSDict *dict, const char *key);
 PSDictItem *PSDictSet(PSDict *dict, const char *key, PSDictValue val);
 PSDictItem *PSDictGetOrSet(PSDict *dict, const char *key, PSDictValue val);
-void PSDictDelete(PSDict *dict, const char *key);
+void PSDictRemove(PSDict *dict, const char *key);
 const char **PSDictGetKeys(PSDict *dict);
 PSDictItem **PSDictGetItems(PSDict *dict);
 struct PSDictIterator *PSDictIteratorCreate(PSDict *dict);
 PSDictItem *PSDictNext(PSDictIterator *iterator);
-void PSDictRelease(PSDict *dict);
+void PSDictFree(PSDict *dict);
 
 /* Bitmaps */
 

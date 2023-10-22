@@ -124,15 +124,15 @@ int PSInitGRUStates(PSLayer *layer, uint32_t steps, int retain_previous) {
     }
     if (steps == 0) {
         if (cell->candidates != NULL) {
-            PSMatrixDelete(cell->candidates);
+            PSMatrixFree(cell->candidates);
             cell->candidates = NULL;
         }
         if (cell->update_gates != NULL) {
-            PSMatrixDelete(cell->update_gates);
+            PSMatrixFree(cell->update_gates);
             cell->update_gates = NULL;
         }
         if (cell->reset_gates != NULL) {
-            PSMatrixDelete(cell->reset_gates);
+            PSMatrixFree(cell->reset_gates);
             cell->reset_gates = NULL;
         }
         return 1;
@@ -141,21 +141,21 @@ int PSInitGRUStates(PSLayer *layer, uint32_t steps, int retain_previous) {
         layer, steps, 0, cell->candidates, NULL
     );
     if (candidates == NULL) return 0;
-    if (cell->candidates != NULL) PSMatrixDelete(cell->candidates);
+    if (cell->candidates != NULL) PSMatrixFree(cell->candidates);
     cell->candidates = candidates;
 
     PSMatrix update_gates = initLayerStates(
         layer, steps, 0, cell->update_gates, NULL
     );
     if (update_gates == NULL) return 0;
-    if (cell->update_gates != NULL) PSMatrixDelete(cell->update_gates);
+    if (cell->update_gates != NULL) PSMatrixFree(cell->update_gates);
     cell->update_gates = update_gates;
 
     PSMatrix reset_gates = initLayerStates(
         layer, steps, 0, cell->reset_gates, NULL
     );
     if (reset_gates == NULL) return 0;
-    if (cell->reset_gates != NULL) PSMatrixDelete(cell->reset_gates);
+    if (cell->reset_gates != NULL) PSMatrixFree(cell->reset_gates);
     cell->reset_gates = reset_gates;
 
     return 1;
@@ -173,7 +173,7 @@ int PSResizeGRUStates(PSLayer *layer, uint32_t steps, uint32_t prev_steps) {
         layer, steps, cell->candidates, NULL
     );
     if (candidates == NULL) {
-        PSMatrixDelete(cell->candidates);
+        PSMatrixFree(cell->candidates);
         cell->candidates = NULL;
         PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
         return 0;
@@ -184,7 +184,7 @@ int PSResizeGRUStates(PSLayer *layer, uint32_t steps, uint32_t prev_steps) {
         layer, steps, cell->update_gates, NULL
     );
     if (update_gates == NULL) {
-        PSMatrixDelete(cell->update_gates);
+        PSMatrixFree(cell->update_gates);
         cell->update_gates = NULL;
         PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
         return 0;
@@ -195,7 +195,7 @@ int PSResizeGRUStates(PSLayer *layer, uint32_t steps, uint32_t prev_steps) {
         layer, steps, cell->reset_gates, NULL
     );
     if (reset_gates == NULL) {
-        PSMatrixDelete(cell->reset_gates);
+        PSMatrixFree(cell->reset_gates);
         cell->reset_gates = NULL;
         PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
         return 0;
@@ -352,9 +352,9 @@ memerr:
 }
 
 void PSDeleteGRUCell(PSGRUCell *cell) {
-    if (cell->candidates != NULL) PSMatrixDelete(cell->candidates);
-    if (cell->update_gates != NULL) PSMatrixDelete(cell->update_gates);
-    if (cell->reset_gates != NULL) PSMatrixDelete(cell->reset_gates);
+    if (cell->candidates != NULL) PSMatrixFree(cell->candidates);
+    if (cell->update_gates != NULL) PSMatrixFree(cell->update_gates);
+    if (cell->reset_gates != NULL) PSMatrixFree(cell->reset_gates);
     free(cell);
 }
 
@@ -378,13 +378,13 @@ int PSGRULayerCopy(PSLayer *layer, PSLayer *src) {
             return 0;
         }
         if (src->initial_states != NULL) c++;
-        if (cell->candidates != NULL) PSMatrixDelete(cell->candidates);
+        if (cell->candidates != NULL) PSMatrixFree(cell->candidates);
         cell->candidates = PSMatrixDup(srccell->candidates);
         if (cell->candidates == NULL) goto memerr;
-        if (cell->update_gates != NULL) PSMatrixDelete(cell->update_gates);
+        if (cell->update_gates != NULL) PSMatrixFree(cell->update_gates);
         cell->update_gates = PSMatrixDup(srccell->update_gates);
         if (cell->update_gates == NULL) goto memerr;
-        if (cell->reset_gates != NULL) PSMatrixDelete(cell->reset_gates);
+        if (cell->reset_gates != NULL) PSMatrixFree(cell->reset_gates);
         cell->reset_gates = PSMatrixDup(srccell->reset_gates);
         if (cell->reset_gates == NULL) goto memerr;
     }

@@ -97,7 +97,7 @@ static int useOutputProjection(PSLayer *layer);
 static void deleteHeads(PSMatrix *heads, int num_heads, int is_vector) {
     if (heads == NULL) return;
     for (int i = 0; i < num_heads; i++) {
-        if (!is_vector) PSMatrixDelete(heads[i]);
+        if (!is_vector) PSMatrixFree(heads[i]);
         else free(heads[i]);
     }
     free(heads);
@@ -121,16 +121,16 @@ static void deleteAttentionLayer(PSLayer *layer) {
             PSDeleteLayer(provider);
     }
     if (data != NULL) {
-        PSMatrixDelete(data->query);
-        PSMatrixDelete(data->keys);
-        PSMatrixDelete(data->values);
-        PSMatrixDelete(data->query_inputs);
-        PSMatrixDelete(data->key_inputs);
-        PSMatrixDelete(data->value_inputs);
-        PSMatrixDelete(data->causal_mask);
-        PSMatrixDelete(data->score_inputs);
-        PSMatrixDelete(data->attention_weights);
-        PSMatrixDelete(data->output_projection_inputs);
+        PSMatrixFree(data->query);
+        PSMatrixFree(data->keys);
+        PSMatrixFree(data->values);
+        PSMatrixFree(data->query_inputs);
+        PSMatrixFree(data->key_inputs);
+        PSMatrixFree(data->value_inputs);
+        PSMatrixFree(data->causal_mask);
+        PSMatrixFree(data->score_inputs);
+        PSMatrixFree(data->attention_weights);
+        PSMatrixFree(data->output_projection_inputs);
         deleteHeads(data->q_heads, n_heads, 0);
         deleteHeads(data->k_heads, n_heads, 0);
         deleteHeads(data->v_heads, n_heads, 0);
@@ -146,16 +146,16 @@ static int copyAttentionLayer(PSLayer *layer, PSLayer *src) {
     PSAttentionData *srcdata = PSGetAttentionData(src);
     PSAttentionData *data = PSGetAttentionData(layer);
     if (data != NULL) {
-        PSMatrixDelete(data->query);
-        PSMatrixDelete(data->keys);
-        PSMatrixDelete(data->values);
-        PSMatrixDelete(data->query_inputs);
-        PSMatrixDelete(data->key_inputs);
-        PSMatrixDelete(data->value_inputs);
-        PSMatrixDelete(data->causal_mask);
-        PSMatrixDelete(data->score_inputs);
-        PSMatrixDelete(data->attention_weights);
-        PSMatrixDelete(data->output_projection_inputs);
+        PSMatrixFree(data->query);
+        PSMatrixFree(data->keys);
+        PSMatrixFree(data->values);
+        PSMatrixFree(data->query_inputs);
+        PSMatrixFree(data->key_inputs);
+        PSMatrixFree(data->value_inputs);
+        PSMatrixFree(data->causal_mask);
+        PSMatrixFree(data->score_inputs);
+        PSMatrixFree(data->attention_weights);
+        PSMatrixFree(data->output_projection_inputs);
         free(data);
         data = NULL;
         layer->private = NULL;
@@ -306,7 +306,7 @@ static PSMatrix initOrResizeCausalMask(PSLayer *layer, PSAttentionData *data,
     if (mask != NULL) {
         int mask_seqlen = PSMatrixDim(mask, 0);
         if (seqlen != mask_seqlen) {
-            PSMatrixDelete(mask);
+            PSMatrixFree(mask);
             data->causal_mask = NULL;
             mask = NULL;
         }
@@ -337,7 +337,7 @@ static PSMatrix initOrResizeAttentionData(PSLayer *layer,
     if (matrix != NULL) {
         int data_seqlen = PSMatrixDim(matrix, 0);
         if (do_init || seqlen <= 0) {
-            PSMatrixDelete(matrix);
+            PSMatrixFree(matrix);
             *data_pointer = NULL;
             matrix = NULL;
         } else if (seqlen > data_seqlen) {
@@ -448,16 +448,16 @@ int PSInitAttentionStates(PSLayer *layer, uint32_t steps, int retain_previous) {
         layer->private = data;
     }
 
-    if (data->keys != NULL) PSMatrixDelete(data->keys);
+    if (data->keys != NULL) PSMatrixFree(data->keys);
     data->keys = NULL;
 
-    if (data->key_inputs != NULL) PSMatrixDelete(data->key_inputs);
+    if (data->key_inputs != NULL) PSMatrixFree(data->key_inputs);
     data->key_inputs = NULL;
 
-    if (data->values != NULL) PSMatrixDelete(data->values);
+    if (data->values != NULL) PSMatrixFree(data->values);
     data->values = NULL;
 
-    if (data->value_inputs != NULL) PSMatrixDelete(data->value_inputs);
+    if (data->value_inputs != NULL) PSMatrixFree(data->value_inputs);
     data->value_inputs = NULL;
 
     PSAttentionSettings *settings = PSGetAttentionSettings(layer);
@@ -473,23 +473,23 @@ int PSInitAttentionStates(PSLayer *layer, uint32_t steps, int retain_previous) {
 
     if (steps == 0) {
         if (data->query != NULL) {
-            PSMatrixDelete(data->query);
+            PSMatrixFree(data->query);
             data->query = NULL;
         }
         if (data->query_inputs != NULL) {
-            PSMatrixDelete(data->query_inputs);
+            PSMatrixFree(data->query_inputs);
             data->query_inputs = NULL;
         }
         if (data->score_inputs != NULL) {
-            PSMatrixDelete(data->score_inputs);
+            PSMatrixFree(data->score_inputs);
             data->score_inputs = NULL;
         }
         if (data->attention_weights != NULL) {
-            PSMatrixDelete(data->attention_weights);
+            PSMatrixFree(data->attention_weights);
             data->attention_weights = NULL;
         }
         if (data->output_projection_inputs != NULL) {
-            PSMatrixDelete(data->output_projection_inputs);
+            PSMatrixFree(data->output_projection_inputs);
             data->output_projection_inputs = NULL;
         }
         if (n_heads > 0) {
@@ -500,7 +500,7 @@ int PSInitAttentionStates(PSLayer *layer, uint32_t steps, int retain_previous) {
     }
     PSMatrix query = initLayerStates(layer, steps, 0, data->query, NULL);
     if (query == NULL) return 0;
-    if (data->query != NULL) PSMatrixDelete(data->query);
+    if (data->query != NULL) PSMatrixFree(data->query);
     data->query = query;
     int is_training = PSIsModelTraining(layer->model);
     /* If model is not training, other data used for backpropagation is not
@@ -511,7 +511,7 @@ int PSInitAttentionStates(PSLayer *layer, uint32_t steps, int retain_previous) {
             layer, steps, 0, data->query_inputs, NULL
         );
         if (query_inputs == NULL) return 0;
-        if (data->query_inputs != NULL) PSMatrixDelete(data->query_inputs);
+        if (data->query_inputs != NULL) PSMatrixFree(data->query_inputs);
         data->query_inputs = query_inputs;
     }
     PSMatrix *data_p[] = {
@@ -557,7 +557,7 @@ int PSResizeAttentionStates(PSLayer *layer, uint32_t steps, uint32_t prevlen) {
         layer, steps, data->query, &layer->initial_states
     );
     if (query == NULL) {
-        PSMatrixDelete(data->query);
+        PSMatrixFree(data->query);
         data->query = NULL;
         layer->initial_states = NULL;
         PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
@@ -570,7 +570,7 @@ int PSResizeAttentionStates(PSLayer *layer, uint32_t steps, uint32_t prevlen) {
             layer, steps, data->query_inputs, &layer->initial_states
         );
         if (query_inputs == NULL) {
-            PSMatrixDelete(data->query_inputs);
+            PSMatrixFree(data->query_inputs);
             data->query_inputs = NULL;
             layer->initial_states = NULL;
             PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
@@ -807,14 +807,14 @@ PSFloat *PSGetAttentionQuery(PSLayer *layer, int t) {
         query = PSMatrixZeros(2, seqlen, layer->size);
         if (query == NULL) return NULL;
         PSVectorCopy(query, provider->states, seqlen * layer->size);
-        if (data->query != NULL) PSMatrixDelete(data->query);
+        if (data->query != NULL) PSMatrixFree(data->query);
         data->query = query;
         if (is_training && trainable) {
             if (data->query_inputs == NULL) {
                 PSErrNN(NULL, NULL, layer, "missing query_inputs");
                 return NULL;
             }
-            PSMatrixDelete(data->query_inputs);
+            PSMatrixFree(data->query_inputs);
             data->query_inputs = PSMatrixDup(data->query);
             if (data->query_inputs == NULL) {
                 PSErrNN(NULL, NULL, layer, "could not store query_inputs into "
@@ -868,7 +868,7 @@ PSFloat *PSGetAttentionQuery(PSLayer *layer, int t) {
                 query, weights, biases, layer->activate,
                 updated_query, 0, acceleration
             );
-            PSMatrixDelete(data->query);
+            PSMatrixFree(data->query);
             query = data->query = updated_query;
         } else {
             int do_free_inputs = 0;
@@ -935,7 +935,7 @@ PSMatrix PSGetAttentionKeys(PSLayer *layer) {
         PSMatrix updated_keys = PSMatrixDupShape(keys);
         if (updated_keys == NULL) return NULL;
         if (is_training) {
-            PSMatrixDelete(data->key_inputs);
+            PSMatrixFree(data->key_inputs);
             data->key_inputs = PSMatrixDup(keys);
             if (data->key_inputs == NULL) {
                 PSErrNN(NULL, NULL, layer, "could not store key_inputs into "
@@ -954,10 +954,10 @@ PSMatrix PSGetAttentionKeys(PSLayer *layer) {
         );
         if (!ok) {
             PSErrNN(NULL, NULL, layer, "attention keys feedforward failed");
-            PSMatrixDelete(updated_keys);
+            PSMatrixFree(updated_keys);
             return NULL;
         }
-        PSMatrixDelete(keys);
+        PSMatrixFree(keys);
         keys = data->keys = updated_keys;
     }
     return keys;
@@ -1000,11 +1000,11 @@ PSMatrix PSGetAttentionValues(PSLayer *layer) {
         PSMatrix updated_values = PSMatrixDupShape(values);
         if (updated_values == NULL) return NULL;
         if (is_training) {
-            PSMatrixDelete(data->value_inputs);
+            PSMatrixFree(data->value_inputs);
             data->value_inputs = PSMatrixDup(values);
             if (data->value_inputs == NULL) {
                 PSErrNN(NULL,NULL,layer,"could not store value inputs cache");
-                PSMatrixDelete(updated_values);
+                PSMatrixFree(updated_values);
                 return NULL;
             }
         }
@@ -1019,10 +1019,10 @@ PSMatrix PSGetAttentionValues(PSLayer *layer) {
         );
         if (!ok) {
             PSErrNN(NULL, NULL, layer, "attention values feedforward failed");
-            PSMatrixDelete(updated_values);
+            PSMatrixFree(updated_values);
             return NULL;
         }
-        PSMatrixDelete(values);
+        PSMatrixFree(values);
         values = data->values = updated_values;
     }
     return values;
@@ -1072,7 +1072,7 @@ static PSFloat *storeAttentionStates(PSLayer *layer, PSMatrix *states,
     if (dest == NULL) dest = &(layer->states);
     if (*dest == NULL || *states == NULL) return NULL;
     if (PSHandleSequenceAtOnce(layer)) {
-        PSMatrixDelete(*dest);
+        PSMatrixFree(*dest);
         *dest = *states;
         return *dest;
     } else {
@@ -1080,7 +1080,7 @@ static PSFloat *storeAttentionStates(PSLayer *layer, PSMatrix *states,
         int dest_shape[3] = {0};
         int dest_ndims = PSMatrixDimensions(*dest, dest_shape);
         if (dest_ndims == 1) {
-            PSMatrixDelete(*dest);
+            PSMatrixFree(*dest);
             *dest = *states;
             return *dest;
         }
@@ -1096,7 +1096,7 @@ static PSFloat *storeAttentionStates(PSLayer *layer, PSMatrix *states,
         }
         PSFloat *dest_p = *dest + (t * len);
         PSVectorCopy(dest_p, *states, len);
-        PSMatrixDelete(*states);
+        PSMatrixFree(*states);
         *states = NULL;
         return dest_p;
     }
@@ -1229,9 +1229,9 @@ PSMatrix PSGetAdditiveScores(PSLayer *layer, PSFloat *query, PSMatrix keys,
         *score_inputs_ptr = (success ? sum : NULL);
 final:
     if (score_inputs_ptr == NULL || *score_inputs_ptr != sum)
-        PSMatrixDelete(sum);
+        PSMatrixFree(sum);
     if (!success) {
-        PSMatrixDelete(scores);
+        PSMatrixFree(scores);
         scores = NULL;
     }
     return scores;
@@ -1261,7 +1261,7 @@ PSMatrix PSGetDotProductScores(PSLayer *layer, PSFloat *query, PSMatrix keys) {
     }
 final:
     if (!success) {
-        PSMatrixDelete(scores);
+        PSMatrixFree(scores);
         scores = NULL;
     }
     return scores;
@@ -1377,15 +1377,15 @@ PSMatrix PSAttention(PSLayer *layer, PSFloat *query, PSMatrix keys,
     } else success = PSMatrixProduct(attention_weights, values, &result, &opts);
 final:
     if (!success) {
-        PSMatrixDelete(result);
+        PSMatrixFree(result);
         result = NULL;
-        PSMatrixDelete(attention_weights);
+        PSMatrixFree(attention_weights);
         attention_weights = NULL;
     }
-    PSMatrixDelete(scores);
+    PSMatrixFree(scores);
     if (attention_weights_ptr != NULL)
         *attention_weights_ptr = attention_weights;
-    else PSMatrixDelete(attention_weights);
+    else PSMatrixFree(attention_weights);
     return result;
 }
 
@@ -1483,7 +1483,7 @@ PSMatrix PSMultiHeadAttention(PSLayer *layer, PSFloat *query, PSMatrix keys,
         if (!success) {
             PSErrNN(NULL, NULL, layer, "failed to get attention weights "
                     "for head %d", n);
-            PSMatrixDelete(hres);
+            PSMatrixFree(hres);
             goto final;
         }
         for (int i = 0; i < qry_seqlen; i++) {
@@ -1493,12 +1493,12 @@ PSMatrix PSMultiHeadAttention(PSLayer *layer, PSFloat *query, PSMatrix keys,
             PSFloat *dst = result + dst_offset;
             PSVectorCopy(dst, src, head_hidden_size);
         }
-        PSMatrixDelete(hres);
+        PSMatrixFree(hres);
         if (attn_w != NULL) {
             int len = PSMatrixLength(attn_w);
             PSFloat *dest = *attention_weights_ptr + (n * len);
             PSVectorCopy(dest, attn_w, len);
-            PSMatrixDelete(attn_w);
+            PSMatrixFree(attn_w);
             attn_w = NULL;
         }
     }
@@ -1513,7 +1513,7 @@ final:
         deleteHeads(q_heads, num_heads, !whole_seq);
     }
     if (!success) {
-        PSMatrixDelete(result);
+        PSMatrixFree(result);
         result = NULL;
     }
     return result;
@@ -1586,8 +1586,8 @@ int PSAdditiveAttentionBackward(PSLayer *layer, PSMatrix *dscores,
     if (*dkeys == NULL) *dkeys = delta;
     else PSAddVectors(*dkeys, delta, *dkeys, klen, &opts);
 final:
-    if (delta && delta != *dkeys) PSMatrixDelete(delta);
-    PSMatrixDelete(score_deriv);
+    if (delta && delta != *dkeys) PSMatrixFree(delta);
+    PSMatrixFree(score_deriv);
     return success;
 }
 
@@ -1625,7 +1625,7 @@ int PSDotAttentionBackward(PSLayer *layer, PSMatrix *dscores, PSMatrix keys,
         success = q != NULL;
         if (!success) goto final;
         success = PSMatrixProduct(*dscores, q, dkeys, &opts);
-        PSMatrixDelete(q);
+        PSMatrixFree(q);
     }
     if (!success) {
         PSErrNN(NULL, NULL, layer, "could not compute delta for keys");
@@ -1667,7 +1667,7 @@ int PSAttentionBackward(PSLayer *layer, PSMatrix delta, PSFloat *query,
     if (!ok) goto final;
     opts.transpose = 1;
     ok = PSMatrixProduct(attn_w, delta, dvalues, &opts);
-    PSMatrixDelete(attn_w);
+    PSMatrixFree(attn_w);
     attn_w = NULL;
     if (!ok) {
         PSErrNN(NULL, NULL, layer, "could not compute delta for values");
@@ -1727,8 +1727,8 @@ int PSAttentionBackward(PSLayer *layer, PSMatrix delta, PSFloat *query,
                                     &dquery, dkeys);
     }
 final:
-    PSMatrixDelete(dweights);
-    PSMatrixDelete(dscores);
+    PSMatrixFree(dweights);
+    PSMatrixFree(dscores);
     return ok;
 }
 
@@ -1798,18 +1798,18 @@ int PSMultiHeadAttentionBackward(PSLayer *layer, PSMatrix delta, PSFloat *mask,
         PSMatrix dvh = PSMatrixDupShape(vh);
         success = (dqh && dkh && dvh);
         if (!success) {
-            PSMatrixDelete(dqh);
-            PSMatrixDelete(dkh);
-            PSMatrixDelete(dvh);
+            PSMatrixFree(dqh);
+            PSMatrixFree(dkh);
+            PSMatrixFree(dvh);
             goto final;
         }
         PSFloat *attn_wp = attn_w + (n * attn_stride);
         success = PSAttentionBackward(layer, dh, qh_p, kh, vh, mask, attn_wp,
                                       NULL, dqh, &dkh, &dvh, NULL);
         if (!success) {
-            PSMatrixDelete(dqh);
-            PSMatrixDelete(dkh);
-            PSMatrixDelete(dvh);
+            PSMatrixFree(dqh);
+            PSMatrixFree(dkh);
+            PSMatrixFree(dvh);
             goto final;
         }
         for (int i = 0; i < qlen; i++) {
@@ -1825,9 +1825,9 @@ int PSMultiHeadAttentionBackward(PSLayer *layer, PSMatrix delta, PSFloat *mask,
             PSVectorCopy(dst_k_p, dkh_p, latent_dim);
             PSVectorCopy(dst_v_p, dvh_p, latent_dim);
         }
-        PSMatrixDelete(dqh);
-        PSMatrixDelete(dkh);
-        PSMatrixDelete(dvh);
+        PSMatrixFree(dqh);
+        PSMatrixFree(dkh);
+        PSMatrixFree(dvh);
     }
 final:
     deleteHeads(d_heads, n_heads, 0);
@@ -2154,7 +2154,7 @@ int PSAttentionForward(PSLayer *layer, ...) {
         if (!success) {
             PSErrNN(NULL, NULL, layer, "failed to compute attention "
                     "projection");
-            PSMatrixDelete(new_result);
+            PSMatrixFree(new_result);
             goto final;
         }
         if (is_training) {
@@ -2165,12 +2165,12 @@ int PSAttentionForward(PSLayer *layer, ...) {
             if (!success) {
                 PSErrNN(NULL, NULL, layer, "could not store "
                         "output_projection_inputs");
-                PSMatrixDelete(new_result);
+                PSMatrixFree(new_result);
                 goto final;
             }
         }
         if (data->output_projection_inputs != attention_result)
-            PSMatrixDelete(attention_result);
+            PSMatrixFree(attention_result);
         attention_result = new_result;
     }
     stored = storeAttentionStates(layer, &attention_result, NULL, t);
@@ -2222,11 +2222,11 @@ int PSAttentionForward(PSLayer *layer, ...) {
 final:
     if (!success) {
         if (attn_w != NULL && attn_w != data->attention_weights)
-            PSMatrixDelete(attn_w);
+            PSMatrixFree(attn_w);
         if (score_ipt != NULL && score_ipt != data->score_inputs)
-            PSMatrixDelete(score_ipt);
+            PSMatrixFree(score_ipt);
         if (attention_result && attention_result != layer->states)
-            PSMatrixDelete(attention_result);
+            PSMatrixFree(attention_result);
         if (heads[0] != NULL && heads[0] != data->q_heads)
             deleteHeads(heads[0], n_heads, !whole_seq);
         if (heads[1] != NULL && heads[1] != data->k_heads)
@@ -2289,12 +2289,12 @@ int PSAttentionBackprop(PSLayer *layer, PSLayer *previous_layer,
             (whole_seq ? seqlen : 1)
         );
         if (!success) {
-            PSMatrixDelete(delta);
+            PSMatrixFree(delta);
             PSErrNN(NULL, NULL, layer, "failed backward pass for output "
                     "projections");
             goto final;
         }
-        PSMatrixDelete(layer->delta);
+        PSMatrixFree(layer->delta);
         layer->delta = delta;
     }
     dkeys = PSMatrixDupShape(data->keys);
@@ -2394,17 +2394,17 @@ int PSAttentionBackprop(PSLayer *layer, PSLayer *previous_layer,
             proj_inputs, dquery, delta, (whole_seq ? seqlen : 1)
         );
         if (!success) {
-            PSMatrixDelete(delta);
+            PSMatrixFree(delta);
             PSErrNN(NULL, NULL, layer, "failed backward pass for query input "
                     "projections");
             goto final;
         }
-        PSMatrixDelete(layer->delta);
+        PSMatrixFree(layer->delta);
         layer->delta = delta;
     }
 final:
-    PSMatrixDelete(dkeys);
-    PSMatrixDelete(dvalues);
-    PSMatrixDelete(dquery);
+    PSMatrixFree(dkeys);
+    PSMatrixFree(dvalues);
+    PSMatrixFree(dquery);
     return success;
 }

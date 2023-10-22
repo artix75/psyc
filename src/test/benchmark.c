@@ -466,7 +466,7 @@ static PSModel *makeCIFARLikeCNN(void) {
     if (!l) goto fail;
     return model;
 fail:
-    if (model != NULL) PSModelDelete(model);
+    if (model != NULL) PSModelFree(model);
     return NULL;
 }
 
@@ -518,8 +518,8 @@ int mathsDotProductBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    if (x != NULL) PSMatrixDelete(x);
-    if (y != NULL) PSMatrixDelete(y);
+    if (x != NULL) PSMatrixFree(x);
+    if (y != NULL) PSMatrixFree(y);
     return ok;
 }
 
@@ -573,8 +573,8 @@ int mathsDotBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    if (x != NULL) PSMatrixDelete(x);
-    if (y != NULL) PSMatrixDelete(y);
+    if (x != NULL) PSMatrixFree(x);
+    if (y != NULL) PSMatrixFree(y);
     return ok;
 }
 
@@ -626,8 +626,8 @@ int mathsVecProdBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    if (a != NULL) PSMatrixDelete(a);
-    if (b != NULL) PSMatrixDelete(b);
+    if (a != NULL) PSMatrixFree(a);
+    if (b != NULL) PSMatrixFree(b);
     free(dest);
     return ok;
 }
@@ -671,8 +671,8 @@ int mathsSumVBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    if (x != NULL) PSMatrixDelete(x);
-    if (y != NULL) PSMatrixDelete(y);
+    if (x != NULL) PSMatrixFree(x);
+    if (y != NULL) PSMatrixFree(y);
     free(dest);
     return ok;
 }
@@ -716,8 +716,8 @@ int mathsSubVBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    if (x != NULL) PSMatrixDelete(x);
-    if (y != NULL) PSMatrixDelete(y);
+    if (x != NULL) PSMatrixFree(x);
+    if (y != NULL) PSMatrixFree(y);
     free(dest);
     return ok;
 }
@@ -761,8 +761,8 @@ int mathsMulVBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    if (x != NULL) PSMatrixDelete(x);
-    if (y != NULL) PSMatrixDelete(y);
+    if (x != NULL) PSMatrixFree(x);
+    if (y != NULL) PSMatrixFree(y);
     free(dest);
     return ok;
 }
@@ -810,9 +810,9 @@ int mathsAddVSBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    PSMatrixDelete(x);
-    PSMatrixDelete(dest);
-    PSMatrixDelete(tmpdest);
+    PSMatrixFree(x);
+    PSMatrixFree(dest);
+    PSMatrixFree(tmpdest);
     return ok;
 }
 
@@ -859,9 +859,9 @@ int mathsMulVSBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    PSMatrixDelete(x);
-    PSMatrixDelete(dest);
-    PSMatrixDelete(tmpdest);
+    PSMatrixFree(x);
+    PSMatrixFree(dest);
+    PSMatrixFree(tmpdest);
     return ok;
 }
 
@@ -906,8 +906,8 @@ int mathsDivVBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    if (x != NULL) PSMatrixDelete(x);
-    if (y != NULL) PSMatrixDelete(y);
+    if (x != NULL) PSMatrixFree(x);
+    if (y != NULL) PSMatrixFree(y);
     free(dest);
     return ok;
 }
@@ -956,9 +956,9 @@ int mathsDivVSBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    PSMatrixDelete(x);
-    PSMatrixDelete(dest);
-    PSMatrixDelete(tmpdest);
+    PSMatrixFree(x);
+    PSMatrixFree(dest);
+    PSMatrixFree(tmpdest);
     return ok;
 }
 
@@ -1007,9 +1007,9 @@ int mathsDivSVBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    PSMatrixDelete(x);
-    PSMatrixDelete(dest);
-    PSMatrixDelete(tmpdest);
+    PSMatrixFree(x);
+    PSMatrixFree(dest);
+    PSMatrixFree(tmpdest);
     return ok;
 }
 
@@ -1057,9 +1057,9 @@ int mathsSubVSBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    PSMatrixDelete(x);
-    PSMatrixDelete(dest);
-    PSMatrixDelete(tmpdest);
+    PSMatrixFree(x);
+    PSMatrixFree(dest);
+    PSMatrixFree(tmpdest);
     return ok;
 }
 
@@ -1108,9 +1108,9 @@ int mathsSubSVBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    PSMatrixDelete(x);
-    PSMatrixDelete(dest);
-    PSMatrixDelete(tmpdest);
+    PSMatrixFree(x);
+    PSMatrixFree(dest);
+    PSMatrixFree(tmpdest);
     return ok;
 }
 
@@ -1151,7 +1151,7 @@ int mathsReduceBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    PSMatrixDelete(x);
+    PSMatrixFree(x);
     return ok;
 }
 
@@ -1192,7 +1192,7 @@ int mathsMeanBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    PSMatrixDelete(x);
+    PSMatrixFree(x);
     return ok;
 }
 
@@ -1233,7 +1233,7 @@ int mathsVarianceBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    PSMatrixDelete(x);
+    PSMatrixFree(x);
     return ok;
 }
 
@@ -1274,7 +1274,7 @@ int mathsStdDevBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    PSMatrixDelete(x);
+    PSMatrixFree(x);
     return ok;
 }
 
@@ -1316,8 +1316,8 @@ int mathsSqrtBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    if (x != NULL) PSMatrixDelete(x);
-    if (y != NULL) PSMatrixDelete(y);
+    if (x != NULL) PSMatrixFree(x);
+    if (y != NULL) PSMatrixFree(y);
     return ok;
 }
 
@@ -1359,8 +1359,8 @@ int mathsTanhBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    if (x != NULL) PSMatrixDelete(x);
-    if (y != NULL) PSMatrixDelete(y);
+    if (x != NULL) PSMatrixFree(x);
+    if (y != NULL) PSMatrixFree(y);
     return ok;
 }
 
@@ -1402,8 +1402,8 @@ int mathsExpBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    if (x != NULL) PSMatrixDelete(x);
-    if (y != NULL) PSMatrixDelete(y);
+    if (x != NULL) PSMatrixFree(x);
+    if (y != NULL) PSMatrixFree(y);
     return ok;
 }
 
@@ -1445,8 +1445,8 @@ int mathsNegBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    if (x != NULL) PSMatrixDelete(x);
-    if (y != NULL) PSMatrixDelete(y);
+    if (x != NULL) PSMatrixFree(x);
+    if (y != NULL) PSMatrixFree(y);
     return ok;
 }
 
@@ -1488,8 +1488,8 @@ int mathsAbsBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    if (x != NULL) PSMatrixDelete(x);
-    if (y != NULL) PSMatrixDelete(y);
+    if (x != NULL) PSMatrixFree(x);
+    if (y != NULL) PSMatrixFree(y);
     return ok;
 }
 
@@ -1535,9 +1535,9 @@ int mathsVecPowBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    PSMatrixDelete(x);
-    PSMatrixDelete(dest);
-    PSMatrixDelete(tmpdest);
+    PSMatrixFree(x);
+    PSMatrixFree(dest);
+    PSMatrixFree(tmpdest);
     return ok;
 }
 
@@ -1595,9 +1595,9 @@ int mathsMatrixProdBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    if (a != NULL) PSMatrixDelete(a);
-    if (b != NULL) PSMatrixDelete(b);
-    if (dest != NULL) PSMatrixDelete(dest);
+    if (a != NULL) PSMatrixFree(a);
+    if (b != NULL) PSMatrixFree(b);
+    if (dest != NULL) PSMatrixFree(dest);
     return ok;
 }
 
@@ -1638,7 +1638,7 @@ int actSigmoidBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    if (x != NULL) PSMatrixDelete(x);
+    if (x != NULL) PSMatrixFree(x);
     free(dest);
     return ok;
 }
@@ -1680,7 +1680,7 @@ int actSigmoidDerivBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    if (x != NULL) PSMatrixDelete(x);
+    if (x != NULL) PSMatrixFree(x);
     free(dest);
     return ok;
 }
@@ -1722,7 +1722,7 @@ int actTanhBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    if (x != NULL) PSMatrixDelete(x);
+    if (x != NULL) PSMatrixFree(x);
     free(dest);
     return ok;
 }
@@ -1764,7 +1764,7 @@ int actTanhDerivBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    if (x != NULL) PSMatrixDelete(x);
+    if (x != NULL) PSMatrixFree(x);
     free(dest);
     return ok;
 }
@@ -1806,7 +1806,7 @@ int actReluBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    if (x != NULL) PSMatrixDelete(x);
+    if (x != NULL) PSMatrixFree(x);
     free(dest);
     return ok;
 }
@@ -1848,7 +1848,7 @@ int actGeluBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    if (x != NULL) PSMatrixDelete(x);
+    if (x != NULL) PSMatrixFree(x);
     free(dest);
     return ok;
 }
@@ -1890,7 +1890,7 @@ int actReluDerivBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    if (x != NULL) PSMatrixDelete(x);
+    if (x != NULL) PSMatrixFree(x);
     free(dest);
     return ok;
 }
@@ -1932,7 +1932,7 @@ int actGeluDerivBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    if (x != NULL) PSMatrixDelete(x);
+    if (x != NULL) PSMatrixFree(x);
     free(dest);
     return ok;
 }
@@ -1974,7 +1974,7 @@ int actSoftmaxBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    if (x != NULL) PSMatrixDelete(x);
+    if (x != NULL) PSMatrixFree(x);
     free(dest);
     return ok;
 }
@@ -2043,8 +2043,8 @@ int optimDefaultBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    if (x != NULL) PSMatrixDelete(x);
-    if (y != NULL) PSMatrixDelete(y);
+    if (x != NULL) PSMatrixFree(x);
+    if (y != NULL) PSMatrixFree(y);
     free(mem);
     free(tmp);
     return ok;
@@ -2111,8 +2111,8 @@ int optimNesterovBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    if (x != NULL) PSMatrixDelete(x);
-    if (y != NULL) PSMatrixDelete(y);
+    if (x != NULL) PSMatrixFree(x);
+    if (y != NULL) PSMatrixFree(y);
     free(mem);
     free(tmp);
     return ok;
@@ -2177,8 +2177,8 @@ int optimWindowGradBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    if (x != NULL) PSMatrixDelete(x);
-    if (y != NULL) PSMatrixDelete(y);
+    if (x != NULL) PSMatrixFree(x);
+    if (y != NULL) PSMatrixFree(y);
     free(mem);
     return ok;
 }
@@ -2245,8 +2245,8 @@ int optimAdaGradBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    if (x != NULL) PSMatrixDelete(x);
-    if (y != NULL) PSMatrixDelete(y);
+    if (x != NULL) PSMatrixFree(x);
+    if (y != NULL) PSMatrixFree(y);
     free(mem);
     return ok;
 }
@@ -2313,8 +2313,8 @@ int optimRMSPropBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    if (x != NULL) PSMatrixDelete(x);
-    if (y != NULL) PSMatrixDelete(y);
+    if (x != NULL) PSMatrixFree(x);
+    if (y != NULL) PSMatrixFree(y);
     free(mem);
     return ok;
 }
@@ -2383,8 +2383,8 @@ int optimAdaDeltaBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    if (x != NULL) PSMatrixDelete(x);
-    if (y != NULL) PSMatrixDelete(y);
+    if (x != NULL) PSMatrixFree(x);
+    if (y != NULL) PSMatrixFree(y);
     free(mem1);
     free(mem2);
     return ok;
@@ -2460,8 +2460,8 @@ int optimAdamBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    if (x != NULL) PSMatrixDelete(x);
-    if (y != NULL) PSMatrixDelete(y);
+    if (x != NULL) PSMatrixFree(x);
+    if (y != NULL) PSMatrixFree(y);
     free(mem1);
     free(mem2);
     free(tmp1);
@@ -2539,8 +2539,8 @@ int LRegularizationBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    if (x != NULL) PSMatrixDelete(x);
-    if (y != NULL) PSMatrixDelete(y);
+    if (x != NULL) PSMatrixFree(x);
+    if (y != NULL) PSMatrixFree(y);
     free(tmp);
     return ok;
 }
@@ -2602,8 +2602,8 @@ int fullnetForwardBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     *num_results += 1;
     res += 1;
 final:
-    if (x != NULL) PSMatrixDelete(x);
-    if (model != NULL) PSModelDelete(model);
+    if (x != NULL) PSMatrixFree(x);
+    if (model != NULL) PSModelFree(model);
     return ok;
 }
 
@@ -2686,8 +2686,8 @@ int cifarCNNBackpropBenchmark(PSBenchmarkConfig *cfg, int *num_results,
 final:
     if (gradients != NULL && model != NULL)
         PSDeleteModelGradients(gradients, model);
-    if (model != NULL) PSModelDelete(model);
-    PSMatrixDelete(x);
+    if (model != NULL) PSModelFree(model);
+    PSMatrixFree(x);
     return ok;
 }
 

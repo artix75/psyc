@@ -444,7 +444,7 @@ PSDict *getPairs(char **ngrams, int ncount) {
     }
 final:
     if (!ok) {
-        PSDictRelease(pairs);
+        PSDictFree(pairs);
         pairs = NULL;
         if (errno == 0) errno = EINVAL;
     }
@@ -540,7 +540,7 @@ next:
         free(pair_iter);
         if (!pair_used) free(pair_s);
         else last_pair_s = pair_s;
-        PSDictRelease(pairs);
+        PSDictFree(pairs);
     }
     *count = enc_count;
 final:
@@ -1237,7 +1237,7 @@ static PSVocabulary *loadVocabulary(char *model_dir, uint64_t vocab_size) {
 final:
     if (f != NULL) fclose(f);
     if (!ok) {
-        PSVocabularyRelease(vocabulary);
+        PSVocabularyFree(vocabulary);
         vocabulary = NULL;
     }
     free(encoder_path);
@@ -1285,7 +1285,7 @@ PSDict *loadBPE(char *model_dir) {
 final:
     if (f != NULL) fclose(f);
     if (!ok) {
-        PSDictRelease(bpe);
+        PSDictFree(bpe);
         bpe = NULL;
     }
     free(bpe_path);
@@ -1755,9 +1755,9 @@ make_input:
 final:
     PSLogLevel = default_loglevel;
     if (model_dir != custom_model_dir) free(model_dir);
-    PSModelDelete(gpt2_model);
-    PSVocabularyRelease(vocabulary);
-    PSDictRelease(bpe);
+    PSModelFree(gpt2_model);
+    PSVocabularyFree(vocabulary);
+    PSDictFree(bpe);
     free(params_path);
     free(inputs);
     return (ok ? 0 : 1);

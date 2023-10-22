@@ -2669,7 +2669,7 @@ int PSModelLoad(PSModel *model, const char* filepath) {
         }
         ok = readModel(current, f, filepath, vers, empty, model);
         if (!ok) {
-            if (empty) PSModelDelete(current);
+            if (empty) PSModelFree(current);
             goto final;
         }
         loaded_models++;

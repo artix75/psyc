@@ -1097,7 +1097,7 @@ int genericSetup(TestCase *test_case) {
 
 int genericTeardown(TestCase *test_case) {
     PSModel *model = getModel(test_case);
-    if (model != NULL) PSModelDelete(model);
+    if (model != NULL) PSModelFree(model);
     PSFloat *test_data = getTestData(test_case);
     if (test_data != NULL) free(test_data);
     free(test_case->data);
@@ -1206,7 +1206,7 @@ int RNNSetup(TestCase *test_case) {
 
 int RNNTeardown(TestCase *test_case) {
     PSModel *model = getModel(test_case);
-    if (model != NULL) PSModelDelete(model);
+    if (model != NULL) PSModelFree(model);
     PSFloat *test_data = getTestData(test_case);
     if (test_data != NULL) free(test_data);
     free(test_case->data);
@@ -1648,7 +1648,7 @@ weight_gradients:
 final:
     if (gradients != NULL && model != NULL)
         PSDeleteGradientsChain(gradients, model);
-    PSModelDelete(model);
+    PSModelFree(model);
     free(x);
     free(y);
     free(states);
@@ -1933,7 +1933,7 @@ int testConvAccuracy(TestCase *test_case, Test *test) {
     PSForward(model, test_data);
     PSFloat accuracy = PSTest(model, test_data, testlen, NULL),
             expected = 98.0;
-    PSModelDelete(model);
+    PSModelFree(model);
     accuracy = PSRound(accuracy * 100.0);
     testAssertWithMessage(
         (accuracy == 98.0), test,
@@ -2348,7 +2348,7 @@ int testRNNOneHot(TestCase *test_case, Test *test) {
     PSDeleteLayer(curlayer);
     dummy_model->size = 0;
     dummy_model->layers[0] = NULL;
-    PSModelDelete(dummy_model);
+    PSModelFree(dummy_model);
     dummy_model = NULL;
     int onehot_datalen =
         (int) ((sizeof(rnn_inputs) + sizeof(rnn_labels)) / sizeof(PSFloat));
@@ -2446,9 +2446,9 @@ int testRNNOneHot(TestCase *test_case, Test *test) {
         onehot_accuracy, std_accuracy
     );
 final:
-    if (onehot_model != NULL) PSModelDelete(onehot_model);
-    if (standard_model != NULL) PSModelDelete(standard_model);
-    if (dummy_model != NULL) PSModelDelete(dummy_model);
+    if (onehot_model != NULL) PSModelFree(onehot_model);
+    if (standard_model != NULL) PSModelFree(standard_model);
+    if (dummy_model != NULL) PSModelFree(dummy_model);
     if (onehot_data != NULL) free(onehot_data);
     if (standard_data != NULL) free(standard_data);
     return ok;
@@ -3017,7 +3017,7 @@ int testNormalizationBackprop(TestCase *test_case, Test *test) {
 final:
     if (model != NULL) {
         if (grads != NULL) PSDeleteGradientsChain(grads, model);
-        PSModelDelete(model);
+        PSModelFree(model);
     }
     return ok;
 }
@@ -3218,7 +3218,7 @@ int testConcatOperatorBackprop(TestCase *test_case, Test *test) {
                        NULL, 0, 4);
 final:
     if (grads != NULL) PSDeleteGradientsChain(grads, model);
-    PSMatrixDelete(l1_delta);
+    PSMatrixFree(l1_delta);
     return ok;
 }
 
@@ -3319,7 +3319,7 @@ int testAddOperatorBackprop(TestCase *test_case, Test *test) {
     if (!ok) return 0;
 final:
     if (grads != NULL) PSDeleteGradientsChain(grads, model);
-    PSMatrixDelete(l1_delta);
+    PSMatrixFree(l1_delta);
     return ok;
 }
 
@@ -3420,7 +3420,7 @@ int testMulOperatorBackprop(TestCase *test_case, Test *test) {
     ok = compareArrays(l2->delta, l2_expct, l2->size, test, "L2 DELTA", 0, 4);
 final:
     if (grads != NULL) PSDeleteGradientsChain(grads, model);
-    PSMatrixDelete(l1_delta);
+    PSMatrixFree(l1_delta);
     return ok;
 }
 
@@ -3486,7 +3486,7 @@ int encoderDecoderSetup(TestCase *test_case) {
 
 int encoderDecoderTeardown(TestCase *test_case) {
     PSModel *model = getModel(test_case);
-    if (model) PSModelDelete(model);
+    if (model) PSModelFree(model);
     return 1;
 }
 
@@ -3519,7 +3519,7 @@ int testEncodedDecoderSave(TestCase *test_case, Test *test) {
     );
     ok = compareModelChain(model, loaded, test);
 final:
-    if (loaded != NULL) PSModelDelete(loaded);
+    if (loaded != NULL) PSModelFree(loaded);
     return ok;
 }
 
@@ -3532,7 +3532,7 @@ int testEncodedDecoderClone(TestCase *test_case, Test *test) {
     testAssertNotNull(clone, test);
     int ok = compareModelChain(model, clone, test);
 final:
-    if (clone != NULL) PSModelDelete(clone);
+    if (clone != NULL) PSModelFree(clone);
     return ok;
 }
 
@@ -3676,7 +3676,7 @@ int attentionSetup(TestCase *test_case) {
 
 int attentionTeardown(TestCase *test_case) {
     PSModel *model = getModel(test_case);
-    if (model) PSModelDelete(model);
+    if (model) PSModelFree(model);
     return 1;
 }
 
@@ -4001,7 +4001,7 @@ int testGenericClone(TestCase *test_case, Test *test) {
     PSModel *clone = PSModelClone(model, 0);
     testAssertNotNull(clone, test);
     int ok = compareModels(model, clone, test);
-    PSModelDelete(clone);
+    PSModelFree(clone);
     return ok;
 }
 
@@ -4021,7 +4021,7 @@ int testGenericSave(TestCase *test_case, Test *test) {
     ok = compareModels(model, clone, test);
     remove(tmpfile);
 final:
-    PSModelDelete(clone);
+    PSModelFree(clone);
     return ok;
 }
 
@@ -4675,7 +4675,7 @@ int testMathsDot(TestCase *tc, Test *test) {
     int r, c, ok = 1, failed = 0;
     ok = compareArrays(matrix, x, 32, test, "Matrix data", 0, 0);
     if (!ok) {
-        PSMatrixDelete(matrix);
+        PSMatrixFree(matrix);
         return 0;
     }
     for (r = 0; r < 2; r++) {
@@ -4722,7 +4722,7 @@ int testMathsDot(TestCase *tc, Test *test) {
         appendTestErrorMessage(test, "\n%*s", 4, "");
     }
 final:
-    if (matrix) PSMatrixDelete(matrix);
+    if (matrix) PSMatrixFree(matrix);
     return (failed == 0);
 }
 
@@ -5418,7 +5418,7 @@ int testMathsMatrixCopy(TestCase *tc, Test *test) {
     testAssertNotNull(src, test);
     PSMatrix dst = PSMatrixRandom(2, 2, 3);
     if (dst == NULL) {
-        PSMatrixDelete(src);
+        PSMatrixFree(src);
         testAssertNotNull(dst, test);
     }
     testAssertNotNull(dst, test);
@@ -5442,8 +5442,8 @@ int testMathsMatrixCopy(TestCase *tc, Test *test) {
 fail:
     res = 0;
 final:
-    if (src != NULL) PSMatrixDelete(src);
-    if (dst != NULL) PSMatrixDelete(dst);
+    if (src != NULL) PSMatrixFree(src);
+    if (dst != NULL) PSMatrixFree(dst);
     return res;
 }
 
@@ -5473,8 +5473,8 @@ int testMathsMatrixDup(TestCase *tc, Test *test) {
 fail:
     res = 0;
 final:
-    if (src != NULL) PSMatrixDelete(src);
-    if (dst != NULL) PSMatrixDelete(dst);
+    if (src != NULL) PSMatrixFree(src);
+    if (dst != NULL) PSMatrixFree(dst);
     return res;
 }
 
@@ -5493,7 +5493,7 @@ int testMathsMatrixTranspose(TestCase *tc, Test *test) {
     testAssertNotNull(m2d, test);
     PSMatrix m3d = PSMatrixZeros(3, 3, 2, 4);
     if (m3d == NULL) {
-        PSMatrixDelete(m3d);
+        PSMatrixFree(m3d);
         testAssertNotNull(m3d, test);
     }
     int m2dlen = (int) PSMatrixLength(m2d),
@@ -5534,8 +5534,8 @@ int testMathsMatrixTranspose(TestCase *tc, Test *test) {
 fail:
     res = 0;
 final:
-    PSMatrixDelete(m2d);
-    PSMatrixDelete(m3d);
+    PSMatrixFree(m2d);
+    PSMatrixFree(m3d);
     return res;
 }
 
@@ -5583,9 +5583,9 @@ int testMathsMatrixSwap(TestCase *tc, Test *test) {
         ok, final, test, "swap %d, %d comparison failed", 0, 1
     );
 final:
-    PSMatrixDelete(matrix);
-    PSMatrixDelete(swap1);
-    PSMatrixDelete(swap2);
+    PSMatrixFree(matrix);
+    PSMatrixFree(swap1);
+    PSMatrixFree(swap2);
     return ok;
 }
 
@@ -5633,8 +5633,8 @@ int testMathsMatrixExpand(TestCase *tc, Test *test) {
 fail:
     res = 0;
 final:
-    if (src != NULL) PSMatrixDelete(src);
-    if (expanded != NULL) PSMatrixDelete(expanded);
+    if (src != NULL) PSMatrixFree(src);
+    if (expanded != NULL) PSMatrixFree(expanded);
     free(srcvalues);
     return res;
 }
@@ -5703,7 +5703,7 @@ int testMatrixProduct(Test *test, int acceleration) {
         "accel='%s')", "a", "b", acceleration_name
     );
 
-    PSMatrixDelete(result);
+    PSMatrixFree(result);
     result = NULL;
     opts.transpose = 1;
     res = PSMatrixProduct(b, b, &result, &opts);
@@ -5729,7 +5729,7 @@ int testMatrixProduct(Test *test, int acceleration) {
         "accel='%s')", "b(T)", "b", acceleration_name
     );
 
-    PSMatrixDelete(result);
+    PSMatrixFree(result);
     result = NULL;
     opts.transpose = 2;
     res = PSMatrixProduct(a, c, &result, &opts);
@@ -5755,7 +5755,7 @@ int testMatrixProduct(Test *test, int acceleration) {
         "accel='%s')", "a", "c(T)", acceleration_name
     );
 
-    PSMatrixDelete(result);
+    PSMatrixFree(result);
     result = NULL;
     opts.transpose = 1 | 2;
     res = PSMatrixProduct(a, b, &result, &opts);
@@ -5782,7 +5782,7 @@ int testMatrixProduct(Test *test, int acceleration) {
         "accel='%s')", "a(T)", "b(T)", acceleration_name
     );
 
-    PSMatrixDelete(result);
+    PSMatrixFree(result);
     result = NULL;
     opts.transpose = 2;
     res = PSMatrixProduct(avec, a, &result, &opts);
@@ -5809,11 +5809,11 @@ int testMatrixProduct(Test *test, int acceleration) {
         "accel='%s')", "avec", "a(T)", acceleration_name
     );
 final:
-    PSMatrixDelete(a);
-    PSMatrixDelete(b);
-    PSMatrixDelete(c);
-    PSMatrixDelete(avec);
-    PSMatrixDelete(result);
+    PSMatrixFree(a);
+    PSMatrixFree(b);
+    PSMatrixFree(c);
+    PSMatrixFree(avec);
+    PSMatrixFree(result);
     return res;
 }
 
@@ -5868,7 +5868,7 @@ int testMatrixProductMV(Test *test, int acceleration) {
         "accel='%s')", "a(T)", "b2", acceleration_name
     );
 final:
-    PSMatrixDelete(a);
+    PSMatrixFree(a);
     return res;
 }
 
@@ -5909,8 +5909,8 @@ int testMatrixProductVM(Test *test, int acceleration) {
         "accel='%s')", "a", "b(T)", acceleration_name
     );
 final:
-    PSMatrixDelete(b);
-    PSMatrixDelete(result);
+    PSMatrixFree(b);
+    PSMatrixFree(result);
     return res;
 }
 
@@ -6013,7 +6013,7 @@ int testMatrixOp(PSMatrix a, PSMatrix b, testMatrixOpFunc func,
     ok = compareArrays(res, expected, PSMatrixLength(res), test,
                        testdescr, 0, 5);
     if (!ok) goto final;
-    PSMatrixDelete(res);
+    PSMatrixFree(res);
     res = NULL;
     memset(shape, 0, sizeof(shape));
 #endif
@@ -6038,7 +6038,7 @@ int testMatrixOp(PSMatrix a, PSMatrix b, testMatrixOpFunc func,
     ok = compareArrays(res, expected, PSMatrixLength(res), test,
                        testdescr, 0, 5);
     if (!ok) goto final;
-    PSMatrixDelete(res);
+    PSMatrixFree(res);
     res = NULL;
     memset(shape, 0, sizeof(shape));
 #endif
@@ -6063,7 +6063,7 @@ int testMatrixOp(PSMatrix a, PSMatrix b, testMatrixOpFunc func,
     ok = compareArrays(res, expected, PSMatrixLength(res), test,
                        testdescr, 0, 5);
     if (!ok) goto final;
-    PSMatrixDelete(res);
+    PSMatrixFree(res);
     res = NULL;
     memset(shape, 0, sizeof(shape));
 #endif
@@ -6087,11 +6087,11 @@ int testMatrixOp(PSMatrix a, PSMatrix b, testMatrixOpFunc func,
     ok = compareArrays(res, expected, PSMatrixLength(res), test,
                        testdescr, 0, 5);
     if (!ok) goto final;
-    PSMatrixDelete(res);
+    PSMatrixFree(res);
     res = NULL;
     memset(shape, 0, sizeof(shape));
 final:
-    PSMatrixDelete(res);
+    PSMatrixFree(res);
     return ok;
 }
 
@@ -6185,12 +6185,12 @@ int testMathsMatrixAdd(TestCase *tc, Test *test) {
                       "PSMatrixAdd: shape(1) + shape(2,3)", test);
     if (!ok) goto final;
 final:
-    PSMatrixDelete(am);
-    PSMatrixDelete(bm);
-    PSMatrixDelete(av);
-    PSMatrixDelete(bv);
-    PSMatrixDelete(bv_t);
-    PSMatrixDelete(scalar);
+    PSMatrixFree(am);
+    PSMatrixFree(bm);
+    PSMatrixFree(av);
+    PSMatrixFree(bv);
+    PSMatrixFree(bv_t);
+    PSMatrixFree(scalar);
     return ok;
 }
 
@@ -6284,12 +6284,12 @@ int testMathsMatrixMultiply(TestCase *tc, Test *test) {
                       "PSMatrixMultiply: shape(1) + shape(2,3)", test);
     if (!ok) goto final;
 final:
-    PSMatrixDelete(am);
-    PSMatrixDelete(bm);
-    PSMatrixDelete(av);
-    PSMatrixDelete(bv);
-    PSMatrixDelete(bv_t);
-    PSMatrixDelete(scalar);
+    PSMatrixFree(am);
+    PSMatrixFree(bm);
+    PSMatrixFree(av);
+    PSMatrixFree(bv);
+    PSMatrixFree(bv_t);
+    PSMatrixFree(scalar);
     return ok;
 }
 
@@ -6387,12 +6387,12 @@ int testMathsMatrixSubtract(TestCase *tc, Test *test) {
                       "PSMatrixSubtract: shape(1) + shape(2,3)", test);
     if (!ok) goto final;
 final:
-    PSMatrixDelete(am);
-    PSMatrixDelete(bm);
-    PSMatrixDelete(av);
-    PSMatrixDelete(bv);
-    PSMatrixDelete(bv_t);
-    PSMatrixDelete(scalar);
+    PSMatrixFree(am);
+    PSMatrixFree(bm);
+    PSMatrixFree(av);
+    PSMatrixFree(bv);
+    PSMatrixFree(bv_t);
+    PSMatrixFree(scalar);
     return ok;
 }
 
@@ -6490,12 +6490,12 @@ int testMathsMatrixDivide(TestCase *tc, Test *test) {
                       "PSMatrixDivide: shape(1) + shape(2,3)", test);
     if (!ok) goto final;
 final:
-    PSMatrixDelete(am);
-    PSMatrixDelete(bm);
-    PSMatrixDelete(av);
-    PSMatrixDelete(bv);
-    PSMatrixDelete(bv_t);
-    PSMatrixDelete(scalar);
+    PSMatrixFree(am);
+    PSMatrixFree(bm);
+    PSMatrixFree(av);
+    PSMatrixFree(bv);
+    PSMatrixFree(bv_t);
+    PSMatrixFree(scalar);
     return ok;
 }
 

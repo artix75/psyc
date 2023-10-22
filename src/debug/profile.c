@@ -85,7 +85,7 @@ int main(int argc, char** argv) {
 
     PSTest(model, test_data, datalen, NULL);
 
-    PSModelDelete(model);
+    PSModelFree(model);
     free(train_data);
     free(test_data);
 
@@ -102,7 +102,7 @@ int main(int argc, char** argv) {
         .batch_size = 1
     ));
 
-    PSModelDelete(model);
+    PSModelFree(model);
 
     model = PSModelCreate("Profiling LSTM");
     model->flags |= FLAG_ONEHOT;
@@ -117,7 +117,7 @@ int main(int argc, char** argv) {
         .batch_size = 1
     ));
 
-    PSModelDelete(model);
+    PSModelFree(model);
 
     return 0;
 }

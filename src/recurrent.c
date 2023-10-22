@@ -268,7 +268,7 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previous_layer,
                 mopts.transpose = 1;
                 int ok = PSDotMV(hidden_weights, delta, new_delta, &mopts);
                 if (!ok) {
-                    PSMatrixDelete(new_delta);
+                    PSMatrixFree(new_delta);
                     return 0;
                 }
                 mopts.transpose = 0;
@@ -284,7 +284,7 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previous_layer,
                     layer->size, &mopts
                 );
                 if (!ok) {
-                    PSMatrixDelete(new_delta);
+                    PSMatrixFree(new_delta);
                     return 0;
                 }
             }
@@ -296,13 +296,13 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previous_layer,
             PSMatrix weights = layer->weights[0];
             int ok = PSDotMV(weights, delta, previous_layer->delta, &mopts);
             if (!ok) {
-                PSMatrixDelete(delta);
+                PSMatrixFree(delta);
                 PSErr(NULL, "Layer[%d]: failed backprop (PSDot)", layer->index);
                 return 0;
             }
         }
         if (new_delta != NULL) {
-            PSMatrixDelete(delta);
+            PSMatrixFree(delta);
             layer->delta = new_delta;
             new_delta = NULL;
         }

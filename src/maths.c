@@ -471,7 +471,7 @@ int PSMatrixCopy(PSMatrix src, PSMatrix dst) {
     PSMatrixHeader *dst_hdr = PSMatrixGetHeader(dst);
     dst_hdr->transposed_from = NULL;
     if (dst_hdr->transposed != NULL) {
-        PSMatrixDelete(dst_hdr->transposed);
+        PSMatrixFree(dst_hdr->transposed);
         dst_hdr->transposed = NULL;
     }
     memcpy(dst, src, src_len * sizeof(PSFloat));
@@ -511,7 +511,7 @@ PSMatrix PSMatrixExpand(PSMatrix src, int add, int keep_src) {
         return NULL;
     }
     PSVectorCopy(matrix, src, curlen);
-    if (!keep_src) PSMatrixDelete(src);
+    if (!keep_src) PSMatrixFree(src);
     return matrix;
 }
 
@@ -862,7 +862,7 @@ static int genericMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *out,
         ap += l;
     }
 final:
-    PSMatrixDelete(swap_b);
+    PSMatrixFree(swap_b);
     return success;
 }
 
@@ -1067,8 +1067,8 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
             if (*result != NULL) PSVectorCopy(*result, res, reslen);
             else success = 0;
         }
-        PSMatrixDelete(mb);
-        PSMatrixDelete(res);
+        PSMatrixFree(mb);
+        PSMatrixFree(res);
         return success;
     }
     int scalar_a = (getShapeType(ndims, dims_a) == PS_SHAPE_TYPE_SCALAR);
@@ -1198,7 +1198,7 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
         PSMatrix ma = PSMatrixZeros(1, len);
         if (ma == NULL) return 0;
         int success = genericMatrixProduct(ma, b, result, opts);
-        PSMatrixDelete(ma);
+        PSMatrixFree(ma);
         return success;
     }
     int last_dim = ndims - 1;
@@ -1956,7 +1956,7 @@ final:
         PSErr(__func__, "failed to split matrix with shape %s",
               matrixDimensionsToString(ndims, shape));
         if (slices != NULL) {
-            for (i = 0; i < num_slices; i++) PSMatrixDelete(slices[i]);
+            for (i = 0; i < num_slices; i++) PSMatrixFree(slices[i]);
             free(slices);
             slices = NULL;
         }
@@ -1969,7 +1969,7 @@ PSMatrix PSMatrixTranspose(PSMatrix matrix, int rebuild, PSMathOpts *opts) {
     PSMatrixHeader *t_hdr = NULL;
     if (hdr->transposed != NULL) {
         if (!rebuild) return hdr->transposed;
-        PSMatrixDelete(hdr->transposed);
+        PSMatrixFree(hdr->transposed);
         hdr->transposed = NULL;
     } else if (hdr->transposed_from != NULL) return hdr->transposed_from;
     int ndims = hdr->ndims;
@@ -2070,7 +2070,7 @@ PSMatrix PSMatrixSwapAxes(PSMatrix matrix, int axis1, int axis2) {
             );
             if (transposed == NULL) {
                 PSErr(__func__, "could not swap axes");
-                PSMatrixDelete(swapped);
+                PSMatrixFree(swapped);
                 return NULL;
             }
             src_p += stride;
@@ -2090,7 +2090,7 @@ PSMatrix PSMatrixSwapAxes(PSMatrix matrix, int axis1, int axis2) {
         }
     } else {
         PSErr(__func__, "unsupported axes for swapping");
-        PSMatrixDelete(swapped);
+        PSMatrixFree(swapped);
         return NULL;
     }
     return swapped;
@@ -2124,16 +2124,16 @@ void PSMatrixResetTransposed(PSMatrix matrix) {
     if (matrix == NULL) return;
     PSMatrixHeader *hdr = PSMatrixGetHeader(matrix);
     if (hdr->transposed != NULL) {
-        PSMatrixDelete(hdr->transposed);
+        PSMatrixFree(hdr->transposed);
         hdr->transposed = NULL;
     }
 }
 
-void PSMatrixDelete(PSMatrix matrix) {
+void PSMatrixFree(PSMatrix matrix) {
     if (matrix == NULL) return;
     void *ptr = (void *) getMatrixHeadPointer(matrix);
     PSMatrixHeader *hdr = (PSMatrixHeader *) ptr;
-    if (hdr->transposed != NULL) PSMatrixDelete(hdr->transposed);
+    if (hdr->transposed != NULL) PSMatrixFree(hdr->transposed);
     free(ptr);
 }
 
@@ -2964,12 +2964,12 @@ int PSDot(PSMatrix a, PSMatrix b, PSMatrix dest, PSMathOpts *opts) {
         }
         int ok = PSMatrixProduct(a, b, dstptr, opts);
         if (!ok) {
-            PSMatrixDelete(tmpmatrix);
+            PSMatrixFree(tmpmatrix);
             return 0;
         }
         if (store_mode == PS_STORE_MODE_SUB) {
             PSSubtractVectors(dest, tmpmatrix, dest, PSMatrixLength(dest),opts);
-            PSMatrixDelete(tmpmatrix);
+            PSMatrixFree(tmpmatrix);
         }
         return 1;
     } else if (!a_is_vec && b_is_vec) {

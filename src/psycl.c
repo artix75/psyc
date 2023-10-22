@@ -493,7 +493,7 @@ static void cleanup(void) {
     if (model != NULL) {
         if (model->name != (char *)MODEL_NAME && model->name != NULL)
             free((void *)model->name);
-        PSModelDelete(model);
+        PSModelFree(model);
         model = NULL;
     }
 }
@@ -1233,7 +1233,7 @@ void parseOptions(int argc, char **argv) {
     return;
 err:
     if (current != model && !PSModelChainContains(model, current))
-        PSModelDelete(current);
+        PSModelFree(current);
     cleanup();
     exit(1);
 }

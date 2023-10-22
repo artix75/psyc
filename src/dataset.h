@@ -69,7 +69,7 @@ int64_t PSVocabularyAdd(PSVocabulary *vocabulary, char *token);
 int64_t PSVocabularyGetTokenID(PSVocabulary *vocabulary, char *token);
 const char *PSVocabularyGetTokenByID(PSVocabulary *vocabulary, int64_t id);
 const char *PSVocabularyErrorString(int err);
-void PSVocabularyRelease(PSVocabulary *vocabulary);
+void PSVocabularyFree(PSVocabulary *vocabulary);
 
 char *PSNormalizeToken(char *token, int len);
 PSFloat *PSLoadDataFromString(char *str, PSTextParserOptions *opts,

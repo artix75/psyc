@@ -318,6 +318,6 @@ final:
     }
     free(training_data);
     free(test_data);
-    PSModelDelete(model);
+    PSModelFree(model);
     return success ? 0 : 1;
 }

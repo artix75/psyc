@@ -180,7 +180,7 @@ PSModel *PSCreateEmbeddingTrainer(PSLayer *layer) {
     layer->pretrainer = trainer;
     return trainer;
 fail:
-    if (trainer != NULL) PSModelDelete(trainer);
+    if (trainer != NULL) PSModelFree(trainer);
     return NULL;
 }
 

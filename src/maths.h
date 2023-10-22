@@ -136,7 +136,7 @@ unsigned int PSRandomInt(unsigned int range, PSFloat *weights, int *err,
  * then (transposition, matrix multiplication, etc.).
  * Private data is actually allocated just before the memory address pointed
  * by `PSMatrix`, so you should **NEVER** free PSMatrix by usual `free`,
- * but you have to call PSMatrixDelete instead. */
+ * but you have to call PSMatrixFree instead. */
 typedef PSFloat *PSMatrix;
 typedef PSFloat (*PSMatrixInitializer)(PSMatrix matrix, int idx, PSFloat n);
 PSMatrix PSMatrixCreate(PSFloat init_value, PSMatrixInitializer initializer,
@@ -182,7 +182,7 @@ PSMatrix PSMatrixDupShape(PSMatrix matrix);
 int PSMatrixCopy(PSMatrix src, PSMatrix dst);
 int PSMatrixEquals(PSMatrix a, PSMatrix b, int precision, int ignore_shape);
 void PSMatrixClear(PSMatrix matrix);
-void PSMatrixDelete(PSMatrix matrix);
+void PSMatrixFree(PSMatrix matrix);
 
 /**** Operations ***/
 

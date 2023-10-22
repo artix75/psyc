@@ -87,7 +87,7 @@ int main(int argc, char** argv) {
 
         if (model->size < 1) {
             fprintf(stderr, "Could not add all layers!\n");
-            PSModelDelete(model);
+            PSModelFree(model);
             if (training_data != NULL) free(training_data);
             if (test_data != NULL) free(test_data);
             return 1;
@@ -100,7 +100,7 @@ int main(int argc, char** argv) {
                    TRAIN_DATASET_LEN);
             if (training_data != NULL) free(training_data);
             if (test_data != NULL) free(test_data);
-            PSModelDelete(model);
+            PSModelFree(model);
             return 1;
         } else {
             int remaining = element_count - train_dataset_len;
@@ -124,12 +124,12 @@ int main(int argc, char** argv) {
         int loaded = PSModelLoad(model, pretrained_file);
         if (!loaded) {
             printf("Could not load pretrained data %s\n", pretrained_file);
-            PSModelDelete(model);
+            PSModelFree(model);
             return 1;
         }
         if (model->size < 1) {
             fprintf(stderr, "Could not add all layers!\n");
-            PSModelDelete(model);
+            PSModelFree(model);
             return 1;
         }
     }
@@ -145,7 +145,7 @@ int main(int argc, char** argv) {
     }
 
     if (model->status == STATUS_ERROR) {
-        PSModelDelete(model);
+        PSModelFree(model);
         if (training_data != NULL) free(training_data);
         if (test_data != NULL) free(test_data);
         return 1;
@@ -157,7 +157,7 @@ int main(int argc, char** argv) {
     }
     if (pretrained_file == NULL)
         PSModelSave(model, "/tmp/pretrained.cnn.psmodel");
-    PSModelDelete(model);
+    PSModelFree(model);
     if (training_data != NULL) free(training_data);
     if (test_data != NULL) free(test_data);
     return 0;

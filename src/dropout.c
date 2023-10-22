@@ -234,7 +234,7 @@ int PSInitDropoutLayer(PSModel *model, PSLayer *layer,
     if (layer->weights != NULL) {
         for (int i = 0; i < layer->weight_types_count; i++) {
             PSMatrix weights = layer->weights[i];
-            if (weights != NULL) PSMatrixDelete(weights);
+            if (weights != NULL) PSMatrixFree(weights);
         }
         free(layer->weights);
     }

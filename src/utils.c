@@ -193,7 +193,7 @@ PSDictItem *PSDictGetOrSet(PSDict *dict, const char *key, PSDictValue val) {
 }
 
 /* Delete item associated to `key` in dictionary `dict`, if any. */
-void PSDictDelete(PSDict *dict, const char *key) {
+void PSDictRemove(PSDict *dict, const char *key) {
     PSDictItem *item = PSDictGet(dict, key);
     if (item == NULL) return;
     PSDictItem *prev = item->prev, *next = item->next;
@@ -288,7 +288,7 @@ PSDictItem *PSDictNext(PSDictIterator *iterator) {
 }
 
 /* Delete the dictionary and free it's allocated memory. */
-void PSDictRelease(PSDict *dict) {
+void PSDictFree(PSDict *dict) {
     if (dict == NULL) return;
     PSDictClear(dict);
     free(dict);

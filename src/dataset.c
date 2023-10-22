@@ -81,7 +81,7 @@ int64_t PSVocabularyAdd(PSVocabulary *vocabulary, char *token) {
         char **tokens = realloc(vocabulary->tokens, size * sizeof(char *));
         if (tokens == NULL) {
             PSPrintMemoryErrorMsg();
-            PSDictDelete(token_map, token);
+            PSDictRemove(token_map, token);
             return PS_INVALID_TOKEN_ID;
         }
         int64_t added_size = size - vocabulary->capacity;
@@ -117,10 +117,10 @@ const char *PSVocabularyErrorString(int err) {
     return "";
 }
 
-void PSVocabularyRelease(PSVocabulary *vocabulary) {
+void PSVocabularyFree(PSVocabulary *vocabulary) {
     if (vocabulary == NULL) return;
     free(vocabulary->tokens);
-    PSDictRelease(vocabulary->token_map);
+    PSDictFree(vocabulary->token_map);
 }
 
 /**** Text Datasets ****/
@@ -303,7 +303,7 @@ fail:
     if (data != NULL) free(data);
     if (new_vocab) {
         if (vocabulary != NULL) *vocabulary = NULL;
-        if (vocab != NULL) PSVocabularyRelease(vocab);
+        if (vocab != NULL) PSVocabularyFree(vocab);
     }
     free(tmpstr);
     return NULL;
@@ -404,7 +404,7 @@ fail:
     if (data != NULL) free(data);
     if (new_vocab) {
         if (vocabulary != NULL) *vocabulary = NULL;
-        if (vocab != NULL) PSVocabularyRelease(vocab);
+        if (vocab != NULL) PSVocabularyFree(vocab);
     }
     return NULL;
 }

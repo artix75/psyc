@@ -84,7 +84,7 @@ static int initOrResizePositionalEncodings(PSLayer *layer, uint32_t seqlen) {
             seqlen, layer->size, settings->base
         );
         if (encodings == NULL) return 0;
-        PSMatrixDelete(layer->weights[0]);
+        PSMatrixFree(layer->weights[0]);
         layer->weights[0] = encodings;
     }
     return 1;
@@ -284,7 +284,7 @@ int PSPositionalForward(PSLayer *layer, ...) {
         encodings += layer->size;
     }
 final:
-    PSMatrixDelete(tmpinputs);
+    PSMatrixFree(tmpinputs);
     return success;
 }
 

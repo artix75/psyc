@@ -360,7 +360,7 @@ int PSOperationBackward(PSLayer *layer, int seqlen, int t) {
                 PSLayer *xprovider = settings->providers[j];
                 success = (xprovider != NULL);
                 if (!success) {
-                    PSMatrixDelete(dptr);
+                    PSMatrixFree(dptr);
                     goto final;
                 }
                 PSFloat *inputs = getInputsFromProvider(layer, xprovider, t);
@@ -368,7 +368,7 @@ int PSOperationBackward(PSLayer *layer, int seqlen, int t) {
             }
             PSAddVectors(output_delta, dptr, output_delta, len, &opts);
         }
-        if (dptr != output_delta) PSMatrixDelete(dptr);
+        if (dptr != output_delta) PSMatrixFree(dptr);
     }
 final:
     free(delta);

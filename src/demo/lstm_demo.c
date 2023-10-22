@@ -371,19 +371,19 @@ int main(int argc, char** argv) {
         model->layers[model->size - 1]->flags |= FLAG_ONEHOT;
         if (model->size < 1) {
             fprintf(stderr, "Could not add all layers!\n");
-            PSModelDelete(model);
+            PSModelFree(model);
             return 1;
         }
     } else {
         int loaded = PSModelLoad(model, pretrained_file);
         if (!loaded) {
             printf("Could not load pretrained data %s\n", pretrained_file);
-            PSModelDelete(model);
+            PSModelFree(model);
             return 1;
         }
         if (model->size < 1) {
             fprintf(stderr, "Could not add all layers!\n");
-            PSModelDelete(model);
+            PSModelFree(model);
             return 1;
         }
     }
@@ -420,7 +420,7 @@ int main(int argc, char** argv) {
     if (pretrained_file == NULL)
         PSModelSave(model, "/tmp/pretrained.lstm.psmodel");
 final:
-    PSModelDelete(model);
+    PSModelFree(model);
     /* free(training_data); */
     /* if (TEST_DATA_LEN) free(test_data); */
     return return_status;
