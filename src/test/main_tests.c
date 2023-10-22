@@ -1987,17 +1987,17 @@ int testRNNLoad(TestCase *test_case, Test *test) {
     int i, j, w, rnn_size = 0;
     for (i = 1; i < model->size; i++) {
         PSLayer *layer = model->layers[i];
-        int exp_weight_types_count = 1, is_rnn_layer = (i == 1);
+        int exp_weight_types = 1, is_rnn_layer = (i == 1);
         uint64_t input_weight_count = 0, hidden_weight_count = 0;
         if (is_rnn_layer) {
             /* Recurrent Layer */
             rnn_size = layer->size;
-            exp_weight_types_count = 2;
+            exp_weight_types = 2;
         }
         testAssertWithMessage(
-            layer->weight_types_count == exp_weight_types_count, test,
+            layer->weight_types == exp_weight_types, test,
             "Layer[%d] should have %d weight matrices, got: %d",
-            i, exp_weight_types_count, layer->weight_types_count
+            i, exp_weight_types, layer->weight_types
         );
         testAssertNotNull(layer->weights, test);
         if (is_rnn_layer) {
@@ -3750,18 +3750,18 @@ int testGenericAttentionBackprop(PSModel *model, char *file_prefix,
     fclose(f);
     f = NULL;
     /* Load gradients */
-    expgrads_w = calloc(attn_layer->weight_types_count, sizeof(PSFloat *));
+    expgrads_w = calloc(attn_layer->weight_types, sizeof(PSFloat *));
     ok = (expgrads_w != NULL);
     testAssertWithMessageOrGoto(
         ok, final, test, "could not allocate gradients%s",""
     );
-    expgrads_b = calloc(attn_layer->weight_types_count, sizeof(PSFloat *));
+    expgrads_b = calloc(attn_layer->weight_types, sizeof(PSFloat *));
     ok = (expgrads_b != NULL);
     testAssertWithMessageOrGoto(
         ok, final, test, "could not allocate gradients%s",""
     );
     char suffix[25] = {0};
-    for (i = 0; i < attn_layer->weight_types_count; i++) {
+    for (i = 0; i < attn_layer->weight_types; i++) {
         if (attn_layer->weights[i] == NULL) continue;
         int wlen = PSMatrixLength(attn_layer->weights[i]),
             blen = (i == PS_SCORES_IDX ? 1 : attn_layer->size),
@@ -3856,7 +3856,7 @@ int testGenericAttentionBackprop(PSModel *model, char *file_prefix,
         ok, final, test, "missing attention gradient biases%s",""
     );
     char cmpdescr[255] = {0};
-    for (i = 0; i < attn_layer->weight_types_count; i++) {
+    for (i = 0; i < attn_layer->weight_types; i++) {
         if (attn_layer->weights[i] == NULL) continue;
         int wlen = PSMatrixLength(attn_layer->weights[i]),
             blen = (i == PS_SCORES_IDX ? 1 : attn_layer->size);
@@ -3882,14 +3882,14 @@ int testGenericAttentionBackprop(PSModel *model, char *file_prefix,
 final:
     if (f != NULL) fclose(f);
     if (expgrads_w != NULL) {
-        for (i = 0; i < attn_layer->weight_types_count; i++) {
+        for (i = 0; i < attn_layer->weight_types; i++) {
             PSFloat *g = expgrads_w[i];
             free(g);
         }
         free(expgrads_w);
     }
     if (expgrads_b != NULL) {
-        for (i = 0; i < attn_layer->weight_types_count; i++) {
+        for (i = 0; i < attn_layer->weight_types; i++) {
             PSFloat *g = expgrads_b[i];
             free(g);
         }
@@ -4328,9 +4328,9 @@ int compareModels(PSModel *model, PSModel *clone, Test* test) {
         if (i == 0) continue;
         if (otype == Pooling) continue;
         testAssertWithMessage(
-            (orig_l->weight_types_count == clone_l->weight_types_count), test,
-            "Layer[%d]: Source weight_types_count %d != Clone %d",
-            orig_l->weight_types_count, clone_l->weight_types_count
+            (orig_l->weight_types == clone_l->weight_types), test,
+            "Layer[%d]: Source weight_types %d != Clone %d",
+            orig_l->weight_types, clone_l->weight_types
         );
         if (orig_l->biases != NULL) {
             testAssertWithMessage(
@@ -4369,7 +4369,7 @@ int compareModels(PSModel *model, PSModel *clone, Test* test) {
             );
         }
         if (orig_l->weights != NULL) {
-            for (k = 0; k < orig_l->weight_types_count; k++) {
+            for (k = 0; k < orig_l->weight_types; k++) {
                 PSMatrix o_weights = orig_l->weights[k];
                 PSMatrix c_weights = clone_l->weights[k];
                 if (Attention != orig_l->type) {

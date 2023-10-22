@@ -232,7 +232,7 @@ int PSInitDropoutLayer(PSModel *model, PSLayer *layer,
     if (layer->biases != NULL) free(layer->biases);
     layer->biases = NULL;
     if (layer->weights != NULL) {
-        for (int i = 0; i < layer->weight_types_count; i++) {
+        for (int i = 0; i < layer->weight_types; i++) {
             PSMatrix weights = layer->weights[i];
             if (weights != NULL) PSMatrixFree(weights);
         }

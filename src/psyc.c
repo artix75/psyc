@@ -371,7 +371,7 @@ int checkLayerForForward(PSLayer *layer) {
         PSErr(NULL, "Layer[%d]: previous layer is NULL", layer->index);
         return 0;
     }
-    if (layer->weight_types_count > 0 && trainable) {
+    if (layer->weight_types > 0 && trainable) {
         if (layer->weights == NULL) {
             PSErr(NULL, "Layer[%d]: layer has no weights", layer->index);
             return 0;
@@ -379,7 +379,7 @@ int checkLayerForForward(PSLayer *layer) {
         int trainable_params = 0xFFFF;
         if (layer->type == Attention)
             trainable_params = PSGetAttentionTrainableParameters(layer);
-        for (int i = 0; i < layer->weight_types_count; i++) {
+        for (int i = 0; i < layer->weight_types; i++) {
             int ok = layer->weights[i] != NULL;
             if (!ok) ok = !(trainable_params & (1 << i));
             if (!ok) {
@@ -428,9 +428,9 @@ int PSOnehotInputsForward(PSLayer *layer, int weights_index,
     }
     int onehot_vector_size = PSGetOneHotLayerVectorSize(previous);
     if (weights_index < 0) weights_index = 0;
-    if (weights_index >= layer->weight_types_count) {
+    if (weights_index >= layer->weight_types) {
         PSErr(NULL, "Layer[%d] invalid weights index %d (max: %d)",
-              weights_index,  layer->weight_types_count - 1);
+              weights_index,  layer->weight_types - 1);
         return 0;
     }
     PSMatrix weights = (
@@ -1042,7 +1042,7 @@ uint64_t PSGetLayerParametersCount(PSLayer *layer, int param_type) {
         return layer->get_param_count(layer, param_type);
     uint64_t count = 0;
     if (param_type & PARAM_TYPE_WEIGHT && layer->weights != NULL) {
-        for (int i = 0; i < layer->weight_types_count; i++) {
+        for (int i = 0; i < layer->weight_types; i++) {
             PSMatrix weights = layer->weights[i];
             if (weights != NULL) count += PSMatrixLength(weights);
         }
@@ -2525,18 +2525,18 @@ static PSModel *cloneModel(PSModel *model, int layout_only, PSModel *parent) {
                 cloned_layer->initial_states = NULL;
             }
             if (layer->weights != NULL) {
-                if (layer->weight_types_count == 0) {
+                if (layer->weight_types == 0) {
                     PSErr(__func__, "Layer[%d]: weights not NULL but "
-                          "weight_types_count is 0", layer->index);
+                          "weight_types is 0", layer->index);
                     goto err;
                 }
                 if (cloned_layer->weights == NULL) {
                     cloned_layer->weights = calloc(
-                        layer->weight_types_count, sizeof(PSMatrix)
+                        layer->weight_types, sizeof(PSMatrix)
                     );
                     if (cloned_layer->weights == NULL) goto memerr;
                 }
-                for (j = 0; j < layer->weight_types_count; j++) {
+                for (j = 0; j < layer->weight_types; j++) {
                     if (layer->weights[j] == NULL) {
                         if (type == Attention) continue;
                         PSErr(__func__, "Layer[%d]: weights[%d] are NULL",
@@ -2549,7 +2549,7 @@ static PSModel *cloneModel(PSModel *model, int layout_only, PSModel *parent) {
                     if (cloned_layer->weights[j] == NULL) goto memerr;
                 }
             } else if (cloned_layer->weights != NULL) {
-                for (j = 0; j < layer->weight_types_count; j++)
+                for (j = 0; j < layer->weight_types; j++)
                     PSMatrixFree(cloned_layer->weights[j]);
                 free(cloned_layer->weights);
                 cloned_layer->weights = NULL;
@@ -3104,7 +3104,7 @@ int initGenericLayer(PSLayer *layer, int size, int previous_size,
             layer, size, previous_size, ldef, 1.0, 0
         );
         if (layer->weights[0] == NULL) goto memerr;
-        layer->weight_types_count = 1;
+        layer->weight_types = 1;
         layer->biases = malloc(size * sizeof(PSFloat));
         if (layer->biases == NULL) goto memerr;
         weights = layer->weights[0];
@@ -3174,7 +3174,7 @@ PSLayer *PSAddLayer(PSModel *model, PSLayerType type, int size,
     layer->on_copy = NULL;
     layer->build = NULL;
     layer->get_param_count = NULL;
-    layer->weight_types_count = 0;
+    layer->weight_types = 0;
     layer->onehot_vector_size = size;
     layer->output_depth = layer_def->output_depth;
     layer->pretrained = layer_def->pretrained;
@@ -3317,7 +3317,7 @@ void PSDeleteLayer(PSLayer* layer) {
     if (layer == NULL) return;
     int i;
     if (layer->weights != NULL) {
-        for (i = 0; i < layer->weight_types_count; i++) {
+        for (i = 0; i < layer->weight_types; i++) {
             PSMatrix weights = layer->weights[i];
             if (weights != NULL) PSMatrixFree(weights);
         }
@@ -4197,7 +4197,7 @@ void beforeBatchTraining(PSModel *model) {
             PSLayer *layer = model->layers[i];
             if (layer == NULL) continue;
             if (layer->weights != NULL) {
-                for (j = 0; j < layer->weight_types_count; j++) {
+                for (j = 0; j < layer->weight_types; j++) {
                     PSMatrix weights = layer->weights[j];
                     if (weights == NULL) continue;
                     PSMatrixResetTransposed(weights);
@@ -4217,7 +4217,7 @@ void PSResetTransposedWeights(PSModel *model) {
         PSLayer *layer = model->layers[i];
         if (layer == NULL) continue;
         if (layer->weights == NULL) continue;
-        for (j = 0; j < layer->weight_types_count; j++) {
+        for (j = 0; j < layer->weight_types; j++) {
             PSMatrix weights = layer->weights[j];
             if (weights == NULL) continue;
             PSMatrixResetTransposed(weights);
@@ -4465,7 +4465,7 @@ int PSUpdatePreviousLayerDelta(PSLayer *layer, PSLayer *previous,
                                int weights_index, int seqlen)
 {
     if (layer->weights == NULL ||
-        weights_index >= layer->weight_types_count ||
+        weights_index >= layer->weight_types ||
         layer->weights[weights_index] == NULL)
     {
         PSErr(NULL, "Layer[%d] NULL weights", layer->index);
@@ -5284,7 +5284,7 @@ PSFloat updateModelParameters(PSModel *model,
             /* Update Weights */
             uint64_t wgrad_offset = 0;
             int partially_trainable = (layer->type == Attention);
-            for (j = 0; j < layer->weight_types_count; j++) {
+            for (j = 0; j < layer->weight_types; j++) {
                 PSMatrix weights = layer->weights[j];
                 if (weights == NULL) {
                     if (partially_trainable) continue;

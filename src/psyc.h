@@ -297,7 +297,7 @@ typedef struct PSLayer {
     PSLayerType                 type;
     int                         index;
     int                         size;
-    int                         weight_types_count;
+    int                         weight_types;
     PSMatrix                    *weights;
     PSFloat                     *biases;
     PSMatrix                    states;

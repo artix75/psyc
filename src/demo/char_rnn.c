@@ -358,7 +358,7 @@ void initLSTMGRUParams(PSModel *model) {
         exit(1);
     }
     PSMathOpts opts = {.acceleration = model->acceleration};
-    for (int i = 0; i < layer->weight_types_count; i++) {
+    for (int i = 0; i < layer->weight_types; i++) {
         PSMatrix weights = layer->weights[i];
         if (weights == NULL) continue;
         uint64_t wlen = PSMatrixLength(weights);

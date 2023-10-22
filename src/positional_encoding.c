@@ -184,7 +184,7 @@ int PSInitPositionalLayer(PSLayer *layer, PSLayerDef *layer_def) {
     if (base <= 0) base = DEFAULT_POSITIONAL_BASE;
     PSPositionalSettings *settings = (PSPositionalSettings *) layer->extra;
     settings->base = base;
-    layer->weight_types_count = 1;
+    layer->weight_types = 1;
     layer->weights = calloc(1, sizeof(PSMatrix));
     if (layer->weights == NULL) goto memerr;
     layer->weights[0] = PSGetPositionalEncoding(capacity, layer->size, base);

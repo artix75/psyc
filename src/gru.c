@@ -32,7 +32,7 @@
 #define UPDATE_IDX      PS_GRU_UPDATE_IDX
 #define RESET_IDX       PS_GRU_RESET_IDX
 
-#define GRU_WEIGHT_TYPES_COUNT (3 * 2)
+#define GRU_WEIGHT_TYPES (3 * 2)
 
 #define getCandidate(layer, i, t) (getGRUState(layer, i, t, CANDIDATE_IDX))
 #define getUpdateGate(layer, i, t) (getGRUState(layer, i, t, UPDATE_IDX))
@@ -411,15 +411,15 @@ int PSInitGRULayer(PSModel *model, PSLayer *layer, int size, int ws,
     if (layer->biases != NULL) free(layer->biases);
     layer->biases = calloc(size, bias_count * sizeof(PSFloat));
     if (layer->biases == NULL) goto memerr;
-    layer->weights = calloc(GRU_WEIGHT_TYPES_COUNT, sizeof(PSMatrix));
+    layer->weights = calloc(GRU_WEIGHT_TYPES, sizeof(PSMatrix));
     if (layer->weights == NULL) goto memerr;
-    layer->weight_types_count = 0;
-    for (i = 0; i < GRU_WEIGHT_TYPES_COUNT; i++) {
+    layer->weight_types = 0;
+    for (i = 0; i < GRU_WEIGHT_TYPES; i++) {
         int hidden = (i >= 3);
         int wsize = (hidden ? size : ws);
         layer->weights[i] = PSInitWeights(layer, size, wsize, ldef, 1, 0);
         if (layer->weights[i] == NULL) goto memerr;
-        layer->weight_types_count++;
+        layer->weight_types++;
     }
     int bias_init_mode = (ldef != NULL ? ldef->bias_init_mode : INIT_MODE_AUTO);
     if (bias_init_mode == INIT_MODE_ZERO)

@@ -32,9 +32,9 @@
 #define INPUT_IDX       PS_LSTM_INPUT_IDX
 #define OUTPUT_IDX      PS_LSTM_OUTPUT_IDX
 #define FORGET_IDX      PS_LSTM_FORGET_IDX
-#define RAW_STATE_IDX  PS_LSTM_RAWSTATE_IDX
+#define RAW_STATE_IDX   PS_LSTM_RAWSTATE_IDX
 
-#define LSTM_WEIGHT_TYPES_COUNT (4 * 2)
+#define LSTM_WEIGHT_TYPES (4 * 2)
 
 #define getCandidate(layer, i, t) (getLSTMState(layer, i, t, CANDIDATE_IDX))
 #define getInputGate(layer, i, t) (getLSTMState(layer, i, t, INPUT_IDX))
@@ -487,15 +487,15 @@ int PSInitLSTMLayer(PSModel *model, PSLayer *layer,
     if (layer->biases != NULL) free(layer->biases);
     layer->biases = calloc(size, bias_count * sizeof(PSFloat));
     if (layer->biases == NULL) goto memerr;
-    layer->weights = calloc(LSTM_WEIGHT_TYPES_COUNT, sizeof(PSMatrix));
+    layer->weights = calloc(LSTM_WEIGHT_TYPES, sizeof(PSMatrix));
     if (layer->weights == NULL) goto memerr;
-    layer->weight_types_count = 0;
-    for (i = 0; i < LSTM_WEIGHT_TYPES_COUNT; i++) {
+    layer->weight_types = 0;
+    for (i = 0; i < LSTM_WEIGHT_TYPES; i++) {
         int hidden = (i >= 4);
         int wsize = (hidden ? size : ws);
         layer->weights[i] = PSInitWeights(layer, size, wsize, ldef, 1, 0);
         if (layer->weights[i] == NULL) goto memerr;
-        layer->weight_types_count++;
+        layer->weight_types++;
     }
     int bias_init_mode = (ldef != NULL ? ldef->bias_init_mode : INIT_MODE_AUTO);
     if (bias_init_mode == INIT_MODE_ZERO)

@@ -595,7 +595,7 @@ int PSInitConvolutionalLayer(PSModel *model, PSLayer *layer,
     if (layer->weights == NULL) goto memerr;
     PSFloat wrange = PSSqrt(1.0 / weights_size);
     int i, use_relu = (layer->activate == PSRelu), rand_bias = 0;
-    layer->weight_types_count = 0;
+    layer->weight_types = 0;
     PSFloat default_bias = (use_relu ? 0.1 : 0.0);
     if (layer_def->bias_init_mode == INIT_MODE_ZERO) default_bias = 0.0;
     else rand_bias = (layer_def->bias_init_mode == INIT_MODE_RAND);
@@ -608,7 +608,7 @@ int PSInitConvolutionalLayer(PSModel *model, PSLayer *layer,
             settings->filter_height, layer_def, wrange, 1.0
         );
         if (layer->weights[i] == NULL) goto memerr;
-        layer->weight_types_count++;
+        layer->weight_types++;
     }
     layer->forward = PSConvolutionalForward;
     layer->backprop = PSConvolutionalBackprop;

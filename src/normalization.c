@@ -352,7 +352,7 @@ int PSInitNormalizationLayer(PSLayer *layer, PSLayerDef *ldef) {
                 PSInitWeights(layer, 1, layer->size, ldef, 1, 1);
         } else layer->weights[0] = PSMatrixCreate(1, NULL, 2, 1, layer->size);
         if (layer->weights[0] == NULL) goto memerr;
-        layer->weight_types_count = 1;
+        layer->weight_types = 1;
         if (!(layer->flags & FLAG_NO_BIAS)) {
             layer->biases = calloc(layer->size, sizeof(PSFloat));
             if (layer->biases == NULL) goto memerr;

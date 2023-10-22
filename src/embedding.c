@@ -403,7 +403,7 @@ int PSInitEmbeddingLayer(PSLayer *layer, int size, PSLayerDef *ldef) {
         PSErr(NULL, "Could not create embedding weights");
         return 0;
     }
-    layer->weight_types_count = 1;
+    layer->weight_types = 1;
     layer->biases = calloc(size, sizeof(PSFloat));
     if (layer->biases == NULL) goto memerr;
     layer->activate = ldef->activation;

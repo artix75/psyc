@@ -28,7 +28,7 @@
 #include "utils.h"
 #include "log.h"
 
-#define RNN_WEIGHT_TYPES_COUNT 2
+#define RNN_WEIGHT_TYPES 2
 #define RNN_INIT_SCALE 0.01
 #define UNUSED(V) ((void) V)
 
@@ -73,18 +73,18 @@ int PSInitRecurrentLayer(PSModel *model, PSLayer *layer,
     layer->on_delete = PSDeleteRNNLayer;
     layer->states = PSMatrixZeros(2, 1, size);
     if (layer->states == NULL) goto memerr;
-    layer->weights = calloc(RNN_WEIGHT_TYPES_COUNT, sizeof(PSMatrix));
+    layer->weights = calloc(RNN_WEIGHT_TYPES, sizeof(PSMatrix));
     if (layer->weights == NULL) goto memerr;
     layer->weights[0] = PSInitWeights(
         layer, size, ws, ldef, 1, RNN_INIT_SCALE
     );
     if (layer->weights[0] == NULL) goto memerr;
-    layer->weight_types_count = 1;
+    layer->weight_types = 1;
     layer->weights[1] = PSInitWeights(
         layer, size, size, ldef, 1, RNN_INIT_SCALE
     );
     if (layer->weights[1] == NULL) goto memerr;
-    layer->weight_types_count = 2;
+    layer->weight_types = 2;
     layer->biases = malloc(size * sizeof(PSFloat));
     if (layer->biases == NULL) goto memerr;
     layer->extra = calloc(size, sizeof(PSFloat));

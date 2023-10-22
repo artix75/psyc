@@ -412,7 +412,7 @@ int PSInitOperatorLayer(PSLayer *layer, PSLayerDef *ldef) {
     layer->weights = NULL;
     layer->flags |= FLAG_NON_TRAINABLE;
     layer->biases = NULL;
-    layer->weight_types_count = 0;
+    layer->weight_types = 0;
     if (ldef == NULL) {
         PSErrNN(NULL, NULL, layer, "missing layer definition");
         return 0;

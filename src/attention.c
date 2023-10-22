@@ -25,7 +25,7 @@
 #include "config.h"
 
 #define UNUSED(V) ((void) V)
-#define ATTENTION_WEIGHT_TYPES_COUNT 5
+#define ATTENTION_WEIGHT_TYPES 5
 #define PSGetAttentionSettings(layer) ((PSAttentionSettings *) layer->extra)
 #define PSGetAttentionData(layer) ((PSAttentionData *) layer->private)
 
@@ -1058,7 +1058,7 @@ static void getGradientWeightsMap(PSLayer *layer, PSGradient *gradient,
                                   PSFloat **weights_map)
 {
     PSFloat *grad_p = gradient->weights;
-    for (int i = 0; i < ATTENTION_WEIGHT_TYPES_COUNT; i++) {
+    for (int i = 0; i < ATTENTION_WEIGHT_TYPES; i++) {
         if (layer->weights[i] != NULL) {
             weights_map[i] = grad_p;
             grad_p += PSMatrixLength(layer->weights[i]);
@@ -1547,7 +1547,7 @@ int PSAdditiveAttentionBackward(PSLayer *layer, PSMatrix *dscores,
             PSErrNN(NULL, NULL, layer, "no gradient for score parameters");
             goto final;
         }
-        PSFloat *gradient_weights[ATTENTION_WEIGHT_TYPES_COUNT] = {0};
+        PSFloat *gradient_weights[ATTENTION_WEIGHT_TYPES] = {0};
         getGradientWeightsMap(layer, gradient, gradient_weights);
         success = updateAttentionGradientsAndDelta(
             layer, gradient_weights, gradient->biases, PS_SCORES_IDX,
@@ -2012,8 +2012,8 @@ int PSInitAttentiontionLayer(PSLayer *layer, PSLayerDef *ldef) {
         success = 0;
         goto final;
     }
-    int param_types = ATTENTION_WEIGHT_TYPES_COUNT;
-    layer->weight_types_count = param_types;
+    int param_types = ATTENTION_WEIGHT_TYPES;
+    layer->weight_types = param_types;
     layer->weights = calloc(param_types, sizeof(PSMatrix));
     if (layer->weights == NULL) goto memerr;
     int bias_size = ((param_types - 1) * layer->size) + 1;
@@ -2273,7 +2273,7 @@ int PSAttentionBackprop(PSLayer *layer, PSLayer *previous_layer,
     va_end(args);
     if (!success) return 0;
     PSMatrix dquery = NULL, dkeys = NULL, dvalues = NULL;
-    PSFloat *gradient_weights[ATTENTION_WEIGHT_TYPES_COUNT] = {0};
+    PSFloat *gradient_weights[ATTENTION_WEIGHT_TYPES] = {0};
     getGradientWeightsMap(layer, gradient, gradient_weights);
     if (useOutputProjection(layer)) {
         delta = PSMatrixDupShape(delta);

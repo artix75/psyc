@@ -649,15 +649,15 @@ static int writeBinaryLayerParameters(PSLayer *layer, int opts, FILE *f,
         }
     }
     int partial_trainable_parameters = (layer->type == Attention);
-    if (fputc((uint8_t) layer->weight_types_count, f) == EOF) return 0;
+    if (fputc((uint8_t) layer->weight_types, f) == EOF) return 0;
     nwritten = fwrite(&weights_count, sizeof(weights_count), 1, f);
     if (nwritten < 1) return 0;
-    if (layer->weight_types_count > 0) {
+    if (layer->weight_types > 0) {
         if (layer->weights == NULL) {
             PSErr(func, "Layer[%d]: weights are NULL", i);
             return 0;
         }
-        for (j = 0; j < layer->weight_types_count; j++) {
+        for (j = 0; j < layer->weight_types; j++) {
             PSMatrix weights = layer->weights[j];
             int ok = (weights != NULL || partial_trainable_parameters);
             if (!ok) {
@@ -759,11 +759,11 @@ static int loadBinaryLayerParameters(PSLayer *layer, const char *filepath,
     }
     wtype_count = fgetc(f);
     if (wtype_count == EOF) goto read_err;
-    ok = (wtype_count == layer->weight_types_count);
+    ok = (wtype_count == layer->weight_types);
     if (!ok) {
         loadErr(
             filepath, f, "Layer[%u]: found %d weight types, "
-            "expected: %d", i, wtype_count, layer->weight_types_count
+            "expected: %d", i, wtype_count, layer->weight_types
         );
         return 0;
     }
@@ -786,7 +786,7 @@ static int loadBinaryLayerParameters(PSLayer *layer, const char *filepath,
         return 0;
     }
     int partial_trainable_parameters = (layer->type == Attention);
-    for (int j = 0; j < layer->weight_types_count; j++) {
+    for (int j = 0; j < layer->weight_types; j++) {
         PSMatrix weights = layer->weights[j];
         uint64_t wlen = readUInt64(f, do_swap);
         if (errno > 0) goto read_err;
@@ -1191,14 +1191,14 @@ int writeLayerParameters(PSLayer *layer, int opts, FILE *f, const char *func) {
     }
     int partial_trainable_parameters = (layer->type == Attention);
     fprintf(f, "--- Layer[%d] Weights: %d,%d ---\n",
-            i, layer->weight_types_count, weights_count);
-    if (layer->weight_types_count > 0) {
+            i, layer->weight_types, weights_count);
+    if (layer->weight_types > 0) {
         if (layer->weights == NULL) {
             PSErr(func, "Layer[%d]: weights are NULL", i);
             fclose(f);
             return 0;
         }
-        for (j = 0; j < layer->weight_types_count; j++) {
+        for (j = 0; j < layer->weight_types; j++) {
             PSMatrix weights = layer->weights[j];
             int ok = (weights != NULL);
             if (!ok && partial_trainable_parameters) {
@@ -1988,11 +1988,11 @@ static int loadLayerParameters(PSLayer *layer, const char *filepath, FILE *f,
         );
         return 0;
     }
-    ok = (wtype_count == layer->weight_types_count);
+    ok = (wtype_count == layer->weight_types);
     if (!ok) {
         loadErr(
             filepath, f, "Layer[%d]: found %d weight types, "
-            "expected: %d", i, wtype_count, layer->weight_types_count
+            "expected: %d", i, wtype_count, layer->weight_types
         );
         return 0;
     }
@@ -2014,7 +2014,7 @@ static int loadLayerParameters(PSLayer *layer, const char *filepath, FILE *f,
         return 0;
     }
     int partial_trainable_parameters = (layer->type == Attention);
-    for (int j = 0; j < layer->weight_types_count; j++) {
+    for (int j = 0; j < layer->weight_types; j++) {
         PSMatrix weights = layer->weights[j];
         ok = (weights != NULL);
         if (!ok && partial_trainable_parameters)
