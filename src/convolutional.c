@@ -561,8 +561,8 @@ int PSInitConvolutionalLayer(PSModel *model, PSLayer *layer,
         if (prev_area != previous->size) {
             PSErr(
                 __func__, "Previous size %d != %d (%dx%dx%d)",
-                 previous->size, prev_area, input_w, input_h,
-                 previous->output_depth
+                previous->size, prev_area, input_w, input_h,
+                previous->output_depth
             );
             goto err;
         }

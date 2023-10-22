@@ -455,7 +455,7 @@ int PSOnehotInputsForward(PSLayer *layer, int weights_index,
     PSMatrix tweights = PSMatrixTranspose(weights, 0, &opts);
     if (tweights == NULL) {
         PSWarn("Layer[%d]: failed to transpose weights[%d]",
-              layer->index, weights_index);
+               layer->index, weights_index);
         goto no_transposition;
     }
     PSFloat *out;
@@ -2527,7 +2527,7 @@ static PSModel *cloneModel(PSModel *model, int layout_only, PSModel *parent) {
             if (layer->weights != NULL) {
                 if (layer->weight_types_count == 0) {
                     PSErr(__func__, "Layer[%d]: weights not NULL but "
-                         "weight_types_count is 0", layer->index);
+                          "weight_types_count is 0", layer->index);
                     goto err;
                 }
                 if (cloned_layer->weights == NULL) {
@@ -2540,7 +2540,7 @@ static PSModel *cloneModel(PSModel *model, int layout_only, PSModel *parent) {
                     if (layer->weights[j] == NULL) {
                         if (type == Attention) continue;
                         PSErr(__func__, "Layer[%d]: weights[%d] are NULL",
-                             layer->index, j);
+                              layer->index, j);
                         goto err;
                     }
                     if (cloned_layer->weights[j] != NULL)
@@ -4473,12 +4473,16 @@ int PSUpdatePreviousLayerDelta(PSLayer *layer, PSLayer *previous,
     }
     if (seqlen < 1 || !PSHandleSequenceAtOnce(layer)) seqlen = 1;
     PSMatrix weights = layer->weights[weights_index];
-    int ok = PSUpdateDelta(previous->delta, layer->delta, weights,
-                  seqlen, layer->model->acceleration);
-
-    if (!ok)
-        PSErr(NULL, "Layer[%d]: failed backprop (PSDot) (seqlen = %d)",
-              layer->index);
+    int ok = PSUpdateDelta(
+        previous->delta, layer->delta, weights, seqlen,
+        layer->model->acceleration
+    );
+    if (!ok) {
+        PSErr(
+            NULL, "Layer[%d]: failed backprop (PSDot) (seqlen = %d)",
+            layer->index
+        );
+    }
     return ok;
 }
 
@@ -5177,8 +5181,9 @@ PSFloat updateModelParameters(PSModel *model,
         }
         bp_gradients = backprop(model, x, y, opts, bp_dest_gradients);
         if (bp_gradients == NULL) {
-            PSErr(NULL, "Backpropagation failed for model '%s'",
-                 (model->name != NULL ? model->name : "UNNAMED")
+            PSErr(
+                NULL, "Backpropagation failed for model '%s'",
+                (model->name != NULL ? model->name : "UNNAMED")
             );
             PSModelSetStatus(model, STATUS_ERROR, NULL);
             goto final;
@@ -5911,11 +5916,11 @@ void PSTrain(PSModel *model,
     PSInfo("L1 Decay:                   %g", options->l1_decay);
     PSInfo("L2 Decay:                   %g", options->l2_decay);
     PSInfo("Weight Decay:               %s",
-            (use_weight_decay ? "yes" : "no"));
+           (use_weight_decay ? "yes" : "no"));
     PSInfo("Clip:                       %g", PSAbs(options->clip));
     PSInfo("Momentum:                   %g", options->momentum);
     PSInfo("Optimization:               %s",
-        getOptimizationName(options->optimization));
+           getOptimizationName(options->optimization));
     int single_seq = (options->flags & TRAINING_EPOCH_AS_SEQUENCE),
         no_shuffle = (options->flags & TRAINING_NO_SHUFFLE);
     if (single_seq && !no_shuffle) {
@@ -6129,33 +6134,41 @@ int PSModelCheck(PSModel *model) {
         }
         if (layer->activate == PSSigmoid &&
             layer->derivative != PSSigmoidDerivative) {
-            PSErr(__func__,
-                  "Layer[%d] activate function is PSSigmoid, "
-                  "but derivative function is not PSSigmoidDerivative", i);
+            PSErr(
+                __func__,
+                "Layer[%d] activate function is PSSigmoid, "
+                "but derivative function is not PSSigmoidDerivative", i
+            );
             return 0;
         }
         if (layer->activate == PSRelu &&
             layer->derivative != PSReluDerivative)
         {
-            PSErr(__func__,
-                  "Layer[%d] activate function is PSRelu, "
-                  "but derivative function is not PSReluDerivative", i);
+            PSErr(
+                __func__,
+                "Layer[%d] activate function is PSRelu, "
+                "but derivative function is not PSReluDerivative", i
+            );
             return 0;
         }
         if (layer->activate == PSGelu &&
             layer->derivative != PSGeluDerivative)
         {
-            PSErr(__func__,
-                  "Layer[%d] activate function is PSGelu, "
-                  "but derivative function is not PSGeluDerivative", i);
+            PSErr(
+                __func__,
+                "Layer[%d] activate function is PSGelu, "
+                "but derivative function is not PSGeluDerivative", i
+            );
             return 0;
         }
         if (layer->activate == PSTanhActivation &&
             layer->derivative != PSTanhDerivative)
         {
-            PSErr(__func__,
-                  "Layer[%d] activate function is PSTanhActivation, "
-                  "but derivative function is not PSTanhDerivative", i);
+            PSErr(
+                __func__,
+                "Layer[%d] activate function is PSTanhActivation, "
+                "but derivative function is not PSTanhDerivative", i
+            );
             return 0;
         }
         if (layer == output_layer && (layer->flags & FLAG_ONEHOT)) {
@@ -6176,38 +6189,41 @@ int PSModelCheck(PSModel *model) {
             return 0;
         }
         if (recurrent_layers == 0) {
-            PSErr(__func__,
-                "model is recurrent but has no recurrent layers"
+            PSErr(
+                __func__, "model is recurrent but has no recurrent layers"
             );
             return 0;
         }
         if (recurrent_type_layers == 0) {
-            PSErr(__func__,
-                "model is recurrent but has no Recurrent, LSTM or GRU layers"
+            PSErr(
+                __func__, "model is recurrent but has no Recurrent, "
+                "LSTM or GRU layers"
             );
             return 0;
         }
         if (first_recurrent_layer == NULL) {
-            PSErr(__func__,
-                "Recurrent network is missing first recurrent layer"
+            PSErr(
+                __func__, "Recurrent network is missing first recurrent layer"
             );
             return 0;
         }
         if (last_recurrent_layer == NULL) {
-            PSErr(__func__,
-                "Recurrent network is missing last recurrent layer"
+            PSErr(
+                __func__, "Recurrent network is missing last recurrent layer"
             );
             return 0;
         }
         if (first_recurrent_layer != actual_first_recurrent_layer) {
-            PSErr(__func__,
+            PSErr(
+                __func__,
                 "Recurrent network first recurrent layer should be layer %d, "
                 "but model is not updated", actual_first_recurrent_layer
             );
             return 0;
         }
         if (last_recurrent_layer != actual_last_recurrent_layer) {
-            PSErr(__func__,
+            PSErr
+                (__func__,
                 "Recurrent network last recurrent layer should be layer %d, "
                 "but model is not updated", actual_last_recurrent_layer
             );
@@ -6215,7 +6231,8 @@ int PSModelCheck(PSModel *model) {
         }
         if (ManyToMany == rnn_mode) {
             if (!recurrent_input && !recurrent_output) {
-                PSErr(__func__,
+                PSErr(
+                    __func__,
                     "Recurrent network with mode \"%s\" has no recurrent "
                     "input nor recurrent output",
                     PSGetRecurrentModeLabel(rnn_mode)
@@ -6224,14 +6241,16 @@ int PSModelCheck(PSModel *model) {
             }
         } else if (ManyToOne == rnn_mode) {
             if (!recurrent_input) {
-                PSErr(__func__,
+                PSErr(
+                    __func__,
                     "Recurrent network with mode \"%s\" has no recurrent "
                     "input", PSGetRecurrentModeLabel(rnn_mode)
                 );
                 return 0;
             }
             if (recurrent_output) {
-                PSErr(__func__,
+                PSErr(
+                    __func__,
                     "Recurrent network with mode \"%s\" has recurrent "
                     "output", PSGetRecurrentModeLabel(rnn_mode)
                 );
@@ -6239,14 +6258,16 @@ int PSModelCheck(PSModel *model) {
             }
         } else if (OneToMany == rnn_mode) {
             if (recurrent_input) {
-                PSErr(__func__,
+                PSErr(
+                    __func__,
                     "Recurrent network with mode \"%s\" has recurrent "
                     "input", PSGetRecurrentModeLabel(rnn_mode)
                 );
                 return 0;
             }
             if (!recurrent_output) {
-                PSErr(__func__,
+                PSErr(
+                    __func__,
                     "Recurrent network with mode \"%s\" has no recurrent "
                     "output", PSGetRecurrentModeLabel(rnn_mode)
                 );

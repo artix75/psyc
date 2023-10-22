@@ -793,8 +793,8 @@ static int genericMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *out,
             if (odim != dimensions[i]) {
                 PSErr(
                     __func__, "`out` matrix dimension [%d] is %d, "
-                      "but it should be %d\nResult shape: %d,%d",
-                      i, odim, dimensions[i]
+                    "but it should be %d\nResult shape: %d,%d",
+                    i, odim, dimensions[i]
                 );
                 return 0;
             }
@@ -1549,8 +1549,8 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
             if (odim != dimensions[i]) {
                 PSErr(
                     __func__, "`result` matrix dimension [%d] is %d, "
-                      "but it should be %d\nResult shape: %d,%d",
-                      i, odim, dimensions[i]
+                    "but it should be %d\nResult shape: %d,%d",
+                    i, odim, dimensions[i]
                 );
                 return 0;
             }

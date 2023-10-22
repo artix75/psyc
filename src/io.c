@@ -723,8 +723,8 @@ static int loadBinaryLayerParameters(PSLayer *layer, const char *filepath,
     if (errno > 0) goto read_err;
     ok = (!check_index || i == lidx);
     if (!ok) {
-        loadErr(filepath, f, "Invalid layer index %u, expected: %llu",
-            lidx, i
+        loadErr(
+            filepath, f, "Invalid layer index %u, expected: %llu", lidx, i
         );
         return 0;
     }
@@ -738,15 +738,16 @@ static int loadBinaryLayerParameters(PSLayer *layer, const char *filepath,
     if (errno > 0) goto read_err;
     ok = (bias_count == expected_bias_count);
     if (!ok) {
-        loadErr(filepath, f, "Layer[%u]: found %llu biases, expected: %llu",
+        loadErr(
+            filepath, f, "Layer[%u]: found %llu biases, expected: %llu",
             i, bias_count, expected_bias_count
         );
         return 0;
     }
     if (layer->biases == NULL && bias_count > 0) {
-        loadErr(filepath, f, "Layer[%u]: found %llu biases, but "
-            "layer->biases is NULL",
-            i, bias_count
+        loadErr(
+            filepath, f, "Layer[%u]: found %llu biases, but "
+            "layer->biases is NULL", i, bias_count
         );
         return 0;
     }
@@ -760,7 +761,8 @@ static int loadBinaryLayerParameters(PSLayer *layer, const char *filepath,
     if (wtype_count == EOF) goto read_err;
     ok = (wtype_count == layer->weight_types_count);
     if (!ok) {
-        loadErr(filepath, f, "Layer[%u]: found %d weight types, "
+        loadErr(
+            filepath, f, "Layer[%u]: found %d weight types, "
             "expected: %d", i, wtype_count, layer->weight_types_count
         );
         return 0;
@@ -769,15 +771,16 @@ static int loadBinaryLayerParameters(PSLayer *layer, const char *filepath,
     if (errno > 0) goto read_err;
     ok = (wcount == expected_weights_count);
     if (!ok) {
-        loadErr(filepath, f, "Layer[%d]: found %llu weights, "
-            "expected: %llu", i, wcount, expected_weights_count
+        loadErr(
+            filepath, f, "Layer[%d]: found %llu weights, expected: %llu",
+            i, wcount, expected_weights_count
         );
         return 0;
     }
     if (layer->weights == NULL && wtype_count > 0) {
-        loadErr(filepath, f, "Layer[%u]: found %llu weights, but "
-            "layer->weights is NULL",
-            i, wcount
+        loadErr(
+            filepath, f, "Layer[%u]: found %llu weights, but "
+            "layer->weights is NULL", i, wcount
         );
         ok = 0;
         return 0;
@@ -1297,7 +1300,7 @@ static int loadLegacyLayerDefinitions(PSModel *model, char *vers,
             layer = model->layers[i];
             if (layer->size != lsize) {
                 loadErr(filepath, NULL, "Layer %d size %d differs from %d!",
-                    i, layer->size, lsize);
+                        i, layer->size, lsize);
                 return 0;
             }
             if (ltype != layer->type) {
@@ -1485,7 +1488,7 @@ static int loadLayerDefinitions(PSModel *model, char *vers,
             }
             if (layer->size != lsize) {
                 loadErr(filepath, NULL, "Layer %d size %d differs from %d!",
-                    i, layer->size, lsize);
+                        i, layer->size, lsize);
                 return 0;
             }
             if (ltype != layer->type) {
@@ -1886,17 +1889,17 @@ static int loadLegacyLayersParameters(PSModel *model,
                 }
                 if (weights == NULL) {
                     loadErr(
-                         filepath, f,"Layer %d neuron %d weight %d: "
-                         "could not determine weights", i, j, k
+                        filepath, f,"Layer %d neuron %d weight %d: "
+                        "could not determine weights", i, j, k
                     );
                     return 0;
                 }
                 uint64_t matrix_len = PSMatrixLength(weights);
                 if ((uint64_t) widx >= matrix_len) {
                     loadErr(
-                         filepath, f,"Layer %d neuron %d weight %d: "
-                         "invalid weight index %d (max index: %llu)",
-                         i, j, k, widx, matrix_len - 1
+                        filepath, f,"Layer %d neuron %d weight %d: "
+                        "invalid weight index %d (max index: %llu)",
+                        i, j, k, widx, matrix_len - 1
                     );
                     return 0;
                 }
@@ -1933,8 +1936,8 @@ static int loadLayerParameters(PSLayer *layer, const char *filepath, FILE *f,
     }
     ok = (!check_index || i == lidx);
     if (!ok) {
-        loadErr(filepath, f, "Invalid layer index %d, expected: %d",
-            lidx, i
+        loadErr(
+            filepath, f, "Invalid layer index %d, expected: %d", lidx, i
         );
         return 0;
     }
@@ -1946,15 +1949,16 @@ static int loadLayerParameters(PSLayer *layer, const char *filepath, FILE *f,
     );
     ok = (bias_count == expected_bias_count);
     if (!ok) {
-        loadErr(filepath, f, "Layer[%d]: found %d biases, expected: %d",
+        loadErr(
+            filepath, f, "Layer[%d]: found %d biases, expected: %d",
             i, bias_count, expected_bias_count
         );
         return 0;
     }
     if (layer->biases == NULL && bias_count > 0) {
-        loadErr(filepath, f, "Layer[%d]: found %d biases, but "
-            "layer->biases is NULL",
-            i, bias_count
+        loadErr(
+            filepath, f, "Layer[%d]: found %d biases, but "
+            "layer->biases is NULL", i, bias_count
         );
         return 0;
     }
@@ -1979,27 +1983,30 @@ static int loadLayerParameters(PSLayer *layer, const char *filepath, FILE *f,
     }
     ok = (i == lidx);
     if (!ok) {
-        loadErr(filepath, f, "Invalid layer index %d, expected: %d",
-            lidx, i
+        loadErr(
+            filepath, f, "Invalid layer index %d, expected: %d", lidx, i
         );
         return 0;
     }
     ok = (wtype_count == layer->weight_types_count);
     if (!ok) {
-        loadErr(filepath, f, "Layer[%d]: found %d weight types, "
+        loadErr(
+            filepath, f, "Layer[%d]: found %d weight types, "
             "expected: %d", i, wtype_count, layer->weight_types_count
         );
         return 0;
     }
     ok = (wcount == expected_weights_count);
     if (!ok) {
-        loadErr(filepath, f, "Layer[%d]: found %d weights, "
+        loadErr(
+            filepath, f, "Layer[%d]: found %d weights, "
             "expected: %d", i, wcount, expected_weights_count
         );
         return 0;
     }
     if (layer->weights == NULL && wtype_count > 0) {
-        loadErr(filepath, f, "Layer[%d]: found %d weights, but "
+        loadErr(
+            filepath, f, "Layer[%d]: found %d weights, but "
             "layer->weights is NULL",
             i, wcount
         );

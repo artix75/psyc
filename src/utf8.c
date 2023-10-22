@@ -77,13 +77,13 @@ int PSUTF8IsValidChar(PSUTF8Char c) {
     if (c <= 0x7F) return 1;
     if (0xC280 <= c && c <= 0xDFBF) return ((c & 0xE0C0) == 0xC080);
 
-    if (0xEDA080 <= c && c <= 0xEDBFBF) return 0; // Reject UTF-16 surrogates */
+    if (0xEDA080 <= c && c <= 0xEDBFBF) return 0; /* Reject UTF-16 surrogates */
 
-    if (0xE0A080 <= c && c <= 0xEFBFBF)         // [4]
-     return ((c & 0xF0C0C0) == 0xE08080);
+    if (0xE0A080 <= c && c <= 0xEFBFBF)         /* [4] */
+        return ((c & 0xF0C0C0) == 0xE08080);
 
-    if (0xF0908080 <= c && c <= 0xF48FBFBF)     // [5]
-     return ((c & 0xF8C0C0C0) == 0xF0808080);
+    if (0xF0908080 <= c && c <= 0xF48FBFBF)     /* [5] */
+        return ((c & 0xF8C0C0C0) == 0xF0808080);
 
     return 0;
 }

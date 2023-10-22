@@ -612,13 +612,13 @@ final:
     /* Add biases */
     if (use_bias) {
         PSAddVectors(candidates, cell->candidate_biases, candidates,
-            layer->size, &mopts);
+                     layer->size, &mopts);
         PSAddVectors(input_gates, cell->input_biases, input_gates,
-            layer->size, &mopts);
+                     layer->size, &mopts);
         PSAddVectors(output_gates, cell->output_biases, output_gates,
-            layer->size, &mopts);
+                     layer->size, &mopts);
         PSAddVectors(forget_gates, cell->forget_biases, forget_gates,
-            layer->size, &mopts);
+                     layer->size, &mopts);
     }
     /* Activate candidates, input, output and forget gates. */
     PSTanhActivation(candidates, NULL, layer->size, &mopts);
@@ -823,11 +823,11 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previous_layer,
             mopts.store_mode = PS_STORE_MODE_ADD;
             success = (
                 PSDotMV(cell->input_hidden_weights, delta_i, layer->delta,
-                    &mopts) &&
+                        &mopts) &&
                 PSDotMV(cell->output_hidden_weights, delta_o, layer->delta,
-                    &mopts) &&
+                        &mopts) &&
                 PSDotMV(cell->forget_hidden_weights, delta_f, layer->delta,
-                    &mopts)
+                        &mopts)
             );
             mopts.transpose = 0;
             mopts.argtype[1] = '\0';

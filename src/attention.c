@@ -2283,9 +2283,10 @@ int PSAttentionBackprop(PSLayer *layer, PSLayer *previous_layer,
         }
         PSFloat *proj_inputs = data->output_projection_inputs;
         if (!whole_seq) proj_inputs += (t * layer->size);
-        success = updateAttentionGradientsAndDelta(layer, gradient_weights,
-            gradient->biases, PS_PROJECTION_IDX, proj_inputs,
-            layer->delta, delta, (whole_seq ? seqlen : 1)
+        success = updateAttentionGradientsAndDelta(
+            layer, gradient_weights, gradient->biases,
+            PS_PROJECTION_IDX, proj_inputs, layer->delta, delta,
+            (whole_seq ? seqlen : 1)
         );
         if (!success) {
             PSMatrixDelete(delta);
@@ -2349,9 +2350,9 @@ int PSAttentionBackprop(PSLayer *layer, PSLayer *previous_layer,
             goto final;
         }
         PSFloat *proj_inputs = data->value_inputs;
-        success = updateAttentionGradientsAndDelta(layer, gradient_weights,
-            gradient->biases, PS_VALUES_IDX, proj_inputs,
-            dvalues, NULL, PSMatrixDim(data->value_inputs, 0)
+        success = updateAttentionGradientsAndDelta(
+            layer, gradient_weights, gradient->biases, PS_VALUES_IDX,
+            proj_inputs, dvalues, NULL, PSMatrixDim(data->value_inputs, 0)
         );
         if (!success) {
             PSErrNN(NULL, NULL, layer, "failed update gradients for value "
@@ -2366,9 +2367,9 @@ int PSAttentionBackprop(PSLayer *layer, PSLayer *previous_layer,
             goto final;
         }
         PSFloat *proj_inputs = data->key_inputs;
-        success = updateAttentionGradientsAndDelta(layer, gradient_weights,
-            gradient->biases, PS_KEYS_IDX, proj_inputs,
-            dkeys, NULL, PSMatrixDim(data->key_inputs, 0)
+        success = updateAttentionGradientsAndDelta(
+            layer, gradient_weights, gradient->biases, PS_KEYS_IDX,
+            proj_inputs, dkeys, NULL, PSMatrixDim(data->key_inputs, 0)
         );
         if (!success) {
             PSErrNN(NULL, NULL, layer, "failed update gradients for key "
@@ -2388,9 +2389,9 @@ int PSAttentionBackprop(PSLayer *layer, PSLayer *previous_layer,
         }
         PSFloat *proj_inputs = data->query_inputs;
         if (!whole_seq) proj_inputs += (t * layer->size);
-        success = updateAttentionGradientsAndDelta(layer, gradient_weights,
-            gradient->biases, PS_QUERY_IDX, proj_inputs,
-            dquery, delta, (whole_seq ? seqlen : 1)
+        success = updateAttentionGradientsAndDelta(
+            layer, gradient_weights, gradient->biases, PS_QUERY_IDX,
+            proj_inputs, dquery, delta, (whole_seq ? seqlen : 1)
         );
         if (!success) {
             PSMatrixDelete(delta);

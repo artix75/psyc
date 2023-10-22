@@ -543,8 +543,9 @@ forward_previous_step:
     mopts.store_mode = PS_STORE_MODE_SET;
     if (use_bias) {
         /*  reset_gates += reset_biases */
-        PSAddVectors(reset_gates, cell->reset_biases, reset_gates,
-            layer->size, &mopts);
+        PSAddVectors(
+            reset_gates, cell->reset_biases, reset_gates, layer->size, &mopts
+        );
     }
     /*  reset_gates = sigmoid(reset_gates) */
     PSSigmoid(reset_gates, NULL, layer->size, &mopts);
@@ -559,15 +560,20 @@ make_outputs:
     if (use_bias) {
         /*  candidates += candidate_biases
          *  update_gates += update_biases */
-        PSAddVectors(candidates, cell->candidate_biases, candidates,
-            layer->size, &mopts);
-        PSAddVectors(update_gates, cell->update_biases, update_gates,
-            layer->size, &mopts);
+        PSAddVectors(
+            candidates, cell->candidate_biases, candidates, layer->size, &mopts
+        );
+        PSAddVectors(
+            update_gates, cell->update_biases, update_gates,
+            layer->size, &mopts
+        );
         if (!reset_gates_complete) {
             /* Add reset_biases to reset_gates if forward_previous_step has
              * been skipped. */
-            PSAddVectors(reset_gates, cell->reset_biases, reset_gates,
-                layer->size, &mopts);
+            PSAddVectors(
+                reset_gates, cell->reset_biases, reset_gates,
+                layer->size, &mopts
+            );
         }
     }
     /* candidates = tanh(candidates), update_gates = sigmoid(update_gates) */
@@ -723,7 +729,7 @@ int PSGRUBackprop(PSLayer *layer, PSLayer *previous_layer,
                        previous_layer->size, &mopts);
         if (has_prev_states) {
             PSOuterProduct(delta_r, inputs, gradient_weights_r, lsize,
-                            previous_layer->size, &mopts);
+                           previous_layer->size, &mopts);
         }
     }
     if (has_prev_states) {

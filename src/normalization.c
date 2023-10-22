@@ -512,8 +512,10 @@ int PSNormalizationBackprop(PSLayer *layer, PSLayer *previous,
         PSNormalizationLayerCache *cache = lcache + tidx;
         success = (cache->normalized_values != NULL);
         if (!success) {
-            PSErr(NULL, "Layer[%d]: missing normalized values in "
-                        "normalization cache at step %d", layer->index, tidx);
+            PSErr(
+                NULL, "Layer[%d]: missing normalized values in "
+                "normalization cache at step %d", layer->index, tidx
+            );
             goto final;
         }
         for (j = 0; j < n_features; j++) {
