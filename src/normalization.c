@@ -334,8 +334,8 @@ int PSInitNormalizationLayer(PSLayer *layer, PSLayerDef *ldef) {
         PSErr(NULL, "Normalization layer has no previous layer");
         return 0;
     }
-    layer->on_delete = deleteNormalizationLayer;
-    layer->on_copy = copyNormalizationLayer;
+    layer->onDelete = deleteNormalizationLayer;
+    layer->onCopy = copyNormalizationLayer;
     layer->size = previous->size;
     if (previous->output_columns > 0)
         layer->output_columns = previous->output_columns;
@@ -376,8 +376,8 @@ int PSInitNormalizationLayer(PSLayer *layer, PSLayerDef *ldef) {
     layer->derivative = NULL;
     layer->forward = PSNormalizationForward;
     layer->backprop = PSNormalizationBackprop;
-    layer->on_states_init = PSInitNormalizationCache;
-    layer->on_states_resize = PSResizeNormalizationCache;
+    layer->onStatesInit = PSInitNormalizationCache;
+    layer->onStatesResize = PSResizeNormalizationCache;
     return 1;
 memerr:
     PSPrintMemoryErrorMsg();

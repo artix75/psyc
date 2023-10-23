@@ -83,8 +83,8 @@ PSDictItem *PSDictItemCreate(const char *key, PSDictValue value) {
 
 void PSDictItemRelease(PSDictItem *item) {
     if (item == NULL) return;
-    if (item->dict != NULL && item->dict->on_item_release != NULL)
-        item->dict->on_item_release(item);
+    if (item->dict != NULL && item->dict->onItemRelease != NULL)
+        item->dict->onItemRelease(item);
     free((void *) item->key);
     free(item);
 }

@@ -120,16 +120,16 @@
             return NULL;\
         }\
     }\
-    PSDotProductDebug debug_step = NULL;\
+    PSDotProductDebug debugStep = NULL;\
     uint64_t i = 0;\
     int acceleration = PSGlobalAcceleration, mode = PS_STORE_MODE_SET;\
     if (opts != NULL) {\
         acceleration = opts->acceleration;\
         mode = opts->store_mode;\
-        debug_step = opts->debug_step;\
+        debugStep = opts->debugStep;\
         assert(mode >= 0 && mode <= PS_STORE_MODE_SUB);\
     }\
-    UNUSED(debug_step);
+    UNUSED(debugStep);
 
 typedef PSFloat * (*PSOpVV) (PSFloat *a, PSFloat *b,PSFloat *res, uint64_t len,
                              PSMathOpts *opts);
@@ -2143,7 +2143,7 @@ PSFloat *PSAddVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
                       PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE()
-    UNUSED(debug_step);
+    UNUSED(debugStep);
 #ifdef HAS_ACCELERATE_FRAMEWORK
     if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VDSPAddV(a, b, dest, length);
@@ -2857,64 +2857,64 @@ PSFloat PSStdDev(PSFloat *a, uint64_t len, PSMathOpts *opts) {
 
 PSFloat PSDotProduct(PSFloat *a, PSFloat *b, uint64_t length, PSMathOpts *opts)
 {
-    PSDotProductDebug debug_step = NULL;
+    PSDotProductDebug debugStep = NULL;
     uint64_t i = 0;
     PSFloat result = 0.0;
     int acceleration = PSGlobalAcceleration;
     if (opts != NULL) {
         acceleration = opts->acceleration;
-        debug_step = opts->debug_step;
+        debugStep = opts->debugStep;
     }
 #if defined(HAS_ACCELERATE_FRAMEWORK)
     if (PSACFEnabled(acceleration)) {
         VDSPDotProd(a, b, result, length);
-        if (debug_step)
-            debug_step(length - 1, a[length-1], b[length-1], result, 1, opts);
+        if (debugStep)
+            debugStep(length - 1, a[length-1], b[length-1], result, 1, opts);
         return result;
     }
 #elif defined(USE_AVX)
     if (PSAVXEnabled(acceleration)) {
         AVXIterativeDotProduct(length, a, b, result, i, 0, 0);
-        if (debug_step) debug_step(i, a[i], b[i], result, 1, opts);
+        if (debugStep) debugStep(i, a[i], b[i], result, 1, opts);
     }
 #else
     UNUSED(acceleration);
 #endif
     /* No Acceleration */
     for (; i < length; i++) {
-        if (debug_step) debug_step(i, a[i], b[i], result, 0, opts);
+        if (debugStep) debugStep(i, a[i], b[i], result, 0, opts);
         result += a[i] * b[i];
     }
     return result;
 }
 
 PSFloat PSDotSquare(PSFloat *a, uint64_t length, PSMathOpts *opts) {
-    PSDotProductDebug debug_step = NULL;
+    PSDotProductDebug debugStep = NULL;
     uint64_t i = 0;
     PSFloat result = 0.0;
     int acceleration = PSGlobalAcceleration;
     if (opts != NULL) {
         acceleration = opts->acceleration;
-        debug_step = opts->debug_step;
+        debugStep = opts->debugStep;
     }
 #if defined(HAS_ACCELERATE_FRAMEWORK)
     if (PSACFEnabled(acceleration)) {
         VDSPSumVecSqr(a, result, length);
-        if (debug_step)
-            debug_step(length - 1, a[length-1], a[length-1], result, 1, opts);
+        if (debugStep)
+            debugStep(length - 1, a[length-1], a[length-1], result, 1, opts);
         return result;
     }
 #elif defined(USE_AVX)
     if (PSAVXEnabled(acceleration)) {
         AVXIterativeDotSquare(length, a, result, i, 0, 0);
-        if (debug_step) debug_step(i, a[i], a[i], result, 1, opts);
+        if (debugStep) debugStep(i, a[i], a[i], result, 1, opts);
     }
 #else
     UNUSED(acceleration);
 #endif
     /* No Acceleration */
     for (; i < length; i++) {
-        if (debug_step) debug_step(i, a[i], a[i], result, 0, opts);
+        if (debugStep) debugStep(i, a[i], a[i], result, 0, opts);
         result += a[i] * a[i];
     }
     return result;

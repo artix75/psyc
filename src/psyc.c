@@ -250,10 +250,10 @@ void PSLogTrainingProgress(PSModel *model, int status, int epochs,
     }
 }
 
-void PSLogTrainingProgressBar(PSModel *model, int status, int epochs,
-                              int batches, PSFloat *loss, PSFloat *accuracy,
-                              time_t *elapsed, int validating_current,
-                              int validating_tot)
+void PSTrainingProgressBar(PSModel *model, int status, int epochs,
+                           int batches, PSFloat *loss, PSFloat *accuracy,
+                           time_t *elapsed, int validating_current,
+                           int validating_tot)
 {
     UNUSED(validating_current);
     UNUSED(validating_tot);
@@ -409,7 +409,7 @@ void handleLayerForwardDebug(PSLayer *layer, const char *func,
         {.model = layer->model, .layer = layer, .func = func};
     if (opts != NULL && PSShouldDebugDump(layer->model)) {
         opts->data = &dbginfo;
-        opts->debug_step = dumpForwardStep;
+        opts->debugStep = dumpForwardStep;
     }
 }
 
@@ -1038,8 +1038,8 @@ uint64_t PSGetLayerParametersCount(PSLayer *layer, int param_type) {
     if (Pooling == layer->type || layer->index == 0 || layer->size == 0 ||
         Dropout == layer->type) return 0;
     if (param_type == 0) param_type = (PARAM_TYPE_WEIGHT | PARAM_TYPE_BIAS);
-    if (layer->get_param_count != NULL)
-        return layer->get_param_count(layer, param_type);
+    if (layer->getParamCount != NULL)
+        return layer->getParamCount(layer, param_type);
     uint64_t count = 0;
     if (param_type & PARAM_TYPE_WEIGHT && layer->weights != NULL) {
         for (int i = 0; i < layer->weight_types; i++) {
@@ -1551,8 +1551,8 @@ int PSInitLayerStates(PSLayer *layer, uint32_t seqlen, int retain_previous) {
         layer->states = NULL;
         PSMatrixFree(states);
         layer->initial_states = NULL;
-        if (layer->on_states_init != NULL)
-            if (!layer->on_states_init(layer, 0, 0)) goto err;
+        if (layer->onStatesInit != NULL)
+            if (!layer->onStatesInit(layer, 0, 0)) goto err;
         return 1;
     }
     hstates = initLayerStates(
@@ -1563,8 +1563,8 @@ int PSInitLayerStates(PSLayer *layer, uint32_t seqlen, int retain_previous) {
     layer->states = hstates;
     PSMatrixFree(states);
     hstates = NULL;
-    if (layer->on_states_init != NULL) {
-        if (!layer->on_states_init(layer, seqlen, retain_previous))
+    if (layer->onStatesInit != NULL) {
+        if (!layer->onStatesInit(layer, seqlen, retain_previous))
             goto err;
     }
     return 1;
@@ -1577,7 +1577,7 @@ err:
 }
 
 /* Resize states sequence for layer `layer`. The function also calls
- * `on_states_resize` callback if any, allowing different types of layer to
+ * `onStatesResize` callback if any, allowing different types of layer to
  * resize their own private data.
  * Arguments:
  * `seqlen`: new states sequence length.
@@ -1607,8 +1607,8 @@ int PSResizeLayerStates(PSLayer *layer, uint32_t seqlen) {
         return 0;
     }
     layer->states = hstates;
-    if (layer->on_states_resize != NULL)
-        if (!layer->on_states_resize(layer, seqlen, cur_seqlen)) return 0;
+    if (layer->onStatesResize != NULL)
+        if (!layer->onStatesResize(layer, seqlen, cur_seqlen)) return 0;
     return 1;
 }
 
@@ -2570,8 +2570,8 @@ static PSModel *cloneModel(PSModel *model, int layout_only, PSModel *parent) {
                 }
                 memcpy(cloned_layer->biases, layer->biases, bias_size);
             }
-            if (layer->on_copy != NULL)
-                if (!layer->on_copy(cloned_layer, layer)) goto err;
+            if (layer->onCopy != NULL)
+                if (!layer->onCopy(cloned_layer, layer)) goto err;
         }
     }
     if (clone->layers == NULL) {
@@ -3170,10 +3170,10 @@ PSLayer *PSAddLayer(PSModel *model, PSLayerType type, int size,
     layer->initial_states = NULL;
     layer->activate = layer_def->activation;
     layer->derivative = PSGetActivationDerivative(layer->activate);
-    layer->on_delete = NULL;
-    layer->on_copy = NULL;
+    layer->onDelete = NULL;
+    layer->onCopy = NULL;
     layer->build = NULL;
-    layer->get_param_count = NULL;
+    layer->getParamCount = NULL;
     layer->weight_types = 0;
     layer->onehot_vector_size = size;
     layer->output_depth = layer_def->output_depth;
@@ -3181,10 +3181,10 @@ PSLayer *PSAddLayer(PSModel *model, PSLayerType type, int size,
     layer->pretrainer = NULL;
     layer->pretrain = NULL;
     layer->private = NULL;
-    layer->before_batch_training = NULL;
-    layer->on_states_init = NULL;
-    layer->on_states_resize = NULL;
-    layer->get_input_from_link = NULL;
+    layer->beforeBatchTraining = NULL;
+    layer->onStatesInit = NULL;
+    layer->onStatesResize = NULL;
+    layer->getInputFromLink = NULL;
     if (layer->output_depth <= 0) layer->output_depth = 1;
     layer->output_columns = layer_def->output_columns;
     layer->output_rows = layer_def->output_rows;
@@ -3324,7 +3324,7 @@ void PSDeleteLayer(PSLayer* layer) {
         free(layer->weights);
     }
     if (layer->biases != NULL) free(layer->biases);
-    if (layer->on_delete != NULL) layer->on_delete(layer);
+    if (layer->onDelete != NULL) layer->onDelete(layer);
     void *extra = layer->extra;
     if (extra != NULL) free(layer->extra);
     if (layer->delta != NULL) PSMatrixFree(layer->delta);
@@ -3633,8 +3633,8 @@ int beforeModelForward(PSModel *model, PSFloat **inputs_p,
                       link->previous_layer->index);
                 return 0;
             }
-            if (link->layer->get_input_from_link != NULL) {
-                if (!link->layer->get_input_from_link(link->previous_layer))
+            if (link->layer->getInputFromLink != NULL) {
+                if (!link->layer->getInputFromLink(link->previous_layer))
                     return 0;
             } else {
                 if (PSUseSequences(link->layer)) {
@@ -4203,8 +4203,8 @@ void beforeBatchTraining(PSModel *model) {
                     PSMatrixResetTransposed(weights);
                 }
             }
-            if (layer->before_batch_training != NULL)
-                layer->before_batch_training(layer);
+            if (layer->beforeBatchTraining != NULL)
+                layer->beforeBatchTraining(layer);
         }
         model = model->next;
     }
@@ -5381,7 +5381,7 @@ PSFloat gradientDescent(PSModel *model,
         PSModelSetStatus(model, STATUS_ERROR, NULL);
         return STATUS_ERROR_LOSS;
     }
-    PSLogTrainingProgressFunc log_progress = NULL;
+    PSTrainingProgressFunc printProgress = NULL;
     int batches_count = elements_count / batch_size;
     PSFloat **sequences = NULL, **sequence_head = NULL;
     int flags = 0, do_validate = 0;
@@ -5432,9 +5432,9 @@ PSFloat gradientDescent(PSModel *model,
             if (test_data_size > test_size) test_data_size = test_size * 0.1;
             do_validate = 1;
         }
-        log_progress = options->log_progress;
+        printProgress = options->printProgress;
     }
-    if (log_progress == NULL) log_progress = PSLogTrainingProgress;
+    if (printProgress == NULL) printProgress = PSLogTrainingProgress;
     sequence_head = sequences;
     for (i = 0; i < batches_count; i++) {
         model->training->current_batch = i;
@@ -5460,7 +5460,7 @@ PSFloat gradientDescent(PSModel *model,
             avg_err = err / (PSFloat) batch_num;
             if (do_validate) {
                 if (i > 0 && (batch_num % validate_every) == 0) {
-                    log_progress(
+                    printProgress(
                         model, STATUS_VALIDATING, epochs, batches_count,
                         NULL, NULL, NULL, 0, test_data_size / element_size
                     );
@@ -5470,18 +5470,18 @@ PSFloat gradientDescent(PSModel *model,
                     tot_acc += acc;
                     avg_acc = tot_acc / (PSFloat) ++validations;
                 }
-                log_progress(
+                printProgress(
                     model, STATUS_TRAINING, epochs, batches_count,
                     &avg_err, &avg_acc, &avg_t, 0, 0
                 );
             } else {
-                log_progress(
+                printProgress(
                     model, STATUS_TRAINING, epochs, batches_count,
                     &avg_err, NULL, &avg_t, 0, 0
                 );
             }
         } else {
-            log_progress(
+            printProgress(
                 model, STATUS_TRAINING, epochs, batches_count, NULL, NULL,
                 NULL, 0, 0
             );
@@ -5683,8 +5683,8 @@ static void checkTrainingOptions(PSTrainingOptions *options) {
         if (options->beta1 == 0) options->beta1 = DEFAULT_BETA1;
         if (options->beta2 == 0) options->beta2 = DEFAULT_BETA2;
     }
-    if (options->log_progress == NULL)
-        options->log_progress = PSLogTrainingProgress;
+    if (options->printProgress == NULL)
+        options->printProgress = PSLogTrainingProgress;
 }
 
 void PSSetDefaultTrainingOptions(PSTrainingOptions *options) {
@@ -5696,8 +5696,8 @@ void PSSetDefaultTrainingOptions(PSTrainingOptions *options) {
     options->optimization = PSDefaultOptimization;
     if (options->epochs <= 0) options->epochs = 1;
     if (options->batch_size <= 0) options->batch_size = 1;
-    if (options->log_progress == NULL)
-        options->log_progress = PSLogTrainingProgress;
+    if (options->printProgress == NULL)
+        options->printProgress = PSLogTrainingProgress;
 }
 
 int isSequence2SequenceAvailable(PSModel *model, char **err) {
@@ -5838,7 +5838,7 @@ void PSTrain(PSModel *model,
         PSSetDefaultTrainingOptions(options);
     }
     checkTrainingOptions(options);
-    PSLogTrainingProgressFunc log_progress = options->log_progress;
+    PSTrainingProgressFunc printProgress = options->printProgress;
     epochs = options->epochs;
     batch_size = options->batch_size;
     learning_rate = options->learning_rate;
@@ -6001,7 +6001,7 @@ void PSTrain(PSModel *model,
         int batches_count = elements_count / batch_size;
         PSFloat *acc_p = NULL;
         if (test_data  && PSModelGetStatus(model) == STATUS_TRAINING) {
-            log_progress(
+            printProgress(
                 model, STATUS_VALIDATING, epochs, batches_count, NULL,
                 NULL, NULL, 0, 0
             );
@@ -6016,7 +6016,7 @@ void PSTrain(PSModel *model,
             );
         }
         prev_loss = loss;
-        log_progress(
+        printProgress(
             model, STATUS_TRAINING, epochs, batches_count, &loss,
             acc_p, &elapsed_t, 0, 0
         );
@@ -6028,7 +6028,7 @@ void PSTrain(PSModel *model,
         }
     }
     time(&end_t);
-    log_progress(model,STATUS_TRAINED,epochs,0,NULL,NULL,NULL,0,0);
+    printProgress(model,STATUS_TRAINED,epochs,0,NULL,NULL,NULL,0,0);
     PSLineEnd();
     fflush(stdout);
     PSLog(PSLOGLEVEL_SUCCESS, "\nCompleted in %ld sec.\n", end_t - start_t);

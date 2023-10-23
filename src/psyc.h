@@ -153,13 +153,13 @@ typedef int      (*PSBeforeBackpropCallback) (struct PSModel *model,
                                               PSFloat *y,
                                               struct PSTrainingOptions *opts,
                                               struct PSGradient **gradients);
-typedef void     (*PSLogTrainingProgressFunc) (struct PSModel *model,
-                                               int status, int epochs,
-                                               int batches, PSFloat *loss,
-                                               PSFloat *accuracy,
-                                               time_t *elapsed,
-                                               int validating_current,
-                                               int validating_tot);
+typedef void     (*PSTrainingProgressFunc) (struct PSModel *model,
+                                            int status, int epochs,
+                                            int batches, PSFloat *loss,
+                                            PSFloat *accuracy,
+                                            time_t *elapsed,
+                                            int validating_current,
+                                            int validating_tot);
 typedef void     (*PSSignalHandler) (int);
 
 typedef struct PSLayerDef {
@@ -270,7 +270,7 @@ typedef struct PSTrainingOptions {
     int                         bptt_truncate;
     int                         validate_every_batches;
     int                         max_validation_elements;
-    PSLogTrainingProgressFunc   log_progress;
+    PSTrainingProgressFunc      printProgress;
     FILE                        *debug_dump_to;
 } PSTrainingOptions;
 
@@ -315,15 +315,15 @@ typedef struct PSLayer {
     PSBackpropFunction          backprop;
     PSActivationFunction        activate;
     PSActivationFunction        derivative;
-    PSGenericLayerCallback      on_delete;
-    PSCopyLayerCallback         on_copy;
     PSBooleanLayerCallback      build;
-    PSGenericLayerCallback      before_batch_training;
-    PSGetParamCountFunction     get_param_count;
-    PSInitStatesFunc            on_states_init;
-    PSResizeStatesFunc          on_states_resize;
+    PSGenericLayerCallback      onDelete;
+    PSCopyLayerCallback         onCopy;
+    PSGenericLayerCallback      beforeBatchTraining;
+    PSGetParamCountFunction     getParamCount;
+    PSInitStatesFunc            onStatesInit;
+    PSResizeStatesFunc          onStatesResize;
     PSPretrainLayerFunction     pretrain;
-    PSLinkDataRetriever         get_input_from_link;
+    PSLinkDataRetriever         getInputFromLink;
     struct PSModel      *model;
     struct PSModel      *pretrainer;
 } PSLayer;
@@ -441,10 +441,10 @@ PSFloat PSQuadraticLoss(PSFloat *x, PSFloat *y, int size, int onehot_size);
 PSFloat PSCrossEntropyLoss(PSFloat *x, PSFloat *y, int size, int onehot_size);
 
 /* Training progress logging functions */
-void PSLogTrainingProgressBar(PSModel *model, int status, int epochs,
-                              int batches, PSFloat *loss, PSFloat *accuracy,
-                              time_t *elapsed, int validating_current,
-                              int validating_tot);
+void PSTrainingProgressBar(PSModel *model, int status, int epochs,
+                           int batches, PSFloat *loss, PSFloat *accuracy,
+                           time_t *elapsed, int validating_current,
+                           int validating_tot);
 
 /* Miscellaneous functions */
 

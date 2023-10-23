@@ -476,10 +476,10 @@ int PSInitLSTMLayer(PSModel *model, PSLayer *layer,
                     int size, int ws, PSLayerDef *ldef)
 {
     int i, bias_count = size * 4;
-    layer->on_delete = PSDeleteLSTMLayer;
-    layer->on_copy = PSLSTMLayerCopy;
-    layer->on_states_init = PSInitLSTMStates;
-    layer->on_states_resize = PSResizeLSTMStates;
+    layer->onDelete = PSDeleteLSTMLayer;
+    layer->onCopy = PSLSTMLayerCopy;
+    layer->onStatesInit = PSInitLSTMStates;
+    layer->onStatesResize = PSResizeLSTMStates;
     if (size == 0) {
         PSErr(__func__, "Cannot initialize layer with size = 0");
         return 0;

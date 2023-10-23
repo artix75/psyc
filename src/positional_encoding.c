@@ -129,10 +129,10 @@ PSMatrix PSGetPositionalEncoding(int seqlen, int size, int base) {
 }
 
 int PSInitPositionalLayer(PSLayer *layer, PSLayerDef *layer_def) {
-    layer->on_delete = deletePositionalLayer;
-    layer->on_copy = copyPositionalLayer;
-    layer->on_states_init = PSInitPositionalStates;
-    layer->on_states_resize = PSResizePositionalStates;
+    layer->onDelete = deletePositionalLayer;
+    layer->onCopy = copyPositionalLayer;
+    layer->onStatesInit = PSInitPositionalStates;
+    layer->onStatesResize = PSResizePositionalStates;
     if (layer->index == 0) {
         PSErr(NULL, "PositionalEncoding layer cannot be the first layer");
         return 0;

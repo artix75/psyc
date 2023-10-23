@@ -511,9 +511,9 @@ int PSInitConvolutionalLayer(PSModel *model, PSLayer *layer,
         PSErr(__func__, "Layer def. is mandatory for convolutonal layers");
         goto err;
     }
-    layer->on_copy = PSConvolutionalLayerCopy;
-    layer->on_delete = PSDeleteConvolutionalLayer;
-    layer->before_batch_training = PSBeforeConvolutionalBatchTraining;
+    layer->onCopy = PSConvolutionalLayerCopy;
+    layer->onDelete = PSDeleteConvolutionalLayer;
+    layer->beforeBatchTraining = PSBeforeConvolutionalBatchTraining;
     layer->extra = calloc(1, sizeof(PSConvolutionalSettings));
     if (layer->extra == NULL) goto memerr;
     layer->private = calloc(1, sizeof(PSPrivateConvData));
@@ -623,8 +623,8 @@ int PSInitPoolingLayer(PSModel *model, PSLayer *layer, PSLayerDef *layer_def) {
     int index = layer->index;
     layer->weights = NULL;
     layer->biases = NULL;
-    layer->on_delete = PSDeleteConvolutionalLayer;
-    layer->on_copy = PSConvolutionalLayerCopy;
+    layer->onDelete = PSDeleteConvolutionalLayer;
+    layer->onCopy = PSConvolutionalLayerCopy;
     layer->flags |= FLAG_NON_TRAINABLE;
     PSLayer *previous = model->layers[index - 1];
     PSLayerDef default_def = {

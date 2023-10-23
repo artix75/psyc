@@ -70,7 +70,7 @@ int PSInitRecurrentLayer(PSModel *model, PSLayer *layer,
                          int size, int ws, PSLayerDef *ldef)
 {
     int i;
-    layer->on_delete = PSDeleteRNNLayer;
+    layer->onDelete = PSDeleteRNNLayer;
     layer->states = PSMatrixZeros(2, 1, size);
     if (layer->states == NULL) goto memerr;
     layer->weights = calloc(RNN_WEIGHT_TYPES, sizeof(PSMatrix));

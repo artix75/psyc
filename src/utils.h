@@ -85,7 +85,7 @@ typedef struct PSDict {
     int64_t             length;
     int                 flags;
     PSDictItem          *table[PSDICT_HT_SIZE];
-    PSOnDictItemRelease on_item_release;
+    PSOnDictItemRelease onItemRelease;
 } PSDict;
 
 typedef struct PSDictIterator {

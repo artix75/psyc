@@ -406,8 +406,8 @@ PSLayer **PSGetOperatorLayerProviders(PSLayer *layer, int *count) {
 /* Init */
 int PSInitOperatorLayer(PSLayer *layer, PSLayerDef *ldef) {
     int success = 1;
-    layer->on_delete = deleteOperatorLayer;
-    layer->on_copy = copyOperatorLayer;
+    layer->onDelete = deleteOperatorLayer;
+    layer->onCopy = copyOperatorLayer;
     layer->build = buildOperatorLayer;
     layer->weights = NULL;
     layer->flags |= FLAG_NON_TRAINABLE;

@@ -217,10 +217,10 @@ int PSInitDropoutLayer(PSModel *model, PSLayer *layer,
     if (PSIsRecurrent(previous)) layer->flags |= FLAG_RECURRENT;
     if (PSHandleSequenceAtOnce(previous))
         layer->flags |= FLAG_USE_SEQUENCES;
-    layer->on_copy = PSDropoutLayerCopy;
-    layer->on_delete = PSDeleteDropoutLayer;
-    layer->on_states_init = PSInitDropoutMask;
-    layer->on_states_resize = PSResizeDropoutMask;
+    layer->onCopy = PSDropoutLayerCopy;
+    layer->onDelete = PSDeleteDropoutLayer;
+    layer->onStatesInit = PSInitDropoutMask;
+    layer->onStatesResize = PSResizeDropoutMask;
     if (PSIsRecurrent(previous)) layer->flags |= FLAG_RECURRENT;
     layer->size = previous->size;
     if (previous->output_columns > 0)

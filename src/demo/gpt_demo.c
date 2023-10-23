@@ -412,7 +412,7 @@ PSDict *getPairs(char **ngrams, int ncount) {
         PSErr(__func__, "failed to allocate pairs");
         goto final;
     }
-    pairs->on_item_release = onDictStringRelease;
+    pairs->onItemRelease = onDictStringRelease;
     for (i = 0; i < n_pairs; i++) {
         char *first = ngrams[i], *second = ngrams[i + 1];
         ok = (first != NULL && second != NULL);

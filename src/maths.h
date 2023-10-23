@@ -104,7 +104,7 @@ typedef PSFloat (*PSFloatFunc) (PSFloat n);
  *  - `tmpdest`:    some operations may use this vector as a cache in order
  *                  to avoid allocating extra memory, for intermediate
  *                  computations.
- *  - `debug_step`: used for debugging by some operations.
+ *  - `debugStep`:  used for debugging by some operations.
  */
 typedef struct PSMathOpts {
     int                 acceleration;
@@ -113,7 +113,7 @@ typedef struct PSMathOpts {
     char                argtype[3];
     int                 vector_len;
     PSFloat             *tmpdest;
-    PSDotProductDebug   debug_step;
+    PSDotProductDebug   debugStep;
     void                *data;
 } PSMathOpts;
 

@@ -359,8 +359,8 @@ int PSInitEmbeddingLayer(PSLayer *layer, int size, PSLayerDef *ldef) {
         PSErr(NULL, "Embedding layer cannot be the first layer");
         return 0;
     }
-    layer->on_delete = PSDeleteEmbeddingLayer;
-    layer->on_copy = PSEmbeddingLayerCopy;
+    layer->onDelete = PSDeleteEmbeddingLayer;
+    layer->onCopy = PSEmbeddingLayerCopy;
     layer->size = size;
     int vocabulary_size, i;
     PSLayer *previous = PSGetPreviousLayer(layer);

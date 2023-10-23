@@ -1922,11 +1922,11 @@ int PSSetAttentionQueryProvider(PSLayer *layer, PSLayer *provider) {
 
 int PSInitAttentiontionLayer(PSLayer *layer, PSLayerDef *ldef) {
     int success = 1;
-    layer->on_delete = deleteAttentionLayer;
-    layer->on_copy = copyAttentionLayer;
+    layer->onDelete = deleteAttentionLayer;
+    layer->onCopy = copyAttentionLayer;
     layer->build = buildAttentionLayer;
-    layer->on_states_init = PSInitAttentionStates;
-    layer->on_states_resize = PSResizeAttentionStates;
+    layer->onStatesInit = PSInitAttentionStates;
+    layer->onStatesResize = PSResizeAttentionStates;
     PSAttentionSettings *settings = calloc(1, sizeof(*settings));
     if (settings == NULL) goto memerr;
     layer->extra = settings;

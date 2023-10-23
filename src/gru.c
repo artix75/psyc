@@ -400,10 +400,10 @@ int PSInitGRULayer(PSModel *model, PSLayer *layer, int size, int ws,
                    PSLayerDef *ldef)
 {
     int i, bias_count = size * 3;
-    layer->on_delete = PSDeleteGRULayer;
-    layer->on_copy = PSGRULayerCopy;
-    layer->on_states_init = PSInitGRUStates;
-    layer->on_states_resize = PSResizeGRUStates;
+    layer->onDelete = PSDeleteGRULayer;
+    layer->onCopy = PSGRULayerCopy;
+    layer->onStatesInit = PSInitGRUStates;
+    layer->onStatesResize = PSResizeGRUStates;
     if (size == 0) {
         PSErr(__func__, "Cannot initialize layer with size = 0");
         return 0;

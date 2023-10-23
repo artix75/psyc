@@ -644,7 +644,7 @@ int main(int argc, char** argv) {
         };
         if (optimization != PSDefaultOptimization)
             train_opts.optimization = optimization;
-        if (progbar) train_opts.log_progress = PSLogTrainingProgressBar;
+        if (progbar) train_opts.printProgress = PSTrainingProgressBar;
         PSTrain(model, training_data, datalen, validation_data, valdlen,
                 &train_opts);
     }
