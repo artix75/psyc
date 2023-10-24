@@ -360,8 +360,9 @@ typedef struct PSModel {
 PSModel *PSModelCreate(const char* name);
 int PSAddModel(PSModel *parent, PSModel *model, PSModelLink *link);
 PSModel *PSModelClone(PSModel *model, int layout_only);
-int PSModelLoad(PSModel *model, const char* filename);
-int PSModelSave(PSModel *model, const char* filename);
+PSModel *PSLoadModel(const char* filename);
+int PSModelLoad(PSModel *model, const char* filepath);
+int PSModelSave(PSModel *model, const char* filepath);
 int PSLoadLayer(PSLayer *layer, const char *filepath);
 int PSSaveLayer(PSLayer *layer, const char *filepath, int opts);
 void PSModelSetStatus(PSModel *model, int status, int *old);

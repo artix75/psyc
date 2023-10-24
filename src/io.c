@@ -2634,7 +2634,7 @@ final:
 }
 
 int PSModelLoad(PSModel *model, const char* filepath) {
-    if (model == NULL) return 0;
+    if (model == NULL || filepath == NULL) return 0;
     FILE *f = fopen(filepath, "r");
     PSInfo("Loading model from %s", filepath);
     if (f == NULL) {
@@ -2722,6 +2722,24 @@ int PSModelLoad(PSModel *model, const char* filepath) {
 final:
     if (f != NULL) fclose(f);
     return ok;
+}
+
+PSModel *PSLoadModel(const char* filepath) {
+    if (filepath == NULL) {
+        PSErr(__func__, "`filepath` is null");
+        return NULL;
+    }
+    PSModel *model = PSModelCreate(NULL);
+    if (model == NULL) {
+        PSErr(__func__, "could not create model");
+        return NULL;
+    }
+    int loaded = PSModelLoad(model, filepath);
+    if (!loaded) {
+        PSModelFree(model);
+        return NULL;
+    }
+    return model;
 }
 
 static int writeModel(PSModel *model, FILE *f) {
