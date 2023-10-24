@@ -89,6 +89,7 @@ typedef struct {
     int                 model_chain_length;
     PSFloat             *sequence_start;
     PSTrainingContext   *training_context;
+    const char          *allocated_name;
 } PSModelContext;
 
 static PSLossFunction loss_functions[] = {
@@ -132,7 +133,7 @@ PSGradient **cloneModelGradients(PSGradient **gradients,
 static void deleteTrainingContext(PSTrainingContext *training_ctx,
                                   PSModel *model);
 static void deleteModelContext(PSModelContext *ctx,
-                                 PSModel *model);
+                               PSModel *model);
 int writeSerializedFloat(FILE *out, PSFloat fnum, int opts);
 int PSBeforeSequenceForward(PSLayer *layer, int seqlen, int t);
 char *PSGetRecurrentModeLabel(PSRecurrentNetworkMode mode);
@@ -1417,6 +1418,28 @@ int PSModelGetStatus(PSModel *model) {
     return model->status;
 }
 
+int PSModelSetName(PSModel *model, char *name) {
+    if (model == NULL) return 0;
+    if (model->name != NULL) {
+        PSModelContext *ctx = getModelContext(model);
+        if (ctx == NULL) return 0;
+        if (model->name == ctx->allocated_name)
+            free((void *) ctx->allocated_name);
+    }
+    if (name == NULL) {
+        model->name = NULL;
+        return 1;
+    }
+    const char *new_name = strdup(name);
+    if (new_name == NULL) {
+        PSPrintMemoryErrorMsg();
+        return 0;
+    }
+    model->name = new_name;
+    setModelContext(model, allocated_name, new_name);
+    return 1;
+}
+
 int PSStateSequenceLength(PSLayer *layer) {
     if (layer == NULL || layer->states == NULL) return 0;
     int len = PSMatrixDim(layer->states, 0);
@@ -2067,12 +2090,14 @@ final:
 
 PSModel *PSModelCreate(const char* name) {
     PSModel *model = (malloc(sizeof(PSModel)));
-    if (model == NULL) {
-        return NULL;
-    }
+    if (model == NULL) return NULL;
     model->context = calloc(1, sizeof(PSModelContext));
     if (model->context == NULL) goto memory_err;
-    model->name = name;
+    if (name != NULL) {
+        model->name = strdup(name);
+        if (model->name == NULL) goto memory_err;
+        setModelContext(model, allocated_name, model->name);
+    } else model->name = NULL;
     model->size = 0;
     model->index = 0;
     model->layers = NULL;
@@ -2586,6 +2611,7 @@ static PSModel *cloneModel(PSModel *model, int layout_only, PSModel *parent) {
         setModelContext(clone, head_model, NULL);
         setModelContext(clone, last_model, NULL);
         setModelContext(clone, model_chain_length, 1);
+        setModelContext(clone, allocated_name, NULL);
         PSLayer *first_recurrent = PSGetFirstRecurrentLayer(model);
         PSLayer *last_recurrent = PSGetLastRecurrentLayer(model);
         if (first_recurrent != NULL) {
@@ -2925,6 +2951,9 @@ static void deleteTrainingContext(PSTrainingContext *training_ctx,
 static void deleteModelContext(PSModelContext *ctx, PSModel *model) {
     PSTrainingContext *training_ctx = ctx->training_context;
     if (training_ctx != NULL) deleteTrainingContext(training_ctx, model);
+    const char *name = ctx->allocated_name;
+    if (model->name == name) model->name = NULL;
+    free((void*) ctx->allocated_name);
     free(ctx->sequence_start);
     free(ctx);
 }

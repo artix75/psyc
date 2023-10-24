@@ -366,6 +366,7 @@ int PSLoadLayer(PSLayer *layer, const char *filepath);
 int PSSaveLayer(PSLayer *layer, const char *filepath, int opts);
 void PSModelSetStatus(PSModel *model, int status, int *old);
 int PSModelGetStatus(PSModel *model);
+int PSModelSetName(PSModel *model, char *name);
 PSLayer *PSAddLayer(PSModel *model, PSLayerType type, int size,
                     PSLayerDef *layer_def);
 PSLayer *PSAddConvolutionalLayer(PSModel *model, PSLayerDef *ldef);

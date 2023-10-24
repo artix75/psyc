@@ -491,8 +491,6 @@ static void cleanup(void) {
     if (image_filename != NULL) free(image_filename);
 #endif
     if (model != NULL) {
-        if (model->name != (char *)MODEL_NAME && model->name != NULL)
-            free((void *)model->name);
         PSModelFree(model);
         model = NULL;
     }
@@ -682,7 +680,7 @@ void parseOptions(int argc, char **argv) {
             }
         } else if (strcmp("--name", arg) == 0 && !is_last) {
             char *name = (char*) argv[++i];
-            current->name = strdup(name);
+            PSModelSetName(current, name);
         } else if (strcmp("--onehot", arg) == 0) {
             if (current->size == 0) current->flags |= FLAG_ONEHOT;
             else current->layers[current->size - 1]->flags |= FLAG_ONEHOT;
@@ -1441,11 +1439,12 @@ void onEpochTrained(PSModel *model, int epoch, int epochs,
 
 int main(int argc, char **argv) {
     PSHandleSignals(NULL);
-    model = PSModelCreate(MODEL_NAME);
+    model = PSModelCreate(NULL);
     if (model == NULL) {
         fprintf(stderr, "Failed to create model");
         return 1;
     }
+    model->name = MODEL_NAME;
     outputFile[0] = 0;
     parseOptions(argc, argv);
     if (PSLogLevel <= PSLOGLEVEL_INFO) PSModelPrintInfo(model);

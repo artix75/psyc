@@ -2372,6 +2372,48 @@ int loadModelDefinition(PSModel *model, FILE *f, char *vers) {
     return ok;
 }
 
+int loadModelName(PSModel *model, FILE *f, const char* filepath) {
+    int ok = 1;
+    char *name = NULL, *p = NULL;
+    if (scanFileNoMatch(f, "name")) {
+        uint32_t len = 0;
+        ok = scanFile(f, "(%u):", 1, NULL, &len);
+        if (!ok) {
+            loadErr(filepath, f, "Missing model name length");
+            goto final;
+        }
+        if (len == 0) goto eos;
+        name = malloc(len + 1);
+        ok = (name != NULL);
+        if (!ok) {
+            PSPrintMemoryErrorMsg();
+            goto final;
+        }
+        p = name;
+        while (len--) {
+            char c = fgetc(f);
+            ok = (c != EOF);
+            if (!ok) {
+                loadErr(filepath, f, "Model name is shorter than declared "
+                        "length %u", len);
+                goto final;
+            }
+            *(p++) = c;
+        }
+        *p = '\0';
+        ok = PSModelSetName(model, name);
+        if (!ok) {
+            loadErr(filepath, NULL, "could not set model name");
+            goto final;
+        }
+eos:
+        ok = scanFileNoMatch(f, "\n");
+    }
+final:
+    free(name);
+    return ok;
+}
+
 int loadModelTrainingData(PSModel *model, FILE *f, const char* filepath,
                           int legacy_model)
 {
@@ -2487,6 +2529,9 @@ int readModel(PSModel *model, FILE *f, const char* filepath,
     int ok = 1, nlayers = 0;
     int verbose = PSLogLevel == PSLOGLEVEL_DEBUG;
     ok = loadModelDefinition(model, f, vers);
+    if (!ok) goto final;
+    ok = loadModelName(model, f, filepath);
+    if (!ok) goto final;
     ok = scanFile(f, "layers:%d\n", 1, NULL, &nlayers);
     if (!ok) {
         loadErr(filepath, f, "Missing model size definition");
@@ -2697,6 +2742,10 @@ static int writeModel(PSModel *model, FILE *f) {
             loss_function, current_epoch, current_batch, model->status,
             current_element, batch_size, (int) rnn_mode,
             max_steps, eos, PSModelIsBuilt(model));
+    if (model->name != NULL) {
+        int namelen = strlen(model->name);
+        fprintf(f, "name(%d):%s\n", namelen, model->name);
+    }
     fprintf(f, "layers:%d\n", model->size);
     for (i = 0; i < model->size; i++) {
         PSLayer *layer = model->layers[i];
