@@ -82,13 +82,13 @@ typedef PSFloat (*PSFloatFunc) (PSFloat n);
  *                  - `PS_STORE_MODE_SET`: results will overwrite dest.
  *                  - `PS_STORE_MODE_ADD`: results will be added to dest.
  *                  - `PS_STORE_MODE_SUB`: results will be subtracted from
- *                     dest.
- *  - `transpose`   some operations involving PSMatrix could use this in order
+ *                    dest.
+ *  - `transpose`:  some operations involving PSMatrix could use this in order
  *                  to transpose one or more matrices. The integer value
  *                  indicates the (1-based) matrix argument position, ie.
  *                  1 for first matrix arg, 2 for second matrix arg, etc.
  *                  More than one matrix can be set (ie. 1 | 2).
- *  - `argtype`     specifies if arguments are `PSMatrix` or `PSFloat *`
+ *  - `argtype`:    specifies if arguments are `PSMatrix` or `PSFloat *`
  *                  (vector). Functions using this property (such as `PSDot`),
  *                  must have PSMatrix arguments and the property can be used
  *                  to tell the function that one or more arguments must be
@@ -98,7 +98,7 @@ typedef PSFloat (*PSFloatFunc) (PSFloat n);
  *                  The index indicated argument position (zero-based), ie:
  *                  argtype[1] means that second PSMatrix argument has to be
  *                  treated as vector.
- *  - `vector_len`  optionally pass vector length to functions that cannot
+ *  - `vector_len`: optionally pass vector length to functions that cannot
  *                  retrieve this info from matrix arguments, ie. when `PSDot`
  *                  is called with both vectors (`argtype` = {'V', 'V'})
  *  - `tmpdest`:    some operations may use this vector as a cache in order
