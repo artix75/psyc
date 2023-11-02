@@ -3764,7 +3764,7 @@ int testGenericAttentionBackprop(PSModel *model, char *file_prefix,
     for (i = 0; i < attn_layer->weight_types; i++) {
         if (attn_layer->weights[i] == NULL) continue;
         int wlen = PSMatrixLength(attn_layer->weights[i]),
-            blen = (i == PS_SCORES_IDX ? 1 : attn_layer->size),
+            blen = (i == PS_SCORES_PROJ_IDX ? 1 : attn_layer->size),
             exp_wlen = 0, exp_blen = 0;
         /* Load saved weight gradients */
         sprintf(suffix, "-%d-wgrads", i);
@@ -3859,7 +3859,7 @@ int testGenericAttentionBackprop(PSModel *model, char *file_prefix,
     for (i = 0; i < attn_layer->weight_types; i++) {
         if (attn_layer->weights[i] == NULL) continue;
         int wlen = PSMatrixLength(attn_layer->weights[i]),
-            blen = (i == PS_SCORES_IDX ? 1 : attn_layer->size);
+            blen = (i == PS_SCORES_PROJ_IDX ? 1 : attn_layer->size);
         PSFloat *exp_wg = expgrads_w[i];
         PSFloat *exp_bg = expgrads_b[i];
         ok = (exp_wg != NULL);

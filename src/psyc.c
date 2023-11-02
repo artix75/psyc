@@ -379,7 +379,7 @@ int checkLayerForForward(PSLayer *layer) {
         }
         int trainable_params = 0xFFFF;
         if (layer->type == Attention)
-            trainable_params = PSGetAttentionTrainableParameters(layer);
+            trainable_params = PSGetAttentionEnabledProjections(layer);
         for (int i = 0; i < layer->weight_types; i++) {
             int ok = layer->weights[i] != NULL;
             if (!ok) ok = !(trainable_params & (1 << i));
@@ -1055,7 +1055,7 @@ uint64_t PSGetLayerParametersCount(PSLayer *layer, int param_type) {
             else if (LSTM == layer->type) bias_count = layer->size * 4;
             else if (GRU == layer->type) bias_count = layer->size * 3;
             else if (Attention == layer->type)
-                bias_count = (PS_SCORES_IDX * layer->size) + 1;
+                bias_count = (PS_SCORES_PROJ_IDX * layer->size) + 1;
             else bias_count = layer->size;
             count += bias_count;
         }
@@ -2446,8 +2446,8 @@ static PSModel *cloneModel(PSModel *model, int layout_only, PSModel *parent) {
             ldef.attention_heads = PSGetAttentionHeadCount(layer);
             ldef.causal_attention = PSIsCausalAttention(layer);
             ldef.attention_scale = PSGetAttentionScale(layer);
-            ldef.trainable_parameters =
-                PSGetAttentionTrainableParameters(layer);
+            ldef.enabled_projections =
+                PSGetAttentionEnabledProjections(layer);
             PSLayer *qprovider = NULL, *kprovider = NULL, *vprovider = NULL;
             int ok = PSGetAttentionProviders(layer, &qprovider, &kprovider,
                                              &vprovider), pidx;

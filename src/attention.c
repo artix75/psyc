@@ -37,7 +37,7 @@ typedef struct {
     PSFloat scale;
     int num_heads;
     int causal;
-    int trainable_parameters;
+    int enabled_projections;
 } PSAttentionSettings;
 
 typedef struct {
@@ -609,23 +609,23 @@ int PSResizeAttentionStates(PSLayer *layer, uint32_t steps, uint32_t prevlen) {
 }
 
 static int hasTrainableKeys(PSLayer *layer) {
-    return layer->weights != NULL && layer->weights[PS_KEYS_IDX] != NULL;
+    return layer->weights != NULL && layer->weights[PS_KEYS_PROJ_IDX] != NULL;
 }
 
 static int hasTrainableQuery(PSLayer *layer) {
-    return layer->weights != NULL && layer->weights[PS_QUERY_IDX] != NULL;
+    return layer->weights != NULL && layer->weights[PS_QUERY_PROJ_IDX] != NULL;
 }
 
 static int hasTrainableValues(PSLayer *layer) {
-    return layer->weights != NULL && layer->weights[PS_VALUES_IDX] != NULL;
+    return layer->weights != NULL && layer->weights[PS_VALUES_PROJ_IDX] != NULL;
 }
 
 static int hasTrainableScores(PSLayer *layer) {
-    return layer->weights != NULL && layer->weights[PS_SCORES_IDX] != NULL;
+    return layer->weights != NULL && layer->weights[PS_SCORES_PROJ_IDX] != NULL;
 }
 
 static int useOutputProjection(PSLayer *layer) {
-    return layer->weights != NULL && layer->weights[PS_PROJECTION_IDX] != NULL;
+    return layer->weights != NULL && layer->weights[PS_OUTPUT_PROJ_IDX] != NULL;
 }
 
 static int isValidProvider(PSLayer *provider, PSLayer *keys_provider) {
@@ -858,7 +858,7 @@ PSFloat *PSGetAttentionQuery(PSLayer *layer, int t) {
     }
     if (trainable) {
         int acceleration = layer->model->acceleration, ok;
-        PSMatrix weights = layer->weights[PS_QUERY_IDX];
+        PSMatrix weights = layer->weights[PS_QUERY_PROJ_IDX];
         int use_bias = !(layer->flags & PS_FLAG_NO_BIAS);
         PSFloat *biases = (use_bias ? layer->biases : NULL);
         if (whole_seq) {
@@ -944,10 +944,10 @@ PSMatrix PSGetAttentionKeys(PSLayer *layer) {
             }
         }
         int acceleration = layer->model->acceleration;
-        PSMatrix weights = layer->weights[PS_KEYS_IDX];
+        PSMatrix weights = layer->weights[PS_KEYS_PROJ_IDX];
         PSFloat *biases = NULL;
         if (!(layer->flags & PS_FLAG_NO_BIAS))
-            biases = layer->biases + (layer->size * PS_KEYS_IDX);
+            biases = layer->biases + (layer->size * PS_KEYS_PROJ_IDX);
         int ok = attentionFeedforward(
             keys, weights, biases, layer->activate,
             updated_keys, 0, acceleration
@@ -1009,10 +1009,10 @@ PSMatrix PSGetAttentionValues(PSLayer *layer) {
             }
         }
         int acceleration = layer->model->acceleration;
-        PSMatrix weights = layer->weights[PS_VALUES_IDX];
+        PSMatrix weights = layer->weights[PS_VALUES_PROJ_IDX];
         PSFloat *biases = NULL;
         if (!(layer->flags & PS_FLAG_NO_BIAS))
-            biases = layer->biases + (layer->size * PS_VALUES_IDX);
+            biases = layer->biases + (layer->size * PS_VALUES_PROJ_IDX);
         int ok = attentionFeedforward(
             values, weights, biases, layer->activate, updated_values,
             0, acceleration
@@ -1152,7 +1152,7 @@ static int updateAttentionGradientsAndDelta(PSLayer *layer, PSFloat **gweights,
     int shape[3] = {0};
     int ndims = PSMatrixDimensions(weights, shape);
     int size;
-    if (param_type == PS_SCORES_IDX) size = 1;
+    if (param_type == PS_SCORES_PROJ_IDX) size = 1;
     else size = (ndims > 1 ? shape[0] : 1);
     int acceleration = layer->model->acceleration;
     if (seqlen < 1) seqlen = 1;
@@ -1195,7 +1195,7 @@ PSMatrix PSGetAdditiveScores(PSLayer *layer, PSFloat *query, PSMatrix keys,
     }
     success = (scores != NULL && sum != NULL);
     if (!success) goto final;
-    if (trainable) score_weights = layer->weights[PS_SCORES_IDX];
+    if (trainable) score_weights = layer->weights[PS_SCORES_PROJ_IDX];
     PSMathOpts opts = {.acceleration = layer->model->acceleration};
     for (int i = 0; i < num_qry; i++) {
         int qry_offset = (i * size);
@@ -1536,7 +1536,7 @@ int PSAdditiveAttentionBackward(PSLayer *layer, PSMatrix *dscores,
     if (!success) goto final;
     PSFloat *delta_p = delta;
     if (hasTrainableScores(layer)) {
-        PSMatrix weights = layer->weights[PS_SCORES_IDX];
+        PSMatrix weights = layer->weights[PS_SCORES_PROJ_IDX];
         success = weights != NULL;
         if (!success) {
             PSErrNN(NULL, NULL, layer, "missing weights for scores");
@@ -1550,7 +1550,7 @@ int PSAdditiveAttentionBackward(PSLayer *layer, PSMatrix *dscores,
         PSFloat *gradient_weights[ATTENTION_WEIGHT_TYPES] = {0};
         getGradientWeightsMap(layer, gradient, gradient_weights);
         success = updateAttentionGradientsAndDelta(
-            layer, gradient_weights, gradient->biases, PS_SCORES_IDX,
+            layer, gradient_weights, gradient->biases, PS_SCORES_PROJ_IDX,
             score_inputs, *dscores, NULL, nkeys
         );
         if (!success) {
@@ -1868,11 +1868,11 @@ int PSIsCausalAttention(PSLayer *layer) {
     return settings->causal;
 }
 
-int PSGetAttentionTrainableParameters(PSLayer *layer) {
+int PSGetAttentionEnabledProjections(PSLayer *layer) {
     if (layer == NULL || layer->type != Attention) return 0;
     PSAttentionSettings *settings = PSGetAttentionSettings(layer);
     if (settings == NULL) return 0;
-    return settings->trainable_parameters;
+    return settings->enabled_projections;
 }
 
 int PSGetAttentionProviders(PSLayer *layer, PSLayer **query_provider,
@@ -1937,8 +1937,8 @@ int PSInitAttentiontionLayer(PSLayer *layer, PSLayerDef *ldef) {
     settings->scale = 0.0;
     settings->num_heads = 0;
     settings->causal = 0;
-    settings->trainable_parameters = (
-        PS_TRAINABLE_QUERY | PS_TRAINABLE_KEYS
+    settings->enabled_projections = (
+        PS_QUERY_PROJECTION | PS_KEYS_PROJECTION
     );
     int defined_trainble_params = 0;
     if (ldef != NULL) {
@@ -1950,16 +1950,16 @@ int PSInitAttentiontionLayer(PSLayer *layer, PSLayerDef *ldef) {
         settings->query_provider = ldef->query_provider;
         settings->keys_provider = ldef->keys_provider;
         settings->values_provider = ldef->values_provider;
-        defined_trainble_params = (ldef->trainable_parameters > 0);
+        defined_trainble_params = (ldef->enabled_projections > 0);
         if (defined_trainble_params)
-            settings->trainable_parameters = ldef->trainable_parameters;
+            settings->enabled_projections = ldef->enabled_projections;
     }
     if (!defined_trainble_params) {
         if (settings->type == PSAdditiveAttention)
-            settings->trainable_parameters |= PS_TRAINABLE_SCORES;
+            settings->enabled_projections |= PS_SCORES_PROJECTION;
         else {
-            settings->trainable_parameters |= PS_TRAINABLE_VALUES;
-            settings->trainable_parameters |= PS_TRAINABLE_PROJECTION;
+            settings->enabled_projections |= PS_VALUES_PROJECTION;
+            settings->enabled_projections |= PS_OUTPUT_PROJECTION;
         }
     }
     if (settings->keys_provider == NULL) {
@@ -2022,8 +2022,8 @@ int PSInitAttentiontionLayer(PSLayer *layer, PSLayerDef *ldef) {
     int trainable_count = 0, use_bias = !(layer->flags & PS_FLAG_NO_BIAS);
     for (int i = 0; i < param_types; i++) {
         int param_flag = (1 << i), size = layer->size;
-        int psize = (i == PS_SCORES_IDX ? 1 : layer->size);
-        if (settings->trainable_parameters & param_flag) {
+        int psize = (i == PS_SCORES_PROJ_IDX ? 1 : layer->size);
+        if (settings->enabled_projections & param_flag) {
             layer->weights[i] = PSInitWeights(
                 layer, psize, size, ldef, 1, 0
             );
@@ -2135,10 +2135,10 @@ int PSAttentionForward(PSLayer *layer, ...) {
     }
     PSFloat *stored = NULL;
     if (useOutputProjection(layer)) {
-        PSMatrix proj_weights = layer->weights[PS_PROJECTION_IDX];
+        PSMatrix proj_weights = layer->weights[PS_OUTPUT_PROJ_IDX];
         PSFloat *biases = NULL;
         if (!(layer->flags & PS_FLAG_NO_BIAS))
-            biases = layer->biases + (PS_PROJECTION_IDX * layer->size);
+            biases = layer->biases + (PS_OUTPUT_PROJ_IDX * layer->size);
         int success = (proj_weights != NULL);
         if (!success) {
             PSErrNN(NULL, NULL, layer, "missing projection weights");
@@ -2285,7 +2285,7 @@ int PSAttentionBackprop(PSLayer *layer, PSLayer *previous_layer,
         if (!whole_seq) proj_inputs += (t * layer->size);
         success = updateAttentionGradientsAndDelta(
             layer, gradient_weights, gradient->biases,
-            PS_PROJECTION_IDX, proj_inputs, layer->delta, delta,
+            PS_OUTPUT_PROJ_IDX, proj_inputs, layer->delta, delta,
             (whole_seq ? seqlen : 1)
         );
         if (!success) {
@@ -2351,7 +2351,7 @@ int PSAttentionBackprop(PSLayer *layer, PSLayer *previous_layer,
         }
         PSFloat *proj_inputs = data->value_inputs;
         success = updateAttentionGradientsAndDelta(
-            layer, gradient_weights, gradient->biases, PS_VALUES_IDX,
+            layer, gradient_weights, gradient->biases, PS_VALUES_PROJ_IDX,
             proj_inputs, dvalues, NULL, PSMatrixDim(data->value_inputs, 0)
         );
         if (!success) {
@@ -2368,7 +2368,7 @@ int PSAttentionBackprop(PSLayer *layer, PSLayer *previous_layer,
         }
         PSFloat *proj_inputs = data->key_inputs;
         success = updateAttentionGradientsAndDelta(
-            layer, gradient_weights, gradient->biases, PS_KEYS_IDX,
+            layer, gradient_weights, gradient->biases, PS_KEYS_PROJ_IDX,
             proj_inputs, dkeys, NULL, PSMatrixDim(data->key_inputs, 0)
         );
         if (!success) {
@@ -2390,7 +2390,7 @@ int PSAttentionBackprop(PSLayer *layer, PSLayer *previous_layer,
         PSFloat *proj_inputs = data->query_inputs;
         if (!whole_seq) proj_inputs += (t * layer->size);
         success = updateAttentionGradientsAndDelta(
-            layer, gradient_weights, gradient->biases, PS_QUERY_IDX,
+            layer, gradient_weights, gradient->biases, PS_QUERY_PROJ_IDX,
             proj_inputs, dquery, delta, (whole_seq ? seqlen : 1)
         );
         if (!success) {

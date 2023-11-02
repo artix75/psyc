@@ -1124,11 +1124,11 @@ int writeLayerDefinition(PSLayer *layer, FILE *f) {
         fprintf(f, ",epsilon=" PSFLOAT_FORMAT, eps);
     } else if (Attention == layer->type) {
         fprintf(f,",attention_type=%d,causal=%d,n_heads=%d,attention_scale=%g,"
-                "trainable_params=%d",
+                "enabled_projections=%d",
                 PSGetAttentionType(layer), PSIsCausalAttention(layer),
                 PSGetAttentionHeadCount(layer),
                 PSGetAttentionScale(layer),
-                PSGetAttentionTrainableParameters(layer));
+                PSGetAttentionEnabledProjections(layer));
         PSLayer *qprovider = NULL, *kprovider = NULL, *vprovider = NULL;
         PSGetAttentionProviders(layer, &qprovider, &kprovider, &vprovider);
         if (qprovider != NULL && qprovider->model != NULL) {
@@ -1705,11 +1705,13 @@ static int loadLayerDefinitions(PSModel *model, char *vers,
                     return 0;
                 }
                 ldef.values_provider = provider;
-            } else if (strcmp("trainable_params", propname) == 0) {
+            } else if (strcmp("enabled_projections", propname) == 0 ||
+                       strcmp("trainable_params", propname) == 0)
+            {
                 ok = scanFile(f, "%d%1[,\n]", 2, NULL,
-                              &(ldef.trainable_parameters), sep);
+                              &(ldef.enabled_projections), sep);
                 if (!ok) {
-                    loadErr(filepath, f, "Invalid trainable_params");
+                    loadErr(filepath, f, "Invalid %s", propname);
                     return 0;
                 }
             } else if (strcmp("operator", propname) == 0) {

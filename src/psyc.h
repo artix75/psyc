@@ -202,7 +202,7 @@ typedef struct PSLayerDef {
     int attention_heads;
     int causal_attention;
     int self_attention;
-    int trainable_parameters;
+    int enabled_projections;
     /* OperatorLayer */
     int operator;
     int providers_count;

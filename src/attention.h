@@ -20,17 +20,17 @@
 
 #include "psyc.h"
 
-#define PS_TRAINABLE_QUERY      (1 << 0)
-#define PS_TRAINABLE_KEYS       (1 << 1)
-#define PS_TRAINABLE_VALUES     (1 << 2)
-#define PS_TRAINABLE_PROJECTION (1 << 3)
-#define PS_TRAINABLE_SCORES     (1 << 4)
+#define PS_QUERY_PROJECTION        (1 << 0)
+#define PS_KEYS_PROJECTION         (1 << 1)
+#define PS_VALUES_PROJECTION       (1 << 2)
+#define PS_OUTPUT_PROJECTION       (1 << 3)
+#define PS_SCORES_PROJECTION       (1 << 4)
 
-#define PS_QUERY_IDX        0
-#define PS_KEYS_IDX         1
-#define PS_VALUES_IDX       2
-#define PS_PROJECTION_IDX   3
-#define PS_SCORES_IDX       4
+#define PS_QUERY_PROJ_IDX        0
+#define PS_KEYS_PROJ_IDX         1
+#define PS_VALUES_PROJ_IDX       2
+#define PS_OUTPUT_PROJ_IDX       3
+#define PS_SCORES_PROJ_IDX       4
 
 #define PSIsMultiHeadAttention(layer) (PSGetAttentionHeadCount(layer) > 1)
 
@@ -46,7 +46,7 @@ PSFloat PSGetAttentionScale(PSLayer *layer);
 int PSGetAttentionHeadCount(PSLayer *layer);
 int PSGetAttentionProviders(PSLayer *layer, PSLayer **query_provider,
                             PSLayer **keys_provider, PSLayer **values_provider);
-int PSGetAttentionTrainableParameters(PSLayer *layer);
+int PSGetAttentionEnabledProjections(PSLayer *layer);
 int PSIsCausalAttention(PSLayer *layer);
 int PSSetAttentionQueryProvider(PSLayer *layer, PSLayer *provider);
 
