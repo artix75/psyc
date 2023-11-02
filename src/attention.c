@@ -112,13 +112,13 @@ static void deleteAttentionLayer(PSLayer *layer) {
         n_heads = settings->num_heads;
         PSLayer *provider = settings->query_provider;
         if (provider && (placeholders & 1) && PSIsLayerPlaceholder(provider))
-            PSDeleteLayer(provider);
+            PSLayerFree(provider);
         provider = settings->keys_provider;
         if (provider && (placeholders & 2) && PSIsLayerPlaceholder(provider))
-            PSDeleteLayer(provider);
+            PSLayerFree(provider);
         provider = settings->values_provider;
         if (provider && (placeholders & 3) && PSIsLayerPlaceholder(provider))
-            PSDeleteLayer(provider);
+            PSLayerFree(provider);
     }
     if (data != NULL) {
         PSMatrixFree(data->query);
@@ -656,7 +656,7 @@ static PSLayer *getQueryProvider(PSLayer *layer) {
         }
         if (data != NULL)
             data->provider_placeholders &= ~((unsigned) 1);
-        PSDeleteLayer(settings->query_provider);
+        PSLayerFree(settings->query_provider);
         settings->query_provider = resolved;
     }
     return settings->query_provider;
@@ -677,7 +677,7 @@ static PSLayer *getValuesProvider(PSLayer *layer) {
                     "placeholder");
             return NULL;
         }
-        PSDeleteLayer(provider);
+        PSLayerFree(provider);
         settings->values_provider = provider = resolved;
     }
     if (provider == NULL) provider = settings->keys_provider;

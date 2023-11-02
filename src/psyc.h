@@ -404,7 +404,7 @@ int PSFindLayerMaxState(PSLayer *layer, PSFloat *max_p, int *index_p,...);
 
 void PSResetTransposedWeights(PSModel *model);
 void PSModelFree(PSModel *model);
-void PSDeleteLayer(PSLayer *layer);
+void PSLayerFree(PSLayer *layer);
 void PSDeleteNeuron(PSNeuron *neuron);
 void PSDeleteGradient(PSGradient *gradient);
 void PSDeleteModelGradients(PSGradient **gradients, PSModel *net);

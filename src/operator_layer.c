@@ -68,7 +68,7 @@ static PSLayer *resolveProviderPlaceholder(PSLayer *layer, PSLayer *provider) {
         if (settings->providers[i] == placeholder)
             settings->providers[i] = provider;
     }
-    PSDeleteLayer(placeholder);
+    PSLayerFree(placeholder);
     return provider;
 }
 
@@ -82,7 +82,7 @@ static void deleteOperatorLayer(PSLayer *layer) {
                 if (provider == NULL) continue;
                 int is_placeholder = PSBitmapGetBit(settings->placeholders, i);
                 if (is_placeholder) {
-                    PSDeleteLayer(provider);
+                    PSLayerFree(provider);
                     settings->providers[i] = NULL;
                 }
             }

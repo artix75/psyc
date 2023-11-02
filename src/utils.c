@@ -311,7 +311,7 @@ void PSAbortLayer(PSModel *model, PSLayer *layer) {
             if (inputLayer) model->input_size = inputLayer->size;
             else model->input_size = 0;
         }
-        PSDeleteLayer(layer);
+        PSLayerFree(layer);
     }
 }
 

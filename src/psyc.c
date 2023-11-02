@@ -1971,7 +1971,7 @@ int PSModelBuild(PSModel *model) {
                         "could not resolve layer placeholder");
                 return 0;
             }
-            PSDeleteLayer(layer);
+            PSLayerFree(layer);
             model->layers[i] = resolved;
         } else if (layer->build != NULL) {
             if (!layer->build(layer)) return 0;
@@ -2969,7 +2969,7 @@ void PSModelFree(PSModel *model) {
         if (model->layers != NULL) layer = model->layers[i];
         if (layer == NULL) continue;
         if (is_recurrent) layer->flags |= PS_FLAG_RECURRENT;
-        PSDeleteLayer(layer);
+        PSLayerFree(layer);
     }
     free(model->layers);
     if (model->training != NULL) free(model->training);
@@ -3342,7 +3342,7 @@ PSLayer *PSAddPoolingLayer(PSModel *model, PSLayerDef *ldef) {
     return PSAddLayer(model, Pooling, 0, ldef);
 }
 
-void PSDeleteLayer(PSLayer* layer) {
+void PSLayerFree(PSLayer* layer) {
     if (layer == NULL) return;
     int i;
     if (layer->weights != NULL) {

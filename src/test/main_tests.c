@@ -2345,7 +2345,7 @@ int testRNNOneHot(TestCase *test_case, Test *test) {
     standard_model->input_size = vector_size;
     standard_input_layer->flags |= PS_FLAG_RECURRENT;
     curlayer->model = NULL;
-    PSDeleteLayer(curlayer);
+    PSLayerFree(curlayer);
     dummy_model->size = 0;
     dummy_model->layers[0] = NULL;
     PSModelFree(dummy_model);
