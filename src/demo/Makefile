@@ -22,32 +22,32 @@ ifeq (0, $(words $(findstring $(MAKECMDGOALS), $(NOBUILD_GOALS))))
 -include Makefile.dep
 endif
 
-gpt_demo.o:
+gpt-demo.o:
 	$(call print-action,$(COMPILE_ACTION_NAME),$<)
-	$(CC) --std=gnu99 $(CFLAGS) $(GPT_CFLAGS) -c -o $@ gpt_demo.c
+	$(CC) --std=gnu99 $(CFLAGS) $(GPT_CFLAGS) -c -o $@ gpt-demo.c
 
-$(LOCALBINDIR)/mnist_demo: $(OBJS) mnist_demo.o
+$(LOCALBINDIR)/mnist-demo: $(OBJS) mnist-demo.o
 	$(call print-action,$(LINK_ACTION_NAME),$@,$(LINK_ACTION_COLOR))
-	$(CC) -o $@ $(OBJS) mnist_demo.o $(LDFLAGS)
-$(LOCALBINDIR)/conv_demo: $(OBJS) conv_demo.o
+	$(CC) -o $@ $^ $(LDFLAGS)
+$(LOCALBINDIR)/conv-demo: $(OBJS) conv-demo.o
 	$(call print-action,$(LINK_ACTION_NAME),$@,$(LINK_ACTION_COLOR))
-	$(CC) -o $@ $(OBJS) conv_demo.o $(LDFLAGS)
-$(LOCALBINDIR)/rnn_demo: $(OBJS) rnn_demo.o
+	$(CC) -o $@ $^ $(LDFLAGS)
+$(LOCALBINDIR)/rnn-demo: $(OBJS) rnn-demo.o
 	$(call print-action,$(LINK_ACTION_NAME),$@,$(LINK_ACTION_COLOR))
-	$(CC) -o $@ $(OBJS) rnn_demo.o $(LDFLAGS)
-$(LOCALBINDIR)/lstm_demo: $(OBJS) lstm_demo.o
+	$(CC) -o $@ $^ $(LDFLAGS)
+$(LOCALBINDIR)/lstm-demo: $(OBJS) lstm-demo.o
 	$(call print-action,$(LINK_ACTION_NAME),$@,$(LINK_ACTION_COLOR))
-	$(CC) -o $@ $(OBJS) lstm_demo.o $(LDFLAGS)
-$(LOCALBINDIR)/char_rnn: $(OBJS) char_rnn.o
+	$(CC) -o $@ $^ $(LDFLAGS)
+$(LOCALBINDIR)/char-rnn: $(OBJS) char-rnn.o
 	$(call print-action,$(LINK_ACTION_NAME),$@,$(LINK_ACTION_COLOR))
-	$(CC) -o $@ $(OBJS) char_rnn.o $(LDFLAGS)
-$(LOCALBINDIR)/cifar_demo: $(OBJS) cifar_demo.o
+	$(CC) -o $@ $^ $(LDFLAGS)
+$(LOCALBINDIR)/cifar-demo: $(OBJS) cifar-demo.o
 	$(call print-action,$(LINK_ACTION_NAME),$@,$(LINK_ACTION_COLOR))
-	$(CC) -o $@ $(OBJS) cifar_demo.o $(LDFLAGS)
-$(LOCALBINDIR)/seq2seq_demo: $(OBJS) seq2seq_demo.o
+	$(CC) -o $@ $^ $(LDFLAGS)
+$(LOCALBINDIR)/seq2seq-demo: $(OBJS) seq2seq-demo.o
 	$(call print-action,$(LINK_ACTION_NAME),$@,$(LINK_ACTION_COLOR))
-	$(CC) -o $@ $(OBJS) seq2seq_demo.o $(LDFLAGS)
-$(LOCALBINDIR)/gpt_demo: $(OBJS) gpt_demo.o
+	$(CC) -o $@ $^ $(LDFLAGS)
+$(LOCALBINDIR)/gpt-demo: $(OBJS) gpt-demo.o
 	$(call print-action,$(LINK_ACTION_NAME),$@,$(LINK_ACTION_COLOR))
-	$(CC) -o $@ $(OBJS) gpt_demo.o $(LDFLAGS) $(GPT_LDFLAGS)
-all: $(addprefix $(LOCALBINDIR)/, mnist_demo conv_demo rnn_demo lstm_demo char_rnn cifar_demo gpt_demo seq2seq_demo)
+	$(CC) -o $@ $^ $(LDFLAGS) $(GPT_LDFLAGS)
+all: $(addprefix $(LOCALBINDIR)/, mnist-demo conv-demo rnn-demo lstm-demo char-rnn cifar-demo gpt-demo seq2seq-demo)

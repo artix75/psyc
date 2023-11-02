@@ -40,7 +40,7 @@
 #include "embedding.h"
 #include "dropout.h"
 #include "attention.h"
-#include "operator_layer.h"
+#include "operator-layer.h"
 #include "debug.h"
 
 #define LAYER_PLACEHOLDER_TYPE -1

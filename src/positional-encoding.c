@@ -17,7 +17,7 @@
 
 #include <stdarg.h>
 #include <string.h>
-#include "positional_encoding.h"
+#include "positional-encoding.h"
 #include "maths.h"
 #include "log.h"
 

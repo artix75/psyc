@@ -19,7 +19,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <assert.h>
-#include "operator_layer.h"
+#include "operator-layer.h"
 #include "psyc.h"
 #include "log.h"
 #include "maths.h"

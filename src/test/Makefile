@@ -31,10 +31,10 @@ benchmark: $(OBJS) benchmark.o
 	@cp benchmark ../../bin/
 	@[ -z "$(BUILD_ONLY)" ] && ./benchmark$(TEST_ARGS) || echo '' > /dev/null
 
-main_tests: $(OBJS) main_tests.o
+main-tests: $(OBJS) main-tests.o
 	$(call print-action,$(LINK_ACTION_NAME),$@,$(LINK_ACTION_COLOR))
-	$(CC) -o main_tests $(OBJS) main_tests.o $(LDFLAGS)
+	$(CC) -o $@ $^ $(LDFLAGS)
 
-all: main_tests
-	@[ -z "$(BUILD_ONLY)" ] && ./main_tests$(TEST_ARGS) || echo '' > /dev/null
+all: main-tests
+	@[ -z "$(BUILD_ONLY)" ] && ./main-tests$(TEST_ARGS) || echo '' > /dev/null
         

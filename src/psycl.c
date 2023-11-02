@@ -32,7 +32,7 @@
 #include "convolutional.h"
 #include "recurrent.h"
 #include "attention.h"
-#include "operator_layer.h"
+#include "operator-layer.h"
 #include "optimization.h"
 #include "activation.h"
 #include "dataset.h"
@@ -41,7 +41,7 @@
 #include "buildinfo.h"
 
 #ifdef HAS_MAGICK
-#include "image_data.h"
+#include "image-data.h"
 #endif
 
 #define PROGRAM_NAME        "PsyC CLI"

@@ -36,7 +36,7 @@
 #include "dropout.h"
 #include "normalization.h"
 #include "attention.h"
-#include "operator_layer.h"
+#include "operator-layer.h"
 #include "log.h"
 #include "buildinfo.h"
 #include "optimization.h"

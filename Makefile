@@ -57,6 +57,9 @@ distclean: rebuildclean
 	rm -f .c_headers
 	rm -f src/buildinfo.h
 	rm -f src/config.mk
+	rm -f src/all.h
+	rm -f src/magick_conf.h
+	rm -f src/magick-conf.h
 
 install:
 	@cd src && $(MAKE) install

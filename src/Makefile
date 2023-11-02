@@ -20,7 +20,7 @@ ifneq ($(HAS_MAGICK), false)
         BIN_CFLAGS+=-DHAS_MAGICK
         BIN_LDFLAGS+=$(shell sh -c '$(WAND_CONFIG) --ldflags')
         MAGICK_CFLAGS := $(shell sh -c '$(WAND_CONFIG) --cflags')
-        CLI_OBJS+=image_data.o
+        CLI_OBJS+=image-data.o
         MAGICK_VERSION := $(shell echo $(MAGICK_VERSION) | cut -d ' ' -f 1)
         MAGICK_VERSION_MAJOR := $(shell echo $(MAGICK_VERSION) | cut -d '.' -f 1)
 endif
@@ -70,10 +70,10 @@ all.h: $(HEADER_FILE_LIST) $(PSYCPATH)resources/license-header.h
 	@echo '' >> $@
 	@echo "#endif /* __PS_ALL_H__ */" >> $@
 
-image_data.o:
-	@echo '#define PSYCH_MAGICK_VERSION $(MAGICK_VERSION_MAJOR)' > magick_conf.h
-	$(call print-action,$(COMPILE_ACTION_NAME),image_data.c)
-	$(CC) $(MAGICK_CFLAGS) $(CFLAGS)  -c -o $@ image_data.c
+image-data.o:
+	@echo '#define PSYCH_MAGICK_VERSION $(MAGICK_VERSION_MAJOR)' > magick-conf.h
+	$(call print-action,$(COMPILE_ACTION_NAME),image-data.c)
+	$(CC) $(MAGICK_CFLAGS) $(CFLAGS)  -c -o $@ image-data.c
 
 psycl.o: psycl.c
 	$(call print-action,$(COMPILE_ACTION_NAME),psycl.c)

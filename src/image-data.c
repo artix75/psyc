@@ -18,10 +18,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include "magick_conf.h"
+#include "magick-conf.h"
 
 #ifndef PSYCH_MAGICK_VERSION
-#error "Missing PSYCH_MAGICK_VERSION definition (look for src/magick_conf.h)"
+#error "Missing PSYCH_MAGICK_VERSION definition (look for src/magick-conf.h)"
 #endif
 
 #if PSYCH_MAGICK_VERSION < 7
@@ -30,7 +30,7 @@
 #include <MagickWand/MagickWand.h>
 #endif
 
-#include "image_data.h"
+#include "image-data.h"
 #include "maths.h"
 #include "utils.h"
 #include "log.h"

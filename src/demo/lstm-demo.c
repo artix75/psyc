@@ -18,13 +18,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
+#include <assert.h>
 
 #include <execinfo.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include <unistd.h>
-#include <assert.h>
 
 #include <fenv.h>
 #if defined(__x86_64__) || defined(__i386__)
@@ -32,40 +32,29 @@
 #endif
 
 #include "../psyc.h"
-#include "../optimization.h"
-#include "../activation.h"
 #include "../log.h"
-#include "w2v_training_data.h"
+#include "words-training-data.h"
 
 #define BATCHES 1
-#define EPOCHS 120
+#define EPOCHS  1500
 #define EMBED_EPOCHS 4
-#define LEARNING_RATE   0.025
+#define LEARNING_RATE   0.1
 #define MOMENTUM        0.0
 #define L1              0.0
 #define L2              0.0
-#define HIDDEN_SIZE     60
 #define SAMPLE_LEN      30
+#define HIDDEN_SIZE     (VOCABULARY_SIZE / 10)
 
 #define DEFAULT_OUTPUT_FILE "/tmp/pretrained.rnn.psmodel"
-#define DEFAULT_OPTIMIZATION PSAdaGradOptimization
 
 #define UNUSED(V) ((void) V)
-
-char *getOptimizationName(PSOptimization optimization);
 
 PSModel *model = NULL;
 char *output_path = DEFAULT_OUTPUT_FILE;
 int pause_requested = 0;
 int use_random_choice = 0;
-PSOptimization optimization = DEFAULT_OPTIMIZATION;
 
 void print_help(char *progname) {
-    char optimization_name[255] = {0};
-    char *uc_optimization_name = getOptimizationName(DEFAULT_OPTIMIZATION);
-    int namelen = strlen(uc_optimization_name), i;
-    for (i = 0; i < namelen; i++)
-        optimization_name[i] = tolower(uc_optimization_name[i]);
     printf("Usage %s OPTIONS\n", progname);
     printf("    OPTIONS:\n");
     printf("        -l, --load TRAINED_DT_FILE      Load pretrained model\n");
@@ -74,15 +63,6 @@ void print_help(char *progname) {
            "(default: %s)\n", DEFAULT_OUTPUT_FILE);
     printf("        --hidden-size SIZE              Hidden size (def. %d)\n",
         HIDDEN_SIZE);
-    printf("        --embedding SIZE                Use embedding layer\n");
-    printf("        --embedding-learn-rate RATE     Embedding layer learning "
-           "rate\n");
-    printf("        --embedding-epochs EPOCHS       Embedding layer training "
-           "epochs (def. %d)\n", EMBED_EPOCHS);
-    printf("        --embedding-load PATH           Load pretrained "
-           "embedding layer\n");
-    printf("        --embedding-save PATH           Save trained embedding "
-           "layer\n");
     printf("        --learning-rate RATE            Learnig Rate "
         "(def. %g)\n", LEARNING_RATE);
     printf("        --momentum MOMENTUM             Momentum "
@@ -95,13 +75,20 @@ void print_help(char *progname) {
           "                                        "
           "(adagrad,adadelta,adam,windowgrad,\n"
           "                                         "
-          "nesterov,rmsprop)\n"
-          "                                        "
-          "Default: %s\n", optimization_name);
+          "nesterov,rmsprop)\n");
     printf("        --epochs EPOCHS                 Epochs (def. %d)\n",
         EPOCHS);
     printf("        --batch-size SIZE               Batch size (def. %d)\n",
         BATCHES);
+    printf("        --embedding SIZE                Use embedding layer\n");
+    printf("        --embedding-learn-rate RATE     Embedding layer learning "
+           "rate\n");
+    printf("        --embedding-epochs EPOCHS       Embedding layer training "
+           "epochs (def. %d)\n", EMBED_EPOCHS);
+    printf("        --embedding-load PATH           Load pretrained "
+           "embedding layer\n");
+    printf("        --embedding-save PATH           Save trained embedding "
+           "layer\n");
 #ifdef USE_AVX
     printf("        --disable-avx                   Disable AVX\n");
 #endif
@@ -123,7 +110,7 @@ void handler(int sig) {
             PSAbortTraining(model);
             exit(1);
         }
-    }
+    } else exit(1);
 }
 
 int randomChoice(PSFloat *weights, int count) {
@@ -220,22 +207,23 @@ int main(int argc, char** argv) {
     int batch_size = BATCHES;
     int disable_avx = 0;
     int shuffle = 0;
+    PSOptimization optimization = PSDefaultOptimization;
     PSFloat learning_rate = LEARNING_RATE;
     PSFloat embedding_learning_rate = 0;
     PSFloat momentum = MOMENTUM;
     PSFloat l1_decay = L1;
     PSFloat l2_decay = L2;
-    int validate_every = 0;
     int hidden_size = HIDDEN_SIZE;
     int print_sample = 0;
     int sample_len = SAMPLE_LEN;
+    int validate_every = 0;
     int embedding_size = 0;
     char *embedding_load_from = NULL,
          *embedding_save_to = NULL;
     int return_status = 0;
     UNUSED(disable_avx); /* Actually not used if USE_AVX macro not defined */
 
-    model = PSModelCreate("RNN Demo");
+    model = PSModelCreate("LSTM Demo");
     if (model == NULL) {
         fprintf(stderr, "Could not create model!\n");
         return 1;
@@ -283,22 +271,6 @@ int main(int argc, char** argv) {
             embedding_load_from = argv[++i];
         } else if (strcmp("--embedding-save", arg) == 0 && (i + 1) < argc) {
             embedding_save_to = argv[++i];
-        } else if (strcmp("--hidden-size", arg) == 0 && (i + 1) < argc) {
-            hidden_size = atoi(argv[++i]);
-            if (hidden_size < 2) {
-                fprintf(stderr, "Invalid hidden_size: at least 2 required\n");
-                return 1;
-            }
-        } else if (strcmp("--embedding", arg) == 0 && (i + 1) < argc) {
-            embedding_size = atoi(argv[++i]);
-            if (embedding_size < 2) {
-                fprintf(stderr, "Invalid embedding_size: at least 2 "
-                        "required\n");
-                return 1;
-            }
-        } else if (strcmp("--sample-length", arg) == 0 && (i + 1) < argc) {
-            sample_len = atoi(argv[++i]);
-            if (sample_len < 0) sample_len = SAMPLE_LEN;
         } else if (strcmp("--momentum", arg) == 0 && (i + 1) < argc) {
             momentum = (PSFloat) atof(argv[++i]);
         } else if (strcmp("--l1-decay", arg) == 0 && (i + 1) < argc) {
@@ -322,6 +294,22 @@ int main(int argc, char** argv) {
             shuffle = 1;
         } else if (strcmp("--print-sample", arg) == 0) {
             print_sample = 1;
+        } else if (strcmp("--hidden-size", arg) == 0 && (i + 1) < argc) {
+            hidden_size = atoi(argv[++i]);
+            if (hidden_size < 2) {
+                fprintf(stderr, "Invalid hidden_size: at least 2 required\n");
+                return 1;
+            }
+        } else if (strcmp("--embedding", arg) == 0 && (i + 1) < argc) {
+            embedding_size = atoi(argv[++i]);
+            if (embedding_size < 2) {
+                fprintf(stderr, "Invalid embedding_size: at least 2 "
+                        "required\n");
+                return 1;
+            }
+        } else if (strcmp("--sample-length", arg) == 0 && (i + 1) < argc) {
+            sample_len = atoi(argv[++i]);
+            if (sample_len < 0) sample_len = SAMPLE_LEN;
         } else if (strcmp("--optimization", arg) == 0 && !is_last) {
             char *optname = argv[++i];
             if (strcmp("adam", optname) == 0) optimization = PSAdamOptimization;
@@ -336,7 +324,7 @@ int main(int argc, char** argv) {
             else if (strcmp("rmsprop", optname) == 0)
                 optimization = PSRMSPropOptimization;
             else {
-                fprintf(stderr, "Invalid optimization `%s`\n", optname);
+                fprintf(stderr, "Invalid optmization `%s`\n", optname);
                 fprintf(
                     stderr, "Valid values: adam, adagrad, adadelta, "
                     "windowgrad, nesterov\n"
@@ -378,7 +366,7 @@ int main(int argc, char** argv) {
             }
             embedding->pretrained = (embedding_load_from != NULL);
         }
-        PSAddLayer(model, RNNLayer, hidden_size, NULL);
+        PSAddLayer(model, LSTM, hidden_size, NULL);
         PSAddLayer(model, SoftMax, VOCABULARY_SIZE, NULL);
         model->layers[model->size - 1]->flags |= PS_FLAG_ONEHOT;
         if (model->size < 1) {
@@ -399,21 +387,18 @@ int main(int argc, char** argv) {
             return 1;
         }
     }
+    PSModelPrintInfo(model);
 #ifdef USE_AVX
     if (disable_avx)
         PSDisableAcceleration(&model->acceleration, PSAcceleration_AVX);
-    if (PSAVXEnabled(model->acceleration)) printf("on\n");
-    else printf("off\n");
-#else
-    printf("off\n");
 #endif
-    PSModelPrintInfo(model);
+
     int flags = PS_TRAINING_ADJUST_RATE;
-    if (!shuffle)
-        flags |= (PS_TRAINING_NO_SHUFFLE | PS_TRAINING_EPOCH_AS_SEQUENCE);
+    if (!shuffle) flags |= PS_TRAINING_NO_SHUFFLE;
     printf("*** NOTE ***\nTraining data taken from some paragraphs of "
            "Wikipedia's article about planet\nSaturn: "
            "(https://en.wikipedia.org/wiki/Saturn).\n\n");
+
     PSTrainingOptions options = {
         .epochs = epochs,
         .batch_size = batch_size,
@@ -422,22 +407,18 @@ int main(int argc, char** argv) {
         .l1_decay = l1_decay,
         .l2_decay = l2_decay,
         .momentum = momentum,
-        .optimization = optimization,
-        .bptt_truncate = 0
+        .optimization = optimization
     };
     PSTrain(model, training_data, TRAIN_DATA_LEN, training_data,
             TRAIN_DATA_LEN, &options);
 
-    if (model->status == PS_STATUS_ERROR) {
-        return_status = 1;
-        goto final;
-    }
-    if (TEST_DATA_LEN > 0) {
+    /*if (TEST_DATA_LEN > 0) {
         printf("Test Data len: %d\n", TEST_DATA_LEN);
         PSTest(model, test_data, TEST_DATA_LEN, NULL);
-    }
+    }*/
     if (print_sample) printSample(model, 0, sample_len);
-    if (output_path != NULL) PSModelSave(model, output_path);
+    if (pretrained_file == NULL)
+        PSModelSave(model, "/tmp/pretrained.lstm.psmodel");
 final:
     PSModelFree(model);
     /* free(training_data); */

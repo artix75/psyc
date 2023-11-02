@@ -50,7 +50,7 @@
 #include "../activation.h"
 /* Data taken from some paragraphs of Wikipedia's article about planet Saturn
  * (https://en.wikipedia.org/wiki/Saturn). */
-#include "char_training_data.h"
+#include "char-training-data.h"
 
 #define LEARNING_RATE 0.1
 #define EPOCHS 5000
@@ -60,7 +60,7 @@
 #define CLIP 5.0
 #define OPTIMIZATION PSAdaGradOptimization
 #define HIDDEN_SIZE 100
-#define DEFAULT_OUTPUT_FILE "/tmp/pretrained.char_rnn.psmodel"
+#define DEFAULT_OUTPUT_FILE "/tmp/pretrained.char-rnn.psmodel"
 
 #define UNUSED(V) ((void) V)
 
