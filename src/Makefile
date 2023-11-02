@@ -41,6 +41,8 @@ endif
 
 HASH := \#
 FINAL_HEADER_FILES := psyc.h $(subst psyc.h,,$(HEADER_FILES))
+FINAL_HEADER_FILES := $(subst legacy.h,,$(FINAL_HEADER_FILES))
+$(info $(FINAL_HEADER_FILES))
 ALL_H_INCLUDE_DIRECTIVES := $(foreach hfile,$(FINAL_HEADER_FILES),echo '$(HASH)include "$(hfile)"' >> all.h;)
 
 PSYCLIB := ../lib/$(LIBNAME)
