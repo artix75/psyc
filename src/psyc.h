@@ -359,19 +359,36 @@ typedef struct PSModel {
     void                        *context;
 } PSModel;
 
+/* PSModel functions */
 PSModel *PSModelCreate(const char* name);
-int PSAddModel(PSModel *parent, PSModel *model, PSModelLink *link);
 PSModel *PSModelClone(PSModel *model, int layout_only);
-PSModel *PSLoadModel(const char* filename);
 int PSModelLoad(PSModel *model, const char* filepath);
 int PSModelSave(PSModel *model, const char* filepath);
-int PSLoadLayer(PSLayer *layer, const char *filepath);
-int PSSaveLayer(PSLayer *layer, const char *filepath, int opts);
-void PSModelSetStatus(PSModel *model, int status, int *old);
-int PSModelGetStatus(PSModel *model);
 int PSModelSetName(PSModel *model, char *name);
+int PSModelGetStatus(PSModel *model);
+void PSModelSetStatus(PSModel *model, int status, int *old);
+int PSModelIsBuilt(PSModel *model);
+int PSModelBuild(PSModel *model);
+int PSModelRebuild(PSModel *model);
+int PSModelCheck(PSModel *model);
+void PSModelPrintInfo(PSModel *model);
+int PSModelChainLength(PSModel *model);
+PSModel *PSGetModelAtIndex(PSModel *entrypoint, int index);
+PSModel *PSModelChainHead(PSModel *model);
+PSModel *PSModelChainTail(PSModel *model);
+int PSModelChainContains(PSModel *chain, PSModel *model);
+int PSModelDumpStates(PSModel *model, const char* filename);
+int PSModelDumpDeltas(PSModel *model, const char* filename);
+void PSModelFree(PSModel *model);
+void PSResetTransposedWeights(PSModel *model);
+PSModel *PSLoadModel(const char* filename);
+int PSAddModel(PSModel *parent, PSModel *model, PSModelLink *link);
+
+/* PSLayer functions */
 PSLayer *PSAddLayer(PSModel *model, PSLayerType type, int size,
                     PSLayerDef *layer_def);
+int PSLoadLayer(PSLayer *layer, const char *filepath);
+int PSSaveLayer(PSLayer *layer, const char *filepath, int opts);
 PSLayer *PSAddConvolutionalLayer(PSModel *model, PSLayerDef *ldef);
 PSLayer *PSAddPoolingLayer(PSModel *model, PSLayerDef *ldef);
 int PSGetOneHotLayerVectorSize(PSLayer *layer);
@@ -382,7 +399,6 @@ PSLayer *PSGetOutputLayer(PSModel *model);
 PSLayer *PSGetLayerByIndex(PSModel *model, int layer_index, int model_index);
 int PSGetLayerInputSize(PSLayer *layer);
 uint64_t PSGetLayerInputWeightsCount(PSLayer *layer, int per_neuron);
-PSFloat *PSGetNeuronInputWeights(PSNeuron *neuron);
 
 int PSResetLayerStateSequence(PSLayer *layer, uint32_t steps,
                               int retain_previous);
@@ -390,25 +406,31 @@ int PSResetModelStateSequences(PSModel *model, uint32_t steps,
                                int retain_previous);
 PSFloat PSGetState(PSLayer *layer, int index, ...);
 PSFloat *PSGetStates(PSLayer *layer, ...);
-PSFloat PSGetNeuronState(PSNeuron *neuron, ...);
 PSFloat *PSGetOutputs(PSLayer *layer);
 int PSSetState(PSLayer *layer, PSFloat state, int index, ...);
-int PSSetNeuronState(PSNeuron *neuron, double state, ...);
-PSNeuron *PSGetNeuron(PSLayer *layer, int index, PSNeuron *neuron);
 int PSStateSequenceLength(PSLayer *layer);
+int PSFindLayerMaxState(PSLayer *layer, PSFloat *max_p, int *index_p,...);
+void PSLayerFree(PSLayer *layer);
+
+/* PSNeuron functions */
+PSNeuron *PSGetNeuron(PSLayer *layer, int index, PSNeuron *neuron);
+PSFloat *PSGetNeuronInputWeights(PSNeuron *neuron);
+PSFloat PSGetNeuronState(PSNeuron *neuron, ...);
+int PSSetNeuronState(PSNeuron *neuron, double state, ...);
+void PSDeleteNeuron(PSNeuron *neuron);
+
+/* Forward functions */
 int PSForward(PSModel *model, PSFloat *values);
 int PSAutoregression(PSModel *model, PSFloat *inputs,
                      int randomized, PSSequenceSettings *sequence_settings);
 int PSClassify(PSModel *model, PSFloat *values);
-int PSFindLayerMaxState(PSLayer *layer, PSFloat *max_p, int *index_p,...);
 
-void PSResetTransposedWeights(PSModel *model);
-void PSModelFree(PSModel *model);
-void PSLayerFree(PSLayer *layer);
-void PSDeleteNeuron(PSNeuron *neuron);
+/* PSGradient functions */
 void PSDeleteGradient(PSGradient *gradient);
 void PSDeleteModelGradients(PSGradient **gradients, PSModel *net);
 void PSDeleteGradientsChain(PSGradient ***gradients, PSModel *model);
+
+/* Training functions */
 void PSTrain(PSModel *model,
              PSFloat *training_data,
              int data_size,
@@ -419,25 +441,13 @@ void PSPauseTraining(PSModel *model);
 void PSAbortTraining(PSModel *model);
 float PSTest(PSModel *model, PSFloat *test_data, int data_size,
              PSTrainingOptions *options);
-int PSModelCheck(PSModel *model);
 /* int arrayMaxIndex(PSFloat *array, int len); */
 char *PSGetLabelForType(PSLayerType type);
 char *PSGetLayerTypeLabel(PSLayer *layer);
-int PSModelIsBuilt(PSModel *model);
-int PSModelBuild(PSModel *model);
-int PSModelRebuild(PSModel *model);
-void PSModelPrintInfo(PSModel *model);
-int PSModelDumpStates(PSModel *model, const char* filename);
-int PSModelDumpDeltas(PSModel *model, const char* filename);
 void PSSetDefaultTrainingOptions(PSTrainingOptions *options);
 int PSSetRecurrentNetworkMode(PSModel *model, PSRecurrentNetworkMode mode);
 PSLayer *PSGetFirstRecurrentLayer(PSModel *model);
 PSLayer *PSGetLastRecurrentLayer(PSModel *model);
-int PSModelChainLength(PSModel *model);
-PSModel *PSGetModelAtIndex(PSModel *entrypoint, int index);
-PSModel *PSModelChainHead(PSModel *model);
-PSModel *PSModelChainTail(PSModel *model);
-int PSModelChainContains(PSModel *chain, PSModel *model);
 
 /*  Loss functions */
 
