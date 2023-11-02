@@ -560,7 +560,7 @@ int PSResizeAttentionStates(PSLayer *layer, uint32_t steps, uint32_t prevlen) {
         PSMatrixFree(data->query);
         data->query = NULL;
         layer->initial_states = NULL;
-        PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
+        PSModelSetStatus(layer->model, PS_STATUS_ERROR, NULL);
         return 0;
     }
     data->query = query;
@@ -573,7 +573,7 @@ int PSResizeAttentionStates(PSLayer *layer, uint32_t steps, uint32_t prevlen) {
             PSMatrixFree(data->query_inputs);
             data->query_inputs = NULL;
             layer->initial_states = NULL;
-            PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
+            PSModelSetStatus(layer->model, PS_STATUS_ERROR, NULL);
             return 0;
         }
         data->query_inputs = query_inputs;
@@ -780,7 +780,7 @@ PSFloat *PSGetAttentionQuery(PSLayer *layer, int t) {
         data = calloc(1, sizeof(*data));
         if (data == NULL) {
             PSPrintMemoryErrorMsg();
-            PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
+            PSModelSetStatus(layer->model, PS_STATUS_ERROR, NULL);
             return NULL;
         }
         layer->private = data;
@@ -837,7 +837,7 @@ PSFloat *PSGetAttentionQuery(PSLayer *layer, int t) {
             int steps = (t >= cur_seqlen ? t + 1 : cur_seqlen);
             if (!PSResizeLayerStates(layer, steps)) {
                 if (layer->model)
-                    PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
+                    PSModelSetStatus(layer->model, PS_STATUS_ERROR, NULL);
                 PSErrNN(
                     NULL, NULL, layer,
                     "could not resize recurrent hidden states"
@@ -859,7 +859,7 @@ PSFloat *PSGetAttentionQuery(PSLayer *layer, int t) {
     if (trainable) {
         int acceleration = layer->model->acceleration, ok;
         PSMatrix weights = layer->weights[PS_QUERY_IDX];
-        int use_bias = !(layer->flags & FLAG_NO_BIAS);
+        int use_bias = !(layer->flags & PS_FLAG_NO_BIAS);
         PSFloat *biases = (use_bias ? layer->biases : NULL);
         if (whole_seq) {
             PSMatrix updated_query = PSMatrixDupShape((PSMatrix) query);
@@ -905,7 +905,7 @@ PSMatrix PSGetAttentionKeys(PSLayer *layer) {
         data = calloc(1, sizeof(*data));
         if (data == NULL) {
             PSPrintMemoryErrorMsg();
-            PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
+            PSModelSetStatus(layer->model, PS_STATUS_ERROR, NULL);
             return NULL;
         }
         layer->private = data;
@@ -946,7 +946,7 @@ PSMatrix PSGetAttentionKeys(PSLayer *layer) {
         int acceleration = layer->model->acceleration;
         PSMatrix weights = layer->weights[PS_KEYS_IDX];
         PSFloat *biases = NULL;
-        if (!(layer->flags & FLAG_NO_BIAS))
+        if (!(layer->flags & PS_FLAG_NO_BIAS))
             biases = layer->biases + (layer->size * PS_KEYS_IDX);
         int ok = attentionFeedforward(
             keys, weights, biases, layer->activate,
@@ -972,7 +972,7 @@ PSMatrix PSGetAttentionValues(PSLayer *layer) {
         data = calloc(1, sizeof(*data));
         if (data == NULL) {
             PSPrintMemoryErrorMsg();
-            PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
+            PSModelSetStatus(layer->model, PS_STATUS_ERROR, NULL);
             return NULL;
         }
         layer->private = data;
@@ -1011,7 +1011,7 @@ PSMatrix PSGetAttentionValues(PSLayer *layer) {
         int acceleration = layer->model->acceleration;
         PSMatrix weights = layer->weights[PS_VALUES_IDX];
         PSFloat *biases = NULL;
-        if (!(layer->flags & FLAG_NO_BIAS))
+        if (!(layer->flags & PS_FLAG_NO_BIAS))
             biases = layer->biases + (layer->size * PS_VALUES_IDX);
         int ok = attentionFeedforward(
             values, weights, biases, layer->activate, updated_values,
@@ -1147,7 +1147,7 @@ static int updateAttentionGradientsAndDelta(PSLayer *layer, PSFloat **gweights,
                 param_type);
         return 0;
     }
-    int use_bias = !(layer->flags & FLAG_NO_BIAS);
+    int use_bias = !(layer->flags & PS_FLAG_NO_BIAS);
     if (use_bias && gbiases) gb = gbiases + (layer->size * param_type);
     int shape[3] = {0};
     int ndims = PSMatrixDimensions(weights, shape);
@@ -1976,7 +1976,7 @@ int PSInitAttentiontionLayer(PSLayer *layer, PSLayerDef *ldef) {
                 "keys_provider must use sequences");
         goto final;
     }
-    int self_attention = layer->flags & FLAG_SELF_ATTENTION;
+    int self_attention = layer->flags & PS_FLAG_SELF_ATTENTION;
     if (settings->query_provider == NULL && self_attention)
         settings->query_provider = settings->keys_provider;
     if (settings->values_provider == NULL || self_attention)
@@ -2019,7 +2019,7 @@ int PSInitAttentiontionLayer(PSLayer *layer, PSLayerDef *ldef) {
     int bias_size = ((param_types - 1) * layer->size) + 1;
     layer->biases = calloc(bias_size, sizeof(PSFloat));
     if (layer->biases == NULL) goto memerr;
-    int trainable_count = 0, use_bias = !(layer->flags & FLAG_NO_BIAS);
+    int trainable_count = 0, use_bias = !(layer->flags & PS_FLAG_NO_BIAS);
     for (int i = 0; i < param_types; i++) {
         int param_flag = (1 << i), size = layer->size;
         int psize = (i == PS_SCORES_IDX ? 1 : layer->size);
@@ -2031,17 +2031,17 @@ int PSInitAttentiontionLayer(PSLayer *layer, PSLayerDef *ldef) {
             if (use_bias) {
                 PSFloat *biases = layer->biases + (layer->size * i);
                 for (int b = 0; b < psize; b++)
-                    biases[b] = PSInitParam(PARAM_TYPE_BIAS, ldef, 1, 0);
+                    biases[b] = PSInitParam(PS_PARAM_BIAS, ldef, 1, 0);
             }
             trainable_count++;
         }
     }
-    if (trainable_count == 0) layer->flags |= FLAG_NON_TRAINABLE;
+    if (trainable_count == 0) layer->flags |= PS_FLAG_NON_TRAINABLE;
     if (!PSUseSequences(layer)) {
         if (PSHandleSequenceAtOnce(layer->model))
-            layer->flags |= FLAG_USE_SEQUENCES;
+            layer->flags |= PS_FLAG_USE_SEQUENCES;
         else if (PSIsRecurrent(layer->model))
-            layer->flags |= FLAG_RECURRENT;
+            layer->flags |= PS_FLAG_RECURRENT;
     }
     layer->forward = PSAttentionForward;
     layer->backprop = PSAttentionBackprop;
@@ -2137,7 +2137,7 @@ int PSAttentionForward(PSLayer *layer, ...) {
     if (useOutputProjection(layer)) {
         PSMatrix proj_weights = layer->weights[PS_PROJECTION_IDX];
         PSFloat *biases = NULL;
-        if (!(layer->flags & FLAG_NO_BIAS))
+        if (!(layer->flags & PS_FLAG_NO_BIAS))
             biases = layer->biases + (PS_PROJECTION_IDX * layer->size);
         int success = (proj_weights != NULL);
         if (!success) {

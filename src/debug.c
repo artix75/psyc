@@ -478,9 +478,10 @@ void PSTrainingDebugDumpStep(PSDebugStepInfo *info, char *format, ...) {
     if (model->training->current_epoch > 0) return;
     int training_phase = info->training_phase;
     char *phase_name = NULL;
-    if (training_phase == TRAINING_PHASE_FORWARD)
+    if (training_phase == PS_TRAINING_PHASE_FORWARD)
         phase_name = "forward";
-    else if (training_phase == TRAINING_PHASE_BACKPROP) phase_name = "backprop";
+    else if (training_phase == PS_TRAINING_PHASE_BACKPROP)
+        phase_name = "backprop";
     else phase_name = "unknown";
     fprintf(
         model->training->debug_dump_to,
@@ -522,8 +523,8 @@ void PSTrainingDebugDumpGradient(PSModel *model,
     if (model->training->current_element != (batch_size - 1)) return;
     char *phase_name = NULL;
     switch (phase) {
-    case DEBUG_PHASE_UPDATE_GRADS: phase_name = "update_gradients"; break;
-    case DEBUG_PHASE_UPDATE_WEIGHTS: phase_name = "update_weights"; break;
+    case PS_DEBUG_PHASE_UPDATE_GRADS: phase_name = "update_gradients"; break;
+    case PS_DEBUG_PHASE_UPDATE_WEIGHTS: phase_name = "update_weights"; break;
     default: phase_name = "unknown";
     }
     fprintf(
@@ -580,7 +581,7 @@ void PSTrainingDebugDumpHeader(PSModel *model,
         char *type_name = PSGetLayerTypeLabel(layer);
         PSTrainingDebugDump(model, "layer:index=%d,type=%s,size=%d",
             i, type_name, layer->size);
-        if (i == 0 && layer->flags & FLAG_ONEHOT) {
+        if (i == 0 && layer->flags & PS_FLAG_ONEHOT) {
             PSTrainingDebugDump(model, ",vector_size=%d",
                                 layer->onehot_vector_size);
         }

@@ -13,6 +13,7 @@ tmp/*
 src/test/main_tests
 src/test/benchmark
 src/debug/profile
+src/debug/profile-test
 .DS_Store
 src/demo/cifar-10-batches-bin/
 resources/cifar-10-batches-bin/

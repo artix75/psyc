@@ -90,11 +90,11 @@ int main(int argc, char** argv) {
     free(test_data);
 
     model = PSModelCreate("Profiling RNN");
-    model->flags |= FLAG_ONEHOT;
+    model->flags |= PS_FLAG_ONEHOT;
     PSAddLayer(model, FullyConnected, RNN_INPUT_SIZE, NULL);
     PSAddLayer(model, Recurrent, RNN_HIDDEN_SIZE, NULL);
     PSAddLayer(model, SoftMax, RNN_INPUT_SIZE, NULL);
-    model->layers[model->size - 1]->flags |= FLAG_ONEHOT;
+    model->layers[model->size - 1]->flags |= PS_FLAG_ONEHOT;
 
     PSTrain(model, rnn_train_data, 10, NULL, 0, PSTRAINOPT(
         .epochs = EPOCHS,
@@ -105,11 +105,11 @@ int main(int argc, char** argv) {
     PSModelFree(model);
 
     model = PSModelCreate("Profiling LSTM");
-    model->flags |= FLAG_ONEHOT;
+    model->flags |= PS_FLAG_ONEHOT;
     PSAddLayer(model, FullyConnected, RNN_INPUT_SIZE, NULL);
     PSAddLayer(model, LSTM, RNN_HIDDEN_SIZE, NULL);
     PSAddLayer(model, SoftMax, RNN_INPUT_SIZE, NULL);
-    model->layers[model->size - 1]->flags |= FLAG_ONEHOT;
+    model->layers[model->size - 1]->flags |= PS_FLAG_ONEHOT;
 
     PSTrain(model, rnn_train_data, 10, NULL, 0, PSTRAINOPT(
         .epochs = EPOCHS,

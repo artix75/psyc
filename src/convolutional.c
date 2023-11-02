@@ -342,7 +342,7 @@ static int AcceleratyedConvBackprop(PSLayer *layer, PSGradient *gradient) {
     }
     PSMathOpts opts = {.acceleration = layer->model->acceleration};
     PSFloat *delta = layer->delta;
-    int use_bias = !(layer->flags & FLAG_NO_BIAS);
+    int use_bias = !(layer->flags & PS_FLAG_NO_BIAS);
     int feature_size = layer->size / layer->output_depth;
     int ksize = settings->filter_width * settings->filter_height *
                 settings->input_depth;
@@ -469,10 +469,10 @@ static PSMatrix initConvWeights(PSLayer *layer, int depth, int rows, int cols,
     static PSLayerDef default_def = {0};
     if (ldef == NULL) ldef = &default_def;
     PSMatrix weights = NULL;
-    if (ldef->weight_init_mode == INIT_MODE_ZERO)
+    if (ldef->weight_init_mode == PS_INIT_MODE_ZERO)
         weights = PSMatrixZeros(3, depth, rows, cols);
     else {
-        if (ldef->weight_init_mode == INIT_MODE_RAND) {
+        if (ldef->weight_init_mode == PS_INIT_MODE_RAND) {
             range = ldef->init_range;
             scale = ldef->init_scale;
         }
@@ -597,8 +597,8 @@ int PSInitConvolutionalLayer(PSModel *model, PSLayer *layer,
     int i, use_relu = (layer->activate == PSRelu), rand_bias = 0;
     layer->weight_types = 0;
     PSFloat default_bias = (use_relu ? 0.1 : 0.0);
-    if (layer_def->bias_init_mode == INIT_MODE_ZERO) default_bias = 0.0;
-    else rand_bias = (layer_def->bias_init_mode == INIT_MODE_RAND);
+    if (layer_def->bias_init_mode == PS_INIT_MODE_ZERO) default_bias = 0.0;
+    else rand_bias = (layer_def->bias_init_mode == PS_INIT_MODE_RAND);
     for (i = 0; i < layer->output_depth; i++) {
         layer->biases[i] = (
             rand_bias ? convRandomBias(layer_def) : default_bias
@@ -625,7 +625,7 @@ int PSInitPoolingLayer(PSModel *model, PSLayer *layer, PSLayerDef *layer_def) {
     layer->biases = NULL;
     layer->onDelete = PSDeleteConvolutionalLayer;
     layer->onCopy = PSConvolutionalLayerCopy;
-    layer->flags |= FLAG_NON_TRAINABLE;
+    layer->flags |= PS_FLAG_NON_TRAINABLE;
     PSLayer *previous = model->layers[index - 1];
     PSLayerDef default_def = {
         .stride = 1, .filter_width = 2, .filter_height = 2
@@ -696,7 +696,7 @@ int PSConvolutionalForward(PSLayer *layer, ...) {
     if (PSHandleSequenceAtOnce(layer)) {
         PSErr(
             NULL, "Layer[%d]: sequence input not currently supported in "
-            "convolutonal layers: remove FLAG_USE_SEQUENCES.", layer->index
+            "convolutonal layers: remove PS_FLAG_USE_SEQUENCES.", layer->index
         );
         return 0;
     }
@@ -707,14 +707,14 @@ int PSConvolutionalForward(PSLayer *layer, ...) {
         .model = model,
         .layer = layer,
         .func = __func__,
-        .training_phase = TRAINING_PHASE_FORWARD
+        .training_phase = PS_TRAINING_PHASE_FORWARD
     };
     PSLayer *previous = model->layers[layer->index - 1];
     if (previous == NULL) {
         PSErr(NULL, "Layer[%d]: previous layer is NULL!", layer->index);
         goto failed;
     }
-    if (previous->flags & FLAG_ONEHOT) {
+    if (previous->flags & PS_FLAG_ONEHOT) {
         PSErr(NULL, "Layer[%d]: convolutional layer cannot be fed with"
               "onehot input", layer->index);
         goto failed;
@@ -740,7 +740,7 @@ int PSConvolutionalForward(PSLayer *layer, ...) {
     int padding = settings->padding;
     int filter_area = settings->filter_width * settings->filter_height;
     int feature_size = layer->size / layer->output_depth;
-    int use_bias = !(layer->flags & FLAG_NO_BIAS);
+    int use_bias = !(layer->flags & PS_FLAG_NO_BIAS);
     int input_w = settings->input_width, input_h = settings->input_height;
     int use_acceleration = (
         model->acceleration != PSAcceleration_None && !is_recurrent
@@ -854,14 +854,14 @@ int PSConvolutionalForward(PSLayer *layer, ...) {
                     NULL, "Failed to set state on layer %d, neuron %d",
                     layer->index, idx
                 );
-                PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
+                PSModelSetStatus(layer->model, PS_STATUS_ERROR, NULL);
                 return 0;
             }
         }
     }
     return 1;
 failed:
-    PSModelSetStatus(model, STATUS_ERROR, NULL);
+    PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
     return 0;
 }
 
@@ -870,7 +870,7 @@ int PSPool(PSLayer *layer, ...) {
     if (PSHandleSequenceAtOnce(layer)) {
         PSErr(
             NULL, "Layer[%d]: sequence input not currently supported in "
-            "pooling layers: remove FLAG_USE_SEQUENCES.", layer->index
+            "pooling layers: remove PS_FLAG_USE_SEQUENCES.", layer->index
         );
         return 0;
     }
@@ -896,7 +896,7 @@ int PSPool(PSLayer *layer, ...) {
         .model = model,
         .layer = layer,
         .func = __func__,
-        .training_phase = TRAINING_PHASE_FORWARD
+        .training_phase = PS_TRAINING_PHASE_FORWARD
     };
     int is_recurrent = PSIsRecurrent(layer), times = 0, t = 0;
     if (is_recurrent) {
@@ -942,7 +942,7 @@ int PSPool(PSLayer *layer, ...) {
                     NULL, "Failed to set state on layer %d, neuron %d",
                     layer->index, idx
                 );
-                PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
+                PSModelSetStatus(layer->model, PS_STATUS_ERROR, NULL);
                 return 0;
             }
         }
@@ -983,7 +983,7 @@ int PSPoolingBackprop(PSLayer *pooling_layer, PSLayer *convolutional_layer,
         .model = model,
         .layer = pooling_layer,
         .func = __func__,
-        .training_phase = TRAINING_PHASE_BACKPROP
+        .training_phase = PS_TRAINING_PHASE_BACKPROP
     };
     int is_recurrent = PSIsRecurrent(pooling_layer), t = 0;
     if (is_recurrent) {
@@ -1084,9 +1084,9 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
         .model = model,
         .layer = convolutional_layer,
         .func = __func__,
-        .training_phase = TRAINING_PHASE_BACKPROP
+        .training_phase = PS_TRAINING_PHASE_BACKPROP
     };
-    int use_bias = !(convolutional_layer->flags & FLAG_NO_BIAS);
+    int use_bias = !(convolutional_layer->flags & PS_FLAG_NO_BIAS);
     if (is_recurrent) {
         va_list args;
         va_start(args, gradient);

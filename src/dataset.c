@@ -519,7 +519,7 @@ int PSLoadMNISTData(int type, const char *images_file, const char *labels_file,
     char *prefixImg = NULL, *prefixLbl = NULL;
     int data_len = 0, err;
     int do_log = (PSLogLevel <= PSLOGLEVEL_INFO);
-    if (type == DATA_TYPE_TRAINING) {
+    if (type == PS_DATA_TYPE_TRAINING) {
         if (do_log) printf("Loading MNIST Data for training...\n");
         prefixImg = "train-images";
         prefixLbl = "train-labels";
@@ -670,7 +670,7 @@ int PSLoadCIFARData(int type, int classes, const char *dataset_path,
         return 0;
     }
 
-    char *prfx = (type == DATA_TYPE_TRAINING ? "data_batch" : "test_batch");
+    char *prfx = (type == PS_DATA_TYPE_TRAINING ? "data_batch" : "test_batch");
     while ((finfo = readdir(dir))) {
         if (strstr(finfo->d_name, prfx) == NULL) continue;
         sprintf(datafiles[fcount++], "%s/%s", dataset_path, finfo->d_name);
@@ -743,5 +743,5 @@ PSLayer *PSAddCIFARInputLayer(PSModel *model) {
     PSLayerDef ldef = {
         .output_depth = 3, .output_columns = 32, .output_rows = 32
     };
-    return PSAddLayer(model, FullyConnected, CIFAR_IMAGE_SIZE, &ldef);
+    return PSAddLayer(model, FullyConnected, PS_CIFAR_IMAGE_SIZE, &ldef);
 }

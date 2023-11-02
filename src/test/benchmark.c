@@ -411,7 +411,7 @@ static PSModel *makeCIFARLikeCNN(void) {
     PSModel *model = PSModelCreate("CIFAR CNN");
     if (model == NULL) return NULL;
     PSLayer *l = NULL;
-    l = PSAddLayer(model, FullyConnected, CIFAR_IMAGE_SIZE, PSLDEF(
+    l = PSAddLayer(model, FullyConnected, PS_CIFAR_IMAGE_SIZE, PSLDEF(
         .output_depth = 3,
         .output_columns = 32,
         .output_rows = 32
@@ -2617,7 +2617,7 @@ int cifarCNNBackpropBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     PSGradient **gradients = NULL;
     ok = model != NULL;
     if (!ok) goto final;
-    x = PSMatrixWithGaussianRandom(1, 1, CIFAR_IMAGE_SIZE);
+    x = PSMatrixWithGaussianRandom(1, 1, PS_CIFAR_IMAGE_SIZE);
     ok = (x != NULL);
     if (!ok) goto final;
     PSFloat y[10] = {0};

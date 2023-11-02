@@ -269,7 +269,7 @@ int main(int argc, char** argv) {
         }
     } else {
         PSLayerType output_type = (use_softmax ? SoftMax : FullyConnected);
-        PSAddLayer(model, FullyConnected, MNIST_INPUT_SIZE, NULL);
+        PSAddLayer(model, FullyConnected, PS_MNIST_INPUT_SIZE, NULL);
         PSAddLayer(model, FullyConnected, hidden_size, NULL);
         PSAddLayer(model, output_type, 10, NULL);
 
@@ -279,7 +279,7 @@ int main(int argc, char** argv) {
             goto final;
         }
         datalen = PSLoadMNISTData(
-            DATA_TYPE_TRAINING, mnist_files[0], mnist_files[1],
+            PS_DATA_TYPE_TRAINING, mnist_files[0], mnist_files[1],
             &training_data
         );
         success = (datalen > 0 && training_data != NULL);
@@ -290,7 +290,7 @@ int main(int argc, char** argv) {
     }
     if (mnist_files[2] && mnist_files[3]) {
         testlen = PSLoadMNISTData(
-            DATA_TYPE_TEST, mnist_files[2], mnist_files[3], &test_data
+            PS_DATA_TYPE_TEST, mnist_files[2], mnist_files[3], &test_data
         );
     };
 
@@ -303,7 +303,7 @@ int main(int argc, char** argv) {
         .batch_size = 10,
         .epochs = epochs
     ));
-    success = (model->status != STATUS_ERROR);
+    success = (model->status != PS_STATUS_ERROR);
     if (!success) goto final;
 
     if (testlen > 0 && test_data != NULL) {

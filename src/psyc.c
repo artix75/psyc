@@ -44,14 +44,14 @@
 #include "debug.h"
 
 #define LAYER_PLACEHOLDER_TYPE -1
-#define STATUS_ERROR_LOSS ((PSFloat) FLT_MIN)
+#define PS_STATUS_ERROR_LOSS ((PSFloat) FLT_MIN)
 #define BPTT_TRUNCATE   0
 
 #define applyGradientsOnBiases(opts, grads, params, mg, xg, len, r, i, accel) \
-    applyGradientsOnParameters(PARAM_TYPE_BIAS, opts, grads, params, mg, xg,\
-    0, len, r, i, accel)
+    applyGradientsOnParameters(PS_PARAM_BIAS, opts, grads, params, mg, xg, 0, \
+    len, r, i, accel)
 #define applyGradientsOnWeights(opts,grad,val,mg,xg,offs,len,r,i,accel) \
-    applyGradientsOnParameters(PARAM_TYPE_WEIGHT, opts, grad, val, mg, xg,\
+    applyGradientsOnParameters(PS_PARAM_WEIGHT, opts, grad, val, mg, xg,\
     offs, len, r, i, accel)
 #define outputDerivativeNeeded(model) (model->loss != PSCrossEntropyLoss)
 #define getModelContext(model) ((PSModelContext *) model->context)
@@ -193,7 +193,7 @@ void PSLogTrainingProgress(PSModel *model, int status, int epochs,
     static int epoch_printed = -1;
     if (PSLogLevel > PSLOGLEVEL_INFO) return;
     if (model->training == NULL) return;
-    if (status == STATUS_TRAINED || status == STATUS_ERROR) {
+    if (status == PS_STATUS_TRAINED || status == PS_STATUS_ERROR) {
         PSLineEnd();
         epoch_printed = -1;
         return;
@@ -218,11 +218,11 @@ void PSLogTrainingProgress(PSModel *model, int status, int epochs,
     );
     char *elapsed_str = "";
     if (elapsed != NULL) elapsed_str = PSGetElapsedTimeString(*elapsed, 0);
-    if (status == STATUS_VALIDATING) {
+    if (status == PS_STATUS_VALIDATING) {
         if (validating_tot > 0)
             PSLineAppend(lnflags, ", validating %d element(s)", validating_tot);
         else PSLineAppend(lnflags, ", validating...");
-    } else if (status == STATUS_TRAINING) {
+    } else if (status == PS_STATUS_TRAINING) {
         if (batch_num < batches) {
             assert(loss != NULL);
             if (accuracy != NULL) {
@@ -262,7 +262,7 @@ void PSTrainingProgressBar(PSModel *model, int status, int epochs,
     static int min_sfx_len = -1;
     if (PSLogLevel > PSLOGLEVEL_INFO) return;
     if (model->training == NULL) return;
-    if (status == STATUS_TRAINED || status == STATUS_ERROR) {
+    if (status == PS_STATUS_TRAINED || status == PS_STATUS_ERROR) {
         PSLineEnd();
         epoch_printed = -1;
         min_sfx_len = -1;
@@ -287,9 +287,9 @@ void PSTrainingProgressBar(PSModel *model, int status, int epochs,
     char *elapsed_str = "";
     char sfx[35] = {0};
     int epoch_ended = 0;
-    if (status == STATUS_VALIDATING) {
+    if (status == PS_STATUS_VALIDATING) {
         maxlen -= snprintf(sfx, 35, " | validating...");
-    } else if (status == STATUS_TRAINING) {
+    } else if (status == PS_STATUS_TRAINING) {
         if (elapsed != NULL) elapsed_str = PSGetElapsedTimeString(*elapsed, 0);
         if (batch_num < batches) {
             if (accuracy != NULL) {
@@ -347,7 +347,7 @@ void dumpForwardStep(int i, PSFloat a, PSFloat b, PSFloat sum,
     if (opts == NULL) return;
     PSDebugStepInfo *info = (PSDebugStepInfo *) opts->data;
     if (info == NULL || info->layer == NULL || info->model == NULL) return;
-    info->training_phase = TRAINING_PHASE_FORWARD;
+    info->training_phase = PS_TRAINING_PHASE_FORWARD;
     int prev_idx = info->layer->index - 1;
     PSTrainingDebugDumpStep(
         info, "previous_neuron=%d-%d,weight_index=%d\n", prev_idx, i, i
@@ -358,7 +358,7 @@ void dumpForwardStep(int i, PSFloat a, PSFloat b, PSFloat sum,
 
 int checkLayerForForward(PSLayer *layer) {
     if (layer == NULL) return 0;
-    int trainable = !(layer->flags & FLAG_NON_TRAINABLE);
+    int trainable = !(layer->flags & PS_FLAG_NON_TRAINABLE);
     if (layer->index == 0) {
         PSErr(NULL, "Cannot perform forward on layer 0");
         return 0;
@@ -441,7 +441,7 @@ int PSOnehotInputsForward(PSLayer *layer, int weights_index,
         PSErr(NULL, "Layer[%d] has no weights[%d]",layer->index,weights_index);
         return 0;
     }
-    int use_bias = apply_biases && !(layer->flags & FLAG_NO_BIAS);
+    int use_bias = apply_biases && !(layer->flags & PS_FLAG_NO_BIAS);
     do_activate = do_activate && layer->activate != NULL;
     PSMathOpts opts = {.acceleration = layer->model->acceleration};
     int seqlen = 1;
@@ -521,12 +521,12 @@ int PSFullForward(PSLayer *layer, ...) {
     int is_recurrent = PSIsRecurrent(layer),
         handles_seq = PSHandleSequenceAtOnce(layer),
         seqlen = 0, t = 0;
-    int use_bias = !(layer->flags & FLAG_NO_BIAS);
+    int use_bias = !(layer->flags & PS_FLAG_NO_BIAS);
     if (is_recurrent || handles_seq) {
         PSReadSequenceArgs(layer, is_recurrent, seqlen, t);
         if (!PSBeforeSequenceForward(layer, seqlen, t)) return 0;
     }
-    if (previous->flags & FLAG_ONEHOT) {
+    if (previous->flags & PS_FLAG_ONEHOT) {
         /* Onehot inputs */
         if (!PSOnehotInputsForward(layer, 0, NULL, t, 1, 1)) return 0;
         goto final;
@@ -671,14 +671,14 @@ static int parseSequenceData(PSModel *model, PSFloat *data,
         output_seq = PSUseSequences(output_layer);
     if (!input_seq && !output_seq) return 0;
     int input_size = input_layer->size, output_size = output_layer->size;
-    if (output_layer->flags & FLAG_ONEHOT) output_size = 1;
-    int autoregression = output_model->flags & FLAG_AUTOREGRESSION;
-    int seq2seq = backprop && (flags & TRAINING_FLAG_SEQ2SEQ);
+    if (output_layer->flags & PS_FLAG_ONEHOT) output_size = 1;
+    int autoregression = output_model->flags & PS_FLAG_AUTOREGRESSION;
+    int seq2seq = backprop && (flags & PS_TRAINING_FLAG_SEQ2SEQ);
     if (seq2seq && !autoregression) return 0;
     else if (!seq2seq && autoregression) seq2seq = 1;
     if (!input_seq && seq2seq) return 0;
     int seqlen_nelems = (seq2seq ? 2 : 1),
-        selfsupervised = flags & TRAINING_FLAG_SELFSUPERVISED;
+        selfsupervised = flags & PS_TRAINING_FLAG_SELFSUPERVISED;
     PSFloat *xsize_p = NULL, *ysize_p = NULL, *xp = NULL, *yp = NULL;
     if (input_seq) {
         xsize_p = data;
@@ -977,19 +977,19 @@ char *getModelStatusLabel(PSModel *model) {
     if (model == NULL) return "";
     int status = PSModelGetStatus(model);
     switch (status) {
-    case STATUS_UNTRAINED:
+    case PS_STATUS_UNTRAINED:
         return "untrained";
-    case STATUS_TRAINING:
+    case PS_STATUS_TRAINING:
         return "training";
-    case STATUS_TRAINED:
+    case PS_STATUS_TRAINED:
         return "trained";
-    case STATUS_ERROR:
+    case PS_STATUS_ERROR:
         return "error";
-    case STATUS_PAUSED:
+    case PS_STATUS_PAUSED:
         return "paused";
-    case STATUS_ABORTED:
+    case PS_STATUS_ABORTED:
         return "aborted";
-    case STATUS_VALIDATING:
+    case PS_STATUS_VALIDATING:
         return "validating";
     }
     return "UNKOWN";
@@ -1038,18 +1038,18 @@ uint64_t PSGetLayerParametersCount(PSLayer *layer, int param_type) {
     if (layer == NULL) return 0;
     if (Pooling == layer->type || layer->index == 0 || layer->size == 0 ||
         Dropout == layer->type) return 0;
-    if (param_type == 0) param_type = (PARAM_TYPE_WEIGHT | PARAM_TYPE_BIAS);
+    if (param_type == 0) param_type = (PS_PARAM_WEIGHT | PS_PARAM_BIAS);
     if (layer->getParamCount != NULL)
         return layer->getParamCount(layer, param_type);
     uint64_t count = 0;
-    if (param_type & PARAM_TYPE_WEIGHT && layer->weights != NULL) {
+    if (param_type & PS_PARAM_WEIGHT && layer->weights != NULL) {
         for (int i = 0; i < layer->weight_types; i++) {
             PSMatrix weights = layer->weights[i];
             if (weights != NULL) count += PSMatrixLength(weights);
         }
     }
-    if (param_type & PARAM_TYPE_BIAS) {
-        if (!(layer->flags & FLAG_NO_BIAS) && layer->biases != NULL) {
+    if (param_type & PS_PARAM_BIAS) {
+        if (!(layer->flags & PS_FLAG_NO_BIAS) && layer->biases != NULL) {
             int bias_count;
             if (Convolutional == layer->type) bias_count = layer->output_depth;
             else if (LSTM == layer->type) bias_count = layer->size * 4;
@@ -1064,7 +1064,7 @@ uint64_t PSGetLayerParametersCount(PSLayer *layer, int param_type) {
 }
 
 uint64_t PSGeModelParametersCount(PSModel *model) {
-    int tot = 0, param_type = (PARAM_TYPE_BIAS | PARAM_TYPE_WEIGHT), i;
+    int tot = 0, param_type = (PS_PARAM_BIAS | PS_PARAM_WEIGHT), i;
     if (model->layers == NULL || model->size == 0) return 0;
     for (i = 1; i < model->size; i++) {
         PSLayer *layer = model->layers[i];
@@ -1074,7 +1074,7 @@ uint64_t PSGeModelParametersCount(PSModel *model) {
 }
 
 int PSGetOneHotLayerVectorSize(PSLayer *layer) {
-    if (!(layer->flags & FLAG_ONEHOT)) return layer->size;
+    if (!(layer->flags & PS_FLAG_ONEHOT)) return layer->size;
     return layer->onehot_vector_size;
 }
 
@@ -1142,7 +1142,7 @@ PSLayer *PSGetLayerByIndex(PSModel *model, int layer_index, int model_index) {
 int PSGetLayerInputSize(PSLayer *layer) {
     PSLayer *previous = PSGetPreviousLayer(layer);
     if (previous == NULL) return 0;
-    if (previous->flags & FLAG_ONEHOT)
+    if (previous->flags & PS_FLAG_ONEHOT)
         return PSGetOneHotLayerVectorSize(previous);
     return previous->size;
 }
@@ -1179,7 +1179,7 @@ void PSPrintLayerInfo(PSLayer *layer) {
     char *type_name = PSGetLayerTypeLabel(layer);
     char onehot_info[50];
     onehot_info[0] = 0;
-    int onehot_input = (layer->index == 0 && layer->flags & FLAG_ONEHOT);
+    int onehot_input = (layer->index == 0 && layer->flags & PS_FLAG_ONEHOT);
     if (onehot_input)
         sprintf(onehot_info, " (vector size: %d)", layer->onehot_vector_size);
     static int min_indent = 0;
@@ -1595,7 +1595,7 @@ err:
     if (hstates != NULL) PSMatrixFree(hstates);
     if (layer->states != NULL) PSMatrixFree(layer->states);
     layer->states = NULL;
-    PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
+    PSModelSetStatus(layer->model, PS_STATUS_ERROR, NULL);
     return 0;
 }
 
@@ -1626,7 +1626,7 @@ int PSResizeLayerStates(PSLayer *layer, uint32_t seqlen) {
         PSMatrixFree(states);
         layer->states = NULL;
         layer->initial_states = NULL;
-        PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
+        PSModelSetStatus(layer->model, PS_STATUS_ERROR, NULL);
         return 0;
     }
     layer->states = hstates;
@@ -1675,7 +1675,7 @@ int PSBeforeSequenceForward(PSLayer *layer, int seqlen, int t) {
          * forward phase if step `t` is beyond current sequence length. */
         if (!PSResizeLayerStates(layer, t + 1)) {
             if (layer->model != NULL)
-                PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
+                PSModelSetStatus(layer->model, PS_STATUS_ERROR, NULL);
             PSErr(
                 NULL, "Could not resize recurrent hidden states for "
                 "layer %d", layer->index
@@ -1718,7 +1718,7 @@ int PSSetState(PSLayer *layer, PSFloat state, int index, ...) {
         if (t >= (int) seqlen) {
             if (!PSResizeLayerStates(layer, t + 1)) {
                 if (layer->model)
-                    PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
+                    PSModelSetStatus(layer->model, PS_STATUS_ERROR, NULL);
                 PSErr(
                     __func__, "Could not resize states sequence for "
                     "layer %d", layer->index
@@ -1907,28 +1907,28 @@ static void updateModelForRecurrentMode(PSModel *model,
         PSLayer *layer = model->layers[i];
         PSLayerType type = layer->type;
         if (i == 0 && recurrent_input) {
-            layer->flags |= FLAG_RECURRENT;
+            layer->flags |= PS_FLAG_RECURRENT;
             ctx->first_recurrent_layer = layer;
         } else if (i == last_layer_idx && recurrent_output) {
-            layer->flags |= FLAG_RECURRENT;
+            layer->flags |= PS_FLAG_RECURRENT;
             ctx->last_recurrent_layer = layer;
         } else if (ManyToMany == mode) {
-            layer->flags |= FLAG_RECURRENT;
+            layer->flags |= PS_FLAG_RECURRENT;
         } else if (ManyToOne == mode) {
             if (i < last_layer_idx) {
                 if (PSIsRecurrent(layer)) {
                     ctx->last_recurrent_layer = layer;
                     for (j = 1; j < layer->index; j++)
-                        model->layers[j]->flags |= FLAG_RECURRENT;
+                        model->layers[j]->flags |= PS_FLAG_RECURRENT;
                 }
             } else if (Recurrent != type && LSTM != type && GRU != type) {
-                model->layers[i]->flags &= (unsigned) (~FLAG_RECURRENT);
+                model->layers[i]->flags &= (unsigned) (~PS_FLAG_RECURRENT);
             }
         } else if (OneToMany == mode) {
             if (PSIsRecurrent(layer)) ctx->first_recurrent_layer = layer;
             else if (ctx->first_recurrent_layer != NULL) {
                 if (layer->index > ctx->first_recurrent_layer->index)
-                    layer->flags |= FLAG_RECURRENT;
+                    layer->flags |= PS_FLAG_RECURRENT;
             }
         }
     }
@@ -1978,10 +1978,10 @@ int PSModelBuild(PSModel *model) {
         }
         if (PSHandleSequenceAtOnce(layer)) {
             if (first_whole_seq_layer < 0) first_whole_seq_layer = i;
-            model->flags |= FLAG_USE_SEQUENCES;
+            model->flags |= PS_FLAG_USE_SEQUENCES;
         } else if (PSHandleSequenceAtOnce(model)) {
             if (first_whole_seq_layer < 0) first_whole_seq_layer = i;
-            layer->flags |= FLAG_USE_SEQUENCES;
+            layer->flags |= PS_FLAG_USE_SEQUENCES;
             if (PSIsRecurrent(layer)) {
                 PSErrNN(__func__, model, layer, "model uses whole "
                         "sequences but layer is recurrent");
@@ -2084,7 +2084,7 @@ int PSSetRecurrentNetworkMode(PSModel *model,
     updateModelForRecurrentMode(model, mode);
 final:
     model->rnn_mode = mode;
-    if (mode != NonRecurrent) model->flags |= FLAG_RECURRENT;
+    if (mode != NonRecurrent) model->flags |= PS_FLAG_RECURRENT;
     return 1;
 }
 
@@ -2103,8 +2103,8 @@ PSModel *PSModelCreate(const char* name) {
     model->layers = NULL;
     model->input_size = 0;
     model->output_size = 0;
-    model->status = STATUS_UNTRAINED;
-    model->flags = FLAG_NONE;
+    model->status = PS_STATUS_UNTRAINED;
+    model->flags = PS_FLAG_NONE;
     model->acceleration = PSGlobalAcceleration;
     model->loss = PSQuadraticLoss;
     model->training = NULL;
@@ -2139,7 +2139,7 @@ PSModelLink *findLinkToPreviousModel(PSModel *model, PSModel *previous) {
         int is_input = (i == 0);
         PSLayer *layer = model->layers[i];
         int input_size = layer->size, onehot_size = 0;
-        if (is_input && layer->flags & FLAG_ONEHOT)
+        if (is_input && layer->flags & PS_FLAG_ONEHOT)
             onehot_size = PSGetOneHotLayerVectorSize(layer);
         for (j = prev_output_idx; j >= 0; j--) {
             PSLayer *prev_layer = previous->layers[j];
@@ -2191,7 +2191,7 @@ int checkModelLink(PSModelLink *link) {
         return 0;
     }
     int ok = (input_layer->size == output_layer->size);
-    if (!ok && input_layer->index == 0 && input_layer->flags & FLAG_ONEHOT) {
+    if (!ok && input_layer->index == 0 && input_layer->flags & PS_FLAG_ONEHOT) {
         int onehot_vector_size = PSGetOneHotLayerVectorSize(input_layer);
         ok = (onehot_vector_size == output_layer->size);
     }
@@ -2579,9 +2579,9 @@ static PSModel *cloneModel(PSModel *model, int layout_only, PSModel *parent) {
                 free(cloned_layer->weights);
                 cloned_layer->weights = NULL;
             }
-            if (layer->biases != NULL && !(layer->flags & FLAG_NO_BIAS)) {
+            if (layer->biases != NULL && !(layer->flags & PS_FLAG_NO_BIAS)) {
                 uint64_t bias_count = PSGetLayerParametersCount(
-                    layer, PARAM_TYPE_BIAS
+                    layer, PS_PARAM_BIAS
                 );
                 if (bias_count == 0) {
                     PSErr(__func__, "Layer[%d] bias count is zero",
@@ -2817,7 +2817,7 @@ void DumpLayerInfo(PSLayer *layer, FILE *dump_file, int add_new_line) {
     char *type_name = PSGetLayerTypeLabel(layer);
     fprintf(dump_file, "layer:index=%d,type=%s,size=%d", layer->index,
         type_name, layer->size);
-    int onehot_input = (layer->index == 0 && layer->flags & FLAG_ONEHOT);
+    int onehot_input = (layer->index == 0 && layer->flags & PS_FLAG_ONEHOT);
     if (onehot_input)
         fprintf(dump_file, ",vector_size=%d", layer->onehot_vector_size);
     if (PSIsRecurrent(layer) && PSIsRecurrent(layer->model))
@@ -2963,12 +2963,12 @@ void PSModelFree(PSModel *model) {
     PSModelContext *ctx = getModelContext(model);
     if (ctx != NULL) deleteModelContext(model->context, model);
     int size = model->size;
-    int i, is_recurrent = (model->flags & FLAG_RECURRENT);
+    int i, is_recurrent = (model->flags & PS_FLAG_RECURRENT);
     for (i = 0; i < size; i++) {
         PSLayer *layer = NULL;
         if (model->layers != NULL) layer = model->layers[i];
         if (layer == NULL) continue;
-        if (is_recurrent) layer->flags |= FLAG_RECURRENT;
+        if (is_recurrent) layer->flags |= PS_FLAG_RECURRENT;
         PSDeleteLayer(layer);
     }
     free(model->layers);
@@ -3044,7 +3044,7 @@ PSNeuron *PSGetNeuron(PSLayer *layer, int index, PSNeuron *neuron) {
             }
             weights = layer->weights[0];
             int prevsize = previous->size;
-            if (previous->flags & FLAG_ONEHOT)
+            if (previous->flags & PS_FLAG_ONEHOT)
                 prevsize = PSGetOneHotLayerVectorSize(previous);
             neuron->weights = weights + (index * prevsize);
         }
@@ -3068,13 +3068,13 @@ PSMatrix PSInitWeights(PSLayer *layer, int rows, int columns,
     static PSLayerDef default_def = {0};
     if (ldef == NULL) ldef = &default_def;
     PSMatrix weights = NULL;
-    if (ldef->weight_init_mode == INIT_MODE_ZERO)
+    if (ldef->weight_init_mode == PS_INIT_MODE_ZERO)
         weights = PSMatrixZeros(2, rows, columns);
-    else if (ldef->weight_init_mode == INIT_MODE_VALUE) {
+    else if (ldef->weight_init_mode == PS_INIT_MODE_VALUE) {
         PSFloat init_value = ldef->init_value;
         weights = PSMatrixCreate(init_value, NULL, 2, rows, columns);
     } else {
-        if (ldef->weight_init_mode == INIT_MODE_RAND) {
+        if (ldef->weight_init_mode == PS_INIT_MODE_RAND) {
             range = ldef->init_range;
             scale = ldef->init_scale;
         }
@@ -3098,13 +3098,13 @@ PSFloat PSInitParam(int param_type, PSLayerDef *ldef, PSFloat range,
 {
     static PSLayerDef default_def = {0};
     if (ldef == NULL) ldef = &default_def;
-    int mode = INIT_MODE_AUTO;
-    if (param_type == PARAM_TYPE_BIAS) mode = ldef->bias_init_mode;
+    int mode = PS_INIT_MODE_AUTO;
+    if (param_type == PS_PARAM_BIAS) mode = ldef->bias_init_mode;
     else mode = ldef->weight_init_mode;
     PSFloat param;
-    if (mode == INIT_MODE_ZERO) param = 0.0;
+    if (mode == PS_INIT_MODE_ZERO) param = 0.0;
     else {
-        if (mode == INIT_MODE_RAND) {
+        if (mode == PS_INIT_MODE_RAND) {
             range = ldef->init_range;
             scale = ldef->init_scale;
         }
@@ -3141,7 +3141,7 @@ int initGenericLayer(PSLayer *layer, int size, int previous_size,
     int i;
     for (i = 0; i < size; i++) {
         if (layer->index > 0 && previous_size > 0)
-            layer->biases[i] = PSInitParam(PARAM_TYPE_BIAS, ldef, 1.0, 0.0);
+            layer->biases[i] = PSInitParam(PS_PARAM_BIAS, ldef, 1.0, 0.0);
     }
     if (layer->type != SoftMax) {
         int is_linear = layer->type == Linear;
@@ -3230,9 +3230,9 @@ PSLayer *PSAddLayer(PSModel *model, PSLayerType type, int size,
             PSErr(__func__, "could not allocate model layers");
             return NULL;
         }
-        if (layer->flags & FLAG_ONEHOT) model->flags |= FLAG_ONEHOT;
-        if (model->flags & FLAG_ONEHOT) {
-            layer->flags |= FLAG_ONEHOT;
+        if (layer->flags & PS_FLAG_ONEHOT) model->flags |= PS_FLAG_ONEHOT;
+        if (model->flags & PS_FLAG_ONEHOT) {
+            layer->flags |= PS_FLAG_ONEHOT;
             layer->onehot_vector_size = size;
             size = 1;
             layer->size = 1;
@@ -3254,7 +3254,7 @@ PSLayer *PSAddLayer(PSModel *model, PSLayerType type, int size,
             return NULL;
         }
         previous_size = previous->size;
-        if (layer->index == 1 && previous->flags & FLAG_ONEHOT)
+        if (layer->index == 1 && previous->flags & PS_FLAG_ONEHOT)
             previous_size = previous->onehot_vector_size;
         model->output_size = size;
     }
@@ -3297,7 +3297,7 @@ PSLayer *PSAddLayer(PSModel *model, PSLayerType type, int size,
         int ok = 1;
         PSRecurrentNetworkMode rnn_mode = model->rnn_mode;
         if (rnn_mode == NonRecurrent)
-            ok = PSSetRecurrentNetworkMode(model, DEFAULT_RECURRENT_MODE);
+            ok = PSSetRecurrentNetworkMode(model, PS_DEFAULT_RECURRENT_MODE);
         else updateModelForRecurrentMode(model, rnn_mode);
         if (!ok) {
             PSAbortLayer(model, layer);
@@ -3319,8 +3319,8 @@ PSLayer *PSAddLayer(PSModel *model, PSLayerType type, int size,
             return NULL;
         }
     }
-    if (layer->flags & FLAG_USE_SEQUENCES)
-        model->flags |= FLAG_USE_SEQUENCES;
+    if (layer->flags & PS_FLAG_USE_SEQUENCES)
+        model->flags |= PS_FLAG_USE_SEQUENCES;
     if (verbose) PSPrintLayerInfo(layer);
     return layer;
 fail:
@@ -3473,7 +3473,7 @@ int forwardThroughTime(PSModel *model, PSFloat *inputs,
         if (backprop) {
             int teacher_forcing = (
                 training_opts != NULL &&
-                training_opts->flags & TRAINING_FLAG_TEACHER_FORCING
+                training_opts->flags & PS_TRAINING_FLAG_TEACHER_FORCING
             );
             if (teacher_forcing) autoregression = 0;
         } else if (sequence_settings != NULL) end = sequence_settings->end;
@@ -3482,7 +3482,7 @@ int forwardThroughTime(PSModel *model, PSFloat *inputs,
         PSFloat *start = NULL;
         start = sequence_settings->start;
         int maxlen = sequence_settings->max_length;
-        if (maxlen <= 0) maxlen = MAX_SEQUENCE_LENGTH;
+        if (maxlen <= 0) maxlen = PS_MAX_SEQUENCE_LENGTH;
         if (timesteps <= 0 || inputs == NULL) {
             if (timesteps <= 0) timesteps = 1;
             seqlen = 1;
@@ -3506,12 +3506,12 @@ int forwardThroughTime(PSModel *model, PSFloat *inputs,
                 PSVectorCopy(tmpinputs, inputs, first->size * seqlen);
             }
             randomized_autoregression = (
-                model->flags & FLAG_RANDREGRESSION ||
-                (forward_opts && forward_opts->flags & FLAG_RANDREGRESSION)
+                model->flags & PS_FLAG_RANDREGRESSION ||
+                (forward_opts && forward_opts->flags & PS_FLAG_RANDREGRESSION)
             );
             if (recurrent_output) {
                 int osize = output_layer->size, isize = input_size;
-                if (input_layer->flags & FLAG_ONEHOT)
+                if (input_layer->flags & PS_FLAG_ONEHOT)
                     isize = PSGetOneHotLayerVectorSize(input_layer);
                 autoregression_feed_output = (osize == isize);
             }
@@ -3575,7 +3575,7 @@ forward_steps:
             if (autoregression_feed_output && tmpinputs != NULL) {
                 int next_t = t + 1;
                 inputs = tmpinputs + next_t;
-                if (first->flags & FLAG_ONEHOT) *inputs = (PSFloat) max_idx;
+                if (first->flags & PS_FLAG_ONEHOT) *inputs = (PSFloat) max_idx;
                 else {
                     if (output_states == NULL)
                         output_states = PSGetStates(last, t);
@@ -3601,11 +3601,11 @@ int useAutoRegression(PSModel *model,
 {
     if (!PSUseSequences(model)) return 0;
     if (!PSUseSequences(model->layers[model->size - 1])) return 0;
-    if (model->flags & FLAG_AUTOREGRESSION) return 1;
+    if (model->flags & PS_FLAG_AUTOREGRESSION) return 1;
     else if (forward_opts != NULL)
-        return forward_opts->flags & FLAG_AUTOREGRESSION;
+        return forward_opts->flags & PS_FLAG_AUTOREGRESSION;
     else if (training_opts != NULL && model->next == NULL)
-        return training_opts->flags & FLAG_AUTOREGRESSION;
+        return training_opts->flags & PS_FLAG_AUTOREGRESSION;
     return 0;
 }
 
@@ -3721,7 +3721,7 @@ int modelForward(PSModel *model, PSFloat *inputs, PSFloat *global_inputs,
             if (backprop && is_input_model) {
                 retain_previous = (
                     train_opts != NULL &&
-                    (train_opts->flags & TRAINING_EPOCH_AS_SEQUENCE)
+                    (train_opts->flags & PS_TRAINING_EPOCH_AS_SEQUENCE)
                 );
                 if (retain_previous && model->training != NULL)
                     retain_previous = (model->training->current_batch > 0);
@@ -3729,7 +3729,7 @@ int modelForward(PSModel *model, PSFloat *inputs, PSFloat *global_inputs,
             first_recurrent = PSGetFirstRecurrentLayer(model);
             last_recurrent = PSGetLastRecurrentLayer(model);
             recurrent_input = PSIsRecurrent(input_layer);
-        } else if (input_layer->flags & FLAG_USE_SEQUENCES) {
+        } else if (input_layer->flags & PS_FLAG_USE_SEQUENCES) {
             input_is_seq = 1;
         }
         if (is_input_model && inputs != NULL) {
@@ -3750,7 +3750,7 @@ int modelForward(PSModel *model, PSFloat *inputs, PSFloat *global_inputs,
             }
         } else if (!is_input_model && backprop && global_inputs != NULL) {
             int seq2seq = (
-                train_opts && (train_opts->flags & TRAINING_FLAG_SEQ2SEQ)
+                train_opts && (train_opts->flags & PS_TRAINING_FLAG_SEQ2SEQ)
             );
             /* TODO (S2S): only check seq2seq or also autoregression ?? */
             if (autoregression || seq2seq) {
@@ -3769,7 +3769,7 @@ int modelForward(PSModel *model, PSFloat *inputs, PSFloat *global_inputs,
                 int teacher_forcing = (
                     inputs == NULL && model->next == NULL &&
                     train_opts != NULL &&
-                    train_opts->flags & TRAINING_FLAG_TEACHER_FORCING
+                    train_opts->flags & PS_TRAINING_FLAG_TEACHER_FORCING
                 );
                 if (teacher_forcing && seqlen > 0) {
                     int input_size = input_layer->size,
@@ -3865,7 +3865,7 @@ int modelForward(PSModel *model, PSFloat *inputs, PSFloat *global_inputs,
     }
 final:
     if (tmpinputs != NULL) free(tmpinputs);
-    if (!ok) PSModelSetStatus(model, STATUS_ERROR, NULL);
+    if (!ok) PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
     return ok;
 }
 
@@ -3901,8 +3901,8 @@ int PSAutoregression(PSModel *model, PSFloat *inputs,
               "that use sequences");
         return 0;
     }
-    PSForwardOptions opts = {.flags = FLAG_AUTOREGRESSION};
-    if (randomized) opts.flags |= FLAG_RANDREGRESSION;
+    PSForwardOptions opts = {.flags = PS_FLAG_AUTOREGRESSION};
+    if (randomized) opts.flags |= PS_FLAG_RANDREGRESSION;
     if (sequence_settings) opts.sequence_settings = sequence_settings;
     return forward(model, inputs, 0, &opts);
 }
@@ -3940,11 +3940,11 @@ PSGradient *createLayerGradient(PSLayer *layer) {
     gradient->biases = NULL;
     gradient->weights = NULL;
     gradient->tmp = NULL;
-    int use_bias = !(layer->flags & FLAG_NO_BIAS);
+    int use_bias = !(layer->flags & PS_FLAG_NO_BIAS);
     uint64_t bias_count = 0, weights_count = 0, max_count = 0;
     if (use_bias)
-        bias_count = PSGetLayerParametersCount(layer, PARAM_TYPE_BIAS);
-    weights_count = PSGetLayerParametersCount(layer, PARAM_TYPE_WEIGHT);
+        bias_count = PSGetLayerParametersCount(layer, PS_PARAM_BIAS);
+    weights_count = PSGetLayerParametersCount(layer, PS_PARAM_WEIGHT);
     if (bias_count > 0) {
         gradient->biases = calloc(bias_count, sizeof(PSFloat));
         if (gradient->biases == NULL) {
@@ -4544,7 +4544,7 @@ int computeSoftmaxOutputDelta(PSLayer *layer, PSFloat *y, ...) {
     int t = 0, ok = 1, handle_seq = PSHandleSequenceAtOnce(layer),
         seqlen = 1;
     int apply_derivative = outputDerivativeNeeded(model);
-    int onehot = (layer->flags & FLAG_ONEHOT);
+    int onehot = (layer->flags & PS_FLAG_ONEHOT);
     PSFloat *outputs = NULL, *inputs = NULL;
     va_list args;
     va_start(args, y);
@@ -4604,7 +4604,7 @@ int computeOutputDelta(PSLayer *layer, PSFloat *y, ...) {
     va_end(args);
     if (!ok) return 0;
     if (is_softmax) return computeSoftmaxOutputDelta(layer, y, t);
-    int onehot = (layer->flags & FLAG_ONEHOT);
+    int onehot = (layer->flags & PS_FLAG_ONEHOT);
     PSMatrix delta = layer->delta;
     if (delta == NULL) {
         PSErr(NULL, "Output layer[%d] has no delta");
@@ -4636,7 +4636,7 @@ int PSFullBackprop(PSLayer *layer, PSLayer *previous_layer,
     PSMathOpts mopts = {.acceleration = model->acceleration};
     /* Checks */
     int handle_seq = PSHandleSequenceAtOnce(layer),
-        use_bias = !(layer->flags & FLAG_NO_BIAS),
+        use_bias = !(layer->flags & PS_FLAG_NO_BIAS),
         t = 0, seqlen = 1, ok = 1;
     PSFloat *outputs = NULL, *inputs = NULL;
     va_list args;
@@ -4696,7 +4696,7 @@ int backpropThroughTime(PSModel *model, PSFloat *y,
             PSErr(NULL, "Label values for recurrent output layer are NULL");
             goto final;
         }
-        onehot = (output_layer->flags & FLAG_ONEHOT);
+        onehot = (output_layer->flags & PS_FLAG_ONEHOT);
         osize = output_layer->size;
         ysize = (onehot ? 1 : osize);
         int hidden_states_count = PSStateSequenceLength(output_layer);
@@ -4787,12 +4787,12 @@ PSGradient **modelBackprop(PSModel *model,
     int teacher_forcing = (
         y != NULL && model->next == NULL &&
         PSUseSequences(model) && PSUseSequences(model->layers[0]) &&
-        opts != NULL && opts->flags & TRAINING_FLAG_TEACHER_FORCING
+        opts != NULL && opts->flags & PS_TRAINING_FLAG_TEACHER_FORCING
     );
     if (teacher_forcing && PSUseSequences(output_layer)) {
         seqlen = PSStateSequenceLength(model->layers[0]);
         if (seqlen > 0) {
-            int onehot_labels = output_layer->flags & FLAG_ONEHOT;
+            int onehot_labels = output_layer->flags & PS_FLAG_ONEHOT;
             int osize = (onehot_labels ? 1 : output_layer->size);
             tmpy = malloc(osize * seqlen * sizeof(PSFloat));
             ok = (tmpy != NULL);
@@ -4994,11 +4994,11 @@ int applyGradientsOnParameters(
     optimization = options->optimization;
     if (optimization == NULL) optimization = PSDefaultOptimization;
     PSFloat *gptr = NULL, *mptr = NULL, *xptr= NULL;
-    if (param_type == PARAM_TYPE_BIAS) {
+    if (param_type == PS_PARAM_BIAS) {
         gptr = grads->biases;
         if (mg != NULL) mptr = mg->biases;
         if (xg != NULL) xptr = xg->biases;
-    } else if (param_type == PARAM_TYPE_WEIGHT) {
+    } else if (param_type == PS_PARAM_WEIGHT) {
         gptr = grads->weights;
         if (mg != NULL) mptr = mg->weights;
         if (xg != NULL) xptr = xg->weights;
@@ -5090,29 +5090,29 @@ PSFloat updateModelParameters(PSModel *model,
     int num_models = PSModelChainLength(model);
     if (num_models < 1) {
         PSErr(NULL, "broken model chain");
-        PSModelSetStatus(model, STATUS_ERROR, NULL);
-        return STATUS_ERROR_LOSS;
+        PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
+        return PS_STATUS_ERROR_LOSS;
     } else if (num_models > 1) {
         output_model = PSModelChainTail(model);
         if (output_model == NULL) {
             PSErr(NULL, "broken model chain");
-            PSModelSetStatus(model, STATUS_ERROR, NULL);
-            return STATUS_ERROR_LOSS;
+            PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
+            return PS_STATUS_ERROR_LOSS;
         }
     }
     PSLayer *output_layer = PSGetOutputLayer(model);
     if (output_layer == NULL) {
         PSErr(NULL, "no output layer");
-        PSModelSetStatus(model, STATUS_ERROR, NULL);
-        return STATUS_ERROR_LOSS;
+        PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
+        return PS_STATUS_ERROR_LOSS;
     }
     int training_data_size = model->input_size;
     int label_data_size = output_layer->size;
     /* Create gradients for the current batch. */
     PSGradient ***gradients = createGradients(model);
     if (gradients == NULL) {
-        PSModelSetStatus(model, STATUS_ERROR, NULL);
-        return STATUS_ERROR_LOSS;
+        PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
+        return PS_STATUS_ERROR_LOSS;
     }
     PSGradient ***bp_gradients = NULL;
     PSFloat **sequences = NULL;
@@ -5124,7 +5124,7 @@ PSFloat updateModelParameters(PSModel *model,
         va_end(args);
         if (sequences == NULL) {
             PSErr(__func__, "Sequences argument is NULL");
-            PSModelSetStatus(model, STATUS_ERROR, NULL);
+            PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
             goto final;
         }
         if (is_recurrent)
@@ -5145,7 +5145,7 @@ PSFloat updateModelParameters(PSModel *model,
             optimization == PSAdaGradOptimization ||
             optimization == PSAdamOptimization
         );
-        use_weight_decay = (opts->flags & TRAINING_WEIGHT_DECAY);
+        use_weight_decay = (opts->flags & PS_TRAINING_WEIGHT_DECAY);
         l1 = opts->l1_decay;
         l2 = opts->l2_decay;
         momentum = opts->momentum;
@@ -5157,7 +5157,7 @@ PSFloat updateModelParameters(PSModel *model,
     int required_memory_gradients = getRequiredMemoryGradientsCount(opts);
     if (!divide_grads_by_batches) rate /= batch_size;
     else divide_grads_by_batches = (batch_size > 1);
-    /* If weight decay is enabled (TRAINING_WEIGHT_DECAY flag), l2_decay
+    /* If weight decay is enabled (PS_TRAINING_WEIGHT_DECAY flag), l2_decay
      * will be used to directly update weights and not gradients.
      * Furthermore, l1_loss and l2_loss won't be computed nor used in
      * loss calculation.
@@ -5204,7 +5204,7 @@ PSFloat updateModelParameters(PSModel *model,
                 &x_seqlen, NULL, &y_seqlen, &y
             );
             if (datalen <= 0 || x_seqlen <= 0 || y_seqlen <= 0) {
-                PSModelSetStatus(model, STATUS_ERROR, NULL);
+                PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
                 goto final;
             }
         }
@@ -5214,7 +5214,7 @@ PSFloat updateModelParameters(PSModel *model,
                 NULL, "Backpropagation failed for model '%s'",
                 (model->name != NULL ? model->name : "UNNAMED")
             );
-            PSModelSetStatus(model, STATUS_ERROR, NULL);
+            PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
             goto final;
         }
         if (apply_clip) {
@@ -5228,7 +5228,7 @@ PSFloat updateModelParameters(PSModel *model,
                 PSDeleteModelGradients(srcgrads, cur);
                 bp_gradients[cur->index] = NULL;
                 if (!ok) {
-                    PSModelSetStatus(model, STATUS_ERROR, NULL);
+                    PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
                     goto final;
                 }
                 cur = cur->next;
@@ -5236,7 +5236,7 @@ PSFloat updateModelParameters(PSModel *model,
         }
         if (PSDumpGradientsPath != NULL)
             PSDumpGradients(model, gradients, NULL, opts);
-        if (PSModelGetStatus(model) == STATUS_PAUSED) break;
+        if (PSModelGetStatus(model) == PS_STATUS_PAUSED) break;
     }
 
     PSModel *cur = model;
@@ -5249,7 +5249,7 @@ PSFloat updateModelParameters(PSModel *model,
         if (grads == NULL) {
             PSErr(NULL, "no gradients found for model[%d] (%s)", midx,
                   (cur->name != NULL ? cur->name : "UNNAMED"));
-            PSModelSetStatus(model, STATUS_ERROR, NULL);
+            PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
             goto final;
         }
         PSTrainingContext *training_ctx = getTrainingContext(cur);
@@ -5257,7 +5257,7 @@ PSFloat updateModelParameters(PSModel *model,
             if (!initTrainingContext(cur, opts, required_memory_gradients)) {
                 PSErr(NULL, "could not initialize training context on model "
                       "%d", cur->index);
-                PSModelSetStatus(model, STATUS_ERROR, NULL);
+                PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
                 goto final;
             }
             training_ctx = getTrainingContext(cur);
@@ -5278,8 +5278,8 @@ PSFloat updateModelParameters(PSModel *model,
             if (!ok) {
                 PSErr(NULL, "could not initialize memory gradients on model "
                       "%d", cur->index);
-                PSModelSetStatus(model, STATUS_ERROR, NULL);
-                return STATUS_ERROR_LOSS;
+                PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
+                return PS_STATUS_ERROR_LOSS;
             }
         }
         for (i = 0; i < gradsize; i++) {
@@ -5293,9 +5293,9 @@ PSFloat updateModelParameters(PSModel *model,
                 xgradients = memory_gradients[1][i];
             PSLayer *layer = cur->layers[i + 1];
             if (layer->pretrained) continue;
-            if (layer->flags & FLAG_NON_TRAINABLE) continue;
+            if (layer->flags & PS_FLAG_NON_TRAINABLE) continue;
             /* Update Biases */
-            if (!(layer->flags & FLAG_NO_BIAS)) {
+            if (!(layer->flags & PS_FLAG_NO_BIAS)) {
                 if (divide_grads_by_batches) PSDivideVectorScalar(
                     lgradients->biases, (PSFloat) batch_size,
                     lgradients->biases, lgradients->bias_count, &mopts
@@ -5306,7 +5306,7 @@ PSFloat updateModelParameters(PSModel *model,
                 );
                 if (!ok) {
                     PSErrNN(__func__, NULL, layer, "failed to update biases");
-                    PSModelSetStatus(model, STATUS_ERROR, NULL);
+                    PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
                     goto final;
                 }
             }
@@ -5321,7 +5321,7 @@ PSFloat updateModelParameters(PSModel *model,
                         __func__, "Layer[%d]: weights[%d] is NULL",
                         layer->index, j
                     );
-                    PSModelSetStatus(model, STATUS_ERROR, NULL);
+                    PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
                     goto final;
                 }
                 uint64_t wlen = PSMatrixLength(weights);
@@ -5337,7 +5337,7 @@ PSFloat updateModelParameters(PSModel *model,
                             __func__, "Layer[%d]: failed to apply L1/L2 "
                             "regularization", layer->index
                         );
-                        PSModelSetStatus(model, STATUS_ERROR, NULL);
+                        PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
                         goto final;
                     }
                 }
@@ -5354,7 +5354,7 @@ PSFloat updateModelParameters(PSModel *model,
                         __func__, "Layer[%d]: failed to update weights[%d]",
                         layer->index, j
                     );
-                    PSModelSetStatus(model, STATUS_ERROR, NULL);
+                    PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
                     goto final;
                 }
                 wgrad_offset += wlen;
@@ -5365,8 +5365,8 @@ PSFloat updateModelParameters(PSModel *model,
     }
 final:
     PSDeleteGradientsChain(gradients, model);
-    if (PSModelGetStatus(model) == STATUS_ERROR) return STATUS_ERROR_LOSS;
-    int onehot = output_layer->flags & FLAG_ONEHOT;
+    if (PSModelGetStatus(model) == PS_STATUS_ERROR) return PS_STATUS_ERROR_LOSS;
+    int onehot = output_layer->flags & PS_FLAG_ONEHOT;
     if (onehot) label_data_size = 1;
     if (output_is_seq) label_data_size *= y_seqlen;
     PSFloat outputs[label_data_size];
@@ -5390,7 +5390,7 @@ final:
 }
 
 /* Iterate training data for the entire epoch. Unless the training flag
- * TRAINING_NO_SHUFFLE is set, training data is randomly shuffled
+ * PS_TRAINING_NO_SHUFFLE is set, training data is randomly shuffled
  * (Stochastic Gradient Descent). Training data is divided into batches
  * depending on `batch_size` and, for each batch, gradients are generated
  * and applied on model's by the `updateModelParameters` */
@@ -5407,8 +5407,8 @@ PSFloat gradientDescent(PSModel *model,
 {
     PSTrainingContext *training_ctx = getTrainingContext(model);
     if (training_ctx == NULL) {
-        PSModelSetStatus(model, STATUS_ERROR, NULL);
-        return STATUS_ERROR_LOSS;
+        PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
+        return PS_STATUS_ERROR_LOSS;
     }
     PSTrainingProgressFunc printProgress = NULL;
     int batches_count = elements_count / batch_size;
@@ -5420,28 +5420,28 @@ PSFloat gradientDescent(PSModel *model,
         PSLayer *out = PSGetOutputLayer(model);
         if (out == NULL) {
             PSErr(NULL, "no output layer");
-            PSModelSetStatus(model, STATUS_ERROR, NULL);
-            return STATUS_ERROR_LOSS;
+            PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
+            return PS_STATUS_ERROR_LOSS;
         }
         PSModel *output_model = model;
         if (is_model_chain) {
             output_model = PSModelChainTail(model);
             if (output_model == NULL) {
-                PSModelSetStatus(model, STATUS_ERROR, NULL);
-                return STATUS_ERROR_LOSS;
+                PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
+                return PS_STATUS_ERROR_LOSS;
             }
         }
         sequences = getDatasetSequences(
             model, training_data, elements_count, flags
         );
         if (sequences == NULL) {
-            PSModelSetStatus(model, STATUS_ERROR, NULL);
-            return STATUS_ERROR_LOSS;
+            PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
+            return PS_STATUS_ERROR_LOSS;
         }
-        if (!(flags & TRAINING_NO_SHUFFLE))
+        if (!(flags & PS_TRAINING_NO_SHUFFLE))
             shuffleSequences(sequences, elements_count);
     } else {
-        if (!(flags & TRAINING_NO_SHUFFLE))
+        if (!(flags & PS_TRAINING_NO_SHUFFLE))
             shuffle(training_data, elements_count, element_size);
     }
     PSFloat err = 0.0, avg_err = 0.0, acc = 0.0, tot_acc = 0.0, avg_acc = 0.0;
@@ -5477,7 +5477,7 @@ PSFloat gradientDescent(PSModel *model,
         gettimeofday(&et, NULL);
         elapsed_t = PSGetElapsedTimeUS(st, et);
         err += batch_err;
-        if (PSModelGetStatus(model) == STATUS_ERROR) {
+        if (PSModelGetStatus(model) == PS_STATUS_ERROR) {
             PSErr(NULL, "Gradient descent failed at batch %d for model '%s'",
                   i, (model->name != NULL ? model->name : "UNNAMED")
             );
@@ -5490,7 +5490,7 @@ PSFloat gradientDescent(PSModel *model,
             if (do_validate) {
                 if (i > 0 && (batch_num % validate_every) == 0) {
                     printProgress(
-                        model, STATUS_VALIDATING, epochs, batches_count,
+                        model, PS_STATUS_VALIDATING, epochs, batches_count,
                         NULL, NULL, NULL, 0, test_data_size / element_size
                     );
                     acc = validate(
@@ -5500,24 +5500,24 @@ PSFloat gradientDescent(PSModel *model,
                     avg_acc = tot_acc / (PSFloat) ++validations;
                 }
                 printProgress(
-                    model, STATUS_TRAINING, epochs, batches_count,
+                    model, PS_STATUS_TRAINING, epochs, batches_count,
                     &avg_err, &avg_acc, &avg_t, 0, 0
                 );
             } else {
                 printProgress(
-                    model, STATUS_TRAINING, epochs, batches_count,
+                    model, PS_STATUS_TRAINING, epochs, batches_count,
                     &avg_err, NULL, &avg_t, 0, 0
                 );
             }
         } else {
             printProgress(
-                model, STATUS_TRAINING, epochs, batches_count, NULL, NULL,
+                model, PS_STATUS_TRAINING, epochs, batches_count, NULL, NULL,
                 NULL, 0, 0
             );
         }
-        if (PSModelGetStatus(model) == STATUS_ERROR) {
+        if (PSModelGetStatus(model) == PS_STATUS_ERROR) {
             if (sequences != NULL) free(sequences);
-            return STATUS_ERROR_LOSS;
+            return PS_STATUS_ERROR_LOSS;
         }
         if (model->onBatchTrained != NULL) {
             model->onBatchTrained(
@@ -5529,7 +5529,7 @@ PSFloat gradientDescent(PSModel *model,
         if (sequences == NULL) training_data += offset;
         else sequence_head += batch_size;
         int action = model->training->requested_action;
-        if (action == ACTION_ABORT) {
+        if (action == PS_ACTION_ABORT) {
             PSModelSetStatus(model, action, NULL);
             break;
         }
@@ -5551,7 +5551,7 @@ float validate(PSModel *model, PSFloat *test_data, int data_size,
     PSLayer *output_layer = PSGetOutputLayer(model);
     int input_size = model->input_size;
     int output_size = model->output_size;
-    int onehot = output_layer->flags & FLAG_ONEHOT;
+    int onehot = output_layer->flags & PS_FLAG_ONEHOT;
     int y_size = (onehot ? 1 : output_size);
     int element_size = input_size + output_size;
     int elements_count;
@@ -5572,7 +5572,7 @@ float validate(PSModel *model, PSFloat *test_data, int data_size,
     } else elements_count = data_size / element_size;
     /* PSFloat outputs[output_size]; */
     if (log) printf("Test data elements: %d\n", elements_count);
-    PSModelSetStatus(model, STATUS_VALIDATING, NULL);
+    PSModelSetStatus(model, PS_STATUS_VALIDATING, NULL);
     time_t start_t, end_t;
     char timestr[80];
     struct tm *tminfo;
@@ -5692,35 +5692,35 @@ float validate(PSModel *model, PSFloat *test_data, int data_size,
     return accuracy;
 err:
     if (errmsg == NULL) {
-        if (PSModelGetStatus(model) == STATUS_VALIDATING)
+        if (PSModelGetStatus(model) == PS_STATUS_VALIDATING)
             errmsg = "an error occurred while validating, aborting!";
         else
             errmsg = "failed to validate model";
     }
-    PSModelSetStatus(model, STATUS_ERROR, NULL);
+    PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
     fprintf(stderr, "\n");
     PSErr(NULL, "%s", errmsg);
-    return STATUS_ERROR_LOSS;
+    return PS_STATUS_ERROR_LOSS;
 }
 
 static void checkTrainingOptions(PSTrainingOptions *options) {
     if (options->optimization == NULL)
         options->optimization = PSDefaultOptimization;
     if (options->optimization != PSDefaultOptimization) {
-        if (options->eps == 0) options->eps = DEFAULT_EPS;
-        if (options->rho == 0) options->rho = DEFAULT_RHO;
-        if (options->beta1 == 0) options->beta1 = DEFAULT_BETA1;
-        if (options->beta2 == 0) options->beta2 = DEFAULT_BETA2;
+        if (options->eps == 0) options->eps = PS_DEFAULT_EPS;
+        if (options->rho == 0) options->rho = PS_DEFAULT_RHO;
+        if (options->beta1 == 0) options->beta1 = PS_DEFAULT_BETA1;
+        if (options->beta2 == 0) options->beta2 = PS_DEFAULT_BETA2;
     }
     if (options->printProgress == NULL)
         options->printProgress = PSLogTrainingProgress;
 }
 
 void PSSetDefaultTrainingOptions(PSTrainingOptions *options) {
-    options->rho = DEFAULT_RHO;
-    options->eps = DEFAULT_EPS;
-    options->beta1 = DEFAULT_BETA1;
-    options->beta2 = DEFAULT_BETA2;
+    options->rho = PS_DEFAULT_RHO;
+    options->eps = PS_DEFAULT_EPS;
+    options->beta1 = PS_DEFAULT_BETA1;
+    options->beta2 = PS_DEFAULT_BETA2;
     options->bptt_truncate = BPTT_TRUNCATE;
     options->optimization = PSDefaultOptimization;
     if (options->epochs <= 0) options->epochs = 1;
@@ -5756,9 +5756,9 @@ int isSequence2SequenceAvailable(PSModel *model, char **err) {
         if (err != NULL) *err = "output layer does not produce sequences";
         return 0;
     }
-    if (!(output_model->flags & FLAG_AUTOREGRESSION)) {
+    if (!(output_model->flags & PS_FLAG_AUTOREGRESSION)) {
         if (err != NULL)
-            *err = "no FLAG_AUTOREGRESSION in output model's flags";
+            *err = "no PS_FLAG_AUTOREGRESSION in output model's flags";
         return 0;
     }
     return 1;
@@ -5767,7 +5767,7 @@ int isSequence2SequenceAvailable(PSModel *model, char **err) {
 int PSPretrainLayers(PSModel *model, PSFloat *training_data,
                      int data_size)
 {
-    if (model->flags & FLAG_PRETRAINER) return 1;
+    if (model->flags & PS_FLAG_PRETRAINER) return 1;
     int original_status = PSModelGetStatus(model);
     for (int i = 0; i < model->size; i++) {
         PSLayer *layer = model->layers[i];
@@ -5775,10 +5775,10 @@ int PSPretrainLayers(PSModel *model, PSFloat *training_data,
         if (!isPretrainableLayer(layer)) continue;
         if (layer->pretrained) continue;
         PSInfo("Pretraining layer[%d] (%s)", i, PSGetLayerTypeLabel(layer));
-        PSModelSetStatus(model, STATUS_PRETRAINING, NULL);
+        PSModelSetStatus(model, PS_STATUS_PRETRAINING, NULL);
         int trained = layer->pretrain(layer, training_data, data_size);
         if (!trained) {
-            PSModelSetStatus(model, STATUS_ERROR, NULL);
+            PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
             return 0;
         }
         PSInfo("Successfully pretrained layer[%d] (%s)",
@@ -5806,9 +5806,9 @@ int PSPretrainLayers(PSModel *model, PSFloat *training_data,
  *    So, each training/test element pair must contain:
  *      - Input values, having the same length of the model's input layer
  *      - Prediction values, having the same length of the model's output
- *        layer. If output layer has the `FLAG_ONEHOT` flag, predictions length
- *        muse be 1, and it must contain the index of the expected maximum
- *        state.
+ *        layer. If output layer has the `PS_FLAG_ONEHOT` flag, predictions
+ *        length muse be 1, and it must contain the index of the expected
+ *        maximum state.
  *    Total number of traing elements is given by:
  *      array size / (input_size + output_size)
  *  - For recurrent model or models using sequences, layout can have
@@ -5833,30 +5833,30 @@ void PSTrain(PSModel *model,
     PSFloat learning_rate = 0.0;
     if (!PSModelIsBuilt(model)) {
         if (!PSModelBuild(model)) {
-            PSModelSetStatus(model, STATUS_ERROR, NULL);
+            PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
             return;
         }
     }
     int valid = PSModelCheck(model);
     if (!valid) {
-        PSModelSetStatus(model, STATUS_ERROR, NULL);
+        PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
         return;
     }
     PSModelContext *ctx = getModelContext(model);
     if (ctx == NULL) {
         PSErr(__func__, "missing model context");
-        PSModelSetStatus(model, STATUS_ERROR, NULL);
+        PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
         return;
     }
     PSTrainingContext *training_ctx = ctx->training_context;
-    if (training_ctx && PSModelGetStatus(model) == STATUS_UNTRAINED) {
+    if (training_ctx && PSModelGetStatus(model) == PS_STATUS_UNTRAINED) {
         deleteTrainingContext(training_ctx, model);
         ctx->training_context = training_ctx = NULL;
     }
     if (training_ctx == NULL) {
         ctx->training_context = calloc(1, sizeof(PSTrainingContext));
         if (ctx->training_context == NULL) {
-            PSModelSetStatus(model, STATUS_ERROR, NULL);
+            PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
             PSPrintMemoryErrorMsg();
             return;
         }
@@ -5893,7 +5893,7 @@ void PSTrain(PSModel *model,
     int element_size = input_size + output_size;
     /* Eventually pretrain layers (if pretrainable layers are found) */
     if (!PSPretrainLayers(model, training_data, data_size)) {
-        PSModelSetStatus(model, STATUS_ERROR, NULL);
+        PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
         PSErr(__func__, "failed to pretrain model '%s'",
               model->name != NULL ? model->name : "UNNAMED");
         return;
@@ -5907,11 +5907,11 @@ void PSTrain(PSModel *model,
         elements_count = (int) *(training_data++);
         data_size--;
     } else elements_count = data_size / element_size;
-    if (options->flags & TRAINING_FLAG_SEQ2SEQ) {
+    if (options->flags & PS_TRAINING_FLAG_SEQ2SEQ) {
         char *err = NULL;
         if (!isSequence2SequenceAvailable(model, &err)) {
-            PSErr(__func__, "Sequence-to-sequence (TRAINING_FLAG_SEQ2SEQ) is "
-                  "not available for this model: %s", err);
+            PSErr(__func__, "Sequence-to-sequence (PS_TRAINING_FLAG_SEQ2SEQ) "
+                  "is not available for this model: %s", err);
             return;
         }
     }
@@ -5940,7 +5940,7 @@ void PSTrain(PSModel *model,
     }
     int use_weight_decay = (
         (options->l1_decay != 0 || options->l2_decay != 0) &&
-        (options->flags & TRAINING_WEIGHT_DECAY)
+        (options->flags & PS_TRAINING_WEIGHT_DECAY)
     );
     PSInfo("L1 Decay:                   %g", options->l1_decay);
     PSInfo("L2 Decay:                   %g", options->l2_decay);
@@ -5950,23 +5950,23 @@ void PSTrain(PSModel *model,
     PSInfo("Momentum:                   %g", options->momentum);
     PSInfo("Optimization:               %s",
            getOptimizationName(options->optimization));
-    int single_seq = (options->flags & TRAINING_EPOCH_AS_SEQUENCE),
-        no_shuffle = (options->flags & TRAINING_NO_SHUFFLE);
+    int single_seq = (options->flags & PS_TRAINING_EPOCH_AS_SEQUENCE),
+        no_shuffle = (options->flags & PS_TRAINING_NO_SHUFFLE);
     if (single_seq && !no_shuffle) {
         PSWarn(
-            "flag TRAINING_EPOCH_AS_SEQUENCE requires "
-            "TRAINING_NO_SHUFFLE. "
-            "Automatically enabling TRAINING_NO_SHUFFLE."
+            "flag PS_TRAINING_EPOCH_AS_SEQUENCE requires "
+            "PS_TRAINING_NO_SHUFFLE. "
+            "Automatically enabling PS_TRAINING_NO_SHUFFLE."
         );
-        options->flags |= TRAINING_NO_SHUFFLE;
+        options->flags |= PS_TRAINING_NO_SHUFFLE;
     }
     if (single_seq) PSInfo("Single sequence:            yes");
     PSInfo("Data shuffle:               %s", (!no_shuffle ? "yes" : "no"));
     if (is_recurrent)
         PSInfo("BPTT Truncate:              %d", options->bptt_truncate);
-    if (model->layers[model->size - 1]->flags & FLAG_ONEHOT)
+    if (model->layers[model->size - 1]->flags & PS_FLAG_ONEHOT)
         PSInfo("Onehot Labels:              yes");
-    if (options->flags & TRAINING_FLAG_TEACHER_FORCING)
+    if (options->flags & PS_TRAINING_FLAG_TEACHER_FORCING)
         PSInfo("Teacher forcing:            yes");
     char *loss_func_name = NULL;
     if (output_model->loss != NULL) {
@@ -5974,8 +5974,8 @@ void PSTrain(PSModel *model,
         PSInfo("Loss Function:              %s", loss_func_name);
     }
     /* Start training */
-    int was_paused = (PSModelGetStatus(model) == STATUS_PAUSED);
-    PSModelSetStatus(model, STATUS_TRAINING, NULL);
+    int was_paused = (PSModelGetStatus(model) == PS_STATUS_PAUSED);
+    PSModelSetStatus(model, PS_STATUS_TRAINING, NULL);
     time_t start_t, end_t;
     char timestr[80];
     struct tm *tminfo;
@@ -5987,7 +5987,8 @@ void PSTrain(PSModel *model,
     PSFloat prev_loss = 0.0;
     float acc = -999.99f;
     int adjust_rate = 0;
-    if (options != NULL) adjust_rate = (options->flags & TRAINING_ADJUST_RATE);
+    if (options != NULL)
+        adjust_rate = (options->flags & PS_TRAINING_ADJUST_RATE);
     int first_epoch = 0;
     if (model->training != NULL) {
         if (was_paused) first_epoch = model->training->current_epoch;
@@ -6003,12 +6004,12 @@ void PSTrain(PSModel *model,
         );
     }
     model->training->batch_size = batch_size;
-    model->training->requested_action = ACTION_NONE;
+    model->training->requested_action = PS_ACTION_NONE;
     for (i = first_epoch; i < epochs; i++) {
         model->training->current_epoch = i;
         if (is_recurrent) {
             if (!PSResetModelStateSequences(model, 0, 0)) {
-                PSModelSetStatus(model, STATUS_ERROR, NULL);
+                PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
                 PSErr(__func__, "Failed to reset model recurrent states");
                 return;
             }
@@ -6020,7 +6021,7 @@ void PSTrain(PSModel *model,
                                        test_data, test_size);
         gettimeofday(&epoch_et, NULL);
         time_t elapsed_t = PSGetElapsedTimeUS(epoch_st, epoch_et);
-        if (PSModelGetStatus(model) == STATUS_ERROR) {
+        if (PSModelGetStatus(model) == PS_STATUS_ERROR) {
             PSLog(
                 PSLOGLEVEL_ERROR, "\nAn error occurred while training, "
                 "aborting!\n"
@@ -6029,9 +6030,9 @@ void PSTrain(PSModel *model,
         }
         int batches_count = elements_count / batch_size;
         PSFloat *acc_p = NULL;
-        if (test_data  && PSModelGetStatus(model) == STATUS_TRAINING) {
+        if (test_data  && PSModelGetStatus(model) == PS_STATUS_TRAINING) {
             printProgress(
-                model, STATUS_VALIDATING, epochs, batches_count, NULL,
+                model, PS_STATUS_VALIDATING, epochs, batches_count, NULL,
                 NULL, NULL, 0, 0
             );
             acc = validate(model, test_data, test_size, options, 0);
@@ -6046,24 +6047,24 @@ void PSTrain(PSModel *model,
         }
         prev_loss = loss;
         printProgress(
-            model, STATUS_TRAINING, epochs, batches_count, &loss,
+            model, PS_STATUS_TRAINING, epochs, batches_count, &loss,
             acc_p, &elapsed_t, 0, 0
         );
         fflush(stdout);
         int action = model->training->requested_action;
-        if (action == ACTION_ABORT || action == ACTION_PAUSE) {
+        if (action == PS_ACTION_ABORT || action == PS_ACTION_PAUSE) {
             PSModelSetStatus(model, action, NULL);
             break;
         }
     }
     time(&end_t);
-    printProgress(model,STATUS_TRAINED,epochs,0,NULL,NULL,NULL,0,0);
+    printProgress(model,PS_STATUS_TRAINED,epochs,0,NULL,NULL,NULL,0,0);
     PSLineEnd();
     fflush(stdout);
     PSLog(PSLOGLEVEL_SUCCESS, "\nCompleted in %ld sec.\n", end_t - start_t);
     model->training->ended_at = end_t;
-    if (PSModelGetStatus(model) == STATUS_TRAINING)
-        PSModelSetStatus(model, STATUS_TRAINED, NULL);
+    if (PSModelGetStatus(model) == PS_STATUS_TRAINING)
+        PSModelSetStatus(model, PS_STATUS_TRAINED, NULL);
     if (is_recurrent) {
         PSModel *current = input_model;
         while (current != NULL) {
@@ -6084,14 +6085,14 @@ void PSPauseTraining(PSModel *model) {
     if (model->training != NULL) {
         printf("\nPause requested, "
                "training will stop after current epoch will be completed.\n");
-        model->training->requested_action = ACTION_PAUSE;
+        model->training->requested_action = PS_ACTION_PAUSE;
     }
 }
 
 void PSAbortTraining(PSModel *model) {
     if (model->training != NULL) {
         printf("\nAborting...\n");
-        model->training->requested_action = ACTION_ABORT;
+        model->training->requested_action = PS_ACTION_ABORT;
     }
 }
 
@@ -6138,7 +6139,7 @@ int PSModelCheck(PSModel *model) {
                       i, PSGetLabelForType(FullyConnected));
                 return 0;
             }
-            if (layer->flags & FLAG_ONEHOT) onehot_input = 1;
+            if (layer->flags & PS_FLAG_ONEHOT) onehot_input = 1;
             recurrent_input = is_recurrent_layer;
         }
         if (ltype == SoftMax && layer != output_layer) {
@@ -6152,7 +6153,7 @@ int PSModelCheck(PSModel *model) {
                 return 0;
             }
             /* TODO: remove this contraint */
-            if (model->flags & FLAG_RECURRENT) {
+            if (model->flags & PS_FLAG_RECURRENT) {
                 PSErr(
                     __func__,
                     "Sorry, Convolutional layers aren't yet supported "
@@ -6200,10 +6201,10 @@ int PSModelCheck(PSModel *model) {
             );
             return 0;
         }
-        if (layer == output_layer && (layer->flags & FLAG_ONEHOT)) {
+        if (layer == output_layer && (layer->flags & PS_FLAG_ONEHOT)) {
             if (SoftMax != ltype) {
                 PSErr(
-                    __func__, "output layer with flag FLAG_ONEHOT must "
+                    __func__, "output layer with flag PS_FLAG_ONEHOT must "
                     "be a SoftMax layer"
                 );
                 return 0;

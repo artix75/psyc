@@ -140,7 +140,7 @@ PSModel *PSCreateEmbeddingTrainer(PSLayer *layer) {
     if (layer == NULL) return NULL;
     if (layer->type != Embedding) return NULL;
     if (layer->pretrainer != NULL) return layer->pretrainer;
-    if (layer->model != NULL && layer->model->flags & FLAG_PRETRAINER)
+    if (layer->model != NULL && layer->model->flags & PS_FLAG_PRETRAINER)
         return NULL;
     PSEmbeddingSettings *settings = GetEmbeddingSettings(layer);
     int vocabulary_size = 0;
@@ -148,7 +148,7 @@ PSModel *PSCreateEmbeddingTrainer(PSLayer *layer) {
     PSLayer *previous = PSGetPreviousLayer(layer);
     if (vocabulary_size <= 0) {
         if (previous != NULL) {
-            if (previous->flags & FLAG_ONEHOT)
+            if (previous->flags & PS_FLAG_ONEHOT)
                 vocabulary_size = PSGetOneHotLayerVectorSize(previous);
             else vocabulary_size = previous->size;
         }
@@ -159,13 +159,13 @@ PSModel *PSCreateEmbeddingTrainer(PSLayer *layer) {
         }
     }
     trainer = PSModelCreate("Embedding Layer Trainer");
-    trainer->flags |= FLAG_PRETRAINER;
-    int onehot_model = (layer->model->flags & FLAG_ONEHOT);
-    if (onehot_model) trainer->flags |= FLAG_ONEHOT;
+    trainer->flags |= PS_FLAG_PRETRAINER;
+    int onehot_model = (layer->model->flags & PS_FLAG_ONEHOT);
+    if (onehot_model) trainer->flags |= PS_FLAG_ONEHOT;
     int input_flags = (previous != NULL ? previous->flags : 0);
-    PSRemoveFlag(input_flags, FLAG_RECURRENT);
-    if (onehot_model) input_flags |= FLAG_ONEHOT;
-    int onehot_input = input_flags & FLAG_ONEHOT;
+    PSRemoveFlag(input_flags, PS_FLAG_RECURRENT);
+    if (onehot_model) input_flags |= PS_FLAG_ONEHOT;
+    int onehot_input = input_flags & PS_FLAG_ONEHOT;
     PSLayer *input_layer = PSAddLayer(
         trainer, FullyConnected, vocabulary_size, PSLDEF(.flags = input_flags)
     );
@@ -176,7 +176,7 @@ PSModel *PSCreateEmbeddingTrainer(PSLayer *layer) {
     );
     if (embedding_layer == NULL) goto fail;
     PSLayer *output_layer = PSAddLayer(trainer, SoftMax, vocabulary_size, NULL);
-    if (onehot) output_layer->flags |= FLAG_ONEHOT;
+    if (onehot) output_layer->flags |= PS_FLAG_ONEHOT;
     layer->pretrainer = trainer;
     return trainer;
 fail:
@@ -230,7 +230,7 @@ int PSPretrainEmbeddingLayer(PSLayer *layer, PSFloat *training_data,
         success = 0;
         goto final;
     }
-    int ysize = (output_layer->flags & FLAG_ONEHOT ? 1 : output_layer->size);
+    int ysize = (output_layer->flags & PS_FLAG_ONEHOT ? 1 : output_layer->size);
     int recurrent_input = PSIsRecurrent(model->layers[0]),
         recurrent_output = PSIsRecurrent(output_layer);
     tokens = PSGetInputsFromTrainingData(
@@ -251,7 +251,7 @@ int PSPretrainEmbeddingLayer(PSLayer *layer, PSFloat *training_data,
         success = 0;
         goto final;
     }
-    int onehot = previous->flags & FLAG_ONEHOT;
+    int onehot = previous->flags & PS_FLAG_ONEHOT;
     int pretaing_num_elements = 0;
     pretrain_data = make_data(tokens, (size_t) num_tokens, window_size,
                               vocabulary_size, onehot, &pretaing_num_elements);
@@ -277,7 +277,7 @@ int PSPretrainEmbeddingLayer(PSLayer *layer, PSFloat *training_data,
         options->learning_rate = 0.1; /* TODO: use a constant or autocalc.*/
     PSTrain(pretrainer, pretrain_data, pretaing_num_elements, NULL, 0,
             options);
-    if (PSModelGetStatus(pretrainer) == STATUS_ERROR) {
+    if (PSModelGetStatus(pretrainer) == PS_STATUS_ERROR) {
         PSErr(__func__, "Layer[%d]: pretraining failed!",
               layer->index);
         success = 0;
@@ -368,7 +368,7 @@ int PSInitEmbeddingLayer(PSLayer *layer, int size, PSLayerDef *ldef) {
         PSErr(NULL, "Embedding layer has no previous layer");
         return 0;
     }
-    if (previous->flags & FLAG_ONEHOT)
+    if (previous->flags & PS_FLAG_ONEHOT)
         vocabulary_size = PSGetOneHotLayerVectorSize(previous);
     else vocabulary_size = previous->size;
     if (vocabulary_size == 0) {
@@ -410,7 +410,7 @@ int PSInitEmbeddingLayer(PSLayer *layer, int size, PSLayerDef *ldef) {
     if (layer->activate != NULL)
         layer->derivative = PSGetActivationDerivative(layer->activate);
     for (i = 0; i < size; i++)
-        layer->biases[i] = PSInitParam(PARAM_TYPE_BIAS, ldef, 1.0, 0.0);
+        layer->biases[i] = PSInitParam(PS_PARAM_BIAS, ldef, 1.0, 0.0);
     layer->forward = PSFullForward;
     layer->backprop = PSFullBackprop;
     layer->pretrain = PSPretrainEmbeddingLayer;

@@ -22,9 +22,9 @@
 #include "psyc.h"
 #include "utils.h"
 
-#ifndef DATA_TYPE_TRAINING
-#define DATA_TYPE_TRAINING   0
-#define DATA_TYPE_TEST       1
+#ifndef PS_DATA_TYPE_TRAINING
+#define PS_DATA_TYPE_TRAINING   0
+#define PS_DATA_TYPE_TEST       1
 #endif
 
 /* Text processing */
@@ -81,13 +81,13 @@ PSFloat *PSLoadDataFromTextFile(const char *filepath,
                                 PSVocabulary **vocabulary);
 
 /* MNIST Dataset */
-#define MNIST_INPUT_SIZE (28 * 28)
+#define PS_MNIST_INPUT_SIZE (28 * 28)
 
 int PSLoadMNISTData(int type, const char *images_file, const char *labels_file,
                     PSFloat **data);
 
 /* CIFAR Dataset */
-#define CIFAR_IMAGE_SIZE (32 * 32 * 3)
+#define PS_CIFAR_IMAGE_SIZE (32 * 32 * 3)
 
 int PSLoadCIFARData(int type, int classes, const char *dataset_path,
                     PSFloat **data, int max_files, int max_elements);

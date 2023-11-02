@@ -630,8 +630,8 @@ static int writeBinaryLayerParameters(PSLayer *layer, int opts, FILE *f,
     if (layer == NULL || f == NULL) return 0;
     PSLayerType ltype = layer->type;
     if (Pooling == ltype || layer->type == Dropout) return 0;
-    uint64_t bias_count = PSGetLayerParametersCount(layer, PARAM_TYPE_BIAS),
-             weights_count = PSGetLayerParametersCount(layer,PARAM_TYPE_WEIGHT);
+    uint64_t bias_count = PSGetLayerParametersCount(layer, PS_PARAM_BIAS),
+             weights_count = PSGetLayerParametersCount(layer,PS_PARAM_WEIGHT);
     int i = layer->index, j;
     if (!writeBinaryFileHeader(f, PS_BINARY_FTYPE_LAYER)) return 0;
     int nwritten = fwrite(&layer->index, sizeof(layer->index), 1, f);
@@ -729,10 +729,10 @@ static int loadBinaryLayerParameters(PSLayer *layer, const char *filepath,
         return 0;
     }
     uint64_t expected_bias_count = PSGetLayerParametersCount(
-        layer, PARAM_TYPE_BIAS
+        layer, PS_PARAM_BIAS
     );
     uint64_t expected_weights_count = PSGetLayerParametersCount(
-        layer, PARAM_TYPE_WEIGHT
+        layer, PS_PARAM_WEIGHT
     );
     bias_count = readUInt64(f, do_swap);
     if (errno > 0) goto read_err;
@@ -1099,7 +1099,7 @@ int writeLayerDefinition(PSLayer *layer, FILE *f) {
         layer->flags, activation, layer->output_depth,
         layer->output_columns, layer->output_rows
     );
-    if (layer->flags & FLAG_ONEHOT && layer->index == 0)
+    if (layer->flags & PS_FLAG_ONEHOT && layer->index == 0)
         fprintf(f, ",onehot_size=%d", layer->onehot_vector_size);
     if (Convolutional == layer->type || Pooling == layer->type) {
         int stride = 0, padding = 0, filter_w = 0, filter_h = 0;
@@ -1173,8 +1173,8 @@ int writeLayerDefinition(PSLayer *layer, FILE *f) {
 int writeLayerParameters(PSLayer *layer, int opts, FILE *f, const char *func) {
     PSLayerType ltype = layer->type;
     if (Pooling == ltype || layer->type == Dropout) return 0;
-    int bias_count = PSGetLayerParametersCount(layer, PARAM_TYPE_BIAS),
-        weights_count = PSGetLayerParametersCount(layer, PARAM_TYPE_WEIGHT);
+    int bias_count = PSGetLayerParametersCount(layer, PS_PARAM_BIAS),
+        weights_count = PSGetLayerParametersCount(layer, PS_PARAM_WEIGHT);
     int i = layer->index, k, j;
     fprintf(f, "--- Layer[%d] Biases: %d ---\n", i, bias_count);
     if (bias_count > 0) {
@@ -1416,9 +1416,9 @@ static int loadLegacyLayerDefinitions(PSModel *model, char *vers,
                     }
                 }
             } else {
-                if (model->size == 0 && (lflags & FLAG_ONEHOT) && argc > 0) {
+                if (model->size == 0 && (lflags & PS_FLAG_ONEHOT) && argc > 0) {
                     lsize = args[0];
-                    model->flags |= FLAG_ONEHOT;
+                    model->flags |= PS_FLAG_ONEHOT;
                 } else if (argc > 0) {
                     /*loadErr(filepath, f, "Unknown arguments");
                     return 0;*/
@@ -1606,7 +1606,7 @@ static int loadLayerDefinitions(PSModel *model, char *vers,
                     loadErr(filepath, f, "Invalid onehot_size");
                     return 0;
                 }
-                ldef.flags |= FLAG_ONEHOT;
+                ldef.flags |= PS_FLAG_ONEHOT;
                 lsize = onehot_size;
             } else if (strcmp("pretrained", propname) == 0) {
                 ok = scanFile(
@@ -1942,10 +1942,10 @@ static int loadLayerParameters(PSLayer *layer, const char *filepath, FILE *f,
         return 0;
     }
     int expected_bias_count = PSGetLayerParametersCount(
-        layer, PARAM_TYPE_BIAS
+        layer, PS_PARAM_BIAS
     );
     int expected_weights_count = PSGetLayerParametersCount(
-        layer, PARAM_TYPE_WEIGHT
+        layer, PS_PARAM_WEIGHT
     );
     ok = (bias_count == expected_bias_count);
     if (!ok) {
@@ -2320,9 +2320,9 @@ int PSSaveLayer(PSLayer *layer, const char *filepath, int opts) {
 int loadModelDefinition(PSModel *model, FILE *f, char *vers) {
     int ok = 1;
     int idx = 0, val = 0;
-    int epochs = 0, batch_count = 0, elements = 0, status = STATUS_UNTRAINED,
+    int epochs = 0, batch_count = 0, elements = 0, status = PS_STATUS_UNTRAINED,
         batch_size = 0, rnn_mode = NonRecurrent,
-        max_sequence_len = MAX_SEQUENCE_LENGTH,
+        max_sequence_len = PS_MAX_SEQUENCE_LENGTH,
         sequence_end = -1, is_built = 0,
         acceleration = PSGlobalAcceleration;
     char sep[2];
@@ -2352,10 +2352,10 @@ int loadModelDefinition(PSModel *model, FILE *f, char *vers) {
         model->sequence_settings.end = sequence_end;
     }
     model->status = status;
-    if (status != STATUS_UNTRAINED) {
+    if (status != PS_STATUS_UNTRAINED) {
         if (model->training == NULL) {
             model->training = malloc(sizeof(PSTrainingInfo));
-            model->training->requested_action = ACTION_NONE;
+            model->training->requested_action = PS_ACTION_NONE;
             model->training->debug_dump_to = NULL;
         }
         model->training->current_epoch = epochs;
@@ -2367,7 +2367,7 @@ int loadModelDefinition(PSModel *model, FILE *f, char *vers) {
         PSEnableAcceleration(&(model->acceleration), acceleration);
         if (acceleration != model->acceleration)
             PSWarn("Could not enable all saved accelerations");
-    } else if (model->flags & FLAG_ACCEL_DISABLED)
+    } else if (model->flags & PS_FLAG_ACCEL_DISABLED)
         model->acceleration = 0;
     return ok;
 }

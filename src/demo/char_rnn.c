@@ -175,7 +175,7 @@ void printSample(PSModel *model, int input_idx, int len) {
     data[1] = word_idx;
     int c = len;
     int oldstatus = model->status;
-    model->status = STATUS_PAUSED;
+    model->status = PS_STATUS_PAUSED;
     if (PSLogColorEnabled()) printf(PSCOLOR_BOLD);
     printf("\n\n==== SAMPLE ====\n\n");
     if (PSLogColorEnabled()) printf(PSCOLOR_RESET);
@@ -366,7 +366,7 @@ void initLSTMGRUParams(PSModel *model) {
         /*printf("Scaling LSTM/GRU weights[%d] (len = %llu)\n", i, wlen);*/
         PSMultiplyVectorScalar(weights, 0.01, weights, wlen, &opts);
     }
-    uint64_t bias_count = PSGetLayerParametersCount(layer, PARAM_TYPE_BIAS);
+    uint64_t bias_count = PSGetLayerParametersCount(layer, PS_PARAM_BIAS);
     if (bias_count > 0) {
         printf(
             "Setting LSTM/GRU biases to zero (len = %" PRIu64 ")\n", bias_count
@@ -402,11 +402,11 @@ int main(int argc, char **argv) {
         return 1;
     }
     if (load_model_file == NULL) {
-        model->flags |= FLAG_ONEHOT;
+        model->flags |= PS_FLAG_ONEHOT;
         PSAddLayer(model, FullyConnected, VOCABULARY_SIZE, NULL);
         PSAddLayer(model, recurrent_ltype, hidden_size, NULL);
         PSAddLayer(model, SoftMax, VOCABULARY_SIZE, NULL);
-        model->layers[model->size - 1]->flags |= FLAG_ONEHOT;
+        model->layers[model->size - 1]->flags |= PS_FLAG_ONEHOT;
         if (LSTM == recurrent_ltype || GRU == recurrent_ltype)
             initLSTMGRUParams(model);
     } else {
@@ -431,7 +431,7 @@ int main(int argc, char **argv) {
     model->onEpochTrained = onEpochTrained;
     model->onBatchTrained = onBatchTrained;
 
-    uint32_t flags = (TRAINING_NO_SHUFFLE | TRAINING_EPOCH_AS_SEQUENCE);
+    uint32_t flags = (PS_TRAINING_NO_SHUFFLE | PS_TRAINING_EPOCH_AS_SEQUENCE);
     PSTrainingOptions opts = {
         .epochs = epochs,
         .batch_size = BATCH_SIZE,

@@ -330,7 +330,7 @@ int main(int argc, char **argv) {
         success = encoder != NULL;
         if (!success) goto final;
         PSLayer *l = PSAddLayer(encoder, FullyConnected, input_size, PSLDEF(
-            .flags = FLAG_ONEHOT, .init_range = INIT_RANGE
+            .flags = PS_FLAG_ONEHOT, .init_range = INIT_RANGE
         ));
         success = l != NULL;
         if (!success) goto final;
@@ -348,7 +348,7 @@ int main(int argc, char **argv) {
         success = decoder != NULL;
         if (!success) goto final;
         l = PSAddLayer(decoder, FullyConnected, output_size, PSLDEF(
-            .flags = FLAG_ONEHOT
+            .flags = PS_FLAG_ONEHOT
         ));
         success = l != NULL;
         if (!success) goto final;
@@ -360,7 +360,7 @@ int main(int argc, char **argv) {
         if (!no_attention) {
             l = PSAddLayer(decoder, Attention, hidden_size, PSLDEF(
                 .init_range = INIT_RANGE,
-                .flags = FLAG_RECURRENT,
+                .flags = PS_FLAG_RECURRENT,
                 .attention_type = attn_type,
                 .keys_provider = encoder_rnn,
                 .attention_heads = n_heads,
@@ -384,9 +384,9 @@ int main(int argc, char **argv) {
         PSSetAttentionQueryProvider(decoder_attn, decoder_rnn);
         l = PSAddLayer(decoder, SoftMax, output_size, &common_ldef);
         success = l != NULL;
-        l->flags |= FLAG_ONEHOT;
+        l->flags |= PS_FLAG_ONEHOT;
         if (!success) goto final;
-        decoder->flags |= FLAG_AUTOREGRESSION;
+        decoder->flags |= PS_FLAG_AUTOREGRESSION;
         decoder->sequence_settings.end = 0;
 
 
@@ -426,8 +426,8 @@ int main(int argc, char **argv) {
     }
     PSModelPrintInfo(encoder);
     PSTrainingOptions opts = {
-        .flags = TRAINING_FLAG_TEACHER_FORCING | TRAINING_FLAG_SEQ2SEQ |
-                 TRAINING_NO_SHUFFLE,
+        .flags = PS_TRAINING_FLAG_TEACHER_FORCING | PS_TRAINING_FLAG_SEQ2SEQ |
+                 PS_TRAINING_NO_SHUFFLE,
         .optimization = optimization,
         .epochs = epochs,
         .learning_rate = lr,

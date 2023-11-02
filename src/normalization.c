@@ -278,7 +278,7 @@ memerr:
     if (new_cache != NULL) deleteNormalizationCache(new_cache, seqlen);
     deleteNormalizationLayerCache(layer);
     layer->private = NULL;
-    PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
+    PSModelSetStatus(layer->model, PS_STATUS_ERROR, NULL);
     return 0;
 }
 
@@ -344,21 +344,21 @@ int PSInitNormalizationLayer(PSLayer *layer, PSLayerDef *ldef) {
     if (previous->output_depth > 0)
         layer->output_depth = previous->output_depth;
     else layer->output_depth = 1;
-    if (!(layer->flags & FLAG_NON_TRAINABLE)) {
+    if (!(layer->flags & PS_FLAG_NON_TRAINABLE)) {
         layer->weights = malloc(sizeof(PSMatrix));
         if (layer->weights == NULL) goto memerr;
-        if (ldef->weight_init_mode != INIT_MODE_AUTO) {
+        if (ldef->weight_init_mode != PS_INIT_MODE_AUTO) {
             layer->weights[0] =
                 PSInitWeights(layer, 1, layer->size, ldef, 1, 1);
         } else layer->weights[0] = PSMatrixCreate(1, NULL, 2, 1, layer->size);
         if (layer->weights[0] == NULL) goto memerr;
         layer->weight_types = 1;
-        if (!(layer->flags & FLAG_NO_BIAS)) {
+        if (!(layer->flags & PS_FLAG_NO_BIAS)) {
             layer->biases = calloc(layer->size, sizeof(PSFloat));
             if (layer->biases == NULL) goto memerr;
-            if (ldef->weight_init_mode != INIT_MODE_AUTO) {
+            if (ldef->weight_init_mode != PS_INIT_MODE_AUTO) {
                 for (int i = 0; i < layer->size; i++) {
-                    layer->biases[i] = PSInitParam(PARAM_TYPE_BIAS, ldef, 1,1);
+                    layer->biases[i] = PSInitParam(PS_PARAM_BIAS, ldef, 1,1);
                 }
             }
         }
@@ -422,7 +422,7 @@ int PSNormalizationForward(PSLayer *layer, ...) {
     PSMathOpts mopts = {.acceleration = layer->model->acceleration};
     PSFloat *input_p = inputs, *output_p = outputs;
     int size = layer->size, n_features = layer->output_depth,
-        trainable = !(layer->flags & FLAG_NON_TRAINABLE), i, j;
+        trainable = !(layer->flags & PS_FLAG_NON_TRAINABLE), i, j;
     if (n_features > 1) size /= n_features;
     else n_features = 1;
     for (i = 0; i < seqlen; i++) {
@@ -462,8 +462,8 @@ int PSNormalizationBackprop(PSLayer *layer, PSLayer *previous,
     PSFloat *delta_norm = NULL, *tmp1 = NULL, *tmp2 = NULL;
     int is_recurrent = PSIsRecurrent(layer), t = 0, seqlen = 1, success = 1,
         sequence_at_once = PSHandleSequenceAtOnce(layer);
-    int use_bias = !(layer->flags & FLAG_NO_BIAS),
-        trainable = !(layer->flags & FLAG_NON_TRAINABLE);
+    int use_bias = !(layer->flags & PS_FLAG_NO_BIAS),
+        trainable = !(layer->flags & PS_FLAG_NON_TRAINABLE);
     if (trainable && gradient == NULL) return 0;
     if (is_recurrent) {
         va_list args;

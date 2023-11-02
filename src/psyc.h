@@ -27,93 +27,95 @@
 #include "activation.h"
 #include "optimization.h"
 
-#define PSYC_VERSION      "0.9.3"
+#define PSYC_VERSION                "0.9.3"
 
-#define LAYER_TYPES     14
+#define PS_LAYER_TYPES              14
 
-#define DEFAULT_RHO     0.95
-#define DEFAULT_BETA1   0.9
-#define DEFAULT_BETA2   0.999
+#define PS_DEFAULT_RHO              0.95
+#define PS_DEFAULT_BETA1            0.9
+#define PS_DEFAULT_BETA2            0.999
+
 #ifdef PS_DOUBLE_PRECISION
-#define DEFAULT_EPS     1e-8
+#define PS_DEFAULT_EPS              1e-8
 #else
-#define DEFAULT_EPS     1e-7
+#define PS_DEFAULT_EPS              1e-7
 #endif
-#define PS_MAX_MEMORY_GRADIENTS 2
 
-#define DEFAULT_RECURRENT_MODE ManyToMany
-#define MAX_SEQUENCE_LENGTH 10
-#define DEFAULT_EOS_INDEX   -1
+#define PS_MAX_MEMORY_GRADIENTS     2
 
-#define STATUS_UNTRAINED    0
-#define STATUS_TRAINED      1
-#define STATUS_TRAINING     2
-#define STATUS_ERROR        3
-#define STATUS_PAUSED       4
-#define STATUS_ABORTED      5
-#define STATUS_VALIDATING   6
-#define STATUS_PRETRAINING  7
+#define PS_DEFAULT_RECURRENT_MODE   ManyToMany
+#define PS_MAX_SEQUENCE_LENGTH      10
+#define PS_DEFAULT_EOS_INDEX        -1
 
-#define ACTION_NONE         0
-#define ACTION_PAUSE        4
-#define ACTION_ABORT        5
+#define PS_STATUS_UNTRAINED         0
+#define PS_STATUS_TRAINED           1
+#define PS_STATUS_TRAINING          2
+#define PS_STATUS_ERROR             3
+#define PS_STATUS_PAUSED            4
+#define PS_STATUS_ABORTED           5
+#define PS_STATUS_VALIDATING        6
+#define PS_STATUS_PRETRAINING       7
 
-#define PARAM_TYPE_BIAS          1
-#define PARAM_TYPE_WEIGHT        2
+#define PS_ACTION_NONE              0
+#define PS_ACTION_PAUSE             4
+#define PS_ACTION_ABORT             5
 
-#define INIT_MODE_AUTO      0
-#define INIT_MODE_RAND      1
-#define INIT_MODE_ZERO      2
-#define INIT_MODE_VALUE     3
+#define PS_PARAM_BIAS               1
+#define PS_PARAM_WEIGHT             2
 
-#define TRAINING_PHASE_FORWARD      1
-#define TRAINING_PHASE_BACKPROP     2
-#define TRAINING_PHASE_UPDATE_GRAD  3
+#define PS_INIT_MODE_AUTO           0
+#define PS_INIT_MODE_RAND           1
+#define PS_INIT_MODE_ZERO           2
+#define PS_INIT_MODE_VALUE          3
+
+#define PS_TRAINING_PHASE_FORWARD       1
+#define PS_TRAINING_PHASE_BACKPROP      2
+#define PS_TRAINING_PHASE_UPDATE_GRAD   3
 
 #define PS_NULL_VALUE PSFLOAT_MIN
 
 /* Layer/Model Flags */
-#define FLAG_NONE 0
-#define FLAG_RECURRENT      (1 << 0)
-#define FLAG_ONEHOT         (1 << 1)
-#define FLAG_ACCEL_DISABLED (1 << 2) /* Formerly FLAG_AVX_DISABLED (< v0.4):
-                                      * not used anymore, but disables any
-                                      * acceleration when loading models
-                                      * generated with versiob < 0.4 */
-#define FLAG_NO_BIAS        (1 << 3)
-#define FLAG_PRETRAINER     (1 << 4)
-#define FLAG_NON_TRAINABLE  (1 << 5)
-#define FLAG_USE_SEQUENCES  (1 << 6)
-#define FLAG_AUTOREGRESSION (1 << 7)
-#define FLAG_RANDREGRESSION (1 << 8)
-#define FLAG_SELF_ATTENTION (1 << 16)
+#define PS_FLAG_NONE           0
+#define PS_FLAG_RECURRENT      (1 << 0)
+#define PS_FLAG_ONEHOT         (1 << 1)
+#define PS_FLAG_ACCEL_DISABLED (1 << 2) /* Formerly FLAG_AVX_DISABLED (< v0.4):
+                                         * not used anymore, but disables any
+                                         * acceleration when loading models
+                                         * generated with versiob < 0.4 */
+#define PS_FLAG_NO_BIAS        (1 << 3)
+#define PS_FLAG_PRETRAINER     (1 << 4)
+#define PS_FLAG_NON_TRAINABLE  (1 << 5)
+#define PS_FLAG_USE_SEQUENCES  (1 << 6)
+#define PS_FLAG_AUTOREGRESSION (1 << 7)
+#define PS_FLAG_RANDREGRESSION (1 << 8)
+#define PS_FLAG_SELF_ATTENTION (1 << 16)
 
 /* Training Flags */
-#define TRAINING_NO_SHUFFLE             (1 << 0)
-#define TRAINING_ADJUST_RATE            (1 << 1)
-#define TRAINING_WEIGHT_DECAY           (1 << 2)
-#define TRAINING_EPOCH_AS_SEQUENCE      (1 << 3)
-#define TRAINING_FLAG_SELFSUPERVISED    (1 << 4)
-#define TRAINING_FLAG_AUTOREGRESSION    (1 << 7)
-#define TRAINING_FLAG_TEACHER_FORCING   (1 << 8)
-#define TRAINING_FLAG_SEQ2SEQ           (1 << 9)
+#define PS_TRAINING_NO_SHUFFLE             (1 << 0)
+#define PS_TRAINING_ADJUST_RATE            (1 << 1)
+#define PS_TRAINING_WEIGHT_DECAY           (1 << 2)
+#define PS_TRAINING_EPOCH_AS_SEQUENCE      (1 << 3)
+#define PS_TRAINING_FLAG_SELFSUPERVISED    (1 << 4)
+#define PS_TRAINING_FLAG_AUTOREGRESSION    (1 << 7)
+#define PS_TRAINING_FLAG_TEACHER_FORCING   (1 << 8)
+#define PS_TRAINING_FLAG_SEQ2SEQ           (1 << 9)
 
 /* I/O options */
 
 #define PS_IO_SAVE_DEFINITION           (1 << 0)
 #define PS_IO_BINARY_MODE               (1 << 1)
 
-#define PSIsRecurrent(o) (o->flags & FLAG_RECURRENT)
-#define PSSetRecurrent(o) (o->flags |= FLAG_RECURRENT)
+#define PSIsRecurrent(o) (o->flags & PS_FLAG_RECURRENT)
+#define PSSetRecurrent(o) (o->flags |= PS_FLAG_RECURRENT)
 #define PSUseSequences(o) \
-    (o->flags & (FLAG_RECURRENT | FLAG_USE_SEQUENCES))
+    (o->flags & (PS_FLAG_RECURRENT | PS_FLAG_USE_SEQUENCES))
 #define PSHandleSequenceAtOnce(o) (PSUseSequences(o) && !PSIsRecurrent(o))
 #define PSIsModelChain(model) (model->previous != NULL || model->next != NULL)
 #define PSLDEF(...) ((PSLayerDef *) &((PSLayerDef) {__VA_ARGS__}))
 #define PSTRAINOPT(...) \
     ((PSTrainingOptions *) &((PSTrainingOptions) {__VA_ARGS__}))
 #define PSDisablePretraining(layer) (layer->pretrain = NULL)
-#define PSIsModelTraining(model) (PSModelGetStatus(model) == STATUS_TRAINING)
+#define PSIsModelTraining(model) (PSModelGetStatus(model) == PS_STATUS_TRAINING)
 
 struct PSModel;
 struct PSLayer;

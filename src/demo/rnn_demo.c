@@ -153,7 +153,7 @@ void printSample(PSModel *model, int input_idx, int len) {
     data[1] = word_idx;
     int c = len;
     int oldstatus = model->status;
-    model->status = STATUS_PAUSED;
+    model->status = PS_STATUS_PAUSED;
     if (PSLogColorEnabled()) printf(PSCOLOR_BOLD);
     printf("\n\n==== SAMPLE ====\n\n");
     if (PSLogColorEnabled()) printf(PSCOLOR_RESET);
@@ -240,7 +240,7 @@ int main(int argc, char** argv) {
         fprintf(stderr, "Could not create model!\n");
         return 1;
     }
-    model->flags |= FLAG_ONEHOT;
+    model->flags |= PS_FLAG_ONEHOT;
 
     for (i = 1; i < argc; i++) {
         char *arg = argv[i];
@@ -380,7 +380,7 @@ int main(int argc, char** argv) {
         }
         PSAddLayer(model, Recurrent, hidden_size, NULL);
         PSAddLayer(model, SoftMax, VOCABULARY_SIZE, NULL);
-        model->layers[model->size - 1]->flags |= FLAG_ONEHOT;
+        model->layers[model->size - 1]->flags |= PS_FLAG_ONEHOT;
         if (model->size < 1) {
             fprintf(stderr, "Could not add all layers!\n");
             PSModelFree(model);
@@ -408,8 +408,9 @@ int main(int argc, char** argv) {
     printf("off\n");
 #endif
     PSModelPrintInfo(model);
-    int flags = TRAINING_ADJUST_RATE;
-    if (!shuffle) flags |= (TRAINING_NO_SHUFFLE | TRAINING_EPOCH_AS_SEQUENCE);
+    int flags = PS_TRAINING_ADJUST_RATE;
+    if (!shuffle)
+        flags |= (PS_TRAINING_NO_SHUFFLE | PS_TRAINING_EPOCH_AS_SEQUENCE);
     printf("*** NOTE ***\nTraining data taken from some paragraphs of "
            "Wikipedia's article about planet\nSaturn: "
            "(https://en.wikipedia.org/wiki/Saturn).\n\n");
@@ -427,7 +428,7 @@ int main(int argc, char** argv) {
     PSTrain(model, training_data, TRAIN_DATA_LEN, training_data,
             TRAIN_DATA_LEN, &options);
 
-    if (model->status == STATUS_ERROR) {
+    if (model->status == PS_STATUS_ERROR) {
         return_status = 1;
         goto final;
     }

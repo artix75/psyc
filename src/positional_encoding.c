@@ -153,12 +153,12 @@ int PSInitPositionalLayer(PSLayer *layer, PSLayerDef *layer_def) {
               "handling whole sequences at onece");
         return 0;
     }
-    layer->flags |= FLAG_USE_SEQUENCES;
-    layer->flags &= ~((unsigned) FLAG_RECURRENT);
-    layer->flags |= (FLAG_NO_BIAS | FLAG_NON_TRAINABLE);
+    layer->flags |= PS_FLAG_USE_SEQUENCES;
+    layer->flags &= ~((unsigned) PS_FLAG_RECURRENT);
+    layer->flags |= (PS_FLAG_NO_BIAS | PS_FLAG_NON_TRAINABLE);
     int onehot_input = (
-        previous->flags & FLAG_ONEHOT ||
-        ((model->flags & FLAG_ONEHOT) && previous->size == 1)
+        previous->flags & PS_FLAG_ONEHOT ||
+        ((model->flags & PS_FLAG_ONEHOT) && previous->size == 1)
     );
     int min_capacity = 0;
     if (onehot_input) {
@@ -224,8 +224,8 @@ int PSPositionalForward(PSLayer *layer, ...) {
     }
     PSMatrix inputs = NULL, tmpinputs = NULL;
     int onehot_input = (
-        previous->flags & FLAG_ONEHOT ||
-        ((layer->model->flags & FLAG_ONEHOT) && previous->size == 1)
+        previous->flags & PS_FLAG_ONEHOT ||
+        ((layer->model->flags & PS_FLAG_ONEHOT) && previous->size == 1)
     );
     PSMatrix weights = layer->weights[0];
     if (!onehot_input) inputs = previous->states;

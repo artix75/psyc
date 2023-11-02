@@ -89,20 +89,22 @@ int PSInitRecurrentLayer(PSModel *model, PSLayer *layer,
     if (layer->biases == NULL) goto memerr;
     layer->extra = calloc(size, sizeof(PSFloat));
     if (layer->extra == NULL) goto memerr;
-    int bias_init_mode = (ldef != NULL ? ldef->bias_init_mode : INIT_MODE_AUTO);
-    int rand_bias = (bias_init_mode == INIT_MODE_RAND);
+    int bias_init_mode = (
+        ldef != NULL ? ldef->bias_init_mode : PS_INIT_MODE_AUTO
+    );
+    int rand_bias = (bias_init_mode == PS_INIT_MODE_RAND);
     for (i = 0; i < size; i++) {
-        if (rand_bias) layer->biases[i] = PSInitParam(PARAM_TYPE_BIAS,ldef,1,0);
+        if (rand_bias) layer->biases[i] = PSInitParam(PS_PARAM_BIAS,ldef,1,0);
         else layer->biases[i] = 0.0;
     }
-    layer->flags |= FLAG_RECURRENT;
+    layer->flags |= PS_FLAG_RECURRENT;
     if (layer->activate == NULL) {
         layer->activate = PSTanhActivation;
         layer->derivative = PSTanhDerivative;
     }
     layer->forward = PSRecurrentForward;
     layer->backprop = PSRecurrentBackprop;
-    model->flags |= FLAG_RECURRENT;
+    model->flags |= PS_FLAG_RECURRENT;
     return 1;
 memerr:
     PSPrintMemoryErrorMsg();
@@ -140,8 +142,8 @@ int PSRecurrentForward(PSLayer *layer, ...) {
     if (!PSBeforeSequenceForward(layer, steps, t)) return 0;
     PSFloat *hidden_values = (PSFloat *) layer->extra;
     PSLayer *first_recurrent = PSGetFirstRecurrentLayer(model);
-    int onehot = previous->flags & FLAG_ONEHOT;
-    int use_bias = !(layer->flags & FLAG_NO_BIAS);
+    int onehot = previous->flags & PS_FLAG_ONEHOT;
+    int use_bias = !(layer->flags & PS_FLAG_NO_BIAS);
     int ignore_inputs = 0;
     int feed_previous_step = (t > 0 || layer->initial_states != NULL);
     /* If layer is the first recurrent layer of a one-to-many model, inputs
@@ -204,12 +206,12 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previous_layer,
     int t = va_arg(args, int);
     int lowest_t = va_arg(args, int);
     va_end(args);
-    int use_bias = !(layer->flags & FLAG_NO_BIAS);
+    int use_bias = !(layer->flags & PS_FLAG_NO_BIAS);
     int lsize = layer->size, i, w, tt;
     PSMatrix prev_layer_delta = previous_layer->delta;
     int do_truncate = (t - lowest_t) > 0;
     int has_initial_states = (layer->initial_states != NULL);
-    int onehot = (previous_layer->flags & FLAG_ONEHOT);
+    int onehot = (previous_layer->flags & PS_FLAG_ONEHOT);
     int onehot_vector_size = 0, onehot_idx;
     if (onehot) {
         onehot_vector_size = PSGetOneHotLayerVectorSize(previous_layer);

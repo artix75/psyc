@@ -962,7 +962,7 @@ int PSAddGPT2TransformerBlock(PSModel *model, int index,
     if (!ok) goto final;
     if (use_binary_files) has_bin = getBinaryParamsPathIfExists(params_path);
     l = PSAddLayer(model, Normalization, hpar->n_embd, PSLDEF(
-        .flags = FLAG_USE_SEQUENCES, .load_from = params_path
+        .flags = PS_FLAG_USE_SEQUENCES, .load_from = params_path
     ));
     ok = (l != NULL);
     if (!ok) goto final;
@@ -979,7 +979,7 @@ int PSAddGPT2TransformerBlock(PSModel *model, int index,
     if (!ok) goto final;
     if (use_binary_files) has_bin = getBinaryParamsPathIfExists(params_path);
     l = PSAddLayer(model, Attention, hpar->n_embd, PSLDEF(
-        .flags = FLAG_USE_SEQUENCES,
+        .flags = PS_FLAG_USE_SEQUENCES,
         .attention_heads = hpar->n_head,
         .causal_attention = 1,
         .self_attention = 1,
@@ -998,7 +998,7 @@ int PSAddGPT2TransformerBlock(PSModel *model, int index,
     PSLayer *input_layer = model->layers[base_index - 1];
     PSLayer *providers[] = {input_layer, attn_layer};
     l = PSAddLayer(model, OperatorLayer, 0, PSLDEF(
-        .flags = FLAG_USE_SEQUENCES,
+        .flags = PS_FLAG_USE_SEQUENCES,
         .operator = PSAddOperator,
         .providers_count = 2,
         .providers = providers
@@ -1016,7 +1016,7 @@ int PSAddGPT2TransformerBlock(PSModel *model, int index,
     if (!ok) goto final;
     if (use_binary_files) has_bin = getBinaryParamsPathIfExists(params_path);
     l = PSAddLayer(model, Normalization, hpar->n_embd, PSLDEF(
-        .flags = FLAG_USE_SEQUENCES, .load_from = params_path,
+        .flags = PS_FLAG_USE_SEQUENCES, .load_from = params_path,
     ));
     ok = (l != NULL);
     if (!ok) goto final;
@@ -1031,7 +1031,7 @@ int PSAddGPT2TransformerBlock(PSModel *model, int index,
     if (!ok) goto final;
     if (use_binary_files) has_bin = getBinaryParamsPathIfExists(params_path);
     l = PSAddLayer(model, FullyConnected, 4 * hpar->n_embd, PSLDEF(
-        .flags = FLAG_USE_SEQUENCES,
+        .flags = PS_FLAG_USE_SEQUENCES,
         .activation = PSGelu,
         .load_from = params_path,
     ));
@@ -1048,7 +1048,7 @@ int PSAddGPT2TransformerBlock(PSModel *model, int index,
     if (!ok) goto final;
     if (use_binary_files) has_bin = getBinaryParamsPathIfExists(params_path);
     l = PSAddLayer(model, Linear, hpar->n_embd, PSLDEF(
-        .flags = FLAG_USE_SEQUENCES, .load_from = params_path,
+        .flags = PS_FLAG_USE_SEQUENCES, .load_from = params_path,
     ));
     ok = (l != NULL);
     if (!ok) goto final;
@@ -1060,7 +1060,7 @@ int PSAddGPT2TransformerBlock(PSModel *model, int index,
     providers[0] = add_layer_1;
     providers[1] = ln_layer;
     l = PSAddLayer(model, OperatorLayer, 0, PSLDEF(
-        .flags = FLAG_USE_SEQUENCES,
+        .flags = PS_FLAG_USE_SEQUENCES,
         .operator = PSAddOperator,
         .providers_count = 2,
         .providers = providers
@@ -1647,15 +1647,15 @@ int main(int argc, char **argv) {
     ok = (gpt2_model != NULL);
     if (!ok) goto final;
     gpt2_model->flags |= (
-        FLAG_USE_SEQUENCES | FLAG_ONEHOT
+        PS_FLAG_USE_SEQUENCES | PS_FLAG_ONEHOT
     );
-    gpt2_model->flags &= ~((unsigned) FLAG_RECURRENT);
+    gpt2_model->flags &= ~((unsigned) PS_FLAG_RECURRENT);
     PSNotice("Loading GPT2 Model");
     if (!verbose) PSLogLevel = PSLOGLEVEL_NOTICE;
     int print_progress = (!verbose);
     /* Input Layer */
     l = PSAddLayer(gpt2_model, FullyConnected, hparams.n_vocab, PSLDEF(
-        .flags = FLAG_ONEHOT | FLAG_USE_SEQUENCES
+        .flags = PS_FLAG_ONEHOT | PS_FLAG_USE_SEQUENCES
     ));
     ok = (l != NULL);
     if (!ok) goto final;
@@ -1666,7 +1666,7 @@ int main(int argc, char **argv) {
     if (use_binary_files) has_bin = getBinaryParamsPathIfExists(params_path);
     l = PSAddLayer(gpt2_model, Embedding, hparams.n_embd, PSLDEF(
         .load_from = params_path,
-        .flags = FLAG_NON_TRAINABLE | FLAG_NO_BIAS | FLAG_USE_SEQUENCES
+        .flags = PS_FLAG_NON_TRAINABLE | PS_FLAG_NO_BIAS | PS_FLAG_USE_SEQUENCES
     ));
     ok = (l != NULL);
     if (!ok) goto final;
@@ -1679,7 +1679,7 @@ int main(int argc, char **argv) {
     if (use_binary_files) has_bin = getBinaryParamsPathIfExists(params_path);
     l = PSAddLayer(gpt2_model, PositionalEncoding, hparams.n_embd, PSLDEF(
         .load_from = params_path,
-        .flags = FLAG_NON_TRAINABLE | FLAG_NO_BIAS | FLAG_USE_SEQUENCES
+        .flags = PS_FLAG_NON_TRAINABLE | PS_FLAG_NO_BIAS | PS_FLAG_USE_SEQUENCES
     ));
     ok = (l != NULL);
     if (!ok) goto final;
@@ -1699,7 +1699,7 @@ int main(int argc, char **argv) {
     if (use_binary_files) has_bin = getBinaryParamsPathIfExists(params_path);
     l = PSAddLayer(gpt2_model, Normalization, hparams.n_embd, PSLDEF(
         .load_from = params_path,
-        .flags = FLAG_USE_SEQUENCES
+        .flags = PS_FLAG_USE_SEQUENCES
     ));
     ok = (l != NULL);
     if (!ok) goto final;
@@ -1711,7 +1711,7 @@ int main(int argc, char **argv) {
     if (use_binary_files) has_bin = getBinaryParamsPathIfExists(params_path);
     l = PSAddLayer(gpt2_model, Linear, hparams.n_vocab, PSLDEF(
         .load_from = params_path,
-        .flags = FLAG_USE_SEQUENCES | FLAG_NO_BIAS
+        .flags = PS_FLAG_USE_SEQUENCES | PS_FLAG_NO_BIAS
     ));
     ok = (l != NULL);
     if (!ok) goto final;

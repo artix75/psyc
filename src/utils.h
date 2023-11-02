@@ -48,9 +48,9 @@
 #define PSGetElapsedTimeUS(st, et) (((et.tv_sec - st.tv_sec) * 1000000) \
     + (et.tv_usec - st.tv_usec))
 
-#define OPT_TIME_LONG        (1 << 0)
-#define OPT_TIME_FULL        (1 << 1)
-#define OPT_TIME_HUMAN       (1 << 2)
+#define PS_OPT_TIME_LONG        (1 << 0)
+#define PS_OPT_TIME_FULL        (1 << 1)
+#define PS_OPT_TIME_HUMAN       (1 << 2)
 
 #define PS_BITMAP_OP_AND 1
 #define PS_BITMAP_OP_OR  2

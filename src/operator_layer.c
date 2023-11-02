@@ -410,7 +410,7 @@ int PSInitOperatorLayer(PSLayer *layer, PSLayerDef *ldef) {
     layer->onCopy = copyOperatorLayer;
     layer->build = buildOperatorLayer;
     layer->weights = NULL;
-    layer->flags |= FLAG_NON_TRAINABLE;
+    layer->flags |= PS_FLAG_NON_TRAINABLE;
     layer->biases = NULL;
     layer->weight_types = 0;
     if (ldef == NULL) {
@@ -555,7 +555,7 @@ int PSOperatorBackprop(PSLayer *layer, PSLayer *previous,
     }
     int is_recurrent = PSIsRecurrent(layer), t = 0, seqlen = 1, success = 1,
         whole_seq = PSHandleSequenceAtOnce(layer);
-    int trainable = !(layer->flags & FLAG_NON_TRAINABLE);
+    int trainable = !(layer->flags & PS_FLAG_NON_TRAINABLE);
     if (trainable && gradient == NULL) return 0;
     if (is_recurrent) {
         va_list args;

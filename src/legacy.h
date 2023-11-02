@@ -58,6 +58,60 @@
 #define PSDictDelete(dict, key)             PSDictRemove(dict, key)
 #define PSVocabularyRelease(vocab)          PSVocabularyFree(vocab)
 
+#define FLAG_LOG_COLORS                     PS_FLAG_LOG_COLORS
+#define DATA_TYPE_TRAINING                  PS_DATA_TYPE_TRAINING
+#define DATA_TYPE_TEST                      PS_DATA_TYPE_TEST
+#define MNIST_INPUT_SIZE                    PS_MNIST_INPUT_SIZE
+#define CIFAR_IMAGE_SIZE                    PS_CIFAR_IMAGE_SIZE
+#define LAYER_TYPES                         PS_LAYER_TYPES
+#define DEFAULT_RHO                         PS_DEFAULT_RHO
+#define DEFAULT_BETA1                       PS_DEFAULT_BETA1
+#define DEFAULT_BETA2                       PS_DEFAULT_BETA2
+#define DEFAULT_EPS                         PS_DEFAULT_EPS
+#define DEFAULT_RECURRENT_MODE              PS_DEFAULT_RECURRENT_MODE
+#define MAX_SEQUENCE_LENGTH                 PS_MAX_SEQUENCE_LENGTH
+#define DEFAULT_EOS_INDEX                   PS_DEFAULT_EOS_INDEX
+#define STATUS_UNTRAINED                    PS_STATUS_UNTRAINED
+#define STATUS_ERROR                        PS_STATUS_ERROR
+#define STATUS_PAUSED                       PS_STATUS_PAUSED
+#define STATUS_ABORTED                      PS_STATUS_ABORTED
+#define STATUS_VALIDATING                   PS_STATUS_VALIDATING
+#define STATUS_PRETRAINING                  PS_STATUS_PRETRAINING
+#define ACTION_NONE                         PS_ACTION_NONE
+#define ACTION_PAUSE                        PS_ACTION_PAUSE
+#define ACTION_ABORT                        PS_ACTION_ABORT
+#define PARAM_TYPE_BIAS                     PS_PARAM_BIAS
+#define PARAM_TYPE_WEIGHT                   PS_PARAM_WEIGHT
+#define INIT_MODE_AUTO                      PS_INIT_MODE_AUTO
+#define INIT_MODE_RAND                      PS_INIT_MODE_RAND
+#define INIT_MODE_ZERO                      PS_INIT_MODE_ZERO
+#define INIT_MODE_VALUE                     PS_INIT_MODE_VALUE
+#define TRAINING_PHASE_FORWARD              PS_TRAINING_PHASE_FORWARD
+#define TRAINING_PHASE_BACKPROP             PS_TRAINING_PHASE_BACKPROP
+#define TRAINING_PHASE_UPDATE_GRAD          PS_TRAINING_PHASE_UPDATE_GRAD
+#define FLAG_NONE                           PS_FLAG_NONE
+#define FLAG_RECURRENT                      PS_FLAG_RECURRENT
+#define FLAG_ONEHOT                         PS_FLAG_ONEHOT
+#define FLAG_ACCEL_DISABLED                 PS_FLAG_ACCEL_DISABLED
+#define FLAG_NO_BIAS                        PS_FLAG_NO_BIAS
+#define FLAG_PRETRAINER                     PS_FLAG_PRETRAINER
+#define FLAG_NON_TRAINABLE                  PS_FLAG_NON_TRAINABLE
+#define FLAG_USE_SEQUENCES                  PS_FLAG_USE_SEQUENCES
+#define FLAG_AUTOREGRESSION                 PS_FLAG_AUTOREGRESSION
+#define FLAG_RANDREGRESSION                 PS_FLAG_RANDREGRESSION
+#define FLAG_SELF_ATTENTION                 PS_FLAG_SELF_ATTENTION
+#define TRAINING_NO_SHUFFLE                 PS_TRAINING_NO_SHUFFLE
+#define TRAINING_ADJUST_RATE                PS_TRAINING_ADJUST_RATE
+#define TRAINING_WEIGHT_DECAY               PS_TRAINING_WEIGHT_DECAY
+#define TRAINING_EPOCH_AS_SEQUENCE          PS_TRAINING_EPOCH_AS_SEQUENCE
+#define TRAINING_FLAG_SELFSUPERVISED        PS_TRAINING_FLAG_SELFSUPERVISED
+#define TRAINING_FLAG_AUTOREGRESSION        PS_TRAINING_FLAG_AUTOREGRESSION
+#define TRAINING_FLAG_TEACHER_FORCING       PS_TRAINING_FLAG_TEACHER_FORCING
+#define TRAINING_FLAG_SEQ2SEQ               PS_TRAINING_FLAG_SEQ2SEQ
+#define OPT_TIME_LONG                       PS_OPT_TIME_LONG
+#define OPT_TIME_FULL                       PS_OPT_TIME_FULL
+#define OPT_TIME_HUMAN                      PS_OPT_TIME_HUMAN
+
 typedef PSModelLink PSNeuralNetworkLink;
 
 #endif /* __PS_LEGACY_H__ */

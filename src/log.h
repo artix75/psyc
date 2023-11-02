@@ -78,8 +78,8 @@
 
 #define PSDEFAULT_LOGLEVEL   PSLOGLEVEL_INFO
 
-#ifndef FLAG_LOG_COLORS
-#define FLAG_LOG_COLORS (1 << 0)
+#ifndef PS_FLAG_LOG_COLORS
+#define PS_FLAG_LOG_COLORS (1 << 0)
 #endif
 
 #define PS_PROGRESS_STYLE_DOUBLE_DASH 0
@@ -101,9 +101,9 @@
 #define PS_LINE_PLAIN_ASCII     (1 << 3)
 
 #define PSClearScreen() (printf("\x1b[1;1H\x1b[2J"))
-#define PSLogColorEnabled() (PSGlobalFlags & FLAG_LOG_COLORS)
-#define PSLogEnableColor() (PSGlobalFlags |= FLAG_LOG_COLORS)
-#define PSLogDisableColor() (PSGlobalFlags &= ~((unsigned) FLAG_LOG_COLORS))
+#define PSLogColorEnabled() (PSGlobalFlags & PS_FLAG_LOG_COLORS)
+#define PSLogEnableColor() (PSGlobalFlags |= PS_FLAG_LOG_COLORS)
+#define PSLogDisableColor() (PSGlobalFlags &= ~((unsigned) PS_FLAG_LOG_COLORS))
 #define PSPrintMemoryErrorMsg() PSErr(NULL, "Could not allocate memory!")
 
 extern int PSLogLevel;

@@ -48,7 +48,7 @@ int main(int argc, char** argv) {
     int eval_dataset_len = EVAL_DATASET_LEN;
 
     if (strcmp("--load", argv[1]) != 0) {
-        datalen = PSLoadMNISTData(DATA_TYPE_TRAINING, argv[1], argv[2],
+        datalen = PSLoadMNISTData(PS_DATA_TYPE_TRAINING, argv[1], argv[2],
                                   &training_data);
         if (datalen == 0 || training_data == NULL) {
             printf("Could not load training data!\n");
@@ -58,7 +58,7 @@ int main(int argc, char** argv) {
         pretrained_file = argv[2];
     }
     if (argc >= 5) {
-        testlen = PSLoadMNISTData(DATA_TYPE_TEST, argv[3], argv[4],
+        testlen = PSLoadMNISTData(PS_DATA_TYPE_TEST, argv[3], argv[4],
                                   &test_data);
     }
 
@@ -144,7 +144,7 @@ int main(int argc, char** argv) {
                 &opts);
     }
 
-    if (model->status == STATUS_ERROR) {
+    if (model->status == PS_STATUS_ERROR) {
         PSModelFree(model);
         if (training_data != NULL) free(training_data);
         if (test_data != NULL) free(test_data);

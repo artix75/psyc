@@ -174,7 +174,7 @@ void onBatchTrained(PSModel *model, int epoch, int epochs,
     snprintf(fname, 1023, "%s/psyc-deltas-batch-%d.dump",
              dump_activations_str, batch);
     PSModelDumpDeltas(model, fname);
-    PSFloat *labels = training_data + CIFAR_IMAGE_SIZE;
+    PSFloat *labels = training_data + PS_CIFAR_IMAGE_SIZE;
     snprintf(fname, 1023, "%s/psyc-labels-batch-%d.dump",
              dump_activations_str, batch);
     FILE *lblfile = fopen(fname, "w");
@@ -476,7 +476,7 @@ int main(int argc, char** argv) {
     }
 
     if (dataset_path != NULL) {
-        datasize = PSLoadCIFARData(DATA_TYPE_TRAINING, classes, dataset_path,
+        datasize = PSLoadCIFARData(PS_DATA_TYPE_TRAINING, classes, dataset_path,
                                    &training_data, 0, max_images);
         if (datasize == 0 || training_data == NULL) {
             printf("Could not load training data!\n");
@@ -486,7 +486,7 @@ int main(int argc, char** argv) {
         printf("Loaded training dataset (len: %d, size: %d)\n",
             datalen, datasize);
         if (!max_images) {
-            testsize = PSLoadCIFARData(DATA_TYPE_TEST, classes, dataset_path,
+            testsize = PSLoadCIFARData(PS_DATA_TYPE_TEST, classes, dataset_path,
                                        &test_data, 0, 0);
             if (testsize == 0 || test_data == NULL) {
                 printf("Could not load test data!\n");
@@ -548,7 +548,7 @@ int main(int argc, char** argv) {
             .filter_width = 2, .filter_height = 2
         };
 
-        PSAddLayer(model, FullyConnected, CIFAR_IMAGE_SIZE, &input_def);
+        PSAddLayer(model, FullyConnected, PS_CIFAR_IMAGE_SIZE, &input_def);
         PSAddConvolutionalLayer(model, &conv_def);
         PSAddPoolingLayer(model, &pool_def);
 
@@ -630,7 +630,7 @@ int main(int argc, char** argv) {
         if (dump_pretrained_fname != NULL)
             PSModelSave(model, dump_pretrained_fname);
         int flags = 0;
-        if (no_shuffle) flags |= TRAINING_NO_SHUFFLE;
+        if (no_shuffle) flags |= PS_TRAINING_NO_SHUFFLE;
         PSTrainingOptions train_opts = {
             .epochs = epochs,
             .batch_size = batch_size,
@@ -648,13 +648,14 @@ int main(int argc, char** argv) {
         PSTrain(model, training_data, datalen, validation_data, valdlen,
                 &train_opts);
     }
-    if (model->status == STATUS_ERROR) {
+    if (model->status == PS_STATUS_ERROR) {
         PSModelFree(model);
         if (training_data != NULL) free(training_data);
         if (test_data != NULL) free(test_data);
         return 1;
     }
-    if (testlen > 0 && test_data != NULL && model->status == STATUS_TRAINED) {
+    if (testlen > 0 && test_data != NULL && model->status == PS_STATUS_TRAINED)
+    {
         printf("Test Data len: %d\n", testlen);
         PSTest(model, test_data, testlen, NULL);
     }

@@ -22,8 +22,8 @@
 #include <fenv.h>
 #include "types.h"
 
-#define DEBUG_PHASE_UPDATE_GRADS     1
-#define DEBUG_PHASE_UPDATE_WEIGHTS   2
+#define PS_DEBUG_PHASE_UPDATE_GRADS     1
+#define PS_DEBUG_PHASE_UPDATE_WEIGHTS   2
 
 #define PSShouldDebugDump(model) (model->training != NULL &&\
  model->training->debug_dump_to != NULL &&\

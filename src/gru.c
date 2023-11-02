@@ -175,7 +175,7 @@ int PSResizeGRUStates(PSLayer *layer, uint32_t steps, uint32_t prev_steps) {
     if (candidates == NULL) {
         PSMatrixFree(cell->candidates);
         cell->candidates = NULL;
-        PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
+        PSModelSetStatus(layer->model, PS_STATUS_ERROR, NULL);
         return 0;
     }
     cell->candidates = candidates;
@@ -186,7 +186,7 @@ int PSResizeGRUStates(PSLayer *layer, uint32_t steps, uint32_t prev_steps) {
     if (update_gates == NULL) {
         PSMatrixFree(cell->update_gates);
         cell->update_gates = NULL;
-        PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
+        PSModelSetStatus(layer->model, PS_STATUS_ERROR, NULL);
         return 0;
     }
     cell->update_gates = update_gates;
@@ -197,7 +197,7 @@ int PSResizeGRUStates(PSLayer *layer, uint32_t steps, uint32_t prev_steps) {
     if (reset_gates == NULL) {
         PSMatrixFree(cell->reset_gates);
         cell->reset_gates = NULL;
-        PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
+        PSModelSetStatus(layer->model, PS_STATUS_ERROR, NULL);
         return 0;
     }
     cell->reset_gates = reset_gates;
@@ -281,7 +281,7 @@ int setGRUState(PSLayer *layer, int index, PSFloat state, int t, int type) {
     if (t >= (int) PSStateSequenceLength(layer)) {
         if (!PSResizeLayerStates(layer, t + 1)) {
             if (layer->model)
-                PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
+                PSModelSetStatus(layer->model, PS_STATUS_ERROR, NULL);
             PSErr(
                 NULL, "Could not resize recurrent hidden states for "
                 "layer %d", layer->index
@@ -421,24 +421,26 @@ int PSInitGRULayer(PSModel *model, PSLayer *layer, int size, int ws,
         if (layer->weights[i] == NULL) goto memerr;
         layer->weight_types++;
     }
-    int bias_init_mode = (ldef != NULL ? ldef->bias_init_mode : INIT_MODE_AUTO);
-    if (bias_init_mode == INIT_MODE_ZERO)
+    int bias_init_mode = (
+        ldef != NULL ? ldef->bias_init_mode : PS_INIT_MODE_AUTO
+    );
+    if (bias_init_mode == PS_INIT_MODE_ZERO)
         memset(layer->biases, 0, bias_count * sizeof(PSFloat));
     else {
         for (i = 0; i < bias_count; i++)
-            layer->biases[i] = PSInitParam(PARAM_TYPE_BIAS, ldef, 1, 0);
+            layer->biases[i] = PSInitParam(PS_PARAM_BIAS, ldef, 1, 0);
     }
     layer->delta = PSMatrixZeros(2, 1, layer->size);
     if (layer->delta == NULL) goto memerr;
     if (!PSCreateGRUCell(layer)) return 0;
-    layer->flags |= FLAG_RECURRENT;
+    layer->flags |= PS_FLAG_RECURRENT;
     if (layer->activate == NULL) {
         layer->activate = PSTanhActivation;
         layer->derivative = PSTanhDerivative;
     }
     layer->forward = PSGRUForward;
     layer->backprop = PSGRUBackprop;
-    model->flags |= FLAG_RECURRENT;
+    model->flags |= PS_FLAG_RECURRENT;
     return 1;
 memerr:
     PSPrintMemoryErrorMsg();
@@ -462,10 +464,10 @@ int PSGRUForward(PSLayer *layer, ...) {
     PSLayer *first_recurrent = PSGetFirstRecurrentLayer(model);
     PSGRUCell *cell = PSGetGRUCell(layer);
     if (cell == NULL) return 0;
-    int onehot = previous->flags & FLAG_ONEHOT;
+    int onehot = previous->flags & PS_FLAG_ONEHOT;
     int ignore_inputs = 0;
     int prev_t = t - 1;
-    int use_bias = !(layer->flags & FLAG_NO_BIAS);
+    int use_bias = !(layer->flags & PS_FLAG_NO_BIAS);
     PSMathOpts mopts = {.acceleration = model->acceleration};
     PSFloat *prev_states = NULL;
     PSFloat *candidates = getCandidates(layer, t);
@@ -613,10 +615,10 @@ int PSGRUBackprop(PSLayer *layer, PSLayer *previous_layer,
     int t = va_arg(args, int);
     va_end(args);
     PSMathOpts mopts = {.acceleration = layer->model->acceleration};
-    int onehot = previous_layer->flags & FLAG_ONEHOT;
+    int onehot = previous_layer->flags & PS_FLAG_ONEHOT;
     int lsize = layer->size, prev_t = t - 1, success = 1;
     int input_size = previous_layer->size;
-    int use_bias = !(layer->flags & FLAG_NO_BIAS);
+    int use_bias = !(layer->flags & PS_FLAG_NO_BIAS);
     if (onehot) {
         input_size = PSGetOneHotLayerVectorSize(previous_layer);
         if (input_size <= 0) return 0;

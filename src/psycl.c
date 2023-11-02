@@ -319,8 +319,10 @@ static int loadMNISTData(int data_type, int argc, char **argv, int *arg_idx) {
     int *len = NULL;
     PSFloat **data = NULL;
     char *descr = NULL;
-    assert(data_type == DATA_TYPE_TRAINING || data_type == DATA_TYPE_TEST);
-    if (data_type == DATA_TYPE_TRAINING) {
+    assert(
+        data_type == PS_DATA_TYPE_TRAINING || data_type == PS_DATA_TYPE_TEST
+    );
+    if (data_type == PS_DATA_TYPE_TRAINING) {
         image_data_index = MNIST_TRAIN_IMAGES;
         label_data_index = MNIST_TRAIN_LABELS;
         len = &datalen;
@@ -364,11 +366,13 @@ static int loadMNISTData(int data_type, int argc, char **argv, int *arg_idx) {
 static int loadCIFARData(int data_type, int classes, int argc, char **argv,
                          int *arg_idx)
 {
-    assert(data_type == DATA_TYPE_TRAINING || data_type == DATA_TYPE_TEST);
+    assert(
+        data_type == PS_DATA_TYPE_TRAINING || data_type == PS_DATA_TYPE_TEST
+    );
     int i = *arg_idx;
     int *len = NULL, *dataset_len = NULL;
     PSFloat **data = NULL;
-    if (data_type == DATA_TYPE_TRAINING) {
+    if (data_type == PS_DATA_TYPE_TRAINING) {
         len = &datalen;
         data = &training_data;
         dataset_len = &train_dataset_len;
@@ -438,7 +442,7 @@ static int loadCIFARData(int data_type, int classes, int argc, char **argv,
         fprintf(stderr, "Failed to load CIFAR data\n");
         return 0;
     }
-    if (dataset_len != NULL) *dataset_len = (*len / CIFAR_IMAGE_SIZE);
+    if (dataset_len != NULL) *dataset_len = (*len / PS_CIFAR_IMAGE_SIZE);
     return 1;
 }
 
@@ -466,11 +470,11 @@ static int loadData(int data_type, int argc, char **argv, int *arg_idx) {
         fprintf(
             stderr, "Only MNIST or CIFAR data supported for "
             "%s ATM :(\n",
-            (data_type == DATA_TYPE_TRAINING ? "training" : "testing")
+            (data_type == PS_DATA_TYPE_TRAINING ? "training" : "testing")
         );
         return 0;
     } else {
-        if (data_type == DATA_TYPE_TRAINING) {
+        if (data_type == PS_DATA_TYPE_TRAINING) {
             if (mnist) {
                 train_dataset_len = 50000;
                 eval_dataset_len = 10000;
@@ -563,13 +567,13 @@ static int parseParamInitMode(int param_type, char *arg, PSLayerDef *ldef,
                               char *mode)
 {
     int *modeptr = NULL;
-    if (param_type == PARAM_TYPE_BIAS) modeptr = &(ldef->bias_init_mode);
-    else if (param_type == PARAM_TYPE_BIAS) modeptr = &(ldef->weight_init_mode);
+    if (param_type == PS_PARAM_BIAS) modeptr = &(ldef->bias_init_mode);
+    else if (param_type == PS_PARAM_BIAS) modeptr = &(ldef->weight_init_mode);
     else return 0;
-    if (strcmp("auto", mode) == 0) *modeptr = INIT_MODE_AUTO;
-    else if (strcmp("random", mode) == 0) *modeptr = INIT_MODE_RAND;
-    else if (strcmp("zero", mode) == 0) *modeptr = INIT_MODE_ZERO;
-    else if (strcmp("0", mode) == 0) *modeptr = INIT_MODE_ZERO;
+    if (strcmp("auto", mode) == 0) *modeptr = PS_INIT_MODE_AUTO;
+    else if (strcmp("random", mode) == 0) *modeptr = PS_INIT_MODE_RAND;
+    else if (strcmp("zero", mode) == 0) *modeptr = PS_INIT_MODE_ZERO;
+    else if (strcmp("0", mode) == 0) *modeptr = PS_INIT_MODE_ZERO;
     else {
         fprintf(stderr, "ERROR: Invalid %s: '%s'.", arg, mode);
         fprintf(stderr, " Valid modes: auto, random, zero\n");
@@ -682,8 +686,8 @@ void parseOptions(int argc, char **argv) {
             char *name = (char*) argv[++i];
             PSModelSetName(current, name);
         } else if (strcmp("--onehot", arg) == 0) {
-            if (current->size == 0) current->flags |= FLAG_ONEHOT;
-            else current->layers[current->size - 1]->flags |= FLAG_ONEHOT;
+            if (current->size == 0) current->flags |= PS_FLAG_ONEHOT;
+            else current->layers[current->size - 1]->flags |= PS_FLAG_ONEHOT;
         } else if (strcmp("--layer", arg) == 0 && !is_last) {
             char *type = argv[++i];
             int is_cifar = 0, lidx = current->size;
@@ -926,23 +930,23 @@ void parseOptions(int argc, char **argv) {
                     i = j;
                     if (link_to == NULL) goto err;
                 } else if (strcmp("--whole-sequence", carg) == 0) {
-                    ldef.flags &= ~((unsigned) FLAG_RECURRENT);
-                    ldef.flags |= FLAG_USE_SEQUENCES;
+                    ldef.flags &= ~((unsigned) PS_FLAG_RECURRENT);
+                    ldef.flags |= PS_FLAG_USE_SEQUENCES;
                 } else if (strcmp("--recurrent-layer", carg) == 0) {
-                    ldef.flags |= FLAG_RECURRENT;
+                    ldef.flags |= PS_FLAG_RECURRENT;
                 } else if (strcmp("--disable-biases", carg) == 0) {
-                    ldef.flags |= FLAG_NO_BIAS;
+                    ldef.flags |= PS_FLAG_NO_BIAS;
                 } else if (strcmp("--weight-init-mode", carg)==0 && ++j<argc) {
                     char *modestr = argv[j];
                     int ok = parseParamInitMode(
-                        PARAM_TYPE_WEIGHT, carg, &ldef, modestr
+                        PS_PARAM_WEIGHT, carg, &ldef, modestr
                     );
                     if (!ok) goto err;
                     i = j;
                 } else if (strcmp("--bias-init-mode", carg)==0 && ++j<argc) {
                     char *modestr = argv[j];
                     int ok = parseParamInitMode(
-                        PARAM_TYPE_BIAS, carg, &ldef, modestr
+                        PS_PARAM_BIAS, carg, &ldef, modestr
                     );
                     if (!ok) goto err;
                     i = j;
@@ -1018,9 +1022,9 @@ void parseOptions(int argc, char **argv) {
             }
             continue;
         } else if (strcmp("--train", arg) == 0 && ++i < argc) {
-            if (!loadData(DATA_TYPE_TRAINING, argc, argv, &i)) goto err;
+            if (!loadData(PS_DATA_TYPE_TRAINING, argc, argv, &i)) goto err;
         } else if (strcmp("--test", arg) == 0 && ++i < argc) {
-            if (!loadData(DATA_TYPE_TEST, argc, argv, &i)) goto err;
+            if (!loadData(PS_DATA_TYPE_TEST, argc, argv, &i)) goto err;
         }
 #ifdef HAS_MAGICK
         else if (strcmp("--classify-image", arg) == 0 && ++i < argc) {
@@ -1090,7 +1094,7 @@ void parseOptions(int argc, char **argv) {
                 goto err;
             }
         } else if (strcmp("--weight-decay", arg) == 0) {
-            training_flags |= TRAINING_WEIGHT_DECAY;
+            training_flags |= PS_TRAINING_WEIGHT_DECAY;
         } else if (strcmp("--momentum", arg) == 0 && ++i < argc) {
             char *momentumstr = argv[i];
             int matched = sscanf(momentumstr, PSFLOAT_FORMAT, &momentum);
@@ -1141,9 +1145,9 @@ void parseOptions(int argc, char **argv) {
                 goto err;
             }
         } else if (strcmp("--training-no-shuffle", arg) == 0) {
-            training_flags |= TRAINING_NO_SHUFFLE;
+            training_flags |= PS_TRAINING_NO_SHUFFLE;
         } else if (strcmp("--training-adjust-rate", arg) == 0) {
-            training_flags |= TRAINING_ADJUST_RATE;
+            training_flags |= PS_TRAINING_ADJUST_RATE;
         } else if (strcmp("--disable-avx", arg) == 0) {
             PSDisableAcceleration(&current->acceleration, PSAcceleration_AVX);
         } else if (strcmp("--disable-accelerate", arg) == 0 ||
@@ -1153,7 +1157,7 @@ void parseOptions(int argc, char **argv) {
         } else if (strcmp("--disable-blas", arg) == 0) {
             PSDisableAcceleration(&current->acceleration, PSAcceleration_BLAS);
         } else if (strcmp("--enable-colors", arg) == 0) {
-            PSGlobalFlags |= FLAG_LOG_COLORS;
+            PSGlobalFlags |= PS_FLAG_LOG_COLORS;
         } else if (strcmp("--quiet", arg) == 0) {
             PSLogLevel = PSLOGLEVEL_ERROR;
         } else if (strcmp("--verbose", arg) == 0) {
@@ -1614,7 +1618,7 @@ void printHelp(const char* program_path) {
     printf("\n");
     printf("LAYER TYPES:\n\n");
     int i;
-    for (i = 0; i < LAYER_TYPES; i++) {
+    for (i = 0; i < PS_LAYER_TYPES; i++) {
         PSLayerType type = (PSLayerType) i;
         printf("        %s\n", PSGetLabelForType(type));
     }

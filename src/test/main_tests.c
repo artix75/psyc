@@ -1029,7 +1029,7 @@ int main(int argc, char** argv) {
     }
     gettimeofday(&end_t, NULL);
     time_t elapsed = PSGetElapsedTimeUS(start_t, end_t);
-    char *elapsed_str = PSGetElapsedTimeString(elapsed, OPT_TIME_FULL);
+    char *elapsed_str = PSGetElapsedTimeString(elapsed, PS_OPT_TIME_FULL);
     printf(
         "\n%d tests performed in %s\n", tot_tests, elapsed_str
     );
@@ -1086,7 +1086,7 @@ int genericSetup(TestCase *test_case) {
         return 0;
     }
     free(path_dup);
-    testlen = PSLoadMNISTData(DATA_TYPE_TEST, test_img_path, test_lbl_path,
+    testlen = PSLoadMNISTData(PS_DATA_TYPE_TEST, test_img_path, test_lbl_path,
                               &test_data);
     test_case->data[1] = test_data;
     if (test_data == NULL) {
@@ -1111,7 +1111,7 @@ int RNNSetup(TestCase *test_case) {
         PSErr(NULL, "\nCould not create model!");
         return 0;
     }
-    model->flags |= FLAG_ONEHOT;
+    model->flags |= PS_FLAG_ONEHOT;
     PSAddLayer(model, FullyConnected, RNN_INPUT_SIZE, NULL);
     PSAddLayer(model, Recurrent, RNN_HIDDEN_SIZE, NULL);
     PSAddLayer(model, SoftMax, RNN_INPUT_SIZE, NULL);
@@ -1119,8 +1119,8 @@ int RNNSetup(TestCase *test_case) {
         PSErr(NULL, "\nCould not add all layers!");
         return 0;
     }
-    model->layers[1]->flags |= FLAG_NO_BIAS;
-    model->layers[model->size - 1]->flags |= FLAG_ONEHOT;
+    model->layers[1]->flags |= PS_FLAG_NO_BIAS;
+    model->layers[model->size - 1]->flags |= PS_FLAG_ONEHOT;
 
     int i, j, w;
     for (i = 1; i < model->size; i++) {
@@ -1220,7 +1220,7 @@ int LSTMSetup(TestCase *test_case) {
         fprintf(stderr, "\nCould not create model!\n");
         return 0;
     }
-    model->flags |= FLAG_ONEHOT;
+    model->flags |= PS_FLAG_ONEHOT;
     PSAddLayer(model, FullyConnected, RNN_INPUT_SIZE, NULL);
     PSAddLayer(model, LSTM, RNN_HIDDEN_SIZE, NULL);
     PSAddLayer(model, SoftMax, RNN_INPUT_SIZE, NULL);
@@ -1229,7 +1229,7 @@ int LSTMSetup(TestCase *test_case) {
         return 0;
     }
     PSLayer *out = model->layers[model->size - 1];
-    out->flags |= FLAG_ONEHOT;
+    out->flags |= PS_FLAG_ONEHOT;
     PSLayer *layer = model->layers[1];
     if (!PSModelIsBuilt(model)) {
         if (!PSModelBuild(model)) {
@@ -1306,7 +1306,7 @@ int GRUSetup(TestCase *test_case) {
         fprintf(stderr, "\nCould not create model!\n");
         return 0;
     }
-    model->flags |= FLAG_ONEHOT;
+    model->flags |= PS_FLAG_ONEHOT;
     PSAddLayer(model, FullyConnected, RNN_INPUT_SIZE, NULL);
     PSAddLayer(model, GRU, RNN_HIDDEN_SIZE, NULL);
     PSAddLayer(model, SoftMax, RNN_INPUT_SIZE, NULL);
@@ -1315,7 +1315,7 @@ int GRUSetup(TestCase *test_case) {
         return 0;
     }
     PSLayer *out = model->layers[model->size - 1];
-    out->flags |= FLAG_ONEHOT;
+    out->flags |= PS_FLAG_ONEHOT;
     PSLayer *layer = model->layers[1];
     if (!PSModelIsBuilt(model)) {
         if (!PSModelBuild(model)) {
@@ -1572,7 +1572,7 @@ int ModelBackpropTest(Test *test, char *model_file, char *data_file_prefix,
         if (grad != NULL) {
             /* Bias gradients */
             int len = 0, grad_len = PSGetLayerParametersCount(
-                layer, PARAM_TYPE_BIAS
+                layer, PS_PARAM_BIAS
             );
             if (grad_len <= 0 || !grad->biases) goto weight_gradients;
             snprintf(
@@ -1609,7 +1609,7 @@ int ModelBackpropTest(Test *test, char *model_file, char *data_file_prefix,
 weight_gradients:
             /* Weight gradients */
             len = 0, grad_len = PSGetLayerParametersCount(
-                layer, PARAM_TYPE_WEIGHT
+                layer, PS_PARAM_WEIGHT
             );
             if (grad_len <= 0 || !grad->weights) goto weight_gradients;
             snprintf(
@@ -1946,33 +1946,33 @@ int testConvCIFAR(TestCase *test_case, Test *test) {
     UNUSED(test_case);
     int ok = ModelBackpropTest(test, CONVOLUTIONAL_CIFAR_MODEL,
                                  "cifar", CIFAR_IMAGE_PATH, CIFAR_LABEL_PATH,
-                                 CIFAR_IMAGE_SIZE, 10, "CIFAR CNN", NULL,
+                                 PS_CIFAR_IMAGE_SIZE, 10, "CIFAR CNN", NULL,
                                  2, 0, 8, PSGlobalAcceleration);
     if (!ok) return 0;
 #ifdef HAS_BLAS
     ok = ModelBackpropTest(test, CONVOLUTIONAL_CIFAR_MODEL,
                              "cifar", CIFAR_IMAGE_PATH, CIFAR_LABEL_PATH,
-                              CIFAR_IMAGE_SIZE, 10, "CIFAR CNN", NULL,
+                              PS_CIFAR_IMAGE_SIZE, 10, "CIFAR CNN", NULL,
                               2, 0, 8, PSAcceleration_BLAS);
     if (!ok) return 0;
 #endif
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     ok = ModelBackpropTest(test, CONVOLUTIONAL_CIFAR_MODEL,
                              "cifar", CIFAR_IMAGE_PATH, CIFAR_LABEL_PATH,
-                              CIFAR_IMAGE_SIZE, 10, "CIFAR CNN", NULL,
+                              PS_CIFAR_IMAGE_SIZE, 10, "CIFAR CNN", NULL,
                               2, 0, 8, PSAcceleration_ACF);
     if (!ok) return 0;
 #endif
 #ifdef USE_AVX
     ok = ModelBackpropTest(test, CONVOLUTIONAL_CIFAR_MODEL,
                              "cifar", CIFAR_IMAGE_PATH, CIFAR_LABEL_PATH,
-                              CIFAR_IMAGE_SIZE, 10, "CIFAR CNN", NULL,
+                              PS_CIFAR_IMAGE_SIZE, 10, "CIFAR CNN", NULL,
                               2, 0, 8, PSAcceleration_AVX);
     if (!ok) return 0;
 #endif
     ok = ModelBackpropTest(test, CONVOLUTIONAL_CIFAR_MODEL,
                              "cifar", CIFAR_IMAGE_PATH, CIFAR_LABEL_PATH,
-                              CIFAR_IMAGE_SIZE, 10, "CIFAR CNN", NULL,
+                              PS_CIFAR_IMAGE_SIZE, 10, "CIFAR CNN", NULL,
                               2, 0, 8, PSAcceleration_None);
     return ok;
 }
@@ -2161,7 +2161,7 @@ int testRNNBackprop(TestCase *test_case, Test *test) {
     char *labels_file = "resources/rnn-labels.data";
     int input_len = 26;
     int label_len = 25;
-    int train_flags = (TRAINING_EPOCH_AS_SEQUENCE | TRAINING_NO_SHUFFLE);
+    int train_flags = (PS_TRAINING_EPOCH_AS_SEQUENCE | PS_TRAINING_NO_SHUFFLE);
     PSTrainingOptions opts = {
         .bptt_truncate = 0,
         .flags = train_flags,
@@ -2292,35 +2292,35 @@ int testRNNOneHot(TestCase *test_case, Test *test) {
         ok, final, test, "Standard recurrent network mode is: '%s'",
         PSGetRecurrentModeLabel(std_rnn_mode)
     );
-    ok = onehot_model->flags & FLAG_ONEHOT;
+    ok = onehot_model->flags & PS_FLAG_ONEHOT;
     testAssertWithMessageOrGoto(
         ok, final, test, "%s model is not OneHot!", onehot_model->name
     );
-    ok = onehot_model->layers[0]->flags & FLAG_ONEHOT;
+    ok = onehot_model->layers[0]->flags & PS_FLAG_ONEHOT;
     testAssertWithMessageOrGoto(
         ok, final, test, "%s model layer[0] is not OneHot!",
         onehot_model->name
     );
     int last_layer = onehot_model->size - 1;
-    ok = onehot_model->layers[last_layer]->flags & FLAG_ONEHOT;
+    ok = onehot_model->layers[last_layer]->flags & PS_FLAG_ONEHOT;
     testAssertWithMessageOrGoto(
         ok, final, test, "%s model layer[%d] is not OneHot!",
         onehot_model->name, last_layer
     );
-    int no_onehot = ~((unsigned) FLAG_ONEHOT);
+    int no_onehot = ~((unsigned) PS_FLAG_ONEHOT);
     standard_model->flags &= no_onehot;
     standard_model->layers[0]->flags &= no_onehot;
     standard_model->layers[last_layer]->flags &= no_onehot;
-    ok = !(standard_model->flags & FLAG_ONEHOT);
+    ok = !(standard_model->flags & PS_FLAG_ONEHOT);
     testAssertWithMessageOrGoto(
         ok, final, test, "%s model is OneHot!", standard_model->name
     );
-    ok = !(standard_model->layers[0]->flags & FLAG_ONEHOT);
+    ok = !(standard_model->layers[0]->flags & PS_FLAG_ONEHOT);
     testAssertWithMessageOrGoto(
         ok, final, test, "%s model layer[0] is OneHot!",
         standard_model->name
     );
-    ok = !(standard_model->layers[last_layer]->flags & FLAG_ONEHOT);
+    ok = !(standard_model->layers[last_layer]->flags & PS_FLAG_ONEHOT);
     testAssertWithMessageOrGoto(
         ok, final, test, "%s model layer[%d] is OneHot!",
         standard_model->name, last_layer
@@ -2343,7 +2343,7 @@ int testRNNOneHot(TestCase *test_case, Test *test) {
     standard_model->layers[0] = standard_input_layer;
     standard_input_layer->model = standard_model;
     standard_model->input_size = vector_size;
-    standard_input_layer->flags |= FLAG_RECURRENT;
+    standard_input_layer->flags |= PS_FLAG_RECURRENT;
     curlayer->model = NULL;
     PSDeleteLayer(curlayer);
     dummy_model->size = 0;
@@ -2430,12 +2430,12 @@ int testRNNOneHot(TestCase *test_case, Test *test) {
     PSFloat std_accuracy = PSTest(
         standard_model, standard_data, standard_datalen, NULL
     );
-    ok = (onehot_model->status != STATUS_ERROR);
+    ok = (onehot_model->status != PS_STATUS_ERROR);
     testAssertWithMessageOrGoto(
         ok, final, test, "Model %s: error during validation",
         onehot_model->name
     );
-    ok = (standard_model->status != STATUS_ERROR);
+    ok = (standard_model->status != PS_STATUS_ERROR);
     testAssertWithMessageOrGoto(
         ok, final, test, "Model %s: error during validation",
         standard_model->name
@@ -2464,7 +2464,7 @@ int testLSTMTrain(TestCase *test_case, Test *test) {
         .epochs = LSTM_EPOCHS,
         .batch_size = LSTM_BATCHES,
         .learning_rate = LSTM_LEARNING_RATE,
-        .flags = TRAINING_NO_SHUFFLE,
+        .flags = PS_TRAINING_NO_SHUFFLE,
         .l2_decay = 0.0,
         .bptt_truncate = 4
     };
@@ -2630,7 +2630,7 @@ int testLSTMBackprop(TestCase *test_case, Test *test) {
     char *labels_file = "resources/gru-labels.data";
     int input_len = 26;
     int label_len = 25;
-    int train_flags = (TRAINING_EPOCH_AS_SEQUENCE | TRAINING_NO_SHUFFLE);
+    int train_flags = (PS_TRAINING_EPOCH_AS_SEQUENCE | PS_TRAINING_NO_SHUFFLE);
     PSTrainingOptions opts = {
         .bptt_truncate = 0,
         .flags = train_flags,
@@ -2677,7 +2677,7 @@ int testGRUTrain(TestCase *test_case, Test *test) {
         .epochs = LSTM_EPOCHS,
         .batch_size = LSTM_BATCHES,
         .learning_rate = 1.5,//LSTM_LEARNING_RATE,
-        .flags = TRAINING_NO_SHUFFLE,
+        .flags = PS_TRAINING_NO_SHUFFLE,
         .l2_decay = 0.0,
         .bptt_truncate = 4
     };
@@ -2814,7 +2814,7 @@ int testGRUBackprop(TestCase *test_case, Test *test) {
     char *labels_file = "resources/gru-labels.data";
     int input_len = 26;
     int label_len = 25;
-    int train_flags = (TRAINING_EPOCH_AS_SEQUENCE | TRAINING_NO_SHUFFLE);
+    int train_flags = (PS_TRAINING_EPOCH_AS_SEQUENCE | PS_TRAINING_NO_SHUFFLE);
     PSTrainingOptions opts = {
         .bptt_truncate = 0,
         .flags = train_flags,
@@ -2868,7 +2868,7 @@ int testNormalizationLoad(TestCase *test_case, Test *test) {
     testAssertNotNull(softmax, test);
     testAssert(softmax->type == SoftMax, test);
     testAssert(softmax->size == 2, test);
-    testAssert(!(normlayer->flags & FLAG_NON_TRAINABLE), test);
+    testAssert(!(normlayer->flags & PS_FLAG_NON_TRAINABLE), test);
     if (!PSModelIsBuilt(model)) {
         int built = PSModelBuild(model);
         testAssert(built, test);
@@ -3090,7 +3090,7 @@ int testDropoutBackprop(TestCase *test_case, Test *test) {
     PSLayer *prev = PSGetPreviousLayer(dropout_layer);
     testAssertNotNull(prev, test);
     int old_status = model->status;
-    model->status = STATUS_TRAINING;
+    model->status = PS_STATUS_TRAINING;
     grads = backprop(model, x, y, NULL, NULL);
     ok = grads != NULL;
     testAssertWithMessageOrGoto(
@@ -3636,9 +3636,9 @@ int testEncodedDecoderBackprop(TestCase *test_case, Test *test) {
     decoder->sequence_settings.end = -1;
     PSLayer *out = PSGetOutputLayer(model);
     testAssertNotNull(out, test);
-    testAssert(out->flags & FLAG_ONEHOT, test);
+    testAssert(out->flags & PS_FLAG_ONEHOT, test);
     PSTrainingOptions opts = {
-        .flags = TRAINING_FLAG_TEACHER_FORCING | TRAINING_FLAG_SEQ2SEQ,
+        .flags = PS_TRAINING_FLAG_TEACHER_FORCING | PS_TRAINING_FLAG_SEQ2SEQ,
         .epochs = 1,
         .learning_rate = 0.3,
         .batch_size = 1,
@@ -3652,8 +3652,8 @@ int testEncodedDecoderBackprop(TestCase *test_case, Test *test) {
         model, training_data, 1, elements_count, 0.3, &opts, seq
     );
     UNUSED(loss);
-    ok = (model->status != STATUS_ERROR);
-    if (ok) ok = (decoder->status != STATUS_ERROR);
+    ok = (model->status != PS_STATUS_ERROR);
+    if (ok) ok = (decoder->status != PS_STATUS_ERROR);
     encDecBackpropTest = NULL;
     return ok;
 }
@@ -3818,7 +3818,7 @@ int testGenericAttentionBackprop(PSModel *model, char *file_prefix,
     PSVectorCopy(y, targets, ylen);
     PSTrainingOptions topts = {0};
     PSSetDefaultTrainingOptions(&topts);
-    PSModelSetStatus(model, STATUS_TRAINING, NULL);
+    PSModelSetStatus(model, PS_STATUS_TRAINING, NULL);
     grads = backprop(model, x, y, &topts, NULL);
     ok = (grads != NULL);
     testAssertWithMessageOrGoto(
@@ -4345,7 +4345,7 @@ int compareModels(PSModel *model, PSModel *clone, Test* test) {
             );
         }
         if (orig_l->biases != NULL) {
-            int bias_count = PSGetLayerParametersCount(orig_l, PARAM_TYPE_BIAS);
+            int bias_count = PSGetLayerParametersCount(orig_l, PS_PARAM_BIAS);
             for (k = 0; k < bias_count; k++) {
                 PSFloat obias = getRoundedFloat(orig_l->biases[k]);
                 PSFloat cbias = getRoundedFloat(clone_l->biases[k]);

@@ -22,7 +22,7 @@
 
 /* Global Flags*/
 #ifndef FLAG_LOG_COLORS
-#define FLAG_LOG_COLORS (1 << 0)
+#define PS_FLAG_LOG_COLORS (1 << 0)
 #endif
 
 /* Acceleration Flags */

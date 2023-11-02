@@ -100,7 +100,7 @@ int PSResizeDropoutMask(PSLayer *layer, uint32_t seqlen, uint32_t prevlen) {
         free(data->dropout_mask);
         data->dropout_mask = NULL;
         PSPrintMemoryErrorMsg();
-        PSModelSetStatus(layer->model, STATUS_ERROR, NULL);
+        PSModelSetStatus(layer->model, PS_STATUS_ERROR, NULL);
         return 0;
     }
     int diff = seqlen - prevlen;
@@ -213,15 +213,15 @@ int PSInitDropoutLayer(PSModel *model, PSLayer *layer,
         return 0;
     }
     if (dropout > 1.0) dropout = 1.0;
-    layer->flags |= FLAG_NON_TRAINABLE;
-    if (PSIsRecurrent(previous)) layer->flags |= FLAG_RECURRENT;
+    layer->flags |= PS_FLAG_NON_TRAINABLE;
+    if (PSIsRecurrent(previous)) layer->flags |= PS_FLAG_RECURRENT;
     if (PSHandleSequenceAtOnce(previous))
-        layer->flags |= FLAG_USE_SEQUENCES;
+        layer->flags |= PS_FLAG_USE_SEQUENCES;
     layer->onCopy = PSDropoutLayerCopy;
     layer->onDelete = PSDeleteDropoutLayer;
     layer->onStatesInit = PSInitDropoutMask;
     layer->onStatesResize = PSResizeDropoutMask;
-    if (PSIsRecurrent(previous)) layer->flags |= FLAG_RECURRENT;
+    if (PSIsRecurrent(previous)) layer->flags |= PS_FLAG_RECURRENT;
     layer->size = previous->size;
     if (previous->output_columns > 0)
         layer->output_columns = previous->output_columns;
@@ -289,7 +289,7 @@ int PSDropoutForward(PSLayer *layer, ...) {
     PSMathOpts mopts = {.acceleration = layer->model->acceleration};
     uint64_t len = layer->size;
     if (handles_seq && seqlen > 1) len *= seqlen;
-    if (PSModelGetStatus(model) != STATUS_TRAINING) {
+    if (PSModelGetStatus(model) != PS_STATUS_TRAINING) {
         PSVectorCopy(outputs, inputs, len);
         PSMultiplyVectorScalar(outputs, dropout, outputs, len, &mopts);
         return 1;

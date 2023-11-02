@@ -369,9 +369,9 @@ char *PSGetElapsedTimeString(time_t elapsed_us, int opts) {
         "microsecond(s)", "millisecond(s)", "second(s)", "minute(s)", "hour(s)"
     };
     static const size_t numunits = sizeof(time_units_short) / sizeof(char *);
-    int long_format = (opts & OPT_TIME_LONG),
-        full_format = (opts & OPT_TIME_FULL),
-        human = (opts & OPT_TIME_HUMAN), i = 0;
+    int long_format = (opts & PS_OPT_TIME_LONG),
+        full_format = (opts & PS_OPT_TIME_FULL),
+        human = (opts & PS_OPT_TIME_HUMAN), i = 0;
     const char **units = NULL;
     char *sep = " ";
     if (full_format) units = time_units_full;
