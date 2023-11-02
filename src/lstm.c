@@ -567,14 +567,18 @@ int PSLSTMForward(PSLayer *layer, ...) {
     if (ignore_inputs) goto forward_previous_step;
     if (onehot) {
         success = (
-            PSOnehotInputsForward(layer, CANDIDATE_IDX, cell->candidates,
-                t, 0, 0) &&
-            PSOnehotInputsForward(layer, INPUT_IDX, cell->input_gates,
-                t, 0, 0) &&
-            PSOnehotInputsForward(layer, OUTPUT_IDX, cell->output_gates,
-                t, 0, 0) &&
-            PSOnehotInputsForward(layer, FORGET_IDX, cell->forget_gates,
-                t, 0, 0)
+            PSOnehotInputsForward(
+                layer, CANDIDATE_IDX, cell->candidates, t, 0, 0
+            ) &&
+            PSOnehotInputsForward(
+                layer, INPUT_IDX, cell->input_gates, t, 0, 0
+            ) &&
+            PSOnehotInputsForward(
+                layer, OUTPUT_IDX, cell->output_gates, t, 0, 0
+            ) &&
+            PSOnehotInputsForward(
+                layer, FORGET_IDX, cell->forget_gates, t, 0, 0
+            )
         );
         if (!success) goto final;
     } else {

@@ -504,12 +504,15 @@ int PSGRUForward(PSLayer *layer, ...) {
          * corresponding weight, since the input should always be considered
          * as it would be 1 */
         success = (
-            PSOnehotInputsForward(layer, CANDIDATE_IDX, cell->candidates,
-                t, 0, 0) &&
-            PSOnehotInputsForward(layer, UPDATE_IDX, cell->update_gates,
-                t, 0, 0) &&
-            PSOnehotInputsForward(layer, RESET_IDX, cell->reset_gates,
-                t, 0, 0)
+            PSOnehotInputsForward(
+                layer, CANDIDATE_IDX, cell->candidates, t, 0, 0
+            ) &&
+            PSOnehotInputsForward(
+                layer, UPDATE_IDX, cell->update_gates, t, 0, 0
+            ) &&
+            PSOnehotInputsForward(
+                layer, RESET_IDX, cell->reset_gates, t, 0, 0
+            )
         );
     } else {
         inputs = PSGetStates(previous, t);
