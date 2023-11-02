@@ -1113,7 +1113,7 @@ int RNNSetup(TestCase *test_case) {
     }
     model->flags |= PS_FLAG_ONEHOT;
     PSAddLayer(model, FullyConnected, RNN_INPUT_SIZE, NULL);
-    PSAddLayer(model, Recurrent, RNN_HIDDEN_SIZE, NULL);
+    PSAddLayer(model, RNNLayer, RNN_HIDDEN_SIZE, NULL);
     PSAddLayer(model, SoftMax, RNN_INPUT_SIZE, NULL);
     if (model->size < 1) {
         PSErr(NULL, "\nCould not add all layers!");
@@ -2114,7 +2114,7 @@ int testRNNBackpropOld(TestCase *test_case, Test *test) {
         testAssertNotNull(l->weights[0], test);
         int input_size = gradient->weight_count;
         int input_ws = input_size / l->size;
-        if (Recurrent == l->type) {
+        if (RNNLayer == l->type) {
             testAssertNotNull(l->weights[1], test);
             //input_size -= l->size;
             input_ws -= l->size;
@@ -2132,7 +2132,7 @@ int testRNNBackpropOld(TestCase *test_case, Test *test) {
                     i, j, w, dw, exp_dw
                 );
             }
-            if (Recurrent == l->type) {
+            if (RNNLayer == l->type) {
                 for (w = 0; w < l->size; w++) {
                     int widx = (input_ws * l->size) + (j * l->size) + w;
                     int gwidx = input_ws + w;
@@ -2218,7 +2218,7 @@ int testRNNStep(TestCase *test_case, Test *test) {
     for (i = 1; i < model->size; i++) {
         PSLayer *layer = model->layers[i];
         int wsize = (int) PSGetLayerInputWeightsCount(layer, 1);
-        if (layer->type == Recurrent) wsize += layer->size;
+        if (layer->type == RNNLayer) wsize += layer->size;
         for (j = 0; j < layer->size; j++) {
             PSNeuron n = {0};
             testAssertNotNull(PSGetNeuron(layer, j, &n), test);

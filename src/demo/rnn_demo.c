@@ -378,7 +378,7 @@ int main(int argc, char** argv) {
             }
             embedding->pretrained = (embedding_load_from != NULL);
         }
-        PSAddLayer(model, Recurrent, hidden_size, NULL);
+        PSAddLayer(model, RNNLayer, hidden_size, NULL);
         PSAddLayer(model, SoftMax, VOCABULARY_SIZE, NULL);
         model->layers[model->size - 1]->flags |= PS_FLAG_ONEHOT;
         if (model->size < 1) {

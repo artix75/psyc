@@ -57,7 +57,7 @@ int PSApplyDerivative(PSActivationFunction derivative, PSFloat *delta,
 /* Recurrent network functions */
 
 PSMatrix PSGetRecurrentHiddenWeights(PSLayer *layer) {
-    if (layer->type != Recurrent || layer->weights == NULL) return NULL;
+    if (layer->type != RNNLayer || layer->weights == NULL) return NULL;
     return layer->weights[1];
 }
 
@@ -113,7 +113,7 @@ memerr:
 
 PSFloat *PSGetRecurrentNeuronHiddenWeights(PSNeuron *neuron) {
     if (neuron->layer == NULL) return NULL;
-    if (neuron->layer->type != Recurrent) return NULL;
+    if (neuron->layer->type != RNNLayer) return NULL;
     if (neuron->layer->weights == NULL || neuron->layer->weights[1] == NULL)
         return NULL;
     uint64_t widx = neuron->index * neuron->layer->size;

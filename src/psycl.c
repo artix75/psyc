@@ -255,7 +255,9 @@ static PSLayerType getLayerType(char *name, int *is_cifar, PSLayerDef *ldef) {
     else if (strcasecmp("softmax", name) == 0)
         return SoftMax;
     else if (strcasecmp("recurrent", name) == 0)
-        return Recurrent;
+        return RNNLayer;
+    else if (strcasecmp("rnn", name) == 0)
+        return RNNLayer;
     else if (strcasecmp("lstm", name) == 0)
         return LSTM;
     else if (strcasecmp("gru", name) == 0)

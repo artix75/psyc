@@ -112,6 +112,8 @@
 #define OPT_TIME_FULL                       PS_OPT_TIME_FULL
 #define OPT_TIME_HUMAN                      PS_OPT_TIME_HUMAN
 
+#define Recurrent                           RNNLayer
+
 typedef PSModelLink PSNeuralNetworkLink;
 
 #endif /* __PS_LEGACY_H__ */

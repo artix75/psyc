@@ -1803,7 +1803,7 @@ static int loadLegacyLayersParameters(PSModel *model,
         int llen = 0, ok;
         uint64_t wsize = PSGetLayerInputWeightsCount(layer, 1);
         int input_size = wsize, widx;
-        if (Recurrent == layer->type) wsize += layer->size;
+        if (RNNLayer == layer->type) wsize += layer->size;
         for (int j = 0; j < lsize; j++) {
             PSFloat bias = 0;
             /* LSTM biases */
@@ -1875,7 +1875,7 @@ static int loadLegacyLayersParameters(PSModel *model,
                     );
                     return 0;
                 }
-                if (Recurrent == layer->type) {
+                if (RNNLayer == layer->type) {
                     if (k >= (uint64_t) input_size) {
                         weights = layer->weights[1];
                         widx = (j * layer->size) + (k - input_size);
@@ -2094,7 +2094,7 @@ static int loadLegacyGradients(PSModel *model, const char *filepath,
             if (is_lstm) {
                 wsize += lsize;
                 wsize *= 4;
-            } else if (Recurrent == layer->type) wsize += lsize;
+            } else if (RNNLayer == layer->type) wsize += lsize;
         }
         for (int k = 0; k < lsize; k++) {
             int matched = 0, ok;
@@ -2134,7 +2134,7 @@ static int loadLegacyGradients(PSModel *model, const char *filepath,
                     return 0;
                 }
                 int idx = 0;
-                if (Recurrent == layer->type) {
+                if (RNNLayer == layer->type) {
                     int input_size = (wsize - lsize);
                     int is_hidden = (w >= input_size);
                     if (is_hidden)

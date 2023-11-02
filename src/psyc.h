@@ -224,7 +224,7 @@ typedef enum {
     FullyConnected,
     Convolutional,
     Pooling,
-    Recurrent,
+    RNNLayer,
     LSTM,
     SoftMax,
     GRU,

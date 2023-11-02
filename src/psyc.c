@@ -921,8 +921,8 @@ char *PSGetLabelForType(PSLayerType type) {
             return "Convolutional";
         case Pooling:
             return "Pooling";
-        case Recurrent:
-            return "Recurrent";
+        case RNNLayer:
+            return "RNN Layer";
         case LSTM:
             return "LSTM";
         case SoftMax:
@@ -1921,7 +1921,7 @@ static void updateModelForRecurrentMode(PSModel *model,
                     for (j = 1; j < layer->index; j++)
                         model->layers[j]->flags |= PS_FLAG_RECURRENT;
                 }
-            } else if (Recurrent != type && LSTM != type && GRU != type) {
+            } else if (RNNLayer != type && LSTM != type && GRU != type) {
                 model->layers[i]->flags &= (unsigned) (~PS_FLAG_RECURRENT);
             }
         } else if (OneToMany == mode) {
@@ -3265,7 +3265,7 @@ PSLayer *PSAddLayer(PSModel *model, PSLayerType type, int size,
         /* TODO: Make PSCrossEntropyLoss default also for convolutional? */
     } else if (type == Pooling) {
         initialized = PSInitPoolingLayer(model, layer, layer_def);
-    } else if (type == Recurrent) {
+    } else if (type == RNNLayer) {
         initialized = PSInitRecurrentLayer(model, layer, size, previous_size,
                                            layer_def);
     } else if (type == LSTM) {
@@ -4752,7 +4752,7 @@ int backpropThroughTime(PSModel *model, PSFloat *y,
              * is not cumulated since it has been already backpropagated
              * to previous timesteps during previous iteration.
              * So, reset previous layer deltas. */
-            if (do_truncate && Recurrent == previous_layer->type)
+            if (do_truncate && RNNLayer == previous_layer->type)
                 resetLayerDeltas(previous_layer, 0);
             ok = layer->backprop(
                 layer, previous_layer, lgradients, t, lowest_t
@@ -6124,7 +6124,7 @@ int PSModelCheck(PSModel *model) {
             return 0;
         }
         int ltype = layer->type;
-        if (Recurrent == ltype || LSTM == ltype || GRU == ltype)
+        if (RNNLayer == ltype || LSTM == ltype || GRU == ltype)
             recurrent_type_layers++;
         int is_recurrent_layer = PSIsRecurrent(layer);
         if (is_recurrent_layer) {

@@ -231,7 +231,7 @@ void parseOptions(int argc, char **argv) {
         } else if (strcmp("--gru", arg) == 0) {
             rnn_type = GRU;
         } else if (strcmp("--rnn", arg) == 0) {
-            rnn_type = Recurrent;
+            rnn_type = RNNLayer;
         } else if (strcmp("--train-multiplication-table", arg) == 0) {
             train_mul_table = 1;
         } else if (strcmp("--link-attention-layer", arg) == 0) {
