@@ -665,7 +665,7 @@ static int saveBinaryParamsFor(PSLayer *layer, char *params_path) {
     PSLogLevel = default_loglevel;
     if (layer == NULL) return 0;
     binaryFilePath(binpath, params_path);
-    return PSSaveLayer(layer, binpath, PS_IO_BINARY_MODE);
+    return PSLayerSave(layer, binpath, PS_IO_BINARY_MODE);
 }
 
 int isPython3Installed(void) {

@@ -3309,7 +3309,7 @@ PSLayer *PSAddLayer(PSModel *model, PSLayerType type, int size,
         }
     }
     if (layer_def->load_from != NULL) {
-        int loaded = PSLoadLayer(layer, layer_def->load_from);
+        int loaded = PSLayerLoad(layer, layer_def->load_from);
         if (!loaded) {
             PSAbortLayer(model, layer);
             PSErr(

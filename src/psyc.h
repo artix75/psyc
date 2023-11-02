@@ -385,10 +385,10 @@ PSModel *PSLoadModel(const char* filename);
 int PSAddModel(PSModel *parent, PSModel *model, PSModelLink *link);
 
 /* PSLayer functions */
+int PSLayerLoad(PSLayer *layer, const char *filepath);
+int PSLayerSave(PSLayer *layer, const char *filepath, int opts);
 PSLayer *PSAddLayer(PSModel *model, PSLayerType type, int size,
                     PSLayerDef *layer_def);
-int PSLoadLayer(PSLayer *layer, const char *filepath);
-int PSSaveLayer(PSLayer *layer, const char *filepath, int opts);
 PSLayer *PSAddConvolutionalLayer(PSModel *model, PSLayerDef *ldef);
 PSLayer *PSAddPoolingLayer(PSModel *model, PSLayerDef *ldef);
 int PSGetOneHotLayerVectorSize(PSLayer *layer);

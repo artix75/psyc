@@ -2257,7 +2257,7 @@ static int loadGradients(PSModel *model, const char *filepath,
     return 1;
 }
 
-int PSLoadLayer(PSLayer *layer, const char *filepath) {
+int PSLayerLoad(PSLayer *layer, const char *filepath) {
     if (layer == NULL) return 0;
     FILE *f = fopen(filepath, "r");
     PSInfo("Loading layer %d from %s", layer->index, filepath);
@@ -2294,7 +2294,7 @@ final:
     return loaded;
 }
 
-int PSSaveLayer(PSLayer *layer, const char *filepath, int opts) {
+int PSLayerSave(PSLayer *layer, const char *filepath, int opts) {
     if (layer == NULL) return 0;
     int save_definition = (opts & PS_IO_SAVE_DEFINITION),
         binary = (opts & PS_IO_BINARY_MODE), saved = 1;

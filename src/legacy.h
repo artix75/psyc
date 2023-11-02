@@ -58,6 +58,8 @@
 #define PSDictDelete(dict, key)             PSDictRemove(dict, key)
 #define PSVocabularyRelease(vocab)          PSVocabularyFree(vocab)
 #define PSDeleteLayer(layer)                PSLayerFree(layer)
+#define PSLoadLayer(layer, path)            PSLayerLoad(layer, path)
+#define PSSaveLayer(layer, path, opts)      PSLayerSave(layer, path, opts)
 
 #define FLAG_LOG_COLORS                     PS_FLAG_LOG_COLORS
 #define DATA_TYPE_TRAINING                  PS_DATA_TYPE_TRAINING

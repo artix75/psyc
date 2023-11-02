@@ -289,7 +289,7 @@ int PSPretrainEmbeddingLayer(PSLayer *layer, PSFloat *training_data,
     memcpy(layer->weights[0], pretrained_layer->weights[0], wlen);
     PSInfo("Successfully pretrained embedding layer %d", layer->index);
     if (settings->save_pretrained_to != NULL)
-        success = PSSaveLayer(layer, settings->save_pretrained_to, 0);
+        success = PSLayerSave(layer, settings->save_pretrained_to, 0);
 final:
     free(tokens);
     free(pretrain_data);
