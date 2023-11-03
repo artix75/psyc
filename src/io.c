@@ -2278,7 +2278,7 @@ int PSLayerLoad(PSLayer *layer, const char *filepath) {
     }
     if (scanFile(f, "layer[%d]:", 1, NULL, &lidx)) {
         /* Ignore layer definition */
-        char c = fgetc(f);
+        signed char c = fgetc(f);
         while (c != '\n') {
             if (c == EOF) break;
             c = fgetc(f);
@@ -2393,7 +2393,7 @@ int loadModelName(PSModel *model, FILE *f, const char* filepath) {
         }
         p = name;
         while (len--) {
-            char c = fgetc(f);
+            signed char c = fgetc(f);
             ok = (c != EOF);
             if (!ok) {
                 loadErr(filepath, f, "Model name is shorter than declared "

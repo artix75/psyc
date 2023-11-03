@@ -644,7 +644,7 @@ static char *getExecutablePath(char *executable) {
 }
 
 static void binaryFilePath(char *destpath, char *fpath) {
-    strncpy(destpath, fpath, PATH_MAX);
+    strncpy(destpath, fpath, PATH_MAX - 1);
     int available = PATH_MAX - strlen(destpath) - 4;
     assert(available > 0);
     strncat(destpath, ".bin", available);

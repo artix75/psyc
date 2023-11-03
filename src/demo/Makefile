@@ -4,8 +4,8 @@ include ../Makefile.common.mk
 ifeq ($(CATCH_FPE),on)
 	CFLAGS+=-DCATCH_FPE
 endif
-GPT_CFLAGS=''
-GPT_LDFLAGS=''
+GPT_CFLAGS=
+GPT_LDFLAGS=
 ifeq ($(HAS_READLINE),yes)
 	GPT_CFLAGS=-DHAS_READLINE
 	GPT_LDFLAGS=-lreadline
@@ -24,7 +24,7 @@ endif
 
 gpt-demo.o:
 	$(call print-action,$(COMPILE_ACTION_NAME),$<)
-	$(CC) --std=gnu99 $(CFLAGS) $(GPT_CFLAGS) -c -o $@ gpt-demo.c
+	$(CC) $(CFLAGS) $(GPT_CFLAGS) -c -o $@ gpt-demo.c
 
 $(LOCALBINDIR)/mnist-demo: $(OBJS) mnist-demo.o
 	$(call print-action,$(LINK_ACTION_NAME),$@,$(LINK_ACTION_COLOR))
