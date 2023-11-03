@@ -1,4 +1,3 @@
-INCLUDEDIR="$INCLUDEDIR/psyc"
 printHelp() {
     echo '' >&2
     echo "Usage: $0 [OPTIONS] [SOURCE] [-- GCC_OPTS]" >&2
