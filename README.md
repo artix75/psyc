@@ -146,7 +146,8 @@ After installing it, PsyC will provide:
    ```c
    PSFloat inputs[] = {...};
    PSForward(model, inputs);
-   PSFloat *outputs = PSGetOutputs(model);
+   PSLayer *output_layer = PSGetOutputLayer(model);
+   PSFloat *outputs = PSGetOutputs(output_layer);
    ```
 
    Or get classification predictions:
