@@ -113,7 +113,7 @@ After installing it, PsyC will provide:
    PSAddLayer(model, SoftMax, 10, NULL); /* Output softmax layer of size 10) */
    ```
 
-    The code above creates a basic neural network composed of only Fully-Connected (Dense) layers and a Softmax layer used for the output layer. However, PsyC offers various types of layers (see the [Features](#features) section). Here are some example codes:
+   The code above creates a basic neural network composed of only Fully-Connected (Dense) layers and a Softmax layer used for the output layer. However, PsyC offers various types of layers (see the [Features](#features) section). Here are some example codes:
 
    ```c
    /* Add a convolutional layer */
