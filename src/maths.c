@@ -1010,9 +1010,9 @@ static int genericMatrixOperation(PSMatrix a, PSMatrix b, PSMatrix *result,
  * by the function itself and its pointer will be stored into `result`.
  * Length of `b` vector must equal matrix `a` second dimension.
  * Length of result vector must equal matrix `a` first dimension.
- * By defaults, function uses BLAS to compute the result. Anyway, if BLAS
+ * By default, function uses BLAS to compute the result. Anyway, if BLAS
  * support is missing in PsyC build, function will compute results by
- * using `PSMultiplyVectors` as fallback.
+ * using `PSDotProduct` as fallback.
  * You can set matrix transposition using `transpose` field in the `opt`
  * argument. In that case, `transpose` will contain the (1-based) indices
  * of the matrix arguments you want to be transposed:
@@ -1020,7 +1020,7 @@ static int genericMatrixOperation(PSMatrix a, PSMatrix b, PSMatrix *result,
  * By default, data in result vector will be overwritten. Anyway, if
  * `PS_STORE_MODE_ADD` is set as `store_mode` into `opts`, result will
  * be added to data already present in the result vector.
- * Return value: 1 if operation succeeds, 0 if ti fails. */
+ * Return value: 1 if operation succeeds, 0 if it fails. */
 int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
                       PSMathOpts *opts)
 {
@@ -1168,7 +1168,9 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
  * Results are stored into matrix pointed by `result`. If pointer
  * pointed by `result` is NULL, a new matrix is automatically allocated
  * by the function itself and its pointer will be stored into `result`.
- * The function uses BLAS to compute the result, so, if BLAS support is
+ * The function uses BLAS to compute the result. Anyway, if BLAS
+ * support is missing in PsyC build, function will compute results by
+ * using `PSDotProduct` as fallback.
  * missing in PsyC build, function will fail.
  * You can set matrix transposition using `transpose` field in the `opt`
  * argument. In that case, `transpose` will contain the (1-based) indices
@@ -1177,7 +1179,7 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
  * By default, data in result vector will be overwritten. Anyway, if
  * `PS_STORE_MODE_ADD` is set as `store_mode` into `opts`, result will
  * be added to data already present in the result vector.
- * Return value: 1 if operation succeeds, 0 if ti fails. */
+ * Return value: 1 if operation succeeds, 0 if it fails. */
 int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
                       PSMathOpts *opts)
 {
@@ -1342,13 +1344,13 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
     return 1;
 }
 
-/* Performs matrix-matrix multiplication between matrix `a` and vector `b`.
+/* Performs matrix-matrix multiplication between matrix `a` and matrix `b`.
  * Results are stored into matrix pointed by `result`. If pointer
  * pointed by `result` is NULL, a new matrix is automatically allocated
  * by the function itself and its pointer will be stored into `result`.
- * By defaults, function uses BLAS to compute the result. Anyway, if BLAS
+ * By default, function uses BLAS to compute the result. Anyway, if BLAS
  * support is missing in PsyC build and `b` only has one dimension, function
- * will try compute results by using `PSMultiplyVectors` as fallback (for all
+ * will try compute results by using `PSDotProduct` as fallback (for all
  * other cases, it will fail!).
  * The `opt` argument can be NULL.
  * You can set matrix transposition using `transpose` field in the `opt`
@@ -1360,7 +1362,7 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
  * By default, data in result vector will be overwritten. Anyway, if
  * `PS_STORE_MODE_ADD` is set as `store_mode` into `opt`, result will
  * be added to data already present in the result vector.
- * Return value: 1 if operation succeeds, 0 if ti fails. */
+ * Return value: 1 if operation succeeds, 0 if it fails. */
 int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
     if (result == NULL) {
         PSErr(__func__, "argument result cannot be null");

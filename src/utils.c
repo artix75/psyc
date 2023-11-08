@@ -139,7 +139,7 @@ void *PSDictGetPointer(PSDict *dict, const char *key) {
     return item->value.as_ptr;
 }
 
-/* Check whether `dict` has the key `key.
+/* Check whether `dict` has the key `key`.
  * Return value: 1 if `dict` has `key`, elseway 0. */
 int PSDictHasKey(PSDict *dict, const char *key) {
     PSDictItem *item = PSDictGet(dict, key);
