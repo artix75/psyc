@@ -33,30 +33,69 @@ void PSInitActivationMathOpts(PSMathOpts *opts, PSMathOpts *srcopts) {
     opts->acceleration = acceleration;
 }
 
-/* Activation Functions */
+/*** Activation Functions ***/
 
+/* Sigmoid activation function for scalars. It takes the scalar `val` as
+ * argument and returns a `PFloat` scalar.
+ * For info about sigmoid:
+ *   https://en.wikipedia.org/wiki/Sigmoid_function
+ * The equivalent function to be used with vectors/matrices is `PSSigmoid`.
+ * The derivative of this function is `PSSigmoidDerivativeS`.
+ * Return value: sigmoid scalar result. */
 PSFloat PSSigmoidS(PSFloat val) {
     return 1.0 / (1.0 + PSExp(-val));
 }
 
+/* Computes derivative for sigmoid activation function (`PSSigmoidS`).
+ * This function applies to scalar values, so it takes the scalar `val`
+ * as argument and returns a `PFloat` scalar.
+ * The equivalent function to be used with vectors/matrices is
+ * `PSSigmoidDerivative`.
+ * Return value: ReLU derivative scalar result. */
 PSFloat PSSigmoidDerivativeS(PSFloat val) {
     return val * (1 - val);
 }
 
+/* ReLU (Rectified Linear Unit) activation function for scalars.
+ * It takes the scalar `val` as argument and returns a `PFloat` scalar.
+ * For info about ReLU:
+ *   https://en.wikipedia.org/wiki/Rectifier_(neural_networks)
+ * The equivalent function to be used with vectors/matrices is `PSRelu`.
+ * The derivative of this function is `PSReluDerivativeS`.
+ * Return value: ReLU scalar result. */
 PSFloat PSReluS(PSFloat val) {
     return (val >= 0.0 ? val : 0.0);
 }
 
+/* Computes derivative for ReLU activation function (`PSReluS`). This function
+ * applies to scalar values, so it takes the scalar `val` as argument and
+ * returns a `PFloat` scalar.
+ * The equivalent function to be used with vectors/matrices is
+ * `PSReluDerivative`.
+ * Return value: ReLU derivative scalar result. */
 PSFloat PSReluDerivativeS(PSFloat val) {
     return (PSFloat)(val > 0.0);
 }
 
+/* GELU (Gaussian Error Linear Units) activation function for scalars.
+ * It takes the scalar `val` as argument and returns a `PFloat` scalar.
+ * For info about GELU:
+ *   https://arxiv.org/abs/1606.08415
+ * The equivalent function to be used with vectors/matrices is `PSGelu`.
+ * The derivative of this function is `PSGeluDerivativeS`.
+ * Return value: GELU scalar result. */
 PSFloat PSGeluS(PSFloat val) {
     static PSFloat c = 0;
     if (c == 0) c = PSSqrt(2 / M_PI);
     return 0.5 * val * (1 + PSTanhS(c * (val + 0.044715 * PSPow(val, 3))));
 }
 
+/* Computes derivative for GELU activation function (`PSGeluS`). This function
+ * applies to scalar values, so it takes the scalar `val` as argument and
+ * returns a `PFloat` scalar.
+ * The equivalent function to be used with vectors/matrices is
+ * `PSGeluDerivative`.
+ * Return value: GELU derivative scalar result. */
 PSFloat PSGeluDerivativeS(PSFloat val) {
     static PSFloat c1 = 0, c2 = 0, c3 = 0;
     if (c1 == 0) {
@@ -73,6 +112,15 @@ PSFloat PSTanhDerivativeS(PSFloat val) {
     return (1 - (val * val));
 }
 
+/* Sigmoid activation function for vectors. Sigmoid is computed on vector `vec`
+ * of length `len` and stored into vector `dest`. If `dest` is NULL, results
+ * will be stored into `vec` itself.
+ * The `opts` argument can be used to change default acceleration used to
+ * compute results (see `PSMathOpts`).
+ * For info about sigmoid:
+ *   https://en.wikipedia.org/wiki/Sigmoid_function
+ * The equivalent function to be used with scalars is `PSSigmoidS`.
+ * The derivative of this function is `PSSigmoidDerivative`. */
 void PSSigmoid(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts) {
     if (dest == NULL) dest = vec;
     PSMathOpts mopts = {0};
@@ -88,6 +136,13 @@ void PSSigmoid(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts) {
     for (i = 0; i < len; i++) dest[i] = PSSigmoidS(vec[i]);
 }
 
+/* Tanh (hyperbolic tangent) activation function for vectors. Hyperbolic
+ * tangent is computed on vector `vec` of length `len` and stored into vector
+ * `dest`.
+ * If `dest` is NULL, results will be stored into `vec` itself.
+ * The `opts` argument can be used to change default acceleration used to
+ * compute results (see `PSMathOpts`).
+ * The derivative of this function is `PSTanhDerivative`. */
 void PSTanhActivation(PSFloat *vec, PSFloat *dest, uint64_t len,
                       PSMathOpts *opts)
 {
@@ -97,6 +152,18 @@ void PSTanhActivation(PSFloat *vec, PSFloat *dest, uint64_t len,
     PSVectorTanh(vec, dest, len, &mopts);
 }
 
+/* ReLU (Rectified Linear Unit) activation function for vectors.
+ * ReLU is computed on vector `vec` of length `len` and stored into vector
+ * `dest`.
+ * If `dest` is NULL, results will be stored
+ * into `vec` itself.
+ * The `opts` argument can be used to change default acceleration used to
+ * compute results (see `PSMathOpts`).
+ * For info about ReLU:
+ *   https://en.wikipedia.org/wiki/Rectifier_(neural_networks)
+ *
+ * The equivalent function to be used with scalars is `PSReluS`.
+ * The derivative of this function is `PSReluDerivative`. */
 void PSRelu(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts) {
     if (dest == NULL) dest = vec;
     PSMathOpts mopts = {0};
@@ -104,6 +171,16 @@ void PSRelu(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts) {
     PSVectorThreshold(vec, 0.0, dest, len, &mopts);
 }
 
+/* GELU (Gaussian Error Linear Units) activation function for vectors.
+ * GELU is computed on vector `vec` of length `len` and stored into vector
+ * `dest`.
+ * If `dest` is NULL, results will be stored into `vec` itself.
+ * The `opts` argument can be used to change default acceleration used to
+ * compute results (see `PSMathOpts`).
+ * For info about GeLU:
+ *   https://arxiv.org/abs/1606.08415
+ * The equivalent function to be used with scalars is `PSGeLUS`.
+ * The derivative of this function is `PSGeLUDerivative`. */
 void PSGelu(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts) {
     static PSFloat c = 0;
     if (c == 0) c = PSSqrt(2 / M_PI);
@@ -148,6 +225,13 @@ void PSGelu(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts) {
     for (i = 0; i < len; i++) dest[i] = PSGeluS(vec[i]);
 }
 
+/* Computes the derivative of sigmoid activation function (`PSSigmoid`) for
+ * vectors. The sigmoid derivative is computed on vector `vec` of length `len`
+ * and stored into vector `dest`. If `dest` is NULL, results will be stored
+ * into `vec` itself.
+ * The `opts` argument can be used to change default acceleration used to
+ * compute results (see `PSMathOpts`).
+ * The equivalent function to be used with scalars is `PSSigmoidDerivativeS`.*/
 void PSSigmoidDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
                          PSMathOpts *opts)
 {
@@ -163,6 +247,13 @@ void PSSigmoidDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
     for (i = 0; i < len; i++) dest[i] = PSSigmoidDerivativeS(vec[i]);
 }
 
+/* Computes the derivative of tanh (hyperbolic tangent) activation function
+ * (`PSTanhActivation`) for vectors. The derivative is computed on vector `vec`
+ * of length `len` and stored into vector `dest`.
+ * If `dest` is NULL, results will be stored into `vec` itself.
+ * The `opts` argument can be used to change default acceleration used to
+ * compute results (see `PSMathOpts`).
+ * The equivalent function to be used with scalars is `PSTanhDerivativeS`.*/
 void PSTanhDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
                       PSMathOpts *opts)
 {
@@ -178,6 +269,13 @@ void PSTanhDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
     for (i = 0; i < len; i++) dest[i] = PSTanhDerivativeS(vec[i]);
 }
 
+/* Computes the derivative of ReLU activation function (`PSRelu`) for vectors.
+ * The derivative is computed on vector `vec` of length `len` and stored into
+ * vector `dest`.
+ * If `dest` is NULL, results will be stored into `vec` itself.
+ * The `opts` argument can be used to change default acceleration used to
+ * compute results (see `PSMathOpts`).
+ * The equivalent function to be used with scalars is `PSReluDerivativeS`.*/
 void PSReluDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
                       PSMathOpts *opts)
 {
@@ -186,6 +284,13 @@ void PSReluDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
     for (i = 0; i < len; i++) dest[i] = (PSFloat)(vec[i] > 0.0);
 }
 
+/* Computes the derivative of GELU activation function (`PSGelu`) for vectors.
+ * The derivative is computed on vector `vec` of length `len` and stored into
+ * vector `dest`.
+ * If `dest` is NULL, results will be stored into `vec` itself.
+ * The `opts` argument can be used to change default acceleration used to
+ * compute results (see `PSMathOpts`).
+ * The equivalent function to be used with scalars is `PSGeluDerivativeS`.*/
 void PSGeluDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
                       PSMathOpts *opts)
 {
@@ -243,6 +348,15 @@ void PSGeluDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
     for (i = 0; i < len; i++) dest[i] = PSGeluDerivativeS(vec[i]);
 }
 
+/* Computes Softmax function on vector `vec` of length `len`. Result is stored
+ * into vector `dest`. If `dest` is NULL, result will be stored into `vec`
+ * itself.
+ * The `opts` argument can be used to change default acceleration used to
+ * compute results (see `PSMathOpts`).
+ * The Softmax function can be used to get the probability distribution from
+ * a series of numbers.
+ * For more info about Softmax:
+ *     https://en.wikipedia.org/wiki/Softmax_function */
 void PSSoftmax(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts) {
     if (dest == NULL) dest = vec;
     PSFloat max = PSFLOAT_MIN, esum = 0.0;
