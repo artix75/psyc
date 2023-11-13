@@ -32,10 +32,6 @@
 #include "log.h"
 #include "platform.h"
 
-#define PS_DEFAULT_PARSER_CAPACITY  50
-#define PS_DEFAULT_MAX_VOCAB_SIZE   15000
-#define PS_DEFAULT_UNKOWN_TOKEN     "<unknown>"
-
 #define PS_PARSER_BUFFER_SIZE 4096
 
 /* Forward declarations */
@@ -130,6 +126,64 @@ char *PSNormalizeToken(char *token, int len) {
     return token;
 }
 
+/* Load a dataset (an array of `PSFloat` numbers) from a string. Depending
+ * on the parsing mode, each token or character found in the string will be
+ * converted to a numeric representation of itself. The dataset can be used to
+ * train a model (`PSModel`) or it can provide inputs to the model.
+ * Numeric representation of tokens/characters is defined by key-value pairs
+ * contained into `vocabulary`.
+ * The function can use an existing vocabulary or create a new one from
+ * scratch.
+ * By default, the string will be parsed as a sequence of tokens
+ * (`PS_PARSER_MODE_TOKENS`) and each token will be converted to a number.
+ * The above behavior can be changed by using `PS_PARSER_MODE_CHARS` in
+ * the (optional) `opts` argument (see `PSTextParserOptions`).
+ *
+ * When `PS_PARSER_MODE_TOKENS` mode is used, tokens can be matched in two ways:
+ *  - By using a separator: in this case the string will be split by using the
+ *    separators defined into `separator` member of `opts`.
+ *    If `separator` is NULL or `opts` is NULL, the default separators
+ *    will be those defined by the macro `PS_DEFAULT_TOKEN_SEPARATOR`.
+ *  - By using a callback that let the developers to define their own logic
+ *    for identifying and extracting tokens from the input string.
+ *    The callback function can be set into the `match_token` member of `opts`,
+ *    and it's a function of type `PSTokenMatch`.
+ *    The callback receives a token to match and a pointer to an integer to
+ *    store the length of the matched token. If the callback returns a non-zero
+ *    value (true), it indicates a successful match and a token of the matched
+ *    length will be extracted from the input string.
+ *    In this case, the parsing position is moved forward by the matched length.
+ *    If the callback returns 0, it signals that the token was not matched, and
+ *    the parsing position will be advanced to the next byte.
+ *
+ * WARN: The parsed string `str` may be modified during text parsing. By
+ * setting the `PS_PARSER_FLAG_PRESERVE_STRING` flag into `opts->flags`, the
+ * function will work on a copy of the string, preventing the original string
+ * from being altered.
+ *
+ * Arguments:
+ *  - `str`: the (null-terminated) string to be parsed (mandatory).
+ *  - `opts`: parsing options, it can be NULL.
+ *  - `existing_data`: optional argument that can be used to append
+ *     parsed data to an existing dataset.
+ *     WARN: Since data can be reallocated, always use the returned dataset
+ *     after calling the function.
+ *  - `datalen`: pointer to `uint64_t` where the final length of the dataset
+ *     will be stored. If `existing_data` is not `NULL`, the address pointed
+ *     by `datalen` must contain the current length of the existing dataset.
+ *     If NULL is returned by the function, the pointed address will contain
+ *     zero.
+ *  - `vocabulary`: pointer to pointer to a `PSVocabulary` struct. The
+ *     argument is mandatory and cannot be `NULL`.
+ *     If the pointer pointed by `vocabulary` is NULL, a new `PSVocabulary`
+ *     will be allocated and it will be filled with parsed tokens|characters.
+ *     If the pointer pointed by `vocabulary` points to an already existing
+ *     vocabulary, its numeric values will be used for parsed tokens.
+ *     If a token or character is not found in the existing vocabulary,
+ *     it will be automatically added, unless `PS_PARSER_FLAG_READONLY_VOCAB`
+ *     flag is set into `opts`.
+ * Return value: the dataset (`PSFloat` array) or NULL is something goes
+ * wrong. */
 PSFloat *PSLoadDataFromString(char *str, PSTextParserOptions *opts,
                               PSFloat *existing_data, int64_t *datalen,
                               PSVocabulary **vocabulary)
@@ -265,8 +319,8 @@ add_to_vocab:
                     free(token);
                     do_free_token = 0;
                 }
-                token = (char *) opts->unkown_token;
-                if (token == NULL) token = PS_DEFAULT_UNKOWN_TOKEN;
+                token = (char *) opts->unknown_token;
+                if (token == NULL) token = PS_DEFAULT_UNKNOWN_TOKEN;
                 /* Set or get <unknown> token. */
                 if (!read_only) id = PSVocabularyAdd(vocab, token);
                 else id = PSVocabularyGetTokenID(vocab, token);
@@ -309,6 +363,11 @@ fail:
     return NULL;
 }
 
+/* Load a dataset (an array of PSFloat numbers) from the text file found at
+ * `filepath`.
+ * For parsing options and other arguments, see `PSLoadDataFromString`.
+ * Return value: the dataset (`PSFloat` array) or NULL is something goes
+ * wrong. */
 PSFloat *PSLoadDataFromTextFile(const char *filepath,
                                 PSTextParserOptions *opts,
                                 int64_t *datalen,

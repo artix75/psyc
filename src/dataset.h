@@ -27,30 +27,80 @@
 #define PS_DATA_TYPE_TEST       1
 #endif
 
-/* Text processing */
+/*** Text processing ***/
+
 #define PS_DEFAULT_TOKEN_SEPARATOR  " ,.:!?-'\"\n\t\r"
 
 #define PS_INVALID_TOKEN_ID -1
 #define PS_TOKEN_NOT_FOUND  -2
 
+/* Parse text as separate tokens*/
 #define PS_PARSER_MODE_TOKENS  0
+/* Parse text as individual characters. */
 #define PS_PARSER_MODE_CHARS   1
 
 #define PS_PARSER_FLAG_NO_NORMALIZATION (1 << 0)
 #define PS_PARSER_FLAG_PRESERVE_STRING  (1 << 1)
 #define PS_PARSER_FLAG_READONLY_VOCAB   (1 << 2)
 
+#define PS_DEFAULT_PARSER_CAPACITY  50
+#define PS_DEFAULT_MAX_VOCAB_SIZE   15000
+#define PS_DEFAULT_UNKNOWN_TOKEN    "<unknown>"
+
+/* Pointer to a function that can be used to normalize tokens. It takes the
+ * input `token` of length `len` and returns the normalized token.
+ * Return value: the normalized token. */
 typedef char *(*PSTokenNormalizer) (char *token, int len);
+
+/* Pointer to a function that can be used by parsing functions (ie.
+ * `PSLoadDataFromString`) to match the token `token`.
+ * The length of the matched token must be stored into address pointed by
+ * `len`.
+ * Return value: 1 if token has been matched, 0 if no token has been matched.
+ */
 typedef int   (*PSTokenMatch) (char *str, int *len);
 
+/* Options for text parsing:
+ *  - `mode`: text parsing mode:
+ *            - `PS_PARSER_MODE_TOKENS`: parse text as tokens (each token
+ *              will be converted to a number).
+ *            - `PS_PARSER_MODE_CHARS`: parse text as characters (each
+ *              individual character will be converted to a number).
+ *  - `flags`: text parsing flags:
+ *             - `PS_PARSER_FLAG_NO_NORMALIZATION`: do not perform token
+ *               normalization on parsed text.
+ *             - `PS_PARSER_FLAG_PRESERVE_STRING`: prevent string from being
+ *               modified during parsing.
+ *             - `PS_PARSER_FLAG_READONLY_VOCAB`: by enabling this flag, the
+ *               vocabulary will be treated as read-only. Any parsed token
+ *               that is not present in the vocabulary will not be added and
+ *               will be considered <unknown> (see the `unknown_token` option).
+ *  - `max_vocabulary_size`: maximum number of tokens that can be added to
+ *                           the vocabulary, except for the <unknown> token.
+ *                           Every new parsed token will be automatically
+ *                           converted to the <unknown> token (see the
+ *                           `unknown_token` option).
+ *                           If the value of this option is zero, the
+ *                           default value will be `PS_DEFAULT_MAX_VOCAB_SIZE`.
+ *  - `separator`: a set of characters that should be used as separators to
+ *                 split string into individual tokens (ie: ".," would split
+ *                 by using both '.' and ',' as separators).
+ *  - `unknown_token`: string to be used for unmatched tokens.
+ *  - `capacity`: initial capacity of vocabularies allocated by parsing
+ *                functions (ie. `PSLoadDataFromString`).
+ *  - `buffer_size`: parsing buffer size.
+ *  - `normalizer`: pointer to function to be used to normalize tokens
+ *                  (see `PSTokenNormalizer`)
+ *  - `match_token`: pointer to function to be used to match individual tokens
+ *                   (it usually overrides the usage of `separator` to split
+ *                   string).
+*/
 typedef struct {
     int mode;
     int flags;
     int64_t max_vocabulary_size; /* Except <unknown> token */
-    int64_t sequence_length;
     const char *separator;
-    /*const char *keep;*/
-    const char *unkown_token;
+    const char *unknown_token;
     int capacity;
     int buffer_size;
     PSTokenNormalizer normalizer;
