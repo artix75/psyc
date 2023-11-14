@@ -472,14 +472,14 @@ err:
     return 0;
 }
 
-/* Returns PsyC working directory, that is, by default '$HOME/.psyc'.
+/* Returns PsyC working directory, that is, by default `$HOME/.psyc`.
  * A custom working directory can be specified at compile-time using
- * **PS_WORKING_DIR** macro or by setting **PS_WORKING_DIR** environment
+ * `PS_WORKING_DIR` macro or by setting `PS_WORKING_DIR` environment
  * variable.
  * The function will try to automatically create the working directory if
  * it doesn't exist.
  * Return value: path to the working directory or NULL in case something
- *               goes wrong.
+ * goes wrong.
  * NOTE: it returns a static string, so it cannot be freed. */
 const char *PSWorkingDirectory(void) {
 #ifdef PS_WORKING_DIR

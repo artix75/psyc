@@ -484,7 +484,7 @@ int main(int argc, char** argv) {
         }
         datalen = datasize / sizeof(PSFloat);
         printf("Loaded training dataset (len: %d, size: %d)\n",
-            datalen, datasize);
+               datalen, datasize);
         if (!max_images) {
             testsize = PSLoadCIFARData(PS_DATA_TYPE_TEST, classes, dataset_path,
                                        &test_data, 0, 0);

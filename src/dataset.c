@@ -39,6 +39,8 @@ uint32_t swap_uint32(uint32_t val);
 
 /**** PSVocabulary ****/
 
+/* Create a `PSVocabulary` with initial capacity of `initial_capacity`.
+ * Return value: the vocabulary or NULL if memory cannot be allocated. */
 PSVocabulary *PSVocabularyCreate(int64_t initial_capacity) {
     PSVocabulary *vocabulary = malloc(sizeof(*vocabulary));
     if (vocabulary == NULL) {
@@ -61,6 +63,14 @@ PSVocabulary *PSVocabularyCreate(int64_t initial_capacity) {
     return vocabulary;
 }
 
+/* Add token `token` to `vocabulary`. The token is added to the internal
+ * dictionary of `vocabulary` and a numeric index (ID) is assigned to it.
+ * The index is a progressive number. If the token already exists, the
+ * internal dictionary won't be updated and the token's numeric value (id)
+ * is immediately returned.
+ * Return value: the numeric index (ID) of the token. If token could not be
+ * added to the dictionary or `token` is NULL, the function will return
+ * `PS_INVALID_TOKEN_ID`. */
 int64_t PSVocabularyAdd(PSVocabulary *vocabulary, char *token) {
     if (token == NULL) return PS_INVALID_TOKEN_ID;
     int64_t id = vocabulary->token_map->length, size;
@@ -91,6 +101,11 @@ int64_t PSVocabularyAdd(PSVocabulary *vocabulary, char *token) {
     return id;
 }
 
+/* Get the ID the token `token` from vocabulary `vocabulary`.
+ * Return value: the numeric index (ID) of the token. If token is not found
+ * into `vocabulary`, the function will return `PS_TOKEN_NOT_FOUND`.
+ * If `vocabulary` is NULL or `token` is NULL, the function will return
+ * `PS_INVALID_TOKEN_ID`. */
 int64_t PSVocabularyGetTokenID(PSVocabulary *vocabulary, char *token) {
     if (vocabulary == NULL || token == NULL || vocabulary->token_map == NULL)
         return PS_INVALID_TOKEN_ID;
@@ -99,6 +114,9 @@ int64_t PSVocabularyGetTokenID(PSVocabulary *vocabulary, char *token) {
     return item->value.as_int;
 }
 
+/* Get the token associated with `id` from `vocabulary`.
+ * Return value: the token associated with `id` or NULL if no `token` is found
+ * with `id`. Also return NULL if `vocabulary` is NULL. */
 const char *PSVocabularyGetTokenByID(PSVocabulary *vocabulary, int64_t id) {
     if (vocabulary == NULL) return NULL;
     if (id >= vocabulary->size || vocabulary->tokens == NULL) return NULL;
@@ -131,7 +149,8 @@ char *PSNormalizeToken(char *token, int len) {
  * converted to a numeric representation of itself. The dataset can be used to
  * train a model (`PSModel`) or it can provide inputs to the model.
  * Numeric representation of tokens/characters is defined by key-value pairs
- * contained into `vocabulary`.
+ * contained into `vocabulary` and indices (ids) related to token are cast to
+ * `PSFloat`.
  * The function can use an existing vocabulary or create a new one from
  * scratch.
  * By default, the string will be parsed as a sequence of tokens
@@ -530,8 +549,7 @@ int decompressGZip(FILE *source, FILE *dest) {
 
 
 /* report a zlib or i/o error */
-void zerr(int ret)
-{
+void zerr(int ret) {
     fputs("zpipe: ", stderr);
     switch (ret) {
         case Z_ERRNO:
