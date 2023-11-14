@@ -33,10 +33,10 @@
 #define PSDICT_HT_SIZE 4096
 #define PSDICT_UPDATE_DISABLED (1 << 0)
 #define PSDictHash(key) (djb33_hash(key, 4096))
-#define PSDictFromInt(n) ((PSDictValue) {.as_int = n})
-#define PSDictFromFloat(n) ((PSDictValue) {.as_float = n})
-#define PSDictFromPointer(ptr) ((PSDictValue) {.as_ptr = ptr})
-#define PSDictFromString(str) PSDictFromPointer(str)
+#define PSDictItemFromInt(n) ((PSDictValue) {.as_int = n})
+#define PSDictItemFromFloat(n) ((PSDictValue) {.as_float = n})
+#define PSDictItemFromPointer(ptr) ((PSDictValue) {.as_ptr = ptr})
+#define PSDictItemFromString(str) PSDictItemFromPointer(str)
 #define PSDictSlotForKey(key) (PSDictHash(key) % PSDICT_HT_SIZE)
 #define PSDictGetStr(dict, key) ((const char *) PSDictGetPointer(dict, key))
 

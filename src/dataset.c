@@ -79,7 +79,7 @@ int64_t PSVocabularyAdd(PSVocabulary *vocabulary, char *token) {
      * has flag PSDICT_UPDATE_DISABLED enabled, value won't be updated if it
      * already exists for token, so, in this case, existing value will be
      * returned. */
-    PSDictItem *item = PSDictSet(token_map, token, PSDictFromInt(id));
+    PSDictItem *item = PSDictSet(token_map, token, PSDictItemFromInt(id));
     if (item == NULL) return PS_INVALID_TOKEN_ID;
     id = item->value.as_int;
     size = token_map->length;

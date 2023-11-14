@@ -432,7 +432,7 @@ PSDict *getPairs(char **ngrams, int ncount) {
             free(pair);
             goto final;
         }
-        ok = (PSDictSet(pairs, key, PSDictFromPointer(pair)) != NULL);
+        ok = (PSDictSet(pairs, key, PSDictItemFromPointer(pair)) != NULL);
         if (!ok) {
             PSErr(__func__, "could not set pair '%s'", key);
             free(key);
@@ -1269,7 +1269,7 @@ PSDict *loadBPE(char *model_dir) {
         if (len == 0) continue;
         if (line[0] == '#') continue;
         line[len - 1] = '\0';
-        ok = PSDictSet(bpe, line, PSDictFromInt(rank++)) != NULL;
+        ok = PSDictSet(bpe, line, PSDictItemFromInt(rank++)) != NULL;
         if (!ok) {
             PSErr(__func__, "could not add bpe item '%s'", line);
             goto final;
