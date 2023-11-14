@@ -24,6 +24,7 @@
 #include <assert.h>
 #include <sys/types.h>
 #include <dirent.h>
+#include <limits.h>
 #include <zlib.h>
 
 #include "dataset.h"
@@ -574,7 +575,7 @@ void zerr(int ret) {
 
 void getTempFileName(const char *prefix, char *buffer) {
     char buff[4] = {0};
-    if (buffer == NULL) return;
+    if (prefix == NULL || buffer == NULL) return;
     FILE *urand = fopen("/dev/urandom", "r");
     if (urand != NULL) {
         fgets(buff, 4, urand);
@@ -591,11 +592,16 @@ void getTempFileName(const char *prefix, char *buffer) {
 int PSLoadMNISTData(int type, const char *images_file, const char *labels_file,
                     PSFloat **data)
 {
-    char tmpImagesFileName[255] = {0};
-    char tmpLabelsFileName[255] = {0};
+    if (data == NULL) {
+        PSErr(__func__, "argument `data` cannot be null");
+        return 0;
+    }
+    char tmpImagesFileName[PATH_MAX] = {0};
+    char tmpLabelsFileName[PATH_MAX] = {0};
     char *prefixImg = NULL, *prefixLbl = NULL;
     int data_len = 0, err;
     int do_log = (PSLogLevel <= PSLOGLEVEL_INFO);
+    *data = NULL;
     if (type == PS_DATA_TYPE_TRAINING) {
         if (do_log) printf("Loading MNIST Data for training...\n");
         prefixImg = "train-images";
@@ -610,28 +616,42 @@ int PSLoadMNISTData(int type, const char *images_file, const char *labels_file,
     FILE *images = fopen(images_file, "r");
     if (images == NULL) {
         PSErr(__func__, "Cannot open images '%s'", images_file);
-        data = NULL;
+        *data = NULL;
         return 0;
     }
     FILE *labels = fopen(labels_file, "r");
     if (labels == NULL) {
         PSErr(__func__, "Cannot open labels '%s'", labels_file);
-        data = NULL;
+        *data = NULL;
         fclose(images);
         return 0;
     }
     FILE *tmpimages = fopen(tmpImagesFileName, "w");
     FILE *tmplabels = fopen(tmpLabelsFileName, "w");
+    if (tmpimages == NULL || tmplabels == NULL) {
+        PSErr(__func__, "Cannot open temporary files for writing");
+        *data = NULL;
+        if (tmpimages) fclose(tmpimages);
+        if (tmplabels) fclose(tmplabels);
+        return 0;
+    }
     if (do_log) printf("Loading images...\n");
     err = decompressGZip(images, tmpimages);
-    if (err) {zerr(err); data = NULL; goto final;}
+    if (err) {zerr(err); *data = NULL; goto final;}
     if (do_log) printf("Loading labels...\n");
     err = decompressGZip(labels, tmplabels);
-    if (err) {zerr(err); data = NULL; goto final;}
+    if (err) {zerr(err); *data = NULL; goto final;}
     fclose(tmpimages);
     fclose(tmplabels);
     tmpimages = fopen(tmpImagesFileName, "r");
     tmplabels = fopen(tmpLabelsFileName, "r");
+    if (tmpimages == NULL || tmplabels == NULL) {
+        PSErr(__func__, "Cannot open temporary files for writing");
+        *data = NULL;
+        if (tmpimages) fclose(tmpimages);
+        if (tmplabels) fclose(tmplabels);
+        return 0;
+    }
     fseek(tmpimages, 0, SEEK_SET);
     fseek(tmplabels, 0, SEEK_SET);
     uint32_t magic_num = 0, image_count = 0, label_count = 0;
@@ -640,14 +660,14 @@ int PSLoadMNISTData(int type, const char *images_file, const char *labels_file,
     if (do_swap) magic_num = swap_uint32(magic_num);
     if (magic_num != IMAGES_MAGIC_NUM) {
         PSErr(__func__, "Invalid magic number for image file: %d", magic_num);
-        data = NULL;
+        *data = NULL;
         goto final;
     }
     fread(&image_count, 1, 4, tmpimages);
     if (do_swap) image_count = swap_uint32(image_count);
     if (image_count == 0) {
-        PSErr(__func__, "Image count is 0!");
-        data = NULL;
+        PSErr(__func__, "Image count is zero");
+        *data = NULL;
         goto final;
     }
     if (do_log) printf("Found %d images.\n", image_count);
@@ -655,20 +675,20 @@ int PSLoadMNISTData(int type, const char *images_file, const char *labels_file,
     if (do_swap) magic_num = swap_uint32(magic_num);
     if (magic_num != LABELS_MAGIC_NUM) {
         PSErr(__func__, "Invalid magic number for labels file: %d",magic_num);
-        data = NULL;
+        *data = NULL;
         goto final;
     }
     fread(&label_count, 1, 4, tmplabels);
     if (do_swap) label_count = swap_uint32(label_count);
     if (label_count == 0) {
-        PSErr(__func__, "Label count is 0!");
-        data = NULL;
+        PSErr(__func__, "Label count is zero");
+        *data = NULL;
         goto final;
     }
     if (do_log) printf("Found %d labels.\n", label_count);
     if (label_count != image_count) {
         PSErr(__func__, "Image count and label count do not match!");
-        data = NULL;
+        *data = NULL;
         goto final;
     }
     uint32_t rows = 0, cols = 0;
@@ -681,36 +701,39 @@ int PSLoadMNISTData(int type, const char *images_file, const char *labels_file,
     if (do_log) printf("Image size: %dx%d\n", rows, cols);
     int img_area = rows * cols;
     if (img_area == 0) {
-        PSErr(__func__, "Invalid image size!");
-        data = NULL;
+        PSErr(__func__, "Invalid image size");
+        *data = NULL;
         goto final;
     }
     data_len = (img_area * image_count) + (label_count * 10);
     *data = malloc(data_len * sizeof(PSFloat));
+    if (*data == NULL) {
+        PSPrintMemoryErrorMsg();
+        data_len = 0;
+        goto final;
+    }
     PSFloat *data_p = *data;
     for (i = 0; i < (int) image_count; i++) {
         if (do_log) printf("\rLoading image %d/%d", i + 1, image_count);
         for (j = 0; j < img_area; j++) {
             int pixel = fgetc(tmpimages);
             PSFloat d = (PSFloat) pixel / (PSFloat) 255;
-            *data_p = d;
-            data_p++;
+            *(data_p++) = d;
         }
         int label = fgetc(tmplabels);
         /* printf("Label: %d", label); */
         for (j = 0; j < 10; j++) {
-            *data_p = (j == label);
-            data_p++;
+            *(data_p++) = (j == label);
         }
     }
-    printf("\n");
+    if (do_log) printf("\n");
 final:
     if (images != NULL) fclose(images);
     if (labels != NULL) fclose(labels);
     if (tmpimages != NULL) fclose(tmpimages);
     if (tmplabels != NULL) fclose(tmplabels);
-    remove(tmpImagesFileName);
-    remove(tmpLabelsFileName);
+    unlink(tmpImagesFileName);
+    unlink(tmpLabelsFileName);
     /* printf("Datalen: %d\n", data_len); */
     /* printf("Allocated data size: %d\n", data_p - *data); */
     return data_len;
