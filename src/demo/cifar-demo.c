@@ -256,8 +256,6 @@ int main(int argc, char** argv) {
     const char *pretrained_file = NULL;
     const char *dataset_path = NULL;
     char *downloaded_dataset_path = NULL;
-    int testsize = 0;
-    int datasize = 0;
     int testlen = 0;
     int datalen = 0;
     int valdlen = 0;
@@ -476,25 +474,23 @@ int main(int argc, char** argv) {
     }
 
     if (dataset_path != NULL) {
-        datasize = PSLoadCIFARData(PS_DATA_TYPE_TRAINING, classes, dataset_path,
-                                   &training_data, 0, max_images);
-        if (datasize == 0 || training_data == NULL) {
+        datalen = PSLoadCIFARData(PS_DATA_TYPE_TRAINING, classes, dataset_path,
+                                  &training_data, 0, max_images);
+        if (datalen == 0 || training_data == NULL) {
             printf("Could not load training data!\n");
             return 1;
         }
-        datalen = datasize / sizeof(PSFloat);
-        printf("Loaded training dataset (len: %d, size: %d)\n",
-               datalen, datasize);
+        printf("Loaded training dataset (len: %d, size: %d bytes)\n",
+               datalen, datalen * (int) sizeof(PSFloat));
         if (!max_images) {
-            testsize = PSLoadCIFARData(PS_DATA_TYPE_TEST, classes, dataset_path,
-                                       &test_data, 0, 0);
-            if (testsize == 0 || test_data == NULL) {
+            testlen = PSLoadCIFARData(PS_DATA_TYPE_TEST, classes, dataset_path,
+                                      &test_data, 0, 0);
+            if (testlen == 0 || test_data == NULL) {
                 printf("Could not load test data!\n");
                 return 1;
             }
-            testlen = testsize / sizeof(PSFloat);
             printf("Loaded test dataset (len: %d, size: %d)\n", testlen,
-                   testsize);
+                   testlen * (int) sizeof(PSFloat));
         }
     }
 
@@ -575,7 +571,7 @@ int main(int argc, char** argv) {
 
         int element_size = model->input_size + model->output_size;
         printf("Element Size = %d (%d + %d)\n", element_size,
-            model->input_size, model->output_size);
+               model->input_size, model->output_size);
         int element_count = datalen / element_size;
         printf("Training elements (initial): %d\n", element_count);
         if (element_count < train_dataset_len) {

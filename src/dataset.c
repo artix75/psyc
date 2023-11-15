@@ -751,6 +751,10 @@ static int compareFilenames(const void* a, const void* b) {
 int PSLoadCIFARData(int type, int classes, const char *dataset_path,
                     PSFloat **data, int max_files, int max_elements)
 {
+    if (data == NULL) {
+        PSErr(__func__, "argument `data` cannot be null");
+        return 0;
+    }
     if (classes != 10 && classes != 100) {
         PSErr(__func__, "Invalid classes %d: only 10 or 100 allowed.", classes);
         return 0;
@@ -761,6 +765,7 @@ int PSLoadCIFARData(int type, int classes, const char *dataset_path,
     int expected_fsize = (CIFAR_IMAGE_BYTESIZE + label_size) * img_count;
     int fcount = 0, dataset_size = 0, i, j, k;
     char datafiles[CIFAR_DATAFILE_COUNT][255];
+    *data = NULL;
 
     DIR *dir;
     struct dirent *finfo;
@@ -785,7 +790,10 @@ int PSLoadCIFARData(int type, int classes, const char *dataset_path,
     int datasize = (fcount * img_count * (classes + CIFAR_IMAGE_BYTESIZE));
     dataset_size = datasize * sizeof(PSFloat);
     *data = calloc(dataset_size, 1);
-    if (*data == NULL) return 0;
+    if (*data == NULL) {
+        PSPrintMemoryErrorMsg();
+        return 0;
+    }
     PSFloat *data_p = *data;
     for (i = 0; i < fcount; i++) {
         char *fname = datafiles[i];
@@ -794,7 +802,7 @@ int PSLoadCIFARData(int type, int classes, const char *dataset_path,
         if (f == NULL) {
             PSErr(__func__, "Could not open file %s", fname);
             free(*data);
-            data = NULL;
+            *data = NULL;
             return 0;
         }
         fseek(f, 0, SEEK_END);
@@ -805,7 +813,7 @@ int PSLoadCIFARData(int type, int classes, const char *dataset_path,
                 expected_fsize
             );
             free(*data);
-            data = NULL;
+            *data = NULL;
             fclose(f);
             return 0;
         }
@@ -832,7 +840,7 @@ int PSLoadCIFARData(int type, int classes, const char *dataset_path,
         fclose(f);
     }
     (void) closedir (dir);
-    return dataset_size;
+    return datasize;
 }
 
 PSLayer *PSAddCIFARInputLayer(PSModel *model) {

@@ -436,15 +436,15 @@ static int loadCIFARData(int data_type, int classes, int argc, char **argv,
             }
         }
     }
-    int datasize = PSLoadCIFARData(
+    *len = PSLoadCIFARData(
         data_type, classes, datapath, data, max_files, max_images
     );
-    *len = datasize / sizeof(PSFloat);
     if (*len == 0 || *data == NULL) {
         fprintf(stderr, "Failed to load CIFAR data\n");
         return 0;
     }
-    if (dataset_len != NULL) *dataset_len = (*len / PS_CIFAR_IMAGE_SIZE);
+    if (dataset_len != NULL)
+        *dataset_len = (*len / (PS_CIFAR_IMAGE_SIZE + classes));
     return 1;
 }
 
@@ -1459,7 +1459,7 @@ int main(int argc, char **argv) {
         int element_count = datalen / element_size;
         if (element_count < train_dataset_len) {
             fprintf(stderr, "Loaded dataset elements %d < %d\n", element_count,
-                   train_dataset_len);
+                    train_dataset_len);
             cleanup();
             return 1;
         } else {
