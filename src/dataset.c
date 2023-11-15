@@ -589,6 +589,26 @@ void getTempFileName(const char *prefix, char *buffer) {
             (unsigned char) buff[3]);
 }
 
+/* Load the MNIST dataset (https://en.wikipedia.org/wiki/MNIST_database) from
+ * files.
+ * The dataset files must be in gzip format (.gz): images data must be loaded
+ * from `images_file` path and labels data must be loaded from `labels_file`
+ * path.
+ * The dataset is allocated by the function itself and its pointer is stored
+ * into `data` pointer-to-pointer (it cannot be NULL). The length of the
+ * resulting dataset is returned by the function.
+ * The `type` argument can be used to tell if the dataset is a training
+ * dataset (`PS_DATA_TYPE_TRAINING`) or a test dataset (`PS_DATA_TYPE_TEST`).
+ * Return value: the length of the dataset (number of `PSFloat` elements) or
+ * zero if some error occurs.
+ * Possibile errors:
+ *  - The data argument is NULL
+ *  - Dataset files are NULL, they don't exist or they cannot be opened.
+ *  - Dataset cannot be allocated into memory
+ *  - Dataset files are not in gzip format or some error occurs whil unzipping
+ *    them.
+ *  - The internal format of the dataset files format is not valid.
+ */
 int PSLoadMNISTData(int type, const char *images_file, const char *labels_file,
                     PSFloat **data)
 {
@@ -748,6 +768,30 @@ static int compareFilenames(const void* a, const void* b) {
     return strcmp((const char*)a, (const char*)b);
 }
 
+/* Load the CIFAR dataset (https://www.cs.toronto.edu/~kriz/cifar.html) from
+ * files.
+ * The dataset files must be in gzip format (.gz): dataset files must be
+ * in binary version and located into `dataset_path` directory.
+ * The dataset is allocated by the function itself and its pointer is stored
+ * into `data` pointer-to-pointer (it cannot be NULL). The length of the
+ * resulting dataset is returned by the function.
+ * The CIFAR dataset comes in two fashions:
+ *  - CIFAR-10:  each image can be classified with 10 classes.
+ *  - CIFAR-100: each image can be classified with 100 classes.
+ * The `classes` argument can be used to tell the function which kind of
+ * dataset is going to be loaded.
+ * The `type` argument can be used to tell if the dataset is a training
+ * dataset (`PS_DATA_TYPE_TRAINING`) or a test dataset (`PS_DATA_TYPE_TEST`).
+ * Return value: the length of the dataset (number of `PSFloat` elements) or
+ * zero if some error occurs.
+ * Possibile errors:
+ *  - The data argument is NULL
+ *  - The value for `class` is neither 10 not 100.
+ *  - Dataset directory is NULL, or dataset files cannot be opened cannot be
+ *    opened.
+ *  - Dataset cannot be allocated into memory
+ *  - Dataset file format is not valid
+ */
 int PSLoadCIFARData(int type, int classes, const char *dataset_path,
                     PSFloat **data, int max_files, int max_elements)
 {
