@@ -60,6 +60,7 @@ distclean: rebuildclean
 	rm -f src/all.h
 	rm -f src/magick_conf.h
 	rm -f src/magick-conf.h
+	rm -f resources/testzlib
 
 install:
 	@cd src && $(MAKE) install
