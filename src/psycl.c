@@ -74,15 +74,13 @@
 #define UNUSED(V) ((void) V)
 
 static char* MNIST_FILE_NAMES[4] = {
-    "resources/train-images-idx3-ubyte.gz",
-    "resources/train-labels-idx1-ubyte.gz",
-    "resources/t10k-images-idx3-ubyte.gz",
-    "resources/t10k-labels-idx1-ubyte.gz"
+    "train-images-idx3-ubyte.gz",
+    "train-labels-idx1-ubyte.gz",
+    "t10k-images-idx3-ubyte.gz",
+    "t10k-labels-idx1-ubyte.gz"
 };
 
-static char MNISTDataFiles[4][PATH_MAX + 1] = {
-    "\x0", "\x0", "\x0", "\x0"
-};
+static char *MNISTDataFiles[4] = {NULL, NULL, NULL, NULL};
 
 /* Globals */
 
@@ -114,6 +112,7 @@ char *image_bgcolor = "white";
 int image_invert = 0;
 int image_grayscale = 0;
 #endif
+char *mnist_download_path = NULL;
 PSModel *model = NULL;
 
 /* Forward declarations */
@@ -217,20 +216,67 @@ static char *getPsycPath(char *executable) {
     }
 }
 
-static int resolveMNISTDataFiles(char *path) {
-    if (!path) return 0;
-    if (MNISTDataFiles[0][0]) return 1;
-    int pathlen = strlen(path), i;
-    for (i = 0; i < 4; i++) {
-        char *mnist_fname = MNIST_FILE_NAMES[i];
-        char *mnist_path = MNISTDataFiles[i];
-        strcpy(mnist_path, path);
-        if (mnist_path[pathlen - 1] != '/')
-            strcat(mnist_path, "/");
-        strcat(mnist_path, mnist_fname);
-        /* printf("[%d] %s\n", i, mnist_path); */
+static char *downloadMNISTDataset(char *path) {
+    static char *host = "http://dia.fi.upm.es/~lbaumela/PracRF11";
+    static char *dirname = "mnist";
+    char url[PATH_MAX] = {0};
+    char fpath[PATH_MAX] = {0};
+    char *datasets_path = NULL;
+    int provided_path = (path != NULL), success = 1;
+    if (!provided_path) {
+        const char *wdir = PSWorkingDirectory();
+        if (wdir == NULL) return NULL;
+        char *datasets_path = PSPathJoin(2, wdir, "datasets");
+        if (datasets_path == NULL) return NULL;
+        if (!PSFileExists(datasets_path))
+            if (!PSMakeDir(datasets_path, 1)) goto final;
+        path = PSPathJoin(2, datasets_path, dirname);
+        if (path == NULL) goto final;
+        if (!PSFileExists(path)) {
+            success = PSMakeDir(path, 1);
+            if (!success) goto final;
+        }
     }
-    return 1;
+    size_t numfiles = sizeof(MNIST_FILE_NAMES) / sizeof(char *), i;
+    for (i = 0; i < numfiles; i++) {
+        snprintf(url, PATH_MAX, "%s/%s", host, MNIST_FILE_NAMES[i]);
+        snprintf(fpath, PATH_MAX, "%s/%s", path, MNIST_FILE_NAMES[i]);
+        PSNotice("Downloading MNIST file '%s'", MNIST_FILE_NAMES[i]);
+        success = PSDownloadFile(url, path);
+        if (!success) goto final;
+    }
+final:
+    free(datasets_path);
+    if (!success) {
+        if (!provided_path) free(path);
+        path = NULL;
+    }
+    return path;
+}
+
+static int findMNISTFiles(char **mnist_files, int *found) {
+    const char *wdir = PSWorkingDirectory();
+    if (wdir == NULL) return 0;
+    int ok = 1, i;
+    char *dataset_path = PSPathJoin(2, wdir, "datasets/mnist");
+    if (dataset_path == NULL) return 0;
+    char *fpath = NULL;
+    *found = 0;
+    for (i = 0; i < 4; i++) {
+        fpath = PSPathJoin(2, dataset_path, MNIST_FILE_NAMES[i]);
+        ok = (fpath != NULL);
+        if (!ok) break;
+        if (PSFileExists(fpath)) {
+            mnist_files[i] = fpath;
+            *found += 1;
+        } else {
+            free(fpath);
+            fpath = NULL;
+            ok = 0;
+        }
+    }
+    free(dataset_path);
+    return ok;
 }
 
 static PSLayerType getLayerType(char *name, int *is_cifar, PSLayerDef *ldef) {
@@ -317,7 +363,7 @@ static void getTempFileName(const char *prefix, char *buffer) {
 }
 
 static int loadMNISTData(int data_type, int argc, char **argv, int *arg_idx) {
-    int i = *arg_idx, image_data_index, label_data_index;
+    int i = *arg_idx, ok = 1, image_data_index, label_data_index;
     int *len = NULL;
     PSFloat **data = NULL;
     char *descr = NULL;
@@ -349,20 +395,45 @@ static int loadMNISTData(int data_type, int argc, char **argv, int *arg_idx) {
         } else *arg_idx = i;
     }
     if (imgfile == NULL) {
-        if (!resolveMNISTDataFiles(getPsycPath(argv[0]))) {
-            fprintf(stderr, "Missing MNIST %s data files\n", descr);
-            return 0;
+        int found_files = 0;
+        int found = findMNISTFiles(MNISTDataFiles, &found_files);
+        if (!found) {
+            PSNotice("could not find MNIST dataset files, trying to "
+                     "download them...");
+            char *dataset_path = downloadMNISTDataset(NULL);
+            ok = (dataset_path != NULL);
+            if (!ok) {
+                PSErr(NULL, "could not download MNIST dataset files, please "
+                      "provide their path (use --help for more info)");
+                free(dataset_path);
+                goto final;
+            }
+            found = findMNISTFiles(MNISTDataFiles, &found_files);
+            free(dataset_path);
         }
         imgfile = MNISTDataFiles[image_data_index];
         lblfile = MNISTDataFiles[label_data_index];
+        ok = (imgfile != NULL);
+        if (!ok) {
+            PSErr(NULL, "could not find MNIST image file '%s'\n", imgfile);
+            goto final;
+        }
+        ok = (lblfile != NULL);
+        if (!ok) {
+            PSErr(NULL, "could not find MNIST label file '%s'\n", lblfile);
+            goto final;
+        }
     }
     if (imgfile != NULL && lblfile != NULL)
         *len = PSLoadMNISTData(data_type, imgfile, lblfile, data);
     if (*len == 0 || *data == NULL) {
-        fprintf(stderr, "Could not load %s data!\n", descr);
-        return 0;
+        PSErr(NULL, "could not load %s data!\n", descr);
+        ok = 0;
+        goto final;
     }
-    return 1;
+final:
+    for (i = 0; i < 4; i++) free(MNISTDataFiles[i]);
+    return ok;
 }
 
 static int loadCIFARData(int data_type, int classes, int argc, char **argv,
@@ -1183,6 +1254,19 @@ void parseOptions(int argc, char **argv) {
             on_epoch_trained =strdup( argv[++i]);
             if (strlen(on_epoch_trained) > 0)
                 current->onEpochTrained = onEpochTrained;
+        } else if (strcmp("--download-mnist", arg) == 0) {
+            if (!is_last && argv[i + 1][0] != '-')
+                mnist_download_path = argv[++i];
+            char *path = downloadMNISTDataset(mnist_download_path);
+            int downloaded = (path != NULL);
+            if (!downloaded) PSErr(NULL, "failed to download MNIST dataset");
+            else {
+                PSLog(
+                    PSLOGLEVEL_SUCCESS, "MNIST dataset downloaded at: '%s'\n",
+                    path
+                );
+            }
+            exit(!downloaded);
         } else if (strcmp("--batch-script-every", arg) == 0 && !is_last) {
             char *every = argv[++i];
             int matched = sscanf(every, "%d", &batch_script_every);
@@ -1565,6 +1649,12 @@ void printHelp(const char* program_path) {
 #ifdef HAS_MAGICK
     printf("        --classify-image FILE [OPT] Perform tests\n");
 #endif
+    printf("        --download-mnist [DEST_DIR] Download MNIST dataset and "
+           "exit.\n"
+           "                                    If no DEST_DIR is provided, the"
+           " dataset\n"
+           "                                    will be saved into PsyC "
+           "working directory.\n");
     printf("        --training-datalen LEN      Training data length\n");
     printf("        --validation-datalen LEN    Validation data length\n");
     printf("        --epochs EPOCHS             Training epochs (def. %d)\n",

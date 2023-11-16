@@ -48,7 +48,7 @@ PSOptimization optimization = OPTIMIZATION;
 
 /**** Utils ****/
 
-static char *getExecutablePath(char *executable) {
+/*static char *getExecutablePath(char *executable) {
     static char path[PATH_MAX + 1] = {0};
     char _realpath[PATH_MAX + 1];
     if (path[0]) return path;
@@ -80,24 +80,62 @@ static char *getExecutableRootPath(char *executable) {
     char *p = strstr(path, "/bin");
     if (p != NULL) *p = '\0';
     return path;
-}
+}*/
 
-static int findMNISTFiles(char *executable, char **mnist_files, int *found) {
+static char *downloadMNISTDataset(void) {
+    static char *host = "http://dia.fi.upm.es/~lbaumela/PracRF11";
     static char *fnames[] = {
         "train-images-idx3-ubyte.gz", "train-labels-idx1-ubyte.gz",
         "t10k-images-idx3-ubyte.gz", "t10k-labels-idx1-ubyte.gz"
     };
+    static char *dirname = "mnist";
+    const char *wdir = PSWorkingDirectory();
+    int success = 1;
+    if (wdir == NULL) return NULL;
+    char *path = NULL;
+    char url[PATH_MAX] = {0};
+    char fpath[PATH_MAX] = {0};
+    char *datasets_path = PSPathJoin(2, wdir, "datasets");
+    if (datasets_path == NULL) return NULL;
+    if (!PSFileExists(datasets_path))
+        if (!PSMakeDir(datasets_path, 1)) goto final;
+    path = PSPathJoin(2, datasets_path, dirname);
+    if (path == NULL) goto final;
+    if (!PSFileExists(path)) {
+        success = PSMakeDir(path, 1);
+        if (!success) goto final;
+    }
+    size_t numfiles = sizeof(fnames) / sizeof(char *), i;
+    for (i = 0; i < numfiles; i++) {
+        snprintf(url, PATH_MAX, "%s/%s", host, fnames[i]);
+        snprintf(fpath, PATH_MAX, "%s/%s", path, fnames[i]);
+        PSNotice("Downloading MNIST file '%s'", fnames[i]);
+        success = PSDownloadFile(url, path);
+        if (!success) goto final;
+    }
+final:
+    free(datasets_path);
+    if (!success) {
+        free(path);
+        path = NULL;
+    }
+    return path;
+}
+
+static int findMNISTFiles(char **mnist_files, int *found) {
+    static char *fnames[] = {
+        "train-images-idx3-ubyte.gz", "train-labels-idx1-ubyte.gz",
+        "t10k-images-idx3-ubyte.gz", "t10k-labels-idx1-ubyte.gz"
+    };
+    const char *wdir = PSWorkingDirectory();
+    if (wdir == NULL) return 0;
     int ok = 1, i;
-    char *root_path = getExecutableRootPath(executable);
-    if (root_path == NULL) return 0;
-    char *resources_path = PSPathJoin(2, root_path, "resources");
-    if (resources_path == NULL) return 0;
+    char *dataset_path = PSPathJoin(2, wdir, "datasets/mnist");
+    if (dataset_path == NULL) return 0;
     char *fpath = NULL;
     *found = 0;
     for (i = 0; i < 4; i++) {
-        char *mnist_file = mnist_files[i];
-        if (mnist_file != NULL) continue;
-        fpath = PSPathJoin(2, resources_path, fnames[i]);
+        fpath = PSPathJoin(2, dataset_path, fnames[i]);
         ok = (fpath != NULL);
         if (!ok) break;
         if (PSFileExists(fpath)) {
@@ -106,9 +144,10 @@ static int findMNISTFiles(char *executable, char **mnist_files, int *found) {
         } else {
             free(fpath);
             fpath = NULL;
+            ok = 0;
         }
     }
-    free(resources_path);
+    free(dataset_path);
     return ok;
 }
 
@@ -224,12 +263,20 @@ int main(int argc, char** argv) {
         arg_idx++;
     }
     if (arg_file_count < 4) {
-        if (!findMNISTFiles(argv[0], mnist_files, &found_files_count)) {
-            PSErr(NULL, "could not find MNIST dataset files, please provide "
-                  "their path (use --help for more info)");
-            success = 0;
-            goto final;
+        int mnist_found = findMNISTFiles(mnist_files, &found_files_count);
+        if (!mnist_found) {
+            PSNotice("could not find MNIST dataset files, trying to "
+                     "download them...");
+            char *dataset_path = downloadMNISTDataset();
+            if (dataset_path == NULL) {
+                PSErr(NULL, "could not download MNIST dataset files, please "
+                      "provide their path (use --help for more info)");
+                success = 0;
+                goto final;
+            }
+            free(dataset_path);
         }
+        mnist_found = findMNISTFiles(mnist_files, &found_files_count);
         if ((arg_file_count + found_files_count) < 2) {
             PSErr(NULL, "at least train images and train labels files are "
                   "required, please provide their paths");

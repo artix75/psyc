@@ -52,6 +52,7 @@
 #include "../avx.h"
 #endif
 
+#define MNIST_TEST_SAMPLE_PATH "resources/mnist-test-sample.psdata"
 #define PRETRAINED_FULL_MODEL "resources/pretrained.mnist.psmodel"
 #define CONVOLUTIONAL_MODEL "resources/cnn.data"
 #define CONVOLUTIONAL_TRAINED_MODEL "resources/pretrained.cnn.psmodel"
@@ -74,8 +75,6 @@
     "resources/pretrained.mh-dot-product-attention.psmodel"
 #define MH_CAUSAL_SELFATTENTION_MODEL \
     "resources/pretrained.mh-causal-attention.psmodel"
-#define TEST_IMAGE_FILE "resources/t10k-images-idx3-ubyte.gz"
-#define TEST_LABEL_FILE "resources/t10k-labels-idx1-ubyte.gz"
 #define TEST_IMAGE_SIZE 28
 #define TEST_INPUT_SIZE TEST_IMAGE_SIZE *TEST_IMAGE_SIZE
 #define BP_GRADIENTS_CHECKS 8
@@ -1056,42 +1055,28 @@ int genericSetup(TestCase *test_case) {
     }
     test_case->data[0] = model;
     PSFloat *test_data = NULL;
-    char test_img_path[PATH_MAX] = {0};
-    char test_lbl_path[PATH_MAX] = {0};
-    char *path_dup = strdup(executable_path);
-    if (path_dup == NULL) {
-        PSPrintMemoryErrorMsg();
+    char dataset_path[PATH_MAX] = {0};
+    if (!joinPath(executable_path, MNIST_TEST_SAMPLE_PATH, dataset_path))
+        return 0;
+    int expected_datalen = PS_MNIST_INPUT_SIZE + 10;
+    testlen = 0;
+    FILE *f = fopen(dataset_path, "r");
+    if (f == NULL) {
+        fprintf(stderr, "\nCould not open dataset at: %s\n", dataset_path);
         return 0;
     }
-    char *root = dirname(path_dup);
-    if (root == NULL) {
-        PSErr(__func__, "Could not determine PsyC path from '%s'",
-              executable_path);
-        free(path_dup);
+    test_data = readSerializedFloatArray(
+        f, ",", &testlen, expected_datalen, expected_datalen
+    );
+    fclose(f);
+    if (testlen != expected_datalen) {
+        fprintf(stderr, "\nExpected datalen %d != datalen %d\n",
+                expected_datalen, testlen);
+        free(test_data);
         return 0;
     }
-    root = dirname(root);
-    if (root == NULL) {
-        PSErr(__func__, "Could not determine PsyC path from '%s'",
-              executable_path);
-        free(path_dup);
-        return 0;
-    }
-    if (!joinPath(root, TEST_IMAGE_FILE, test_img_path)) {
-        free(path_dup);
-        return 0;
-    }
-    if (!joinPath(root, TEST_LABEL_FILE, test_lbl_path)) {
-        free(path_dup);
-        return 0;
-    }
-    free(path_dup);
-    testlen = PSLoadMNISTData(PS_DATA_TYPE_TEST, test_img_path, test_lbl_path,
-                              &test_data);
     test_case->data[1] = test_data;
-    if (test_data == NULL) {
-        return 0;
-    }
+    if (test_data == NULL) return 0;
     return 1;
 }
 
@@ -1744,7 +1729,7 @@ int testFullAccuracy(TestCase *test_case, Test *test) {
         }
     }
     PSFloat accuracy = PSTest(model, test_data, testlen, NULL),
-            expected = 95.0;
+            expected = 100.0;
     accuracy = PSRound(accuracy * 100.0);
     testAssertWithMessage(
         (accuracy == expected), test, "Accuracy %g != from expected (%g)",
