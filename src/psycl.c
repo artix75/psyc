@@ -112,7 +112,6 @@ char *image_bgcolor = "white";
 int image_invert = 0;
 int image_grayscale = 0;
 #endif
-char *mnist_download_path = NULL;
 PSModel *model = NULL;
 
 /* Forward declarations */
@@ -139,80 +138,6 @@ static void toLowerCase(char *str) {
         char c = (char) tolower(str[idx]);
         str[idx++] = c;
         p++;
-    }
-}
-
-static char *getPsycPath(char *executable) {
-    static char path[PATH_MAX + 1] = {0};
-    char _realpath[PATH_MAX + 1];
-    if (path[0]) return path;
-    _realpath[0] = 0;
-    if (realpath(executable, _realpath) != NULL) {
-        char *dir = dirname(_realpath);
-        if (dir == NULL) return NULL;
-        dir = dirname(dir);
-        if (dir == NULL) return NULL;
-        int len = strlen((const char*) dir);
-        if (len >= PATH_MAX) {
-            fprintf(stderr, "WARN: getPsycPath(): dirname length > %d",
-                    PATH_MAX);
-            return NULL;
-        }
-        memcpy(path, dir, len);
-        path[len] = 0;
-        return path;
-    } else {
-        char *syspath = getenv("PATH");
-        if (syspath == NULL) return NULL;
-        int execlen = strlen(executable);
-        char *p = syspath;
-        while ((p = strchr(p, ':'))) {
-            size_t len = p - syspath;
-            if (len > 0) {
-                if (len > PATH_MAX) {
-                    fprintf(stderr, "WARN: ENV['PATH'] path length > %d",
-                            PATH_MAX);
-                    return NULL;
-                }
-                char spath[PATH_MAX + 1] = "\x0";
-                char *s = spath;
-                memcpy(spath, syspath, len);
-                if (spath[len - 1] != '/') spath[len++] = '/';
-                s += len;
-                len = len + execlen;
-                if (len > PATH_MAX) {
-                    fprintf(stderr, "WARN: path length > %d",
-                            PATH_MAX);
-                    return NULL;
-                }
-                memcpy(s, executable, execlen);
-                spath[len] = 0;
-                struct stat file_stat;
-                int exists = lstat(spath, &file_stat);
-                if (exists >= 0) {
-                    _realpath[0] = 0;
-                    if (realpath(spath, _realpath) != NULL) {
-                        char *dir = dirname(_realpath);
-                        if (dir == NULL) return NULL;
-                        dir = dirname(dir);
-                        if (dir == NULL) return NULL;
-                        int len = strlen((const char*) dir);
-                        if (len >= PATH_MAX) {
-                            fprintf(stderr, "WARN: getPsycPath(): dirname "
-                                    "length > %d",
-                                    PATH_MAX);
-                            return NULL;
-                        }
-                        memcpy(path, dir, len);
-                        path[len] = 0;
-                        return path;
-                    }
-                }
-            }
-            p++;
-            syspath = p;
-        }
-        return NULL;
     }
 }
 
@@ -436,6 +361,54 @@ final:
     return ok;
 }
 
+static char *downloadCIFARDataset(int classes, char *dest_dir) {
+    if (classes != 10 && classes != 100) classes = 10;
+    int success = 1, provided_dest = (dest_dir != NULL);
+    char *path = NULL, *tarpath = NULL;
+    char dirname[NAME_MAX] = {0};
+    char url[PATH_MAX] = {0};
+    char tarfname[NAME_MAX] = {0};
+    char cmd[PATH_MAX * 3];
+    if (!provided_dest) {
+        const char *wdir = PSWorkingDirectory();
+        if (wdir == NULL) return NULL;
+        dest_dir = PSPathJoin(2, wdir, "datasets");
+        if (dest_dir == NULL) return NULL;
+        if (!PSFileExists(dest_dir))
+            if (!PSMakeDir(dest_dir, 1)) goto final;
+    }
+    snprintf(dirname, NAME_MAX, "cifar-%d-batches-bin", classes);
+    path = PSPathJoin(2, dest_dir, dirname);
+    if (path == NULL) goto final;
+    if (PSFileExists(path)) goto final;
+    snprintf(tarfname, NAME_MAX, "cifar-%d-binary.tar.gz", classes);
+    snprintf(
+        url, PATH_MAX,"http://www.cs.toronto.edu/~kriz/%s", tarfname
+    );
+    PSNotice("Downloading CIFAR dataset (%d classes)", classes);
+    success = PSDownloadFile(url, dest_dir);
+    if (!success) goto final;
+    tarpath = PSPathJoin(2, dest_dir, tarfname);
+    success = (tarpath != NULL);
+    if (!success) goto final;
+    snprintf(
+        cmd, PATH_MAX * 3, "tar xvzf \"%s\" -C \"%s\"", tarpath, dest_dir
+    );
+    PSNotice("Extracting CIFAR dataset (%d classes)", classes);
+    int status = system(cmd);
+    success = (status == 0);
+    if (!success) goto final;
+final:
+    if (tarpath != NULL && PSFileExists(tarpath)) unlink(tarpath);
+    if (!provided_dest) free(dest_dir);
+    free(tarpath);
+    if (!success) {
+        free(path);
+        path = NULL;
+    }
+    return path;
+}
+
 static int loadCIFARData(int data_type, int classes, int argc, char **argv,
                          int *arg_idx)
 {
@@ -453,8 +426,8 @@ static int loadCIFARData(int data_type, int classes, int argc, char **argv,
         len = &testlen;
         data = &test_data;
     }
-    char datapath[PATH_MAX + 1];
-    datapath[0] = '\x0';
+    char datapath[PATH_MAX];
+    datapath[0] = '\0';
     int max_images = 0, max_files = 0;
     for (; i < argc; i++) {
         char *arg = argv[i];
@@ -491,21 +464,18 @@ static int loadCIFARData(int data_type, int classes, int argc, char **argv,
         *arg_idx = i;
     }
     if (datapath[0] == 0) {
-        char *psych_path = getPsycPath(argv[0]);
-        if (psych_path != NULL) {
-            char default_dirname[PATH_MAX + 1];
-            int pathlen = strlen(psych_path);
-            strcpy(datapath, psych_path);
-            if (datapath[pathlen - 1] != '/') strcat(datapath, "/");
-            sprintf(default_dirname, "resources/cifar-%d-batches-bin", classes);
-            strcat(datapath, default_dirname);
-            struct stat file_stat;
-            int exists = lstat(datapath, &file_stat);
-            if (exists < 0) {
-                fprintf(stderr, "CIFAR data not found at: '%s'\n", datapath);
-                return 0;
-            }
+        char *download_path = downloadCIFARDataset(classes, NULL);
+        if (download_path == NULL) {
+            PSErr(NULL, "could not download CIFAR dataset");
+            return 0;
         }
+        if (strlen(download_path) >= PATH_MAX) {
+            PSErr(NULL, "data path length exceeds max length");
+            free(download_path);
+            return 0;
+        }
+        strncpy(datapath, download_path, PATH_MAX);
+        free(download_path);
     }
     *len = PSLoadCIFARData(
         data_type, classes, datapath, data, max_files, max_images
@@ -1255,6 +1225,7 @@ void parseOptions(int argc, char **argv) {
             if (strlen(on_epoch_trained) > 0)
                 current->onEpochTrained = onEpochTrained;
         } else if (strcmp("--download-mnist", arg) == 0) {
+            char *mnist_download_path = NULL;
             if (!is_last && argv[i + 1][0] != '-')
                 mnist_download_path = argv[++i];
             char *path = downloadMNISTDataset(mnist_download_path);
@@ -1266,6 +1237,38 @@ void parseOptions(int argc, char **argv) {
                     path
                 );
             }
+            free(path);
+            exit(!downloaded);
+        } else if (strcmp("--download-cifar", arg) == 0) {
+            char *cifar_download_path = NULL;
+            int classes = 10, cifar_argc = 0;
+            for (j = i + 1; j < argc; j++) {
+                if (cifar_argc >= 2) break;
+                char *next = argv[j];
+                if (next[0] == '-') break;
+                if (isdigit(next[0])) {
+                    classes = atoi(next);
+                    if (classes != 10 && classes != 100) {
+                        fprintf(stderr, "ERROR: invalid CIFAR classes %d: "
+                                "only 10 or 100 allowed\n", classes);
+                        exit(1);
+                    }
+                    cifar_argc++;
+                } else {
+                    cifar_download_path = next;
+                    cifar_argc++;
+                }
+            }
+            char *path = downloadCIFARDataset(classes, cifar_download_path);
+            int downloaded = (path != NULL);
+            if (!downloaded) PSErr(NULL, "failed to download CIFAR dataset");
+            else {
+                PSLog(
+                    PSLOGLEVEL_SUCCESS, "CIFAR dataset downloaded at: '%s'\n",
+                    path
+                );
+            }
+            free(path);
             exit(!downloaded);
         } else if (strcmp("--batch-script-every", arg) == 0 && !is_last) {
             char *every = argv[++i];
@@ -1649,12 +1652,6 @@ void printHelp(const char* program_path) {
 #ifdef HAS_MAGICK
     printf("        --classify-image FILE [OPT] Perform tests\n");
 #endif
-    printf("        --download-mnist [DEST_DIR] Download MNIST dataset and "
-           "exit.\n"
-           "                                    If no DEST_DIR is provided, the"
-           " dataset\n"
-           "                                    will be saved into PsyC "
-           "working directory.\n");
     printf("        --training-datalen LEN      Training data length\n");
     printf("        --validation-datalen LEN    Validation data length\n");
     printf("        --epochs EPOCHS             Training epochs (def. %d)\n",
@@ -1690,6 +1687,22 @@ void printHelp(const char* program_path) {
     printf("        --batch-script-every NUM    Execute script specified by\n"
            "                                    --on-batch-trained every\n"
            "                                    NUM batches\n");
+    printf("        --download-mnist [DEST_DIR] Download MNIST dataset and "
+           "exit.\n"
+           "                                    If no DEST_DIR is provided, the"
+           " dataset\n"
+           "                                    will be saved into PsyC "
+           "working directory.\n");
+    printf("        --download-CIFAR [CLASSES] [DEST_DIR]\n"
+           "                                    Download CIFAR dataset and "
+           "exit.\n"
+           "                                    If no DEST_DIR is provided, the"
+           " dataset\n"
+           "                                    will be saved into PsyC "
+           "working directory.\n"
+           "                                    Optional CLASSES can be 10 or "
+           "100\n"
+           "                                    (default is 10)\n");
     printf("        --disable-avx               Disable AVX\n");
     printf("        --disable-accelerate,\n"
            "        --disable-acf               Disable Accelerate "
