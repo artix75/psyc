@@ -39,4 +39,10 @@ EXCPATH="$TMPPATH/psyc-test-$SRCLIBNAME-$RANDOM"
 SRCPATH="$EXCPATH.c"
 echo "#include <$LIBNAME.h>" > "$SRCPATH"
 echo "int main(int argc, char **argv) {return 0;}" >> "$SRCPATH"
-$CC -o "$EXCPATH" "$SRCPATH" > /dev/null 2>&1 || exit 1
+HAS_LIB=yes
+$CC -o "$EXCPATH" "$SRCPATH" > /dev/null 2>&1 || HAS_LIB=no
+rm -f "$SRCPATH"
+rm -f "$EXCPATH"
+if [ "$HAS_LIB" = 'no' ]; then
+    exit 1
+fi

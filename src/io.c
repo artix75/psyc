@@ -975,8 +975,10 @@ int writeSerializedFloat(FILE *out, PSFloat fnum, int opts) {
     else return fprintf(out, "%.*g", PSFLOAT_DIG, fnum);
 }
 
-int writeSerializedFloats(FILE *out, int count, char *sep, int opts, ...) {
-    int has_sep = (sep != NULL), len = 0, i;
+int writeSerializedFloats(FILE *out, uint64_t count, char *sep, int opts, ...)
+{
+    int has_sep = (sep != NULL), len = 0;
+    uint64_t i;
     va_list args;
     va_start(args, opts);
     for (i = 0; i < count; i++) {
@@ -988,10 +990,11 @@ int writeSerializedFloats(FILE *out, int count, char *sep, int opts, ...) {
     return len;
 }
 
-int writeSerializedFloatArray(FILE *out, int count, char *sep, int opts,
+int writeSerializedFloatArray(FILE *out, uint64_t count, char *sep, int opts,
                               PSFloat *array)
 {
-    int has_sep = (sep != NULL), len = 0, i;
+    int has_sep = (sep != NULL), len = 0;
+    uint64_t i;
     for (i = 0; i < count; i++) {
         if (has_sep && i > 0) len += fprintf(out, "%s", sep);
         len += writeSerializedFloat(out, array[i], opts);
@@ -999,8 +1002,8 @@ int writeSerializedFloatArray(FILE *out, int count, char *sep, int opts,
     return len;
 }
 
-PSFloat *readSerializedFloatArray(FILE *in, char *sep, int *length,
-                                  int maxlen, int capacity)
+PSFloat *readSerializedFloatArray(FILE *in, char *sep, uint64_t *length,
+                                  uint64_t maxlen, uint64_t capacity)
 {
     PSFloat *array = NULL;
     if (length == NULL) {
@@ -1008,14 +1011,14 @@ PSFloat *readSerializedFloatArray(FILE *in, char *sep, int *length,
         return NULL;
     }
     *length = 0;
-    if (capacity <= 0) capacity = 1;
+    if (capacity == 0) capacity = 1;
     if (sep == NULL) sep = ",";
     int seplen = strlen(sep);
     if (seplen == 0) {
         PSErr(__func__, "`sep` is empty");
         return NULL;
     }
-    int arraylen = capacity;
+    uint64_t arraylen = capacity;
     array = calloc(arraylen, sizeof(PSFloat));
     if (array == NULL) {
         PSPrintMemoryErrorMsg();
@@ -1027,7 +1030,7 @@ PSFloat *readSerializedFloatArray(FILE *in, char *sep, int *length,
     int matched = 0;
     PSFloat val = 0;
     while ((matched = fscanf(in, fmt, &val, matched_sep))) {
-        int idx = *length;
+        uint64_t idx = *length;
         if (idx >= arraylen) {
             arraylen += capacity;
             PSFloat *new_array = realloc(array, arraylen * sizeof(PSFloat));
@@ -2610,11 +2613,11 @@ int readModel(PSModel *model, FILE *f, const char* filepath,
         }
     }
     if (scanFileNoMatch(f, "sequence_start:")) {
-        int seqstartlen = 0;
+        uint64_t seqstartlen = 0;
         PSFloat *seqstart = readSerializedFloatArray(
             f, ",\n", &seqstartlen, 0, model->input_size
         );
-        ok = seqstart != NULL && (uint32_t)seqstartlen == model->input_size;
+        ok = seqstart != NULL && seqstartlen == (uint64_t) model->input_size;
         if (!ok) {
             free(seqstart);
             loadErr(filepath, f, "Invalid sequence_start");

@@ -23,6 +23,7 @@
 #include <signal.h>
 #include <strings.h>
 #include <assert.h>
+#include <inttypes.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -298,7 +299,7 @@ char *PSGetRecurrentModeLabel(PSRecurrentNetworkMode mode);
 int PSUpdateDelta(PSMatrix destdelta, PSMatrix srcdelta, PSMatrix weights,
                   int seqlen, int acceleration);
 
-int testlen = 0;
+uint64_t testlen = 0;
 
 int pretrained_mnist_layers_size[PRETRAINED_MNIST_NLAYERS] = {784,30,10};
 
@@ -500,8 +501,8 @@ int compareModelChain(PSModel *model1, PSModel *model2, Test* test);
 
 static int testRecurrentNetworkMode(PSModel *model,
                                     PSRecurrentNetworkMode mode, Test *test);
-PSFloat *readSerializedFloatArray(FILE *in, char *sep, int *length,
-                                  int maxlen, int capacity);
+PSFloat *readSerializedFloatArray(FILE *in, char *sep, uint64_t *length,
+                                  uint64_t maxlen, uint64_t capacity);
 
 static char *getExecutablePath(char *executable) {
     static char path[PATH_MAX + 1] = {0};
@@ -1058,7 +1059,7 @@ int genericSetup(TestCase *test_case) {
     char dataset_path[PATH_MAX] = {0};
     if (!joinPath(executable_path, MNIST_TEST_SAMPLE_PATH, dataset_path))
         return 0;
-    int expected_datalen = PS_MNIST_INPUT_SIZE + 10;
+    uint64_t expected_datalen = PS_MNIST_INPUT_SIZE + 10;
     testlen = 0;
     FILE *f = fopen(dataset_path, "r");
     if (f == NULL) {
@@ -1070,8 +1071,10 @@ int genericSetup(TestCase *test_case) {
     );
     fclose(f);
     if (testlen != expected_datalen) {
-        fprintf(stderr, "\nExpected datalen %d != datalen %d\n",
-                expected_datalen, testlen);
+        fprintf(
+            stderr, "\nExpected datalen %" PRIu64" != datalen %" PRIu64 "\n",
+            expected_datalen, testlen
+        );
         free(test_data);
         return 0;
     }
@@ -1370,7 +1373,7 @@ int GRUSetup(TestCase *test_case) {
 
 int ModelBackpropTest(Test *test, char *model_file, char *data_file_prefix,
                       char *training_data_file, char *labels_data_file,
-                      int training_data_len, int label_data_len,
+                      uint64_t training_data_len, uint64_t label_data_len,
                       char *model_name, PSTrainingOptions *topts,
                       int rounding, int precision, int expected_size,
                       int acceleration)
@@ -1426,7 +1429,7 @@ int ModelBackpropTest(Test *test, char *model_file, char *data_file_prefix,
     testAssertWithMessageOrGoto(
         ok, final, test, "Could not open '%s' for reading", path
     );
-    int image_len = 0, label_len = 0;
+    uint64_t image_len = 0, label_len = 0;
     x = readSerializedFloatArray(f, ",", &image_len, training_data_len,
                                  training_data_len);
     fclose(f);
@@ -1479,7 +1482,7 @@ int ModelBackpropTest(Test *test, char *model_file, char *data_file_prefix,
     for (int i = 0; i < model->size; i++) {
         PSLayer *layer = model->layers[i];
         char testlabel[1024];
-        int lsize = layer->size;
+        uint64_t lsize = layer->size;
         char fname[PATH_MAX] = {0};
         if (layer->states != NULL) {
             snprintf(
@@ -1495,7 +1498,7 @@ int ModelBackpropTest(Test *test, char *model_file, char *data_file_prefix,
             testAssertWithMessageOrGoto(
                 ok, final, test, "Could not open '%s'", path
             );
-            int len = 0;
+            uint64_t len = 0;
             free(states);
             states = readSerializedFloatArray(f, ",", &len, lsize, lsize);
             fclose(f);
@@ -1531,7 +1534,7 @@ int ModelBackpropTest(Test *test, char *model_file, char *data_file_prefix,
             testAssertWithMessageOrGoto(
                 ok, final, test, "Could not open '%s'", path
             );
-            int len = 0, lsize = layer->size;
+            uint64_t len = 0, lsize = layer->size;
             free(deltas);
             deltas = readSerializedFloatArray(f, ",", &len, lsize, lsize);
             fclose(f);
@@ -1556,7 +1559,7 @@ int ModelBackpropTest(Test *test, char *model_file, char *data_file_prefix,
             grad = netgradients[i - 1];
         if (grad != NULL) {
             /* Bias gradients */
-            int len = 0, grad_len = PSGetLayerParametersCount(
+            uint64_t len = 0, grad_len = PSGetLayerParametersCount(
                 layer, PS_PARAM_BIAS
             );
             if (grad_len <= 0 || !grad->biases) goto weight_gradients;
@@ -3668,7 +3671,8 @@ int attentionTeardown(TestCase *test_case) {
 int testGenericAttentionBackprop(PSModel *model, char *file_prefix,
                                  Test *test)
 {
-    int ok = 1, xlen = 0, ylen = 0, olen = 0, i;
+    int ok = 1, i;
+    uint64_t xlen = 0, ylen = 0, olen = 0;
     int old_status = model->status;
     PSGradient ***grads = NULL;
     FILE *f = NULL;
@@ -3748,9 +3752,9 @@ int testGenericAttentionBackprop(PSModel *model, char *file_prefix,
     char suffix[25] = {0};
     for (i = 0; i < attn_layer->weight_types; i++) {
         if (attn_layer->weights[i] == NULL) continue;
-        int wlen = PSMatrixLength(attn_layer->weights[i]),
-            blen = (i == PS_SCORES_PROJ_IDX ? 1 : attn_layer->size),
-            exp_wlen = 0, exp_blen = 0;
+        uint64_t wlen = PSMatrixLength(attn_layer->weights[i]),
+                 blen = (i == PS_SCORES_PROJ_IDX ? 1 : attn_layer->size),
+                 exp_wlen = 0, exp_blen = 0;
         /* Load saved weight gradients */
         sprintf(suffix, "-%d-wgrads", i);
         sprintf(fname, "resources/%s%s.data", file_prefix, suffix);

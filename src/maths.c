@@ -3181,13 +3181,13 @@ void PSVectorFill(PSFloat *vec, PSFloat val, uint64_t len, PSMathOpts *opts) {
     for (uint64_t i = 0; i < len; i++) vec[i] = val;
 }
 
-void PSVectorWrite(PSFloat *vec, int len, char* sep, FILE *f) {
+void PSVectorWrite(PSFloat *vec, uint64_t len, char* sep, FILE *f) {
     if (vec == NULL || f == NULL) return;
     if (sep == NULL) sep = ",";
     writeSerializedFloatArray(f, len, sep, 0, vec);
 }
 
-void PSVectorPrint(PSFloat *vec, int len, char* sep) {
+void PSVectorPrint(PSFloat *vec, uint64_t len, char* sep) {
     PSVectorWrite(vec, len, sep, stdout);
     printf("\n");
 }

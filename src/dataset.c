@@ -21,6 +21,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdint.h>
+#include <inttypes.h>
 #include <assert.h>
 #include <sys/types.h>
 #include <dirent.h>
@@ -37,6 +38,10 @@
 
 /* Forward declarations */
 uint32_t swap_uint32(uint32_t val);
+PSFloat *readSerializedFloatArray(FILE *in, char *sep, uint64_t *length,
+                                  uint64_t maxlen, uint64_t capacity);
+int writeSerializedFloatArray(FILE *out, uint64_t count, char *sep, int opts,
+                              PSFloat *array);
 
 /**** PSVocabulary ****/
 
@@ -486,6 +491,102 @@ fail:
         if (vocab != NULL) PSVocabularyFree(vocab);
     }
     return NULL;
+}
+
+/**** Generic Datasets ****/
+
+/* Load dataset from file located at `filepath`. Dataset is returned as an
+ * array of PSFloat elements whose length (number of elements) is stored into
+ * mandatory argument `datalen`.
+ * The file must be an ASCII file where every number of the dataset is written
+ * as a string representation of floating point numbers and separated by a
+ * comma character.
+ * Optionally, the whole dataset can be prefixed with its length written
+ * as a string representation of a decimal number followed by a colon separator
+ * caharcter (':').
+ * Example: 3:1.25,2,-0.15 (dataset of three elements 1.25, 2.0 and -0.15)
+ * Return value: the loaded dataset or NULL is somethign goes wrong.
+ * Possible failure reasons:
+ *  - Mandatory arguments `filepath` or `datalen` are NULL.
+ *  - File is not found at `filepath`.
+ *  - File at `filepath` cannot be opened or read.
+ *  - Dataset cannot be allocated into memory. */
+PSFloat *PSLoadDataFromFile(const char *filepath, uint64_t *datalen) {
+    FILE *file = NULL;
+    PSFloat *data = NULL;
+    if (filepath == NULL) {
+        PSErr(__func__, "Missing mandatory argument `filepath`");
+        goto fail;
+    }
+    if (datalen == NULL) {
+        PSErr(__func__, "Missing mandatory argument `datalen`");
+        goto fail;
+    }
+    uint64_t capacity = 0;
+    file = fopen(filepath, "r");
+    if (file == NULL) {
+        PSErr(__func__, "Could not open file '%s'", filepath);
+        goto fail;
+    }
+    char prfx_sep[2] = {0};
+    int matched = fscanf(file, "%" SCNu64 "%[:]", &capacity, prfx_sep);
+    if (matched < 2 ||  prfx_sep[0] != ':') {
+        capacity = 1024;
+        fseek(file, 0, SEEK_SET);
+    }
+    data = readSerializedFloatArray(file, ",", datalen, 0, capacity);
+    if (data == NULL || *datalen == 0) goto fail;
+    if (*datalen < capacity) {
+        PSFloat *resized = realloc(data, *datalen * sizeof(PSFloat));
+        if (resized != NULL) data = resized;
+    }
+    fclose(file);
+    return data;
+fail:
+    if (file != NULL) fclose(file);
+    free(data);
+    return NULL;
+}
+
+/* Save dataset `data` to the file located at `filepath`. The dataset must be
+ * an array of PSFloat elements whose length (number of elements) defined by
+ * argument `datalen`.
+ * The dataset is saved as a comma-separated list of its values written as
+ * string representations of floating point numbers.
+ * The datasets itself is prefixed with its length written as a string
+ * representation of a decimal number followed by a colon separator
+ * caharcter (':').
+ * Example: 3:1.25,2,-0.15 (dataset of three elements 1.25, 2.0 and -0.15)
+ * Return value: 1 if datasets is successfully saved, 0 in case of failure.
+ * Possible failure reasons:
+ *  - Mandatory arguments `filepath` or `data` are NULL.
+ *  - File at `filepath` cannot be opened for writing.
+ *  - Some error occurs while writing to the file.  */
+int PSSaveDataToFile(const char *filepath, PSFloat *data, uint64_t datalen) {
+    FILE *file = NULL;
+    int success = (filepath != NULL);
+    if (!success) {
+        PSErr(__func__, "Missing mandatory argument `filepath`");
+        goto final;
+    }
+    success = (data != NULL);
+    if (!success) {
+        PSErr(__func__, "Missing mandatory argument `data`");
+        goto final;
+    }
+    if (datalen == 0) return 0;
+    file = fopen(filepath, "w");
+    success = (file != NULL);
+    if (!success) {
+        PSErr(__func__, "could not open '%s' for writing", filepath);
+        goto final;
+    }
+    fprintf(file, "%" PRIu64 ":", datalen);
+    int wlen = writeSerializedFloatArray(file, datalen, ",", 0, data);
+    success = (wlen > 0);
+final:
+    if (file != NULL) fclose(file);
+    return success;
 }
 
 /**** MNIST Dataset ****/

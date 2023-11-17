@@ -114,6 +114,7 @@ typedef struct {
     const char      **tokens;
 } PSVocabulary;
 
+/* Text datasets */
 PSVocabulary *PSVocabularyCreate(int64_t initial_capacity);
 int64_t PSVocabularyAdd(PSVocabulary *vocabulary, char *token);
 int64_t PSVocabularyGetTokenID(PSVocabulary *vocabulary, char *token);
@@ -129,6 +130,12 @@ PSFloat *PSLoadDataFromTextFile(const char *filepath,
                                 PSTextParserOptions *opts,
                                 int64_t *datalen,
                                 PSVocabulary **vocabulary);
+
+/* Generic datasets */
+
+
+PSFloat *PSLoadDataFromFile(const char *filepath, uint64_t *datalen);
+int PSSaveDataToFile(const char *filepath, PSFloat *data, uint64_t datalen);
 
 /* MNIST Dataset */
 #define PS_MNIST_INPUT_SIZE (28 * 28)
