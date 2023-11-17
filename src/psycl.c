@@ -510,12 +510,45 @@ static int loadData(int data_type, int argc, char **argv, int *arg_idx) {
         *arg_idx = i;
     }
     if (!mnist && cifar == 0) {
-        fprintf(
-            stderr, "Only MNIST or CIFAR data supported for "
-            "%s ATM :(\n",
-            (data_type == PS_DATA_TYPE_TRAINING ? "training" : "testing")
+        if (argv[i][0] == '-') {
+            fprintf(stderr, "ERROR: invalid argument '%s'", argv[i]);
+            return 0;
+        }
+        int *len = NULL;
+        PSFloat **data = NULL;
+        char *descr = NULL;
+        assert(
+            data_type == PS_DATA_TYPE_TRAINING ||
+            data_type == PS_DATA_TYPE_TEST
         );
-        return 0;
+        if (data_type == PS_DATA_TYPE_TRAINING) {
+            len = &datalen;
+            data = &training_data;
+            descr = "training";
+        } else {
+            len = &testlen;
+            data = &test_data;
+            descr = "test";
+        }
+        uint64_t dlen = 0;
+        printf("Loading %s dataset from file: '%s'\n", descr, argv[i]);
+        *data = PSLoadDataFromFile(argv[i], &dlen);
+        *len = (int) dlen;
+        if (*data == NULL || datalen == 0) {
+            PSErr(NULL, "could not load dataset at '%s'", argv[i]);
+            free(*data);
+            *len = 0;
+            *data = NULL;
+            return 0;
+        }
+        if (datalen > INT_MAX) {
+            PSErr(NULL, "dataset length is too big");
+            *len = 0;
+            free(*data);
+            return 0;
+        }
+        printf("Loaded %s dataset of length: %d\n", descr, *len);
+        return 1;
     } else {
         if (data_type == PS_DATA_TYPE_TRAINING) {
             if (mnist) {
@@ -526,9 +559,9 @@ static int loadData(int data_type, int argc, char **argv, int *arg_idx) {
                 eval_dataset_len = 10000;
             }
         }
+        if (mnist) return loadMNISTData(data_type, argc, argv, arg_idx);
+        else return loadCIFARData(data_type, cifar, argc, argv, arg_idx);
     }
-    if (mnist) return loadMNISTData(data_type, argc, argv, arg_idx);
-    else return loadCIFARData(data_type, cifar, argc, argv, arg_idx);
 }
 
 static void cleanup(void) {
@@ -1542,11 +1575,17 @@ int main(int argc, char **argv) {
     parseOptions(argc, argv);
     if (PSLogLevel <= PSLOGLEVEL_INFO) PSModelPrintInfo(model);
     if (training_data != NULL) {
+        if (datalen == 0) {
+            PSErr(NULL, "empty dataset");
+            cleanup();
+            return 1;
+        }
         int element_size = model->input_size + model->output_size;
         int element_count = datalen / element_size;
+        if (train_dataset_len == 0) train_dataset_len = element_count;
         if (element_count < train_dataset_len) {
-            fprintf(stderr, "Loaded dataset elements %d < %d\n", element_count,
-                    train_dataset_len);
+            PSErr(NULL, "loaded dataset elements %d < %d\n", element_count,
+                  train_dataset_len);
             cleanup();
             return 1;
         } else {
