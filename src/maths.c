@@ -3537,3 +3537,96 @@ int PSVectorEquals(PSFloat *a, PSFloat *b, uint64_t length, int precision,
     }
     return 1;
 }
+
+/* Convert the vector `vec` of length `len` to a `PSMatrix`. This function
+ * differs from `PSMatrixFromArray` since it reallocates the vector in order
+ * to make room for the matrix header that will contain matrix's properties.
+ * So the vector is reallocated and its memory is moved by the size of the
+ * matrix header.
+ * It's possible to specify the matrix's shape by using the `ndims` argument
+ * and the `shape` argument:
+ *  - `ndims`: number of dimensions (axes) of the matrix shape.
+ *  - `shape`: the shape itself.
+ * If `shape` is NULL or `ndims` is zero, the function will use a default shape
+ * of {`len`} (if `ndims` is 0 or 1) or {1, `len`} (if `ndims` is 2).
+ * The function will fail if `shape` is NULL and `ndims` is greater than 2.
+ * WARN: if the function succeeds, it's not possible to use the source vector
+ * `vec` anymore, since its data have been moved in memory and the original
+ * address could have been reallocated.
+ * WARN: the vector `vec` must be an array of `PSFloat` that was previously
+ * allocated (ie. by using `PSVectorCreate`, `PSVectorDup`, `malloc`, `calloc`
+ * or `realloc`). Using global/static arrays or arrays from the stack frame
+ * will lead to memory corruption.
+ * Return value: the matrix or NULL if the function fails.
+ * Possible failure reasons:
+ *  - `vec` is NULL.
+ *  - `len` is zero.
+ *  - `ndims` is greater than `PS_MATRIX_MAX_DIMENSIONS`.
+ *  - `shape` is NULL but `ndims` is greater than 2.
+ *  - `len` mismatches `shape` (`len` must equals the product of shape axes).
+ *  - Memory allocation failure */
+PSMatrix PSVectorConvertToMatrix(PSFloat *vec, uint64_t len, int ndims,
+                                 int *shape)
+{
+    if (vec == NULL) {
+        PSErr(__func__, "argument`vec` cannot be null");
+        return NULL;
+    }
+    if (len == 0) {
+        PSErr(__func__, "vector is empty");
+        return NULL;
+    }
+    if (ndims > PS_MATRIX_MAX_DIMENSIONS) {
+        PSErr(__func__, "shape would exceed max dimensions %d",
+              PS_MATRIX_MAX_DIMENSIONS);
+        return NULL;
+    }
+    int dfshape[PS_MATRIX_MAX_DIMENSIONS] = {0};
+    int i;
+    if (shape == NULL) {
+        if (ndims > 2) {
+            PSErr(__func__, "argument `shape` cannot be null if `ndims` > 2");
+            return NULL;
+        }
+        shape = dfshape;
+    }
+    if (ndims <= 0) {
+        shape = dfshape;
+        ndims = 1;
+    }
+    if (shape == dfshape) {
+        if (len > INT_MAX) {
+            PSErr(NULL, "vector length exceeds shape dimensions");
+            return NULL;
+        }
+        if (ndims == 1) shape[0] = len;
+        else if (ndims == 2) {
+            shape[0] = 1;
+            shape[1] = len;
+        }
+    } else {
+        uint64_t shape_len = 1;
+        for (i = 0; i < ndims; i++) shape_len *= shape[i];
+        if (shape_len != len) {
+            PSErr(NULL, "invalid shape for length %" PRIu64, len);
+            return NULL;
+        }
+    }
+    size_t vecsize = len * sizeof(PSFloat);
+    size_t newsize = PSMatrixHeaderSize + vecsize;
+    uint8_t *new = realloc(vec, newsize);
+    if (new == NULL) {
+        PSPrintMemoryErrorMsg();
+        return NULL;
+    }
+    PSMatrix matrix = (PSMatrix)(new + PSMatrixHeaderSize);
+    memmove(matrix, new, vecsize);
+    PSMatrixHeader *hdr = (PSMatrixHeader *) new;
+    memset(hdr, 0, PSMatrixHeaderSize);
+    hdr->length = len;
+    hdr->ndims = ndims;
+    for (i = 0; i < ndims; i++) hdr->dims[i] = shape[i];
+    hdr->transposed = NULL;
+    hdr->transposed_from = NULL;
+    return matrix;
+}

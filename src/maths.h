@@ -254,5 +254,7 @@ PSFloat *PSVectorRandom(size_t len);
 int PSFloatEquals(PSFloat a, PSFloat b, int precision);
 int PSVectorEquals(PSFloat *a, PSFloat *b, uint64_t length, int precision,
                    uint64_t *index);
+PSMatrix PSVectorConvertToMatrix(PSFloat *vec, uint64_t len, int ndims,
+                                 int *shape);
 
 #endif /* __PS_MATHS_H__ */
