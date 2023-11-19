@@ -33,8 +33,6 @@ test:
 	@cd src/test && $(MAKE) --no-print-directory
 benchmark:
 	@cd src/test && $(MAKE) --no-print-directory benchmark
-profile:
-	@cd src/debug && $(MAKE) --no-print-directory
 clean:
 	if ! [ -e tmp/ ]; then mkdir tmp/; fi
 	if [ -e bin/README ]; then cp bin/README tmp/; fi
