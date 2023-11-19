@@ -42,6 +42,8 @@ PSFloat *readSerializedFloatArray(FILE *in, char *sep, uint64_t *length,
                                   uint64_t maxlen, uint64_t capacity);
 int writeSerializedFloatArray(FILE *out, uint64_t count, char *sep, int opts,
                               PSFloat *array);
+PSFloat *loadBinaryVector(const char *filepath, FILE *f, uint64_t *len);
+int saveBinaryVector(FILE *f, PSFloat *vec, uint64_t len);
 
 /**** PSVocabulary ****/
 
@@ -528,6 +530,25 @@ PSFloat *PSLoadDataFromFile(const char *filepath, uint64_t *datalen) {
         PSErr(__func__, "Could not open file '%s'", filepath);
         goto fail;
     }
+    int first_byte = fgetc(file);
+    fseek(file, 0, SEEK_SET);
+    if (first_byte == EOF) {
+        PSErr(__func__, "read error while reading file '%s'", filepath);
+        return 0;
+    }
+    if (first_byte == 0xFF) {
+        /* Probabily the dataset file is in binary format. */
+        data = loadBinaryVector(filepath, file, datalen);
+        if (data == NULL) {
+            PSErr(
+                __func__, "could not load dataset from binary file '%s'",
+                filepath
+            );
+            *datalen = 0;
+        }
+        fclose(file);
+        return data;
+    }
     char prfx_sep[2] = {0};
     int matched = fscanf(file, "%" SCNu64 "%[:]", &capacity, prfx_sep);
     if (matched < 2 ||  prfx_sep[0] != ':') {
@@ -548,25 +569,27 @@ fail:
     return NULL;
 }
 
-/* Save dataset `data` to the file located at `filepath`. The dataset must be
+/* Save dataset `data` to the file located at `path`. The dataset must be
  * an array of PSFloat elements whose length (number of elements) defined by
- * argument `datalen`.
- * The dataset is saved as a comma-separated list of its values written as
- * string representations of floating point numbers.
+ * argument `len`.
+ * By default, the dataset is saved as a comma-separated list of its values
+ * written as string representations of floating point numbers.
  * The datasets itself is prefixed with its length written as a string
  * representation of a decimal number followed by a colon separator
  * caharcter (':').
  * Example: 3:1.25,2,-0.15 (dataset of three elements 1.25, 2.0 and -0.15)
+ * If flag `PS_IO_BINARY_MODE` is set into `opts`, the dataset will be saved in
+ * binary format.
  * Return value: 1 if datasets is successfully saved, 0 in case of failure.
  * Possible failure reasons:
- *  - Mandatory arguments `filepath` or `data` are NULL.
- *  - File at `filepath` cannot be opened for writing.
+ *  - Mandatory arguments `path` or `data` are NULL.
+ *  - File at `path` cannot be opened for writing.
  *  - Some error occurs while writing to the file.  */
-int PSSaveDataToFile(const char *filepath, PSFloat *data, uint64_t datalen) {
+int PSSaveDataToFile(const char *path, PSFloat *data, uint64_t len, int opts) {
     FILE *file = NULL;
-    int success = (filepath != NULL);
+    int success = (path != NULL);
     if (!success) {
-        PSErr(__func__, "Missing mandatory argument `filepath`");
+        PSErr(__func__, "Missing mandatory argument `path`");
         goto final;
     }
     success = (data != NULL);
@@ -574,15 +597,20 @@ int PSSaveDataToFile(const char *filepath, PSFloat *data, uint64_t datalen) {
         PSErr(__func__, "Missing mandatory argument `data`");
         goto final;
     }
-    if (datalen == 0) return 0;
-    file = fopen(filepath, "w");
+    if (len == 0) return 0;
+    file = fopen(path, "w");
     success = (file != NULL);
     if (!success) {
-        PSErr(__func__, "could not open '%s' for writing", filepath);
+        PSErr(__func__, "could not open '%s' for writing", path);
         goto final;
     }
-    fprintf(file, "%" PRIu64 ":", datalen);
-    int wlen = writeSerializedFloatArray(file, datalen, ",", 0, data);
+    /* Save in binary format */
+    if (opts & PS_IO_BINARY_MODE) {
+        success = saveBinaryVector(file, data, len);
+        goto final;
+    }
+    fprintf(file, "%" PRIu64 ":", len);
+    int wlen = writeSerializedFloatArray(file, len, ",", 0, data);
     success = (wlen > 0);
 final:
     if (file != NULL) fclose(file);

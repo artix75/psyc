@@ -59,8 +59,10 @@
 
 #define CONV_PARAMETER_COUNT 9
 
-#define PS_BINARY_FTYPE_LAYER 0
-#define PS_BINARY_FTYPE_MODEL 1
+#define PS_BINARY_FTYPE_LAYER   0
+#define PS_BINARY_FTYPE_MODEL   1
+#define PS_BINARY_FTYPE_VECTOR  2
+#define PS_BINARY_FTYPE_MATRIX  3
 
 #define UNUSED(V) ((void) V)
 
@@ -430,6 +432,8 @@ static int scanFileNoMatch(FILE *f, char *fmt) {
    4                     Fixed String           PSYC
    1                     File Type              0 - Layer file
                                                 1 - Model file
+                                                2 - Data (PSFloat vector)
+                                                3 - Data (PSMatrix)
    1                     Version Len                                unsigned
    [Version Len]         PsyC Version                               string
    1                     Size of PSFloat                            unsigned
@@ -488,6 +492,28 @@ err:
     if (valid_hdr) return 0;
     PSErr(NULL, "invalid PsyC binary file");
     return 0;
+}
+
+static int checkBinaryFile(PSBinaryFileHeader *hdr, const char *filepath) {
+    int iee_754_conformity = PS_IEC_559;
+    int ok = (
+        (hdr->iee_754_conformity && iee_754_conformity) ||
+        (!hdr->iee_754_conformity && !iee_754_conformity)
+    );
+    if (!ok) {
+        loadErr(filepath, NULL, "float representation used in file does "
+                "not match with executable float representation");
+        return 0;
+    }
+    if (sizeof(PSFloat) != hdr->float_size) {
+        loadErr(filepath, NULL, "floats in file have different size from "
+                "psyc PSFloat size: %zu != %zu. Try to rebuild psyc with "
+                "proper float size (ie. `make DOUBLE_PRECISION=%s)",
+                (size_t)hdr->float_size, sizeof(PSFloat),
+                (sizeof(PSFloat) == sizeof(float) ? "on" : "off"));
+        return 0;
+    }
+    return 1;
 }
 
 static int writeBinaryFileHeader(FILE *f, int type) {
@@ -590,8 +616,7 @@ PSFloat *readBinaryFloatArray(PSFloat *floats, uint64_t *len, FILE *f) {
         }
         floats = allocd;
     }
-    int ok = (readBinaryFloatArray(floats, len, f) != NULL);
-    if (!ok) {
+    if (!readBinaryFloats(floats, *len, f)) {
         floats = NULL;
         free(allocd);
     }
@@ -697,24 +722,7 @@ static int loadBinaryLayerParameters(PSLayer *layer, const char *filepath,
         loadErr(filepath, f, "file is not a valid psyc binary file");
         return 0;
     }
-    int iee_754_conformity = PS_IEC_559;
-    ok = (
-        (hdr.iee_754_conformity && iee_754_conformity) ||
-        (!hdr.iee_754_conformity && !iee_754_conformity)
-    );
-    if (!ok) {
-        loadErr(filepath, NULL, "float representation used in file does "
-                "not match with executable float representation");
-        return 0;
-    }
-    if (sizeof(PSFloat) != hdr.float_size) {
-        loadErr(filepath, NULL, "floats in file have different size from "
-                "psyc PSFloat size: %zu != %zu. Try to rebuild psyc with "
-                "proper float size (ie. `make DOUBLE_PRECISION=%s)",
-                (size_t)hdr.float_size, sizeof(PSFloat),
-                (sizeof(PSFloat) == sizeof(float) ? "on" : "off"));
-        return 0;
-    }
+    if (!checkBinaryFile(&hdr, filepath)) return 0;
     int do_swap = (
         (hdr.big_endian && !PS_IS_BIG_ENDIAN) ||
         (!hdr.big_endian && PS_IS_BIG_ENDIAN)
@@ -822,6 +830,53 @@ read_err:
         loadErr(filepath, f, "failed to read file: %s", strerror(errno));
     else loadErr(filepath, f, "failed to read file");
     return 0;
+}
+
+PSFloat *loadBinaryVector(const char *filepath, FILE *f, uint64_t *len) {
+    assert(len != NULL);
+    errno = 0;
+    PSBinaryFileHeader hdr = {0};
+    if (!readBinaryFileHeader(f, &hdr)) {
+        loadErr(filepath, f, "file is not a valid psyc binary file");
+        return 0;
+    }
+    if (!checkBinaryFile(&hdr, filepath)) return 0;
+    if (hdr.type != PS_BINARY_FTYPE_VECTOR) {
+        PSErr(NULL, "file '%s' is not a vector binary file");
+        return 0;
+    }
+    int do_swap = (
+        (hdr.big_endian && !PS_IS_BIG_ENDIAN) ||
+        (!hdr.big_endian && PS_IS_BIG_ENDIAN)
+    );
+    *len = readUInt64(f, do_swap);
+    if (*len == 0) return NULL;
+    uint64_t maxsize = SIZE_MAX;
+    if (*len > maxsize) {
+        PSErr(
+            NULL, "vector size from file '%s' exceeds maximum size",
+            filepath
+        );
+        return 0;
+    }
+    PSFloat *data = malloc((size_t) len * sizeof(PSFloat));
+    if (data == NULL) {
+        PSPrintMemoryErrorMsg();
+        return 0;
+    }
+    if (!readBinaryFloats(data, *len, f)) {
+        PSErr(NULL, "failed to load vector from binary file: %s", filepath);
+        free(data);
+        data = NULL;
+    }
+    return data;
+}
+
+int saveBinaryVector(FILE *f, PSFloat *vec, uint64_t len) {
+    assert(f != NULL);
+    if (!writeBinaryFileHeader(f, PS_BINARY_FTYPE_VECTOR)) return 0;
+    if (!writeBinaryFloatArray(vec, len, f)) return 0;
+    return 1;
 }
 
 /* Scan model file header (version >= 0.3) until new line (included). */
@@ -2297,6 +2352,20 @@ final:
     return loaded;
 }
 
+/* Save `layer` to file located at `filepath`. By default, only the layer's
+ * trainable parameters (ie. weights, biases) are saved and the layer is saved
+ * in ASCII format.
+ * However, this behavior can be changed by setting the following flags into
+ * the `opts` argument:
+ *  - `PS_IO_BINARY_MODE`: save the layer data in binary format.
+ *  - `PS_IO_SAVE_DEFINITION`: also save layer's properties (ie. type,
+ *    size, ...). This option cannot be used along with `PS_IO_BINARY_MODE`.
+ * Return value: 1 if the layer is saved, 0 if somethign goes wrong.
+ * Possible failure reasons:
+ *  - The `layer` argument is NULL.
+ *  - Both `PS_IO_BINARY_MODE` and `PS_IO_SAVE_DEFINITION` are set.
+ *  - The file at `filepath` cannot be opened for writing.
+ *  - Some error occurs qhile writing data. */
 int PSLayerSave(PSLayer *layer, const char *filepath, int opts) {
     if (layer == NULL) return 0;
     int save_definition = (opts & PS_IO_SAVE_DEFINITION),

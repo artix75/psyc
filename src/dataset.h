@@ -135,7 +135,7 @@ PSFloat *PSLoadDataFromTextFile(const char *filepath,
 
 
 PSFloat *PSLoadDataFromFile(const char *filepath, uint64_t *datalen);
-int PSSaveDataToFile(const char *filepath, PSFloat *data, uint64_t datalen);
+int PSSaveDataToFile(const char *path, PSFloat *data, uint64_t len, int opts);
 
 /* MNIST Dataset */
 #define PS_MNIST_INPUT_SIZE (28 * 28)
