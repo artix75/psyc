@@ -341,9 +341,16 @@ int PSInitNormalizationLayer(PSLayer *layer, PSLayerDef *ldef) {
         layer->output_columns = previous->output_columns;
     if (previous->output_rows > 0)
         layer->output_rows = previous->output_rows;
-    if (previous->output_depth > 0)
+    if (previous->output_depth > 0 && ldef->output_depth != 1) {
+        /* By default, previous layer's output_depth is duplicated onto
+         * normalization layer if it's greater than zero.
+         * This behavior allows normalization to be applied on single
+         * layer's feature maps (ie. on Convolutional or Pooling layers).
+         * However, output_depth can be forced to 1 when it's required
+         * to apply it on flatten inputs, by setting `output_depth` = 1 on
+         * `ldef`*/
         layer->output_depth = previous->output_depth;
-    else layer->output_depth = 1;
+    } else layer->output_depth = 1;
     if (!(layer->flags & PS_FLAG_NON_TRAINABLE)) {
         layer->weights = malloc(sizeof(PSMatrix));
         if (layer->weights == NULL) goto memerr;
