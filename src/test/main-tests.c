@@ -133,6 +133,7 @@ TestCase *AVXTests;
 TestCase *mathsTests;
 TestCase *activationTests;
 TestCase *optimizationTests;
+TestCase *datasetTests;
 
 int genericSetup (TestCase *test_case);
 int genericTeardown (TestCase *test_case);
@@ -180,6 +181,7 @@ int testMathsVar(TestCase *tc, Test *test);
 int testMathsStd(TestCase *tc, Test *test);
 int testMathVectorFill(TestCase *tc, Test *test);
 int testMathsMatMul(TestCase *tc, Test *test);
+int testMathsVecToMatrix(TestCase *tc, Test *test);
 int testMathsMatrixCopy(TestCase *tc, Test *test);
 int testMathsMatrixDup(TestCase *tc, Test *test);
 int testMathsMatrixTranspose(TestCase *tc, Test *test);
@@ -215,6 +217,10 @@ int testL1WeightDecay(TestCase *tc, Test *test);
 int testL2WeightDecay(TestCase *tc, Test *test);
 int testL1Regularization(TestCase *tc, Test *test);
 int testL2Regularization(TestCase *tc, Test *test);
+
+int testDatasetLoad(TestCase *tc, Test *test);
+int testDatasetSave(TestCase *tc, Test *test);
+int testDatasetSaveBinary(TestCase *tc, Test *test);
 
 int testFullLoad(TestCase *test_case, Test *test);
 int testFullForward(TestCase *test_case, Test *test);
@@ -494,6 +500,11 @@ PSFloat gru_expected_bg[2] = {-0.01, 0.06};
 PSFloat gru_expected_bu[2] = {0.009745, 0.0431118};
 PSFloat gru_expected_br[2] = {0.00974497, 0.04311221};
 
+PSFloat expected_loaded_dataset[10] = {
+    0.506985, 0.0964945, -0.235624, -1.73432, 0.0523617,
+    -0.391815, 0.961963, -0.910949, 1.88932, 0.0525423
+};
+
 PSTrainingOptions optimization_train_opts = {0};
 
 int compareModels(PSModel *model1, PSModel *model2, Test* test);
@@ -575,21 +586,22 @@ static int arrayMaxIndex(PSFloat *array, int len) {
 
 /* Enabled tests */
 static int avx_tests = 1, maths_tests = 1, activation_tests = 1,
-           optimization_tests = 1, fullnet_tests = 1, convnet_tests = 1,
-           rnn_tests = 1, lstm_tests = 1, gru_tests = 1,
+           optimization_tests = 1, dataset_tests = 1, fullnet_tests = 1,
+           convnet_tests = 1, rnn_tests = 1, lstm_tests = 1, gru_tests = 1,
            normalization_tests = 1, dropout_tests = 1, encdec_tests = 1,
            concat_op_tests = 1, add_op_tests = 1, mul_op_tests = 1,
            positional_embed_tests = 1, attention_tests = 1;
 
 static int *test_ptrs[] = {
     &avx_tests, &maths_tests, &activation_tests, &optimization_tests,
-    &fullnet_tests, &convnet_tests, &rnn_tests, &lstm_tests, &gru_tests,
-    &normalization_tests, &dropout_tests, &concat_op_tests, &add_op_tests,
-    &mul_op_tests, &positional_embed_tests, &encdec_tests, &attention_tests
+    &dataset_tests, &fullnet_tests, &convnet_tests, &rnn_tests, &lstm_tests,
+    &gru_tests, &normalization_tests, &dropout_tests, &concat_op_tests,
+    &add_op_tests, &mul_op_tests, &positional_embed_tests, &encdec_tests,
+    &attention_tests
 };
 
 static char*test_ids[] = {
-    "avx", "maths", "activation", "optimization", "fully-connected",
+    "avx", "maths", "activation", "optimization", "dataset", "fully-connected",
     "convolutional", "rnn", "lstm", "gru", "normalization", "dropout",
     "concatenate-layer", "add-layer", "multiply-layer", "positional-embedding",
     "encoder_decoder", "attention"
@@ -730,6 +742,7 @@ int main(int argc, char** argv) {
         addTest(mathsTests, "StdDev", NULL, testMathsStd);
         addTest(mathsTests, "Vector Fill", NULL, testMathVectorFill);
         addTest(mathsTests, "MatMul (vectors)", NULL, testMathsMatMul);
+        addTest(mathsTests, "Vector To Matrix", NULL, testMathsVecToMatrix);
         addTest(mathsTests, "Matrix Copy", NULL, testMathsMatrixCopy);
         addTest(mathsTests, "Matrix Dup.", NULL, testMathsMatrixDup);
         addTest(mathsTests, "Matrix Expand", NULL, testMathsMatrixExpand);
@@ -786,6 +799,17 @@ int main(int argc, char** argv) {
         tot_tests += optimizationTests->count;
         tot_failed += optimizationTests->failed_count;
         deleteTest(optimizationTests);
+    }
+
+    if (dataset_tests) {
+        datasetTests = createTest("Dataset");
+        addTest(datasetTests, "Load", NULL, testDatasetLoad);
+        addTest(datasetTests, "Save", NULL, testDatasetSave);
+        addTest(datasetTests, "Save (Binary)", NULL, testDatasetSaveBinary);
+        performTests(datasetTests);
+        tot_tests += datasetTests->count;
+        tot_failed += datasetTests->failed_count;
+        deleteTest(datasetTests);
     }
 
     if (fullnet_tests) {
@@ -3997,7 +4021,7 @@ int testGenericClone(TestCase *test_case, Test *test) {
 int testGenericSave(TestCase *test_case, Test *test) {
     PSModel *model = getModel(test_case);
     assert(model->size > 0);
-    char tmpfile[255];
+    char tmpfile[PATH_MAX];
     getTmpFileName("tests-save-nn", ".psmodel", tmpfile);
     int ok = PSModelSave(model, tmpfile);
     testAssertWithMessage(ok, test, "Could not save model %s", model->name);
@@ -6630,6 +6654,36 @@ int testMathsMatMul(TestCase *tc, Test *test) {
     return res;
 }
 
+int testMathsVecToMatrix(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    uint64_t veclen = 6, i;
+    PSFloat orig_vec[veclen];
+    PSFloat *vec = PSVectorCreate(veclen);
+    testAssertNotNull(vec, test);
+    for (i = 0; i < veclen; i++) vec[i] = orig_vec[i] = PSGaussianRandom(0, 1);
+    int shape[PS_MAX_SEQUENCE_LENGTH] = {2, 3, 0};
+    int success = 1;
+    PSMatrix matrix = PSVectorConvertToMatrix(vec, veclen, 2, shape);
+    testAssertNotNull(matrix, test);
+    vec = NULL;
+    success = compareArrays(matrix, orig_vec, veclen, test, NULL, 0, 0);
+    if (!success) goto final;
+    int mshape[PS_MAX_SEQUENCE_LENGTH] = {0};
+    int ndims = 0, d;
+    ndims = PSMatrixDimensions(matrix, mshape);
+    for (d = 0; d < ndims; d++) {
+        success = (shape[d] == mshape[d]);
+        testAssertWithMessageOrGoto(
+            success, final, test, "matrix shape[%d] != expected: %d != %d",
+            d, shape[d], mshape[d]
+        );
+    }
+final:
+    free(vec);
+    PSMatrixFree(matrix);
+    return success;
+}
+
 int testActSigmoid(TestCase *tc, Test *test) {
     UNUSED(tc);
     PSFloat x[6] = {1.0, 8.3, -2.0, -1.0, 0.0, 18.5};
@@ -7616,6 +7670,93 @@ int testL2Regularization(TestCase *tc, Test *test) {
     );
 #endif
     return 1;
+}
+
+int testDatasetLoad(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    char path[PATH_MAX] = {0};
+    testAssert(
+        joinPath(executable_path, "resources/test-dataset.psdata", path), test
+    );
+    testAssert(PSFileExists(path), test);
+    uint64_t datalen = 0,
+             expected_len = (sizeof(expected_loaded_dataset)/sizeof(PSFloat));
+    PSFloat *data = PSLoadDataFromFile(path, &datalen);
+    int success = (data != NULL);
+    testAssertWithMessageOrGoto(
+        success, final, test, "failed to load dataset", ""
+    );
+    success = (datalen == expected_len);
+    testAssertWithMessageOrGoto(
+        success, final, test,
+        "dataset length differs from expected: %" PRIu64 " != %" PRIu64,
+        datalen, expected_len
+    );
+    success = compareArrays(data, expected_loaded_dataset, datalen,
+                            test, NULL, 4, 0);
+final:
+    free(data);
+    return success;
+}
+
+int testDatasetSave(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    char tmpfile[PATH_MAX];
+    getTmpFileName("tests-save-dataset", ".psdata", tmpfile);
+    uint64_t len = (sizeof(expected_loaded_dataset)/sizeof(PSFloat));
+    int success = PSSaveDataToFile(tmpfile, expected_loaded_dataset, len, 0);
+    testAssertWithMessage(success, test, "could not save dataset", "");
+    testAssertWithMessage(
+        PSFileExists(tmpfile), test, "saved file not found", ""
+    );
+    uint64_t datalen = 0;
+    PSFloat *data = PSLoadDataFromFile(tmpfile, &datalen);
+    success = (data != NULL);
+    testAssertWithMessageOrGoto(
+        success, final, test, "failed to load dataset", ""
+    );
+    success = (datalen == len);
+    testAssertWithMessageOrGoto(
+        success, final, test,
+        "dataset length differs from expected: %" PRIu64 " != %" PRIu64,
+        datalen, len
+    );
+    success = compareArrays(data, expected_loaded_dataset, datalen,
+                            test, NULL, 4, 0);
+final:
+    free(data);
+    return success;
+}
+
+int testDatasetSaveBinary(TestCase *tc, Test *test) {
+    UNUSED(tc);
+    char tmpfile[PATH_MAX];
+    getTmpFileName("tests-save-dataset-bin", ".psdata", tmpfile);
+    uint64_t len = (sizeof(expected_loaded_dataset)/sizeof(PSFloat));
+    int success = PSSaveDataToFile(
+        tmpfile, expected_loaded_dataset, len, PS_IO_BINARY_MODE
+    );
+    testAssertWithMessage(success, test, "could not save binary dataset", "");
+    testAssertWithMessage(
+        PSFileExists(tmpfile), test, "saved file not found", ""
+    );
+    uint64_t datalen = 0;
+    PSFloat *data = PSLoadDataFromFile(tmpfile, &datalen);
+    success = (data != NULL);
+    testAssertWithMessageOrGoto(
+        success, final, test, "failed to load binary dataset", ""
+    );
+    success = (datalen == len);
+    testAssertWithMessageOrGoto(
+        success, final, test,
+        "dataset length differs from expected: %" PRIu64 " != %" PRIu64,
+        datalen, len
+    );
+    success = compareArrays(data, expected_loaded_dataset, datalen,
+                            test, NULL, 4, 0);
+final:
+    free(data);
+    return success;
 }
 
 #ifdef USE_AVX
