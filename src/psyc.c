@@ -101,7 +101,7 @@ static PSLossFunction loss_functions[] = {
 static size_t loss_functions_count = sizeof(loss_functions) /
                                      sizeof(PSLossFunction);
 
-/* Function Prototypes */
+/* Forward Declarations */
 
 char *getLossFunctionName(PSLossFunction function);
 char *getModelStatusLabel(PSModel *model);
@@ -146,6 +146,7 @@ PSLayer *PSMakeLayerPlaceholder(int layer_index, int model_index);
 static PSModel *cloneModel(PSModel *model, int layout_only,
                                      PSModel *parent);
 int PSIsLayerPlaceholder(PSLayer *layer);
+void PSAbortLayer(PSModel *model, PSLayer *layer);
 
 /* Miscellaneous functions */
 

@@ -136,10 +136,6 @@ unsigned int PSCalcIntStringLength(long long num);
 /* Networking functions. */
 int PSDownloadFile(const char *url, const char *dest_dir);
 
-/* Neural Network Functions */
-
-void PSAbortLayer(PSModel *model, PSLayer *layer);
-
 /* Misc */
 
 int PSGetTerminalColumns();
