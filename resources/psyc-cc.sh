@@ -5,13 +5,13 @@ printHelp() {
     echo '' >&2
     echo "OPTIONS:" >&2
     echo '' >&2
-    echo "    -o, --output PATH           Output path" >&2
-    echo "    -s, --static                Use static library" >&2
-    echo "    -p, --dry-run               Only print command whithout executing it" >&2
-    echo "    --cflags                    Print CFLAGS and exit" >&2
-    echo "    --ldflags                    Print LDFLAGS and exit" >&2
-    echo "    -q, --quiet                 Quiet mode" >&2
-    echo "    -h, --help                  Print this help" >&2
+    echo "  --cflags                    Print CFLAGS and exit" >&2
+    echo "  --ldflags                   Print LDFLAGS and exit" >&2
+    echo "  -o, --output PATH           Output path" >&2
+    echo "  -s, --static                Use static library" >&2
+    echo "  -p, --dry-run               Only print command whithout executing it" >&2
+    echo "  -q, --quiet                 Quiet mode" >&2
+    echo "  -h, --help                  Print this help" >&2
     echo '' >&2
 }
 
