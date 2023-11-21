@@ -19,6 +19,9 @@
 #include <stdarg.h>
 #include <string.h>
 #include <math.h>
+#include <limits.h>
+#include <stdint.h>
+#include <inttypes.h>
 #include <time.h>
 #include <sys/time.h>
 #include <errno.h>
