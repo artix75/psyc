@@ -44,7 +44,7 @@
 #include "image-data.h"
 #endif
 
-#define PROGRAM_NAME        "PsyC CLI"
+#define PROGRAM_NAME        PSYC_NAME " CLI"
 #define MODEL_NAME          "CLI Model"
 
 #define CONV_FEATURE_COUNT  20
@@ -81,6 +81,35 @@ static char* MNIST_FILE_NAMES[4] = {
 };
 
 static char *MNISTDataFiles[4] = {NULL, NULL, NULL, NULL};
+
+typedef struct {
+    PSLayerType type;
+    char **names;
+    char *descr;
+} PsyclCmdLayerType;
+
+char *fcnames[] = {"fully-connected", "fc", "dense", NULL};
+char *rnnnames[] = {"rnn", NULL};
+char *oplayernames[] = {"operator", "op", NULL};
+char *posencnames[] = {"positional-encoding", NULL};
+
+static PsyclCmdLayerType CmdLayerTypes[] = {
+    {FullyConnected, fcnames, "Fully Connected (dense) layer"},
+    {Convolutional, NULL},
+    {Pooling, NULL},
+    {RNNLayer, rnnnames, "Basic Recurrent Layer"},
+    {LSTM, NULL},
+    {SoftMax, NULL},
+    {GRU, NULL},
+    {Dropout, NULL},
+    {Embedding, NULL},
+    {Normalization, NULL},
+    {Attention, NULL},
+    {OperatorLayer, oplayernames, "Operator Layer (add,concatenate,mul)"},
+    {Linear, NULL},
+    {PositionalEncoding, posencnames, "Position Encoding "
+     "Layer"},
+};
 
 /* Globals */
 
@@ -139,6 +168,60 @@ static void toLowerCase(char *str) {
         str[idx++] = c;
         p++;
     }
+}
+
+static void printLayerTypeHelp(PSLayerType type) {
+    assert(type < PS_LAYER_TYPES);
+    PsyclCmdLayerType *type_info = CmdLayerTypes;//[type];
+    type_info += type;
+    assert(type_info != NULL);
+    assert(type_info->type == type);
+    char *lbl = PSGetLabelForType(type);
+    assert(lbl != NULL);
+    char optnames[512] = {0};
+    char descr[512] = {0};
+    int nameslen = 0, descrlen = 0;
+    if (type_info->names != NULL) {
+        char **name = type_info->names;
+        int idx = 0, remaining = 512;
+        char *p = optnames;
+        while (*name != NULL) {
+            int len = 0;
+            if (idx > 0) {
+                len += snprintf(p, remaining, ", ");
+                p += len;
+                remaining -= len;
+                if (remaining <= 0) break;
+                nameslen += len;
+            }
+            len += snprintf(p, remaining, "%s", *name);
+            p += len;
+            remaining -= len;
+            nameslen += len;
+            if (remaining <= 0) break;
+            name++;
+            idx++;
+        }
+    } else {
+        nameslen = snprintf(optnames, 512, "%s", lbl);
+        char *p = optnames;
+        while (*p != 0) {
+            char c = *p;
+            if (isalpha(c)) *p = tolower(c);
+            else if (isspace(c)) *p = '-';
+            p++;
+        }
+    }
+    if (type_info->descr != NULL)
+        descrlen = snprintf(descr, 512, "%s", type_info->descr);
+    else
+        descrlen = snprintf(descr, 512, "%s Layer", lbl);
+    char *sep = "  ", *descrindent = "";
+    if ((2 + nameslen) > (40 - 2)) {
+        sep = "\n" ;
+        descrindent = "                                        ";
+    }
+    printf("  %-38s%s%s%s\n", optnames, sep, descrindent, descr);
 }
 
 static char *downloadMNISTDataset(char *path) {
@@ -215,16 +298,18 @@ static PSLayerType getLayerType(char *name, int *is_cifar, PSLayerDef *ldef) {
         return FullyConnected;
     else if (strcasecmp("fc", name) == 0)
         return FullyConnected;
+    else if (strcasecmp("dense", name) == 0)
+        return FullyConnected;
     else if (strcasecmp("input", name) == 0)
         return FullyConnected;
     else if (strcasecmp("SoftMax", name) == 0)
+        return SoftMax;
+    else if (strcasecmp("softmax", name) == 0)
         return SoftMax;
     else if (strcasecmp("convolutional", name) == 0)
         return Convolutional;
     else if (strcasecmp("pooling", name) == 0)
         return Pooling;
-    else if (strcasecmp("softmax", name) == 0)
-        return SoftMax;
     else if (strcasecmp("recurrent", name) == 0)
         return RNNLayer;
     else if (strcasecmp("rnn", name) == 0)
@@ -764,7 +849,9 @@ void parseOptions(int argc, char **argv) {
         } else if (strcmp("--onehot", arg) == 0) {
             if (current->size == 0) current->flags |= PS_FLAG_ONEHOT;
             else current->layers[current->size - 1]->flags |= PS_FLAG_ONEHOT;
-        } else if (strcmp("--layer", arg) == 0 && !is_last) {
+        } else if ((strcmp("--layer", arg) == 0 ||
+                    strcmp("-l", arg) == 0) && !is_last)
+        {
             char *type = argv[++i];
             int is_cifar = 0, lidx = current->size;
             PSLayer *link_to = NULL, *query_provider_to = NULL;
@@ -906,6 +993,10 @@ void parseOptions(int argc, char **argv) {
                     if (strcmp("add", opstr) == 0) op = PSAddOperator;
                     else if (strcmp("concatenate", opstr) == 0)
                         op = PSConcatenateOperator;
+                    else if (strcmp("mul", opstr) == 0)
+                        op = PSMultiplyOperator;
+                    else if (strcmp("multiply", opstr) == 0)
+                        op = PSMultiplyOperator;
                     else {
                         fprintf(stderr, "ERROR: Invalid %s: valid values are "
                                 "add|concatenate\n", opstr);
@@ -1657,7 +1748,7 @@ int main(int argc, char **argv) {
 
 void printLossFunctionName(const char *name, PSLossFunction func) {
     UNUSED(func);
-    printf("        %s\n", name);
+    printf("  %s\n", name);
 }
 
 PSLossFunction getLossFunctionByName(char *name) {
@@ -1672,206 +1763,240 @@ PSLossFunction getLossFunctionByName(char *name) {
 void printHelp(const char* program_path) {
     printf("\nUsage: %s [OPTIONS]\n\n", program_path);
     printf("OPTIONS:\n\n");
-    printf("    -c, --config FILE               Load options from FILE\n");
-    printf("        --load PRETRAINED           Load a pretrained model\n");
-    printf("        --save FILE                 Save model\n");
-    printf("        --name NAME                 Model name\n");
-    printf("        --layer TYPE SIZE|OPTIONS   Add layer\n");
-    printf("        --onehot                    "
-           "Sets one-hot-vector flag for input\n");
-    printf("                                    "
-           "(if before 1st layer) or desired output\n");
-    printf("                                    (if after output layer)\n");
-    printf("        --model                     Start new model "
-           "definition\n");
-    printf("                                    (multiple models will be "
-           "chained\n");
-    printf("        --train [OPT] TRAIN_DATASET Train model\n");
-    printf("        --test [OPT] TEST_DATASET   Perform tests\n");
-#ifdef HAS_MAGICK
-    printf("        --classify-image FILE [OPT] Perform tests\n");
-#endif
-    printf("        --training-datalen LEN      Training data length\n");
-    printf("        --validation-datalen LEN    Validation data length\n");
-    printf("        --epochs EPOCHS             Training epochs (def. %d)\n",
-           EPOCHS);
-    printf("        --batch-size SIZE           Train. batch size (def. %d)\n",
+    printf("  --available-accelerations    List available "
+           "accelerations.\n");
+    printf("  --batch-script-every NUM     Interval of NUM batches after "
+           "which to run the\n"
+           "                               script defined by the "
+           "`--on-batch-trained`\n"
+           "                               option (if set).\n");
+    printf("  --batch-size SIZE            Training batch size (default: %d)\n",
            BATCH_SIZE);
-    printf("        --learning-rate SIZE        Train. learn rate (def. %f)\n",
-           LEARNING_RATE);
-    printf("        --momentum MOMENTUM         Momentum (def. 0)\n");
-    printf("        --l1-decay SIZE             L1 Decay (def. 0)\n");
-    printf("        --l2-decay SIZE             L2 Decay (def. 0)\n");
-    printf("        --weight-decay              Enable L1/L2 weight decay\n"
-           "                                    instead of L1/L2 "
-           "regularization\n");
-    printf("        --optimization              Training Optimization\n"
-           "                                    (adagrad,adadelta,adam,\n"
-           "                                     rmsprop,windowgrad,nesterov,"
-           "\n"
-           "                                     default)\n"
+#ifdef HAS_MAGICK
+    printf("  --classify-image <FILE> [OPT]\n"
+           "                               Classify the image located at path "
+           "FILE with the\n"
+           "                               current model (see 'IMAGE OPTIONS'"
+           " section).\n");
+#endif
+    printf("  -c, --config FILE            Load options from FILE (see the '"
+           "CONFIG FILES'\n"
+           "                               section).\n");
+    printf("  --disable-accelerate,\n"
+           "  --disable-acf                Disable Accelerate "
+           "Framework.\n");
+    printf("  --disable-avx                Disable AVX.\n");
+    printf("  --disable-blas               Disable BLAS.\n");
+    printf("  --download-cifar [<CLASSES>] [DEST_DIR]\n"
+           "                               Download CIFAR dataset and "
+           "exit. If no DEST_DIR\n"
+           "                               is provided, the dataset will be "
+           "saved into\n"
+           "                               " PSYC_NAME " working directory.\n"
+           "                               Optional CLASSES can be 10 or "
+           "100.\n"
+           "                               (default: 10).\n");
+    printf("  --download-mnist [DEST_DIR]  Download MNIST dataset and "
+           "exit. If no DEST_DIR\n"
+           "                               is provided, the dataset will be "
+           "saved into\n"
+           "                               " PSYC_NAME " working directory.\n");
+    printf("  --enable-colors              Colorized output.\n");
+    printf("  --epochs EPOCHS              Training epochs (default: %d).\n",
+           EPOCHS);
+    printf("  --info                       Print " PSYC_NAME " info.\n");
+    printf("  --l1-decay SIZE              L1 Decay (default: 0).\n");
+    printf("  --l2-decay SIZE              L2 Decay (default: 0).\n");
+    printf("  -l, --layer <TYPE> (SIZE|OPTIONS)\n"
+           "                               Add layer (see 'LAYER TYPES' and "
+           "'LAYER OPTIONS'\n"
+           "                               sections).\n");
+    printf("  --learning-rate SIZE         Training learning rate (default: "
+           "%.2f).\n", LEARNING_RATE);
+    printf("  --load PRETRAINED            Load a pretrained model.\n");
+    printf("  --loglevel LEVEL             Set log level "
+           "(see 'LOG LEVELS' section).\n");
+    printf("  --loss-function FUNC         Loss Function (see 'LOSS "
+           "FUNCTIONS' section).\n");
+    printf("  --model                      Start new model (it can be used\n"
+           "                               multiple times to create chained "
+           "models\n"
+           "                               composed of multiple neural "
+           "networks).\n");
+    printf("  --momentum MOMENTUM          Momentum (default: 0).\n");
+    printf("  --name NAME                  Model name.\n");
+    printf("  --on-batch-trained SCRIPT    Execute script after every "
+           "batch is trained.\n"
+           "                               (See \"SCRIPTS\" section for "
+           "more info).\n");
+    printf("  --on-epoch-trained SCRIPT    Execute script after every "
+           "epoch is trained.\n"
+           "                               (See \"SCRIPTS\" section for "
+           "more info).\n");
+    printf("  --onehot                     Sets one-hot-vector flag for "
+           "input layer (if\n"
+           "                               before 1st layer) or target "
+           "dataset (if after\n"
+           "                               output layer).\n");
+    printf("  --optimization               Training Optimization:\n"
+           "                               (adagrad|adadelta|adam|"
+           "rmsprop|windowgrad|\n"
+           "                               nesterov|default).\n"
     );
-    printf("        --training-no-shuffle       Prevent dataset shuffle\n");
-    printf("        --training-adjust-rate      Auto-adjust learn rate\n");
-    printf("        --loss-function FUNC        Loss Function\n");
-    printf("        --validate-every BATCH_NUM  Validate inside epochs\n");
-    printf("        --on-batch-trained SCRIPT   Execute script after every\n"
-           "                                    batch is trained.\n"
-           "                                    (See \"SCRIPTS\" section for\n"
-           "                                    more info)\n");
-    printf("        --on-epoch-trained SCRIPT   Execute script after every\n"
-           "                                    epoch is trained\n"
-           "                                    (See \"SCRIPTS\" section for\n"
-           "                                    more info)\n");
-    printf("        --batch-script-every NUM    Execute script specified by\n"
-           "                                    --on-batch-trained every\n"
-           "                                    NUM batches\n");
-    printf("        --download-mnist [DEST_DIR] Download MNIST dataset and "
-           "exit.\n"
-           "                                    If no DEST_DIR is provided, the"
-           " dataset\n"
-           "                                    will be saved into PsyC "
-           "working directory.\n");
-    printf("        --download-CIFAR [CLASSES] [DEST_DIR]\n"
-           "                                    Download CIFAR dataset and "
-           "exit.\n"
-           "                                    If no DEST_DIR is provided, the"
-           " dataset\n"
-           "                                    will be saved into PsyC "
-           "working directory.\n"
-           "                                    Optional CLASSES can be 10 or "
-           "100\n"
-           "                                    (default is 10)\n");
-    printf("        --disable-avx               Disable AVX\n");
-    printf("        --disable-accelerate,\n"
-           "        --disable-acf               Disable Accelerate "
-           "Framework\n");
-    printf("        --disable-blas              Disable BLAS\n");
-    printf("        --loglevel LEVEL            Set log level "
-           "(see \"LOG LEVELS\" section)\n");
-    printf("        --available-accelerations   List available "
-           "accelerations\n");
-    printf("        --quiet                     Quiet output (loglevel ERROR)"
+    printf("  --quiet                      Quiet output (loglevel ERROR)."
            "\n");
-    printf("        --verbose                   Verbose output (loglevel DEBUG)"
+    printf("  --save FILE                  Save model to FILE.\n");
+    printf("  --test [OPT] TEST_DATASET    Test model against TEST_DATASET.\n"
+           "                               (see 'TRAIN|TEST OPTIONS' "
+           "section).\n");
+    printf("  --train [OPT] TRAIN_DATASET  Train model with TRAIN_DATASET.\n"
+           "                               (see 'TRAIN|TEST OPTIONS' section"
+           ").\n");
+    printf("  --training-adjust-rate       Auto-adjust learn rate.\n");
+    printf("  --training-datalen LEN       Training data length.\n");
+    printf("  --training-no-shuffle        Prevent dataset shuffle.\n");
+    printf("  --validate-every BATCH_NUM   Validate inside epochs.\n");
+    printf("  --validation-datalen LEN     Validation data length.\n");
+    printf("  --verbose                    Verbose output (loglevel DEBUG)."
            "\n");
-    printf("        --enable-colors             Colorized output\n");
-    printf("        --info                      Print Psyc info\n");
-    printf("    -v, --version                   Print version\n");
-    printf("    -h, --help                      Print this help\n");
+    printf("  -v, --version                Print version.\n");
+    printf("  --weight-decay               Enable L1/L2 weight decay\n"
+           "                               instead of L1/L2 "
+           "regularization.\n");
+    printf("    -h, --help                 Print this help.\n");
     printf("\n");
     printf("LAYER TYPES:\n\n");
     int i;
     for (i = 0; i < PS_LAYER_TYPES; i++) {
         PSLayerType type = (PSLayerType) i;
-        printf("        %s\n", PSGetLabelForType(type));
+        /*printf("  %s\n", PSGetLabelForType(type));*/
+        printLayerTypeHelp(type);
     }
     printf("\n");
     printf("LOSS FUNCTIONS:\n\n");
     PSIterateLossFunctions(printLossFunctionName);
     printf("\n");
     printf("LAYER OPTIONS:\n\n");
-    printf("        --activation FUNC         Activation Function:\n"
-           "                                  (sigmoid,tanh,relu,gelu)\n");
-    printf("        --dropout DROPOUT         Layer Dropout (float)\n");
-    printf("        --recurrent-layer         Recurrent layer mode\n");
-    printf("        --whole-sequence          Whole sequence mode\n");
-    printf("        --disable-biases          Disable biases\n");
-    printf("        --output-width WIDTH      Output Width\n");
-    printf("        --output-height HEIGHT    Output Height\n");
-    printf("        --output-depth DEPTH      Output Depth\n");
-    /*       " (def. %d)\n", CONV_FEATURE_COUNT);*/
-    printf("        --filter-width WIDTH      Convolutional filter width"
-           " (def. %d)\n", CONV_REGION_SIZE);
-    printf("        --filter-height HEIGHT    Convolutional filter height"
-           " (def. %d)\n", CONV_REGION_SIZE);
-    printf("        --stride STRIDE           Convolutional stride"
-           " (def. 1)\n");
-    printf("        --padding PADDING         Convolutional padding"
-           " (def. 0)\n");
-    printf("        --operator OP             Operator layer operator:\n"
-           "                                  (add|concatenate)\n");
-    printf("        --provider COORDS         Operator layer provider\n"
-           "                                  (See LAYER COORDINATES section\n"
-           "                                  for details about COORDS)\n"
+    printf("  --activation FUNC            Activation Function: "
+           "(sigmoid,tanh,relu,gelu).\n");
+    printf("  --attention-heads NUM        Multi-Head Attention layer "
+        "heads.\n");
+    printf("  --attention-scale SCALE      Attention layer scale.\n");
+    printf("  --attention-type TYPE        Attention layer type: "
+           "(dot|additive).\n");
+    printf("  --bias-init-mode MODE        Bias initialization mode:\n"
+           "                               (auto|random|zero) "
+           "(default: auto).\n");
+    printf("  --causal                     Causal Attention.\n");
+    printf("  --disable-biases             Disable biases.\n");
+    printf("  --dropout DROPOUT            Layer Dropout (float).\n");
+    printf("  --filter-width WIDTH         Convolutional filter width"
+           " (default: %d).\n", CONV_REGION_SIZE);
+    printf("  --filter-height HEIGHT       Convolutional filter height"
+           " (default: %d).\n", CONV_REGION_SIZE);
+    printf("  --init-range RANGE           Weight|Bias initialization "
+           "range.\n"
+           "                               (for 'random' init mode)\n");
+    printf("  --init-scale SCALE           Weight|Bias initialization "
+           "scale.\n"
+           "                               (for 'random' init mode)\n");
+    printf("  --key-provider COORDS        Attention keys provider.\n"
+           "                               (See 'LAYER COORDINATES' section "
+           "for details\n"
+           "                               about COORDS).\n"
     );
-    printf("        --attention-type TYPE     Attention layer type:\n"
-           "                                  (dot|additive)\n");
-    printf("        --attention-heads NUM     Multi-Head Attention layer "
-        "heads\n");
-    printf("        --attention-scale SCALE   Attention layer scale\n");
-    printf("        --causal                  Causal Attention\n");
-    printf("        --query-provider COORDS   Attention query provider\n"
-           "                                  If current layer is not an\n"
-           "                                  attention layer, current layer\n"
-           "                                  will be set as provider of\n"
-           "                                  layer defined by COORDS\n"
-           "                                  (See LAYER COORDINATES section\n"
-           "                                  for details about COORDS)\n"
+    printf("  --link COORDS                Link layer to previous model.\n"
+           "                               (See 'LAYER COORDINATES' section "
+           "for details\n"
+           "                               about COORDS).\n"
     );
-    printf("        --key-provider COORDS     Attention keys provider\n"
-           "                                  (See LAYER COORDINATES section\n"
-           "                                  for details about COORDS)\n"
+    printf("  --load-layer PATH            Load layer parameters from "
+           "PATH.\n");
+    printf("  --operator OP                Operator layer operator: "
+           "(add|mul|concatenate).\n");
+    printf("  --output-width WIDTH         Output Width.\n");
+    printf("  --output-height HEIGHT       Output Height.\n");
+    printf("  --output-depth DEPTH         Output Depth.\n");
+    printf("  --padding PADDING            Convolutional padding"
+           " (default: 0).\n");
+    printf("  --pretrained                 Pretrained layer.\n");
+    printf("  --provider COORDS            Operator layer provider.\n"
+           "                               (See 'LAYER COORDINATES' section "
+           "for details\n"
+           "                               about COORDS).\n"
     );
-    printf("        --value-provider COORDS   Attention values provider\n"
-           "                                  (See LAYER COORDINATES section\n"
-           "                                  for details about COORDS)\n"
+    printf("  --query-provider COORDS      Attention query provider. "
+           "If current layer is\n"
+           "                               not an attention layer, current "
+           "layer\n"
+           "                               will be set as provider of the "
+           "layer defined by\n"
+           "                               COORDS. (See 'LAYER COORDINATES' "
+           "section for\n"
+           "                               details about COORDS).\n"
     );
-    printf("        --link COORDS             Link layer to previous model\n"
-           "                                  (See LAYER COORDINATES section\n"
-           "                                  for details about COORDS)\n"
+    printf("  --recurrent-layer            Recurrent layer mode.\n");
+    printf("  --stride STRIDE              Convolutional stride"
+           " (default: 1).\n");
+    printf("  --value-provider COORDS      Attention values provider.\n"
+           "                               (See 'LAYER COORDINATES' section\n"
+           "                               for details about COORDS).\n"
     );
-    printf("        --weight-init-mode MODE   Weight initialization mode:\n"
-           "                                  auto,random,zero (def. auto)\n");
-    printf("        --bias-init-mode MODE     Bias initialization mode:\n"
-           "                                  auto,random,zero (def. auto)\n");
-    printf("        --init-range RANGE        Weight|Bias initialization "
-           "range\n"
-           "                                  (for 'random' init mode)\n");
-    printf("        --init-scale SCALE        Weight|Bias initialization "
-           "scale\n"
-           "                                  (for 'random' init mode)\n");
-    printf("        --pretrained              Pretrained layer\n");
-    printf("        --load-layer PATH         Load layer parameters from "
-           "PATH\n");
-    /*printf("        --use-relu                Use ReLU activation (for "
-           "Convolutional Layers)\n");*/
+    printf("  --weight-init-mode MODE      Weight initialization mode:\n"
+           "                               auto,random,zero (default: auto)."
+           "\n");
+    printf("  --whole-sequence             Whole sequence mode.\n");
     printf("\n");
     printf("LAYER COORDINATES:\n\n");
-    printf("        Format: [model_index:]LAYER_INDEX\n");
-    printf("        Examples:\n");
-    printf("            1:2     - Third layer (2) of second model(1)\n");
-    printf("            3       - Fourth layer (3) of current model\n");
+    printf("  Format: [model_index:]LAYER_INDEX\n");
+    printf("  Examples:\n");
+    printf("      1:2     - Third layer (2) of second model(1)\n");
+    printf("      3       - Fourth layer (3) of current model\n");
     printf("\n");
     printf("LOG LEVELS:\n\n");
-    printf("        "); printLogLevels(stdout); printf("\n\n");
+    printf("  "); printLogLevels(stdout); printf("\n\n");
     printf("TRAIN|TEST OPTIONS:\n\n");
-    printf("        --mnist                   Dataset format is MNIST\n");
-    printf("        --cifar [CLASSES]         Dataset format is CIFAR\n"
-           "                                  (classes: 10 or 100, default "
-           "is 10)\n"
+    printf("  --cifar [CLASSES             Dataset format is CIFAR.\n"
+           "                               (classes: 10 or 100, default: "
+           "10).\n"
     );
-    printf("        --max-images              Max images to load (CIFAR)\n");
-    printf("        --max-files               Max files to load (CIFAR)\n");
+    printf("  --max-images                 Max images to load (CIFAR).\n");
+    printf("  --max-files                  Max files to load (CIFAR).\n");
+    printf("  --mnist                      Dataset format is MNIST.\n");
 #ifdef HAS_MAGICK
     printf("\n");
     printf("IMAGE OPTIONS:\n\n");
-    printf("        --grayscale              Convert image to grayscale\n");
-    printf("        --invert                 Invert image pixels\n");
-    printf("        --background-color COLOR Padding background color\n"
-           "                                 (ie. none, white, ...),\n"
-           "                                 default: white\n");
-    printf("        --dump-image FILE        Save image to file\n");
+    printf("  --background-color COLOR     Padding background color "
+           "(ie. none, white, ...),\n"
+           "                               default: white\n");
+    printf("  --dump-image FILE            Save image to file.\n");
+    printf("  --grayscale                  Convert image to grayscale.\n");
+    printf("  --invert                     Invert image pixels.\n");
 #endif
     printf("\n");
+    printf("CONFIG FILES:\n\n");
+    printf("  Configuration files can be loaded via the `-c` option (see "
+           "above). Every\n"
+           "  option that can be passed to the command line can also be used "
+           "inside\n"
+           "  configuration files by removing the dash prefix ('-' or '--'), "
+           "for example:\n"
+           "  `layer` instead of `--layer` or `learning-rate` instead of "
+           "`--learning-rate`.\n"
+           "  Option arguments can follow the option name by separating them "
+           "with spaces\n"
+           "  and every option should be written in a separate line.\n"
+           "  The special `include` directive has the same effect of the `-c` "
+           "option,\n"
+           "  and it loads another configuration file (ie. `include "
+           "/path/to/config`).\n\n");
     printf("SCRIPTS:\n\n");
     printf(
-        "  By using options such as `--on-batch-trained` and "
-        "`--on-epoch-trained`"
-        "\n"
-        "  it's possible to execute an arbitrary external script when such\n"
-        "  events happen. The scripts will eventually receive the following\n"
-        "  arguments:\n"
+        "  By using options like `--on-batch-trained` or "
+        "`--on-epoch-trained` it's\n"
+        "  possible to execute an arbitrary external script when such events "
+        "happen.\n"
+        "  The scripts will eventually receive the following arguments:\n"
         "    --event TYPE, --name MODEL_NAME --epoch CURRENT_EPOCH\n"
         "    --epochs TOT_EPOCHS --average-loss AVERAGE_LOSS --current-loss\n"
         "    CURRENT_LOSS --accuracy CURRENT_ACCURACY --learning-rate RATE\n"

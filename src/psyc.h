@@ -28,6 +28,7 @@
 #include "optimization.h"
 
 #define PSYC_VERSION                "0.9.3"
+#define PSYC_NAME                   "PsyC"
 
 #define PS_LAYER_TYPES              14
 

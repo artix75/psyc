@@ -52,7 +52,7 @@ PSYC_CC_UTIL = ../bin/psyc-cc.sh
 default: all
 
 Makefile.dep:
-	-$(CC) -MM *.c > Makefile.dep 2> /dev/null || true
+	-@$(CC) -MM *.c > Makefile.dep 2> /dev/null || true
 
 ifeq (0, $(words $(findstring $(MAKECMDGOALS), $(NOBUILD_GOALS))))
 -include Makefile.dep
