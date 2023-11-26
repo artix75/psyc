@@ -1762,6 +1762,15 @@ PSLossFunction getLossFunctionByName(char *name) {
 
 void printHelp(const char* program_path) {
     printf("\nUsage: %s [OPTIONS]\n\n", program_path);
+    printf("DESCRIPTION:\n\n");
+    printf("  psycl is a command-line interface to %s, an open-source C "
+           "library that\n"
+           "  allows building neural networks ( %s ).\n",
+           PSYC_NAME, PSYC_SITE);
+    printf("  The utility can be used to build, load, save and train models "
+           "without\n"
+           "  the need to write a C program, albeit with limitations.\n");
+    printf("\n");
     printf("OPTIONS:\n\n");
     printf("  --available-accelerations    List available "
            "accelerations.\n");
@@ -1773,7 +1782,7 @@ void printHelp(const char* program_path) {
     printf("  --batch-size SIZE            Training batch size (default: %d)\n",
            BATCH_SIZE);
 #ifdef HAS_MAGICK
-    printf("  --classify-image <FILE> [OPT]\n"
+    printf("  --classify-image FILE [OPTIONS...]\n"
            "                               Classify the image located at path "
            "FILE with the\n"
            "                               current model (see 'IMAGE OPTIONS'"
@@ -1782,12 +1791,11 @@ void printHelp(const char* program_path) {
     printf("  -c, --config FILE            Load options from FILE (see the '"
            "CONFIG FILES'\n"
            "                               section).\n");
-    printf("  --disable-accelerate,\n"
-           "  --disable-acf                Disable Accelerate "
+    printf("  --disable-accelerate         Disable Accelerate "
            "Framework.\n");
     printf("  --disable-avx                Disable AVX.\n");
     printf("  --disable-blas               Disable BLAS.\n");
-    printf("  --download-cifar [<CLASSES>] [DEST_DIR]\n"
+    printf("  --download-cifar [CLASSES] [DEST_DIR]\n"
            "                               Download CIFAR dataset and "
            "exit. If no DEST_DIR\n"
            "                               is provided, the dataset will be "
@@ -1807,7 +1815,7 @@ void printHelp(const char* program_path) {
     printf("  --info                       Print " PSYC_NAME " info.\n");
     printf("  --l1-decay SIZE              L1 Decay (default: 0).\n");
     printf("  --l2-decay SIZE              L2 Decay (default: 0).\n");
-    printf("  -l, --layer <TYPE> (SIZE|OPTIONS)\n"
+    printf("  -l, --layer TYPE (SIZE | OPTIONS...)\n"
            "                               Add layer (see 'LAYER TYPES' and "
            "'LAYER OPTIONS'\n"
            "                               sections).\n");
@@ -1838,18 +1846,21 @@ void printHelp(const char* program_path) {
            "                               before 1st layer) or target "
            "dataset (if after\n"
            "                               output layer).\n");
-    printf("  --optimization               Training Optimization:\n"
-           "                               (adagrad|adadelta|adam|"
-           "rmsprop|windowgrad|\n"
-           "                               nesterov|default).\n"
-    );
+    printf("  --optimization NAME          Training optimization, NAME can "
+           "be:\n"
+           "                               (adagrad | adadelta | adam | "
+           "rmsprop |\n"
+           "                               windowgrad | nesterov | default)"
+           ".\n");
     printf("  --quiet                      Quiet output (loglevel ERROR)."
            "\n");
     printf("  --save FILE                  Save model to FILE.\n");
-    printf("  --test [OPT] TEST_DATASET    Test model against TEST_DATASET.\n"
+    printf("  --test [OPTIONS] TEST_DATASET\n"
+           "                               Test model against TEST_DATASET.\n"
            "                               (see 'TRAIN|TEST OPTIONS' "
            "section).\n");
-    printf("  --train [OPT] TRAIN_DATASET  Train model with TRAIN_DATASET.\n"
+    printf("  --train [OPTIONS] TRAIN_DATASET\n"
+           "                               Train model with TRAIN_DATASET.\n"
            "                               (see 'TRAIN|TEST OPTIONS' section"
            ").\n");
     printf("  --training-adjust-rate       Auto-adjust learn rate.\n");
@@ -1948,7 +1959,7 @@ void printHelp(const char* program_path) {
     printf("  --whole-sequence             Whole sequence mode.\n");
     printf("\n");
     printf("LAYER COORDINATES:\n\n");
-    printf("  Format: [model_index:]LAYER_INDEX\n");
+    printf("  Format: [model_index:]layer_index\n");
     printf("  Examples:\n");
     printf("      1:2     - Third layer (2) of second model(1)\n");
     printf("      3       - Fourth layer (3) of current model\n");

@@ -29,6 +29,8 @@
 
 #define PSYC_VERSION                "0.9.3"
 #define PSYC_NAME                   "PsyC"
+#define PSYC_SITE                   "https://github.com/artix75/psyc"
+#define PSYC_CONTACT                PSYC_SITE "/issues"
 
 #define PS_LAYER_TYPES              14
 
