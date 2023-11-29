@@ -1,4 +1,6 @@
 include Makefile.common.mk
+.PHONY: default
+.PHONY: all
 
 LIBNAME=libpsyc
 STATIC_LIBNAME := $(LIBNAME).a
@@ -50,6 +52,7 @@ PSYCL := ../bin/psycl
 PSYC_CC_UTIL = ../bin/psyc-cc.sh
 
 default: all
+	@:
 
 Makefile.dep:
 	-@$(CC) -MM *.c > Makefile.dep 2> /dev/null || true
@@ -142,32 +145,36 @@ uninstall:
 	rm -rvf $(INCLUDEDIR)/psyc
 
 show-build-conf:
-	@echo "CC=$(CC)"
-	@echo "IS_CLANG=$(IS_CLANG)"
-	@echo "PREFIX=$(PREFIX)"
-	@echo "DOUBLE_PRECISION=$(DOUBLE_PRECISION)"
 	@echo "AVX=$(AVX)"
+	@echo "BLAS_NEEDS_ACCELERATE=$(BLAS_NEEDS_ACCELERATE)"
+	@echo "CC=$(CC)"
+	@echo "DOUBLE_PRECISION=$(DOUBLE_PRECISION)"
+	@echo "HAS_ACCELERATE_FRAMEWORK=$(HAS_ACCELERATE_FRAMEWORK)"
 	@echo "HAS_BLAS=$(HAS_BLAS)"
 	@echo "HAS_CBLAS=$(HAS_CBLAS)"
 	@echo "HAS_GSL_CBLAS=$(HAS_GSL_CBLAS)"
-	@echo "HAS_ACCELERATE_FRAMEWORK=$(HAS_ACCELERATE_FRAMEWORK)"
-	@echo "BLAS_NEEDS_ACCELERATE=$(BLAS_NEEDS_ACCELERATE)"
-	@echo "WAND_CONFIG=$(WAND_CONFIG)"
 	@echo "HAS_MAGICK=$(HAS_MAGICK)"
+	@echo "IS_CLANG=$(IS_CLANG)"
 	@echo "MAGICK_VERSION=$(MAGICK_VERSION)"
 	@echo "MAGICK_VERSION_MAJOR=$(MAGICK_VERSION_MAJOR)"
+	@echo "PREFIX=$(PREFIX)"
+	@echo "WAND_CONFIG=$(WAND_CONFIG)"
 
 list-available-options:
-	@echo "Option           Argument    Description         Default"
+	@echo "Option           Argument    Description             Default"
 	@echo "=============================================================="
-	@echo "PREFIX           PATH        Installation path   $(PREFIX)"
-	@echo "OPTIMIZATION     OPT         Optimization        $(OPTIMIZATION)"
-	@echo "AVX              (on|off)    AVX support         $(AVX)"
 	@echo "ACCELERATE       (on|off)    Apple Accelerate"
-	@echo "                             Framework support   $(ACCELERATE)"
-	@echo "BLAS             (on|off)    BLAS support        $(BLAS)"
-	@echo "USE_PSYC_BLAS    (on|off)    Force native BLAS   $(USE_PSYC_BLAS)"
-	@echo "MAGICK           (on|off)    ImageMagick support $(MAGICK)"
-	@echo "TESTS            TESTS       Only perform specific tests"
-	@echo "BUILD_ONLY                   Only build, do not execute (ie. tests)"
-	@echo "COLORS           (on|off)    Colorized output (default 'on')"
+	@echo "                             Framework support       $(ACCELERATE)"
+	@echo "AVX              (on|off)    AVX support             $(AVX)"
+	@echo "BLAS             (on|off)    BLAS support            $(BLAS)"
+	@echo "BUILD_ONLY                   Only build, do not"
+	@echo "                             execute (ie. tests)"
+	@echo "COLORS           (on|off)    Colorized output        on"
+	@echo "DOUBLE_PRECISION (on|off)    Use double-precision    off"
+	@echo "MAGICK           (on|off)    ImageMagick support     $(MAGICK)"
+	@echo "OPTIMIZATION     OPT         Optimization            $(OPTIMIZATION)"
+	@echo "PREFIX           PATH        Installation path       $(PREFIX)"
+	@echo "TESTS            TEST_NAMES  Only perform tests"
+	@echo "                             listed in (comma-"
+	@echo "                             separated TEST_NAMES)"
+	@echo "USE_PSYC_BLAS    (on|off)    Force native BLAS       $(USE_PSYC_BLAS)"

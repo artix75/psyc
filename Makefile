@@ -6,7 +6,28 @@ ifeq ($(DEMO),off)
 	DEFAULT_BUILD_TARGETS=psyc-main
 endif
 
+ifneq ($(COLORS),off)
+	BOLD_STYLE="\033[1m"
+	RED_COLOR="\033[31m"
+	GREEN_COLOR="\033[32m"
+	YELLOW_COLOR="\033[33m"
+	BLUE_COLOR="\033[34m"
+	MAGENTA_COLOR="\033[35m"
+	CYAN_COLOR="\033[36m"
+	END_COLOR="\033[0m"
+else
+	BOLD_STYLE=""
+	RED_COLOR=""
+	GREEN_COLOR=""
+	YELLOW_COLOR=""
+	BLUE_COLOR=""
+	MAGENTA_COLOR=""
+	CYAN_COLOR=""
+	END_COLOR=""
+endif
+
 default: all
+	@:
 
 .PHONY: clean
 .PHONY: rebuildclean
@@ -23,6 +44,7 @@ default: all
 .PHONY: valgrinf
 .PHONY: helgrind
 .PHONY: all
+.PHONY: default
 .PHONY: help
 
 demo:
@@ -68,6 +90,9 @@ static:
 	@cd src && $(MAKE) static
 
 all: $(DEFAULT_BUILD_TARGETS)
+	@printf '%b %b\n' $(GREEN_COLOR)Build complete.$(END_COLOR)
+	@printf '%b\n' "Type \`make test\` to perform tests."
+	@printf '%b\n' "Type \`make install\` to install PsyC."
 
 valgrind:
 	$(MAKE) OPTIMIZATION="-O0"

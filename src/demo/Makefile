@@ -1,4 +1,5 @@
 include ../Makefile.common.mk
+.PHONY: default all
 
 #OBJS=../psyc.o ../io.o ../utils.o ../maths.o ../log.o ../debug.o ../convolutional.o ../recurrent.o ../lstm.o ../mnist.o ../cifar.o
 ifeq ($(CATCH_FPE),on)
@@ -14,6 +15,7 @@ endif
 LOCALBINDIR = ../../bin
 
 default: all
+	@:
 
 Makefile.dep:
 	-@$(CC) -MM *.c > Makefile.dep 2> /dev/null || true
