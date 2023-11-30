@@ -5,6 +5,7 @@ printHelp() {
     echo '' >&2
     echo "OPTIONS:" >&2
     echo '' >&2
+    echo "  --is-lib                    Compile a library instead of an executable" >&2
     echo "  --cflags                    Print CFLAGS and exit" >&2
     echo "  --ldflags                   Print LDFLAGS and exit" >&2
     echo "  --c++                       SOURCE is a C++ source" >&2
@@ -26,6 +27,8 @@ SOURCE=''
 OUT=''
 PRINT_CFG=''
 IS_CPP=false
+DO_BUILD_LIB=false
+PLATFORM=$(uname -s)
 while ! [ -z "$ARG" ]; do
     if [ "$ARG" = "-h" ] || [ "$ARG" = "--help" ]; then
         printHelp
@@ -47,12 +50,14 @@ while ! [ -z "$ARG" ]; do
         USE_STATIC=true
     elif [ "$ARG" = "-p" ] || [ "$ARG" = "--dry-run" ]; then
         PRINT_ONLY=true
-    elif [ "$ARG" = "--c++" ]; then
-        IS_CPP=true
     elif [ "$ARG" = "--cflags" ]; then
         PRINT_CFG=cflags
     elif [ "$ARG" = "--ldflags" ]; then
         PRINT_CFG=ldflags
+    elif [ "$ARG" = "--c++" ]; then
+        IS_CPP=true
+    elif [ "$ARG" = "--is-lib" ]; then
+        DO_BUILD_LIB=true
     elif [ "$ARG" = "-q" ] || [ "$ARG" = "--quiet" ]; then
         QUIET=true
     elif [ "$ARG" = "-o" ] || [ "$ARG" = "--output" ]; then
@@ -118,13 +123,28 @@ if [ -z "$OUT" ]; then
     OUT=${SOURCE%.cc}
     OUT=${OUT%.c}
     OUT=${OUT%.cpp}
-    OUT="$OUT.o"
+    if [ "$DO_BUILD_LIB" = 'true' ]; then
+        if [ "$PLATFORM" = 'Darwin' ]; then
+            OUT="$(dirname $OUT)/lib$(basename $OUT).dylib"
+        else
+            OUT="$(dirname $OUT)/lib$(basename $OUT).so"
+        fi
+    else
+        OUT="$OUT.o"
+    fi
 fi
 if [ "$IS_CPP" = 'true' ]; then
     CC='g++'
     CFLAGS=${CFLAGS/gnu99/c++11}
     CFLAGS=${CFLAGS/c99/c++11}
     CFLAGS=${CFLAGS/c11/c++11}
+fi
+if [ "$DO_BUILD_LIB" = 'true' ]; then
+    if [ "$PLATFORM" = 'Linux' ]; then
+        CFLAGS="$CFLAGS -shared -fPIC -Wl,-soname,$(basename $OUT)"
+    elif [ "$PLATFORM" = 'Darwin' ]; then
+        CFLAGS="$CFLAGS -dynamiclib -install_name $OUT"
+    fi
 fi
 if [ "$PRINT_CFG" = 'cflags' ]; then
     echo "$CFLAGS"
