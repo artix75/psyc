@@ -2235,6 +2235,33 @@ int updateModelChain(PSModel *head) {
     return 1;
 }
 
+/* Add `model` to another model (`parent`), creating a chained, multi-model
+ * model.
+ * If `parent` is already member of a multi-model chain but it's not the
+ * chain head, the function will automatically find the actual chain head
+ * and it will append `model` to the chain tail.
+ * The argument `link` allows setting the rules for data propagation (both
+ * forward propagation and bacpropagation) between `model` and the model
+ * preceding it in the model chain:
+ *  - The `layer` member of `link` can be used to set the layer in `model`
+ *    that will receive inputs from previous model (in forward propagation)
+ *    or that will back-propagate the error (delta) to previous model.
+ *  - The `previous_layer` member of `link` can be used to set the layer in
+ *    the previous model (the model in the chain that precedes `model`)
+ *    that will forward its outputs to `model` (in forward propagation) or
+ *    that will receive the error (deltas) from `model` in backpropagation.
+ * If `link` is NULL, the function will try to automatically determine it by
+ * searching for the first layer in `model` whose size matches a layer in
+ * the previous model.
+ * Return value: 1 if `model` is successfully added, 0 if something goes wrong.
+ * Possible failure reasons:
+ *  - `model` is NULL or `parent` is NULL or both are NULL.
+ *  - `model` is already part of a multi-model chain.
+ *  - `link` is NULL and it's not possible to automatically determine it.
+ *  - `link` is not NULL but it's not valid, because:
+ *     - `link->layer` is NULL or `link->previous_layer` is NULL.
+ *     - size of `link->layer` differs from size of `link->previous_layer`.
+ *  - Memory issues. */
 int PSAddModel(PSModel *parent, PSModel *model, PSModelLink *link) {
     if (parent == NULL || model == NULL) {
         PSErr(__func__, "`parent` and `model` cannot be null");
@@ -2701,6 +2728,10 @@ PSModel *PSModelClone(PSModel *model, int layout_only) {
     return clone;
 }
 
+/* Get the number of models in multi-model `model`.
+ * Return value: the number of models or:
+    - 0 if `model` is NULL or if the model chain is broken
+    - 1 if `model` is not a multi-model chain. */
 int PSModelChainLength(PSModel *model) {
     if (model == NULL) return 0;
     if (!PSIsModelChain(model)) return 1;
@@ -2716,6 +2747,13 @@ broken_chain:
     return 0;
 }
 
+/* Get the model at `index` in the multi-model chain that contains the model
+ * `entrypoint`. If `index` is negative, it will be counted from the end of
+ * the model chain (ie. -1 is the last model, or tail,  of the chain).
+ * Return value: the model or NULL if:
+ *  - `entrypoint` is NULL
+ *  - the model chain is broken
+ *  - `index` is out of bounds. */
 PSModel *PSGetModelAtIndex(PSModel *entrypoint, int index) {
     if (entrypoint == NULL) return NULL;
     if (index < 0) {
@@ -2746,6 +2784,12 @@ PSModel *PSGetModelAtIndex(PSModel *entrypoint, int index) {
     return NULL;
 }
 
+/* Get the first model (head) of the multi-model chain that contains `model`.
+ * If `model` is not a multi-model chain, the function will return the `model`
+ * itself.
+ * Return value: the first model of the chain or NULL if:
+ *  - `model` is NULL
+ *  - the chain is broken. */
 PSModel *PSModelChainHead(PSModel *model) {
     if (model == NULL) return NULL;
     int is_model_chain = PSIsModelChain(model);
@@ -2763,6 +2807,12 @@ broken_chain:
     return NULL;
 }
 
+/* Get the last model (tail) of the multi-model chain that contains `model`.
+ * If `model` is not a multi-model chain, the function will return the `model`
+ * itself.
+ * Return value: the last model of the chain or NULL if:
+ *  - `model` is NULL
+ *  - the chain is broken. */
 PSModel *PSModelChainTail(PSModel *model) {
     if (model == NULL) return NULL;
     int is_model_chain = PSIsModelChain(model);
@@ -2780,6 +2830,10 @@ broken_chain:
     return NULL;
 }
 
+/* Check whether `model` is contained by the multi-model chain `chain`.
+ * Return value:
+ *  - 1 if `model` is contained by `chain` or `model` == `chain`
+ *  - 0 if `model` is not contained by `chain` or the chain is broken. */
 int PSModelChainContains(PSModel *chain, PSModel *model) {
     if (!PSIsModelChain(chain)) return chain == model;
     PSModel *current = PSModelChainHead(chain);
@@ -2959,6 +3013,11 @@ static void deleteModelContext(PSModelContext *ctx, PSModel *model) {
     free(ctx);
 }
 
+/* Free `model` and all its related objects (layers, data, ...). If the model
+ * is part of a multi-model chain, all models following `model` will also be
+ * freed.
+ * The functions safely checks whether `model` is NULL and it does nothing
+ * in this case. */
 void PSModelFree(PSModel *model) {
     if (model == NULL) return;
     PSModelContext *ctx = getModelContext(model);
@@ -3168,6 +3227,34 @@ fail:
     return 0;
 }
 
+/* Add a new layer (instance of `PSLayer`) of type `type` and size `size` to
+ * `model`. Special layer properties can be defined by the optional argument
+ * `layer_def`.
+ * If `layer_def` is NULL, the function will use the default layer
+ * configuration.
+ * The member `load_from` of `layer_def` can be used to load the new layer's
+ * parameters from a file.
+ * The new model will be automatically allocated and added to model layers.
+ * NOTE: the new layer should never be freed directly. By freeing `model`
+ * (`PSModelFree`), all model's layer will be automatically freed.
+ * Return value: pointer to the added layer or NULL if something goes wrong.
+ * Possible failure reasons:
+ *  - `model` is NULL
+ *  - `model` is empty and `type` is not `FullyConnected` (the first layer
+ *    must be always of type FullyConnected).
+ *  - The new layer cannot be allocated into memory or the model's `layers`
+ *    array cannot be resized.
+ *  - The model's last layer is NULL.
+ *  - The new layer cannot be initialized. The reason for the initialization
+ *    failure can vary depending on the layer type.
+ *  - The new layer is recurrent or the model is recurrent but the recurrent
+ *    mode of all layers is not consistent. In order to build consistent
+ *    recurrent models, one of the following feature must be satisfied:
+ *    - All layers must be recurrent, or
+ *    - first N layers are recurrent and the remaining layers are not
+ *       recurrent, or
+ *    - first N layers are not recurrent the remaining layers are recurrent.
+ */
 PSLayer *PSAddLayer(PSModel *model, PSLayerType type, int size,
                     PSLayerDef *layer_def)
 {
