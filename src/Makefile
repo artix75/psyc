@@ -68,7 +68,9 @@ all.h: $(HEADER_FILE_LIST) $(PSYCPATH)resources/license-header.h
 	@echo "#ifndef __PS_ALL_H__" >> $@
 	@echo "#define __PS_ALL_H__" >> $@
 	@echo '' >> $@
+	@cat $(PSYCPATH)resources/cpp-include-start.hpp >> $@
 	@$(ALL_H_INCLUDE_DIRECTIVES)
+	@cat $(PSYCPATH)resources/cpp-include-end.hpp >> $@
 	@echo '' >> $@
 	@echo "#endif /* __PS_ALL_H__ */" >> $@
 

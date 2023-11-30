@@ -7,6 +7,7 @@ printHelp() {
     echo '' >&2
     echo "  --cflags                    Print CFLAGS and exit" >&2
     echo "  --ldflags                   Print LDFLAGS and exit" >&2
+    echo "  --c++                       SOURCE is a C++ source" >&2
     echo "  -o, --output PATH           Output path" >&2
     echo "  -s, --static                Use static library" >&2
     echo "  -p, --dry-run               Only print command whithout executing it" >&2
@@ -24,6 +25,7 @@ QUIET=false
 SOURCE=''
 OUT=''
 PRINT_CFG=''
+IS_CPP=false
 while ! [ -z "$ARG" ]; do
     if [ "$ARG" = "-h" ] || [ "$ARG" = "--help" ]; then
         printHelp
@@ -45,6 +47,8 @@ while ! [ -z "$ARG" ]; do
         USE_STATIC=true
     elif [ "$ARG" = "-p" ] || [ "$ARG" = "--dry-run" ]; then
         PRINT_ONLY=true
+    elif [ "$ARG" = "--c++" ]; then
+        IS_CPP=true
     elif [ "$ARG" = "--cflags" ]; then
         PRINT_CFG=cflags
     elif [ "$ARG" = "--ldflags" ]; then
@@ -113,7 +117,14 @@ CFLAGS="$CFLAGS -I${INCLUDEDIR}"
 if [ -z "$OUT" ]; then
     OUT=${SOURCE%.cc}
     OUT=${OUT%.c}
+    OUT=${OUT%.cpp}
     OUT="$OUT.o"
+fi
+if [ "$IS_CPP" = 'true' ]; then
+    CC='g++'
+    CFLAGS=${CFLAGS/gnu99/c++11}
+    CFLAGS=${CFLAGS/c99/c++11}
+    CFLAGS=${CFLAGS/c11/c++11}
 fi
 if [ "$PRINT_CFG" = 'cflags' ]; then
     echo "$CFLAGS"
