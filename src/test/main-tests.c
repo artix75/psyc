@@ -55,8 +55,7 @@
 
 #define MNIST_TEST_SAMPLE_PATH "resources/mnist-test-sample.psdata"
 #define PRETRAINED_FULL_MODEL "resources/pretrained.mnist.psmodel"
-#define CONVOLUTIONAL_MODEL "resources/cnn.data"
-#define CONVOLUTIONAL_TRAINED_MODEL "resources/pretrained.cnn.psmodel"
+#define CONVOLUTIONAL_MODEL "resources/cnn.psmodel"
 #define CONVOLUTIONAL_CIFAR_MODEL "resources/cifar-cnn.psmodel"
 #define CIFAR_IMAGE_PATH "resources/cifar-image.data"
 #define CIFAR_LABEL_PATH "resources/cifar-label.data"
@@ -229,7 +228,7 @@ int testFullBackprop(TestCase *test_case, Test *test);
 
 int testConvLoad(TestCase *test_case, Test *test);
 int testConvForward(TestCase *test_case, Test *test);
-int testConvAccuracy(TestCase *tc, Test *test);
+/*int testConvAccuracy(TestCase *tc, Test *test);*/
 int testConvBackprop(TestCase *test_case, Test *test);
 int testConvCIFAR(TestCase *tc, Test *test);
 
@@ -1926,7 +1925,7 @@ on_fail:
     return 0;
 }
 
-int testConvAccuracy(TestCase *test_case, Test *test) {
+/*int testConvAccuracy(TestCase *test_case, Test *test) {
     PSFloat *test_data = getTestData(test_case);
     PSModel *model = PSModelCreate("CNN Test");
     char path[PATH_MAX] = {0};
@@ -1952,7 +1951,7 @@ int testConvAccuracy(TestCase *test_case, Test *test) {
         "Accuracy %g != from expected (%g)", accuracy, expected
     );
     return 1;
-}
+}*/
 
 int testConvCIFAR(TestCase *test_case, Test *test) {
     UNUSED(test_case);

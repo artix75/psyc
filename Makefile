@@ -64,7 +64,8 @@ clean:
 	rm -f src/demo/Makefile.dep
 	rm -f src/demo/*.o
 	rm -f src/test/*.o
-	rm -f src/test/main_tests
+	rm -f src/test/main-tests
+	rm -f src/test/benchmark
 	rm -f bin/*
 	rm -f lib/*
 	if [ -e tmp/README ]; then cp tmp/README bin/; fi
