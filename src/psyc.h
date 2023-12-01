@@ -423,10 +423,10 @@ int PSSetNeuronState(PSNeuron *neuron, double state, ...);
 void PSDeleteNeuron(PSNeuron *neuron);
 
 /* Forward functions */
-int PSForward(PSModel *model, PSFloat *values);
+int PSForward(PSModel *model, PSFloat *inputs);
 int PSAutoregression(PSModel *model, PSFloat *inputs,
                      int randomized, PSSequenceSettings *sequence_settings);
-int PSClassify(PSModel *model, PSFloat *values);
+int PSClassify(PSModel *model, PSFloat *inputs);
 
 /* PSGradient functions */
 void PSDeleteGradient(PSGradient *gradient);
