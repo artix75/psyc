@@ -148,7 +148,7 @@ static PSModel *cloneModel(PSModel *model, int layout_only,
 int PSIsLayerPlaceholder(PSLayer *layer);
 void PSAbortLayer(PSModel *model, PSLayer *layer);
 
-/* Miscellaneous functions */
+/**** Miscellaneous functions ****/
 
 static void shutdownHandler(int sig) {
     char *msg = NULL;
@@ -355,7 +355,7 @@ void dumpForwardStep(int i, PSFloat a, PSFloat b, PSFloat sum,
     );
 }
 
-/* Forward Functions */
+/**** Forward Functions ****/
 
 int checkLayerForForward(PSLayer *layer) {
     if (layer == NULL) return 0;
@@ -1351,7 +1351,7 @@ void PSModelPrintInfo(PSModel *model) {
     }
 }
 
-/* Loss Functions */
+/**** Loss Functions ****/
 
 PSFloat PSQuadraticLoss(PSFloat *outputs, PSFloat *expected, int size,
                         int onehot_size)
@@ -1398,8 +1398,22 @@ PSFloat PSCrossEntropyLoss(PSFloat *outputs, PSFloat *expected, int size,
     return loss;
 }
 
-/* Neural Network Functions */
+/**** Neural Network Functions ****/
 
+/* Set `status` as the status of `model`. The optional argument `old` can be
+ * used to retrieve the old status of `model` before updating it with the
+ * value of `status`.
+ * If `model` is part of a multi-model chain, hte new status will be set on
+ * all the models that are part of the model chain.
+ * Common used status values are:
+ *  - `PS_STATUS_UNTRAINED`
+ *  - `PS_STATUS_TRAINED`
+ *  - `PS_STATUS_TRAINING`
+ *  - `PS_STATUS_VALIDATING`
+ *  - `PS_STATUS_PAUSED`
+ *  - `PS_STATUS_ABORTED`
+ *  - `PS_STATUS_ERROR`
+ */
 void PSModelSetStatus(PSModel *model, int status, int *old) {
     if (model == NULL) return;
     if (old != NULL) *old = model->status;
@@ -1412,6 +1426,19 @@ void PSModelSetStatus(PSModel *model, int status, int *old) {
     }
 }
 
+/* Get the value of `status` of `model`. If `model` is part of a multi-model
+ * chain, the function will retrieve the status of the first model of the
+ * chain.
+ * Common status values are:
+ *  - `PS_STATUS_UNTRAINED`
+ *  - `PS_STATUS_TRAINED`
+ *  - `PS_STATUS_TRAINING`
+ *  - `PS_STATUS_VALIDATING`
+ *  - `PS_STATUS_PAUSED`
+ *  - `PS_STATUS_ABORTED`
+ *  - `PS_STATUS_ERROR`
+ * Return value: the status of `model` or 0 if `model` is NULL.
+ */
 int PSModelGetStatus(PSModel *model) {
     if (model == NULL) return 0;
     if (PSIsModelChain(model)) model = PSModelChainHead(model);
@@ -1419,6 +1446,16 @@ int PSModelGetStatus(PSModel *model) {
     return model->status;
 }
 
+/* Set the name of `model` with the string provided with the argument `name`.
+ * If `name` is NULL and `model` already has a name, model's `name` will be
+ * cleared.
+ * NOTE: the model will duplicate the provided `name` and it will keep it
+ * inside its internal data. The duplicated string will be automatically freed
+ * by freeing the whole model (`PSModelFree`). If `model` already has a name,
+ * the original name will be automatically freed.
+ * Return value: 1 is name is successfully set or 0 if:
+ *  - `model` is NULL.
+ *  - memory cannot be allocated. */
 int PSModelSetName(PSModel *model, char *name) {
     if (model == NULL) return 0;
     if (model->name != NULL) {
@@ -1846,6 +1883,8 @@ PSLayer *PSGetLastRecurrentLayer(PSModel *model) {
     return ctx->last_recurrent_layer;
 }
 
+/* Check whether `model` is built (see: `PSModelBuild`).
+ * Return value: 1 if the model is built, 0 if it's not built. */
 int PSModelIsBuilt(PSModel *model) {
     PSModelContext *ctx = getModelContext(model);
     if (ctx == NULL) return 0;
@@ -1935,6 +1974,38 @@ static void updateModelForRecurrentMode(PSModel *model,
     }
 }
 
+/* Build `model` so that it can be used for training of for predictions.
+ * If the model is already built, the function will just return 1. In order
+ * to rebuild an already built model, `PSModelRebuild` should be used.
+ * The function will check the model's architecture and it will perfrom various
+ * actions on it:
+ *  - It will allocate and initialize all needed internal data.
+ *  - It will set proper flags both on the model and the layers.
+ *  - It will determine and set the eventual recurrent mode
+ *    (`PSRecurrentNetworkMode`) depening on model's architecture.
+ *  - It will resolve eventual layer placeholders making them real layers.
+ *  - If the loss function (member `loss` of `model`) is NULL, it will
+ *    automatically determine it:
+ *    - `PSCrossEntropyLoss` will be used if the output layer is a SoftMax
+ *      layer.
+ *    - PSQuadraticLoss in all the other cases.
+ *  - If `model` is part of a multi-model chain, it will check and update all
+ *    the chain properties.
+ * Return value: 1 is `model` is successfully built, 0 if:
+ *  - `model` is NULL.
+ *  - `model` is empty (it contains no layers).
+ *  - There was some memory allocation issue.
+ *  - The structure of the `model` is not valid (ie. some layer is NULL)
+ *  - `model` contains one or more layer placeholders and the function failed
+ *    to resolve one of them.
+ *  - `model` (or one of its layers) handles sequences-at-once but some of
+ *    its layers is recurrent.
+ *  - `model` (or one of its layers) is recurrent but some of its layers uses
+ *    sequences-at-once.
+ *  - `model` is recurrent but both the input layer and the output layer are
+ *    not.
+ *  - `model` is part of a multi-model chain but the chain is broken or not
+ *    valid. */
 int PSModelBuild(PSModel *model) {
     if (model == NULL) {
         PSErr(__func__, "model is null");
@@ -2045,6 +2116,10 @@ int PSModelBuild(PSModel *model) {
     return 1;
 }
 
+/* Rebuild an already built `model` by resetting its `built` state and calling
+ * `PSModelBuild`. If `model` is not built, calling this function is the same
+ * as directly calling `PSModelBuild`.
+ * Return value: see `PSModelBuild`. */
 int PSModelRebuild(PSModel *model) {
     if (model == NULL) {
         PSErr(__func__, "model is null!");
@@ -2089,6 +2164,13 @@ final:
     return 1;
 }
 
+/* Create a new, empty model. The optional argument `name` can be used to
+ * give a name to the model.
+ * NOTE: the model will duplicate the eventually provided `name` and it will
+ * keep it inside its internal data. The duplicated string will be
+ * automatically freed by freeing the whole model (`PSModelFree`).
+ * Return value: pointer to the created model or NULL if memory could not be
+ * allocated for it. */
 PSModel *PSModelCreate(const char* name) {
     PSModel *model = (malloc(sizeof(PSModel)));
     if (model == NULL) return NULL;
@@ -3236,7 +3318,7 @@ fail:
  * parameters from a file.
  * The new model will be automatically allocated and added to model layers.
  * NOTE: the new layer should never be freed directly. By freeing `model`
- * (`PSModelFree`), all model's layer will be automatically freed.
+ * (`PSModelFree`), all model's layers will be automatically freed.
  * Return value: pointer to the added layer or NULL if something goes wrong.
  * Possible failure reasons:
  *  - `model` is NULL
@@ -3430,6 +3512,11 @@ PSLayer *PSAddPoolingLayer(PSModel *model, PSLayerDef *ldef) {
     return PSAddLayer(model, Pooling, 0, ldef);
 }
 
+/* Free memory allocated for `layer` and all of its objects (ie. weights,
+ * states).
+ * WARN: this function should be called only for layers not being part of
+ * any model, since by freeing models (`PSModelFree`), all their layers
+ * will be automatically freed. */
 void PSLayerFree(PSLayer* layer) {
     if (layer == NULL) return;
     int i;
@@ -3979,7 +4066,13 @@ int forward(PSModel *model, PSFloat *inputs, int backprop, void *opts)
  * When the first layer takes sequences (if it has the flags `PS_FLAG_RECURRENT`
  * or PS_FLAG_USE_SEQUENCES` set), the length of `inputs` should be the
  * (input layer size * sequence length) + 1, and the first element of `inputs`
- * should contain the length of the sequence. */
+ * should contain the length of the sequence.
+ * Return value: 1 if the process succeeds or 0 if:
+ *  - `model` is NULL
+ *  - `model` is not built.
+ *  - The input layer doesn't take sequences as inputs and the output layer
+ *    doesn't produce sequences as outputs.
+ *  - Something else in the forward process fails. */
 int PSForward(PSModel *model, PSFloat *inputs) {
     return forward(model, inputs, 0, NULL);
 }
@@ -4012,6 +4105,7 @@ int PSForward(PSModel *model, PSFloat *inputs) {
  *    negative, the end-matching event is ignored.
  * Return value: 1 if the process succeeds or 0 if:
  *  - `model` is NULL
+ *  - `model` is not built.
  *  - The input layer doesn't take sequences as inputs and the output layer
  *    doesn't produce sequences as outputs.
  *  - The size of the output layer doesn't match the size of the input layer
@@ -4033,7 +4127,14 @@ int PSAutoregression(PSModel *model, PSFloat *inputs,
 }
 
 /* Forward `inputs` to `model` and get the index of the maximum state
- * from the output layer. */
+ * from the output layer.
+ * Return value: 1 if the process succeeds or 0 if:
+ *  - `model` is NULL
+ *  - `model` is not built.
+ *  - The input layer doesn't take sequences as inputs and the output layer
+ *    doesn't produce sequences as outputs.
+ *  - The index of the maximum state could not be determined.
+ *  - Something else in the forward process fails. */
 int PSClassify(PSModel *model, PSFloat *inputs) {
     int ok = PSForward(model, inputs);
     if (!ok) {
@@ -5946,6 +6047,18 @@ int PSPretrainLayers(PSModel *model, PSFloat *training_data,
  *      sequences having the same length of the input sequence.
  *      In this case, the first element of the sequence segment is the
  *      sequence length, followed by inputs/predictions pair.
+ * If some error occurs, `PS_STATUS_ERROR` will be set on `model` and the
+ * function will immediately exit.
+ * If `model` is not built, the function will automatically try to build it by
+ * calling `PSModelBuild`.
+ * Possible failure reasons:
+ *  - `model` is NULL
+ *  - `model` is not built and it cannot be build.
+ *  - The learning rate is negative.
+ *  - `model` is part of a multi-model chain but the chain is broken or invalid.
+ *  - `PS_TRAINING_FLAG_SEQ2SEQ` is set into flags of `options` but the model's
+ *    architecture is not valid for sequence-to-sequence mode (ie. the model
+ *    does not use sequences at all).
  */
 void PSTrain(PSModel *model,
              PSFloat *training_data,

@@ -2612,7 +2612,7 @@ int readModel(PSModel *model, FILE *f, const char* filepath,
         goto final;
     }
     if (nlayers == 0) {
-        loadErr(filepath, NULL, "Empty model model!");
+        loadErr(filepath, NULL, "Empty model");
         ok = 0;
         goto final;
     }
@@ -2707,6 +2707,27 @@ final:
     return ok;
 }
 
+/* Load model data (including layers and their parameters) from file
+ * located at `filepath` into `model`.
+ * This function requires an already existing model. In order to load a new
+ * model from scratch from, `PSLoadModel` should be used instead.
+ * If `model` is empty (it has no layers), both the model structure and data
+ * such as layer parameters will be loaded into the model itself).
+ * If `model` is not empty (it already has layers), only data such as layer
+ * parameters will be loaded into model. In this case, the structure of `model`
+ * must match the structure declared by the file.
+ * If the file defines a multi-model chain, the whole chain will be loaded (
+ * in this case, if `model` is not empty, the `model` chain structure must
+ * match the structure that has to be loaded from the file).
+ * Return value: 1 if `model` is successfully loaded, 0 if:
+ *  - `model` is NULL or `filepath` is NULL.
+ *  - The file at `filepath` could not be opened for reading.
+ *  - The file at `filepath` is not a valid PsyC model file.
+ *  - PsyC version is lower than version declared in the file.
+ *  - `model` is not empty and its structure differs from the one declared
+ *    by the file (ie. different number of layers or models, different layer
+ *    types, and so on).
+ *  - Some error occurred while reading data from file. */
 int PSModelLoad(PSModel *model, const char* filepath) {
     if (model == NULL || filepath == NULL) return 0;
     FILE *f = fopen(filepath, "r");
@@ -2798,6 +2819,17 @@ final:
     return ok;
 }
 
+/* Load a new model from the file located at `filepath` into `model`.
+ * In order to load model's data into an already existing model, `PSModelLoad`
+ * should be used instead.
+ * If the file defines a multi-model chain, the whole chain will be loaded.
+ * Return value: 1 if model is successfully loaded, 0 if:
+ *  - `filepath` is NULL.
+ *  - The file at `filepath` could not be opened for reading.
+ *  - The file at `filepath` is not a valid PsyC model file.
+ *  - PsyC version is lower than version declared in the file.
+ *  - Memory allocation issues.
+ *  - Some error occurred while reading data from file. */
 PSModel *PSLoadModel(const char* filepath) {
     if (filepath == NULL) {
         PSErr(__func__, "`filepath` is null");
@@ -2916,7 +2948,23 @@ static int writeModel(PSModel *model, FILE *f) {
     return 1;
 }
 
+/* Save `model` to file located at `filepath`. The function will save both
+ * model's structure (ie layer propeties) and data (ie. parameters).
+ * If `model` is part of a multi-model chain, the whole chain will be saved.
+ * Return value: 1 if `model` is successfully saved, 0 if:
+ *  - `model` is NULL or `filepath` is NULL.
+ *  - `model` is empty (it has no layers).
+ *  - The file at `filepath` could not be opened for writing.
+ *  - Some error occurred while writing data to file. */
 int PSModelSave(PSModel *model, const char* filepath) {
+    if (model == NULL) {
+        PSErr(__func__, "`model` is NULL");
+        return 0;
+    }
+    if (filepath == NULL) {
+        PSErr(__func__, "`filepath` is NULL");
+        return 0;
+    }
     if (model->size == 0) {
         PSErr(__func__, "Empty model!");
         return 0;
