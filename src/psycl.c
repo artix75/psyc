@@ -26,6 +26,7 @@
 #include <sys/stat.h>
 #include <limits.h>
 #include <assert.h>
+#include <sys/utsname.h>
 #include "psyc.h"
 #include "config.h"
 #include "utils.h"
@@ -159,6 +160,81 @@ static void cleanup(void);
 
 
 /* Helper Functions */
+
+static char *getPsycPath(char *executable) {
+    static char path[PATH_MAX + 1] = {0};
+    char _realpath[PATH_MAX + 1];
+    if (path[0]) return path;
+    _realpath[0] = 0;
+    if (realpath(executable, _realpath) != NULL) {
+        char *dir = dirname(_realpath);
+        if (dir == NULL) return NULL;
+        dir = dirname(dir);
+        if (dir == NULL) return NULL;
+        int len = strlen((const char*) dir);
+        if (len >= PATH_MAX) {
+            fprintf(stderr, "WARN: getPsycPath(): dirname length > %d",
+                    PATH_MAX);
+            return NULL;
+        }
+        memcpy(path, dir, len);
+        path[len] = 0;
+        return path;
+    } else {
+        char *syspath = getenv("PATH");
+        if (syspath == NULL) return NULL;
+        int execlen = strlen(executable);
+        char *p = syspath;
+        while ((p = strchr(p, ':'))) {
+            size_t len = p - syspath;
+            if (len > 0) {
+                if (len > PATH_MAX) {
+                    fprintf(stderr, "WARN: ENV['PATH'] path length > %d",
+                            PATH_MAX);
+                    return NULL;
+                }
+                char spath[PATH_MAX + 1] = "\x0";
+                char *s = spath;
+                memcpy(spath, syspath, len);
+                if (spath[len - 1] != '/') spath[len++] = '/';
+                s += len;
+                len = len + execlen;
+                if (len > PATH_MAX) {
+                    fprintf(stderr, "WARN: path length > %d",
+                            PATH_MAX);
+                    return NULL;
+                }
+                memcpy(s, executable, execlen);
+                spath[len] = 0;
+                struct stat file_stat;
+                int exists = lstat(spath, &file_stat);
+                if (exists >= 0) {
+                    _realpath[0] = 0;
+                    if (realpath(spath, _realpath) != NULL) {
+                        char *dir = dirname(_realpath);
+                        if (dir == NULL) return NULL;
+                        dir = dirname(dir);
+                        if (dir == NULL) return NULL;
+                        int len = strlen((const char*) dir);
+                        if (len >= PATH_MAX) {
+                            fprintf(stderr, "WARN: getPsycPath(): dirname "
+                                    "length > %d",
+                                    PATH_MAX);
+                            return NULL;
+                        }
+                        memcpy(path, dir, len);
+                        path[len] = 0;
+                        return path;
+                    }
+                }
+            }
+            p++;
+            syspath = p;
+        }
+        return NULL;
+    }
+}
+
 static void toLowerCase(char *str) {
     if (str == NULL) return;
     char *p = str;
@@ -787,6 +863,75 @@ static PSLayer *getLayerFromCoordinates(char *coords, int model_idx,
         return NULL;
     }
     return layer;
+}
+
+static int openHTMLDoc(char *executable) {
+    static char *gui_programs[] = {
+        "xdg-open", "sensible-browser", "x-www-browser", "gnome-open",
+    };
+    static char *txt_programs[] = {
+        "lynx", "sensible-browser", "w3m"
+    };
+    char *index_path = PSPathJoin(
+        2, PS_PREFIX, "share/psyc/doc/html/index.html"
+    );
+    if (index_path == NULL) return 0;
+    int success = 1;
+    if (!PSFileExists(index_path)) {
+        PSWarn("PsyC or PsyC's documentation is not installed");
+        free(index_path);
+        index_path = NULL;
+        char *exec_path = getPsycPath(executable);
+        if (exec_path == NULL) return 0;
+        index_path = PSPathJoin(2, exec_path, "doc/html/index.html");
+        if (index_path == NULL) return 0;
+        success = PSFileExists(index_path);
+        if (!success) {
+            PSErr(NULL, "could not find any documentation");
+            goto final;
+        }
+    }
+    struct utsname sysinfo;
+    uname(&sysinfo);
+    size_t n_programs, i;
+    char cmd[PATH_MAX];
+    char *program = NULL;
+    char **programs = NULL;
+    if (strcmp("Darwin", sysinfo.sysname) == 0) program = "open";
+    else {
+        int has_gui = (system("test -n \"$DISPLAY\"") == 0);
+        if (has_gui) {
+            programs = gui_programs;
+            n_programs =  sizeof(gui_programs) / sizeof(char *);
+        } else {
+            programs = txt_programs;
+            n_programs =  sizeof(txt_programs) / sizeof(char *);
+        }
+        for (i = 0; i < n_programs; i++) {
+            sprintf(cmd, "which %s", *(programs + i));
+            if (system(cmd) == 0) {
+                program = *(programs + i);
+                break;
+            }
+        }
+        if (program == NULL) {
+            PSErr(NULL, "failed to find a program to open document web page:\n"
+                  "%s\nTry to install one of the following programs:\n",
+                  index_path);
+            for (i = 0; i < n_programs; i++)
+                PSLog(PSLOGLEVEL_WARN, "%s\n", *(programs + i));
+            success = 0;
+            goto final;
+        }
+    }
+    if (program == NULL) {
+    }
+    snprintf(cmd, PATH_MAX, "%s '%s'", program, index_path);
+    int exit_status = system(cmd);
+    success = exit_status == 0;
+final:
+    free(index_path);
+    return success;
 }
 
 void parseOptions(int argc, char **argv) {
@@ -1430,6 +1575,9 @@ void parseOptions(int argc, char **argv) {
             printInfo();
             cleanup();
             exit(0);
+        } else if (strcmp("--doc", arg) == 0) {
+            int ok = openHTMLDoc(argv[0]);
+            exit(ok ? 0 : 1);
         } else if (strcmp("-h", arg) == 0 || strcmp("--help", arg) == 0) {
             printHelp(argv[0]);
             cleanup();
