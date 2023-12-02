@@ -1,0 +1,279 @@
+<!doctype html>
+<!--
+Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+All rights reserved.
+
+Redistribution and use in source and binary forms are permitted
+provided that the above copyright notice and this paragraph are
+duplicated in all such forms and that any documentation,
+advertising materials, and other materials related to such
+distribution and use acknowledge that the software was developed
+by the copyright holder. The name of the
+copyright holder may not be used to endorse or promote products derived
+from this software without specific prior written permission.
+THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+-->
+<html lang="en">
+   <head>
+       <title>PsyC Documentation - STRING</title>
+       <link rel="stylesheet" type="text/css" href="style.css">
+       <script language="javascript" src="main.js"></script>
+   </head>
+   <body class="psyc-doc psyc-tag">
+       <header>
+           <h1>PsyC Documentation <span class="version">0.9.3</span></h1>
+           <h2>API Reference - STRING</h2>
+           <nav id="top-menu">
+               <ul>
+                   <li>
+                       <a href="index.html">INDEX</a>
+                   </li>
+               </ul>
+           </nav>
+           <nav id="main-menu">
+               <ul>
+                   <li>
+                       <a class="" href="functions.html">Functions</a>
+                   </li>
+                   <li>
+                       <a class="" href="types.html">Types</a>
+                   </li>
+                   <li>
+                       <a class="" href="macros.html">Macros</a>
+                   </li>
+               </ul>
+           </nav>
+       </header>
+       <main>
+           <nav id="sidebar">
+               <h2>STRING</h2>
+               <ul>
+<li><a href="#function-psstringjoin">PSStringJoin</a></li>
+<li><a href="#function-psprintablelength">PSPrintableLength</a></li>
+<li><a href="#type-psutf8char">PSUTF8Char</a></li>
+<li><a href="#macro-psutf8charsize">PSUTF8CharSize</a></li>
+<li><a href="#function-psutf8strlen">PSUTF8StrLen</a></li>
+<li><a href="#function-psutf8codepointsize">PSUTF8CodepointSize</a></li>
+<li><a href="#function-psutf8strncpy">PSUTF8StrNCpy</a></li>
+<li><a href="#function-psutf8isvalidchar">PSUTF8IsValidChar</a></li>
+<li><a href="#function-psutf8next">PSUTF8Next</a></li>
+<li><a href="#function-psutf8decode">PSUTF8Decode</a></li>
+<li><a href="#function-psutf8encode">PSUTF8Encode</a></li>
+<li><a href="#function-psutf8isspace">PSUTF8IsSpace</a></li>
+<li><a href="#function-psutf8ispunct">PSUTF8IsPunct</a></li>
+<li><a href="#function-psutf8isdigit">PSUTF8IsDigit</a></li>
+<li><a href="#function-psutf8isalpha">PSUTF8IsAlpha</a></li>
+<li><a href="#function-psutf8isupper">PSUTF8IsUpper</a></li>
+<li><a href="#function-psutf8islower">PSUTF8IsLower</a></li>
+<li><a href="#function-psutf8isalphanum">PSUTF8IsAlphaNum</a></li>
+<li><a href="#function-psutf8toupper">PSUTF8ToUpper</a></li>
+<li><a href="#function-psutf8tolower">PSUTF8ToLower</a></li>
+               </ul>
+           </nav>
+           <section id="doc">
+<div class="details function" id="function-psstringjoin">
+<h3 class="name">PSStringJoin</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">132</span></div>
+<div class="tags"><span class="tag string" data-href="tag-string.html">STRING</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">char *</span><span class="identifier name">PSStringJoin</span> (<span class="arguments"><span class="argument"><span class="type">char **</span><span class="identifier pointer-name" data-identifier-id=function-psstringjoin-strings>strings</span></span>, <span class="argument"><span class="type">char *</span><span class="identifier pointer-name" data-identifier-id=function-psstringjoin-sep>sep</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psstringjoin-len>len</span></span></span>)</code>
+</div>
+<div class="description">
+Strings
+</div>
+</div>
+
+<div class="details function" id="function-psprintablelength">
+<h3 class="name">PSPrintableLength</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">133</span></div>
+<div class="tags"><span class="tag string" data-href="tag-string.html">STRING</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">int</span> <span class="identifier name">PSPrintableLength</span> (<span class="arguments"><span class="argument"><span class="type">const char *</span><span class="identifier pointer-name" data-identifier-id=function-psprintablelength-s>s</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details type" id="type-psutf8char">
+<h3 class="name">PSUTF8Char</h3>
+<div class="location">In: <span class="filename">utf8.h</span> - Line: <span class="line">23</span></div>
+<div class="tags"><span class="tag string" data-href="tag-string.html">STRING</span><span class="tag utf8" data-href="tag-utf8.html">UTF8</span></div><div class="code">
+<code class="definition">
+<span class="keyword">typedef </span><span class="type">uint32_t</span> <span class="identifier">PSUTF8Char</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psutf8charsize">
+<h3 class="name">PSUTF8CharSize</h3>
+<div class="location">In: <span class="filename">utf8.h</span> - Line: <span class="line">24</span></div>
+<div class="tags"><span class="tag string" data-href="tag-string.html">STRING</span><span class="tag utf8" data-href="tag-utf8.html">UTF8</span></div><div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSUTF8CharSize</span><span class="arguments">(s)</span> <span class="macro-expansion">utf8_length[(((uint8_t *)(s))[0] &amp; 0xFF) &gt;&gt; 4]</span></code>
+</div>
+</div>
+
+<div class="details function" id="function-psutf8strlen">
+<h3 class="name">PSUTF8StrLen</h3>
+<div class="location">In: <span class="filename">utf8.h</span> - Line: <span class="line">31</span></div>
+<div class="tags"><span class="tag string" data-href="tag-string.html">STRING</span><span class="tag utf8" data-href="tag-utf8.html">UTF8</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">int</span> <span class="identifier name">PSUTF8StrLen</span> (<span class="arguments"><span class="argument"><span class="type">const char *</span><span class="identifier pointer-name" data-identifier-id=function-psutf8strlen-s>s</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psutf8codepointsize">
+<h3 class="name">PSUTF8CodepointSize</h3>
+<div class="location">In: <span class="filename">utf8.h</span> - Line: <span class="line">32</span></div>
+<div class="tags"><span class="tag string" data-href="tag-string.html">STRING</span><span class="tag utf8" data-href="tag-utf8.html">UTF8</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">int</span> <span class="identifier name">PSUTF8CodepointSize</span> (<span class="arguments"><span class="argument"><span class="type">uint32_t</span> <span class="identifier" data-identifier-id=function-psutf8codepointsize-cp>cp</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psutf8strncpy">
+<h3 class="name">PSUTF8StrNCpy</h3>
+<div class="location">In: <span class="filename">utf8.h</span> - Line: <span class="line">33</span></div>
+<div class="tags"><span class="tag string" data-href="tag-string.html">STRING</span><span class="tag utf8" data-href="tag-utf8.html">UTF8</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">char *</span><span class="identifier name">PSUTF8StrNCpy</span> (<span class="arguments"><span class="argument"><span class="type">char *</span><span class="identifier pointer-name" data-identifier-id=function-psutf8strncpy-dest>dest</span></span>, <span class="argument"><span class="type">const char *</span><span class="identifier pointer-name" data-identifier-id=function-psutf8strncpy-src>src</span></span>, <span class="argument"><span class="type">size_t</span> <span class="identifier" data-identifier-id=function-psutf8strncpy-n>n</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psutf8isvalidchar">
+<h3 class="name">PSUTF8IsValidChar</h3>
+<div class="location">In: <span class="filename">utf8.h</span> - Line: <span class="line">34</span></div>
+<div class="tags"><span class="tag string" data-href="tag-string.html">STRING</span><span class="tag utf8" data-href="tag-utf8.html">UTF8</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">int</span> <span class="identifier name">PSUTF8IsValidChar</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psutf8char">PSUTF8Char</a></span> <span class="identifier" data-identifier-id=function-psutf8isvalidchar-c>c</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psutf8next">
+<h3 class="name">PSUTF8Next</h3>
+<div class="location">In: <span class="filename">utf8.h</span> - Line: <span class="line">35</span></div>
+<div class="tags"><span class="tag string" data-href="tag-string.html">STRING</span><span class="tag utf8" data-href="tag-utf8.html">UTF8</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">int</span> <span class="identifier name">PSUTF8Next</span> (<span class="arguments"><span class="argument"><span class="type">char *</span><span class="identifier pointer-name" data-identifier-id=function-psutf8next-txt>txt</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psutf8char">PSUTF8Char</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psutf8next-ch>ch</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psutf8decode">
+<h3 class="name">PSUTF8Decode</h3>
+<div class="location">In: <span class="filename">utf8.h</span> - Line: <span class="line">36</span></div>
+<div class="tags"><span class="tag string" data-href="tag-string.html">STRING</span><span class="tag utf8" data-href="tag-utf8.html">UTF8</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">uint32_t</span> <span class="identifier name">PSUTF8Decode</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psutf8char">PSUTF8Char</a></span> <span class="identifier" data-identifier-id=function-psutf8decode-c>c</span></span></span>)</code>
+</div>
+<div class="description">
+from UTF-8 encoding to Unicode Codepoint
+</div>
+</div>
+
+<div class="details function" id="function-psutf8encode">
+<h3 class="name">PSUTF8Encode</h3>
+<div class="location">In: <span class="filename">utf8.h</span> - Line: <span class="line">37</span></div>
+<div class="tags"><span class="tag string" data-href="tag-string.html">STRING</span><span class="tag utf8" data-href="tag-utf8.html">UTF8</span></div><div class="code">
+<code class="definition">
+<span class="type return-type"><a class="psyc-type" href="types.html#type-psutf8char">PSUTF8Char</a></span> <span class="identifier name">PSUTF8Encode</span> (<span class="arguments"><span class="argument"><span class="type">uint32_t</span> <span class="identifier" data-identifier-id=function-psutf8encode-codepoint>codepoint</span></span></span>)</code>
+</div>
+<div class="description">
+From Unicode Codepoint to UTF-8 encoding
+</div>
+</div>
+
+<div class="details function" id="function-psutf8isspace">
+<h3 class="name">PSUTF8IsSpace</h3>
+<div class="location">In: <span class="filename">utf8.h</span> - Line: <span class="line">38</span></div>
+<div class="tags"><span class="tag string" data-href="tag-string.html">STRING</span><span class="tag utf8" data-href="tag-utf8.html">UTF8</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">int</span> <span class="identifier name">PSUTF8IsSpace</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psutf8char">PSUTF8Char</a></span> <span class="identifier" data-identifier-id=function-psutf8isspace-uc>uc</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psutf8ispunct">
+<h3 class="name">PSUTF8IsPunct</h3>
+<div class="location">In: <span class="filename">utf8.h</span> - Line: <span class="line">39</span></div>
+<div class="tags"><span class="tag string" data-href="tag-string.html">STRING</span><span class="tag utf8" data-href="tag-utf8.html">UTF8</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">int</span> <span class="identifier name">PSUTF8IsPunct</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psutf8char">PSUTF8Char</a></span> <span class="identifier" data-identifier-id=function-psutf8ispunct-uc>uc</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psutf8isdigit">
+<h3 class="name">PSUTF8IsDigit</h3>
+<div class="location">In: <span class="filename">utf8.h</span> - Line: <span class="line">40</span></div>
+<div class="tags"><span class="tag string" data-href="tag-string.html">STRING</span><span class="tag utf8" data-href="tag-utf8.html">UTF8</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">int</span> <span class="identifier name">PSUTF8IsDigit</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psutf8char">PSUTF8Char</a></span> <span class="identifier" data-identifier-id=function-psutf8isdigit-uc>uc</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psutf8isalpha">
+<h3 class="name">PSUTF8IsAlpha</h3>
+<div class="location">In: <span class="filename">utf8.h</span> - Line: <span class="line">41</span></div>
+<div class="tags"><span class="tag string" data-href="tag-string.html">STRING</span><span class="tag utf8" data-href="tag-utf8.html">UTF8</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">int</span> <span class="identifier name">PSUTF8IsAlpha</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psutf8char">PSUTF8Char</a></span> <span class="identifier" data-identifier-id=function-psutf8isalpha-uc>uc</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psutf8isupper">
+<h3 class="name">PSUTF8IsUpper</h3>
+<div class="location">In: <span class="filename">utf8.h</span> - Line: <span class="line">42</span></div>
+<div class="tags"><span class="tag string" data-href="tag-string.html">STRING</span><span class="tag utf8" data-href="tag-utf8.html">UTF8</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">int</span> <span class="identifier name">PSUTF8IsUpper</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psutf8char">PSUTF8Char</a></span> <span class="identifier" data-identifier-id=function-psutf8isupper-uc>uc</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psutf8islower">
+<h3 class="name">PSUTF8IsLower</h3>
+<div class="location">In: <span class="filename">utf8.h</span> - Line: <span class="line">43</span></div>
+<div class="tags"><span class="tag string" data-href="tag-string.html">STRING</span><span class="tag utf8" data-href="tag-utf8.html">UTF8</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">int</span> <span class="identifier name">PSUTF8IsLower</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psutf8char">PSUTF8Char</a></span> <span class="identifier" data-identifier-id=function-psutf8islower-uc>uc</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psutf8isalphanum">
+<h3 class="name">PSUTF8IsAlphaNum</h3>
+<div class="location">In: <span class="filename">utf8.h</span> - Line: <span class="line">44</span></div>
+<div class="tags"><span class="tag string" data-href="tag-string.html">STRING</span><span class="tag utf8" data-href="tag-utf8.html">UTF8</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">int</span> <span class="identifier name">PSUTF8IsAlphaNum</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psutf8char">PSUTF8Char</a></span> <span class="identifier" data-identifier-id=function-psutf8isalphanum-uc>uc</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psutf8toupper">
+<h3 class="name">PSUTF8ToUpper</h3>
+<div class="location">In: <span class="filename">utf8.h</span> - Line: <span class="line">45</span></div>
+<div class="tags"><span class="tag string" data-href="tag-string.html">STRING</span><span class="tag utf8" data-href="tag-utf8.html">UTF8</span></div><div class="code">
+<code class="definition">
+<span class="type return-type"><a class="psyc-type" href="types.html#type-psutf8char">PSUTF8Char</a></span> <span class="identifier name">PSUTF8ToUpper</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psutf8char">PSUTF8Char</a></span> <span class="identifier" data-identifier-id=function-psutf8toupper-uc>uc</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psutf8tolower">
+<h3 class="name">PSUTF8ToLower</h3>
+<div class="location">In: <span class="filename">utf8.h</span> - Line: <span class="line">46</span></div>
+<div class="tags"><span class="tag string" data-href="tag-string.html">STRING</span><span class="tag utf8" data-href="tag-utf8.html">UTF8</span></div><div class="code">
+<code class="definition">
+<span class="type return-type"><a class="psyc-type" href="types.html#type-psutf8char">PSUTF8Char</a></span> <span class="identifier name">PSUTF8ToLower</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psutf8char">PSUTF8Char</a></span> <span class="identifier" data-identifier-id=function-psutf8tolower-uc>uc</span></span></span>)</code>
+</div>
+</div>
+
+           </section>
+       </main>
+       <footer>
+           <div class="contacts">
+               <span><label>PsyC project page:</label> <a href="https://github.com/artix75/psyc" target="_blank">https://github.com/artix75/psyc</a></span> &bullet; <span><label>Report bugs to:</label> <a href="https://github.com/artix75/psyc/issues" target="_blank">https://github.com/artix75/psyc/issues</a></span>
+           </div>
+           <div class="license-info">
+               <div class="license"><img src="License-BSD-3-Clause-blue.svg"> PsyC is released under the <a href="https://opensource.org/license/bsd-3-clause/">BSD-3 Clause</a>
+               </div>
+               <div class="copyright">Copyright &copy; 2016-2023 Giuseppe Fabio Nicotra
+               </div>
+           </div>
+       </footer>
+   </body>
+</html>

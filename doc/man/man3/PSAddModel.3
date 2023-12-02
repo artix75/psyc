@@ -1,0 +1,82 @@
+.\" Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that the above copyright notice and this paragraph are
+.\" duplicated in all such forms and that any documentation,
+.\" advertising materials, and other materials related to such
+.\" distribution and use acknowledge that the software was developed
+.\" by the copyright holder. The name of the
+.\" copyright holder may not be used to endorse or promote products derived
+.\" from this software without specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+.TH PSAddModel 3 2023-12-01 "PsyC 0.9.3" "PsyC Library Functions Manual"
+
+.SH NAME
+PSAddModel
+
+.SH LIBRARY
+PsyC (-lpsyc)
+
+.SH SYNOPSIS
+
+.B
+#include <psyc/psyc.h>
+
+.I
+int  
+.br
+\fBPSAddModel\fR(\fIPSModel *parent\fR, \fIPSModel *model\fR, \fIPSModelLink *link\fR)
+.SH DESCRIPTION
+Add \fImodel\fR to another model (\fIparent\fR), creating a chained, multi-model model.
+.br
+If \fIparent\fR is already member of a multi-model chain but it's not the chain head, the function will automatically find the actual chain head and it will append \fImodel\fR to the chain tail.
+.br
+The argument \fIlink\fR allows setting the rules for data propagation (both forward propagation and bacpropagation) between \fImodel\fR and the model preceding it in the model chain:
+.br
+
+.RS 4
+\[bu] The \fIlayer\fR member of \fIlink\fR can be used to set the layer in \fImodel\fR that will receive inputs from previous model (in forward propagation) or that will back-propagate the error (delta) to previous model.
+.br
+
+\[bu] The \fIprevious_layer\fR member of \fIlink\fR can be used to set the layer in the previous model (the model in the chain that precedes \fImodel\fR) that will forward its outputs to \fImodel\fR (in forward propagation) or that will receive the error (deltas) from \fImodel\fR in backpropagation.
+.RE
+.RE
+
+If \fIlink\fR is \fINULL\fR, the function will try to automatically determine it by searching for the first layer in \fImodel\fR whose size matches a layer in the previous model.  
+
+.SH RETURN VALUES
+1 if \fImodel\fR is successfully added, 0 if something goes wrong.
+Possible failure reasons:
+.br
+
+.RS 4
+\[bu] \fImodel\fR is \fINULL\fR or \fIparent\fR is \fINULL\fR or both are \fINULL\fR.
+.br
+
+\[bu] \fImodel\fR is already part of a multi-model chain.
+.br
+
+\[bu] \fIlink\fR is \fINULL\fR and it's not possible to automatically determine it.
+.br
+
+\[bu] \fIlink\fR is not \fINULL\fR but it's not valid, because:
+.br
+
+.RS 4
+\[bu] `link->layer` is \fINULL\fR or `link->previous_layer` is \fINULL\fR.
+.br
+
+\[bu] size of `link->layer` differs from size of `link->previous_layer`.
+.br
+
+.RE
+\[bu] Memory issues.
+.br
+.RE
+
+.SH SEE ALSO
+PSGetModelAtIndex(3), PSModelChainContains(3), PSModelChainHead(3), PSModelChainLength(3), PSModelChainTail(3)

@@ -1,0 +1,2851 @@
+<!doctype html>
+<!--
+Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+All rights reserved.
+
+Redistribution and use in source and binary forms are permitted
+provided that the above copyright notice and this paragraph are
+duplicated in all such forms and that any documentation,
+advertising materials, and other materials related to such
+distribution and use acknowledge that the software was developed
+by the copyright holder. The name of the
+copyright holder may not be used to endorse or promote products derived
+from this software without specific prior written permission.
+THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+-->
+<html lang="en">
+   <head>
+       <title>PsyC Documentation - Macros</title>
+       <link rel="stylesheet" type="text/css" href="style.css">
+       <script language="javascript" src="main.js"></script>
+   </head>
+   <body class="psyc-doc psyc-macros">
+       <header>
+           <h1>PsyC Documentation <span class="version">0.9.3</span></h1>
+           <h2>API Reference - Macros</h2>
+           <nav id="top-menu">
+               <ul>
+                   <li>
+                       <a href="index.html">INDEX</a>
+                   </li>
+               </ul>
+           </nav>
+           <nav id="main-menu">
+               <ul>
+                   <li>
+                       <a class="" href="functions.html">Functions</a>
+                   </li>
+                   <li>
+                       <a class="" href="types.html">Types</a>
+                   </li>
+                   <li>
+                       <a class="current" href="macros.html">Macros</a>
+                   </li>
+               </ul>
+           </nav>
+       </header>
+       <main>
+           <nav id="sidebar">
+               <h2>Macros</h2>
+               <ul>
+<li><a href="#macro-dbl-decimal-dig">DBL_DECIMAL_DIG</a></li>
+<li><a href="#macro-flt-decimal-dig">FLT_DECIMAL_DIG</a></li>
+<li><a href="#macro-m-pi">M_PI</a></li>
+<li><a href="#macro-ps-action-abort">PS_ACTION_ABORT</a></li>
+<li><a href="#macro-ps-action-none">PS_ACTION_NONE</a></li>
+<li><a href="#macro-ps-action-pause">PS_ACTION_PAUSE</a></li>
+<li><a href="#macro-ps-bitmap-op-and">PS_BITMAP_OP_AND</a></li>
+<li><a href="#macro-ps-bitmap-op-or">PS_BITMAP_OP_OR</a></li>
+<li><a href="#macro-ps-bitmap-op-xor">PS_BITMAP_OP_XOR</a></li>
+<li><a href="#macro-ps-cifar-image-size">PS_CIFAR_IMAGE_SIZE</a></li>
+<li><a href="#macro-ps-data-type-test">PS_DATA_TYPE_TEST</a></li>
+<li><a href="#macro-ps-data-type-training">PS_DATA_TYPE_TRAINING</a></li>
+<li><a href="#macro-ps-debug-phase-update-grads">PS_DEBUG_PHASE_UPDATE_GRADS</a></li>
+<li><a href="#macro-ps-debug-phase-update-weights">PS_DEBUG_PHASE_UPDATE_WEIGHTS</a></li>
+<li><a href="#macro-ps-default-beta1">PS_DEFAULT_BETA1</a></li>
+<li><a href="#macro-ps-default-beta2">PS_DEFAULT_BETA2</a></li>
+<li><a href="#macro-ps-default-eos-index">PS_DEFAULT_EOS_INDEX</a></li>
+<li><a href="#macro-ps-default-eps">PS_DEFAULT_EPS</a></li>
+<li><a href="#macro-ps-default-max-vocab-size">PS_DEFAULT_MAX_VOCAB_SIZE</a></li>
+<li><a href="#macro-ps-default-parser-capacity">PS_DEFAULT_PARSER_CAPACITY</a></li>
+<li><a href="#macro-ps-default-recurrent-mode">PS_DEFAULT_RECURRENT_MODE</a></li>
+<li><a href="#macro-ps-default-rho">PS_DEFAULT_RHO</a></li>
+<li><a href="#macro-ps-default-token-separator">PS_DEFAULT_TOKEN_SEPARATOR</a></li>
+<li><a href="#macro-ps-default-unknown-token">PS_DEFAULT_UNKNOWN_TOKEN</a></li>
+<li><a href="#macro-ps-flag-accel-disabled">PS_FLAG_ACCEL_DISABLED</a></li>
+<li><a href="#macro-ps-flag-autoregression">PS_FLAG_AUTOREGRESSION</a></li>
+<li><a href="#macro-ps-flag-log-colors">PS_FLAG_LOG_COLORS</a></li>
+<li><a href="#macro-ps-flag-no-bias">PS_FLAG_NO_BIAS</a></li>
+<li><a href="#macro-ps-flag-non-trainable">PS_FLAG_NON_TRAINABLE</a></li>
+<li><a href="#macro-ps-flag-none">PS_FLAG_NONE</a></li>
+<li><a href="#macro-ps-flag-onehot">PS_FLAG_ONEHOT</a></li>
+<li><a href="#macro-ps-flag-pretrainer">PS_FLAG_PRETRAINER</a></li>
+<li><a href="#macro-ps-flag-randregression">PS_FLAG_RANDREGRESSION</a></li>
+<li><a href="#macro-ps-flag-recurrent">PS_FLAG_RECURRENT</a></li>
+<li><a href="#macro-ps-flag-self-attention">PS_FLAG_SELF_ATTENTION</a></li>
+<li><a href="#macro-ps-flag-use-sequences">PS_FLAG_USE_SEQUENCES</a></li>
+<li><a href="#macro-ps-gru-candidate-idx">PS_GRU_CANDIDATE_IDX</a></li>
+<li><a href="#macro-ps-gru-reset-idx">PS_GRU_RESET_IDX</a></li>
+<li><a href="#macro-ps-gru-update-idx">PS_GRU_UPDATE_IDX</a></li>
+<li><a href="#macro-ps-init-mode-auto">PS_INIT_MODE_AUTO</a></li>
+<li><a href="#macro-ps-init-mode-rand">PS_INIT_MODE_RAND</a></li>
+<li><a href="#macro-ps-init-mode-value">PS_INIT_MODE_VALUE</a></li>
+<li><a href="#macro-ps-init-mode-zero">PS_INIT_MODE_ZERO</a></li>
+<li><a href="#macro-ps-invalid-token-id">PS_INVALID_TOKEN_ID</a></li>
+<li><a href="#macro-ps-io-binary-mode">PS_IO_BINARY_MODE</a></li>
+<li><a href="#macro-ps-io-save-definition">PS_IO_SAVE_DEFINITION</a></li>
+<li><a href="#macro-ps-keys-proj-idx">PS_KEYS_PROJ_IDX</a></li>
+<li><a href="#macro-ps-keys-projection">PS_KEYS_PROJECTION</a></li>
+<li><a href="#macro-ps-layer-types">PS_LAYER_TYPES</a></li>
+<li><a href="#macro-ps-line-fill">PS_LINE_FILL</a></li>
+<li><a href="#macro-ps-line-overwrite">PS_LINE_OVERWRITE</a></li>
+<li><a href="#macro-ps-line-plain-ascii">PS_LINE_PLAIN_ASCII</a></li>
+<li><a href="#macro-ps-lstm-candidate-idx">PS_LSTM_CANDIDATE_IDX</a></li>
+<li><a href="#macro-ps-lstm-forget-idx">PS_LSTM_FORGET_IDX</a></li>
+<li><a href="#macro-ps-lstm-input-idx">PS_LSTM_INPUT_IDX</a></li>
+<li><a href="#macro-ps-lstm-output-idx">PS_LSTM_OUTPUT_IDX</a></li>
+<li><a href="#macro-ps-lstm-rawstate-idx">PS_LSTM_RAWSTATE_IDX</a></li>
+<li><a href="#macro-ps-matrix-max-dimensions">PS_MATRIX_MAX_DIMENSIONS</a></li>
+<li><a href="#macro-ps-max-memory-gradients">PS_MAX_MEMORY_GRADIENTS</a></li>
+<li><a href="#macro-ps-max-providers">PS_MAX_PROVIDERS</a></li>
+<li><a href="#macro-ps-max-sequence-length">PS_MAX_SEQUENCE_LENGTH</a></li>
+<li><a href="#macro-ps-mnist-input-size">PS_MNIST_INPUT_SIZE</a></li>
+<li><a href="#macro-ps-null-value">PS_NULL_VALUE</a></li>
+<li><a href="#macro-ps-opt-time-full">PS_OPT_TIME_FULL</a></li>
+<li><a href="#macro-ps-opt-time-human">PS_OPT_TIME_HUMAN</a></li>
+<li><a href="#macro-ps-opt-time-long">PS_OPT_TIME_LONG</a></li>
+<li><a href="#macro-ps-optimization">PS_OPTIMIZATION</a></li>
+<li><a href="#macro-ps-output-proj-idx">PS_OUTPUT_PROJ_IDX</a></li>
+<li><a href="#macro-ps-output-projection">PS_OUTPUT_PROJECTION</a></li>
+<li><a href="#macro-ps-param-bias">PS_PARAM_BIAS</a></li>
+<li><a href="#macro-ps-param-weight">PS_PARAM_WEIGHT</a></li>
+<li><a href="#macro-ps-parser-flag-no-normalization">PS_PARSER_FLAG_NO_NORMALIZATION</a></li>
+<li><a href="#macro-ps-parser-flag-preserve-string">PS_PARSER_FLAG_PRESERVE_STRING</a></li>
+<li><a href="#macro-ps-parser-flag-readonly-vocab">PS_PARSER_FLAG_READONLY_VOCAB</a></li>
+<li><a href="#macro-ps-parser-mode-chars">PS_PARSER_MODE_CHARS</a></li>
+<li><a href="#macro-ps-parser-mode-tokens">PS_PARSER_MODE_TOKENS</a></li>
+<li><a href="#macro-ps-prefix">PS_PREFIX</a></li>
+<li><a href="#macro-ps-progress-flag-just-bar">PS_PROGRESS_FLAG_JUST_BAR</a></li>
+<li><a href="#macro-ps-progress-flag-just-percent">PS_PROGRESS_FLAG_JUST_PERCENT</a></li>
+<li><a href="#macro-ps-progress-flag-no-gradient">PS_PROGRESS_FLAG_NO_GRADIENT</a></li>
+<li><a href="#macro-ps-progress-flag-no-total">PS_PROGRESS_FLAG_NO_TOTAL</a></li>
+<li><a href="#macro-ps-progress-flag-no-xterm256">PS_PROGRESS_FLAG_NO_XTERM256</a></li>
+<li><a href="#macro-ps-progress-flag-percent">PS_PROGRESS_FLAG_PERCENT</a></li>
+<li><a href="#macro-ps-progress-flag-percent-right">PS_PROGRESS_FLAG_PERCENT_RIGHT</a></li>
+<li><a href="#macro-ps-progress-flag-xterm256-code">PS_PROGRESS_FLAG_XTERM256_CODE</a></li>
+<li><a href="#macro-ps-progress-style-bar">PS_PROGRESS_STYLE_BAR</a></li>
+<li><a href="#macro-ps-progress-style-double-dash">PS_PROGRESS_STYLE_DOUBLE_DASH</a></li>
+<li><a href="#macro-ps-progress-style-line">PS_PROGRESS_STYLE_LINE</a></li>
+<li><a href="#macro-ps-progress-style-single-dash">PS_PROGRESS_STYLE_SINGLE_DASH</a></li>
+<li><a href="#macro-ps-query-proj-idx">PS_QUERY_PROJ_IDX</a></li>
+<li><a href="#macro-ps-query-projection">PS_QUERY_PROJECTION</a></li>
+<li><a href="#macro-ps-scores-proj-idx">PS_SCORES_PROJ_IDX</a></li>
+<li><a href="#macro-ps-scores-projection">PS_SCORES_PROJECTION</a></li>
+<li><a href="#macro-ps-shape-type-col">PS_SHAPE_TYPE_COL</a></li>
+<li><a href="#macro-ps-shape-type-matrix">PS_SHAPE_TYPE_MATRIX</a></li>
+<li><a href="#macro-ps-shape-type-none">PS_SHAPE_TYPE_NONE</a></li>
+<li><a href="#macro-ps-shape-type-row">PS_SHAPE_TYPE_ROW</a></li>
+<li><a href="#macro-ps-shape-type-scalar">PS_SHAPE_TYPE_SCALAR</a></li>
+<li><a href="#macro-ps-status-aborted">PS_STATUS_ABORTED</a></li>
+<li><a href="#macro-ps-status-error">PS_STATUS_ERROR</a></li>
+<li><a href="#macro-ps-status-paused">PS_STATUS_PAUSED</a></li>
+<li><a href="#macro-ps-status-pretraining">PS_STATUS_PRETRAINING</a></li>
+<li><a href="#macro-ps-status-trained">PS_STATUS_TRAINED</a></li>
+<li><a href="#macro-ps-status-training">PS_STATUS_TRAINING</a></li>
+<li><a href="#macro-ps-status-untrained">PS_STATUS_UNTRAINED</a></li>
+<li><a href="#macro-ps-status-validating">PS_STATUS_VALIDATING</a></li>
+<li><a href="#macro-ps-store-mode-add">PS_STORE_MODE_ADD</a></li>
+<li><a href="#macro-ps-store-mode-set">PS_STORE_MODE_SET</a></li>
+<li><a href="#macro-ps-store-mode-sub">PS_STORE_MODE_SUB</a></li>
+<li><a href="#macro-ps-token-not-found">PS_TOKEN_NOT_FOUND</a></li>
+<li><a href="#macro-ps-training-adjust-rate">PS_TRAINING_ADJUST_RATE</a></li>
+<li><a href="#macro-ps-training-epoch-as-sequence">PS_TRAINING_EPOCH_AS_SEQUENCE</a></li>
+<li><a href="#macro-ps-training-flag-autoregression">PS_TRAINING_FLAG_AUTOREGRESSION</a></li>
+<li><a href="#macro-ps-training-flag-selfsupervised">PS_TRAINING_FLAG_SELFSUPERVISED</a></li>
+<li><a href="#macro-ps-training-flag-seq2seq">PS_TRAINING_FLAG_SEQ2SEQ</a></li>
+<li><a href="#macro-ps-training-flag-teacher-forcing">PS_TRAINING_FLAG_TEACHER_FORCING</a></li>
+<li><a href="#macro-ps-training-no-shuffle">PS_TRAINING_NO_SHUFFLE</a></li>
+<li><a href="#macro-ps-training-phase-backprop">PS_TRAINING_PHASE_BACKPROP</a></li>
+<li><a href="#macro-ps-training-phase-forward">PS_TRAINING_PHASE_FORWARD</a></li>
+<li><a href="#macro-ps-training-phase-update-grad">PS_TRAINING_PHASE_UPDATE_GRAD</a></li>
+<li><a href="#macro-ps-training-weight-decay">PS_TRAINING_WEIGHT_DECAY</a></li>
+<li><a href="#macro-ps-values-proj-idx">PS_VALUES_PROJ_IDX</a></li>
+<li><a href="#macro-ps-values-projection">PS_VALUES_PROJECTION</a></li>
+<li><a href="#macro-psabs">PSAbs</a></li>
+<li><a href="#macro-psacfenabled">PSACFEnabled</a></li>
+<li><a href="#macro-psaddcontextualdebug">PSAddContextualDebug</a></li>
+<li><a href="#macro-psassertwithmessage">PSAssertWithMessage</a></li>
+<li><a href="#macro-psautoaccelerationenabled">PSAutoAccelerationEnabled</a></li>
+<li><a href="#macro-psavxenabled">PSAVXEnabled</a></li>
+<li><a href="#macro-psbitmapand">PSBitmapAnd</a></li>
+<li><a href="#macro-psbitmapor">PSBitmapOr</a></li>
+<li><a href="#macro-psblasenabled">PSBLASEnabled</a></li>
+<li><a href="#macro-psclearscreen">PSClearScreen</a></li>
+<li><a href="#macro-psclipvalue">PSClipValue</a></li>
+<li><a href="#macro-pscolor-black">PSCOLOR_BLACK</a></li>
+<li><a href="#macro-pscolor-blue">PSCOLOR_BLUE</a></li>
+<li><a href="#macro-pscolor-bold">PSCOLOR_BOLD</a></li>
+<li><a href="#macro-pscolor-cyan">PSCOLOR_CYAN</a></li>
+<li><a href="#macro-pscolor-dark">PSCOLOR_DARK</a></li>
+<li><a href="#macro-pscolor-dim">PSCOLOR_DIM</a></li>
+<li><a href="#macro-pscolor-gray">PSCOLOR_GRAY</a></li>
+<li><a href="#macro-pscolor-green">PSCOLOR_GREEN</a></li>
+<li><a href="#macro-pscolor-light-blue">PSCOLOR_LIGHT_BLUE</a></li>
+<li><a href="#macro-pscolor-light-cyan">PSCOLOR_LIGHT_CYAN</a></li>
+<li><a href="#macro-pscolor-light-green">PSCOLOR_LIGHT_GREEN</a></li>
+<li><a href="#macro-pscolor-light-magenta">PSCOLOR_LIGHT_MAGENTA</a></li>
+<li><a href="#macro-pscolor-light-red">PSCOLOR_LIGHT_RED</a></li>
+<li><a href="#macro-pscolor-light-white">PSCOLOR_LIGHT_WHITE</a></li>
+<li><a href="#macro-pscolor-light-yellow">PSCOLOR_LIGHT_YELLOW</a></li>
+<li><a href="#macro-pscolor-magenta">PSCOLOR_MAGENTA</a></li>
+<li><a href="#macro-pscolor-red">PSCOLOR_RED</a></li>
+<li><a href="#macro-pscolor-reset">PSCOLOR_RESET</a></li>
+<li><a href="#macro-pscolor-white">PSCOLOR_WHITE</a></li>
+<li><a href="#macro-pscolor-yellow">PSCOLOR_YELLOW</a></li>
+<li><a href="#macro-pscos">PSCos</a></li>
+<li><a href="#macro-psdefault-loglevel">PSDEFAULT_LOGLEVEL</a></li>
+<li><a href="#macro-psdefault-norm-epsilon">PSDEFAULT_NORM_EPSILON</a></li>
+<li><a href="#macro-psdict-ht-size">PSDICT_HT_SIZE</a></li>
+<li><a href="#macro-psdict-update-disabled">PSDICT_UPDATE_DISABLED</a></li>
+<li><a href="#macro-psdictgetstr">PSDictGetStr</a></li>
+<li><a href="#macro-psdicthash">PSDictHash</a></li>
+<li><a href="#macro-psdictitemfromfloat">PSDictItemFromFloat</a></li>
+<li><a href="#macro-psdictitemfromint">PSDictItemFromInt</a></li>
+<li><a href="#macro-psdictitemfrompointer">PSDictItemFromPointer</a></li>
+<li><a href="#macro-psdictitemfromstring">PSDictItemFromString</a></li>
+<li><a href="#macro-psdictslotforkey">PSDictSlotForKey</a></li>
+<li><a href="#macro-psdisablepretraining">PSDisablePretraining</a></li>
+<li><a href="#macro-psexp">PSExp</a></li>
+<li><a href="#macro-psfileexists">PSFileExists</a></li>
+<li><a href="#macro-psfloat-dig">PSFLOAT_DIG</a></li>
+<li><a href="#macro-psfloat-eps">PSFLOAT_EPS</a></li>
+<li><a href="#macro-psfloat-format">PSFLOAT_FORMAT</a></li>
+<li><a href="#macro-psfloat-max">PSFLOAT_MAX</a></li>
+<li><a href="#macro-psfloat-min">PSFLOAT_MIN</a></li>
+<li><a href="#macro-psfloor">PSFloor</a></li>
+<li><a href="#macro-psgetcolumn">PSGetColumn</a></li>
+<li><a href="#macro-psgetconvolutionalsettings">PSGetConvolutionalSettings</a></li>
+<li><a href="#macro-psgetelapsedtimems">PSGetElapsedTimeMS</a></li>
+<li><a href="#macro-psgetelapsedtimeus">PSGetElapsedTimeUS</a></li>
+<li><a href="#macro-psgetnormalizationsettings">PSGetNormalizationSettings</a></li>
+<li><a href="#macro-psgetrow">PSGetRow</a></li>
+<li><a href="#macro-psglobaldisableacceleration">PSGlobalDisableAcceleration</a></li>
+<li><a href="#macro-psglobalenableacceleration">PSGlobalEnableAcceleration</a></li>
+<li><a href="#macro-pshandlesequenceatonce">PSHandleSequenceAtOnce</a></li>
+<li><a href="#macro-pshasflag">PSHasFlag</a></li>
+<li><a href="#macro-psismodelchain">PSIsModelChain</a></li>
+<li><a href="#macro-psismodeltraining">PSIsModelTraining</a></li>
+<li><a href="#macro-psismultiheadattention">PSIsMultiHeadAttention</a></li>
+<li><a href="#macro-psisrecurrent">PSIsRecurrent</a></li>
+<li><a href="#macro-psldef">PSLDEF</a></li>
+<li><a href="#macro-pslogcolorenabled">PSLogColorEnabled</a></li>
+<li><a href="#macro-pslogdisablecolor">PSLogDisableColor</a></li>
+<li><a href="#macro-pslogenablecolor">PSLogEnableColor</a></li>
+<li><a href="#macro-psloglevel-debug">PSLOGLEVEL_DEBUG</a></li>
+<li><a href="#macro-psloglevel-error">PSLOGLEVEL_ERROR</a></li>
+<li><a href="#macro-psloglevel-fatal">PSLOGLEVEL_FATAL</a></li>
+<li><a href="#macro-psloglevel-info">PSLOGLEVEL_INFO</a></li>
+<li><a href="#macro-psloglevel-notice">PSLOGLEVEL_NOTICE</a></li>
+<li><a href="#macro-psloglevel-success">PSLOGLEVEL_SUCCESS</a></li>
+<li><a href="#macro-psloglevel-warn">PSLOGLEVEL_WARN</a></li>
+<li><a href="#macro-psmathlog">PSMathLog</a></li>
+<li><a href="#macro-psmathlog10">PSMathLog10</a></li>
+<li><a href="#macro-psmatrixdatasize">PSMatrixDataSize</a></li>
+<li><a href="#macro-psmatrixstridebytes">PSMatrixStrideBytes</a></li>
+<li><a href="#macro-pspow">PSPow</a></li>
+<li><a href="#macro-psprintmemoryerrormsg">PSPrintMemoryErrorMsg</a></li>
+<li><a href="#macro-psremoveflag">PSRemoveFlag</a></li>
+<li><a href="#macro-psround">PSRound</a></li>
+<li><a href="#macro-pssetflag">PSSetFlag</a></li>
+<li><a href="#macro-pssetrecurrent">PSSetRecurrent</a></li>
+<li><a href="#macro-psshoulddebugdump">PSShouldDebugDump</a></li>
+<li><a href="#macro-pssin">PSSin</a></li>
+<li><a href="#macro-pssqrt">PSSqrt</a></li>
+<li><a href="#macro-psstyle-bold">PSSTYLE_BOLD</a></li>
+<li><a href="#macro-psstyle-dim">PSSTYLE_DIM</a></li>
+<li><a href="#macro-psstyle-hidden">PSSTYLE_HIDDEN</a></li>
+<li><a href="#macro-psstyle-italics">PSSTYLE_ITALICS</a></li>
+<li><a href="#macro-psstyle-strikethrough">PSSTYLE_STRIKETHROUGH</a></li>
+<li><a href="#macro-psstyle-underline">PSSTYLE_UNDERLINE</a></li>
+<li><a href="#macro-pstanh">PSTanh</a></li>
+<li><a href="#macro-pstanhs">PSTanhS</a></li>
+<li><a href="#macro-pstrainopt">PSTRAINOPT</a></li>
+<li><a href="#macro-psusesequences">PSUseSequences</a></li>
+<li><a href="#macro-psutf8charsize">PSUTF8CharSize</a></li>
+<li><a href="#macro-psvectorclear">PSVectorClear</a></li>
+<li><a href="#macro-psvectorcopy">PSVectorCopy</a></li>
+<li><a href="#macro-psvectorcreate">PSVectorCreate</a></li>
+<li><a href="#macro-psvectorzero">PSVectorZero</a></li>
+<li><a href="#macro-psxterm256-gradient-black-blue">PSXTERM256_GRADIENT_BLACK_BLUE</a></li>
+<li><a href="#macro-psxterm256-gradient-grayscale">PSXTERM256_GRADIENT_GRAYSCALE</a></li>
+<li><a href="#macro-psxterm256-gradient-green-azure">PSXTERM256_GRADIENT_GREEN_AZURE</a></li>
+<li><a href="#macro-psxterm256-gradient-green-blue">PSXTERM256_GRADIENT_GREEN_BLUE</a></li>
+<li><a href="#macro-psxterm256-gradient-green-cyan1">PSXTERM256_GRADIENT_GREEN_CYAN1</a></li>
+<li><a href="#macro-psxterm256-gradient-green-cyan2">PSXTERM256_GRADIENT_GREEN_CYAN2</a></li>
+<li><a href="#macro-psxterm256-gradient-green-cyan3">PSXTERM256_GRADIENT_GREEN_CYAN3</a></li>
+<li><a href="#macro-psxterm256-gradient-green-cyan4">PSXTERM256_GRADIENT_GREEN_CYAN4</a></li>
+<li><a href="#macro-psxterm256-gradient-green-cyan5">PSXTERM256_GRADIENT_GREEN_CYAN5</a></li>
+<li><a href="#macro-psxterm256-gradient-green-cyan6">PSXTERM256_GRADIENT_GREEN_CYAN6</a></li>
+<li><a href="#macro-psxterm256-gradient-green-cyan7">PSXTERM256_GRADIENT_GREEN_CYAN7</a></li>
+<li><a href="#macro-psxterm256-gradient-magenta1">PSXTERM256_GRADIENT_MAGENTA1</a></li>
+<li><a href="#macro-psxterm256-gradient-magenta2">PSXTERM256_GRADIENT_MAGENTA2</a></li>
+<li><a href="#macro-psxterm256-gradient-magenta3">PSXTERM256_GRADIENT_MAGENTA3</a></li>
+<li><a href="#macro-psxterm256-gradient-magenta4">PSXTERM256_GRADIENT_MAGENTA4</a></li>
+<li><a href="#macro-psxterm256-gradient-magenta5">PSXTERM256_GRADIENT_MAGENTA5</a></li>
+<li><a href="#macro-psxterm256-gradient-orange-violet1">PSXTERM256_GRADIENT_ORANGE_VIOLET1</a></li>
+<li><a href="#macro-psxterm256-gradient-orange-violet2">PSXTERM256_GRADIENT_ORANGE_VIOLET2</a></li>
+<li><a href="#macro-psxterm256-gradient-orange-violet3">PSXTERM256_GRADIENT_ORANGE_VIOLET3</a></li>
+<li><a href="#macro-psxterm256-gradient-orange-violet4">PSXTERM256_GRADIENT_ORANGE_VIOLET4</a></li>
+<li><a href="#macro-psxterm256-gradient-orange-violet5">PSXTERM256_GRADIENT_ORANGE_VIOLET5</a></li>
+<li><a href="#macro-psxterm256-gradient-orange-violet6">PSXTERM256_GRADIENT_ORANGE_VIOLET6</a></li>
+<li><a href="#macro-psxterm256-gradient-orange-violet7">PSXTERM256_GRADIENT_ORANGE_VIOLET7</a></li>
+<li><a href="#macro-psxterm256-gradient-orange-violet8">PSXTERM256_GRADIENT_ORANGE_VIOLET8</a></li>
+<li><a href="#macro-psxterm256-gradient-yellow-white1">PSXTERM256_GRADIENT_YELLOW_WHITE1</a></li>
+<li><a href="#macro-psxterm256-gradient-yellow-white2">PSXTERM256_GRADIENT_YELLOW_WHITE2</a></li>
+<li><a href="#macro-psyc-contact">PSYC_CONTACT</a></li>
+<li><a href="#macro-psyc-git-branch">PSYC_GIT_BRANCH</a></li>
+<li><a href="#macro-psyc-git-dirty">PSYC_GIT_DIRTY</a></li>
+<li><a href="#macro-psyc-git-sha">PSYC_GIT_SHA</a></li>
+<li><a href="#macro-psyc-name">PSYC_NAME</a></li>
+<li><a href="#macro-psyc-site">PSYC_SITE</a></li>
+<li><a href="#macro-psyc-version">PSYC_VERSION</a></li>
+               </ul>
+           </nav>
+           <section id="doc">
+<div class="details macro" id="macro-dbl-decimal-dig">
+<h3 class="name">DBL_DECIMAL_DIG</h3>
+<div class="location">In: <span class="filename">types.h</span> - Line: <span class="line">29</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">DBL_DECIMAL_DIG</span> <span class="value">(DBL_DIG + 2)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-flt-decimal-dig">
+<h3 class="name">FLT_DECIMAL_DIG</h3>
+<div class="location">In: <span class="filename">types.h</span> - Line: <span class="line">25</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">FLT_DECIMAL_DIG</span> <span class="value">(FLT_DIG + 2)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-m-pi">
+<h3 class="name">M_PI</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">30</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">M_PI</span> <span class="value">3.141592653589793</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-action-abort">
+<h3 class="name">PS_ACTION_ABORT</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">64</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_ACTION_ABORT</span> <span class="value">5</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-action-none">
+<h3 class="name">PS_ACTION_NONE</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">62</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_ACTION_NONE</span> <span class="value">0</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-action-pause">
+<h3 class="name">PS_ACTION_PAUSE</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">63</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_ACTION_PAUSE</span> <span class="value">4</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-bitmap-op-and">
+<h3 class="name">PS_BITMAP_OP_AND</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">55</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_BITMAP_OP_AND</span> <span class="value">1</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-bitmap-op-or">
+<h3 class="name">PS_BITMAP_OP_OR</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">56</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_BITMAP_OP_OR</span> <span class="value">2</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-bitmap-op-xor">
+<h3 class="name">PS_BITMAP_OP_XOR</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">57</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_BITMAP_OP_XOR</span> <span class="value">3</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-cifar-image-size">
+<h3 class="name">PS_CIFAR_IMAGE_SIZE</h3>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">147</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_CIFAR_IMAGE_SIZE</span> <span class="value">(32 * 32 * 3)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-data-type-test">
+<h3 class="name">PS_DATA_TYPE_TEST</h3>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">27</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_DATA_TYPE_TEST</span> <span class="value">1</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-data-type-training">
+<h3 class="name">PS_DATA_TYPE_TRAINING</h3>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">26</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_DATA_TYPE_TRAINING</span> <span class="value">0</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-debug-phase-update-grads">
+<h3 class="name">PS_DEBUG_PHASE_UPDATE_GRADS</h3>
+<div class="location">In: <span class="filename">debug.h</span> - Line: <span class="line">25</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_DEBUG_PHASE_UPDATE_GRADS</span> <span class="value">1</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-debug-phase-update-weights">
+<h3 class="name">PS_DEBUG_PHASE_UPDATE_WEIGHTS</h3>
+<div class="location">In: <span class="filename">debug.h</span> - Line: <span class="line">26</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_DEBUG_PHASE_UPDATE_WEIGHTS</span> <span class="value">2</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-default-beta1">
+<h3 class="name">PS_DEFAULT_BETA1</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">38</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_DEFAULT_BETA1</span> <span class="value">0.9</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-default-beta2">
+<h3 class="name">PS_DEFAULT_BETA2</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">39</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_DEFAULT_BETA2</span> <span class="value">0.999</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-default-eos-index">
+<h3 class="name">PS_DEFAULT_EOS_INDEX</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">51</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_DEFAULT_EOS_INDEX</span> <span class="value">-1</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-default-eps">
+<h3 class="name">PS_DEFAULT_EPS</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">42</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#ifdef PS_DOUBLE_PRECISION</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PS_DEFAULT_EPS</span> <span class="value">1e-8</span>
+<br>
+<span class="preproc">#else</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PS_DEFAULT_EPS</span> <span class="value">1e-7</span>
+<br>
+<span class="preproc">#endif</span>
+</code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-default-max-vocab-size">
+<h3 class="name">PS_DEFAULT_MAX_VOCAB_SIZE</h3>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">47</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_DEFAULT_MAX_VOCAB_SIZE</span> <span class="value">15000</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-default-parser-capacity">
+<h3 class="name">PS_DEFAULT_PARSER_CAPACITY</h3>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">46</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_DEFAULT_PARSER_CAPACITY</span> <span class="value">50</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-default-recurrent-mode">
+<h3 class="name">PS_DEFAULT_RECURRENT_MODE</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">49</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_DEFAULT_RECURRENT_MODE</span> <span class="value">ManyToMany</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-default-rho">
+<h3 class="name">PS_DEFAULT_RHO</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">37</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_DEFAULT_RHO</span> <span class="value">0.95</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-default-token-separator">
+<h3 class="name">PS_DEFAULT_TOKEN_SEPARATOR</h3>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">32</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_DEFAULT_TOKEN_SEPARATOR</span> <span class="value">&quot; ,.:</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-default-unknown-token">
+<h3 class="name">PS_DEFAULT_UNKNOWN_TOKEN</h3>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">48</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_DEFAULT_UNKNOWN_TOKEN</span> <span class="value">&quot;&lt;unknown&gt;&quot;</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-flag-accel-disabled">
+<h3 class="name">PS_FLAG_ACCEL_DISABLED</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">84</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_FLAG_ACCEL_DISABLED</span> <span class="value">(1 &lt;&lt; 2) /* Formerly FLAG_AVX_DISABLED (&lt; v0.4):</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-flag-autoregression">
+<h3 class="name">PS_FLAG_AUTOREGRESSION</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">92</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_FLAG_AUTOREGRESSION</span> <span class="value">(1 &lt;&lt; 7)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-flag-log-colors">
+<h3 class="name">PS_FLAG_LOG_COLORS</h3>
+<div class="location">In: <span class="filename">config.h</span> - Line: <span class="line">25</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#ifndef FLAG_LOG_COLORS</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PS_FLAG_LOG_COLORS</span> <span class="value">(1 &lt;&lt; 0)</span>
+<br>
+<span class="preproc">#ifndef PS_FLAG_LOG_COLORS</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PS_FLAG_LOG_COLORS</span> <span class="value">(1 &lt;&lt; 0)</span>
+<br>
+<span class="preproc">#endif</span>
+</code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-flag-no-bias">
+<h3 class="name">PS_FLAG_NO_BIAS</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">88</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_FLAG_NO_BIAS</span> <span class="value">(1 &lt;&lt; 3)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-flag-non-trainable">
+<h3 class="name">PS_FLAG_NON_TRAINABLE</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">90</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_FLAG_NON_TRAINABLE</span> <span class="value">(1 &lt;&lt; 5)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-flag-none">
+<h3 class="name">PS_FLAG_NONE</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">81</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_FLAG_NONE</span> <span class="value">0</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-flag-onehot">
+<h3 class="name">PS_FLAG_ONEHOT</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">83</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_FLAG_ONEHOT</span> <span class="value">(1 &lt;&lt; 1)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-flag-pretrainer">
+<h3 class="name">PS_FLAG_PRETRAINER</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">89</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_FLAG_PRETRAINER</span> <span class="value">(1 &lt;&lt; 4)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-flag-randregression">
+<h3 class="name">PS_FLAG_RANDREGRESSION</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">93</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_FLAG_RANDREGRESSION</span> <span class="value">(1 &lt;&lt; 8)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-flag-recurrent">
+<h3 class="name">PS_FLAG_RECURRENT</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">82</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_FLAG_RECURRENT</span> <span class="value">(1 &lt;&lt; 0)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-flag-self-attention">
+<h3 class="name">PS_FLAG_SELF_ATTENTION</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">94</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_FLAG_SELF_ATTENTION</span> <span class="value">(1 &lt;&lt; 16)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-flag-use-sequences">
+<h3 class="name">PS_FLAG_USE_SEQUENCES</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">91</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_FLAG_USE_SEQUENCES</span> <span class="value">(1 &lt;&lt; 6)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-gru-candidate-idx">
+<h3 class="name">PS_GRU_CANDIDATE_IDX</h3>
+<div class="location">In: <span class="filename">gru.h</span> - Line: <span class="line">23</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_GRU_CANDIDATE_IDX</span> <span class="value">0</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-gru-reset-idx">
+<h3 class="name">PS_GRU_RESET_IDX</h3>
+<div class="location">In: <span class="filename">gru.h</span> - Line: <span class="line">25</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_GRU_RESET_IDX</span> <span class="value">2</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-gru-update-idx">
+<h3 class="name">PS_GRU_UPDATE_IDX</h3>
+<div class="location">In: <span class="filename">gru.h</span> - Line: <span class="line">24</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_GRU_UPDATE_IDX</span> <span class="value">1</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-init-mode-auto">
+<h3 class="name">PS_INIT_MODE_AUTO</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">69</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_INIT_MODE_AUTO</span> <span class="value">0</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-init-mode-rand">
+<h3 class="name">PS_INIT_MODE_RAND</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">70</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_INIT_MODE_RAND</span> <span class="value">1</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-init-mode-value">
+<h3 class="name">PS_INIT_MODE_VALUE</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">72</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_INIT_MODE_VALUE</span> <span class="value">3</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-init-mode-zero">
+<h3 class="name">PS_INIT_MODE_ZERO</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">71</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_INIT_MODE_ZERO</span> <span class="value">2</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-invalid-token-id">
+<h3 class="name">PS_INVALID_TOKEN_ID</h3>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">34</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_INVALID_TOKEN_ID</span> <span class="value">-1</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-io-binary-mode">
+<h3 class="name">PS_IO_BINARY_MODE</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">109</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_IO_BINARY_MODE</span> <span class="value">(1 &lt;&lt; 1)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-io-save-definition">
+<h3 class="name">PS_IO_SAVE_DEFINITION</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">108</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_IO_SAVE_DEFINITION</span> <span class="value">(1 &lt;&lt; 0)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-keys-proj-idx">
+<h3 class="name">PS_KEYS_PROJ_IDX</h3>
+<div class="location">In: <span class="filename">attention.h</span> - Line: <span class="line">30</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_KEYS_PROJ_IDX</span> <span class="value">1</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-keys-projection">
+<h3 class="name">PS_KEYS_PROJECTION</h3>
+<div class="location">In: <span class="filename">attention.h</span> - Line: <span class="line">24</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_KEYS_PROJECTION</span> <span class="value">(1 &lt;&lt; 1)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-layer-types">
+<h3 class="name">PS_LAYER_TYPES</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">35</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_LAYER_TYPES</span> <span class="value">14</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-line-fill">
+<h3 class="name">PS_LINE_FILL</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">107</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_LINE_FILL</span> <span class="value">(1 &lt;&lt; 1)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-line-overwrite">
+<h3 class="name">PS_LINE_OVERWRITE</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">108</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_LINE_OVERWRITE</span> <span class="value">(1 &lt;&lt; 2)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-line-plain-ascii">
+<h3 class="name">PS_LINE_PLAIN_ASCII</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">109</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_LINE_PLAIN_ASCII</span> <span class="value">(1 &lt;&lt; 3)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-lstm-candidate-idx">
+<h3 class="name">PS_LSTM_CANDIDATE_IDX</h3>
+<div class="location">In: <span class="filename">lstm.h</span> - Line: <span class="line">23</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_LSTM_CANDIDATE_IDX</span> <span class="value">0</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-lstm-forget-idx">
+<h3 class="name">PS_LSTM_FORGET_IDX</h3>
+<div class="location">In: <span class="filename">lstm.h</span> - Line: <span class="line">26</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_LSTM_FORGET_IDX</span> <span class="value">3</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-lstm-input-idx">
+<h3 class="name">PS_LSTM_INPUT_IDX</h3>
+<div class="location">In: <span class="filename">lstm.h</span> - Line: <span class="line">24</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_LSTM_INPUT_IDX</span> <span class="value">1</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-lstm-output-idx">
+<h3 class="name">PS_LSTM_OUTPUT_IDX</h3>
+<div class="location">In: <span class="filename">lstm.h</span> - Line: <span class="line">25</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_LSTM_OUTPUT_IDX</span> <span class="value">2</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-lstm-rawstate-idx">
+<h3 class="name">PS_LSTM_RAWSTATE_IDX</h3>
+<div class="location">In: <span class="filename">lstm.h</span> - Line: <span class="line">27</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_LSTM_RAWSTATE_IDX</span> <span class="value">4</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-matrix-max-dimensions">
+<h3 class="name">PS_MATRIX_MAX_DIMENSIONS</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">69</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_MATRIX_MAX_DIMENSIONS</span> <span class="value">3</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-max-memory-gradients">
+<h3 class="name">PS_MAX_MEMORY_GRADIENTS</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">47</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_MAX_MEMORY_GRADIENTS</span> <span class="value">2</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-max-providers">
+<h3 class="name">PS_MAX_PROVIDERS</h3>
+<div class="location">In: <span class="filename">operator-layer.h</span> - Line: <span class="line">24</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_MAX_PROVIDERS</span> <span class="value">1024</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-max-sequence-length">
+<h3 class="name">PS_MAX_SEQUENCE_LENGTH</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">50</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_MAX_SEQUENCE_LENGTH</span> <span class="value">10</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-mnist-input-size">
+<h3 class="name">PS_MNIST_INPUT_SIZE</h3>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">141</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_MNIST_INPUT_SIZE</span> <span class="value">(28 * 28)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-null-value">
+<h3 class="name">PS_NULL_VALUE</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">78</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_NULL_VALUE</span> <span class="value">PSFLOAT_MIN</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-opt-time-full">
+<h3 class="name">PS_OPT_TIME_FULL</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">52</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_OPT_TIME_FULL</span> <span class="value">(1 &lt;&lt; 1)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-opt-time-human">
+<h3 class="name">PS_OPT_TIME_HUMAN</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">53</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_OPT_TIME_HUMAN</span> <span class="value">(1 &lt;&lt; 2)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-opt-time-long">
+<h3 class="name">PS_OPT_TIME_LONG</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">51</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_OPT_TIME_LONG</span> <span class="value">(1 &lt;&lt; 0)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-optimization">
+<h3 class="name">PS_OPTIMIZATION</h3>
+<div class="location">In: <span class="filename">buildinfo.h</span> - Line: <span class="line">7</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_OPTIMIZATION</span> <span class="value">&quot;2&quot;</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-output-proj-idx">
+<h3 class="name">PS_OUTPUT_PROJ_IDX</h3>
+<div class="location">In: <span class="filename">attention.h</span> - Line: <span class="line">32</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_OUTPUT_PROJ_IDX</span> <span class="value">3</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-output-projection">
+<h3 class="name">PS_OUTPUT_PROJECTION</h3>
+<div class="location">In: <span class="filename">attention.h</span> - Line: <span class="line">26</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_OUTPUT_PROJECTION</span> <span class="value">(1 &lt;&lt; 3)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-param-bias">
+<h3 class="name">PS_PARAM_BIAS</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">66</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_PARAM_BIAS</span> <span class="value">1</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-param-weight">
+<h3 class="name">PS_PARAM_WEIGHT</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">67</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_PARAM_WEIGHT</span> <span class="value">2</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-parser-flag-no-normalization">
+<h3 class="name">PS_PARSER_FLAG_NO_NORMALIZATION</h3>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">42</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_PARSER_FLAG_NO_NORMALIZATION</span> <span class="value">(1 &lt;&lt; 0)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-parser-flag-preserve-string">
+<h3 class="name">PS_PARSER_FLAG_PRESERVE_STRING</h3>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">43</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_PARSER_FLAG_PRESERVE_STRING</span> <span class="value">(1 &lt;&lt; 1)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-parser-flag-readonly-vocab">
+<h3 class="name">PS_PARSER_FLAG_READONLY_VOCAB</h3>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">44</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_PARSER_FLAG_READONLY_VOCAB</span> <span class="value">(1 &lt;&lt; 2)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-parser-mode-chars">
+<h3 class="name">PS_PARSER_MODE_CHARS</h3>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">40</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_PARSER_MODE_CHARS</span> <span class="value">1</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-parser-mode-tokens">
+<h3 class="name">PS_PARSER_MODE_TOKENS</h3>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">38</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_PARSER_MODE_TOKENS</span> <span class="value">0</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-prefix">
+<h3 class="name">PS_PREFIX</h3>
+<div class="location">In: <span class="filename">buildinfo.h</span> - Line: <span class="line">8</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_PREFIX</span> <span class="value">&quot;/usr/local&quot;</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-progress-flag-just-bar">
+<h3 class="name">PS_PROGRESS_FLAG_JUST_BAR</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">100</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_PROGRESS_FLAG_JUST_BAR</span> <span class="value">(1 &lt;&lt; 2)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-progress-flag-just-percent">
+<h3 class="name">PS_PROGRESS_FLAG_JUST_PERCENT</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">99</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_PROGRESS_FLAG_JUST_PERCENT</span> <span class="value">(1 &lt;&lt; 1)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-progress-flag-no-gradient">
+<h3 class="name">PS_PROGRESS_FLAG_NO_GRADIENT</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">102</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_PROGRESS_FLAG_NO_GRADIENT</span> <span class="value">(1 &lt;&lt; 4)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-progress-flag-no-total">
+<h3 class="name">PS_PROGRESS_FLAG_NO_TOTAL</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">101</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_PROGRESS_FLAG_NO_TOTAL</span> <span class="value">(1 &lt;&lt; 3)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-progress-flag-no-xterm256">
+<h3 class="name">PS_PROGRESS_FLAG_NO_XTERM256</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">103</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_PROGRESS_FLAG_NO_XTERM256</span> <span class="value">(1 &lt;&lt; 5)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-progress-flag-percent">
+<h3 class="name">PS_PROGRESS_FLAG_PERCENT</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">98</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_PROGRESS_FLAG_PERCENT</span> <span class="value">(1 &lt;&lt; 0)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-progress-flag-percent-right">
+<h3 class="name">PS_PROGRESS_FLAG_PERCENT_RIGHT</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">105</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_PROGRESS_FLAG_PERCENT_RIGHT</span> <span class="value">(1 &lt;&lt; 7)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-progress-flag-xterm256-code">
+<h3 class="name">PS_PROGRESS_FLAG_XTERM256_CODE</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">104</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_PROGRESS_FLAG_XTERM256_CODE</span> <span class="value">(1 &lt;&lt; 6)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-progress-style-bar">
+<h3 class="name">PS_PROGRESS_STYLE_BAR</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">95</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_PROGRESS_STYLE_BAR</span> <span class="value">2</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-progress-style-double-dash">
+<h3 class="name">PS_PROGRESS_STYLE_DOUBLE_DASH</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">93</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_PROGRESS_STYLE_DOUBLE_DASH</span> <span class="value">0</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-progress-style-line">
+<h3 class="name">PS_PROGRESS_STYLE_LINE</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">96</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_PROGRESS_STYLE_LINE</span> <span class="value">3</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-progress-style-single-dash">
+<h3 class="name">PS_PROGRESS_STYLE_SINGLE_DASH</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">94</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_PROGRESS_STYLE_SINGLE_DASH</span> <span class="value">1</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-query-proj-idx">
+<h3 class="name">PS_QUERY_PROJ_IDX</h3>
+<div class="location">In: <span class="filename">attention.h</span> - Line: <span class="line">29</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_QUERY_PROJ_IDX</span> <span class="value">0</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-query-projection">
+<h3 class="name">PS_QUERY_PROJECTION</h3>
+<div class="location">In: <span class="filename">attention.h</span> - Line: <span class="line">23</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_QUERY_PROJECTION</span> <span class="value">(1 &lt;&lt; 0)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-scores-proj-idx">
+<h3 class="name">PS_SCORES_PROJ_IDX</h3>
+<div class="location">In: <span class="filename">attention.h</span> - Line: <span class="line">33</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_SCORES_PROJ_IDX</span> <span class="value">4</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-scores-projection">
+<h3 class="name">PS_SCORES_PROJECTION</h3>
+<div class="location">In: <span class="filename">attention.h</span> - Line: <span class="line">27</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_SCORES_PROJECTION</span> <span class="value">(1 &lt;&lt; 4)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-shape-type-col">
+<h3 class="name">PS_SHAPE_TYPE_COL</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">66</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_SHAPE_TYPE_COL</span> <span class="value">3</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-shape-type-matrix">
+<h3 class="name">PS_SHAPE_TYPE_MATRIX</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">67</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_SHAPE_TYPE_MATRIX</span> <span class="value">4</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-shape-type-none">
+<h3 class="name">PS_SHAPE_TYPE_NONE</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">63</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_SHAPE_TYPE_NONE</span> <span class="value">0</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-shape-type-row">
+<h3 class="name">PS_SHAPE_TYPE_ROW</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">65</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_SHAPE_TYPE_ROW</span> <span class="value">2</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-shape-type-scalar">
+<h3 class="name">PS_SHAPE_TYPE_SCALAR</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">64</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_SHAPE_TYPE_SCALAR</span> <span class="value">1</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-status-aborted">
+<h3 class="name">PS_STATUS_ABORTED</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">58</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_STATUS_ABORTED</span> <span class="value">5</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-status-error">
+<h3 class="name">PS_STATUS_ERROR</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">56</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_STATUS_ERROR</span> <span class="value">3</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-status-paused">
+<h3 class="name">PS_STATUS_PAUSED</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">57</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_STATUS_PAUSED</span> <span class="value">4</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-status-pretraining">
+<h3 class="name">PS_STATUS_PRETRAINING</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">60</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_STATUS_PRETRAINING</span> <span class="value">7</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-status-trained">
+<h3 class="name">PS_STATUS_TRAINED</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">54</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_STATUS_TRAINED</span> <span class="value">1</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-status-training">
+<h3 class="name">PS_STATUS_TRAINING</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">55</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_STATUS_TRAINING</span> <span class="value">2</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-status-untrained">
+<h3 class="name">PS_STATUS_UNTRAINED</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">53</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_STATUS_UNTRAINED</span> <span class="value">0</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-status-validating">
+<h3 class="name">PS_STATUS_VALIDATING</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">59</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_STATUS_VALIDATING</span> <span class="value">6</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-store-mode-add">
+<h3 class="name">PS_STORE_MODE_ADD</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">60</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_STORE_MODE_ADD</span> <span class="value">1</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-store-mode-set">
+<h3 class="name">PS_STORE_MODE_SET</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">59</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_STORE_MODE_SET</span> <span class="value">0</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-store-mode-sub">
+<h3 class="name">PS_STORE_MODE_SUB</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">61</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_STORE_MODE_SUB</span> <span class="value">2</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-token-not-found">
+<h3 class="name">PS_TOKEN_NOT_FOUND</h3>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">35</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_TOKEN_NOT_FOUND</span> <span class="value">-2</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-training-adjust-rate">
+<h3 class="name">PS_TRAINING_ADJUST_RATE</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">98</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_TRAINING_ADJUST_RATE</span> <span class="value">(1 &lt;&lt; 1)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-training-epoch-as-sequence">
+<h3 class="name">PS_TRAINING_EPOCH_AS_SEQUENCE</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">100</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_TRAINING_EPOCH_AS_SEQUENCE</span> <span class="value">(1 &lt;&lt; 3)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-training-flag-autoregression">
+<h3 class="name">PS_TRAINING_FLAG_AUTOREGRESSION</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">102</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_TRAINING_FLAG_AUTOREGRESSION</span> <span class="value">(1 &lt;&lt; 7)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-training-flag-selfsupervised">
+<h3 class="name">PS_TRAINING_FLAG_SELFSUPERVISED</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">101</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_TRAINING_FLAG_SELFSUPERVISED</span> <span class="value">(1 &lt;&lt; 4)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-training-flag-seq2seq">
+<h3 class="name">PS_TRAINING_FLAG_SEQ2SEQ</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">104</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_TRAINING_FLAG_SEQ2SEQ</span> <span class="value">(1 &lt;&lt; 9)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-training-flag-teacher-forcing">
+<h3 class="name">PS_TRAINING_FLAG_TEACHER_FORCING</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">103</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_TRAINING_FLAG_TEACHER_FORCING</span> <span class="value">(1 &lt;&lt; 8)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-training-no-shuffle">
+<h3 class="name">PS_TRAINING_NO_SHUFFLE</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">97</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_TRAINING_NO_SHUFFLE</span> <span class="value">(1 &lt;&lt; 0)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-training-phase-backprop">
+<h3 class="name">PS_TRAINING_PHASE_BACKPROP</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">75</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_TRAINING_PHASE_BACKPROP</span> <span class="value">2</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-training-phase-forward">
+<h3 class="name">PS_TRAINING_PHASE_FORWARD</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">74</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_TRAINING_PHASE_FORWARD</span> <span class="value">1</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-training-phase-update-grad">
+<h3 class="name">PS_TRAINING_PHASE_UPDATE_GRAD</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">76</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_TRAINING_PHASE_UPDATE_GRAD</span> <span class="value">3</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-training-weight-decay">
+<h3 class="name">PS_TRAINING_WEIGHT_DECAY</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">99</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_TRAINING_WEIGHT_DECAY</span> <span class="value">(1 &lt;&lt; 2)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-values-proj-idx">
+<h3 class="name">PS_VALUES_PROJ_IDX</h3>
+<div class="location">In: <span class="filename">attention.h</span> - Line: <span class="line">31</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_VALUES_PROJ_IDX</span> <span class="value">2</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-values-projection">
+<h3 class="name">PS_VALUES_PROJECTION</h3>
+<div class="location">In: <span class="filename">attention.h</span> - Line: <span class="line">25</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_VALUES_PROJECTION</span> <span class="value">(1 &lt;&lt; 2)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psabs">
+<h3 class="name">PSAbs</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">35</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#ifdef PS_DOUBLE_PRECISION</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSAbs</span><span class="arguments">(v)</span> <span class="macro-expansion">fabs(v)</span>
+<br>
+<span class="preproc">#else</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSAbs</span><span class="arguments">(v)</span> <span class="macro-expansion">fabsf(v)</span>
+<br>
+<span class="preproc">#endif</span>
+</code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psacfenabled">
+<h3 class="name">PSACFEnabled</h3>
+<div class="location">In: <span class="filename">config.h</span> - Line: <span class="line">36</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSACFEnabled</span><span class="arguments">(acceleration)</span> <span class="macro-expansion">(PSIsAccelerationEnabled(acceleration,    PSAcceleration_ACF))</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psaddcontextualdebug">
+<h3 class="name">PSAddContextualDebug</h3>
+<div class="location">In: <span class="filename">debug.h</span> - Line: <span class="line">41</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSAddContextualDebug</span><span class="arguments">(model,l,n1,n2,prop,v,...)</span> <span class="macro-expansion">PSAddDebugInfo(    model, __FILE__, __func__, __LINE__, l, n1, n2, prop, v, __VA_ARGS__)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psassertwithmessage">
+<h3 class="name">PSAssertWithMessage</h3>
+<div class="location">In: <span class="filename">debug.h</span> - Line: <span class="line">33</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSAssertWithMessage</span><span class="arguments">(expr, fmt, ...)</span> <span class="macro-expansion">do {    if (!(expr)) {        printf(&quot;\n\n== ASSERTION FAILURE ==\n&quot;);        fprintf(stderr, fmt, __VA_ARGS__);        assert(expr);    }} while (0);</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psautoaccelerationenabled">
+<h3 class="name">PSAutoAccelerationEnabled</h3>
+<div class="location">In: <span class="filename">config.h</span> - Line: <span class="line">40</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSAutoAccelerationEnabled</span><span class="arguments">(acceleration)</span> <span class="macro-expansion">(PSIsAccelerationEnabled(acceleration, PSAcceleration_Auto))</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psavxenabled">
+<h3 class="name">PSAVXEnabled</h3>
+<div class="location">In: <span class="filename">config.h</span> - Line: <span class="line">34</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSAVXEnabled</span><span class="arguments">(acceleration)</span> <span class="macro-expansion">(PSIsAccelerationEnabled(acceleration,    PSAcceleration_AVX))</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psbitmapand">
+<h3 class="name">PSBitmapAnd</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">59</span></div>
+<div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag bitmap" data-href="tag-bitmap.html">BITMAP</span></div><div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSBitmapAnd</span><span class="arguments">(a, b, dest)</span> <span class="macro-expansion">PSBitmapOp(a, b, dest, PS_BITMAP_OP_AND)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psbitmapor">
+<h3 class="name">PSBitmapOr</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">60</span></div>
+<div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag bitmap" data-href="tag-bitmap.html">BITMAP</span></div><div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSBitmapOr</span><span class="arguments">(a, b, dest)</span> <span class="macro-expansion">PSBitmapOp(a, b, dest, PS_BITMAP_OP_OR)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psblasenabled">
+<h3 class="name">PSBLASEnabled</h3>
+<div class="location">In: <span class="filename">config.h</span> - Line: <span class="line">38</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSBLASEnabled</span><span class="arguments">(acceleration)</span> <span class="macro-expansion">(PSIsAccelerationEnabled(acceleration,    PSAcceleration_BLAS))</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psclearscreen">
+<h3 class="name">PSClearScreen</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">111</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSClearScreen</span><span class="arguments">()</span> <span class="macro-expansion">(printf(&quot;\x1b[1;1H\x1b[2J&quot;))</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psclipvalue">
+<h3 class="name">PSClipValue</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">53</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSClipValue</span><span class="arguments">(v, min, max)</span> <span class="macro-expansion">(v &gt; max ? max : (v &lt; min ? min : v))</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-pscolor-black">
+<h3 class="name">PSCOLOR_BLACK</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">32</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSCOLOR_BLACK</span> <span class="value">&quot;\x1b[30m&quot;</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-pscolor-blue">
+<h3 class="name">PSCOLOR_BLUE</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">36</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSCOLOR_BLUE</span> <span class="value">&quot;\x1b[34m&quot;</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-pscolor-bold">
+<h3 class="name">PSCOLOR_BOLD</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">56</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSCOLOR_BOLD</span> <span class="value">PSSTYLE_BOLD</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-pscolor-cyan">
+<h3 class="name">PSCOLOR_CYAN</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">38</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSCOLOR_CYAN</span> <span class="value">&quot;\x1b[36m&quot;</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-pscolor-dark">
+<h3 class="name">PSCOLOR_DARK</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">58</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSCOLOR_DARK</span> <span class="value">PSSTYLE_DIM</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-pscolor-dim">
+<h3 class="name">PSCOLOR_DIM</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">57</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSCOLOR_DIM</span> <span class="value">PSSTYLE_DIM</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-pscolor-gray">
+<h3 class="name">PSCOLOR_GRAY</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">40</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSCOLOR_GRAY</span> <span class="value">&quot;\x1b[90m&quot;</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-pscolor-green">
+<h3 class="name">PSCOLOR_GREEN</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">34</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSCOLOR_GREEN</span> <span class="value">&quot;\x1b[32m&quot;</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-pscolor-light-blue">
+<h3 class="name">PSCOLOR_LIGHT_BLUE</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">44</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSCOLOR_LIGHT_BLUE</span> <span class="value">&quot;\x1b[94m&quot;</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-pscolor-light-cyan">
+<h3 class="name">PSCOLOR_LIGHT_CYAN</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">46</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSCOLOR_LIGHT_CYAN</span> <span class="value">&quot;\x1b[96m&quot;</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-pscolor-light-green">
+<h3 class="name">PSCOLOR_LIGHT_GREEN</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">42</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSCOLOR_LIGHT_GREEN</span> <span class="value">&quot;\x1b[92m&quot;</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-pscolor-light-magenta">
+<h3 class="name">PSCOLOR_LIGHT_MAGENTA</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">45</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSCOLOR_LIGHT_MAGENTA</span> <span class="value">&quot;\x1b[95m&quot;</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-pscolor-light-red">
+<h3 class="name">PSCOLOR_LIGHT_RED</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">41</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSCOLOR_LIGHT_RED</span> <span class="value">&quot;\x1b[91m&quot;</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-pscolor-light-white">
+<h3 class="name">PSCOLOR_LIGHT_WHITE</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">47</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSCOLOR_LIGHT_WHITE</span> <span class="value">&quot;\x1b[97m&quot;</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-pscolor-light-yellow">
+<h3 class="name">PSCOLOR_LIGHT_YELLOW</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">43</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSCOLOR_LIGHT_YELLOW</span> <span class="value">&quot;\x1b[93m&quot;</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-pscolor-magenta">
+<h3 class="name">PSCOLOR_MAGENTA</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">37</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSCOLOR_MAGENTA</span> <span class="value">&quot;\x1b[35m&quot;</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-pscolor-red">
+<h3 class="name">PSCOLOR_RED</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">33</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSCOLOR_RED</span> <span class="value">&quot;\x1b[31m&quot;</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-pscolor-reset">
+<h3 class="name">PSCOLOR_RESET</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">48</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSCOLOR_RESET</span> <span class="value">&quot;\x1b[0m&quot;</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-pscolor-white">
+<h3 class="name">PSCOLOR_WHITE</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">39</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSCOLOR_WHITE</span> <span class="value">&quot;\x1b[37m&quot;</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-pscolor-yellow">
+<h3 class="name">PSCOLOR_YELLOW</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">35</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSCOLOR_YELLOW</span> <span class="value">&quot;\x1b[33m&quot;</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-pscos">
+<h3 class="name">PSCos</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">38</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#ifdef PS_DOUBLE_PRECISION</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSCos</span><span class="arguments">(a)</span> <span class="macro-expansion">cos(a)</span>
+<br>
+<span class="preproc">#else</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSCos</span><span class="arguments">(a)</span> <span class="macro-expansion">cosf(a)</span>
+<br>
+<span class="preproc">#endif</span>
+</code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psdefault-loglevel">
+<h3 class="name">PSDEFAULT_LOGLEVEL</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">87</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSDEFAULT_LOGLEVEL</span> <span class="value">PSLOGLEVEL_INFO</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psdefault-norm-epsilon">
+<h3 class="name">PSDEFAULT_NORM_EPSILON</h3>
+<div class="location">In: <span class="filename">normalization.h</span> - Line: <span class="line">23</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSDEFAULT_NORM_EPSILON</span> <span class="value">1e-5</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psdict-ht-size">
+<h3 class="name">PSDICT_HT_SIZE</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">33</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSDICT_HT_SIZE</span> <span class="value">4096</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psdict-update-disabled">
+<h3 class="name">PSDICT_UPDATE_DISABLED</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">34</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSDICT_UPDATE_DISABLED</span> <span class="value">(1 &lt;&lt; 0)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psdictgetstr">
+<h3 class="name">PSDictGetStr</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">41</span></div>
+<div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag dictionary" data-href="tag-dictionary.html">DICTIONARY</span></div><div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSDictGetStr</span><span class="arguments">(dict, key)</span> <span class="macro-expansion">((const char *) PSDictGetPointer(dict, key))</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psdicthash">
+<h3 class="name">PSDictHash</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">35</span></div>
+<div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag dictionary" data-href="tag-dictionary.html">DICTIONARY</span></div><div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSDictHash</span><span class="arguments">(key)</span> <span class="macro-expansion">(djb33_hash(key, 4096))</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psdictitemfromfloat">
+<h3 class="name">PSDictItemFromFloat</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">37</span></div>
+<div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag dictionary" data-href="tag-dictionary.html">DICTIONARY</span></div><div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSDictItemFromFloat</span><span class="arguments">(n)</span> <span class="macro-expansion">((PSDictValue) {.as_float = n})</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psdictitemfromint">
+<h3 class="name">PSDictItemFromInt</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">36</span></div>
+<div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag dictionary" data-href="tag-dictionary.html">DICTIONARY</span></div><div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSDictItemFromInt</span><span class="arguments">(n)</span> <span class="macro-expansion">((PSDictValue) {.as_int = n})</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psdictitemfrompointer">
+<h3 class="name">PSDictItemFromPointer</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">38</span></div>
+<div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag dictionary" data-href="tag-dictionary.html">DICTIONARY</span></div><div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSDictItemFromPointer</span><span class="arguments">(ptr)</span> <span class="macro-expansion">((PSDictValue) {.as_ptr = ptr})</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psdictitemfromstring">
+<h3 class="name">PSDictItemFromString</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">39</span></div>
+<div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag dictionary" data-href="tag-dictionary.html">DICTIONARY</span></div><div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSDictItemFromString</span><span class="arguments">(str)</span> <span class="macro-expansion">PSDictItemFromPointer(str)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psdictslotforkey">
+<h3 class="name">PSDictSlotForKey</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">40</span></div>
+<div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag dictionary" data-href="tag-dictionary.html">DICTIONARY</span></div><div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSDictSlotForKey</span><span class="arguments">(key)</span> <span class="macro-expansion">(PSDictHash(key) % PSDICT_HT_SIZE)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psdisablepretraining">
+<h3 class="name">PSDisablePretraining</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">120</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSDisablePretraining</span><span class="arguments">(layer)</span> <span class="macro-expansion">(layer-&gt;pretrain = NULL)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psexp">
+<h3 class="name">PSExp</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">31</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#ifdef PS_DOUBLE_PRECISION</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSExp</span><span class="arguments">(v)</span> <span class="macro-expansion">exp(v)</span>
+<br>
+<span class="preproc">#else</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSExp</span><span class="arguments">(v)</span> <span class="macro-expansion">expf(v)</span>
+<br>
+<span class="preproc">#endif</span>
+</code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psfileexists">
+<h3 class="name">PSFileExists</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">43</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSFileExists</span><span class="arguments">(path)</span> <span class="macro-expansion">(access(path, F_OK) == 0)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psfloat-dig">
+<h3 class="name">PSFLOAT_DIG</h3>
+<div class="location">In: <span class="filename">types.h</span> - Line: <span class="line">34</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#ifdef PS_DOUBLE_PRECISION</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSFLOAT_DIG</span> <span class="value">DBL_DECIMAL_DIG</span>
+<br>
+<span class="preproc">#else</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSFLOAT_DIG</span> <span class="value">FLT_DECIMAL_DIG</span>
+<br>
+<span class="preproc">#endif</span>
+</code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psfloat-eps">
+<h3 class="name">PSFLOAT_EPS</h3>
+<div class="location">In: <span class="filename">types.h</span> - Line: <span class="line">37</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#ifdef PS_DOUBLE_PRECISION</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSFLOAT_EPS</span> <span class="value">DBL_EPSILON</span>
+<br>
+<span class="preproc">#else</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSFLOAT_EPS</span> <span class="value">FLT_EPSILON</span>
+<br>
+<span class="preproc">#endif</span>
+</code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psfloat-format">
+<h3 class="name">PSFLOAT_FORMAT</h3>
+<div class="location">In: <span class="filename">types.h</span> - Line: <span class="line">33</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#ifdef PS_DOUBLE_PRECISION</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSFLOAT_FORMAT</span> <span class="value">&quot;%lg&quot;</span>
+<br>
+<span class="preproc">#else</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSFLOAT_FORMAT</span> <span class="value">&quot;%g&quot;</span>
+<br>
+<span class="preproc">#endif</span>
+</code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psfloat-max">
+<h3 class="name">PSFLOAT_MAX</h3>
+<div class="location">In: <span class="filename">types.h</span> - Line: <span class="line">36</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#ifdef PS_DOUBLE_PRECISION</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSFLOAT_MAX</span> <span class="value">DBL_MAX</span>
+<br>
+<span class="preproc">#else</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSFLOAT_MAX</span> <span class="value">FLT_MAX</span>
+<br>
+<span class="preproc">#endif</span>
+</code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psfloat-min">
+<h3 class="name">PSFLOAT_MIN</h3>
+<div class="location">In: <span class="filename">types.h</span> - Line: <span class="line">35</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#ifdef PS_DOUBLE_PRECISION</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSFLOAT_MIN</span> <span class="value">DBL_MIN</span>
+<br>
+<span class="preproc">#else</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSFLOAT_MIN</span> <span class="value">FLT_MIN</span>
+<br>
+<span class="preproc">#endif</span>
+</code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psfloor">
+<h3 class="name">PSFloor</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">30</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#ifdef PS_DOUBLE_PRECISION</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSFloor</span><span class="arguments">(v)</span> <span class="macro-expansion">floor(v)</span>
+<br>
+<span class="preproc">#else</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSFloor</span><span class="arguments">(v)</span> <span class="macro-expansion">floorf(v)</span>
+<br>
+<span class="preproc">#endif</span>
+</code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psgetcolumn">
+<h3 class="name">PSGetColumn</h3>
+<div class="location">In: <span class="filename">convolutional.h</span> - Line: <span class="line">26</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSGetColumn</span><span class="arguments">(index, width)</span> <span class="macro-expansion">(index % width)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psgetconvolutionalsettings">
+<h3 class="name">PSGetConvolutionalSettings</h3>
+<div class="location">In: <span class="filename">convolutional.h</span> - Line: <span class="line">24</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSGetConvolutionalSettings</span><span class="arguments">(layer)</span> <span class="macro-expansion">((PSConvolutionalSettings *) layer-&gt;extra)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psgetelapsedtimems">
+<h3 class="name">PSGetElapsedTimeMS</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">46</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSGetElapsedTimeMS</span><span class="arguments">(st, et)</span> <span class="macro-expansion">((((et.tv_sec - st.tv_sec) * 1000000) /* Get elapsed time in microseconds */</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psgetelapsedtimeus">
+<h3 class="name">PSGetElapsedTimeUS</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">48</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSGetElapsedTimeUS</span><span class="arguments">(st, et)</span> <span class="macro-expansion">(((et.tv_sec - st.tv_sec) * 1000000)     + (et.tv_usec - st.tv_usec))</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psgetnormalizationsettings">
+<h3 class="name">PSGetNormalizationSettings</h3>
+<div class="location">In: <span class="filename">normalization.h</span> - Line: <span class="line">24</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSGetNormalizationSettings</span><span class="arguments">(layer)</span> <span class="macro-expansion">((PSNormalizationLayerSettings*) layer-&gt;extra)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psgetrow">
+<h3 class="name">PSGetRow</h3>
+<div class="location">In: <span class="filename">convolutional.h</span> - Line: <span class="line">27</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSGetRow</span><span class="arguments">(index, width)</span> <span class="macro-expansion">((int) ((int) index / (int) width))</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psglobaldisableacceleration">
+<h3 class="name">PSGlobalDisableAcceleration</h3>
+<div class="location">In: <span class="filename">config.h</span> - Line: <span class="line">45</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSGlobalDisableAcceleration</span><span class="arguments">(acceleration)</span> <span class="macro-expansion">PSDisableAcceleration(    &amp;PSGlobalAcceleration, acceleration)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psglobalenableacceleration">
+<h3 class="name">PSGlobalEnableAcceleration</h3>
+<div class="location">In: <span class="filename">config.h</span> - Line: <span class="line">43</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSGlobalEnableAcceleration</span><span class="arguments">(acceleration)</span> <span class="macro-expansion">PSEnableAcceleration(    &amp;PSGlobalAcceleration, acceleration)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-pshandlesequenceatonce">
+<h3 class="name">PSHandleSequenceAtOnce</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">115</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSHandleSequenceAtOnce</span><span class="arguments">(o)</span> <span class="macro-expansion">(PSUseSequences(o) &amp;&amp; !PSIsRecurrent(o))</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-pshasflag">
+<h3 class="name">PSHasFlag</h3>
+<div class="location">In: <span class="filename">config.h</span> - Line: <span class="line">30</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSHasFlag</span><span class="arguments">(flags, flag)</span> <span class="macro-expansion">(flags &amp; flag)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psismodelchain">
+<h3 class="name">PSIsModelChain</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">116</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSIsModelChain</span><span class="arguments">(model)</span> <span class="macro-expansion">(model-&gt;previous != NULL || model-&gt;next != NULL)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psismodeltraining">
+<h3 class="name">PSIsModelTraining</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">121</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSIsModelTraining</span><span class="arguments">(model)</span> <span class="macro-expansion">(PSModelGetStatus(model) == PS_STATUS_TRAINING)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psismultiheadattention">
+<h3 class="name">PSIsMultiHeadAttention</h3>
+<div class="location">In: <span class="filename">attention.h</span> - Line: <span class="line">35</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSIsMultiHeadAttention</span><span class="arguments">(layer)</span> <span class="macro-expansion">(PSGetAttentionHeadCount(layer) &gt; 1)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psisrecurrent">
+<h3 class="name">PSIsRecurrent</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">111</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSIsRecurrent</span><span class="arguments">(o)</span> <span class="macro-expansion">(o-&gt;flags &amp; PS_FLAG_RECURRENT)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psldef">
+<h3 class="name">PSLDEF</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">117</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSLDEF</span><span class="arguments">(...)</span> <span class="macro-expansion">((PSLayerDef *) &amp;((PSLayerDef) {__VA_ARGS__}))</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-pslogcolorenabled">
+<h3 class="name">PSLogColorEnabled</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">112</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSLogColorEnabled</span><span class="arguments">()</span> <span class="macro-expansion">(PSGlobalFlags &amp; PS_FLAG_LOG_COLORS)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-pslogdisablecolor">
+<h3 class="name">PSLogDisableColor</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">114</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSLogDisableColor</span><span class="arguments">()</span> <span class="macro-expansion">(PSGlobalFlags &amp;= ~((unsigned) PS_FLAG_LOG_COLORS))</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-pslogenablecolor">
+<h3 class="name">PSLogEnableColor</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">113</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSLogEnableColor</span><span class="arguments">()</span> <span class="macro-expansion">(PSGlobalFlags |= PS_FLAG_LOG_COLORS)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psloglevel-debug">
+<h3 class="name">PSLOGLEVEL_DEBUG</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">24</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSLOGLEVEL_DEBUG</span> <span class="value">0</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psloglevel-error">
+<h3 class="name">PSLOGLEVEL_ERROR</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">29</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSLOGLEVEL_ERROR</span> <span class="value">5</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psloglevel-fatal">
+<h3 class="name">PSLOGLEVEL_FATAL</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">30</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSLOGLEVEL_FATAL</span> <span class="value">6</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psloglevel-info">
+<h3 class="name">PSLOGLEVEL_INFO</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">25</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSLOGLEVEL_INFO</span> <span class="value">1</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psloglevel-notice">
+<h3 class="name">PSLOGLEVEL_NOTICE</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">26</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSLOGLEVEL_NOTICE</span> <span class="value">2</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psloglevel-success">
+<h3 class="name">PSLOGLEVEL_SUCCESS</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">27</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSLOGLEVEL_SUCCESS</span> <span class="value">3</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psloglevel-warn">
+<h3 class="name">PSLOGLEVEL_WARN</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">28</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSLOGLEVEL_WARN</span> <span class="value">4</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psmathlog">
+<h3 class="name">PSMathLog</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">33</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span></div><div class="code">
+<code class="definition">
+<span class="preproc">#ifdef PS_DOUBLE_PRECISION</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSMathLog</span><span class="arguments">(v)</span> <span class="macro-expansion">log(v)</span>
+<br>
+<span class="preproc">#else</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSMathLog</span><span class="arguments">(v)</span> <span class="macro-expansion">logf(v)</span>
+<br>
+<span class="preproc">#endif</span>
+</code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psmathlog10">
+<h3 class="name">PSMathLog10</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">34</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span></div><div class="code">
+<code class="definition">
+<span class="preproc">#ifdef PS_DOUBLE_PRECISION</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSMathLog10</span><span class="arguments">(v)</span> <span class="macro-expansion">log10(v)</span>
+<br>
+<span class="preproc">#else</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSMathLog10</span><span class="arguments">(v)</span> <span class="macro-expansion">log10f(v)</span>
+<br>
+<span class="preproc">#endif</span>
+</code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psmatrixdatasize">
+<h3 class="name">PSMatrixDataSize</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">129</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSMatrixDataSize</span><span class="arguments">(matrix)</span> <span class="macro-expansion">(PSMatrixLength(matrix) * sizeof(PSFloat))</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psmatrixstridebytes">
+<h3 class="name">PSMatrixStrideBytes</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">130</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSMatrixStrideBytes</span><span class="arguments">(matrix,i)</span> <span class="macro-expansion">(PSMatrixStride(matrix,i) * sizeof(PSFloat))</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-pspow">
+<h3 class="name">PSPow</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">36</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#ifdef PS_DOUBLE_PRECISION</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSPow</span><span class="arguments">(a,b)</span> <span class="macro-expansion">pow(a, b)</span>
+<br>
+<span class="preproc">#else</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSPow</span><span class="arguments">(a,b)</span> <span class="macro-expansion">powf(a, b)</span>
+<br>
+<span class="preproc">#endif</span>
+</code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psprintmemoryerrormsg">
+<h3 class="name">PSPrintMemoryErrorMsg</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">115</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSPrintMemoryErrorMsg</span><span class="arguments">()</span> <span class="macro-expansion">PSErr(NULL, &quot;Could not allocate memory!&quot;)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psremoveflag">
+<h3 class="name">PSRemoveFlag</h3>
+<div class="location">In: <span class="filename">config.h</span> - Line: <span class="line">32</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSRemoveFlag</span><span class="arguments">(flags, flag)</span> <span class="macro-expansion">(flags &amp;= ~((unsigned) flags))</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psround">
+<h3 class="name">PSRound</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">32</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#ifdef PS_DOUBLE_PRECISION</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSRound</span><span class="arguments">(v)</span> <span class="macro-expansion">round(v)</span>
+<br>
+<span class="preproc">#else</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSRound</span><span class="arguments">(v)</span> <span class="macro-expansion">roundf(v)</span>
+<br>
+<span class="preproc">#endif</span>
+</code>
+</div>
+</div>
+
+<div class="details macro" id="macro-pssetflag">
+<h3 class="name">PSSetFlag</h3>
+<div class="location">In: <span class="filename">config.h</span> - Line: <span class="line">31</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSSetFlag</span><span class="arguments">(flags, flag)</span> <span class="macro-expansion">(flags != flag)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-pssetrecurrent">
+<h3 class="name">PSSetRecurrent</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">112</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSSetRecurrent</span><span class="arguments">(o)</span> <span class="macro-expansion">(o-&gt;flags |= PS_FLAG_RECURRENT)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psshoulddebugdump">
+<h3 class="name">PSShouldDebugDump</h3>
+<div class="location">In: <span class="filename">debug.h</span> - Line: <span class="line">28</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSShouldDebugDump</span><span class="arguments">(model)</span> <span class="macro-expansion">(model-&gt;training != NULL &amp;&amp; model-&gt;training-&gt;debug_dump_to != NULL &amp;&amp; model-&gt;training-&gt;current_element == 0 &amp;&amp; model-&gt;training-&gt;current_epoch == 0)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-pssin">
+<h3 class="name">PSSin</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">37</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#ifdef PS_DOUBLE_PRECISION</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSSin</span><span class="arguments">(a)</span> <span class="macro-expansion">sin(a)</span>
+<br>
+<span class="preproc">#else</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSSin</span><span class="arguments">(a)</span> <span class="macro-expansion">sinf(a)</span>
+<br>
+<span class="preproc">#endif</span>
+</code>
+</div>
+</div>
+
+<div class="details macro" id="macro-pssqrt">
+<h3 class="name">PSSqrt</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">29</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#ifdef PS_DOUBLE_PRECISION</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSSqrt</span><span class="arguments">(v)</span> <span class="macro-expansion">sqrt(v)</span>
+<br>
+<span class="preproc">#else</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSSqrt</span><span class="arguments">(v)</span> <span class="macro-expansion">sqrtf(v)</span>
+<br>
+<span class="preproc">#endif</span>
+</code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psstyle-bold">
+<h3 class="name">PSSTYLE_BOLD</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">49</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSSTYLE_BOLD</span> <span class="value">&quot;\x1b[1m&quot;</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psstyle-dim">
+<h3 class="name">PSSTYLE_DIM</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">50</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSSTYLE_DIM</span> <span class="value">&quot;\x1b[2m&quot;</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psstyle-hidden">
+<h3 class="name">PSSTYLE_HIDDEN</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">51</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSSTYLE_HIDDEN</span> <span class="value">&quot;\x1b[8m&quot;</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psstyle-italics">
+<h3 class="name">PSSTYLE_ITALICS</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">52</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSSTYLE_ITALICS</span> <span class="value">&quot;\x1b[3m&quot;</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psstyle-strikethrough">
+<h3 class="name">PSSTYLE_STRIKETHROUGH</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">54</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSSTYLE_STRIKETHROUGH</span> <span class="value">&quot;\x1b[9m&quot;</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psstyle-underline">
+<h3 class="name">PSSTYLE_UNDERLINE</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">53</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSSTYLE_UNDERLINE</span> <span class="value">&quot;\x1b[4m&quot;</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-pstanh">
+<h3 class="name">PSTanh</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">28</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#ifdef PS_DOUBLE_PRECISION</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSTanh</span><span class="arguments">(v)</span> <span class="macro-expansion">tanh(v)</span>
+<br>
+<span class="preproc">#else</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSTanh</span><span class="arguments">(v)</span> <span class="macro-expansion">tanhf(v)</span>
+<br>
+<span class="preproc">#endif</span>
+</code>
+</div>
+</div>
+
+<div class="details macro" id="macro-pstanhs">
+<h3 class="name">PSTanhS</h3>
+<div class="location">In: <span class="filename">activation.h</span> - Line: <span class="line">25</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#ifdef PS_DOUBLE_PRECISION</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSTanhS</span> <span class="value">tanh</span>
+<br>
+<span class="preproc">#else</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSTanhS</span> <span class="value">tanhf</span>
+<br>
+<span class="preproc">#endif</span>
+</code>
+</div>
+</div>
+
+<div class="details macro" id="macro-pstrainopt">
+<h3 class="name">PSTRAINOPT</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">118</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSTRAINOPT</span><span class="arguments">(...)</span> <span class="macro-expansion">((PSTrainingOptions *) &amp;((PSTrainingOptions) {__VA_ARGS__}))</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psusesequences">
+<h3 class="name">PSUseSequences</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">113</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSUseSequences</span><span class="arguments">(o)</span> <span class="macro-expansion">(o-&gt;flags &amp; (PS_FLAG_RECURRENT | PS_FLAG_USE_SEQUENCES))</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psutf8charsize">
+<h3 class="name">PSUTF8CharSize</h3>
+<div class="location">In: <span class="filename">utf8.h</span> - Line: <span class="line">24</span></div>
+<div class="tags"><span class="tag string" data-href="tag-string.html">STRING</span><span class="tag utf8" data-href="tag-utf8.html">UTF8</span></div><div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSUTF8CharSize</span><span class="arguments">(s)</span> <span class="macro-expansion">utf8_length[(((uint8_t *)(s))[0] &amp; 0xFF) &gt;&gt; 4]</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psvectorclear">
+<h3 class="name">PSVectorClear</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">55</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSVectorClear</span><span class="arguments">(vec, len)</span> <span class="macro-expansion">memset(vec, 0, len * sizeof(PSFloat))</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psvectorcopy">
+<h3 class="name">PSVectorCopy</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">54</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSVectorCopy</span><span class="arguments">(dest, src, len)</span> <span class="macro-expansion">memcpy(dest, src, len * sizeof(PSFloat))</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psvectorcreate">
+<h3 class="name">PSVectorCreate</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">57</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSVectorCreate</span><span class="arguments">(len)</span> <span class="macro-expansion">malloc(len * sizeof(PSFloat))</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psvectorzero">
+<h3 class="name">PSVectorZero</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">56</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSVectorZero</span><span class="arguments">(len)</span> <span class="macro-expansion">calloc(len, sizeof(PSFloat))</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psxterm256-gradient-black-blue">
+<h3 class="name">PSXTERM256_GRADIENT_BLACK_BLUE</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">60</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSXTERM256_GRADIENT_BLACK_BLUE</span> <span class="value">16</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psxterm256-gradient-grayscale">
+<h3 class="name">PSXTERM256_GRADIENT_GRAYSCALE</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">85</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSXTERM256_GRADIENT_GRAYSCALE</span> <span class="value">232</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psxterm256-gradient-green-azure">
+<h3 class="name">PSXTERM256_GRADIENT_GREEN_AZURE</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">62</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSXTERM256_GRADIENT_GREEN_AZURE</span> <span class="value">28</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psxterm256-gradient-green-blue">
+<h3 class="name">PSXTERM256_GRADIENT_GREEN_BLUE</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">61</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSXTERM256_GRADIENT_GREEN_BLUE</span> <span class="value">22</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psxterm256-gradient-green-cyan1">
+<h3 class="name">PSXTERM256_GRADIENT_GREEN_CYAN1</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">63</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSXTERM256_GRADIENT_GREEN_CYAN1</span> <span class="value">34</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psxterm256-gradient-green-cyan2">
+<h3 class="name">PSXTERM256_GRADIENT_GREEN_CYAN2</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">64</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSXTERM256_GRADIENT_GREEN_CYAN2</span> <span class="value">40</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psxterm256-gradient-green-cyan3">
+<h3 class="name">PSXTERM256_GRADIENT_GREEN_CYAN3</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">65</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSXTERM256_GRADIENT_GREEN_CYAN3</span> <span class="value">46</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psxterm256-gradient-green-cyan4">
+<h3 class="name">PSXTERM256_GRADIENT_GREEN_CYAN4</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">66</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSXTERM256_GRADIENT_GREEN_CYAN4</span> <span class="value">112</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psxterm256-gradient-green-cyan5">
+<h3 class="name">PSXTERM256_GRADIENT_GREEN_CYAN5</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">67</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSXTERM256_GRADIENT_GREEN_CYAN5</span> <span class="value">118</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psxterm256-gradient-green-cyan6">
+<h3 class="name">PSXTERM256_GRADIENT_GREEN_CYAN6</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">68</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSXTERM256_GRADIENT_GREEN_CYAN6</span> <span class="value">148</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psxterm256-gradient-green-cyan7">
+<h3 class="name">PSXTERM256_GRADIENT_GREEN_CYAN7</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">69</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSXTERM256_GRADIENT_GREEN_CYAN7</span> <span class="value">154</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psxterm256-gradient-magenta1">
+<h3 class="name">PSXTERM256_GRADIENT_MAGENTA1</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">70</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSXTERM256_GRADIENT_MAGENTA1</span> <span class="value">52</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psxterm256-gradient-magenta2">
+<h3 class="name">PSXTERM256_GRADIENT_MAGENTA2</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">71</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSXTERM256_GRADIENT_MAGENTA2</span> <span class="value">88</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psxterm256-gradient-magenta3">
+<h3 class="name">PSXTERM256_GRADIENT_MAGENTA3</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">72</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSXTERM256_GRADIENT_MAGENTA3</span> <span class="value">124</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psxterm256-gradient-magenta4">
+<h3 class="name">PSXTERM256_GRADIENT_MAGENTA4</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">73</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSXTERM256_GRADIENT_MAGENTA4</span> <span class="value">160</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psxterm256-gradient-magenta5">
+<h3 class="name">PSXTERM256_GRADIENT_MAGENTA5</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">74</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSXTERM256_GRADIENT_MAGENTA5</span> <span class="value">196</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psxterm256-gradient-orange-violet1">
+<h3 class="name">PSXTERM256_GRADIENT_ORANGE_VIOLET1</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">75</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSXTERM256_GRADIENT_ORANGE_VIOLET1</span> <span class="value">130</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psxterm256-gradient-orange-violet2">
+<h3 class="name">PSXTERM256_GRADIENT_ORANGE_VIOLET2</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">76</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSXTERM256_GRADIENT_ORANGE_VIOLET2</span> <span class="value">136</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psxterm256-gradient-orange-violet3">
+<h3 class="name">PSXTERM256_GRADIENT_ORANGE_VIOLET3</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">77</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSXTERM256_GRADIENT_ORANGE_VIOLET3</span> <span class="value">166</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psxterm256-gradient-orange-violet4">
+<h3 class="name">PSXTERM256_GRADIENT_ORANGE_VIOLET4</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">78</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSXTERM256_GRADIENT_ORANGE_VIOLET4</span> <span class="value">172</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psxterm256-gradient-orange-violet5">
+<h3 class="name">PSXTERM256_GRADIENT_ORANGE_VIOLET5</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">79</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSXTERM256_GRADIENT_ORANGE_VIOLET5</span> <span class="value">178</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psxterm256-gradient-orange-violet6">
+<h3 class="name">PSXTERM256_GRADIENT_ORANGE_VIOLET6</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">80</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSXTERM256_GRADIENT_ORANGE_VIOLET6</span> <span class="value">202</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psxterm256-gradient-orange-violet7">
+<h3 class="name">PSXTERM256_GRADIENT_ORANGE_VIOLET7</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">81</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSXTERM256_GRADIENT_ORANGE_VIOLET7</span> <span class="value">208</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psxterm256-gradient-orange-violet8">
+<h3 class="name">PSXTERM256_GRADIENT_ORANGE_VIOLET8</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">82</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSXTERM256_GRADIENT_ORANGE_VIOLET8</span> <span class="value">214</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psxterm256-gradient-yellow-white1">
+<h3 class="name">PSXTERM256_GRADIENT_YELLOW_WHITE1</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">83</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSXTERM256_GRADIENT_YELLOW_WHITE1</span> <span class="value">190</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psxterm256-gradient-yellow-white2">
+<h3 class="name">PSXTERM256_GRADIENT_YELLOW_WHITE2</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">84</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSXTERM256_GRADIENT_YELLOW_WHITE2</span> <span class="value">26</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psyc-contact">
+<h3 class="name">PSYC_CONTACT</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">33</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSYC_CONTACT</span> <span class="value">PSYC_SITE &quot;/issues&quot;</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psyc-git-branch">
+<h3 class="name">PSYC_GIT_BRANCH</h3>
+<div class="location">In: <span class="filename">buildinfo.h</span> - Line: <span class="line">6</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSYC_GIT_BRANCH</span> <span class="value">&quot;1.0-dev&quot;</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psyc-git-dirty">
+<h3 class="name">PSYC_GIT_DIRTY</h3>
+<div class="location">In: <span class="filename">buildinfo.h</span> - Line: <span class="line">5</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSYC_GIT_DIRTY</span> <span class="value">&quot;303&quot;</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psyc-git-sha">
+<h3 class="name">PSYC_GIT_SHA</h3>
+<div class="location">In: <span class="filename">buildinfo.h</span> - Line: <span class="line">4</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSYC_GIT_SHA</span> <span class="value">&quot;357c6215&quot;</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psyc-name">
+<h3 class="name">PSYC_NAME</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">31</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSYC_NAME</span> <span class="value">&quot;PsyC&quot;</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psyc-site">
+<h3 class="name">PSYC_SITE</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">32</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSYC_SITE</span> <span class="value">&quot;https://github.com/artix75/psyc&quot;</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psyc-version">
+<h3 class="name">PSYC_VERSION</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">30</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSYC_VERSION</span> <span class="value">&quot;0.9.3&quot;</span></code>
+</div>
+</div>
+
+           </section>
+       </main>
+       <footer>
+           <div class="contacts">
+               <span><label>PsyC project page:</label> <a href="https://github.com/artix75/psyc" target="_blank">https://github.com/artix75/psyc</a></span> &bullet; <span><label>Report bugs to:</label> <a href="https://github.com/artix75/psyc/issues" target="_blank">https://github.com/artix75/psyc/issues</a></span>
+           </div>
+           <div class="license-info">
+               <div class="license"><img src="License-BSD-3-Clause-blue.svg"> PsyC is released under the <a href="https://opensource.org/license/bsd-3-clause/">BSD-3 Clause</a>
+               </div>
+               <div class="copyright">Copyright &copy; 2016-2023 Giuseppe Fabio Nicotra
+               </div>
+           </div>
+       </footer>
+   </body>
+</html>

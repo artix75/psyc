@@ -1,0 +1,68 @@
+.\" Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that the above copyright notice and this paragraph are
+.\" duplicated in all such forms and that any documentation,
+.\" advertising materials, and other materials related to such
+.\" distribution and use acknowledge that the software was developed
+.\" by the copyright holder. The name of the
+.\" copyright holder may not be used to endorse or promote products derived
+.\" from this software without specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+.TH PSModelLoad 3 2023-12-01 "PsyC 0.9.3" "PsyC Library Functions Manual"
+
+.SH NAME
+PSModelLoad
+
+.SH LIBRARY
+PsyC (-lpsyc)
+
+.SH SYNOPSIS
+
+.B
+#include <psyc/psyc.h>
+
+.I
+int  
+.br
+\fBPSModelLoad\fR(\fIPSModel *model\fR, \fIconst char* filepath\fR)
+.SH DESCRIPTION
+Load model data (including layers and their parameters) from file located at \fIfilepath\fR into \fImodel\fR.
+.br
+This function requires an already existing model. In order to load a new model from scratch from, \fIPSLoadModel\fR should be used instead.
+.br
+If \fImodel\fR is empty (it has no layers), both the model structure and data such as layer parameters will be loaded into the model itself).
+.br
+If \fImodel\fR is not empty (it already has layers), only data such as layer parameters will be loaded into model. In this case, the structure of \fImodel\fR must match the structure declared by the file.
+.br
+If the file defines a multi-model chain, the whole chain will be loaded ( in this case, if \fImodel\fR is not empty, the \fImodel\fR chain structure must match the structure that has to be loaded from the file).  
+
+.SH RETURN VALUES
+1 if \fImodel\fR is successfully loaded, 0 if:
+
+.RS 4
+\[bu] \fImodel\fR is \fINULL\fR or \fIfilepath\fR is \fINULL\fR.
+.br
+
+\[bu] The file at \fIfilepath\fR could not be opened for reading.
+.br
+
+\[bu] The file at \fIfilepath\fR is not a valid PsyC model file.
+.br
+
+\[bu] PsyC version is lower than version declared in the file.
+.br
+
+\[bu] \fImodel\fR is not empty and its structure differs from the one declared by the file (ie. different number of layers or models, different layer types, and so on).
+.br
+
+\[bu] Some error occurred while reading data from file.
+.br
+.RE
+
+.SH SEE ALSO
+PSLoadModel(3), PSModelSave(3)

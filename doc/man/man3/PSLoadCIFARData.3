@@ -1,0 +1,75 @@
+.\" Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that the above copyright notice and this paragraph are
+.\" duplicated in all such forms and that any documentation,
+.\" advertising materials, and other materials related to such
+.\" distribution and use acknowledge that the software was developed
+.\" by the copyright holder. The name of the
+.\" copyright holder may not be used to endorse or promote products derived
+.\" from this software without specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+.TH PSLoadCIFARData 3 2023-12-01 "PsyC 0.9.3" "PsyC Library Functions Manual"
+
+.SH NAME
+PSLoadCIFARData
+
+.SH LIBRARY
+PsyC (-lpsyc)
+
+.SH SYNOPSIS
+
+.B
+#include <psyc/dataset.h>
+
+.I
+int  
+.br
+\fBPSLoadCIFARData\fR(\fIint type\fR, \fIint classes\fR, \fIconst char *dataset_path\fR, \fIPSFloat ** data\fR, \fIint max_files\fR, \fIint max_elements\fR)
+.SH DESCRIPTION
+Load the CIFAR dataset (\fIhttps://www.cs.toronto.edu/~kriz/cifar.html\fR) from files.
+.br
+The dataset files must be in gzip format (.gz): dataset files must be in binary version and located into \fIdataset_path\fR directory.
+.br
+The dataset is allocated by the function itself and its pointer is stored into \fIdata\fR pointer-to-pointer (it cannot be \fINULL\fR). The length of the resulting dataset is returned by the function.
+.br
+The CIFAR dataset comes in two fashions:
+.br
+
+.RS 4
+\[bu] CIFAR-10:  each image can be classified with 10 classes.
+.br
+
+\[bu] CIFAR-100: each image can be classified with 100 classes.
+.RE
+.RE
+
+The \fIclasses\fR argument can be used to tell the function which kind of dataset is going to be loaded.
+.br
+The \fItype\fR argument can be used to tell if the dataset is a training dataset (\fIPS_DATA_TYPE_TRAINING\fR) or a test dataset (\fIPS_DATA_TYPE_TEST\fR).  
+
+.SH RETURN VALUES
+The length of the dataset (number of \fIPSFloat\fR elements) or zero if some error occurs.
+Possibile errors:
+.br
+
+.RS 4
+\[bu] The data argument is \fINULL\fR
+.br
+
+\[bu] The value for \fIclass\fR is neither 10 not 100.
+.br
+
+\[bu] Dataset directory is \fINULL\fR, or dataset files cannot be opened cannot be opened.
+.br
+
+\[bu] Dataset cannot be allocated into memory
+.br
+
+\[bu] Dataset file format is not valid
+.br
+.RE

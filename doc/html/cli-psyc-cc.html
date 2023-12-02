@@ -1,0 +1,144 @@
+<!doctype html>
+<!--
+Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+All rights reserved.
+
+Redistribution and use in source and binary forms are permitted
+provided that the above copyright notice and this paragraph are
+duplicated in all such forms and that any documentation,
+advertising materials, and other materials related to such
+distribution and use acknowledge that the software was developed
+by the copyright holder. The name of the
+copyright holder may not be used to endorse or promote products derived
+from this software without specific prior written permission.
+THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+-->
+<html lang="en">
+   <head>
+       <title>PsyC Documentation - psyc-cc</title>
+       <link rel="stylesheet" type="text/css" href="style.css">
+       <script language="javascript" src="main.js"></script>
+   </head>
+   <body class="psyc-doc psyc-cli-tool">
+       <header>
+           <h1>PsyC Documentation <span class="version">0.9.3</span></h1>
+           <h2>Command Line Utilities</h2>
+           <nav id="top-menu">
+               <ul>
+                   <li>
+                       <a href="index.html">INDEX</a>
+                   </li>
+               </ul>
+           </nav>
+           <nav id="main-menu">
+               <ul>
+                   <li>
+                   </li>
+                   <li>
+                   </li>
+                   <li>
+                   </li>
+               </ul>
+           </nav>
+       </header>
+       <main>
+           <nav id="sidebar">
+               <h2>Command Line Utilities</h2>
+               <ul>
+<li><a href="cli-psycl.html">psycl</a></li>
+<li><a href="cli-psyc-cc.html" class="current">psyc-cc</a></li>
+               </ul>
+           </nav>
+           <section id="doc">
+<h2 class="name">psyc-cc</h3>
+<section class="synopsis">
+<h3>SYNOPSIS</h3>
+<div class="code">
+<code class="usage" data-language="shell">
+Usage: psyc-cc [OPTIONS] [SOURCE] [-- GCC_OPTS]
+</code>
+</div>
+</section>
+<section class="description">
+<h3>DESCRIPTION</h3>
+<div class="content">
+Compile a C source file against Psyc library.<br>
+</div>
+</section>
+<section class="section" id="section-options">
+<h3>OPTIONS</h3>
+<ul class="cli-opt-list">
+<li id="opt-is-lib">
+<span class="optdef"><span class="name">--is-lib</span></span>
+<div class="description">
+Compile a library instead of an executable
+</div>
+</li>
+<li id="opt-cflags">
+<span class="optdef"><span class="name">--cflags</span></span>
+<div class="description">
+Print CFLAGS and exit
+</div>
+</li>
+<li id="opt-ldflags">
+<span class="optdef"><span class="name">--ldflags</span></span>
+<div class="description">
+Print LDFLAGS and exit
+</div>
+</li>
+
+</ul>
+@OPT()
+<ul class="cli-opt-list">
+<li id="opt-o-output">
+<span class="optdef"><span class="name">-o, --output</span> <span class="args"> PATH</span></span>
+<div class="description">
+Output path
+</div>
+</li>
+<li id="opt-s-static">
+<span class="optdef"><span class="name">-s, --static</span></span>
+<div class="description">
+Use static library
+</div>
+</li>
+<li id="opt-p-dry-run">
+<span class="optdef"><span class="name">-p, --dry-run</span></span>
+<div class="description">
+Only print command whithout executing it
+</div>
+</li>
+<li id="opt-q-quiet">
+<span class="optdef"><span class="name">-q, --quiet</span></span>
+<div class="description">
+Quiet mode
+</div>
+</li>
+<li id="opt-h-help">
+<span class="optdef"><span class="name">-h, --help</span></span>
+<div class="description">
+Print this help
+</div>
+</li>
+
+</ul>
+
+</section>
+
+           </section>
+       </main>
+       <footer>
+           <div class="contacts">
+               <span><label>PsyC project page:</label> <a href="https://github.com/artix75/psyc" target="_blank">https://github.com/artix75/psyc</a></span> &bullet; <span><label>Report bugs to:</label> <a href="https://github.com/artix75/psyc/issues" target="_blank">https://github.com/artix75/psyc/issues</a></span>
+           </div>
+           <div class="license-info">
+               <div class="license"><img src="License-BSD-3-Clause-blue.svg"> PsyC is released under the <a href="https://opensource.org/license/bsd-3-clause/">BSD-3 Clause</a>
+               </div>
+               <div class="copyright">Copyright &copy; 2016-2023 Giuseppe Fabio Nicotra
+               </div>
+           </div>
+       </footer>
+   </body>
+</html>

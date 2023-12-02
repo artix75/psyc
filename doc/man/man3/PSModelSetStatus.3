@@ -1,0 +1,79 @@
+.\" Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that the above copyright notice and this paragraph are
+.\" duplicated in all such forms and that any documentation,
+.\" advertising materials, and other materials related to such
+.\" distribution and use acknowledge that the software was developed
+.\" by the copyright holder. The name of the
+.\" copyright holder may not be used to endorse or promote products derived
+.\" from this software without specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+.TH PSModelSetStatus 3 2023-12-01 "PsyC 0.9.3" "PsyC Library Functions Manual"
+
+.SH NAME
+PSModelSetStatus
+
+.SH LIBRARY
+PsyC (-lpsyc)
+
+.SH SYNOPSIS
+
+.B
+#include <psyc/psyc.h>
+
+.I
+void  
+.br
+\fBPSModelSetStatus\fR(\fIPSModel *model\fR, \fIint status\fR, \fIint *old\fR)
+.SH DESCRIPTION
+Set \fIstatus\fR as the status of \fImodel\fR. The optional argument \fIold\fR can be used to retrieve the old status of \fImodel\fR before updating it with the value of \fIstatus\fR.
+.br
+If \fImodel\fR is part of a multi-model chain, hte new status will be set on all the models that are part of the model chain.
+.br
+Common used status values are:
+.br
+
+.RS 4
+.TP
+.B PS_STATUS_UNTRAINED
+
+.br
+
+.TP
+.B PS_STATUS_TRAINED
+
+.br
+
+.TP
+.B PS_STATUS_TRAINING
+
+.br
+
+.TP
+.B PS_STATUS_VALIDATING
+
+.br
+
+.TP
+.B PS_STATUS_PAUSED
+
+.br
+
+.TP
+.B PS_STATUS_ABORTED
+
+.br
+
+.TP
+.B PS_STATUS_ERROR
+
+.br
+.RE
+
+.SH SEE ALSO
+PSModelGetStatus(3)

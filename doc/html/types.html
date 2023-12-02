@@ -1,0 +1,785 @@
+<!doctype html>
+<!--
+Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+All rights reserved.
+
+Redistribution and use in source and binary forms are permitted
+provided that the above copyright notice and this paragraph are
+duplicated in all such forms and that any documentation,
+advertising materials, and other materials related to such
+distribution and use acknowledge that the software was developed
+by the copyright holder. The name of the
+copyright holder may not be used to endorse or promote products derived
+from this software without specific prior written permission.
+THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+-->
+<html lang="en">
+   <head>
+       <title>PsyC Documentation - Types</title>
+       <link rel="stylesheet" type="text/css" href="style.css">
+       <script language="javascript" src="main.js"></script>
+   </head>
+   <body class="psyc-doc psyc-types">
+       <header>
+           <h1>PsyC Documentation <span class="version">0.9.3</span></h1>
+           <h2>API Reference - Types</h2>
+           <nav id="top-menu">
+               <ul>
+                   <li>
+                       <a href="index.html">INDEX</a>
+                   </li>
+               </ul>
+           </nav>
+           <nav id="main-menu">
+               <ul>
+                   <li>
+                       <a class="" href="functions.html">Functions</a>
+                   </li>
+                   <li>
+                       <a class="current" href="types.html">Types</a>
+                   </li>
+                   <li>
+                       <a class="" href="macros.html">Macros</a>
+                   </li>
+               </ul>
+           </nav>
+       </header>
+       <main>
+           <nav id="sidebar">
+               <h2>Types</h2>
+               <ul>
+<li><a href="#enum-psacceleration">PSAcceleration</a></li>
+<li><a href="#function_pointer-psactivationfunction">PSActivationFunction</a></li>
+<li><a href="#enum-psattentiontype">PSAttentionType</a></li>
+<li><a href="#function_pointer-psbackpropfunction">PSBackpropFunction</a></li>
+<li><a href="#function_pointer-psbeforebackpropcallback">PSBeforeBackpropCallback</a></li>
+<li><a href="#function_pointer-psbeforeforwardcallback">PSBeforeForwardCallback</a></li>
+<li><a href="#type-psbitmap">PSBitmap</a></li>
+<li><a href="#type-psblaserr">PSBlasErr</a></li>
+<li><a href="#struct-psblaserr">PSBLASErr</a></li>
+<li><a href="#enum-psblasorder">PSBLASOrder</a></li>
+<li><a href="#function_pointer-psbooleanlayercallback">PSBooleanLayerCallback</a></li>
+<li><a href="#struct-psconvolutionalsettings">PSConvolutionalSettings</a></li>
+<li><a href="#function_pointer-pscopylayercallback">PSCopyLayerCallback</a></li>
+<li><a href="#struct-psdebuginfo">PSDebugInfo</a></li>
+<li><a href="#struct-psdebugstepinfo">PSDebugStepInfo</a></li>
+<li><a href="#struct-psdict">PSDict</a></li>
+<li><a href="#struct-psdictitem">PSDictItem</a></li>
+<li><a href="#struct-psdictiterator">PSDictIterator</a></li>
+<li><a href="#union-psdictvalue">PSDictValue</a></li>
+<li><a href="#function_pointer-psdotproductdebug">PSDotProductDebug</a></li>
+<li><a href="#enum-psembeddingtype">PSEmbeddingType</a></li>
+<li><a href="#type-psfloat">PSFloat</a></li>
+<li><a href="#function_pointer-psfloatfunc">PSFloatFunc</a></li>
+<li><a href="#function_pointer-psforwardfunction">PSForwardFunction</a></li>
+<li><a href="#struct-psforwardoptions">PSForwardOptions</a></li>
+<li><a href="#function_pointer-psgenericlayercallback">PSGenericLayerCallback</a></li>
+<li><a href="#function_pointer-psgetparamcountfunction">PSGetParamCountFunction</a></li>
+<li><a href="#struct-psgradient">PSGradient</a></li>
+<li><a href="#struct-psgrucell">PSGRUCell</a></li>
+<li><a href="#function_pointer-psinitstatesfunc">PSInitStatesFunc</a></li>
+<li><a href="#struct-pslayer">PSLayer</a></li>
+<li><a href="#struct-pslayerdef">PSLayerDef</a></li>
+<li><a href="#enum-pslayertype">PSLayerType</a></li>
+<li><a href="#function_pointer-pslinkdataretriever">PSLinkDataRetriever</a></li>
+<li><a href="#function_pointer-pslossfunction">PSLossFunction</a></li>
+<li><a href="#struct-pslstmcell">PSLSTMCell</a></li>
+<li><a href="#struct-psmathopts">PSMathOpts</a></li>
+<li><a href="#type-psmatrix">PSMatrix</a></li>
+<li><a href="#function_pointer-psmatrixinitializer">PSMatrixInitializer</a></li>
+<li><a href="#struct-psmodel">PSModel</a></li>
+<li><a href="#struct-psmodellink">PSModelLink</a></li>
+<li><a href="#type-psneuralnetwork">PSNeuralNetwork</a></li>
+<li><a href="#struct-psneuron">PSNeuron</a></li>
+<li><a href="#struct-psnormalizationlayersettings">PSNormalizationLayerSettings</a></li>
+<li><a href="#function_pointer-psondictitemrelease">PSOnDictItemRelease</a></li>
+<li><a href="#enum-psoperatortype">PSOperatorType</a></li>
+<li><a href="#function_pointer-psoptimization">PSOptimization</a></li>
+<li><a href="#function_pointer-pspretrainlayerfunction">PSPretrainLayerFunction</a></li>
+<li><a href="#enum-psrecurrentnetworkmode">PSRecurrentNetworkMode</a></li>
+<li><a href="#function_pointer-psresizestatesfunc">PSResizeStatesFunc</a></li>
+<li><a href="#function_pointer-psscalaractivationfunction">PSScalarActivationFunction</a></li>
+<li><a href="#struct-pssequencesettings">PSSequenceSettings</a></li>
+<li><a href="#function_pointer-pssignalhandler">PSSignalHandler</a></li>
+<li><a href="#struct-pstextparseroptions">PSTextParserOptions</a></li>
+<li><a href="#function_pointer-pstokenmatch">PSTokenMatch</a></li>
+<li><a href="#function_pointer-pstraincallback">PSTrainCallback</a></li>
+<li><a href="#struct-pstraininginfo">PSTrainingInfo</a></li>
+<li><a href="#struct-pstrainingoptions">PSTrainingOptions</a></li>
+<li><a href="#function_pointer-pstrainingprogressfunc">PSTrainingProgressFunc</a></li>
+<li><a href="#type-psutf8char">PSUTF8Char</a></li>
+<li><a href="#struct-psvocabulary">PSVocabulary</a></li>
+               </ul>
+           </nav>
+           <section id="doc">
+<div class="details enum" id="enum-psacceleration">
+<h3 class="name">PSAcceleration</h3>
+<div class="location">In: <span class="filename">config.h</span> - Line: <span class="line">48</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef enum</span> {<br><span class="member"><span class="identifier">PSAcceleration_None</span> = <span class="value">0</span></span>,<br><span class="member"><span class="identifier">PSAcceleration_AVX</span> = <span class="value">1</span> <span class="comment">/* (1 &lt;&lt; 0) */</span></span>,<br><span class="member"><span class="identifier">PSAcceleration_ACF</span> = <span class="value">2</span> <span class="comment">/* (1 &lt;&lt; 1) */</span></span>,<br><span class="member"><span class="identifier">PSAcceleration_BLAS</span> = <span class="value">4</span> <span class="comment">/* (1 &lt;&lt; 2) */</span></span>,<br><span class="member"><span class="identifier">PSAcceleration_Auto</span> = <span class="value">32768</span> <span class="comment">/* (1 &lt;&lt; 15) */</span></span>,<br><span class="member"><span class="identifier">PSAcceleration_All</span> = <span class="value">0xFFFF</span></span><br>} <span class="identifier">PSAcceleration</span><br></code>
+</div>
+</div>
+
+<div class="details function_pointer" id="function_pointer-psactivationfunction">
+<h3 class="name">PSActivationFunction</h3>
+<div class="location">In: <span class="filename">activation.h</span> - Line: <span class="line">30</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef </span><span class="type return-type">void</span>  (* <span class="identifier">PSActivationFunction</span>) (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-psactivationfunction-vec>vec</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-psactivationfunction-dest>dest</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function_pointer-psactivationfunction-len>len</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-psactivationfunction-opts>opts</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details enum" id="enum-psattentiontype">
+<h3 class="name">PSAttentionType</h3>
+<div class="location">In: <span class="filename">attention.h</span> - Line: <span class="line">37</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef enum</span> {<br><span class="member"><span class="identifier">PSDotAttention</span> = <span class="value">0</span></span>,<br><span class="member"><span class="identifier">PSAdditiveAttention</span> = <span class="value">1</span></span>,<br><span class="member"><span class="identifier">PSInvalidAttention</span> = <span class="value">9999</span></span><br>} <span class="identifier">PSAttentionType</span><br></code>
+</div>
+</div>
+
+<div class="details function_pointer" id="function_pointer-psbackpropfunction">
+<h3 class="name">PSBackpropFunction</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">129</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef </span><span class="type return-type">int</span>  (* <span class="identifier">PSBackpropFunction</span>) (<span class="arguments"><span class="argument"><span class="type">struct <a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-psbackpropfunction-layer>layer</span></span>, <span class="argument"><span class="type">struct <a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-psbackpropfunction-previouslayer>previousLayer</span></span>, <span class="argument"><span class="type">struct <a class="psyc-type" href="types.html#struct-psgradient">PSGradient</a> *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-psbackpropfunction-layer-gradients>layer_gradients</span></span>, <span class="argument variadic">...</span></span>)</code>
+</div>
+</div>
+
+<div class="details function_pointer" id="function_pointer-psbeforebackpropcallback">
+<h3 class="name">PSBeforeBackpropCallback</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">157</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef </span><span class="type return-type">int</span>  (* <span class="identifier">PSBeforeBackpropCallback</span>) (<span class="arguments"><span class="argument"><span class="type">struct <a class="psyc-type" href="types.html#struct-psmodel">PSModel</a> *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-psbeforebackpropcallback-model>model</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-psbeforebackpropcallback-y>y</span></span>, <span class="argument"><span class="type">struct <a class="psyc-type" href="types.html#struct-pstrainingoptions">PSTrainingOptions</a> *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-psbeforebackpropcallback-opts>opts</span></span>, <span class="argument"><span class="type">struct <a class="psyc-type" href="types.html#struct-psgradient">PSGradient</a> **</span><span class="identifier pointer-name" data-identifier-id=function_pointer-psbeforebackpropcallback-gradients>gradients</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function_pointer" id="function_pointer-psbeforeforwardcallback">
+<h3 class="name">PSBeforeForwardCallback</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">153</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef </span><span class="type return-type">int</span>  (* <span class="identifier">PSBeforeForwardCallback</span>) (<span class="arguments"><span class="argument"><span class="type">struct <a class="psyc-type" href="types.html#struct-psmodel">PSModel</a> *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-psbeforeforwardcallback-model>model</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-psbeforeforwardcallback-inputs>inputs</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function_pointer-psbeforeforwardcallback-seqlen>seqlen</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function_pointer-psbeforeforwardcallback-backprop>backprop</span></span>, <span class="argument"><span class="type">void *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-psbeforeforwardcallback-opts>opts</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details type" id="type-psbitmap">
+<h3 class="name">PSBitmap</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">112</span></div>
+<div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag bitmap" data-href="tag-bitmap.html">BITMAP</span></div><div class="code">
+<code class="definition">
+<span class="keyword">typedef </span><span class="type">uint64_t *</span> <span class="identifier">PSBitmap</span></code>
+</div>
+</div>
+
+<div class="details type" id="type-psblaserr">
+<h3 class="name">PSBlasErr</h3>
+<div class="location">In: <span class="filename">blas.h</span> - Line: <span class="line">28</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef </span><span class="type">struct</span> <span class="identifier">PSBlasErr</span></code>
+</div>
+</div>
+
+<div class="details struct" id="struct-psblaserr">
+<h3 class="name">PSBLASErr</h3>
+<div class="location">In: <span class="filename">blas.h</span> - Line: <span class="line">28</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef struct</span> {<br><span class="member"><span class="type">const char *</span> <span class="identifier">func</span></span>;<br><span class="member"><span class="type">const char *</span> <span class="identifier">param</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">param_pos</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">param_value</span></span>;<br>} <span class="identifier">PSBLASErr</span><br></code>
+</div>
+</div>
+
+<div class="details enum" id="enum-psblasorder">
+<h3 class="name">PSBLASOrder</h3>
+<div class="location">In: <span class="filename">blas.h</span> - Line: <span class="line">23</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef enum</span> {<br><span class="member"><span class="identifier">PSBLASRowMajor</span> = <span class="value">0</span></span>,<br><span class="member"><span class="identifier">PSBLASColMajor</span> = <span class="value">1</span></span><br>} <span class="identifier">PSBLASOrder</span><br></code>
+</div>
+</div>
+
+<div class="details function_pointer" id="function_pointer-psbooleanlayercallback">
+<h3 class="name">PSBooleanLayerCallback</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">134</span></div>
+<div class="tags"><span class="tag model" data-href="tag-model.html">MODEL</span></div><div class="code">
+<code class="definition">
+<span class="keyword">typedef </span><span class="type return-type">int</span>  (* <span class="identifier">PSBooleanLayerCallback</span>) (<span class="arguments"><span class="argument"><span class="type">struct <a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-psbooleanlayercallback-layer>layer</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details struct" id="struct-psconvolutionalsettings">
+<h3 class="name">PSConvolutionalSettings</h3>
+<div class="location">In: <span class="filename">convolutional.h</span> - Line: <span class="line">29</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef struct</span> {<br><span class="member"><span class="type">int</span> <span class="identifier">stride</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">padding</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">filter_width</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">filter_height</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">filter_depth</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">input_width</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">input_height</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">input_depth</span></span>;<br>} <span class="identifier">PSConvolutionalSettings</span><br></code>
+</div>
+</div>
+
+<div class="details function_pointer" id="function_pointer-pscopylayercallback">
+<h3 class="name">PSCopyLayerCallback</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">135</span></div>
+<div class="tags"><span class="tag model" data-href="tag-model.html">MODEL</span></div><div class="code">
+<code class="definition">
+<span class="keyword">typedef </span><span class="type return-type">int</span>  (* <span class="identifier">PSCopyLayerCallback</span>) (<span class="arguments"><span class="argument"><span class="type">struct <a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-pscopylayercallback-></span></span>, <span class="argument"><span class="type">struct <a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-pscopylayercallback-></span></span></span>)</code>
+</div>
+</div>
+
+<div class="details struct" id="struct-psdebuginfo">
+<h3 class="name">PSDebugInfo</h3>
+<div class="location">In: <span class="filename">debug.h</span> - Line: <span class="line">44</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef struct</span> {<br><span class="member"><span class="type">char *</span> <span class="identifier">file</span></span>;<br><span class="member"><span class="type">const char *</span> <span class="identifier">func</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">line</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">status</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">current_epoch</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">current_batch</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">current_element</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">layer_index</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">layer_type</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">neuron_index</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">neuron2_index</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">layer2_index</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">convolutional_feature</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">timestep</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier">activation</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier">activation2</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier">z_value</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier">bias</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier">weight</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier">delta</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier">delta2</span></span>;<br><span class="member"><span class="type">char *</span> <span class="identifier">custom_prop</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier">custom_val</span></span>;<br><span class="member"><span class="type">time_t</span> <span class="identifier">time</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">has_info</span></span>;<br>} <span class="identifier">PSDebugInfo</span><br></code>
+</div>
+</div>
+
+<div class="details struct" id="struct-psdebugstepinfo">
+<h3 class="name">PSDebugStepInfo</h3>
+<div class="location">In: <span class="filename">debug.h</span> - Line: <span class="line">72</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef struct</span> {<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#struct-psmodel">PSModel</a> *</span> <span class="identifier">model</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">training_phase</span></span>;<br><span class="member"><span class="type">const char *</span> <span class="identifier">func</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span> <span class="identifier">layer</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#struct-psneuron">PSNeuron</a> *</span> <span class="identifier">neuron</span></span>;<br>} <span class="identifier">PSDebugStepInfo</span><br></code>
+</div>
+</div>
+
+<div class="details struct" id="struct-psdict">
+<h3 class="name">PSDict</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">84</span></div>
+<div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag dictionary" data-href="tag-dictionary.html">DICTIONARY</span></div><div class="code">
+<code class="definition">
+<span class="keyword">typedef struct</span> {<br><span class="member"><span class="type">int64_t</span> <span class="identifier">length</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">flags</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#struct-psdictitem">PSDictItem</a> *</span> <span class="identifier">table[PSDICT_HT_SIZE]</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#function_pointer-psondictitemrelease">PSOnDictItemRelease</a></span> <span class="identifier">onItemRelease</span></span>;<br>} <span class="identifier">PSDict</span><br></code>
+</div>
+</div>
+
+<div class="details struct" id="struct-psdictitem">
+<h3 class="name">PSDictItem</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">75</span></div>
+<div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag dictionary" data-href="tag-dictionary.html">DICTIONARY</span></div><div class="code">
+<code class="definition">
+<span class="keyword">typedef struct</span> {<br><span class="member"><span class="type">const char *</span> <span class="identifier">key</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#union-psdictvalue">PSDictValue</a></span> <span class="identifier">value</span></span>;<br><span class="member"><span class="type">struct <a class="psyc-type" href="types.html#struct-psdictitem">PSDictItem</a> *</span> <span class="identifier">prev</span></span>;<br><span class="member"><span class="type">struct <a class="psyc-type" href="types.html#struct-psdictitem">PSDictItem</a> *</span> <span class="identifier">next</span></span>;<br><span class="member"><span class="type">struct <a class="psyc-type" href="types.html#struct-psdict">PSDict</a> *</span> <span class="identifier">dict</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">slot</span></span>;<br>} <span class="identifier">PSDictItem</span><br></code>
+</div>
+</div>
+
+<div class="details struct" id="struct-psdictiterator">
+<h3 class="name">PSDictIterator</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">91</span></div>
+<div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag dictionary" data-href="tag-dictionary.html">DICTIONARY</span></div><div class="code">
+<code class="definition">
+<span class="keyword">typedef struct</span> {<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#struct-psdict">PSDict</a> *</span> <span class="identifier">dict</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#struct-psdictitem">PSDictItem</a> *</span> <span class="identifier">current</span></span>;<br>} <span class="identifier">PSDictIterator</span><br></code>
+</div>
+</div>
+
+<div class="details union" id="union-psdictvalue">
+<h3 class="name">PSDictValue</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">69</span></div>
+<div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag dictionary" data-href="tag-dictionary.html">DICTIONARY</span></div><div class="code">
+<code class="definition">
+<span class="keyword">typedef union</span> {<br><span class="member"><span class="type">int64_t</span> <span class="identifier">as_int</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier">as_float</span></span>;<br><span class="member"><span class="type">void *</span> <span class="identifier">as_ptr</span></span>;<br>} <span class="identifier">PSDictValue</span><br></code>
+</div>
+</div>
+
+<div class="details function_pointer" id="function_pointer-psdotproductdebug">
+<h3 class="name">PSDotProductDebug</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">72</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef </span><span class="type return-type">void</span>  (* <span class="identifier">PSDotProductDebug</span>) (<span class="arguments"><span class="argument void">void</span></span>)</code>
+</div>
+</div>
+
+<div class="details enum" id="enum-psembeddingtype">
+<h3 class="name">PSEmbeddingType</h3>
+<div class="location">In: <span class="filename">embedding.h</span> - Line: <span class="line">27</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef enum</span> {<br><span class="member"><span class="identifier">PSWord2Vec</span> = <span class="value">0</span></span><br>} <span class="identifier">PSEmbeddingType</span><br></code>
+</div>
+<div class="description">
+PSWord2Vec embedding type is based on Word2Vec algorithm created by Tomas Mikolov: <a href="https://scholar.google.com/citations?user=oBu8kMMAAAAJ&hl=en" target="_blank">https://scholar.google.com/citations?user=oBu8kMMAAAAJ&amp;hl=en</a> Reference: <a href="https://code.google.com/archive/p/word2vec/" target="_blank">https://code.google.com/archive/p/word2vec/</a>
+</div>
+</div>
+
+<div class="details type" id="type-psfloat">
+<h3 class="name">PSFloat</h3>
+<div class="location">In: <span class="filename">types.h</span> - Line: <span class="line">38</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#ifdef PS_DOUBLE_PRECISION</span>
+<br>
+<span class="keyword">typedef </span><span class="type">double</span> <span class="identifier">PSFloat</span>
+<br>
+<span class="preproc">#else</span>
+<br>
+<span class="keyword">typedef </span><span class="type">float</span> <span class="identifier">PSFloat</span>
+<br>
+<span class="preproc">#endif</span>
+</code>
+</div>
+<div class="description">
+PsyC&#39;s type for floating-point numbers. By default, it&#39;s an alias for the <span class="identifier-ref">float</span> type. However, if PsyC has been built with the <span class="identifier-ref">PS_DOUBLE_PRECISION</span> macro defined (usually by building PsyC with <span class="identifier-ref">DOUBLE_PRECISION</span> make variable, ie. <code>make DOUBLE_PRECISION=on</code>), PSFloat will be an alias for <span class="identifier-ref">double</span>.
+</div>
+</div>
+
+<div class="details function_pointer" id="function_pointer-psfloatfunc">
+<h3 class="name">PSFloatFunc</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">75</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef </span><span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span>  (* <span class="identifier">PSFloatFunc</span>) (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier" data-identifier-id=function_pointer-psfloatfunc-n>n</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function_pointer" id="function_pointer-psforwardfunction">
+<h3 class="name">PSForwardFunction</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">128</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef </span><span class="type return-type">int</span>  (* <span class="identifier">PSForwardFunction</span>) (<span class="arguments"><span class="argument"><span class="type">struct <a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-psforwardfunction-layer>layer</span></span>, <span class="argument variadic">...</span></span>)</code>
+</div>
+</div>
+
+<div class="details struct" id="struct-psforwardoptions">
+<h3 class="name">PSForwardOptions</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">256</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef struct</span> {<br><span class="member"><span class="type">int</span> <span class="identifier">flags</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#struct-pssequencesettings">PSSequenceSettings</a> *</span> <span class="identifier">sequence_settings</span></span>;<br>} <span class="identifier">PSForwardOptions</span><br></code>
+</div>
+</div>
+
+<div class="details function_pointer" id="function_pointer-psgenericlayercallback">
+<h3 class="name">PSGenericLayerCallback</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">133</span></div>
+<div class="tags"><span class="tag model" data-href="tag-model.html">MODEL</span></div><div class="code">
+<code class="definition">
+<span class="keyword">typedef </span><span class="type return-type">void</span>  (* <span class="identifier">PSGenericLayerCallback</span>) (<span class="arguments"><span class="argument"><span class="type">struct <a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-psgenericlayercallback-layer>layer</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function_pointer" id="function_pointer-psgetparamcountfunction">
+<h3 class="name">PSGetParamCountFunction</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">139</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef </span><span class="type return-type">uint64_t</span>  (* <span class="identifier">PSGetParamCountFunction</span>) (<span class="arguments"><span class="argument"><span class="type">struct <a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-psgetparamcountfunction-layer>layer</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function_pointer-psgetparamcountfunction-type>type</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details struct" id="struct-psgradient">
+<h3 class="name">PSGradient</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">218</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef struct</span> {<br><span class="member"><span class="type">uint64_t</span> <span class="identifier">bias_count</span></span>;<br><span class="member"><span class="type">uint64_t</span> <span class="identifier">weight_count</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span> <span class="identifier">biases</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span> <span class="identifier">weights</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span> <span class="identifier">tmp</span></span>;<br>} <span class="identifier">PSGradient</span><br></code>
+</div>
+</div>
+
+<div class="details struct" id="struct-psgrucell">
+<h3 class="name">PSGRUCell</h3>
+<div class="location">In: <span class="filename">gru.h</span> - Line: <span class="line">27</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef struct</span> {<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span> <span class="identifier">candidate_biases</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span> <span class="identifier">update_biases</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span> <span class="identifier">reset_biases</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier">candidate_weights</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier">update_weights</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier">reset_weights</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier">candidate_hidden_weights</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier">update_hidden_weights</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier">reset_hidden_weights</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier">candidates</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier">update_gates</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier">reset_gates</span></span>;<br>} <span class="identifier">PSGRUCell</span><br></code>
+</div>
+</div>
+
+<div class="details function_pointer" id="function_pointer-psinitstatesfunc">
+<h3 class="name">PSInitStatesFunc</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">140</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef </span><span class="type return-type">int</span>  (* <span class="identifier">PSInitStatesFunc</span>) (<span class="arguments"><span class="argument"><span class="type">struct <a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-psinitstatesfunc-layer>layer</span></span>, <span class="argument"><span class="type">uint32_t</span> <span class="identifier" data-identifier-id=function_pointer-psinitstatesfunc-steps>steps</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function_pointer-psinitstatesfunc-retain-previous>retain_previous</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details struct" id="struct-pslayer">
+<h3 class="name">PSLayer</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">301</span></div>
+<div class="tags"><span class="tag model" data-href="tag-model.html">MODEL</span></div><div class="code">
+<code class="definition">
+<span class="keyword">typedef struct</span> {<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#enum-pslayertype">PSLayerType</a></span> <span class="identifier">type</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">index</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">size</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">weight_types</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a> *</span> <span class="identifier">weights</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span> <span class="identifier">biases</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier">states</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier">delta</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span> <span class="identifier">initial_states</span></span>;<br><span class="member"><span class="type">uint32_t</span> <span class="identifier">flags</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">onehot_vector_size</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">output_depth</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">output_columns</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">output_rows</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">pretrained</span></span>;<br><span class="member"><span class="type">void *</span> <span class="identifier">extra</span></span>;<br><span class="member"><span class="type">void *</span> <span class="identifier">private</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#function_pointer-psforwardfunction">PSForwardFunction</a></span> <span class="identifier">forward</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#function_pointer-psbackpropfunction">PSBackpropFunction</a></span> <span class="identifier">backprop</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#function_pointer-psactivationfunction">PSActivationFunction</a></span> <span class="identifier">activate</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#function_pointer-psactivationfunction">PSActivationFunction</a></span> <span class="identifier">derivative</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#function_pointer-psbooleanlayercallback">PSBooleanLayerCallback</a></span> <span class="identifier">build</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#function_pointer-psgenericlayercallback">PSGenericLayerCallback</a></span> <span class="identifier">onDelete</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#function_pointer-pscopylayercallback">PSCopyLayerCallback</a></span> <span class="identifier">onCopy</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#function_pointer-psgenericlayercallback">PSGenericLayerCallback</a></span> <span class="identifier">beforeBatchTraining</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#function_pointer-psgetparamcountfunction">PSGetParamCountFunction</a></span> <span class="identifier">getParamCount</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#function_pointer-psinitstatesfunc">PSInitStatesFunc</a></span> <span class="identifier">onStatesInit</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#function_pointer-psresizestatesfunc">PSResizeStatesFunc</a></span> <span class="identifier">onStatesResize</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#function_pointer-pspretrainlayerfunction">PSPretrainLayerFunction</a></span> <span class="identifier">pretrain</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#function_pointer-pslinkdataretriever">PSLinkDataRetriever</a></span> <span class="identifier">getInputFromLink</span></span>;<br><span class="member"><span class="type">struct <a class="psyc-type" href="types.html#struct-psmodel">PSModel</a> *</span> <span class="identifier">model</span></span>;<br><span class="member"><span class="type">struct <a class="psyc-type" href="types.html#struct-psmodel">PSModel</a> *</span> <span class="identifier">pretrainer</span></span>;<br>} <span class="identifier">PSLayer</span><br></code>
+</div>
+</div>
+
+<div class="details struct" id="struct-pslayerdef">
+<h3 class="name">PSLayerDef</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">170</span></div>
+<div class="tags"><span class="tag model" data-href="tag-model.html">MODEL</span></div><div class="code">
+<code class="definition">
+<span class="keyword">typedef struct</span> {<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#function_pointer-psactivationfunction">PSActivationFunction</a></span> <span class="identifier">activation</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">flags</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">weight_init_mode</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">bias_init_mode</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier">init_range</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier">init_scale</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier">init_value</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">output_depth</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">output_columns</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">output_rows</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">stride</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">padding</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">filter_width</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">filter_height</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">embedding_type</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier">dropout</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier">epsilon</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">pretrained</span></span>;<br><span class="member"><span class="type">const char *</span> <span class="identifier">load_from</span></span>;<br><span class="member"><span class="type">const char *</span> <span class="identifier">save_pretrained_to</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span> <span class="identifier">training_data</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">training_data_size</span></span>;<br><span class="member"><span class="type">struct <a class="psyc-type" href="types.html#struct-pstrainingoptions">PSTrainingOptions</a> *</span> <span class="identifier">pretraining_options</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">attention_type</span></span>;<br><span class="member"><span class="type">struct <a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span> <span class="identifier">query_provider</span></span>;<br><span class="member"><span class="type">struct <a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span> <span class="identifier">keys_provider</span></span>;<br><span class="member"><span class="type">struct <a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span> <span class="identifier">values_provider</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier">attention_scale</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">attention_heads</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">causal_attention</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">self_attention</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">enabled_projections</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">operator</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">providers_count</span></span>;<br><span class="member"><span class="type">struct <a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> **</span> <span class="identifier">providers</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">positional_initial_capacity</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">positional_base</span></span>;<br>} <span class="identifier">PSLayerDef</span><br></code>
+</div>
+</div>
+
+<div class="details enum" id="enum-pslayertype">
+<h3 class="name">PSLayerType</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">226</span></div>
+<div class="tags"><span class="tag model" data-href="tag-model.html">MODEL</span></div><div class="code">
+<code class="definition">
+<span class="keyword">typedef enum</span> {<br><span class="member"><span class="identifier">FullyConnected</span> = <span class="value">0</span></span>,<br><span class="member"><span class="identifier">Convolutional</span> = <span class="value">1</span></span>,<br><span class="member"><span class="identifier">Pooling</span> = <span class="value">2</span></span>,<br><span class="member"><span class="identifier">RNNLayer</span> = <span class="value">3</span></span>,<br><span class="member"><span class="identifier">LSTM</span> = <span class="value">4</span></span>,<br><span class="member"><span class="identifier">SoftMax</span> = <span class="value">5</span></span>,<br><span class="member"><span class="identifier">GRU</span> = <span class="value">6</span></span>,<br><span class="member"><span class="identifier">Dropout</span> = <span class="value">7</span></span>,<br><span class="member"><span class="identifier">Embedding</span> = <span class="value">8</span></span>,<br><span class="member"><span class="identifier">Normalization</span> = <span class="value">9</span></span>,<br><span class="member"><span class="identifier">Attention</span> = <span class="value">10</span></span>,<br><span class="member"><span class="identifier">OperatorLayer</span> = <span class="value">11</span></span>,<br><span class="member"><span class="identifier">Linear</span> = <span class="value">12</span></span>,<br><span class="member"><span class="identifier">PositionalEncoding</span> = <span class="value">13</span></span><br>} <span class="identifier">PSLayerType</span><br></code>
+</div>
+</div>
+
+<div class="details function_pointer" id="function_pointer-pslinkdataretriever">
+<h3 class="name">PSLinkDataRetriever</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">152</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef </span><span class="type return-type">int</span>  (* <span class="identifier">PSLinkDataRetriever</span>) (<span class="arguments"><span class="argument"><span class="type">struct <a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-pslinkdataretriever-layer>layer</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function_pointer" id="function_pointer-pslossfunction">
+<h3 class="name">PSLossFunction</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">144</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef </span><span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span>  (* <span class="identifier">PSLossFunction</span>) (<span class="arguments"><span class="argument"><span class="type">PSFloat*</span> <span class="identifier" data-identifier-id=function_pointer-pslossfunction-x>x</span></span>, <span class="argument"><span class="type">PSFloat*</span> <span class="identifier" data-identifier-id=function_pointer-pslossfunction-y>y</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function_pointer-pslossfunction-size>size</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function_pointer-pslossfunction-onehot-size>onehot_size</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details struct" id="struct-pslstmcell">
+<h3 class="name">PSLSTMCell</h3>
+<div class="location">In: <span class="filename">lstm.h</span> - Line: <span class="line">29</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef struct</span> {<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span> <span class="identifier">candidate_biases</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span> <span class="identifier">input_biases</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span> <span class="identifier">output_biases</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span> <span class="identifier">forget_biases</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier">candidate_weights</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier">input_weights</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier">output_weights</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier">forget_weights</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier">candidate_hidden_weights</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier">input_hidden_weights</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier">output_hidden_weights</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier">forget_hidden_weights</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier">raw_states</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier">candidates</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier">input_gates</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier">output_gates</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier">forget_gates</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span> <span class="identifier">initial_raw_states</span></span>;<br>} <span class="identifier">PSLSTMCell</span><br></code>
+</div>
+</div>
+
+<div class="details struct" id="struct-psmathopts">
+<h3 class="name">PSMathOpts</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">109</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span></div><div class="code">
+<code class="definition">
+<span class="keyword">typedef struct</span> {<br><span class="member"><span class="type">int</span> <span class="identifier">acceleration</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">store_mode</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">transpose</span></span>;<br><span class="member"><span class="type">char</span> <span class="identifier">argtype[3]</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">vector_len</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span> <span class="identifier">tmpdest</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#function_pointer-psdotproductdebug">PSDotProductDebug</a></span> <span class="identifier">debugStep</span></span>;<br><span class="member"><span class="type">void *</span> <span class="identifier">data</span></span>;<br>} <span class="identifier">PSMathOpts</span><br></code>
+</div>
+<div class="description">
+This structure can be passed to various operations. Not all of its properties are used by all operations.<br/>Properties:<br/>
+
+ <ul>
+
+ <li><span class="identifier-ref" data-identifier-id="struct-psmathopts-acceleration" data-parent-id="struct-psmathopts">acceleration</span>: see <a class="psyc-type" href="types.html#enum-psacceleration">PSAcceleration</a></li>
+
+ <li><span class="identifier-ref" data-identifier-id="struct-psmathopts-store-mode" data-parent-id="struct-psmathopts">store_mode</span>: specifies how results will be stored into destination:</li>
+
+
+     <ul>
+
+     <li><a class="psyc-macro" href="macros.html#macro-ps-store-mode-set">PS_STORE_MODE_SET</a>: results will overwrite dest.</li>
+
+     <li><a class="psyc-macro" href="macros.html#macro-ps-store-mode-add">PS_STORE_MODE_ADD</a>: results will be added to dest.</li>
+
+     <li><a class="psyc-macro" href="macros.html#macro-ps-store-mode-sub">PS_STORE_MODE_SUB</a>: results will be subtracted from dest.</li>
+
+ </ul>
+
+ <li><span class="identifier-ref" data-identifier-id="struct-psmathopts-transpose" data-parent-id="struct-psmathopts">transpose</span>:  some operations involving PSMatrix could use this in order to transpose one or more matrices. The integer value indicates the (1-based) matrix argument position, ie. 1 for first matrix arg, 2 for second matrix arg, etc. More than one matrix can be set (ie. 1 | 2).</li>
+
+ <li><span class="identifier-ref">argtype</span>:    specifies if arguments are <a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a> or <a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> (vector). Functions using this property (such as <a class="psyc-func" href="functions.html#function-psdot">PSDot</a>), must have PSMatrix arguments and the property can be used to tell the function that one or more arguments must be treated as vectors.</li>
+
+
+     <ul>
+
+     <li>&#39;M&#39; or &#39;m&#39;: <a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a> matrix</li>
+
+     <li>&#39;V&#39; or &#39;v&#39;: <a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> vector                 The index indicated argument position (zero-based), ie: argtype[1] means that second PSMatrix argument has to be treated as vector.</li>
+
+ </ul>
+
+ <li><span class="identifier-ref" data-identifier-id="struct-psmathopts-vector-len" data-parent-id="struct-psmathopts">vector_len</span>: optionally pass vector length to functions that cannot retrieve this info from matrix arguments, ie. when <a class="psyc-func" href="functions.html#function-psdot">PSDot</a> is called with both vectors (<span class="identifier-ref">argtype</span> = {&#39;V&#39;, &#39;V&#39;})</li>
+
+ <li><span class="identifier-ref" data-identifier-id="struct-psmathopts-tmpdest" data-parent-id="struct-psmathopts">tmpdest</span>:    some operations may use this vector as a cache in order to avoid allocating extra memory, for intermediate computations.</li>
+
+ <li><span class="identifier-ref" data-identifier-id="struct-psmathopts-debugstep" data-parent-id="struct-psmathopts">debugStep</span>:  used for debugging by some operations.
+
+
+ </ul>
+
+</div>
+</div>
+
+<div class="details type" id="type-psmatrix">
+<h3 class="name">PSMatrix</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">140</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
+<code class="definition">
+<span class="keyword">typedef </span><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span> <span class="identifier">PSMatrix</span></code>
+</div>
+</div>
+
+<div class="details function_pointer" id="function_pointer-psmatrixinitializer">
+<h3 class="name">PSMatrixInitializer</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">141</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
+<code class="definition">
+<span class="keyword">typedef </span><span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span>  (* <span class="identifier">PSMatrixInitializer</span>) (<span class="arguments"><span class="argument void">void</span></span>)</code>
+</div>
+</div>
+
+<div class="details struct" id="struct-psmodel">
+<h3 class="name">PSModel</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">341</span></div>
+<div class="tags"><span class="tag model" data-href="tag-model.html">MODEL</span></div><div class="code">
+<code class="definition">
+<span class="keyword">typedef struct</span> {<br><span class="member"><span class="type">const char *</span> <span class="identifier">name</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">size</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">index</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> **</span> <span class="identifier">layers</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#function_pointer-pslossfunction">PSLossFunction</a></span> <span class="identifier">loss</span></span>;<br><span class="member"><span class="type">uint32_t</span> <span class="identifier">flags</span></span>;<br><span class="member"><span class="type">uint16_t</span> <span class="identifier">acceleration</span></span>;<br><span class="member"><span class="type">uint8_t</span> <span class="identifier">status</span></span>;<br><span class="member"><span class="type">uint32_t</span> <span class="identifier">input_size</span></span>;<br><span class="member"><span class="type">uint32_t</span> <span class="identifier">output_size</span></span>;<br><span class="member"><span class="type">struct <a class="psyc-type" href="types.html#struct-psmodel">PSModel</a> *</span> <span class="identifier">previous</span></span>;<br><span class="member"><span class="type">struct <a class="psyc-type" href="types.html#struct-psmodel">PSModel</a> *</span> <span class="identifier">next</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#struct-psmodellink">PSModelLink</a> *</span> <span class="identifier">previous_model_link</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#struct-pssequencesettings">PSSequenceSettings</a></span> <span class="identifier">sequence_settings</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#enum-psrecurrentnetworkmode">PSRecurrentNetworkMode</a></span> <span class="identifier">rnn_mode</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#struct-pstraininginfo">PSTrainingInfo</a> *</span> <span class="identifier">training</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#function_pointer-psbeforeforwardcallback">PSBeforeForwardCallback</a></span> <span class="identifier">beforeForward</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#function_pointer-psbeforebackpropcallback">PSBeforeBackpropCallback</a></span> <span class="identifier">beforeBackprop</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#function_pointer-pstraincallback">PSTrainCallback</a></span> <span class="identifier">onEpochTrained</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#function_pointer-pstraincallback">PSTrainCallback</a></span> <span class="identifier">onBatchTrained</span></span>;<br><span class="member"><span class="type">void *</span> <span class="identifier">context</span></span>;<br>} <span class="identifier">PSModel</span><br></code>
+</div>
+</div>
+
+<div class="details struct" id="struct-psmodellink">
+<h3 class="name">PSModelLink</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">336</span></div>
+<div class="tags"><span class="tag model" data-href="tag-model.html">MODEL</span></div><div class="code">
+<code class="definition">
+<span class="keyword">typedef struct</span> {<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span> <span class="identifier">layer</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span> <span class="identifier">previous_layer</span></span>;<br>} <span class="identifier">PSModelLink</span><br></code>
+</div>
+</div>
+
+<div class="details type" id="type-psneuralnetwork">
+<h3 class="name">PSNeuralNetwork</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">475</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef </span><span class="type"><a class="psyc-type" href="types.html#struct-psmodel">PSModel</a></span> <span class="identifier">PSNeuralNetwork</span></code>
+</div>
+</div>
+
+<div class="details struct" id="struct-psneuron">
+<h3 class="name">PSNeuron</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">293</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef struct</span> {<br><span class="member"><span class="type">int</span> <span class="identifier">index</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span> <span class="identifier">bias</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span> <span class="identifier">weights</span></span>;<br><span class="member"><span class="type">void *</span> <span class="identifier">extra</span></span>;<br><span class="member"><span class="type">struct <a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span> <span class="identifier">layer</span></span>;<br>} <span class="identifier">PSNeuron</span><br></code>
+</div>
+</div>
+
+<div class="details struct" id="struct-psnormalizationlayersettings">
+<h3 class="name">PSNormalizationLayerSettings</h3>
+<div class="location">In: <span class="filename">normalization.h</span> - Line: <span class="line">27</span></div>
+<div class="tags"><span class="tag model" data-href="tag-model.html">MODEL</span></div><div class="code">
+<code class="definition">
+<span class="keyword">typedef struct</span> {<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier">epsilon</span></span>;<br>} <span class="identifier">PSNormalizationLayerSettings</span><br></code>
+</div>
+</div>
+
+<div class="details function_pointer" id="function_pointer-psondictitemrelease">
+<h3 class="name">PSOnDictItemRelease</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">67</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef </span><span class="type return-type">void</span>  (* <span class="identifier">PSOnDictItemRelease</span>) (<span class="arguments"><span class="argument"><span class="type">struct <a class="psyc-type" href="types.html#struct-psdictitem">PSDictItem</a> *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-psondictitemrelease-></span></span></span>)</code>
+</div>
+</div>
+
+<div class="details enum" id="enum-psoperatortype">
+<h3 class="name">PSOperatorType</h3>
+<div class="location">In: <span class="filename">operator-layer.h</span> - Line: <span class="line">26</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef enum</span> {<br><span class="member"><span class="identifier">PSConcatenateOperator</span> = <span class="value">0</span></span>,<br><span class="member"><span class="identifier">PSAddOperator</span> = <span class="value">1</span></span>,<br><span class="member"><span class="identifier">PSMultiplyOperator</span> = <span class="value">2</span></span>,<br><span class="member"><span class="identifier">PSInvalidOperator</span> = <span class="value">999</span></span><br>} <span class="identifier">PSOperatorType</span><br></code>
+</div>
+</div>
+
+<div class="details function_pointer" id="function_pointer-psoptimization">
+<h3 class="name">PSOptimization</h3>
+<div class="location">In: <span class="filename">optimization.h</span> - Line: <span class="line">24</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef </span><span class="type return-type">int</span>  (* <span class="identifier">PSOptimization</span>) (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-psoptimization-params>params</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-psoptimization-grads>grads</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-psoptimization-mgrads>mgrads</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-psoptimization-xgrads>xgrads</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-psoptimization-tmp>tmp</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-psoptimization-mtmp>mtmp</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-psoptimization-xtmp>xtmp</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier" data-identifier-id=function_pointer-psoptimization-rate>rate</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier" data-identifier-id=function_pointer-psoptimization-momentum>momentum</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function_pointer-psoptimization-len>len</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function_pointer-psoptimization-acceleration>acceleration</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function_pointer-psoptimization-iteration>iteration</span></span>, <span class="argument"><span class="type">struct <a class="psyc-type" href="types.html#struct-pstrainingoptions">PSTrainingOptions</a> *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-psoptimization-options>options</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function_pointer" id="function_pointer-pspretrainlayerfunction">
+<h3 class="name">PSPretrainLayerFunction</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">136</span></div>
+<div class="tags"><span class="tag model" data-href="tag-model.html">MODEL</span></div><div class="code">
+<code class="definition">
+<span class="keyword">typedef </span><span class="type return-type">int</span>  (* <span class="identifier">PSPretrainLayerFunction</span>) (<span class="arguments"><span class="argument"><span class="type">struct <a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-pspretrainlayerfunction-></span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-pspretrainlayerfunction-training-data>training_data</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function_pointer-pspretrainlayerfunction-data-size>data_size</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details enum" id="enum-psrecurrentnetworkmode">
+<h3 class="name">PSRecurrentNetworkMode</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">243</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef enum</span> {<br><span class="member"><span class="identifier">NonRecurrent</span> = <span class="value">0</span></span>,<br><span class="member"><span class="identifier">ManyToMany</span> = <span class="value">1</span></span>,<br><span class="member"><span class="identifier">ManyToOne</span> = <span class="value">2</span></span>,<br><span class="member"><span class="identifier">OneToMany</span> = <span class="value">3</span></span><br>} <span class="identifier">PSRecurrentNetworkMode</span><br></code>
+</div>
+</div>
+
+<div class="details function_pointer" id="function_pointer-psresizestatesfunc">
+<h3 class="name">PSResizeStatesFunc</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">142</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef </span><span class="type return-type">int</span>  (* <span class="identifier">PSResizeStatesFunc</span>) (<span class="arguments"><span class="argument"><span class="type">struct <a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-psresizestatesfunc-layer>layer</span></span>, <span class="argument"><span class="type">uint32_t</span> <span class="identifier" data-identifier-id=function_pointer-psresizestatesfunc-steps>steps</span></span>, <span class="argument"><span class="type">uint32_t</span> <span class="identifier" data-identifier-id=function_pointer-psresizestatesfunc-previous-steps>previous_steps</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function_pointer" id="function_pointer-psscalaractivationfunction">
+<h3 class="name">PSScalarActivationFunction</h3>
+<div class="location">In: <span class="filename">activation.h</span> - Line: <span class="line">32</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef </span><span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span>  (* <span class="identifier">PSScalarActivationFunction</span>) (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span></span></span>)</code>
+</div>
+</div>
+
+<div class="details struct" id="struct-pssequencesettings">
+<h3 class="name">PSSequenceSettings</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">250</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef struct</span> {<br><span class="member"><span class="type">int</span> <span class="identifier">max_length</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span> <span class="identifier">start</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">end</span></span>;<br>} <span class="identifier">PSSequenceSettings</span><br></code>
+</div>
+</div>
+
+<div class="details function_pointer" id="function_pointer-pssignalhandler">
+<h3 class="name">PSSignalHandler</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">168</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef </span><span class="type return-type">void</span>  (* <span class="identifier">PSSignalHandler</span>) (<span class="arguments"><span class="argument"><span class="type">int</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details struct" id="struct-pstextparseroptions">
+<h3 class="name">PSTextParserOptions</h3>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">98</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef struct</span> {<br><span class="member"><span class="type">int</span> <span class="identifier">mode</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">flags</span></span>;<br><span class="member"><span class="type">int64_t</span> <span class="identifier">max_vocabulary_size</span></span>;<br><span class="member"><span class="type">const char *</span> <span class="identifier">separator</span></span>;<br><span class="member"><span class="type">const char *</span> <span class="identifier">unknown_token</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">capacity</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">buffer_size</span></span>;<br><span class="member"><span class="type">PSTokenNormalizer</span> <span class="identifier">normalizer</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#function_pointer-pstokenmatch">PSTokenMatch</a></span> <span class="identifier">match_token</span></span>;<br>} <span class="identifier">PSTextParserOptions</span><br></code>
+</div>
+<div class="description">
+Options for text parsing:<br/>
+
+ <ul>
+
+ <li><span class="identifier-ref" data-identifier-id="struct-pstextparseroptions-mode" data-parent-id="struct-pstextparseroptions">mode</span>: text parsing mode:</li>
+
+
+     <ul>
+
+     <li><a class="psyc-macro" href="macros.html#macro-ps-parser-mode-tokens">PS_PARSER_MODE_TOKENS</a>: parse text as tokens (each token will be converted to a number).</li>
+
+     <li><a class="psyc-macro" href="macros.html#macro-ps-parser-mode-chars">PS_PARSER_MODE_CHARS</a>: parse text as characters (each individual character will be converted to a number).</li>
+
+ </ul>
+
+ <li><span class="identifier-ref" data-identifier-id="struct-pstextparseroptions-flags" data-parent-id="struct-pstextparseroptions">flags</span>: text parsing flags:</li>
+
+
+     <ul>
+
+     <li><a class="psyc-macro" href="macros.html#macro-ps-parser-flag-no-normalization">PS_PARSER_FLAG_NO_NORMALIZATION</a>: do not perform token normalization on parsed text.</li>
+
+     <li><a class="psyc-macro" href="macros.html#macro-ps-parser-flag-preserve-string">PS_PARSER_FLAG_PRESERVE_STRING</a>: prevent string from being modified during parsing.</li>
+
+     <li><a class="psyc-macro" href="macros.html#macro-ps-parser-flag-readonly-vocab">PS_PARSER_FLAG_READONLY_VOCAB</a>: by enabling this flag, the vocabulary will be treated as read-only. Any parsed token that is not present in the vocabulary will not be added and will be considered &lt;unknown&gt; (see the <span class="identifier-ref" data-identifier-id="struct-pstextparseroptions-unknown-token" data-parent-id="struct-pstextparseroptions">unknown_token</span> option).</li>
+
+ </ul>
+
+ <li><span class="identifier-ref" data-identifier-id="struct-pstextparseroptions-max-vocabulary-size" data-parent-id="struct-pstextparseroptions">max_vocabulary_size</span>: maximum number of tokens that can be added to the vocabulary, except for the &lt;unknown&gt; token. Every new parsed token will be automatically converted to the &lt;unknown&gt; token (see the <span class="identifier-ref" data-identifier-id="struct-pstextparseroptions-unknown-token" data-parent-id="struct-pstextparseroptions">unknown_token</span> option). If the value of this option is zero, the default value will be <a class="psyc-macro" href="macros.html#macro-ps-default-max-vocab-size">PS_DEFAULT_MAX_VOCAB_SIZE</a>.</li>
+
+ <li><span class="identifier-ref" data-identifier-id="struct-pstextparseroptions-separator" data-parent-id="struct-pstextparseroptions">separator</span>: a set of characters that should be used as separators to split string into individual tokens (ie: &quot;.,&quot; would split by using both &#39;.&#39; and &#39;,&#39; as separators).</li>
+
+ <li><span class="identifier-ref" data-identifier-id="struct-pstextparseroptions-unknown-token" data-parent-id="struct-pstextparseroptions">unknown_token</span>: string to be used for unmatched tokens.</li>
+
+ <li><span class="identifier-ref" data-identifier-id="struct-pstextparseroptions-capacity" data-parent-id="struct-pstextparseroptions">capacity</span>: initial capacity of vocabularies allocated by parsing functions (ie. <a class="psyc-func" href="functions.html#function-psloaddatafromstring">PSLoadDataFromString</a>).</li>
+
+ <li><span class="identifier-ref" data-identifier-id="struct-pstextparseroptions-buffer-size" data-parent-id="struct-pstextparseroptions">buffer_size</span>: parsing buffer size.</li>
+
+ <li><span class="identifier-ref" data-identifier-id="struct-pstextparseroptions-normalizer" data-parent-id="struct-pstextparseroptions">normalizer</span>: pointer to function to be used to normalize tokens (see <span class="identifier-ref">PSTokenNormalizer</span>)</li>
+
+ <li><span class="identifier-ref" data-identifier-id="struct-pstextparseroptions-match-token" data-parent-id="struct-pstextparseroptions">match_token</span>: pointer to function to be used to match individual tokens (it usually overrides the usage of <span class="identifier-ref" data-identifier-id="struct-pstextparseroptions-separator" data-parent-id="struct-pstextparseroptions">separator</span> to split string).
+
+
+ </ul>
+
+</div>
+</div>
+
+<div class="details function_pointer" id="function_pointer-pstokenmatch">
+<h3 class="name">PSTokenMatch</h3>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">61</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef </span><span class="type return-type">int</span>  (* <span class="identifier">PSTokenMatch</span>) (<span class="arguments"><span class="argument"><span class="type">char *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-pstokenmatch-str>str</span></span>, <span class="argument"><span class="type">int *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-pstokenmatch-len>len</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function_pointer" id="function_pointer-pstraincallback">
+<h3 class="name">PSTrainCallback</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">146</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef </span><span class="type return-type">void</span>  (* <span class="identifier">PSTrainCallback</span>) (<span class="arguments"><span class="argument"><span class="type">struct <a class="psyc-type" href="types.html#struct-psmodel">PSModel</a> *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-pstraincallback-model>model</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function_pointer-pstraincallback-epoch>epoch</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function_pointer-pstraincallback-epochs>epochs</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier" data-identifier-id=function_pointer-pstraincallback-average-loss>average_loss</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier" data-identifier-id=function_pointer-pstraincallback-current-loss>current_loss</span></span>, <span class="argument"><span class="type">float</span> <span class="identifier" data-identifier-id=function_pointer-pstraincallback-accuracy>accuracy</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-pstraincallback-rate>rate</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-pstraincallback-training-data>training_data</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details struct" id="struct-pstraininginfo">
+<h3 class="name">PSTrainingInfo</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">282</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef struct</span> {<br><span class="member"><span class="type">int</span> <span class="identifier">current_epoch</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">current_batch</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">current_element</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">batch_size</span></span>;<br><span class="member"><span class="type">time_t</span> <span class="identifier">started_at</span></span>;<br><span class="member"><span class="type">time_t</span> <span class="identifier">ended_at</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">requested_action</span></span>;<br><span class="member"><span class="type">FILE *</span> <span class="identifier">debug_dump_to</span></span>;<br>} <span class="identifier">PSTrainingInfo</span><br></code>
+</div>
+</div>
+
+<div class="details struct" id="struct-pstrainingoptions">
+<h3 class="name">PSTrainingOptions</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">261</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef struct</span> {<br><span class="member"><span class="type">int</span> <span class="identifier">epochs</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier">learning_rate</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">batch_size</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">flags</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier">l1_decay</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier">l2_decay</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier">momentum</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier">rho</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier">eps</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier">beta1</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier">beta2</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier">clip</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#function_pointer-psoptimization">PSOptimization</a></span> <span class="identifier">optimization</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">bptt_truncate</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">validate_every_batches</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">max_validation_elements</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#function_pointer-pstrainingprogressfunc">PSTrainingProgressFunc</a></span> <span class="identifier">printProgress</span></span>;<br><span class="member"><span class="type">FILE *</span> <span class="identifier">debug_dump_to</span></span>;<br>} <span class="identifier">PSTrainingOptions</span><br></code>
+</div>
+</div>
+
+<div class="details function_pointer" id="function_pointer-pstrainingprogressfunc">
+<h3 class="name">PSTrainingProgressFunc</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">161</span></div>
+<div class="code">
+<code class="definition">
+<span class="keyword">typedef </span><span class="type return-type">void</span>  (* <span class="identifier">PSTrainingProgressFunc</span>) (<span class="arguments"><span class="argument"><span class="type">struct <a class="psyc-type" href="types.html#struct-psmodel">PSModel</a> *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-pstrainingprogressfunc-model>model</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function_pointer-pstrainingprogressfunc-status>status</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function_pointer-pstrainingprogressfunc-epochs>epochs</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function_pointer-pstrainingprogressfunc-batches>batches</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-pstrainingprogressfunc-loss>loss</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-pstrainingprogressfunc-accuracy>accuracy</span></span>, <span class="argument"><span class="type">time_t *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-pstrainingprogressfunc-elapsed>elapsed</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function_pointer-pstrainingprogressfunc-validating-current>validating_current</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function_pointer-pstrainingprogressfunc-validating-tot>validating_tot</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details type" id="type-psutf8char">
+<h3 class="name">PSUTF8Char</h3>
+<div class="location">In: <span class="filename">utf8.h</span> - Line: <span class="line">23</span></div>
+<div class="tags"><span class="tag string" data-href="tag-string.html">STRING</span><span class="tag utf8" data-href="tag-utf8.html">UTF8</span></div><div class="code">
+<code class="definition">
+<span class="keyword">typedef </span><span class="type">uint32_t</span> <span class="identifier">PSUTF8Char</span></code>
+</div>
+</div>
+
+<div class="details struct" id="struct-psvocabulary">
+<h3 class="name">PSVocabulary</h3>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">110</span></div>
+<div class="tags"><span class="tag dataset" data-href="tag-dataset.html">DATASET</span></div><div class="code">
+<code class="definition">
+<span class="keyword">typedef struct</span> {<br><span class="member"><span class="type">int64_t</span> <span class="identifier">size</span></span>;<br><span class="member"><span class="type">int64_t</span> <span class="identifier">capacity</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#struct-psdict">PSDict</a> *</span> <span class="identifier">token_map</span></span>;<br><span class="member"><span class="type">const char **</span> <span class="identifier">tokens</span></span>;<br>} <span class="identifier">PSVocabulary</span><br></code>
+</div>
+</div>
+
+           </section>
+       </main>
+       <footer>
+           <div class="contacts">
+               <span><label>PsyC project page:</label> <a href="https://github.com/artix75/psyc" target="_blank">https://github.com/artix75/psyc</a></span> &bullet; <span><label>Report bugs to:</label> <a href="https://github.com/artix75/psyc/issues" target="_blank">https://github.com/artix75/psyc/issues</a></span>
+           </div>
+           <div class="license-info">
+               <div class="license"><img src="License-BSD-3-Clause-blue.svg"> PsyC is released under the <a href="https://opensource.org/license/bsd-3-clause/">BSD-3 Clause</a>
+               </div>
+               <div class="copyright">Copyright &copy; 2016-2023 Giuseppe Fabio Nicotra
+               </div>
+           </div>
+       </footer>
+   </body>
+</html>

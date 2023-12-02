@@ -1,0 +1,92 @@
+.\" Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that the above copyright notice and this paragraph are
+.\" duplicated in all such forms and that any documentation,
+.\" advertising materials, and other materials related to such
+.\" distribution and use acknowledge that the software was developed
+.\" by the copyright holder. The name of the
+.\" copyright holder may not be used to endorse or promote products derived
+.\" from this software without specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+.TH PSVectorConvertToMatrix 3 2023-12-01 "PsyC 0.9.3" "PsyC Library Functions Manual"
+
+.SH NAME
+PSVectorConvertToMatrix
+
+.SH LIBRARY
+PsyC (-lpsyc)
+
+.SH SYNOPSIS
+
+.B
+#include <psyc/maths.h>
+
+.I
+PSMatrix  
+.br
+\fBPSVectorConvertToMatrix\fR(\fIPSFloat *vec\fR, \fIuint64_t len\fR, \fIint ndims\fR, \fIint *shape\fR)
+.SH DESCRIPTION
+Convert the vector \fIvec\fR of length \fIlen\fR to a \fIPSMatrix\fR. This function differs from \fIPSMatrixFromArray\fR since it reallocates the vector in order to make room for the matrix header that will contain matrix's properties.
+.br
+So the vector is reallocated and its memory is moved by the size of the matrix header.
+.br
+It's possible to specify the matrix's shape by using the \fIndims\fR argument and the \fIshape\fR argument:
+.br
+
+.RS 4
+.TP
+.B ndims
+number of dimensions (axes) of the matrix shape.
+.br
+
+.TP
+.B shape
+the shape itself.
+.RE
+.RE
+
+If \fIshape\fR is \fINULL\fR or \fIndims\fR is zero, the function will use a default shape of {\fIlen\fR} (if \fIndims\fR is 0 or 1) or {1, \fIlen\fR} (if \fIndims\fR is 2).
+.br
+The function will fail if \fIshape\fR is \fINULL\fR and \fIndims\fR is greater than 2.
+.br
+
+.br
+\fBWARN\fR:  if the function succeeds, it's not possible to use the source vector \fIvec\fR anymore, since its data have been moved in memory and the original address could have been reallocated.
+.br
+
+.br
+\fBWARN\fR:  the vector \fIvec\fR must be an array of \fIPSFloat\fR that was previously allocated (ie. by using \fIPSVectorCreate\fR, \fIPSVectorDup\fR, \fImalloc\fR, \fIcalloc\fR or \fIrealloc\fR). Using global/static arrays or arrays from the stack frame will lead to memory corruption.
+.br
+
+.SH RETURN VALUES
+The matrix or \fINULL\fR if the function fails.
+Possible failure reasons:
+.br
+
+.RS 4
+\[bu] \fIvec\fR is \fINULL\fR.
+.br
+
+\[bu] \fIlen\fR is zero.
+.br
+
+\[bu] \fIndims\fR is greater than \fIPS_MATRIX_MAX_DIMENSIONS\fR.
+.br
+
+\[bu] \fIshape\fR is \fINULL\fR but \fIndims\fR is greater than 2.
+.br
+
+\[bu] \fIlen\fR mismatches \fIshape\fR (\fIlen\fR must equals the product of shape axes).
+.br
+
+\[bu] Memory allocation failure
+.br
+.RE
+
+.SH SEE ALSO
+PSMatrixFromArray(3)

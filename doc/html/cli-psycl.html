@@ -1,0 +1,756 @@
+<!doctype html>
+<!--
+Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+All rights reserved.
+
+Redistribution and use in source and binary forms are permitted
+provided that the above copyright notice and this paragraph are
+duplicated in all such forms and that any documentation,
+advertising materials, and other materials related to such
+distribution and use acknowledge that the software was developed
+by the copyright holder. The name of the
+copyright holder may not be used to endorse or promote products derived
+from this software without specific prior written permission.
+THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+-->
+<html lang="en">
+   <head>
+       <title>PsyC Documentation - psycl</title>
+       <link rel="stylesheet" type="text/css" href="style.css">
+       <script language="javascript" src="main.js"></script>
+   </head>
+   <body class="psyc-doc psyc-cli-tool">
+       <header>
+           <h1>PsyC Documentation <span class="version">0.9.3</span></h1>
+           <h2>Command Line Utilities</h2>
+           <nav id="top-menu">
+               <ul>
+                   <li>
+                       <a href="index.html">INDEX</a>
+                   </li>
+               </ul>
+           </nav>
+           <nav id="main-menu">
+               <ul>
+                   <li>
+                   </li>
+                   <li>
+                   </li>
+                   <li>
+                   </li>
+               </ul>
+           </nav>
+       </header>
+       <main>
+           <nav id="sidebar">
+               <h2>Command Line Utilities</h2>
+               <ul>
+<li><a href="cli-psycl.html" class="current">psycl</a></li>
+<li><a href="cli-psyc-cc.html">psyc-cc</a></li>
+               </ul>
+           </nav>
+           <section id="doc">
+<h2 class="name">psycl</h3>
+<section class="synopsis">
+<h3>SYNOPSIS</h3>
+<div class="code">
+<code class="usage" data-language="shell">
+Usage: psycl [OPTIONS]
+</code>
+</div>
+</section>
+<section class="section" id="section-description">
+<h3>DESCRIPTION</h3>
+psycl is a command-line interface to PsyC, an open-source C library that
+allows building neural networks ( <a href="https://github.com/artix75/psyc" target="_blank">https://github.com/artix75/psyc</a> ).<br>The utility can be used to build, load, save and train models without
+the need to write a C program, albeit with limitations.<br>
+</section>
+<section class="section" id="section-options">
+<h3>OPTIONS</h3>
+<ul class="cli-opt-list">
+<li id="opt-available-accelerations">
+<span class="optdef"><span class="name">--available-accelerations</span></span>
+<div class="description">
+List available accelerations.<br>
+</div>
+</li>
+<li id="opt-batch-script-every">
+<span class="optdef"><span class="name">--batch-script-every</span> <span class="args"> NUM</span></span>
+<div class="description">
+Interval of NUM batches after which to run the
+script defined by the <a class="identifier" href="#opt-on-batch-trained">--on-batch-trained</a>
+option (if set).<br>
+</div>
+</li>
+<li id="opt-batch-size">
+<span class="optdef"><span class="name">--batch-size</span> <span class="args"> SIZE</span></span>
+<div class="description">
+Training batch size (default: 10)
+</div>
+</li>
+<li id="opt-classify-image">
+<span class="optdef"><span class="name">--classify-image</span> <span class="args"> FILE [OPTIONS...]</span></span>
+<div class="description">
+Classify the image located at path FILE with the
+current model (see <a class="identifier" href="#section-image-options">IMAGE OPTIONS</a> section).<br>
+</div>
+</li>
+<li id="opt-c-config">
+<span class="optdef"><span class="name">-c, --config</span> <span class="args"> FILE</span></span>
+<div class="description">
+Load options from FILE (see the <a class="identifier" href="#section-config-files">CONFIG FILES</a>
+section).<br>
+</div>
+</li>
+<li id="opt-disable-accelerate">
+<span class="optdef"><span class="name">--disable-accelerate</span></span>
+<div class="description">
+Disable Accelerate Framework.<br>
+</div>
+</li>
+<li id="opt-disable-avx">
+<span class="optdef"><span class="name">--disable-avx</span></span>
+<div class="description">
+Disable AVX.<br>
+</div>
+</li>
+<li id="opt-disable-blas">
+<span class="optdef"><span class="name">--disable-blas</span></span>
+<div class="description">
+Disable BLAS.<br>
+</div>
+</li>
+<li id="opt-download-cifar">
+<span class="optdef"><span class="name">--download-cifar</span> <span class="args"> [CLASSES] [DEST_DIR]</span></span>
+<div class="description">
+Download CIFAR dataset and exit. If no DEST_DIR
+is provided, the dataset will be saved into
+PsyC working directory.<br>
+Optional CLASSES can be 10 or 100.<br>
+(default: 10).<br>
+</div>
+</li>
+<li id="opt-download-mnist">
+<span class="optdef"><span class="name">--download-mnist</span> <span class="args"> [DEST_DIR]</span></span>
+<div class="description">
+Download MNIST dataset and exit. If no DEST_DIR
+is provided, the dataset will be saved into
+PsyC working directory.<br>
+</div>
+</li>
+<li id="opt-enable-colors">
+<span class="optdef"><span class="name">--enable-colors</span></span>
+<div class="description">
+Colorized output.<br>
+</div>
+</li>
+<li id="opt-epochs">
+<span class="optdef"><span class="name">--epochs</span> <span class="args"> EPOCHS</span></span>
+<div class="description">
+Training epochs (default: 30).<br>
+</div>
+</li>
+<li id="opt-info">
+<span class="optdef"><span class="name">--info</span></span>
+<div class="description">
+Print PsyC info.<br>
+</div>
+</li>
+<li id="opt-l1-decay">
+<span class="optdef"><span class="name">--l1-decay</span> <span class="args"> SIZE</span></span>
+<div class="description">
+L1 Decay (default: 0).<br>
+</div>
+</li>
+<li id="opt-l2-decay">
+<span class="optdef"><span class="name">--l2-decay</span> <span class="args"> SIZE</span></span>
+<div class="description">
+L2 Decay (default: 0).<br>
+</div>
+</li>
+<li id="opt-l-layer">
+<span class="optdef"><span class="name">-l, --layer</span> <span class="args"> TYPE (SIZE | OPTIONS...)</span></span>
+<div class="description">
+Add layer (see <a class="identifier" href="#section-layer-types">LAYER TYPES</a> and <a class="identifier" href="#section-layer-options">LAYER OPTIONS</a>
+sections).<br>
+</div>
+</li>
+<li id="opt-learning-rate">
+<span class="optdef"><span class="name">--learning-rate</span> <span class="args"> SIZE</span></span>
+<div class="description">
+Training learning rate (default: 1.50).<br>
+</div>
+</li>
+<li id="opt-load">
+<span class="optdef"><span class="name">--load</span> <span class="args"> PRETRAINED</span></span>
+<div class="description">
+Load a pretrained model.<br>
+</div>
+</li>
+<li id="opt-loglevel">
+<span class="optdef"><span class="name">--loglevel</span> <span class="args"> LEVEL</span></span>
+<div class="description">
+Set log level (see <a class="identifier" href="#section-log-levels">LOG LEVELS</a> section).<br>
+</div>
+</li>
+<li id="opt-loss-function">
+<span class="optdef"><span class="name">--loss-function</span> <span class="args"> FUNC</span></span>
+<div class="description">
+Loss Function (see <a class="identifier" href="#section-loss-functions">LOSS FUNCTIONS</a> section).<br>
+</div>
+</li>
+<li id="opt-model">
+<span class="optdef"><span class="name">--model</span></span>
+<div class="description">
+Start new model (it can be used
+multiple times to create chained models
+composed of multiple neural networks).<br>
+</div>
+</li>
+<li id="opt-momentum">
+<span class="optdef"><span class="name">--momentum</span> <span class="args"> MOMENTUM</span></span>
+<div class="description">
+Momentum (default: 0).<br>
+</div>
+</li>
+<li id="opt-name">
+<span class="optdef"><span class="name">--name</span> <span class="args"> NAME</span></span>
+<div class="description">
+Model name.<br>
+</div>
+</li>
+<li id="opt-on-batch-trained">
+<span class="optdef"><span class="name">--on-batch-trained</span> <span class="args"> SCRIPT</span></span>
+<div class="description">
+Execute script after every batch is trained.<br>
+(See <a class="identifier" href="#section-scripts">SCRIPTS</a> section for more info).<br>
+</div>
+</li>
+<li id="opt-on-epoch-trained">
+<span class="optdef"><span class="name">--on-epoch-trained</span> <span class="args"> SCRIPT</span></span>
+<div class="description">
+Execute script after every epoch is trained.<br>
+(See <a class="identifier" href="#section-scripts">SCRIPTS</a> section for more info).<br>
+</div>
+</li>
+<li id="opt-onehot">
+<span class="optdef"><span class="name">--onehot</span></span>
+<div class="description">
+Sets one-hot-vector flag for input layer (if
+before 1st layer) or target dataset (if after
+output layer).<br>
+</div>
+</li>
+<li id="opt-optimization">
+<span class="optdef"><span class="name">--optimization</span> <span class="args"> NAME</span></span>
+<div class="description">
+Training optimization, NAME can be:<br>
+(adagrad | adadelta | adam | rmsprop |
+windowgrad | nesterov | default).<br>
+</div>
+</li>
+<li id="opt-quiet">
+<span class="optdef"><span class="name">--quiet</span></span>
+<div class="description">
+Quiet output (loglevel ERROR).<br>
+</div>
+</li>
+<li id="opt-save">
+<span class="optdef"><span class="name">--save</span> <span class="args"> FILE</span></span>
+<div class="description">
+Save model to FILE.<br>
+</div>
+</li>
+<li id="opt-test">
+<span class="optdef"><span class="name">--test</span> <span class="args"> [OPTIONS] TEST_DATASET</span></span>
+<div class="description">
+Test model against TEST_DATASET.<br>
+(see <a class="identifier" href="#section-train-test-options">TRAIN|TEST OPTIONS</a> section).<br>
+</div>
+</li>
+<li id="opt-train">
+<span class="optdef"><span class="name">--train</span> <span class="args"> [OPTIONS] TRAIN_DATASET</span></span>
+<div class="description">
+Train model with TRAIN_DATASET.<br>
+(see <a class="identifier" href="#section-train-test-options">TRAIN|TEST OPTIONS</a> section).<br>
+</div>
+</li>
+<li id="opt-training-adjust-rate">
+<span class="optdef"><span class="name">--training-adjust-rate</span></span>
+<div class="description">
+Auto-adjust learn rate.<br>
+</div>
+</li>
+<li id="opt-training-datalen">
+<span class="optdef"><span class="name">--training-datalen</span> <span class="args"> LEN</span></span>
+<div class="description">
+Training data length.<br>
+</div>
+</li>
+<li id="opt-training-no-shuffle">
+<span class="optdef"><span class="name">--training-no-shuffle</span></span>
+<div class="description">
+Prevent dataset shuffle.<br>
+</div>
+</li>
+<li id="opt-validate-every">
+<span class="optdef"><span class="name">--validate-every</span> <span class="args"> BATCH_NUM</span></span>
+<div class="description">
+Validate inside epochs.<br>
+</div>
+</li>
+<li id="opt-validation-datalen">
+<span class="optdef"><span class="name">--validation-datalen</span> <span class="args"> LEN</span></span>
+<div class="description">
+Validation data length.<br>
+</div>
+</li>
+<li id="opt-verbose">
+<span class="optdef"><span class="name">--verbose</span></span>
+<div class="description">
+Verbose output (loglevel DEBUG).<br>
+</div>
+</li>
+<li id="opt-v-version">
+<span class="optdef"><span class="name">-v, --version</span></span>
+<div class="description">
+Print version.<br>
+</div>
+</li>
+<li id="opt-weight-decay">
+<span class="optdef"><span class="name">--weight-decay</span></span>
+<div class="description">
+Enable L1/L2 weight decay
+instead of L1/L2 regularization.<br>
+</div>
+</li>
+<li id="opt-h-help">
+<span class="optdef"><span class="name">-h, --help</span></span>
+<div class="description">
+Print this help.<br>
+</div>
+</li>
+
+</ul>
+
+</section>
+<section class="section" id="section-layer-types">
+<h3>LAYER TYPES</h3>
+<dl>
+<dt>fully-connected, fc</dt>
+<dd>Fully Connected (dense) layer
+</dd>
+<dt>convolutional</dt>
+<dd>Convolutional Layer
+</dd>
+<dt>pooling</dt>
+<dd>Pooling Layer
+</dd>
+<dt>rnn</dt>
+<dd>Basic Recurrent Layer
+</dd>
+<dt>lstm</dt>
+<dd>LSTM Layer
+</dd>
+<dt>softmax</dt>
+<dd>Softmax Layer
+</dd>
+<dt>gru</dt>
+<dd>GRU Layer
+</dd>
+<dt>dropout</dt>
+<dd>Dropout Layer
+</dd>
+<dt>embedding</dt>
+<dd>Embedding Layer
+</dd>
+<dt>normalization</dt>
+<dd>Normalization Layer
+</dd>
+<dt>attention</dt>
+<dd>Attention Layer
+</dd>
+<dt>operator, op</dt>
+<dd>Operator Layer (add,concatenate,mul)
+</dd>
+<dt>linear</dt>
+<dd>Linear Layer
+</dd>
+<dt>positional-encoding</dt>
+<dd>Position Encoding Layer
+</dd>
+</dl>
+
+</section>
+<section class="section" id="section-loss-functions">
+<h3>LOSS FUNCTIONS</h3>
+<ul class="section-list">
+<li>quadratic
+</li>
+<li>cross-entropy
+</li>
+</ul>
+
+</section>
+<section class="section" id="section-layer-options">
+<h3>LAYER OPTIONS</h3>
+<ul class="cli-opt-list">
+<li id="opt-activation">
+<span class="optdef"><span class="name">--activation</span> <span class="args"> FUNC</span></span>
+<div class="description">
+Activation Function: (sigmoid,tanh,relu,gelu).<br>
+</div>
+</li>
+<li id="opt-attention-heads">
+<span class="optdef"><span class="name">--attention-heads</span> <span class="args"> NUM</span></span>
+<div class="description">
+Multi-Head Attention layer heads.<br>
+</div>
+</li>
+<li id="opt-attention-scale">
+<span class="optdef"><span class="name">--attention-scale</span> <span class="args"> SCALE</span></span>
+<div class="description">
+Attention layer scale.<br>
+</div>
+</li>
+<li id="opt-attention-type">
+<span class="optdef"><span class="name">--attention-type</span> <span class="args"> TYPE</span></span>
+<div class="description">
+Attention layer type: (dot|additive).<br>
+</div>
+</li>
+<li id="opt-bias-init-mode">
+<span class="optdef"><span class="name">--bias-init-mode</span> <span class="args"> MODE</span></span>
+<div class="description">
+Bias initialization mode:<br>
+(auto|random|zero) (default: auto).<br>
+</div>
+</li>
+<li id="opt-causal">
+<span class="optdef"><span class="name">--causal</span></span>
+<div class="description">
+Causal Attention.<br>
+</div>
+</li>
+<li id="opt-disable-biases">
+<span class="optdef"><span class="name">--disable-biases</span></span>
+<div class="description">
+Disable biases.<br>
+</div>
+</li>
+<li id="opt-dropout">
+<span class="optdef"><span class="name">--dropout</span> <span class="args"> DROPOUT</span></span>
+<div class="description">
+Layer Dropout (float).<br>
+</div>
+</li>
+<li id="opt-filter-width">
+<span class="optdef"><span class="name">--filter-width</span> <span class="args"> WIDTH</span></span>
+<div class="description">
+Convolutional filter width (default: 5).<br>
+</div>
+</li>
+<li id="opt-filter-height">
+<span class="optdef"><span class="name">--filter-height</span> <span class="args"> HEIGHT</span></span>
+<div class="description">
+Convolutional filter height (default: 5).<br>
+</div>
+</li>
+<li id="opt-init-range">
+<span class="optdef"><span class="name">--init-range</span> <span class="args"> RANGE</span></span>
+<div class="description">
+Weight|Bias initialization range.<br>
+(for 'random' init mode)
+</div>
+</li>
+<li id="opt-init-scale">
+<span class="optdef"><span class="name">--init-scale</span> <span class="args"> SCALE</span></span>
+<div class="description">
+Weight|Bias initialization scale.<br>
+(for 'random' init mode)
+</div>
+</li>
+<li id="opt-key-provider">
+<span class="optdef"><span class="name">--key-provider</span> <span class="args"> COORDS</span></span>
+<div class="description">
+Attention keys provider.<br>
+(See <a class="identifier" href="#section-layer-coordinates">LAYER COORDINATES</a> section for details
+about COORDS).<br>
+</div>
+</li>
+<li id="opt-link">
+<span class="optdef"><span class="name">--link</span> <span class="args"> COORDS</span></span>
+<div class="description">
+Link layer to previous model.<br>
+(See <a class="identifier" href="#section-layer-coordinates">LAYER COORDINATES</a> section for details
+about COORDS).<br>
+</div>
+</li>
+<li id="opt-load-layer">
+<span class="optdef"><span class="name">--load-layer</span> <span class="args"> PATH</span></span>
+<div class="description">
+Load layer parameters from PATH.<br>
+</div>
+</li>
+<li id="opt-operator">
+<span class="optdef"><span class="name">--operator</span> <span class="args"> OP</span></span>
+<div class="description">
+Operator layer operator: (add|mul|concatenate).<br>
+</div>
+</li>
+<li id="opt-output-width">
+<span class="optdef"><span class="name">--output-width</span> <span class="args"> WIDTH</span></span>
+<div class="description">
+Output Width.<br>
+</div>
+</li>
+<li id="opt-output-height">
+<span class="optdef"><span class="name">--output-height</span> <span class="args"> HEIGHT</span></span>
+<div class="description">
+Output Height.<br>
+</div>
+</li>
+<li id="opt-output-depth">
+<span class="optdef"><span class="name">--output-depth</span> <span class="args"> DEPTH</span></span>
+<div class="description">
+Output Depth.<br>
+</div>
+</li>
+<li id="opt-padding">
+<span class="optdef"><span class="name">--padding</span> <span class="args"> PADDING</span></span>
+<div class="description">
+Convolutional padding (default: 0).<br>
+</div>
+</li>
+<li id="opt-pretrained">
+<span class="optdef"><span class="name">--pretrained</span></span>
+<div class="description">
+Pretrained layer.<br>
+</div>
+</li>
+<li id="opt-provider">
+<span class="optdef"><span class="name">--provider</span> <span class="args"> COORDS</span></span>
+<div class="description">
+Operator layer provider.<br>
+(See <a class="identifier" href="#section-layer-coordinates">LAYER COORDINATES</a> section for details
+about COORDS).<br>
+</div>
+</li>
+<li id="opt-query-provider">
+<span class="optdef"><span class="name">--query-provider</span> <span class="args"> COORDS</span></span>
+<div class="description">
+Attention query provider. If current layer is
+not an attention layer, current layer
+will be set as provider of the layer defined by
+COORDS. (See <a class="identifier" href="#section-layer-coordinates">LAYER COORDINATES</a> section for
+details about COORDS).<br>
+</div>
+</li>
+<li id="opt-recurrent-layer">
+<span class="optdef"><span class="name">--recurrent-layer</span></span>
+<div class="description">
+Recurrent layer mode.<br>
+</div>
+</li>
+<li id="opt-stride">
+<span class="optdef"><span class="name">--stride</span> <span class="args"> STRIDE</span></span>
+<div class="description">
+Convolutional stride (default: 1).<br>
+</div>
+</li>
+<li id="opt-value-provider">
+<span class="optdef"><span class="name">--value-provider</span> <span class="args"> COORDS</span></span>
+<div class="description">
+Attention values provider.<br>
+(See <a class="identifier" href="#section-layer-coordinates">LAYER COORDINATES</a> section
+for details about COORDS).<br>
+</div>
+</li>
+<li id="opt-weight-init-mode">
+<span class="optdef"><span class="name">--weight-init-mode</span> <span class="args"> MODE</span></span>
+<div class="description">
+Weight initialization mode:<br>
+auto,random,zero (default: auto).<br>
+</div>
+</li>
+<li id="opt-whole-sequence">
+<span class="optdef"><span class="name">--whole-sequence</span></span>
+<div class="description">
+Whole sequence mode.<br>
+</div>
+</li>
+
+</ul>
+
+</section>
+<section class="section" id="section-layer-coordinates">
+<h3>LAYER COORDINATES</h3>
+Format: [model_index:]layer_index
+<br>Examples:<br><dl>
+<dt>1:2</dt>
+<dd>- Third layer (2) of second model(1)
+</dd>
+<dt>3</dt>
+<dd>- Fourth layer (3) of current model
+</dd>
+</dl>
+
+</section>
+<section class="section" id="section-log-levels">
+<h3>LOG LEVELS</h3>
+debug, info, notice, success, warn, error
+
+</section>
+<section class="section" id="section-train-test-options">
+<h3>TRAIN|TEST OPTIONS</h3>
+<ul class="cli-opt-list">
+<li id="opt-cifar">
+<span class="optdef"><span class="name">--cifar</span> <span class="args"> [CLASSES</span></span>
+<div class="description">
+Dataset format is CIFAR.<br>
+(classes: 10 or 100, default: 10).<br>
+</div>
+</li>
+<li id="opt-max-images">
+<span class="optdef"><span class="name">--max-images</span></span>
+<div class="description">
+Max images to load (CIFAR).<br>
+</div>
+</li>
+<li id="opt-max-files">
+<span class="optdef"><span class="name">--max-files</span></span>
+<div class="description">
+Max files to load (CIFAR).<br>
+</div>
+</li>
+<li id="opt-mnist">
+<span class="optdef"><span class="name">--mnist</span></span>
+<div class="description">
+Dataset format is MNIST.<br>
+</div>
+</li>
+
+</ul>
+
+</section>
+<section class="section" id="section-image-options">
+<h3>IMAGE OPTIONS</h3>
+<ul class="cli-opt-list">
+<li id="opt-background-color">
+<span class="optdef"><span class="name">--background-color</span> <span class="args"> COLOR</span></span>
+<div class="description">
+Padding background color (ie. none, white, ...),
+default: white
+</div>
+</li>
+<li id="opt-dump-image">
+<span class="optdef"><span class="name">--dump-image</span> <span class="args"> FILE</span></span>
+<div class="description">
+Save image to file.<br>
+</div>
+</li>
+<li id="opt-grayscale">
+<span class="optdef"><span class="name">--grayscale</span></span>
+<div class="description">
+Convert image to grayscale.<br>
+</div>
+</li>
+<li id="opt-invert">
+<span class="optdef"><span class="name">--invert</span></span>
+<div class="description">
+Invert image pixels.<br>
+</div>
+</li>
+
+</ul>
+
+</section>
+<section class="section" id="section-config-files">
+<h3>CONFIG FILES</h3>
+Configuration files can be loaded via the <strong>-c</strong> option (see above). Every
+option that can be passed to the command line can also be used inside
+configuration files by removing the dash prefix ('-' or '--'), for example:<br><strong>layer</strong> instead of <a class="identifier" href="#opt-l-layer">--layer</a> or <strong>learning-rate</strong> instead of <a class="identifier" href="#opt-learning-rate">--learning-rate</a>.<br>Option arguments can follow the option name by separating them with spaces
+and every option should be written in a separate line.<br>The special <strong>include</strong> directive has the same effect of the <strong>-c</strong> option,
+and it loads another configuration file (ie. <strong>include /path/to/config</strong>).<br><div class="examples">
+<h4>Examples</h4>
+<div class="code" data-language="ini">
+<code><span class="c"># This is an example of psycl configuration file
+# Comment lines are prefixed with '#'
+</span>
+<span class="c"># Include other configuration files
+</span><span class="n">include</span> /<span class="n">path</span>/<span class="n">to</span>/<span class="n">other</span>/<span class="n">config</span>-<span class="n">file</span>
+
+<span class="c"># Define model
+</span><span class="n">layer</span> <span class="n">input</span> <span class="m">784</span>
+<span class="n">layer</span> <span class="n">fully</span>-<span class="n">connected</span> <span class="m">710</span>
+<span class="n">layer</span> <span class="n">softmax</span> <span class="m">10</span>
+
+<span class="c"># Train
+</span><span class="n">train</span> /<span class="n">path</span>/<span class="n">to</span>/<span class="n">my</span>/<span class="n">dataset</span>
+
+<span class="c"># Save it
+</span><span class="n">save</span> /<span class="n">path</span>/<span class="n">to</span>/<span class="n">save</span>-<span class="n">model</span>
+
+</code>
+</div>
+
+<div class="code" data-language="ini">
+<code><span class="c"># A convolutiona neural network
+</span>
+<span class="n">layer</span> <span class="n">input</span> <span class="m">3072</span>
+<span class="n">layer</span> <span class="n">convolutional</span>
+  <span class="n">region</span>-<span class="n">size</span> <span class="m">5</span>
+  <span class="n">feature</span>-<span class="n">count</span> <span class="m">16</span>
+  <span class="n">padding</span> <span class="m">2</span>
+  <span class="n">stride</span> <span class="m">1</span>
+
+<span class="n">layer</span> <span class="n">pooling</span>
+  <span class="n">region</span>-<span class="n">size</span> <span class="m">2</span>
+<span class="n">layer</span> <span class="n">softmax</span> <span class="m">10</span>
+
+<span class="n">train</span> /<span class="n">path</span>/<span class="n">to</span>/<span class="n">my</span>/<span class="n">dataset</span>
+
+</code>
+</div>
+
+</div>
+
+</section>
+<section class="section" id="section-scripts">
+<h3>SCRIPTS</h3>
+By using options like <a class="identifier" href="#opt-on-batch-trained">--on-batch-trained</a> or <a class="identifier" href="#opt-on-epoch-trained">--on-epoch-trained</a> it's
+possible to execute an arbitrary external script when such events happen.<br>The scripts will eventually receive the following arguments:<br>--event TYPE, --name MODEL_NAME --epoch CURRENT_EPOCH
+--epochs TOT_EPOCHS --average-loss AVERAGE_LOSS --current-loss
+CURRENT_LOSS --accuracy CURRENT_ACCURACY --learning-rate RATE
+
+</section>
+<section class="examples">
+<h3>EXAMPLES</h3>
+<div class="content">
+<div class="code" data-language="shell">
+<code>psycl <span class="nt">--layer</span> input 784 <span class="nt">--layer</span> fully-connected 30 <span class="nt">--layer</span> softmax 10 <span class="nt">--train</span> /path/to/my/dataset</code>
+</div>
+<div class="code-description">
+Build a model with input size of 784, a fully connected layer of size 30, an output layer of type softmax and size 10 and train it with the provided dataset
+</div>
+
+</div>
+</section>
+
+           </section>
+       </main>
+       <footer>
+           <div class="contacts">
+               <span><label>PsyC project page:</label> <a href="https://github.com/artix75/psyc" target="_blank">https://github.com/artix75/psyc</a></span> &bullet; <span><label>Report bugs to:</label> <a href="https://github.com/artix75/psyc/issues" target="_blank">https://github.com/artix75/psyc/issues</a></span>
+           </div>
+           <div class="license-info">
+               <div class="license"><img src="License-BSD-3-Clause-blue.svg"> PsyC is released under the <a href="https://opensource.org/license/bsd-3-clause/">BSD-3 Clause</a>
+               </div>
+               <div class="copyright">Copyright &copy; 2016-2023 Giuseppe Fabio Nicotra
+               </div>
+           </div>
+       </footer>
+   </body>
+</html>

@@ -1,0 +1,52 @@
+.\" Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that the above copyright notice and this paragraph are
+.\" duplicated in all such forms and that any documentation,
+.\" advertising materials, and other materials related to such
+.\" distribution and use acknowledge that the software was developed
+.\" by the copyright holder. The name of the
+.\" copyright holder may not be used to endorse or promote products derived
+.\" from this software without specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+.TH PSVectorTranspose 3 2023-12-01 "PsyC 0.9.3" "PsyC Library Functions Manual"
+
+.SH NAME
+PSVectorTranspose
+
+.SH LIBRARY
+PsyC (-lpsyc)
+
+.SH SYNOPSIS
+
+.B
+#include <psyc/maths.h>
+
+.I
+PSFloat  *
+.br
+\fBPSVectorTranspose\fR(\fIPSFloat *vec\fR, \fIPSFloat *dest\fR, \fIint acceleration\fR, \fIint ndims\fR, \fI...\fR)
+.SH DESCRIPTION
+Create a transposed version of \fIvec\fR, considering it a matrix with a shape of \fIndims\fR dimensions.
+.br
+Use variadic arguments to set up-to 3 dimensions in the shape, (ie rows, columns for 2-D array).
+.br
+If \fIdest\fR is not \fINULL\fR, transposed vector will be stored into it.  
+
+.SH RETURN VALUES
+The transposed array, with size of dim1*dim12*dim3, or \fINULL\fR if something goes wrong. If \fIdest\fR is not \fINULL\fR, return value will be \fIdest\fR or \fINULL\fR if something goes wrong.
+NOTES:
+.br
+
+.RS 4
+\[bu] Variadic dimensions refer to original matrix shape, and not to the resulting transposed matrix.
+.RE
+
+.RS 4
+\[bu] If you need to transpose a \fIPSMatrix\fR, use \fIPSMatrixTranspose\fR instead.
+.br
+.RE

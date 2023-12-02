@@ -1,0 +1,57 @@
+.\" Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that the above copyright notice and this paragraph are
+.\" duplicated in all such forms and that any documentation,
+.\" advertising materials, and other materials related to such
+.\" distribution and use acknowledge that the software was developed
+.\" by the copyright holder. The name of the
+.\" copyright holder may not be used to endorse or promote products derived
+.\" from this software without specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+.TH PSLoadDataFromFile 3 2023-12-01 "PsyC 0.9.3" "PsyC Library Functions Manual"
+
+.SH NAME
+PSLoadDataFromFile
+
+.SH LIBRARY
+PsyC (-lpsyc)
+
+.SH SYNOPSIS
+
+.B
+#include <psyc/dataset.h>
+
+.I
+PSFloat  *
+.br
+\fBPSLoadDataFromFile\fR(\fIconst char *filepath\fR, \fIuint64_t *datalen\fR)
+.SH DESCRIPTION
+Load dataset from file located at \fIfilepath\fR. Dataset is returned as an array of PSFloat elements whose length (number of elements) is stored into mandatory argument \fIdatalen\fR.
+.br
+The file must be an ASCII file where every number of the dataset is written as a string representation of floating point numbers and separated by a comma character.
+.br
+Optionally, the whole dataset can be prefixed with its length written as a string representation of a decimal number followed by a colon separator caharcter (':').
+.br
+Example: 3:1.25,2,-0.15 (dataset of three elements 1.25, 2.0 and -0.15) Return value: the loaded dataset or \fINULL\fR is somethign goes wrong.
+.br
+Possible failure reasons:
+.br
+
+.RS 4
+\[bu] Mandatory arguments \fIfilepath\fR or \fIdatalen\fR are \fINULL\fR.
+.br
+
+\[bu] File is not found at \fIfilepath\fR.
+.br
+
+\[bu] File at \fIfilepath\fR cannot be opened or read.
+.br
+
+\[bu] Dataset cannot be allocated into memory.
+.br
+.RE

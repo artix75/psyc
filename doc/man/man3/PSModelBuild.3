@@ -1,0 +1,105 @@
+.\" Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that the above copyright notice and this paragraph are
+.\" duplicated in all such forms and that any documentation,
+.\" advertising materials, and other materials related to such
+.\" distribution and use acknowledge that the software was developed
+.\" by the copyright holder. The name of the
+.\" copyright holder may not be used to endorse or promote products derived
+.\" from this software without specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+.TH PSModelBuild 3 2023-12-01 "PsyC 0.9.3" "PsyC Library Functions Manual"
+
+.SH NAME
+PSModelBuild
+
+.SH LIBRARY
+PsyC (-lpsyc)
+
+.SH SYNOPSIS
+
+.B
+#include <psyc/psyc.h>
+
+.I
+int  
+.br
+\fBPSModelBuild\fR(\fIPSModel *model\fR)
+.SH DESCRIPTION
+Build \fImodel\fR so that it can be used for training of for predictions.
+.br
+If the model is already built, the function will just return 1. In order to rebuild an already built model, \fIPSModelRebuild\fR should be used.
+.br
+The function will check the model's architecture and it will perfrom various actions on it:
+.br
+
+.RS 4
+\[bu] It will allocate and initialize all needed internal data.
+.br
+
+\[bu] It will set proper flags both on the model and the layers.
+.br
+
+\[bu] It will determine and set the eventual recurrent mode (\fIPSRecurrentNetworkMode\fR) depening on model's architecture.
+.br
+
+\[bu] It will resolve eventual layer placeholders making them real layers.
+.br
+
+\[bu] If the loss function (member \fIloss\fR of \fImodel\fR) is \fINULL\fR, it will automatically determine it:
+.br
+
+.RS 4
+.TP
+.B PSCrossEntropyLoss
+will be used if the output layer is a SoftMax layer.
+.br
+
+\[bu] PSQuadraticLoss in all the other cases.
+.br
+
+.RE
+\[bu] If \fImodel\fR is part of a multi-model chain, it will check and update all the chain properties.
+.RE
+.RE
+
+
+.SH RETURN VALUES
+1 is \fImodel\fR is successfully built, 0 if:
+
+.RS 4
+\[bu] \fImodel\fR is \fINULL\fR.
+.br
+
+\[bu] \fImodel\fR is empty (it contains no layers).
+.br
+
+\[bu] There was some memory allocation issue.
+.br
+
+\[bu] The structure of the \fImodel\fR is not valid (ie. some layer is \fINULL\fR)
+.br
+
+\[bu] \fImodel\fR contains one or more layer placeholders and the function failed to resolve one of them.
+.br
+
+\[bu] \fImodel\fR (or one of its layers) handles sequences-at-once but some of its layers is recurrent.
+.br
+
+\[bu] \fImodel\fR (or one of its layers) is recurrent but some of its layers uses sequences-at-once.
+.br
+
+\[bu] \fImodel\fR is recurrent but both the input layer and the output layer are not.
+.br
+
+\[bu] \fImodel\fR is part of a multi-model chain but the chain is broken or not valid.
+.br
+.RE
+
+.SH SEE ALSO
+PSModelIsBuilt(3), PSModelRebuild(3)

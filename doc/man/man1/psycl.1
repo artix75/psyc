@@ -1,0 +1,944 @@
+.\" Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that the above copyright notice and this paragraph are
+.\" duplicated in all such forms and that any documentation,
+.\" advertising materials, and other materials related to such
+.\" distribution and use acknowledge that the software was developed
+.\" by the copyright holder. The name of the
+.\" copyright holder may not be used to endorse or promote products derived
+.\" from this software without specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+.TH PSYCL 1 2023-12-01 "PsyC 0.9.3" "PsyC Manual"
+
+.SH NAME
+psycl \- a command\-line interface to PsyC
+
+.SH SYNOPSIS
+Usage: psycl [OPTIONS]
+
+.SH DESCRIPTION
+psycl is a command-line interface to PsyC, an open-source C library that allows building neural networks ( \fIhttps://github.com/artix75/psyc\fR ).
+
+The utility can be used to build, load, save and train models without the need to write a C program, albeit with limitations.
+
+
+
+.SH OPTIONS
+
+
+
+.TP
+
+.B --available-accelerations
+List available accelerations.
+
+
+
+
+.TP
+
+.B --batch-script-every  NUM
+Interval of NUM batches after which to run the
+script defined by the \fI--on-batch-trained\fR
+option (if set).
+
+
+
+
+.TP
+
+.B --batch-size  SIZE
+Training batch size (default: 10)
+
+
+.TP
+
+.B --classify-image  FILE [OPTIONS...]
+Classify the image located at path FILE with the
+current model (see \fIIMAGE OPTIONS\fR section).
+
+
+
+
+.TP
+
+.B -c, --config  FILE
+Load options from FILE (see the \fICONFIG FILES\fR
+section).
+
+
+
+
+.TP
+
+.B --disable-accelerate
+Disable Accelerate Framework.
+
+
+
+
+.TP
+
+.B --disable-avx
+Disable AVX.
+
+
+
+
+.TP
+
+.B --disable-blas
+Disable BLAS.
+
+
+
+
+.TP
+
+.B --download-cifar  [CLASSES] [DEST_DIR]
+Download CIFAR dataset and exit. If no DEST_DIR
+is provided, the dataset will be saved into
+PsyC working directory.
+
+
+Optional CLASSES can be 10 or 100.
+
+
+(default: 10).
+
+
+
+
+.TP
+
+.B --download-mnist  [DEST_DIR]
+Download MNIST dataset and exit. If no DEST_DIR
+is provided, the dataset will be saved into
+PsyC working directory.
+
+
+
+
+.TP
+
+.B --enable-colors
+Colorized output.
+
+
+
+
+.TP
+
+.B --epochs  EPOCHS
+Training epochs (default: 30).
+
+
+
+
+.TP
+
+.B --info
+Print PsyC info.
+
+
+
+
+.TP
+
+.B --l1-decay  SIZE
+L1 Decay (default: 0).
+
+
+
+
+.TP
+
+.B --l2-decay  SIZE
+L2 Decay (default: 0).
+
+
+
+
+.TP
+
+.B -l, --layer  TYPE (SIZE | OPTIONS...)
+Add layer (see \fILAYER TYPES\fR and \fILAYER OPTIONS\fR
+sections).
+
+
+
+
+.TP
+
+.B --learning-rate  SIZE
+Training learning rate (default: 1.50).
+
+
+
+
+.TP
+
+.B --load  PRETRAINED
+Load a pretrained model.
+
+
+
+
+.TP
+
+.B --loglevel  LEVEL
+Set log level (see \fILOG LEVELS\fR section).
+
+
+
+
+.TP
+
+.B --loss-function  FUNC
+Loss Function (see \fILOSS FUNCTIONS\fR section).
+
+
+
+
+.TP
+
+.B --model
+Start new model (it can be used
+multiple times to create chained models
+composed of multiple neural networks).
+
+
+
+
+.TP
+
+.B --momentum  MOMENTUM
+Momentum (default: 0).
+
+
+
+
+.TP
+
+.B --name  NAME
+Model name.
+
+
+
+
+.TP
+
+.B --on-batch-trained  SCRIPT
+Execute script after every batch is trained.
+
+
+(See \fISCRIPTS\fR section for more info).
+
+
+
+
+.TP
+
+.B --on-epoch-trained  SCRIPT
+Execute script after every epoch is trained.
+
+
+(See \fISCRIPTS\fR section for more info).
+
+
+
+
+.TP
+
+.B --onehot
+Sets one-hot-vector flag for input layer (if
+before 1st layer) or target dataset (if after
+output layer).
+
+
+
+
+.TP
+
+.B --optimization  NAME
+Training optimization, NAME can be:
+
+
+(adagrad | adadelta | adam | rmsprop |
+windowgrad | nesterov | default).
+
+
+
+
+.TP
+
+.B --quiet
+Quiet output (loglevel ERROR).
+
+
+
+
+.TP
+
+.B --save  FILE
+Save model to FILE.
+
+
+
+
+.TP
+
+.B --test  [OPTIONS] TEST_DATASET
+Test model against TEST_DATASET.
+
+
+(see \fITRAIN|TEST OPTIONS\fR section).
+
+
+
+
+.TP
+
+.B --train  [OPTIONS] TRAIN_DATASET
+Train model with TRAIN_DATASET.
+
+
+(see \fITRAIN|TEST OPTIONS\fR section).
+
+
+
+
+.TP
+
+.B --training-adjust-rate
+Auto-adjust learn rate.
+
+
+
+
+.TP
+
+.B --training-datalen  LEN
+Training data length.
+
+
+
+
+.TP
+
+.B --training-no-shuffle
+Prevent dataset shuffle.
+
+
+
+
+.TP
+
+.B --validate-every  BATCH_NUM
+Validate inside epochs.
+
+
+
+
+.TP
+
+.B --validation-datalen  LEN
+Validation data length.
+
+
+
+
+.TP
+
+.B --verbose
+Verbose output (loglevel DEBUG).
+
+
+
+
+.TP
+
+.B -v, --version
+Print version.
+
+
+
+
+.TP
+
+.B --weight-decay
+Enable L1/L2 weight decay
+instead of L1/L2 regularization.
+
+
+
+
+.TP
+
+.B -h, --help
+Print this help.
+
+
+
+
+
+
+
+.SH LAYER TYPES
+
+
+
+.TP
+
+.B fully-connected, fc
+Fully Connected (dense) layer 
+
+
+.TP
+
+.B convolutional
+Convolutional Layer 
+
+
+.TP
+
+.B pooling
+Pooling Layer 
+
+
+.TP
+
+.B rnn
+Basic Recurrent Layer 
+
+
+.TP
+
+.B lstm
+LSTM Layer 
+
+
+.TP
+
+.B softmax
+Softmax Layer 
+
+
+.TP
+
+.B gru
+GRU Layer 
+
+
+.TP
+
+.B dropout
+Dropout Layer 
+
+
+.TP
+
+.B embedding
+Embedding Layer 
+
+
+.TP
+
+.B normalization
+Normalization Layer 
+
+
+.TP
+
+.B attention
+Attention Layer 
+
+
+.TP
+
+.B operator, op
+Operator Layer (add,concatenate,mul) 
+
+
+.TP
+
+.B linear
+Linear Layer 
+
+
+.TP
+
+.B positional-encoding
+Position Encoding Layer 
+
+
+
+
+
+.SH LOSS FUNCTIONS
+
+
+quadratic 
+
+cross-entropy 
+
+
+
+
+
+.SH LAYER OPTIONS
+
+
+
+.TP
+
+.B --activation  FUNC
+Activation Function: (sigmoid,tanh,relu,gelu).
+
+
+
+
+.TP
+
+.B --attention-heads  NUM
+Multi-Head Attention layer heads.
+
+
+
+
+.TP
+
+.B --attention-scale  SCALE
+Attention layer scale.
+
+
+
+
+.TP
+
+.B --attention-type  TYPE
+Attention layer type: (dot|additive).
+
+
+
+
+.TP
+
+.B --bias-init-mode  MODE
+Bias initialization mode:
+
+
+(auto|random|zero) (default: auto).
+
+
+
+
+.TP
+
+.B --causal
+Causal Attention.
+
+
+
+
+.TP
+
+.B --disable-biases
+Disable biases.
+
+
+
+
+.TP
+
+.B --dropout  DROPOUT
+Layer Dropout (float).
+
+
+
+
+.TP
+
+.B --filter-width  WIDTH
+Convolutional filter width (default: 5).
+
+
+
+
+.TP
+
+.B --filter-height  HEIGHT
+Convolutional filter height (default: 5).
+
+
+
+
+.TP
+
+.B --init-range  RANGE
+Weight|Bias initialization range.
+
+
+(for 'random' init mode)
+
+
+.TP
+
+.B --init-scale  SCALE
+Weight|Bias initialization scale.
+
+
+(for 'random' init mode)
+
+
+.TP
+
+.B --key-provider  COORDS
+Attention keys provider.
+
+
+(See \fILAYER COORDINATES\fR section for details
+about COORDS).
+
+
+
+
+.TP
+
+.B --link  COORDS
+Link layer to previous model.
+
+
+(See \fILAYER COORDINATES\fR section for details
+about COORDS).
+
+
+
+
+.TP
+
+.B --load-layer  PATH
+Load layer parameters from PATH.
+
+
+
+
+.TP
+
+.B --operator  OP
+Operator layer operator: (add|mul|concatenate).
+
+
+
+
+.TP
+
+.B --output-width  WIDTH
+Output Width.
+
+
+
+
+.TP
+
+.B --output-height  HEIGHT
+Output Height.
+
+
+
+
+.TP
+
+.B --output-depth  DEPTH
+Output Depth.
+
+
+
+
+.TP
+
+.B --padding  PADDING
+Convolutional padding (default: 0).
+
+
+
+
+.TP
+
+.B --pretrained
+Pretrained layer.
+
+
+
+
+.TP
+
+.B --provider  COORDS
+Operator layer provider.
+
+
+(See \fILAYER COORDINATES\fR section for details
+about COORDS).
+
+
+
+
+.TP
+
+.B --query-provider  COORDS
+Attention query provider. If current layer is
+not an attention layer, current layer
+will be set as provider of the layer defined by
+COORDS. (See \fILAYER COORDINATES\fR section for
+details about COORDS).
+
+
+
+
+.TP
+
+.B --recurrent-layer
+Recurrent layer mode.
+
+
+
+
+.TP
+
+.B --stride  STRIDE
+Convolutional stride (default: 1).
+
+
+
+
+.TP
+
+.B --value-provider  COORDS
+Attention values provider.
+
+
+(See \fILAYER COORDINATES\fR section
+for details about COORDS).
+
+
+
+
+.TP
+
+.B --weight-init-mode  MODE
+Weight initialization mode:
+
+
+auto,random,zero (default: auto).
+
+
+
+
+.TP
+
+.B --whole-sequence
+Whole sequence mode.
+
+
+
+
+
+
+
+.SH LAYER COORDINATES
+Format: [model_index:]layer_index 
+
+
+.TP
+
+.B 
+Examples:
+
+
+.TP
+
+.B 1:2
+- Third layer (2) of second model(1) 
+
+
+.TP
+
+.B 3
+- Fourth layer (3) of current model 
+
+
+
+
+
+.SH LOG LEVELS
+debug, info, notice, success, warn, error 
+
+.SH TRAIN|TEST OPTIONS
+
+
+
+.TP
+
+.B --cifar  [CLASSES
+Dataset format is CIFAR.
+
+
+(classes: 10 or 100, default: 10).
+
+
+
+
+.TP
+
+.B --max-images
+Max images to load (CIFAR).
+
+
+
+
+.TP
+
+.B --max-files
+Max files to load (CIFAR).
+
+
+
+
+.TP
+
+.B --mnist
+Dataset format is MNIST.
+
+
+
+
+
+
+
+.SH IMAGE OPTIONS
+
+
+
+.TP
+
+.B --background-color  COLOR
+Padding background color (ie. none, white, ...),
+default: white
+
+
+.TP
+
+.B --dump-image  FILE
+Save image to file.
+
+
+
+
+.TP
+
+.B --grayscale
+Convert image to grayscale.
+
+
+
+
+.TP
+
+.B --invert
+Invert image pixels.
+
+
+
+
+
+
+
+.SH CONFIG FILES
+Configuration files can be loaded via the `-c` option (see above). Every option that can be passed to the command line can also be used inside configuration files by removing the dash prefix ('-' or '--'), for example:
+
+`layer` instead of \fI--layer\fR or `learning-rate` instead of \fI--learning-rate\fR.
+
+Option arguments can follow the option name by separating them with spaces and every option should be written in a separate line.
+
+The special `include` directive has the same effect of the `-c` option, and it loads another configuration file (ie. `include /path/to/config`).
+
+
+
+.SS EXAMPLES
+
+.RS 4
+.B
+Example 1:
+
+.nf
+.eo
+# This is an example of psycl configuration file
+# Comment lines are prefixed with '#'
+
+# Include other configuration files
+include /path/to/other/config-file
+
+# Define model
+layer input 784
+layer fully-connected 710
+layer softmax 10
+
+# Train
+train /path/to/my/dataset
+
+# Save it
+save /path/to/save-model
+
+
+.ec
+.fi
+
+.B
+Example 2:
+
+.nf
+.eo
+# A convolutiona neural network
+
+layer input 3072
+layer convolutional
+  region-size 5
+  feature-count 16
+  padding 2
+  stride 1
+
+layer pooling
+  region-size 2
+layer softmax 10
+
+train /path/to/my/dataset
+
+
+.ec
+.fi
+
+.RE
+
+
+.SH SCRIPTS
+By using options like \fI--on-batch-trained\fR or \fI--on-epoch-trained\fR it's possible to execute an arbitrary external script when such events happen.
+
+The scripts will eventually receive the following arguments:
+
+--event TYPE, --name MODEL_NAME --epoch CURRENT_EPOCH --epochs TOT_EPOCHS --average-loss AVERAGE_LOSS --current-loss CURRENT_LOSS --accuracy CURRENT_ACCURACY --learning-rate RATE 
+
+.SH EXAMPLES
+.B
+Build a model with input size of 784, a fully connected layer of size 30, an output layer of type softmax and size 10 and train it with the provided dataset
+
+.nf
+.eo
+psycl --layer input 784 --layer fully-connected 30 --layer softmax 10 --train /path/to/my/dataset
+.ec
+.fi
+

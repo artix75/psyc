@@ -1,0 +1,375 @@
+<!doctype html>
+<!--
+Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+All rights reserved.
+
+Redistribution and use in source and binary forms are permitted
+provided that the above copyright notice and this paragraph are
+duplicated in all such forms and that any documentation,
+advertising materials, and other materials related to such
+distribution and use acknowledge that the software was developed
+by the copyright holder. The name of the
+copyright holder may not be used to endorse or promote products derived
+from this software without specific prior written permission.
+THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+-->
+<html lang="en">
+   <head>
+       <title>PsyC Documentation - VECTOR</title>
+       <link rel="stylesheet" type="text/css" href="style.css">
+       <script language="javascript" src="main.js"></script>
+   </head>
+   <body class="psyc-doc psyc-tag">
+       <header>
+           <h1>PsyC Documentation <span class="version">0.9.3</span></h1>
+           <h2>API Reference - VECTOR</h2>
+           <nav id="top-menu">
+               <ul>
+                   <li>
+                       <a href="index.html">INDEX</a>
+                   </li>
+               </ul>
+           </nav>
+           <nav id="main-menu">
+               <ul>
+                   <li>
+                       <a class="" href="functions.html">Functions</a>
+                   </li>
+                   <li>
+                       <a class="" href="types.html">Types</a>
+                   </li>
+                   <li>
+                       <a class="" href="macros.html">Macros</a>
+                   </li>
+               </ul>
+           </nav>
+       </header>
+       <main>
+           <nav id="sidebar">
+               <h2>VECTOR</h2>
+               <ul>
+<li><a href="#macro-psvectorcopy">PSVectorCopy</a></li>
+<li><a href="#macro-psvectorclear">PSVectorClear</a></li>
+<li><a href="#macro-psvectorzero">PSVectorZero</a></li>
+<li><a href="#macro-psvectorcreate">PSVectorCreate</a></li>
+<li><a href="#function-psvectortanh">PSVectorTanh</a></li>
+<li><a href="#function-psvectorsqrt">PSVectorSqrt</a></li>
+<li><a href="#function-psvectorexp">PSVectorExp</a></li>
+<li><a href="#function-psvectorneg">PSVectorNeg</a></li>
+<li><a href="#function-psvectorabs">PSVectorAbs</a></li>
+<li><a href="#function-psvectorclip">PSVectorClip</a></li>
+<li><a href="#function-psvectorthreshold">PSVectorThreshold</a></li>
+<li><a href="#function-psvectormapwithlimit">PSVectorMapWithLimit</a></li>
+<li><a href="#function-psvectorpower">PSVectorPower</a></li>
+<li><a href="#function-psvectormax">PSVectorMax</a></li>
+<li><a href="#function-psvectorreducesum">PSVectorReduceSum</a></li>
+<li><a href="#function-psvectorfill">PSVectorFill</a></li>
+<li><a href="#function-psvectorwrite">PSVectorWrite</a></li>
+<li><a href="#function-psvectorprint">PSVectorPrint</a></li>
+<li><a href="#function-psvectortranspose">PSVectorTranspose</a></li>
+<li><a href="#function-psvectorsplit">PSVectorSplit</a></li>
+<li><a href="#function-psvectordup">PSVectorDup</a></li>
+<li><a href="#function-psvectorrandom">PSVectorRandom</a></li>
+<li><a href="#function-psvectorequals">PSVectorEquals</a></li>
+<li><a href="#function-psvectorconverttomatrix">PSVectorConvertToMatrix</a></li>
+               </ul>
+           </nav>
+           <section id="doc">
+<div class="details macro" id="macro-psvectorcopy">
+<h3 class="name">PSVectorCopy</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">54</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSVectorCopy</span><span class="arguments">(dest, src, len)</span> <span class="macro-expansion">memcpy(dest, src, len * sizeof(PSFloat))</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psvectorclear">
+<h3 class="name">PSVectorClear</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">55</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSVectorClear</span><span class="arguments">(vec, len)</span> <span class="macro-expansion">memset(vec, 0, len * sizeof(PSFloat))</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psvectorzero">
+<h3 class="name">PSVectorZero</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">56</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSVectorZero</span><span class="arguments">(len)</span> <span class="macro-expansion">calloc(len, sizeof(PSFloat))</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psvectorcreate">
+<h3 class="name">PSVectorCreate</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">57</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSVectorCreate</span><span class="arguments">(len)</span> <span class="macro-expansion">malloc(len * sizeof(PSFloat))</span></code>
+</div>
+</div>
+
+<div class="details function" id="function-psvectortanh">
+<h3 class="name">PSVectorTanh</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">209</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
+<code class="definition">
+<span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSVectorTanh</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectortanh-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectortanh-dest>dest</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psvectortanh-length>length</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectortanh-opts>opts</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psvectorsqrt">
+<h3 class="name">PSVectorSqrt</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">211</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
+<code class="definition">
+<span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSVectorSqrt</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorsqrt-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorsqrt-dest>dest</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psvectorsqrt-length>length</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorsqrt-opts>opts</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psvectorexp">
+<h3 class="name">PSVectorExp</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">213</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
+<code class="definition">
+<span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSVectorExp</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorexp-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorexp-dest>dest</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psvectorexp-length>length</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorexp-opts>opts</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psvectorneg">
+<h3 class="name">PSVectorNeg</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">215</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
+<code class="definition">
+<span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSVectorNeg</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorneg-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorneg-dest>dest</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psvectorneg-length>length</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorneg-opts>opts</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psvectorabs">
+<h3 class="name">PSVectorAbs</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">217</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
+<code class="definition">
+<span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSVectorAbs</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorabs-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorabs-dest>dest</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psvectorabs-length>length</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorabs-opts>opts</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psvectorclip">
+<h3 class="name">PSVectorClip</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">219</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
+<code class="definition">
+<span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSVectorClip</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorclip-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier" data-identifier-id=function-psvectorclip-min>min</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier" data-identifier-id=function-psvectorclip-max>max</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorclip-dest>dest</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psvectorclip-length>length</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorclip-opts>opts</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psvectorthreshold">
+<h3 class="name">PSVectorThreshold</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">221</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
+<code class="definition">
+<span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSVectorThreshold</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorthreshold-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier" data-identifier-id=function-psvectorthreshold-min>min</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorthreshold-dest>dest</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psvectorthreshold-length>length</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorthreshold-opts>opts</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psvectormapwithlimit">
+<h3 class="name">PSVectorMapWithLimit</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">223</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
+<code class="definition">
+<span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSVectorMapWithLimit</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectormapwithlimit-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier" data-identifier-id=function-psvectormapwithlimit-limit>limit</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier" data-identifier-id=function-psvectormapwithlimit-mapper>mapper</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectormapwithlimit-dest>dest</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psvectormapwithlimit-length>length</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectormapwithlimit-opts>opts</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psvectorpower">
+<h3 class="name">PSVectorPower</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">225</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
+<code class="definition">
+<span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSVectorPower</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorpower-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier" data-identifier-id=function-psvectorpower-exp>exp</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorpower-dest>dest</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psvectorpower-length>length</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorpower-opts>opts</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psvectormax">
+<h3 class="name">PSVectorMax</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">227</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
+<code class="definition">
+<span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier name">PSVectorMax</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectormax-a>a</span></span>, <span class="argument"><span class="type">uint64_t *</span><span class="identifier pointer-name" data-identifier-id=function-psvectormax-index>index</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psvectormax-length>length</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectormax-opts>opts</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psvectorreducesum">
+<h3 class="name">PSVectorReduceSum</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">229</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
+<code class="definition">
+<span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier name">PSVectorReduceSum</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorreducesum-a>a</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psvectorreducesum-length>length</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorreducesum-opts>opts</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psvectorfill">
+<h3 class="name">PSVectorFill</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">236</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">void</span> <span class="identifier name">PSVectorFill</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorfill-vec>vec</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier" data-identifier-id=function-psvectorfill-val>val</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psvectorfill-len>len</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorfill-opts>opts</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psvectorwrite">
+<h3 class="name">PSVectorWrite</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">237</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">void</span> <span class="identifier name">PSVectorWrite</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorwrite-vec>vec</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psvectorwrite-len>len</span></span>, <span class="argument"><span class="type">char*</span> <span class="identifier" data-identifier-id=function-psvectorwrite-sep>sep</span></span>, <span class="argument"><span class="type">FILE *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorwrite-f>f</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psvectorprint">
+<h3 class="name">PSVectorPrint</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">238</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">void</span> <span class="identifier name">PSVectorPrint</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorprint-vec>vec</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psvectorprint-len>len</span></span>, <span class="argument"><span class="type">char*</span> <span class="identifier" data-identifier-id=function-psvectorprint-sep>sep</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psvectortranspose">
+<h3 class="name">PSVectorTranspose</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">239</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
+<code class="definition">
+<span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSVectorTranspose</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectortranspose-vec>vec</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectortranspose-dest>dest</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psvectortranspose-acceleration>acceleration</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psvectortranspose-ndims>ndims</span></span>, <span class="argument variadic">...</span></span>)</code>
+</div>
+<div class="description">
+Create a transposed version of <span class="identifier-ref" data-identifier-id="function-psvectortranspose-vec" data-parent-id="function-psvectortranspose">vec</span>, considering it a matrix with a shape of <span class="identifier-ref" data-identifier-id="function-psvectortranspose-ndims" data-parent-id="function-psvectortranspose">ndims</span> dimensions.<br/>Use variadic arguments to set up-to 3 dimensions in the shape, (ie rows, columns for 2-D array).<br/>If <span class="identifier-ref" data-identifier-id="function-psvectortranspose-dest" data-parent-id="function-psvectortranspose">dest</span> is not <span class="identifier-ref">NULL</span>, transposed vector will be stored into it.  
+<h4 class="return-values">RETURN VALUES</h4>
+The transposed array, with size of dim1*dim12*dim3, or <span class="identifier-ref">NULL</span> if something goes wrong. If <span class="identifier-ref" data-identifier-id="function-psvectortranspose-dest" data-parent-id="function-psvectortranspose">dest</span> is not <span class="identifier-ref">NULL</span>, return value will be <span class="identifier-ref" data-identifier-id="function-psvectortranspose-dest" data-parent-id="function-psvectortranspose">dest</span> or <span class="identifier-ref">NULL</span> if something goes wrong.
+NOTES:<br/>
+
+<ul>
+
+<li>Variadic dimensions refer to original matrix shape, and not to the resulting transposed matrix.
+</ul>
+
+
+
+<ul>
+
+<li>If you need to transpose a <a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a>, use <a class="psyc-func" href="functions.html#function-psmatrixtranspose">PSMatrixTranspose</a> instead.
+
+
+</ul>
+</div>
+</div>
+
+<div class="details function" id="function-psvectorsplit">
+<h3 class="name">PSVectorSplit</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">251</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
+<code class="definition">
+<span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> **</span> <span class="identifier name">PSVectorSplit</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorsplit-vec>vec</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psvectorsplit-len>len</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psvectorsplit-num-slices>num_slices</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psvectordup">
+<h3 class="name">PSVectorDup</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">252</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
+<code class="definition">
+<span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSVectorDup</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectordup-src>src</span></span>, <span class="argument"><span class="type">size_t</span> <span class="identifier" data-identifier-id=function-psvectordup-length>length</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psvectorrandom">
+<h3 class="name">PSVectorRandom</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">253</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
+<code class="definition">
+<span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSVectorRandom</span> (<span class="arguments"><span class="argument"><span class="type">size_t</span> <span class="identifier" data-identifier-id=function-psvectorrandom-len>len</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psvectorequals">
+<h3 class="name">PSVectorEquals</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">255</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">int</span> <span class="identifier name">PSVectorEquals</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorequals-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorequals-b>b</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psvectorequals-length>length</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psvectorequals-precision>precision</span></span>, <span class="argument"><span class="type">uint64_t *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorequals-index>index</span></span></span>)</code>
+</div>
+<div class="description">
+Compare two vectors <span class="identifier-ref" data-identifier-id="function-psvectorequals-a" data-parent-id="function-psvectorequals">a</span> and <span class="identifier-ref" data-identifier-id="function-psvectorequals-b" data-parent-id="function-psvectorequals">b</span> having <span class="identifier-ref" data-identifier-id="function-psvectorequals-length" data-parent-id="function-psvectorequals">length</span> length. Use <span class="identifier-ref" data-identifier-id="function-psvectorequals-precision" data-parent-id="function-psvectorequals">precision</span> to set precision tolerance. Lower precision leads to higher tolerance.<br/>By setting <span class="identifier-ref" data-identifier-id="function-psvectorequals-precision" data-parent-id="function-psvectorequals">precision</span> to zero, the two vectors must be perfectly equal (no precision tolerance at all).<br/>Use <span class="identifier-ref" data-identifier-id="function-psvectorequals-index" data-parent-id="function-psvectorequals">index</span> pointer if you need to know the index of the first non-equal elements.  
+<h4 class="return-values">RETURN VALUES</h4>
+1 if <span class="identifier-ref" data-identifier-id="function-psvectorequals-a" data-parent-id="function-psvectorequals">a</span> and <span class="identifier-ref" data-identifier-id="function-psvectorequals-b" data-parent-id="function-psvectorequals">b</span> equal, 0 if they differ at some point.
+</div>
+</div>
+
+<div class="details function" id="function-psvectorconverttomatrix">
+<h3 class="name">PSVectorConvertToMatrix</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">257</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
+<code class="definition">
+<span class="type return-type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier name">PSVectorConvertToMatrix</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorconverttomatrix-vec>vec</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psvectorconverttomatrix-len>len</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psvectorconverttomatrix-ndims>ndims</span></span>, <span class="argument"><span class="type">int *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorconverttomatrix-shape>shape</span></span></span>)</code>
+</div>
+<div class="description">
+Convert the vector <span class="identifier-ref" data-identifier-id="function-psvectorconverttomatrix-vec" data-parent-id="function-psvectorconverttomatrix">vec</span> of length <span class="identifier-ref" data-identifier-id="function-psvectorconverttomatrix-len" data-parent-id="function-psvectorconverttomatrix">len</span> to a <a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a>. This function differs from <a class="psyc-func" href="functions.html#function-psmatrixfromarray">PSMatrixFromArray</a> since it reallocates the vector in order to make room for the matrix header that will contain matrix&#39;s properties.<br/>So the vector is reallocated and its memory is moved by the size of the matrix header.<br/>It&#39;s possible to specify the matrix&#39;s shape by using the <span class="identifier-ref" data-identifier-id="function-psvectorconverttomatrix-ndims" data-parent-id="function-psvectorconverttomatrix">ndims</span> argument and the <span class="identifier-ref" data-identifier-id="function-psvectorconverttomatrix-shape" data-parent-id="function-psvectorconverttomatrix">shape</span> argument:<br/>
+
+ <ul>
+
+ <li><span class="identifier-ref" data-identifier-id="function-psvectorconverttomatrix-ndims" data-parent-id="function-psvectorconverttomatrix">ndims</span>: number of dimensions (axes) of the matrix shape.</li>
+
+ <li><span class="identifier-ref" data-identifier-id="function-psvectorconverttomatrix-shape" data-parent-id="function-psvectorconverttomatrix">shape</span>: the shape itself.
+</ul>
+
+</ul>
+
+
+If <span class="identifier-ref" data-identifier-id="function-psvectorconverttomatrix-shape" data-parent-id="function-psvectorconverttomatrix">shape</span> is <span class="identifier-ref">NULL</span> or <span class="identifier-ref" data-identifier-id="function-psvectorconverttomatrix-ndims" data-parent-id="function-psvectorconverttomatrix">ndims</span> is zero, the function will use a default shape of {<span class="identifier-ref" data-identifier-id="function-psvectorconverttomatrix-len" data-parent-id="function-psvectorconverttomatrix">len</span>} (if <span class="identifier-ref" data-identifier-id="function-psvectorconverttomatrix-ndims" data-parent-id="function-psvectorconverttomatrix">ndims</span> is 0 or 1) or {1, <span class="identifier-ref" data-identifier-id="function-psvectorconverttomatrix-len" data-parent-id="function-psvectorconverttomatrix">len</span>} (if <span class="identifier-ref" data-identifier-id="function-psvectorconverttomatrix-ndims" data-parent-id="function-psvectorconverttomatrix">ndims</span> is 2).<br/>The function will fail if <span class="identifier-ref" data-identifier-id="function-psvectorconverttomatrix-shape" data-parent-id="function-psvectorconverttomatrix">shape</span> is <span class="identifier-ref">NULL</span> and <span class="identifier-ref" data-identifier-id="function-psvectorconverttomatrix-ndims" data-parent-id="function-psvectorconverttomatrix">ndims</span> is greater than 2.<br/><div class="warn"><span class="warn-prefix">WARN:</span>  if the function succeeds, it&#39;s not possible to use the source vector <span class="identifier-ref" data-identifier-id="function-psvectorconverttomatrix-vec" data-parent-id="function-psvectorconverttomatrix">vec</span> anymore, since its data have been moved in memory and the original address could have been reallocated.</div><br/><div class="warn"><span class="warn-prefix">WARN:</span>  the vector <span class="identifier-ref" data-identifier-id="function-psvectorconverttomatrix-vec" data-parent-id="function-psvectorconverttomatrix">vec</span> must be an array of <a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> that was previously allocated (ie. by using <a class="psyc-macro" href="macros.html#macro-psvectorcreate">PSVectorCreate</a>, <a class="psyc-func" href="functions.html#function-psvectordup">PSVectorDup</a>, <span class="identifier-ref">malloc</span>, <span class="identifier-ref">calloc</span> or <span class="identifier-ref">realloc</span>). Using global/static arrays or arrays from the stack frame will lead to memory corruption.</div>  
+<h4 class="return-values">RETURN VALUES</h4>
+The matrix or <span class="identifier-ref">NULL</span> if the function fails.
+Possible failure reasons:<br/>
+
+ <ul>
+
+ <li><span class="identifier-ref" data-identifier-id="function-psvectorconverttomatrix-vec" data-parent-id="function-psvectorconverttomatrix">vec</span> is <span class="identifier-ref">NULL</span>.</li>
+
+ <li><span class="identifier-ref" data-identifier-id="function-psvectorconverttomatrix-len" data-parent-id="function-psvectorconverttomatrix">len</span> is zero.</li>
+
+ <li><span class="identifier-ref" data-identifier-id="function-psvectorconverttomatrix-ndims" data-parent-id="function-psvectorconverttomatrix">ndims</span> is greater than <a class="psyc-macro" href="macros.html#macro-ps-matrix-max-dimensions">PS_MATRIX_MAX_DIMENSIONS</a>.</li>
+
+ <li><span class="identifier-ref" data-identifier-id="function-psvectorconverttomatrix-shape" data-parent-id="function-psvectorconverttomatrix">shape</span> is <span class="identifier-ref">NULL</span> but <span class="identifier-ref" data-identifier-id="function-psvectorconverttomatrix-ndims" data-parent-id="function-psvectorconverttomatrix">ndims</span> is greater than 2.</li>
+
+ <li><span class="identifier-ref" data-identifier-id="function-psvectorconverttomatrix-len" data-parent-id="function-psvectorconverttomatrix">len</span> mismatches <span class="identifier-ref" data-identifier-id="function-psvectorconverttomatrix-shape" data-parent-id="function-psvectorconverttomatrix">shape</span> (<span class="identifier-ref" data-identifier-id="function-psvectorconverttomatrix-len" data-parent-id="function-psvectorconverttomatrix">len</span> must equals the product of shape axes).</li>
+
+ <li>Memory allocation failure
+
+
+ </ul>
+</div>
+<div class="see-also">
+<h4>SEE ALSO</h4>
+<ul>
+<li><a class="psyc-func" href="functions.html#function-psmatrixfromarray">PSMatrixFromArray</a></li></ul>
+</div>
+</div>
+
+           </section>
+       </main>
+       <footer>
+           <div class="contacts">
+               <span><label>PsyC project page:</label> <a href="https://github.com/artix75/psyc" target="_blank">https://github.com/artix75/psyc</a></span> &bullet; <span><label>Report bugs to:</label> <a href="https://github.com/artix75/psyc/issues" target="_blank">https://github.com/artix75/psyc/issues</a></span>
+           </div>
+           <div class="license-info">
+               <div class="license"><img src="License-BSD-3-Clause-blue.svg"> PsyC is released under the <a href="https://opensource.org/license/bsd-3-clause/">BSD-3 Clause</a>
+               </div>
+               <div class="copyright">Copyright &copy; 2016-2023 Giuseppe Fabio Nicotra
+               </div>
+           </div>
+       </footer>
+   </body>
+</html>

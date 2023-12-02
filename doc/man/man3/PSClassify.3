@@ -1,0 +1,57 @@
+.\" Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that the above copyright notice and this paragraph are
+.\" duplicated in all such forms and that any documentation,
+.\" advertising materials, and other materials related to such
+.\" distribution and use acknowledge that the software was developed
+.\" by the copyright holder. The name of the
+.\" copyright holder may not be used to endorse or promote products derived
+.\" from this software without specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+.TH PSClassify 3 2023-12-01 "PsyC 0.9.3" "PsyC Library Functions Manual"
+
+.SH NAME
+PSClassify
+
+.SH LIBRARY
+PsyC (-lpsyc)
+
+.SH SYNOPSIS
+
+.B
+#include <psyc/psyc.h>
+
+.I
+int  
+.br
+\fBPSClassify\fR(\fIPSModel *model\fR, \fIPSFloat *inputs\fR)
+.SH DESCRIPTION
+Forward \fIinputs\fR to \fImodel\fR and get the index of the maximum state from the output layer.  
+
+.SH RETURN VALUES
+1 if the process succeeds or 0 if:
+
+.RS 4
+\[bu] \fImodel\fR is \fINULL\fR
+.br
+
+\[bu] \fImodel\fR is not built.
+.br
+
+\[bu] The input layer doesn't take sequences as inputs and the output layer doesn't produce sequences as outputs.
+.br
+
+\[bu] The index of the maximum state could not be determined.
+.br
+
+\[bu] Something else in the forward process fails.
+.br
+.RE
+
+.SH SEE ALSO
+PSAutoregression(3), PSClassifyImage(3), PSForward(3)

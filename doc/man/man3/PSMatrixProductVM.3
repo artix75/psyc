@@ -1,0 +1,58 @@
+.\" Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that the above copyright notice and this paragraph are
+.\" duplicated in all such forms and that any documentation,
+.\" advertising materials, and other materials related to such
+.\" distribution and use acknowledge that the software was developed
+.\" by the copyright holder. The name of the
+.\" copyright holder may not be used to endorse or promote products derived
+.\" from this software without specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+.TH PSMatrixProductVM 3 2023-12-01 "PsyC 0.9.3" "PsyC Library Functions Manual"
+
+.SH NAME
+PSMatrixProductVM
+
+.SH LIBRARY
+PsyC (-lpsyc)
+
+.SH SYNOPSIS
+
+.B
+#include <psyc/maths.h>
+
+.I
+int  
+.br
+\fBPSMatrixProductVM\fR(\fIPSFloat *a\fR, \fIPSMatrix b\fR, \fIint len\fR, \fIPSMatrix *result\fR, \fIPSMathOpts *opts\fR)
+.SH DESCRIPTION
+Performs vector-matrix multiplication between vector \fIa\fR and matrix \fIb\fR.
+.br
+Argument \fIlen\fR must be the length of the vector \fIa\fR.
+.br
+Results are stored into matrix pointed by \fIresult\fR. If pointer pointed by \fIresult\fR is \fINULL\fR, a new matrix is automatically allocated by the function itself and its pointer will be stored into \fIresult\fR.
+.br
+The function uses BLAS to compute the result. Anyway, if BLAS support is missing in PsyC build, function will compute results by using \fIPSDotProduct\fR as fallback.
+.br
+missing in PsyC build, function will fail.
+.br
+You can set matrix transposition using \fItranspose\fR field in the \fIopt\fR argument. In that case, \fItranspose\fR will contain the (1-based) indices of the operand arguments you want to be transposed:
+.br
+
+.RS 4
+\[bu] opt->transpose = 2 (transpose matrix \fIb\fR)
+.RE
+.RE
+
+By default, data in result vector will be overwritten. Anyway, if \fIPS_STORE_MODE_ADD\fR is set as \fIstore_mode\fR into \fIopts\fR, result will be added to data already present in the result vector.  
+
+.SH RETURN VALUES
+1 if operation succeeds, 0 if it fails.
+
+.SH SEE ALSO
+PSMatrixProduct(3), PSMatrixProductMV(3)

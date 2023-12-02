@@ -1,0 +1,64 @@
+.\" Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that the above copyright notice and this paragraph are
+.\" duplicated in all such forms and that any documentation,
+.\" advertising materials, and other materials related to such
+.\" distribution and use acknowledge that the software was developed
+.\" by the copyright holder. The name of the
+.\" copyright holder may not be used to endorse or promote products derived
+.\" from this software without specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+.TH PSLoadModel 3 2023-12-01 "PsyC 0.9.3" "PsyC Library Functions Manual"
+
+.SH NAME
+PSLoadModel
+
+.SH LIBRARY
+PsyC (-lpsyc)
+
+.SH SYNOPSIS
+
+.B
+#include <psyc/psyc.h>
+
+.I
+PSModel  *
+.br
+\fBPSLoadModel\fR(\fIconst char* filename\fR)
+.SH DESCRIPTION
+Load a new model from the file located at \fIfilepath\fR into \fImodel\fR.
+.br
+In order to load model's data into an already existing model, \fIPSModelLoad\fR should be used instead.
+.br
+If the file defines a multi-model chain, the whole chain will be loaded.  
+
+.SH RETURN VALUES
+1 if model is successfully loaded, 0 if:
+
+.RS 4
+\[bu] \fIfilepath\fR is \fINULL\fR.
+.br
+
+\[bu] The file at \fIfilepath\fR could not be opened for reading.
+.br
+
+\[bu] The file at \fIfilepath\fR is not a valid PsyC model file.
+.br
+
+\[bu] PsyC version is lower than version declared in the file.
+.br
+
+\[bu] Memory allocation issues.
+.br
+
+\[bu] Some error occurred while reading data from file.
+.br
+.RE
+
+.SH SEE ALSO
+PSModelLoad(3), PSModelSave(3)

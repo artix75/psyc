@@ -29,6 +29,8 @@ endif
 
 HEADER_FILE_LIST = .make-header-files
 HEADER_FILES := $(strip $(subst all.h,,$(sort $(notdir $(wildcard *.h)))))
+MANPAGE_FILES := $(subst $(PSYCPATH)/doc/man/,,$(wildcard $(PSYCPATH)/doc/man/*/*))
+INSTALLED_MANPAGES := $(foreach manpage, $(MANPAGE_FILES), $(PREFIX)/share/man/$(manpage))
 
 $(HEADER_FILE_LIST):
 	@echo 'PREV_HEADER_FILES = $(HEADER_FILES)' > $@
@@ -126,17 +128,22 @@ install: all all.h
 	@mkdir -p $(SHAREDIR)
 	@mkdir -p $(SHAREDIR)/bin
 	@mkdir -p $(SHAREDIR)/utils
+	@mkdir -p $(SHAREDIR)/doc
 	cp $(PSYCL) $(SHAREDIR)/bin/psycl
 	ln -s -f $(SHAREDIR)/bin/psycl $(BINDIR)/psycl
-	-cp $(PSYC_CC_UTIL) $(SHAREDIR)/bin/$(notdir $(PSYC_CC_UTIL))
-	-ln -s -f $(SHAREDIR)/bin/$(notdir $(PSYC_CC_UTIL)) $(BINDIR)/$(notdir $(basename $(PSYC_CC_UTIL)))
+	cp $(PSYC_CC_UTIL) $(SHAREDIR)/bin/$(notdir $(PSYC_CC_UTIL))
+	ln -s -f $(SHAREDIR)/bin/$(notdir $(PSYC_CC_UTIL)) $(BINDIR)/$(notdir $(basename $(PSYC_CC_UTIL)))
 	cp $(PSYCLIB) $(LIBDIR)/$(LIBNAME)
 	cp $(PSYC_STATIC_LIB) $(LIBDIR)/$(STATIC_LIBNAME)
 	cp *.h $(INCLUDEDIR)/psyc/
-	cp -r ../resources $(SHAREDIR)/resources
-	cp -r ../utils/*.rb $(SHAREDIR)/utils/
-#	cp ../bin/*_demo $(SHAREDIR)/bin/
 	@if [ "$(PLATFORM)" = "Linux" ]; then /sbin/ldconfig; fi
+#       cp -r ../resources $(SHAREDIR)/resources
+	-cp -r ../utils/*.rb $(SHAREDIR)/utils/
+#	cp ../bin/*_demo $(SHAREDIR)/bin/
+	cp -r ../doc/man/* $(PREFIX)/share/man/
+	cp -r ../doc/html $(SHAREDIR)/doc/
+	cp -r ../doc/markdown $(SHAREDIR)/doc/
+	@printf '%b %b\n' $(GREEN_COLOR)Done.$(END_COLOR)
 
 uninstall:
 	$(call print-action,Uninstalling,PsyC,$(UNINSTALL_COLOR))
@@ -145,6 +152,9 @@ uninstall:
 	rm -f $(BINDIR)/$(notdir $(basename $(PSYC_CC_UTIL)))
 	rm -f $(LIBDIR)/$(LIBNAME)
 	rm -rvf $(INCLUDEDIR)/psyc
+	@echo "Uninstalling manual pages..."
+	@rm -f $(INSTALLED_MANPAGES)
+	@printf '%b %b\n' $(GREEN_COLOR)Done.$(END_COLOR)
 
 show-build-conf:
 	@echo "AVX=$(AVX)"

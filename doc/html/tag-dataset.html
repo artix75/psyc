@@ -1,0 +1,319 @@
+<!doctype html>
+<!--
+Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+All rights reserved.
+
+Redistribution and use in source and binary forms are permitted
+provided that the above copyright notice and this paragraph are
+duplicated in all such forms and that any documentation,
+advertising materials, and other materials related to such
+distribution and use acknowledge that the software was developed
+by the copyright holder. The name of the
+copyright holder may not be used to endorse or promote products derived
+from this software without specific prior written permission.
+THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+-->
+<html lang="en">
+   <head>
+       <title>PsyC Documentation - DATASET</title>
+       <link rel="stylesheet" type="text/css" href="style.css">
+       <script language="javascript" src="main.js"></script>
+   </head>
+   <body class="psyc-doc psyc-tag">
+       <header>
+           <h1>PsyC Documentation <span class="version">0.9.3</span></h1>
+           <h2>API Reference - DATASET</h2>
+           <nav id="top-menu">
+               <ul>
+                   <li>
+                       <a href="index.html">INDEX</a>
+                   </li>
+               </ul>
+           </nav>
+           <nav id="main-menu">
+               <ul>
+                   <li>
+                       <a class="" href="functions.html">Functions</a>
+                   </li>
+                   <li>
+                       <a class="" href="types.html">Types</a>
+                   </li>
+                   <li>
+                       <a class="" href="macros.html">Macros</a>
+                   </li>
+               </ul>
+           </nav>
+       </header>
+       <main>
+           <nav id="sidebar">
+               <h2>DATASET</h2>
+               <ul>
+<li><a href="#struct-psvocabulary">PSVocabulary</a></li>
+<li><a href="#function-psvocabularycreate">PSVocabularyCreate</a></li>
+<li><a href="#function-psvocabularyadd">PSVocabularyAdd</a></li>
+<li><a href="#function-psvocabularygettokenid">PSVocabularyGetTokenID</a></li>
+<li><a href="#function-psvocabularygettokenbyid">PSVocabularyGetTokenByID</a></li>
+<li><a href="#function-psvocabularyerrorstring">PSVocabularyErrorString</a></li>
+<li><a href="#function-psvocabularyfree">PSVocabularyFree</a></li>
+<li><a href="#function-psloaddatafromstring">PSLoadDataFromString</a></li>
+<li><a href="#function-psloaddatafromtextfile">PSLoadDataFromTextFile</a></li>
+<li><a href="#function-psloaddatafromfile">PSLoadDataFromFile</a></li>
+<li><a href="#function-psloadmnistdata">PSLoadMNISTData</a></li>
+<li><a href="#function-psloadcifardata">PSLoadCIFARData</a></li>
+               </ul>
+           </nav>
+           <section id="doc">
+<div class="details struct" id="struct-psvocabulary">
+<h3 class="name">PSVocabulary</h3>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">110</span></div>
+<div class="tags"><span class="tag dataset" data-href="tag-dataset.html">DATASET</span></div><div class="code">
+<code class="definition">
+<span class="keyword">typedef struct</span> {<br><span class="member"><span class="type">int64_t</span> <span class="identifier">size</span></span>;<br><span class="member"><span class="type">int64_t</span> <span class="identifier">capacity</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#struct-psdict">PSDict</a> *</span> <span class="identifier">token_map</span></span>;<br><span class="member"><span class="type">const char **</span> <span class="identifier">tokens</span></span>;<br>} <span class="identifier">PSVocabulary</span><br></code>
+</div>
+</div>
+
+<div class="details function" id="function-psvocabularycreate">
+<h3 class="name">PSVocabularyCreate</h3>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">118</span></div>
+<div class="tags"><span class="tag dataset" data-href="tag-dataset.html">DATASET</span></div><div class="code">
+<code class="definition">
+<span class="type return-type"><a class="psyc-type" href="types.html#struct-psvocabulary">PSVocabulary</a> *</span><span class="identifier name">PSVocabularyCreate</span> (<span class="arguments"><span class="argument"><span class="type">int64_t</span> <span class="identifier" data-identifier-id=function-psvocabularycreate-initial-capacity>initial_capacity</span></span></span>)</code>
+</div>
+<div class="description">
+Create a <a class="psyc-type" href="types.html#struct-psvocabulary">PSVocabulary</a> with initial capacity of <span class="identifier-ref" data-identifier-id="function-psvocabularycreate-initial-capacity" data-parent-id="function-psvocabularycreate">initial_capacity</span>.  
+<h4 class="return-values">RETURN VALUES</h4>
+The vocabulary or <span class="identifier-ref">NULL</span> if memory cannot be allocated.
+</div>
+</div>
+
+<div class="details function" id="function-psvocabularyadd">
+<h3 class="name">PSVocabularyAdd</h3>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">119</span></div>
+<div class="tags"><span class="tag dataset" data-href="tag-dataset.html">DATASET</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">int64_t</span> <span class="identifier name">PSVocabularyAdd</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psvocabulary">PSVocabulary</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvocabularyadd-vocabulary>vocabulary</span></span>, <span class="argument"><span class="type">char *</span><span class="identifier pointer-name" data-identifier-id=function-psvocabularyadd-token>token</span></span></span>)</code>
+</div>
+<div class="description">
+Add token <span class="identifier-ref" data-identifier-id="function-psvocabularyadd-token" data-parent-id="function-psvocabularyadd">token</span> to <span class="identifier-ref" data-identifier-id="function-psvocabularyadd-vocabulary" data-parent-id="function-psvocabularyadd">vocabulary</span>. The token is added to the internal dictionary of <span class="identifier-ref" data-identifier-id="function-psvocabularyadd-vocabulary" data-parent-id="function-psvocabularyadd">vocabulary</span> and a numeric index (ID) is assigned to it.<br/>The index is a progressive number. If the token already exists, the internal dictionary won&#39;t be updated and the token&#39;s numeric value (id) is immediately returned.  
+<h4 class="return-values">RETURN VALUES</h4>
+The numeric index (ID) of the token. If token could not be added to the dictionary or <span class="identifier-ref" data-identifier-id="function-psvocabularyadd-token" data-parent-id="function-psvocabularyadd">token</span> is <span class="identifier-ref">NULL</span>, the function will return <a class="psyc-macro" href="macros.html#macro-ps-invalid-token-id">PS_INVALID_TOKEN_ID</a>.
+</div>
+</div>
+
+<div class="details function" id="function-psvocabularygettokenid">
+<h3 class="name">PSVocabularyGetTokenID</h3>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">120</span></div>
+<div class="tags"><span class="tag dataset" data-href="tag-dataset.html">DATASET</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">int64_t</span> <span class="identifier name">PSVocabularyGetTokenID</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psvocabulary">PSVocabulary</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvocabularygettokenid-vocabulary>vocabulary</span></span>, <span class="argument"><span class="type">char *</span><span class="identifier pointer-name" data-identifier-id=function-psvocabularygettokenid-token>token</span></span></span>)</code>
+</div>
+<div class="description">
+Get the ID the token <span class="identifier-ref" data-identifier-id="function-psvocabularygettokenid-token" data-parent-id="function-psvocabularygettokenid">token</span> from vocabulary <span class="identifier-ref" data-identifier-id="function-psvocabularygettokenid-vocabulary" data-parent-id="function-psvocabularygettokenid">vocabulary</span>.  
+<h4 class="return-values">RETURN VALUES</h4>
+The numeric index (ID) of the token. If token is not found into <span class="identifier-ref" data-identifier-id="function-psvocabularygettokenid-vocabulary" data-parent-id="function-psvocabularygettokenid">vocabulary</span>, the function will return <a class="psyc-macro" href="macros.html#macro-ps-token-not-found">PS_TOKEN_NOT_FOUND</a>.
+If <span class="identifier-ref" data-identifier-id="function-psvocabularygettokenid-vocabulary" data-parent-id="function-psvocabularygettokenid">vocabulary</span> is <span class="identifier-ref">NULL</span> or <span class="identifier-ref" data-identifier-id="function-psvocabularygettokenid-token" data-parent-id="function-psvocabularygettokenid">token</span> is <span class="identifier-ref">NULL</span>, the function will return <a class="psyc-macro" href="macros.html#macro-ps-invalid-token-id">PS_INVALID_TOKEN_ID</a>.
+</div>
+</div>
+
+<div class="details function" id="function-psvocabularygettokenbyid">
+<h3 class="name">PSVocabularyGetTokenByID</h3>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">121</span></div>
+<div class="tags"><span class="tag dataset" data-href="tag-dataset.html">DATASET</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">const char *</span><span class="identifier name">PSVocabularyGetTokenByID</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psvocabulary">PSVocabulary</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvocabularygettokenbyid-vocabulary>vocabulary</span></span>, <span class="argument"><span class="type">int64_t</span> <span class="identifier" data-identifier-id=function-psvocabularygettokenbyid-id>id</span></span></span>)</code>
+</div>
+<div class="description">
+Get the token associated with <span class="identifier-ref" data-identifier-id="function-psvocabularygettokenbyid-id" data-parent-id="function-psvocabularygettokenbyid">id</span> from <span class="identifier-ref" data-identifier-id="function-psvocabularygettokenbyid-vocabulary" data-parent-id="function-psvocabularygettokenbyid">vocabulary</span>.  
+<h4 class="return-values">RETURN VALUES</h4>
+The token associated with <span class="identifier-ref" data-identifier-id="function-psvocabularygettokenbyid-id" data-parent-id="function-psvocabularygettokenbyid">id</span> or <span class="identifier-ref">NULL</span> if no <span class="identifier-ref">token</span> is found with <span class="identifier-ref" data-identifier-id="function-psvocabularygettokenbyid-id" data-parent-id="function-psvocabularygettokenbyid">id</span>. Also return <span class="identifier-ref">NULL</span> if <span class="identifier-ref" data-identifier-id="function-psvocabularygettokenbyid-vocabulary" data-parent-id="function-psvocabularygettokenbyid">vocabulary</span> is <span class="identifier-ref">NULL</span>.
+</div>
+</div>
+
+<div class="details function" id="function-psvocabularyerrorstring">
+<h3 class="name">PSVocabularyErrorString</h3>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">122</span></div>
+<div class="tags"><span class="tag dataset" data-href="tag-dataset.html">DATASET</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">const char *</span><span class="identifier name">PSVocabularyErrorString</span> (<span class="arguments"><span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psvocabularyerrorstring-err>err</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psvocabularyfree">
+<h3 class="name">PSVocabularyFree</h3>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">123</span></div>
+<div class="tags"><span class="tag dataset" data-href="tag-dataset.html">DATASET</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">void</span> <span class="identifier name">PSVocabularyFree</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psvocabulary">PSVocabulary</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvocabularyfree-vocabulary>vocabulary</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psloaddatafromstring">
+<h3 class="name">PSLoadDataFromString</h3>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">126</span></div>
+<div class="tags"><span class="tag dataset" data-href="tag-dataset.html">DATASET</span></div><div class="code">
+<code class="definition">
+<span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSLoadDataFromString</span> (<span class="arguments"><span class="argument"><span class="type">char *</span><span class="identifier pointer-name" data-identifier-id=function-psloaddatafromstring-str>str</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pstextparseroptions">PSTextParserOptions</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psloaddatafromstring-opts>opts</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psloaddatafromstring-existing-data>existing_data</span></span>, <span class="argument"><span class="type">int64_t *</span><span class="identifier pointer-name" data-identifier-id=function-psloaddatafromstring-datalen>datalen</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psvocabulary">PSVocabulary</a> **</span><span class="identifier pointer-name" data-identifier-id=function-psloaddatafromstring-vocabulary>vocabulary</span></span></span>)</code>
+</div>
+<div class="description">
+Load a dataset (an array of <a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> numbers) from a string. Depending on the parsing mode, each token or character found in the string will be converted to a numeric representation of itself. The dataset can be used to train a model (<a class="psyc-type" href="types.html#struct-psmodel">PSModel</a>) or it can provide inputs to the model.<br/>Numeric representation of tokens/characters is defined by key-value pairs contained into <span class="identifier-ref" data-identifier-id="function-psloaddatafromstring-vocabulary" data-parent-id="function-psloaddatafromstring">vocabulary</span> and indices (ids) related to token are cast to <a class="psyc-type" href="types.html#type-psfloat">PSFloat</a>.<br/>The function can use an existing vocabulary or create a new one from scratch.<br/>By default, the string will be parsed as a sequence of tokens (<a class="psyc-macro" href="macros.html#macro-ps-parser-mode-tokens">PS_PARSER_MODE_TOKENS</a>) and each token will be converted to a number.<br/>The above behavior can be changed by using <a class="psyc-macro" href="macros.html#macro-ps-parser-mode-chars">PS_PARSER_MODE_CHARS</a> in the (optional) <span class="identifier-ref" data-identifier-id="function-psloaddatafromstring-opts" data-parent-id="function-psloaddatafromstring">opts</span> argument (see <a class="psyc-type" href="types.html#struct-pstextparseroptions">PSTextParserOptions</a>).<br/><br/>When <a class="psyc-macro" href="macros.html#macro-ps-parser-mode-tokens">PS_PARSER_MODE_TOKENS</a> mode is used, tokens can be matched in two ways:<br/>
+
+ <ul>
+
+ <li>By using a separator: in this case the string will be split by using the separators defined into <span class="identifier-ref">separator</span> member of <span class="identifier-ref" data-identifier-id="function-psloaddatafromstring-opts" data-parent-id="function-psloaddatafromstring">opts</span>. If <span class="identifier-ref">separator</span> is <span class="identifier-ref">NULL</span> or <span class="identifier-ref" data-identifier-id="function-psloaddatafromstring-opts" data-parent-id="function-psloaddatafromstring">opts</span> is <span class="identifier-ref">NULL</span>, the default separators will be those defined by the macro <a class="psyc-macro" href="macros.html#macro-ps-default-token-separator">PS_DEFAULT_TOKEN_SEPARATOR</a>.</li>
+
+ <li>By using a callback that let the developers to define their own logic for identifying and extracting tokens from the input string. The callback function can be set into the <span class="identifier-ref">match_token</span> member of <span class="identifier-ref" data-identifier-id="function-psloaddatafromstring-opts" data-parent-id="function-psloaddatafromstring">opts</span>, and it&#39;s a function of type <a class="psyc-type" href="types.html#function_pointer-pstokenmatch">PSTokenMatch</a>. The callback receives a token to match and a pointer to an integer to store the length of the matched token. If the callback returns a non-zero value (true), it indicates a successful match and a token of the matched length will be extracted from the input string. In this case, the parsing position is moved forward by the matched length. If the callback returns 0, it signals that the token was not matched, and the parsing position will be advanced to the next byte.
+</ul>
+
+</ul>
+
+<div class="warn"><span class="warn-prefix">WARN:</span>  The parsed string <span class="identifier-ref" data-identifier-id="function-psloaddatafromstring-str" data-parent-id="function-psloaddatafromstring">str</span> may be modified during text parsing. By setting the <a class="psyc-macro" href="macros.html#macro-ps-parser-flag-preserve-string">PS_PARSER_FLAG_PRESERVE_STRING</a> flag into <code>opts-&gt;flags</code>, the function will work on a copy of the string, preventing the original string from being altered.</div><br/>
+<h4 class="arguments">ARGUMENTS</h4>
+ <ul class="arguments-list">
+
+ <li><span class="identifier-ref" data-identifier-id="function-psloaddatafromstring-str" data-parent-id="function-psloaddatafromstring">str</span>: the (null-terminated) string to be parsed (mandatory).</li>
+
+ <li><span class="identifier-ref" data-identifier-id="function-psloaddatafromstring-opts" data-parent-id="function-psloaddatafromstring">opts</span>: parsing options, it can be <span class="identifier-ref">NULL</span>.</li>
+
+ <li><span class="identifier-ref" data-identifier-id="function-psloaddatafromstring-existing-data" data-parent-id="function-psloaddatafromstring">existing_data</span>: optional argument that can be used to append    parsed data to an existing dataset. WARN: Since data can be reallocated, always use the returned dataset after calling the function.</li>
+
+ <li><span class="identifier-ref" data-identifier-id="function-psloaddatafromstring-datalen" data-parent-id="function-psloaddatafromstring">datalen</span>: pointer to <span class="identifier-ref">uint64_t</span> where the final length of the dataset    will be stored. If <span class="identifier-ref" data-identifier-id="function-psloaddatafromstring-existing-data" data-parent-id="function-psloaddatafromstring">existing_data</span> is not <span class="identifier-ref">NULL</span>, the address pointed by <span class="identifier-ref" data-identifier-id="function-psloaddatafromstring-datalen" data-parent-id="function-psloaddatafromstring">datalen</span> must contain the current length of the existing dataset. If <span class="identifier-ref">NULL</span> is returned by the function, the pointed address will contain zero.</li>
+
+ <li><span class="identifier-ref" data-identifier-id="function-psloaddatafromstring-vocabulary" data-parent-id="function-psloaddatafromstring">vocabulary</span>: pointer to pointer to a <a class="psyc-type" href="types.html#struct-psvocabulary">PSVocabulary</a> struct. The    argument is mandatory and cannot be <span class="identifier-ref">NULL</span>. If the pointer pointed by <span class="identifier-ref" data-identifier-id="function-psloaddatafromstring-vocabulary" data-parent-id="function-psloaddatafromstring">vocabulary</span> is <span class="identifier-ref">NULL</span>, a new <a class="psyc-type" href="types.html#struct-psvocabulary">PSVocabulary</a> will be allocated and it will be filled with parsed tokens|characters. If the pointer pointed by <span class="identifier-ref" data-identifier-id="function-psloaddatafromstring-vocabulary" data-parent-id="function-psloaddatafromstring">vocabulary</span> points to an already existing vocabulary, its numeric values will be used for parsed tokens. If a token or character is not found in the existing vocabulary, it will be automatically added, unless <a class="psyc-macro" href="macros.html#macro-ps-parser-flag-readonly-vocab">PS_PARSER_FLAG_READONLY_VOCAB</a> flag is set into <span class="identifier-ref" data-identifier-id="function-psloaddatafromstring-opts" data-parent-id="function-psloaddatafromstring">opts</span>.
+</ul>
+
+</ul>
+
+<h4 class="return-values">RETURN VALUES</h4>
+The dataset (<a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> array) or <span class="identifier-ref">NULL</span> is something goes wrong.
+</div>
+</div>
+
+<div class="details function" id="function-psloaddatafromtextfile">
+<h3 class="name">PSLoadDataFromTextFile</h3>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">129</span></div>
+<div class="tags"><span class="tag dataset" data-href="tag-dataset.html">DATASET</span></div><div class="code">
+<code class="definition">
+<span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSLoadDataFromTextFile</span> (<span class="arguments"><span class="argument"><span class="type">const char *</span><span class="identifier pointer-name" data-identifier-id=function-psloaddatafromtextfile-filepath>filepath</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pstextparseroptions">PSTextParserOptions</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psloaddatafromtextfile-opts>opts</span></span>, <span class="argument"><span class="type">int64_t *</span><span class="identifier pointer-name" data-identifier-id=function-psloaddatafromtextfile-datalen>datalen</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psvocabulary">PSVocabulary</a> **</span><span class="identifier pointer-name" data-identifier-id=function-psloaddatafromtextfile-vocabulary>vocabulary</span></span></span>)</code>
+</div>
+<div class="description">
+Load a dataset (an array of PSFloat numbers) from the text file found at <span class="identifier-ref" data-identifier-id="function-psloaddatafromtextfile-filepath" data-parent-id="function-psloaddatafromtextfile">filepath</span>.<br/>For parsing options and other arguments, see <a class="psyc-func" href="functions.html#function-psloaddatafromstring">PSLoadDataFromString</a>.  
+<h4 class="return-values">RETURN VALUES</h4>
+The dataset (<a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> array) or <span class="identifier-ref">NULL</span> is something goes wrong.
+</div>
+</div>
+
+<div class="details function" id="function-psloaddatafromfile">
+<h3 class="name">PSLoadDataFromFile</h3>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">137</span></div>
+<div class="tags"><span class="tag dataset" data-href="tag-dataset.html">DATASET</span></div><div class="code">
+<code class="definition">
+<span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSLoadDataFromFile</span> (<span class="arguments"><span class="argument"><span class="type">const char *</span><span class="identifier pointer-name" data-identifier-id=function-psloaddatafromfile-filepath>filepath</span></span>, <span class="argument"><span class="type">uint64_t *</span><span class="identifier pointer-name" data-identifier-id=function-psloaddatafromfile-datalen>datalen</span></span></span>)</code>
+</div>
+<div class="description">
+Load dataset from file located at <span class="identifier-ref" data-identifier-id="function-psloaddatafromfile-filepath" data-parent-id="function-psloaddatafromfile">filepath</span>. Dataset is returned as an array of PSFloat elements whose length (number of elements) is stored into mandatory argument <span class="identifier-ref" data-identifier-id="function-psloaddatafromfile-datalen" data-parent-id="function-psloaddatafromfile">datalen</span>.<br/>The file must be an ASCII file where every number of the dataset is written as a string representation of floating point numbers and separated by a comma character.<br/>Optionally, the whole dataset can be prefixed with its length written as a string representation of a decimal number followed by a colon separator caharcter (&#39;:&#39;).<br/>Example: 3:1.25,2,-0.15 (dataset of three elements 1.25, 2.0 and -0.15) Return value: the loaded dataset or <span class="identifier-ref">NULL</span> is somethign goes wrong.<br/>Possible failure reasons:<br/>
+
+ <ul>
+
+ <li>Mandatory arguments <span class="identifier-ref" data-identifier-id="function-psloaddatafromfile-filepath" data-parent-id="function-psloaddatafromfile">filepath</span> or <span class="identifier-ref" data-identifier-id="function-psloaddatafromfile-datalen" data-parent-id="function-psloaddatafromfile">datalen</span> are <span class="identifier-ref">NULL</span>.</li>
+
+ <li>File is not found at <span class="identifier-ref" data-identifier-id="function-psloaddatafromfile-filepath" data-parent-id="function-psloaddatafromfile">filepath</span>.</li>
+
+ <li>File at <span class="identifier-ref" data-identifier-id="function-psloaddatafromfile-filepath" data-parent-id="function-psloaddatafromfile">filepath</span> cannot be opened or read.</li>
+
+ <li>Dataset cannot be allocated into memory.
+
+
+ </ul>
+
+</div>
+</div>
+
+<div class="details function" id="function-psloadmnistdata">
+<h3 class="name">PSLoadMNISTData</h3>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">143</span></div>
+<div class="tags"><span class="tag dataset" data-href="tag-dataset.html">DATASET</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">int</span> <span class="identifier name">PSLoadMNISTData</span> (<span class="arguments"><span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psloadmnistdata-type>type</span></span>, <span class="argument"><span class="type">const char *</span><span class="identifier pointer-name" data-identifier-id=function-psloadmnistdata-images-file>images_file</span></span>, <span class="argument"><span class="type">const char *</span><span class="identifier pointer-name" data-identifier-id=function-psloadmnistdata-labels-file>labels_file</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> **</span><span class="identifier pointer-name" data-identifier-id=function-psloadmnistdata-data>data</span></span></span>)</code>
+</div>
+<div class="description">
+Load the MNIST dataset (<a href="https://en.wikipedia.org/wiki/MNIST_database" target="_blank">https://en.wikipedia.org/wiki/MNIST_database</a>) from files.<br/>The dataset files must be in gzip format (.gz): images data must be loaded from <span class="identifier-ref" data-identifier-id="function-psloadmnistdata-images-file" data-parent-id="function-psloadmnistdata">images_file</span> path and labels data must be loaded from <span class="identifier-ref" data-identifier-id="function-psloadmnistdata-labels-file" data-parent-id="function-psloadmnistdata">labels_file</span> path.<br/>The dataset is allocated by the function itself and its pointer is stored into <span class="identifier-ref" data-identifier-id="function-psloadmnistdata-data" data-parent-id="function-psloadmnistdata">data</span> pointer-to-pointer (it cannot be <span class="identifier-ref">NULL</span>). The length of the resulting dataset is returned by the function.<br/>The <span class="identifier-ref" data-identifier-id="function-psloadmnistdata-type" data-parent-id="function-psloadmnistdata">type</span> argument can be used to tell if the dataset is a training dataset (<a class="psyc-macro" href="macros.html#macro-ps-data-type-training">PS_DATA_TYPE_TRAINING</a>) or a test dataset (<a class="psyc-macro" href="macros.html#macro-ps-data-type-test">PS_DATA_TYPE_TEST</a>).  
+<h4 class="return-values">RETURN VALUES</h4>
+The length of the dataset (number of <a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> elements) or zero if some error occurs.
+Possibile errors:<br/>
+
+ <ul>
+
+ <li>The data argument is <span class="identifier-ref">NULL</span></li>
+
+ <li>Dataset files are <span class="identifier-ref">NULL</span>, they don&#39;t exist or they cannot be opened.</li>
+
+ <li>Dataset cannot be allocated into memory</li>
+
+ <li>Dataset files are not in gzip format or some error occurs whil unzipping them.</li>
+
+ <li>The internal format of the dataset files format is not valid.
+
+
+ </ul>
+</div>
+</div>
+
+<div class="details function" id="function-psloadcifardata">
+<h3 class="name">PSLoadCIFARData</h3>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">149</span></div>
+<div class="tags"><span class="tag dataset" data-href="tag-dataset.html">DATASET</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">int</span> <span class="identifier name">PSLoadCIFARData</span> (<span class="arguments"><span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psloadcifardata-type>type</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psloadcifardata-classes>classes</span></span>, <span class="argument"><span class="type">const char *</span><span class="identifier pointer-name" data-identifier-id=function-psloadcifardata-dataset-path>dataset_path</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> **</span><span class="identifier pointer-name" data-identifier-id=function-psloadcifardata-data>data</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psloadcifardata-max-files>max_files</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psloadcifardata-max-elements>max_elements</span></span></span>)</code>
+</div>
+<div class="description">
+Load the CIFAR dataset (<a href="https://www.cs.toronto.edu/~kriz/cifar.html" target="_blank">https://www.cs.toronto.edu/~kriz/cifar.html</a>) from files.<br/>The dataset files must be in gzip format (.gz): dataset files must be in binary version and located into <span class="identifier-ref" data-identifier-id="function-psloadcifardata-dataset-path" data-parent-id="function-psloadcifardata">dataset_path</span> directory.<br/>The dataset is allocated by the function itself and its pointer is stored into <span class="identifier-ref" data-identifier-id="function-psloadcifardata-data" data-parent-id="function-psloadcifardata">data</span> pointer-to-pointer (it cannot be <span class="identifier-ref">NULL</span>). The length of the resulting dataset is returned by the function.<br/>The CIFAR dataset comes in two fashions:<br/>
+
+ <ul>
+
+ <li>CIFAR-10:  each image can be classified with 10 classes.</li>
+
+ <li>CIFAR-100: each image can be classified with 100 classes.
+</ul>
+
+</ul>
+
+
+The <span class="identifier-ref" data-identifier-id="function-psloadcifardata-classes" data-parent-id="function-psloadcifardata">classes</span> argument can be used to tell the function which kind of dataset is going to be loaded.<br/>The <span class="identifier-ref" data-identifier-id="function-psloadcifardata-type" data-parent-id="function-psloadcifardata">type</span> argument can be used to tell if the dataset is a training dataset (<a class="psyc-macro" href="macros.html#macro-ps-data-type-training">PS_DATA_TYPE_TRAINING</a>) or a test dataset (<a class="psyc-macro" href="macros.html#macro-ps-data-type-test">PS_DATA_TYPE_TEST</a>).  
+<h4 class="return-values">RETURN VALUES</h4>
+The length of the dataset (number of <a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> elements) or zero if some error occurs.
+Possibile errors:<br/>
+
+ <ul>
+
+ <li>The data argument is <span class="identifier-ref">NULL</span></li>
+
+ <li>The value for <span class="identifier-ref">class</span> is neither 10 not 100.</li>
+
+ <li>Dataset directory is <span class="identifier-ref">NULL</span>, or dataset files cannot be opened cannot be opened.</li>
+
+ <li>Dataset cannot be allocated into memory</li>
+
+ <li>Dataset file format is not valid
+
+
+ </ul>
+</div>
+</div>
+
+           </section>
+       </main>
+       <footer>
+           <div class="contacts">
+               <span><label>PsyC project page:</label> <a href="https://github.com/artix75/psyc" target="_blank">https://github.com/artix75/psyc</a></span> &bullet; <span><label>Report bugs to:</label> <a href="https://github.com/artix75/psyc/issues" target="_blank">https://github.com/artix75/psyc/issues</a></span>
+           </div>
+           <div class="license-info">
+               <div class="license"><img src="License-BSD-3-Clause-blue.svg"> PsyC is released under the <a href="https://opensource.org/license/bsd-3-clause/">BSD-3 Clause</a>
+               </div>
+               <div class="copyright">Copyright &copy; 2016-2023 Giuseppe Fabio Nicotra
+               </div>
+           </div>
+       </footer>
+   </body>
+</html>

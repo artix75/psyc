@@ -1,0 +1,78 @@
+.\" Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that the above copyright notice and this paragraph are
+.\" duplicated in all such forms and that any documentation,
+.\" advertising materials, and other materials related to such
+.\" distribution and use acknowledge that the software was developed
+.\" by the copyright holder. The name of the
+.\" copyright holder may not be used to endorse or promote products derived
+.\" from this software without specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+.TH PSMatMul 3 2023-12-01 "PsyC 0.9.3" "PsyC Library Functions Manual"
+
+.SH NAME
+PSMatMul
+
+.SH LIBRARY
+PsyC (-lpsyc)
+
+.SH SYNOPSIS
+
+.B
+#include <psyc/maths.h>
+
+.I
+int  
+.br
+\fBPSMatMul\fR(\fIPSFloat *a\fR, \fIPSFloat *b\fR, \fIPSFloat *dest\fR, \fIint m\fR, \fIint n\fR, \fIint k\fR, \fIPSMathOpts *opts\fR)
+.SH DESCRIPTION
+Perform matrix multiplication between vectors (PSFloat arrays) \fIa\fR and \fIb\fR.
+.br
+If you need to perform matrix multiplication with involve at least one \fIPSMatrix\fR, then use \fIPSMatrixProduct\fR (matrix-matrix), \fIPSMatrixProductMV\fR (matrix-vector) or \fIPSMatrixProductVM\fR (vector-matrix) instead.
+.br
+You can set matrix transposition using \fItranspose\fR field in the \fIopt\fR argument. In that case, \fItranspose\fR will contain the (1-based) indices of the vector arguments you want to be transposed:
+.br
+
+.RS 4
+\[bu] opt->transpose = 1 (transpose \fIa\fR)
+.RE
+.RE
+
+Results will be stored in \fIdest\fR, that must be at least \fIm\fR * \fIn\fR long.
+.br
+By default, data in result vector will be overwritten. Anyway, if \fIPS_STORE_MODE_ADD\fR is set as \fIstore_mode\fR into \fIopts\fR, result will be added to data already present in the result vector.
+.br
+Other arguments:
+.br
+
+.RS 4
+.TP
+.B m
+number of rows in \fIa\fR and result \fIdest\fR
+.br
+
+.TP
+.B n
+number of columns in \fIb\fR and \fIdest\fR.
+.br
+
+.TP
+.B k
+number of columns in \fIa\fR and rows in \fIn\fR.
+.RE
+.RE
+
+.br
+\fBNOTE\fR:  if you set transposition for \fIa\fR or \fIb\fR, \fIm\fR,\fIn\fR and \fIk\fR will refer to rows and columns of the transposed matrix.
+.br
+
+.SH RETURN VALUES
+1 in case of success, 0 in case of failure.
+
+.SH SEE ALSO
+PSMatrixProduct(3), PSMatrixProductMV(3), PSMatrixProductVM(3)

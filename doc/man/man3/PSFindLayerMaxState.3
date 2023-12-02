@@ -1,0 +1,45 @@
+.\" Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that the above copyright notice and this paragraph are
+.\" duplicated in all such forms and that any documentation,
+.\" advertising materials, and other materials related to such
+.\" distribution and use acknowledge that the software was developed
+.\" by the copyright holder. The name of the
+.\" copyright holder may not be used to endorse or promote products derived
+.\" from this software without specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+.TH PSFindLayerMaxState 3 2023-12-01 "PsyC 0.9.3" "PsyC Library Functions Manual"
+
+.SH NAME
+PSFindLayerMaxState
+
+.SH LIBRARY
+PsyC (-lpsyc)
+
+.SH SYNOPSIS
+
+.B
+#include <psyc/psyc.h>
+
+.I
+int  
+.br
+\fBPSFindLayerMaxState\fR(\fIPSLayer *layer\fR, \fIPSFloat *max_p\fR, \fIint *index_p\fR, \fI...\fR)
+.SH DESCRIPTION
+Find max state value and the relative neuron index for layer \fIlayer\fR, and store them into \fImax_p\fR pointer (max state) and \fIindex_p\fR pointer (index of neuron having maximum state value).
+.br
+At least \fImax_p\fR or \fIindex_p\fR must be provided.
+.br
+If layer is recurrent, an extra argument for timestep must be provided as a variadic argument (as int).
+.br
+If timestep is negative, it will be used to read states in a reverse order (ie. -1 is last timestep, -2 is last timestep - 1, etc.).
+.br
+Timestep must be always in range of processed timesteps (hidden states), otherwise the function will fail.  
+
+.SH RETURN VALUES
+1 in case of success, 0 in case of error.

@@ -1,0 +1,323 @@
+<!doctype html>
+<!--
+Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+All rights reserved.
+
+Redistribution and use in source and binary forms are permitted
+provided that the above copyright notice and this paragraph are
+duplicated in all such forms and that any documentation,
+advertising materials, and other materials related to such
+distribution and use acknowledge that the software was developed
+by the copyright holder. The name of the
+copyright holder may not be used to endorse or promote products derived
+from this software without specific prior written permission.
+THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+-->
+<html lang="en">
+   <head>
+       <title>PsyC Documentation - Articles - Datasets</title>
+       <link rel="stylesheet" type="text/css" href="style.css">
+       <script language="javascript" src="main.js"></script>
+   </head>
+   <body class="psyc-doc psyc-article">
+       <header>
+           <h1>PsyC Documentation <span class="version">0.9.3</span></h1>
+           <h2>Articles - Datasets</h2>
+           <nav id="top-menu">
+               <ul>
+                   <li>
+                       <a href="index.html">INDEX</a>
+                   </li>
+               </ul>
+           </nav>
+           <nav id="main-menu">
+               <ul>
+                   <li>
+                   </li>
+                   <li>
+                   </li>
+                   <li>
+                   </li>
+               </ul>
+           </nav>
+       </header>
+       <main>
+           <nav id="sidebar">
+               <h2>Articles</h2>
+               <ul>
+<li><a href="article-datasets.html" class="current">Datasets</a></li>
+               </ul>
+           </nav>
+<section id="doc" class="article">
+<p>
+<h1>Datasets</h1>
+</p>
+<p>
+Datasets are collections of data and are generally used to train models. This
+article talks about how datasets are used by PsyC.
+</p>
+<p>
+<h2>Uses</h2>
+</p>
+<p>
+Datasets are usually used to train models (see <a class="psyc-func" href="functions.html#function-pstrain">PSTrain</a>). They can also be
+used as testing datasets or for validation purpose.
+Tests are generally performed after training a model in order to compute the
+model's accuracy (that is a measure of the percentage of successful predictions
+over the total number of examples tested).
+Usually, developers may want to test the model over a different dataset than the
+one used for training.
+Validation is similar to testing, but it's performed during training (usually
+after every <strong>epoch</strong>).
+Finally, data used as input for neural networks predictions has a very similar
+structure to datasets used for training (see below).
+</p>
+<p>
+<h2>Structure</h2>
+</p>
+<p>
+Basically, PsyC datasets are arrays of <a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> numbers. When they're used as
+training datasets, they contain both inputs and expected predictions (usally
+called <em>targets</em> or <em>labels</em> in classification tasks).
+They can come in two flavours: standard datasets and sequence datasets.
+</p>
+<p>
+<h3>Standard Datasets</h3>
+</p>
+<p>
+Standard datasets are quite simple since they represent the input data to be
+forwarded to the model and (in training datasets) the expected outputs.
+So every input sample (and, eventually, its related target), is independent.
+This kind of datasets is made by a collection of inputs where each input array
+is immediately followed by the related target array.
+So, for instance, the popular <a href="https://en.wikipedia.org/wiki/MNIST_database" target="_blank">MNIST</a> dataset would be described by an array of inputs of size 784 (each MNIST image is made by 28x28 pixels) immediately followed by the target values of size 10 (MNIST predictions are composed of 10 classes), and, since the MNIST training dataset consists of 60,000 images, the final array would be composed of 47,640,000 <a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> elements.
+While training models with standard datasets, PsyC automatically determines the
+number of samples (individual inputs+targets) of the dataset itself by dividing
+the number of dataset elements by the model's input size + model's output size.
+So, with the MNISt dataset, the input layer would be of size 784 and the output
+layer would be of size 10 and 47640000 / (784 + 10) actually results in 60,000
+samples.
+When working with classification models, the targets' size can be compressed by
+using <strong>onehot</strong> targets: since the expected result is the index of the expected
+"class" (in MNIST dataset is an index from 0 to 9 representing the predicted
+digit while in image-classificatio models each index can represent the class, ie. dog, train, cat, ...), it's possible to directly use the index itself and reduce the target size to just one element.
+In this cases, the <a class="psyc-macro" href="macros.html#macro-ps-flag-onehot">PS_FLAG_ONEHOT</a> must be set into <code>flags</code> of the output
+layer (see <a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a>).
+</p>
+<p>
+Example:
+</p>
+<p>
+<div class="code">
+<code data-language="c">
+<span class="cm">/* Let's build a very simple model with input size of 4 and and output size
+ * of 2. */</span>
+<span class="psyc-type">PSModel</span> <span class="o">*</span><span class="n">model</span> <span class="o">=</span> <span class="psyc-func">PSModelCreate</span><span class="p">(</span><span class="s">"My symple model"</span><span class="p">);</span>
+<span class="psyc-func">PSAddLayer</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="psyc-const-name">FullyConnected</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">);</span>
+<span class="psyc-func">PSAddLayer</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="psyc-const-name">FullyConnected</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">);</span>
+<span class="psyc-func">PSAddLayer</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="psyc-const-name">SoftMax</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">);</span>
+
+<span class="cm">/* Let's make a dataset of only two inputs. */</span>
+
+<span class="psyc-type">PSFloat</span> <span class="n">data</span><span class="p">[]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="o">-</span><span class="mi">0</span><span class="p">.</span><span class="mi">82</span><span class="p">,</span> <span class="mi">1</span><span class="p">.</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">.</span><span class="mi">9</span><span class="p">,</span> <span class="mi">0</span><span class="p">.</span><span class="mi">2</span><span class="p">,</span>    <span class="cm">/* First input data of size 4 */</span>
+    <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span>                    <span class="cm">/* Expected predictions (targets) of size 2 for first input */</span><span class="p">,</span>
+    <span class="o">-</span><span class="mi">0</span><span class="p">.</span><span class="mi">8</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">.</span><span class="mi">8</span><span class="p">,</span> <span class="o">-</span><span class="mi">0</span><span class="p">.</span><span class="mi">45</span><span class="p">,</span> <span class="o">-</span><span class="mi">0</span><span class="p">.</span><span class="mi">7</span><span class="p">,</span> <span class="cm">/* Second input data of size 4 */</span>
+    <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span>                     <span class="cm">/* Expected predictions (targets) of size 2 for second input */</span>
+<span class="p">};</span>
+
+<span class="cm">/* We have an array of 12 elements (2 inputs of 4 elements and 2 targets of
+   2 elements, so 4+4+2+2 = 12).*/</span>
+
+</code>
+</div>
+</p>
+<p>
+<h2>Sequence Datasets</h2>
+</p>
+<p>
+Sequence datasets are composed of seqquences of inputs, so in this case every
+input sample is a squence of inputs instead of a single input.
+Sequence datasets are tipically used with recurrent neural networks or with
+models that take sequences as inputs (ie. text generative models).
+Dataset created from text are a typical example of this kind of dataset, since
+texts are sequences of words where each word is dependent on the context of 
+the whole sequence.
+Targets (expected predictions) structure can vary depending on the model type.
+In a <em>many-to-many</em> model, both inputs and targets are sequences: a typical
+example of this kind of models are models used to predict the next word while
+giving the model the input text.
+In this case, the length of the input squence is equal to the length of the
+target sequence.
+By contrast, a <em>many-to-one</em> model only uses sequences for inputs, but not for
+targets. An example of this kind of model is a model used for sentiment analysis
+on texts.
+Finally, a <em>sequence-to-sequence</em> model uses sequences for both inputs and
+targets, but unline many-to-many models, the length of the input sequence may
+differ from the length of the target sequence. An example of this kind of models
+is a model used to translate text from one language to another.
+PsyC usually automatically detects the model type by checking which of the
+model's layer takes sequences as inputs. This is defined by the
+<a class="psyc-macro" href="macros.html#macro-ps-flag-use-sequences">PS_FLAG_USE_SEQUENCES</a> flag or by the <a class="psyc-macro" href="macros.html#macro-ps-flag-recurrent">PS_FLAG_RECURRENT</a> flag (some layers
+like <code>RNN</code>, <code>LSTM</code> or <code>GRU</code> layers automatically set the <a class="psyc-macro" href="macros.html#macro-ps-flag-recurrent">PS_FLAG_RECURRENT</a>).
+So, if a model has one of this flags in the input layer and in the output layer,
+the model will be considered of type many-to-many (<code>ManyToMany</code>). If the model
+has one of those flag in the input layer, but not in the output layer, it will
+be considered of type many-to-one (<code>ManyToOne</code>).
+Sequence-to-Sequence models needs to set the <a class="psyc-macro" href="macros.html#macro-ps-training-flag-seq2seq">PS_TRAINING_FLAG_SEQ2SEQ</a> in the
+training options (<a class="psyc-type" href="types.html#struct-pstrainingoptions">PSTrainingOptions</a>) passed to <a class="psyc-func" href="functions.html#function-pstrain">PSTrain</a> function.
+</p>
+<p>
+In order for PsyC to correctly handle sequences' data, the sequence length must precede the data itself.
+So if the input size is 4 and the sequence is made by 2 inputs, they  would be
+represented by 9 <a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> elements: the first element would be the sequence
+length (2 in this case) and the following 8 elements would contain the two
+inputs of size 4.
+</p>
+<p>
+Finally, also the number of <strong>total samples in the dataset must be explicit</strong>
+and must be declared as the first element of the dataset array.
+</p>
+<p>
+For <strong>many-to-many</strong> models, the sequence length must be declared only once,
+just before the input sequence, since the length of the target sequence is the
+same. So, with the example before, the whole sample composed by an input
+sequence of 2 inputs of size 4 and 2 expected results (targets) of size 2
+would be composed by 13 elements: the first element for the sequence length,
+the next 8 elements for the 2 inputs of size 4, and then, the next 4 elements
+for the 2 target sequences of size 2.
+</p>
+<p>
+This structure differs for <strong>sequence-to-sequence</strong> models, since the input
+sequence length could differ from the output sequence length.
+In this case the sequence length must be explicit for both the input and the
+target. So, if we have an input sequence of 2 inputs of size 4 and 3 expected
+results (targets) of size 2, the whole sample would be composed by 16 elements:
+the first element would contain 2 (the input sequence length), followed by 8
+elements (sequence of 2 inputs of size 4), followed by 3 (the target sequence
+length), followed by 6 elements (sequence of 3 tragets of size 2).
+</p>
+<p>
+Datasets made from texts are a typical example of <strong>onehot</strong> dataset, since
+words are usually represented as indices of a vector that contains all the
+possible words of the dataset's vocabulary.
+In this case, the input size can be reduced to one and every input will just
+contain the index of the word.
+In order to work with <strong>onehot</strong> data, the <a class="psyc-macro" href="macros.html#macro-ps-flag-onehot">PS_FLAG_ONEHOT</a> must be set into
+the input layer.
+Since in many cases the expected targets also represent words, the
+<a class="psyc-macro" href="macros.html#macro-ps-flag-onehot">PS_FLAG_ONEHOT</a> flag can also be set on the output layer in order to reduce
+the size of each target to one.
+For example, if we have a vocabulary of 1000 words, the dataset for an input
+sequence of 4 words in a <strong>many-to-many</strong> model would be composed by 9 elements:
+the first element would contain 4 (the sequence length of both inputs and
+targets) followed by 4 elements for the inputs and 4 elements for the targets (
+where each element would be the onehot index of the word).
+In a <strong>sequence-to-sequence</strong> model, with expected targets of 5 words, the
+dataset would be composed by 11 elements: the first element would contain 4 (
+the input sequence length), followed by the 4 elements of the input sequence,
+followed by 5 (le target sequence length), followed by the 5 elements of the
+target sequence.
+</p>
+<p>
+Examples:
+</p>
+<p>
+<div class="code">
+<code data-language="c">
+<span class="cm">/* A many-to-many recurrent model with onehot inputs. */</span>
+
+<span class="kt">int</span> <span class="n">vocab_size</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">;</span>
+<span class="psyc-type">PSLayerDef</span> <span class="n">onehot_ldef</span> <span class="o">=</span> <span class="p">{.</span><span class="n">flags</span> <span class="o">=</span> <span class="psyc-macro">PS_FLAG_RECURRENT</span> <span class="o">|</span> <span class="psyc-macro">PS_FLAG_ONEHOT</span><span class="p">};</span>
+<span class="psyc-type">PSModel</span> <span class="o">*</span><span class="n">gru_model</span> <span class="o">=</span> <span class="psyc-func">PSModelCreate</span><span class="p">(</span><span class="s">"GRU model (many-to-many)"</span><span class="p">);</span>
+<span class="psyc-func">PSAddLayer</span><span class="p">(</span><span class="n">gru_model</span><span class="p">,</span> <span class="psyc-const-name">FullyConnected</span><span class="p">,</span> <span class="n">vocab_size</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">onehot_ldef</span><span class="p">);</span>
+<span class="psyc-func">PSAddLayer</span><span class="p">(</span><span class="n">gru_model</span><span class="p">,</span> <span class="psyc-const-name">GRU</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">);</span> 
+<span class="psyc-func">PSAddLayer</span><span class="p">(</span><span class="n">gru_model</span><span class="p">,</span> <span class="psyc-const-name">SoftMax</span><span class="p">,</span> <span class="n">vocab_size</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">onehot_ldef</span><span class="p">);</span> 
+
+<span class="psyc-type">PSFloat</span> <span class="n">gru_data</span><span class="p">[]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mi">2</span><span class="p">,</span>              <span class="cm">/* Total number of samples contained in the dataset */</span>
+
+    <span class="cm">/* First sample */</span>
+    <span class="mi">4</span><span class="p">,</span>              <span class="cm">/* Sequence length for both input sequence and targets sequence */</span>
+    <span class="mi">4</span><span class="p">,</span> <span class="mi">123</span><span class="p">,</span> <span class="mi">982</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="cm">/* The input sequence */</span>
+    <span class="mi">21</span><span class="p">,</span> <span class="mi">62</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">340</span>  <span class="cm">/* The target sequence */</span>
+  <span class="o">&lt;</span><span class="n">br</span><span class="o">&gt;</span>
+    <span class="cm">/* Second sample */</span>
+    <span class="mi">2</span><span class="p">,</span>              <span class="cm">/* Sequence length for both input sequence and targets sequence */</span>
+    <span class="mi">427</span><span class="p">,</span> <span class="mi">92</span><span class="p">,</span>        <span class="cm">/* The input sequence */</span>
+    <span class="mi">2</span><span class="p">,</span> <span class="mi">600</span>          <span class="cm">/* The target sequence */</span>
+<span class="p">};</span>
+
+<span class="psyc-type">PSTrainingOptions</span> <span class="o">*</span><span class="n">train_opts</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="p">.</span><span class="n">learning_rate</span> <span class="o">=</span> <span class="mi">0</span><span class="p">.</span><span class="mo">01</span><span class="p">,</span>
+    <span class="p">.</span><span class="n">epochs</span> <span class="o">=</span> <span class="mi">100</span>
+<span class="p">};</span>
+<span class="kt">int</span> <span class="n">datalen</span> <span class="o">=</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">gru_data</span><span class="p">)</span> <span class="o">/</span> <span class="k">sizeof</span><span class="p">(</span><span class="psyc-type">PSFloat</span><span class="p">);</span>
+<span class="psyc-func">PSTrain</span><span class="p">(</span><span class="n">gru_model</span><span class="p">,</span> <span class="n">gru_data</span><span class="p">,</span> <span class="n">datalen</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">train_opts</span><span class="p">);</span>
+
+</code>
+</div>
+</p>
+<p>
+<div class="code">
+<code data-language="c">
+<span class="cm">/* A sequence-to-sequence model with onehot inputs. */</span>
+
+<span class="kt">int</span> <span class="n">input_vocab_size</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">,</span> <span class="n">output_vocab_size</span> <span class="o">=</span> <span class="mi">500</span><span class="p">;</span>
+<span class="psyc-type">PSLayerDef</span> <span class="n">onehot_ldef</span> <span class="o">=</span> <span class="p">{.</span><span class="n">flags</span> <span class="o">=</span> <span class="psyc-macro">PS_FLAG_RECURRENT</span> <span class="o">|</span> <span class="psyc-macro">PS_FLAG_ONEHOT</span><span class="p">};</span>
+<span class="psyc-type">PSModel</span> <span class="o">*</span><span class="n">seq2seq_model</span> <span class="o">=</span> <span class="psyc-func">PSModelCreate</span><span class="p">(</span><span class="s">"Sequence-to-Sequence Model (Encoder)"</span><span class="p">),</span>
+         <span class="n">decoder</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+<span class="psyc-func">PSAddLayer</span><span class="p">(</span><span class="n">seq2seq_model</span><span class="p">,</span> <span class="psyc-const-name">FullyConnected</span><span class="p">,</span> <span class="n">vocab_size</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">onehot_ldef</span><span class="p">);</span>
+<span class="psyc-func">PSAddLayer</span><span class="p">(</span><span class="n">seq2seq_model</span><span class="p">,</span> <span class="psyc-const-name">GRU</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">);</span> 
+
+<span class="n">decoder</span> <span class="o">=</span> <span class="psyc-func">PSModelCreate</span><span class="p">(</span><span class="s">"Decoder"</span><span class="p">);</span>
+<span class="psyc-func">PSAddLayer</span><span class="p">(</span><span class="n">decoder</span><span class="p">,</span> <span class="psyc-const-name">FullyConnected</span><span class="p">,</span> <span class="n">output_vocab_size</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">onehot_ldef</span><span class="p">);</span>
+<span class="psyc-func">PSAddLayer</span><span class="p">(</span><span class="n">decoder</span><span class="p">,</span> <span class="psyc-const-name">GRU</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">);</span> 
+<span class="psyc-func">PSAddLayer</span><span class="p">(</span><span class="n">decoder</span><span class="p">,</span> <span class="psyc-const-name">SoftMax</span><span class="p">,</span> <span class="n">output_vocab_size</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">onehot_ldef</span><span class="p">);</span> 
+
+<span class="psyc-func">PSAddModel</span><span class="p">(</span><span class="n">seq2seq_model</span><span class="p">,</span> <span class="n">decoder</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">);</span>
+
+<span class="psyc-type">PSFloat</span> <span class="n">seq2seq_data</span><span class="p">[]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mi">2</span><span class="p">,</span>                <span class="cm">/* Total number of samples contained in the dataset */</span>
+
+    <span class="cm">/* First sample */</span>
+    <span class="mi">4</span><span class="p">,</span>                <span class="cm">/* Sequence length of the input sequence */</span>
+    <span class="mi">4</span><span class="p">,</span> <span class="mi">123</span><span class="p">,</span> <span class="mi">982</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span>   <span class="cm">/* The input sequence */</span>
+    <span class="mi">3</span><span class="p">,</span> <span class="cm">/* Sequence length of the target sequence */</span>
+    <span class="mi">21</span><span class="p">,</span> <span class="mi">62</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span>        <span class="cm">/* The target sequence */</span>
+
+    <span class="cm">/* Second sample */</span>
+    <span class="mi">2</span><span class="p">,</span>                <span class="cm">/* Sequence length of the input sequence */</span>
+    <span class="mi">427</span><span class="p">,</span> <span class="mi">92</span><span class="p">,</span>          <span class="cm">/* The input sequence */</span>
+    <span class="mi">4</span><span class="p">,</span>                <span class="cm">/* Sequence length of the target sequence */</span>
+    <span class="mi">2</span><span class="p">,</span> <span class="mi">600</span><span class="p">,</span> <span class="mi">921</span><span class="p">,</span> <span class="mi">101</span>  <span class="cm">/* The target sequence */</span>
+<span class="p">};</span>
+
+<span class="psyc-type">PSTrainingOptions</span> <span class="o">*</span><span class="n">train_opts</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="p">.</span><span class="n">learning_rate</span> <span class="o">=</span> <span class="mi">0</span><span class="p">.</span><span class="mo">01</span><span class="p">,</span>
+    <span class="p">.</span><span class="n">epochs</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span>
+    <span class="p">.</span><span class="n">flags</span> <span class="o">=</span> <span class="psyc-macro">PS_TRAINING_FLAG_SEQ2SEQ</span>
+<span class="p">};</span>
+<span class="kt">int</span> <span class="n">datalen</span> <span class="o">=</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">seq2seq_data</span><span class="p">)</span> <span class="o">/</span> <span class="k">sizeof</span><span class="p">(</span><span class="psyc-type">PSFloat</span><span class="p">);</span>
+<span class="psyc-func">PSTrain</span><span class="p">(</span><span class="n">seq2seq_model</span><span class="p">,</span> <span class="n">seq2seq_data</span><span class="p">,</span> <span class="n">datalen</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">train_opts</span><span class="p">);</span>
+
+</code>
+</div>
+</p>
+</section>
+       </main>
+       <footer>
+           <div class="contacts">
+               <span><label>PsyC project page:</label> <a href="https://github.com/artix75/psyc" target="_blank">https://github.com/artix75/psyc</a></span> &bullet; <span><label>Report bugs to:</label> <a href="https://github.com/artix75/psyc/issues" target="_blank">https://github.com/artix75/psyc/issues</a></span>
+           </div>
+           <div class="license-info">
+               <div class="license"><img src="License-BSD-3-Clause-blue.svg"> PsyC is released under the <a href="https://opensource.org/license/bsd-3-clause/">BSD-3 Clause</a>
+               </div>
+               <div class="copyright">Copyright &copy; 2016-2023 Giuseppe Fabio Nicotra
+               </div>
+           </div>
+       </footer>
+   </body>
+</html>

@@ -1,0 +1,4660 @@
+# PsyC Documentation - 0.9.3
+## Functions
+
+### PSAbortTraining
+
+In: psyc.h, line: 444
+
+```c
+void PSAbortTraining (PSModel *model)
+
+```
+
+
+
+
+### PSAdaDeltaOptimization
+
+In: optimization.h, line: 43
+
+```c
+int PSAdaDeltaOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, uint64_t len, int acceleration, int iteration, struct PSTrainingOptions *options)
+
+```
+
+
+
+
+### PSAdaGradOptimization
+
+In: optimization.h, line: 55
+
+```c
+int PSAdaGradOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, uint64_t len, int acceleration, int iteration, struct PSTrainingOptions *options)
+
+```
+
+
+
+
+### PSAdamOptimization
+
+In: optimization.h, line: 67
+
+```c
+int PSAdamOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, uint64_t len, int acceleration, int iteration, struct PSTrainingOptions *options)
+
+```
+
+
+
+
+### PSAddCIFARInputLayer
+
+In: dataset.h, line: 151
+
+```c
+PSLayer  * PSAddCIFARInputLayer (PSModel *model)
+
+```
+
+
+
+
+### PSAddConvolutionalLayer
+
+In: psyc.h, line: 395
+
+```c
+PSLayer  * PSAddConvolutionalLayer (PSModel *model, PSLayerDef *ldef)
+
+```
+
+
+
+
+### PSAddDebugInfo
+
+In: debug.h, line: 105
+
+```c
+void PSAddDebugInfo (PSModel *model, char *file, const char *func, int line, PSLayer *layer, void *neuron1, void *neuron2, char *prop, double val, ...)
+
+```
+
+
+
+
+### PSAddLayer
+
+In: psyc.h, line: 393
+
+```c
+PSLayer  * PSAddLayer (PSModel *model, PSLayerType type, int size, PSLayerDef *layer_def)
+
+```
+
+
+
+Add a new layer (instance of [PSLayer](types.md#pslayer)) of type **type** and size **size** to **model**. Special layer properties can be defined by the optional argument **layer_def**.  
+If **layer_def** is **NULL**, the function will use the default layer configuration.  
+The member **load_from** of **layer_def** can be used to load the new layer's parameters from a file.  
+The new model will be automatically allocated and added to model layers.  
+
+
+**NOTE**:  the new layer should never be freed directly. By freeing **model** ([PSModelFree](functions.md#psmodelfree)), all model's layers will be automatically freed.  
+
+#### RETURN VALUES
+
+Pointer to the added layer or **NULL** if something goes wrong.  
+Possible failure reasons:  
+
+ - **model** is **NULL**
+ - **model** is empty and **type** is not **FullyConnected** (the first layer must be always of type FullyConnected).
+ - The new layer cannot be allocated into memory or the model's **layers** array cannot be resized.
+ - The model's last layer is **NULL**.
+ - The new layer cannot be initialized. The reason for the initialization failure can vary depending on the layer type.
+ - The new layer is recurrent or the model is recurrent but the recurrent mode of all layers is not consistent. In order to build consistent recurrent models, one of the following feature must be satisfied:
+   - All layers must be recurrent, or
+   - first N layers are recurrent and the remaining layers are not      recurrent, or
+   - first N layers are not recurrent the remaining layers are recurrent.
+
+#### SEE ALSO
+
+[PSModelFree](functions.md#psmodelfree)  
+
+
+
+### PSAddModel
+
+In: psyc.h, line: 388
+
+```c
+int PSAddModel (PSModel *parent, PSModel *model, PSModelLink *link)
+
+```
+
+
+
+Add **model** to another model (**parent**), creating a chained, multi-model model.  
+If **parent** is already member of a multi-model chain but it's not the chain head, the function will automatically find the actual chain head and it will append **model** to the chain tail.  
+The argument **link** allows setting the rules for data propagation (both forward propagation and bacpropagation) between **model** and the model preceding it in the model chain:  
+
+ - The **layer** member of **link** can be used to set the layer in **model** that will receive inputs from previous model (in forward propagation) or that will back-propagate the error (delta) to previous model.
+ - The **previous_layer** member of **link** can be used to set the layer in the previous model (the model in the chain that precedes **model**) that will forward its outputs to **model** (in forward propagation) or that will receive the error (deltas) from **model** in backpropagation.
+
+If **link** is **NULL**, the function will try to automatically determine it by searching for the first layer in **model** whose size matches a layer in the previous model.  
+
+
+#### RETURN VALUES
+
+1 if **model** is successfully added, 0 if something goes wrong.  
+Possible failure reasons:  
+
+ - **model** is **NULL** or **parent** is **NULL** or both are **NULL**.
+ - **model** is already part of a multi-model chain.
+ - **link** is **NULL** and it's not possible to automatically determine it.
+ - **link** is not **NULL** but it's not valid, because:
+    - `link->layer` is **NULL** or `link->previous_layer` is **NULL**.
+    - size of `link->layer` differs from size of `link->previous_layer`.
+ - Memory issues.
+
+#### SEE ALSO
+
+[PSGetModelAtIndex](functions.md#psgetmodelatindex), [PSModelChainLength](functions.md#psmodelchainlength), [PSModelChainHead](functions.md#psmodelchainhead), [PSModelChainTail](functions.md#psmodelchaintail), [PSModelChainContains](functions.md#psmodelchaincontains)  
+
+
+
+### PSAddPoolingLayer
+
+In: psyc.h, line: 396
+
+```c
+PSLayer  * PSAddPoolingLayer (PSModel *model, PSLayerDef *ldef)
+
+```
+
+
+
+
+### PSAddVectors
+
+In: maths.h, line: 189
+
+```c
+PSFloat  * PSAddVectors (PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+
+```
+
+
+
+
+### PSAddVectorScalar
+
+In: maths.h, line: 199
+
+```c
+PSFloat  * PSAddVectorScalar (PSFloat *a, PSFloat b, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+
+```
+
+
+
+
+### PSAutoregression
+
+In: psyc.h, line: 427
+
+```c
+int PSAutoregression (PSModel *model, PSFloat *inputs, int randomized, PSSequenceSettings *sequence_settings)
+
+```
+
+
+
+Forward **inputs** to **model** with autoregression mode. The model must take sequences as inputs and produce sequences as outputs.  
+If **model** is part of a multi-model chain, **inputs** are forwarded to the first layer of the first model of the chain and outputs are produced by the last layer of the last model of the chain.  
+When the full input sequence as been forwarded, all subsequent outputs produced by the model (including the last outputs produced by the input sequence) are forwarded as the next inputs to the model itself.  
+The size of the output layer must match the size of the input layer or, if the input layer has the [PS_FLAG_ONEHOT](macros.md#ps-flag-onehot) set, its **onehot_vector_size**.  
+If the input layer has the [PS_FLAG_ONEHOT](macros.md#ps-flag-onehot) set, the index of the highest element of the produced outputs is forwarded to the input layer. In this case, if the **randomized** argument is true, a random index is generated by using the values of the outputs as a probability distribution.  
+The iteration keeps forwarding outputs as the next inputs until one of the following events happens:  
+
+ - The length of the whole output sequence produced (including the outputs produced by the original input sequence) reaches the maximum length defined into the (optional) argument **sequence_settings** or by the default value of [PS_MAX_SEQUENCE_LENGTH](macros.md#ps-max-sequence-length).
+ - The index of the highest value of the produced outputs matches the value of **end** in the optional argument **sequence_settings**. If the **randomized** argument is true, the random index generated by using outputs as a probability distribution is compared with **end**. If **sequence_settings** is **NULL** or the value of the **end** member is negative, the end-matching event is ignored.
+
+#### RETURN VALUES
+
+1 if the process succeeds or 0 if:  
+
+ - **model** is **NULL**
+ - **model** is not built.
+ - The input layer doesn't take sequences as inputs and the output layer doesn't produce sequences as outputs.
+ - The size of the output layer doesn't match the size of the input layer (or input layer's **onehot_vector_size** if the input layer has the flag [PS_FLAG_ONEHOT](macros.md#ps-flag-onehot) set).
+ - Something else in the forward process fails.
+
+#### SEE ALSO
+
+[PSForward](functions.md#psforward), [PSClassify](functions.md#psclassify), [PSClassifyImage](functions.md#psclassifyimage)  
+
+
+
+### PSAxpy
+
+In: blas.h, line: 36
+
+```c
+void PSAxpy (int n, PSFloat alpha, PSFloat *x, int incx, PSFloat *y, int incy)
+
+```
+
+
+
+
+### PSBitmapClear
+
+In: utils.h, line: 120
+
+```c
+void PSBitmapClear (PSBitmap bitmap)
+
+```
+
+
+
+
+### PSBitmapCopy
+
+In: utils.h, line: 114
+
+```c
+int PSBitmapCopy (PSBitmap dst, PSBitmap src)
+
+```
+
+
+
+
+### PSBitmapCreate
+
+In: utils.h, line: 113
+
+```c
+PSBitmap PSBitmapCreate (size_t size)
+
+```
+
+
+
+
+### PSBitmapDup
+
+In: utils.h, line: 115
+
+```c
+PSBitmap PSBitmapDup (PSBitmap src)
+
+```
+
+
+
+
+### PSBitmapGetBit
+
+In: utils.h, line: 118
+
+```c
+int PSBitmapGetBit (PSBitmap bitmap, uint64_t index)
+
+```
+
+
+
+
+### PSBitmapOp
+
+In: utils.h, line: 121
+
+```c
+PSBitmap PSBitmapOp (PSBitmap a, PSBitmap b, PSBitmap dest, int op)
+
+```
+
+
+
+
+### PSBitmapRelease
+
+In: utils.h, line: 116
+
+```c
+void PSBitmapRelease (PSBitmap bitmap)
+
+```
+
+
+
+
+### PSBitmapSetBit
+
+In: utils.h, line: 119
+
+```c
+int PSBitmapSetBit (PSBitmap bitmap, uint64_t index, int val)
+
+```
+
+
+
+
+### PSBitmapSize
+
+In: utils.h, line: 117
+
+```c
+size_t PSBitmapSize (PSBitmap bitmap)
+
+```
+
+
+
+
+### PSCalcIntStringLength
+
+In: utils.h, line: 134
+
+```c
+unsigned int PSCalcIntStringLength (long long num)
+
+```
+
+
+
+
+### PSCatchFloatingPointExceptions
+
+In: debug.h, line: 81
+
+```c
+int PSCatchFloatingPointExceptions (int except)
+
+```
+
+
+
+
+### PSClassify
+
+In: psyc.h, line: 429
+
+```c
+int PSClassify (PSModel *model, PSFloat *inputs)
+
+```
+
+
+
+Forward **inputs** to **model** and get the index of the maximum state from the output layer.  
+
+
+#### RETURN VALUES
+
+1 if the process succeeds or 0 if:  
+
+ - **model** is **NULL**
+ - **model** is not built.
+ - The input layer doesn't take sequences as inputs and the output layer doesn't produce sequences as outputs.
+ - The index of the maximum state could not be determined.
+ - Something else in the forward process fails.
+
+#### SEE ALSO
+
+[PSForward](functions.md#psforward), [PSAutoregression](functions.md#psautoregression), [PSClassifyImage](functions.md#psclassifyimage)  
+
+
+
+### PSClassifyImage
+
+In: image-data.h, line: 23
+
+```c
+int PSClassifyImage (PSModel *model, char *filename, int grayscale, int invert, char* bgcolor, char* dump_file)
+
+```
+
+
+
+#### SEE ALSO
+
+[PSForward](functions.md#psforward), [PSAutoregression](functions.md#psautoregression), [PSClassify](functions.md#psclassify)  
+
+
+
+### PSCreateWord2VecTrainingData
+
+In: embedding.h, line: 32
+
+```c
+PSFloat  * PSCreateWord2VecTrainingData (PSFloat *tokens, size_t token_count, int window_size, int vocabulary_size, int onehot, int *num_elements_ptr)
+
+```
+
+
+
+
+### PSCrossEntropyLoss
+
+In: psyc.h, line: 458
+
+```c
+PSFloat PSCrossEntropyLoss (PSFloat *x, PSFloat *y, int size, int onehot_size)
+
+```
+
+
+
+
+### PSCumulativeSum
+
+In: maths.h, line: 230
+
+```c
+int PSCumulativeSum (PSFloat *a, PSFloat *dest, uint64_t length)
+
+```
+
+
+
+
+### PSDebug
+
+In: log.h, line: 122
+
+```c
+void PSDebug (const char *format, ...)
+
+```
+
+
+
+
+### PSDefaultOptimization
+
+In: optimization.h, line: 31
+
+```c
+int PSDefaultOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, uint64_t len, int acceleration, int iteration, struct PSTrainingOptions *options)
+
+```
+
+
+
+
+### PSDeleteGradient
+
+In: psyc.h, line: 432
+
+```c
+void PSDeleteGradient (PSGradient *gradient)
+
+```
+
+
+
+
+### PSDeleteGradientsChain
+
+In: psyc.h, line: 434
+
+```c
+void PSDeleteGradientsChain (PSGradient *** gradients, PSModel *model)
+
+```
+
+
+
+
+### PSDeleteModelGradients
+
+In: psyc.h, line: 433
+
+```c
+void PSDeleteModelGradients (PSGradient ** gradients, PSModel *net)
+
+```
+
+
+
+
+### PSDeleteNeuron
+
+In: psyc.h, line: 423
+
+```c
+void PSDeleteNeuron (PSNeuron *neuron)
+
+```
+
+
+
+
+### PSDiagonalFlatten
+
+In: maths.h, line: 249
+
+```c
+PSMatrix PSDiagonalFlatten (PSMatrix matrix)
+
+```
+
+
+
+
+### PSDiagonalFlattenVector
+
+In: maths.h, line: 250
+
+```c
+PSMatrix PSDiagonalFlattenVector (PSFloat *vec, uint64_t len)
+
+```
+
+
+
+
+### PSDiagonalMask
+
+In: maths.h, line: 248
+
+```c
+PSMatrix PSDiagonalMask (int size)
+
+```
+
+
+
+
+### PSDictClear
+
+In: utils.h, line: 97
+
+```c
+void PSDictClear (PSDict *dict)
+
+```
+
+
+
+Delete all items in dictionary **dict**.
+
+
+### PSDictCreate
+
+In: utils.h, line: 96
+
+```c
+PSDict  * PSDictCreate (int flags)
+
+```
+
+
+
+Create a new PSDict dictionary.
+
+
+### PSDictFree
+
+In: utils.h, line: 108
+
+```c
+void PSDictFree (PSDict *dict)
+
+```
+
+
+
+Delete the dictionary and free it's allocated memory.
+
+
+### PSDictGet
+
+In: utils.h, line: 98
+
+```c
+PSDictItem  * PSDictGet (PSDict *dict, const char *key)
+
+```
+
+
+
+Get the item associated to **key** in dictionary **dict**, if any.  
+
+
+#### RETURN VALUES
+
+The item (PSDictItem) or **NULL**.
+
+
+### PSDictGetItems
+
+In: utils.h, line: 105
+
+```c
+PSDictItem  ** PSDictGetItems (PSDict *dict)
+
+```
+
+
+
+
+### PSDictGetKeys
+
+In: utils.h, line: 104
+
+```c
+const char  ** PSDictGetKeys (PSDict *dict)
+
+```
+
+
+
+
+### PSDictGetOrSet
+
+In: utils.h, line: 102
+
+```c
+PSDictItem  * PSDictGetOrSet (PSDict *dict, const char *key, PSDictValue val)
+
+```
+
+
+
+Return value **val** if it's already set for **key**, elseway set it and return it.  
+
+
+#### RETURN VALUES
+
+The value associated with **key**.
+
+
+### PSDictGetPointer
+
+In: utils.h, line: 99
+
+```c
+void  * PSDictGetPointer (PSDict *dict, const char *key)
+
+```
+
+
+
+Get the item associated to **key** in dictionary **dict** as a pointer.  
+
+
+#### RETURN VALUES
+
+The item as a pointer or **NULL**.
+
+
+### PSDictHasKey
+
+In: utils.h, line: 100
+
+```c
+int PSDictHasKey (PSDict *dict, const char *key)
+
+```
+
+
+
+Check whether **dict** has the key **key**.  
+
+
+#### RETURN VALUES
+
+1 if **dict** has **key**, elseway 0.
+
+
+### PSDictIteratorCreate
+
+In: utils.h, line: 106
+
+```c
+struct PSDictIterator  * PSDictIteratorCreate (PSDict *dict)
+
+```
+
+
+
+Create a new iterator for dictionary **dict**. The dictionary will be allocated in memory, so it's up to the developer to free it as soon as it is no longer needed.  
+
+
+#### RETURN VALUES
+
+The iterator or **NULL** if something goes wrong.
+
+
+### PSDictNext
+
+In: utils.h, line: 107
+
+```c
+PSDictItem  * PSDictNext (PSDictIterator *iterator)
+
+```
+
+
+
+Iterate over the next item using **iterator**.  
+
+
+#### RETURN VALUES
+
+The next item ([PSDictItem](types.md#psdictitem)) or **NULL** if there are no more               items to iterate.
+
+
+### PSDictRemove
+
+In: utils.h, line: 103
+
+```c
+void PSDictRemove (PSDict *dict, const char *key)
+
+```
+
+
+
+Delete item associated to **key** in dictionary **dict**, if any.
+
+
+### PSDictSet
+
+In: utils.h, line: 101
+
+```c
+PSDictItem  * PSDictSet (PSDict *dict, const char *key, PSDictValue val)
+
+```
+
+
+
+Set value **val** for key **key** in dictionary **dict**. Unless flag [PSDICT_UPDATE_DISABLED](macros.md#psdict-update-disabled) is enabled in dictionary flags, value will be set even If **key** is already associated to another value.  
+
+
+#### RETURN VALUES
+
+The item ([PSDictItem](types.md#psdictitem)) associated to the **key** or **NULL**.
+
+
+### PSDisableAcceleration
+
+In: config.h, line: 60
+
+```c
+void PSDisableAcceleration (uint16_t *config, PSAcceleration acceleration)
+
+```
+
+
+
+
+### PSDivideScalarVector
+
+In: maths.h, line: 207
+
+```c
+PSFloat  * PSDivideScalarVector (PSFloat b, PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+
+```
+
+
+
+
+### PSDivideVectors
+
+In: maths.h, line: 195
+
+```c
+PSFloat  * PSDivideVectors (PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+
+```
+
+
+
+
+### PSDivideVectorScalar
+
+In: maths.h, line: 205
+
+```c
+PSFloat  * PSDivideVectorScalar (PSFloat *a, PSFloat b, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+
+```
+
+
+
+
+### PSDot
+
+In: maths.h, line: 243
+
+```c
+int PSDot (PSMatrix a, PSMatrix b, PSFloat *dest, PSMathOpts *opts)
+
+```
+
+
+
+Performs matrix-matrix multiplication, matrix-vector multiplication, vector-matrix multiplication or vector-vector multiplication, depending on the value of **argtype** field in opts (default is matrix-matrix).  
+Store result is **dest**.  
+
+
+#### RETURN VALUES
+
+1 in case of success, 0 in case of failure.  
+
+
+**NOTE**:  if **argtype** for both **a** and **b** is 'V', the function will compute the dot product of the two vectors, assuming that they have the same size.  
+
+If you need to perform matrix multiplication on two PSFloat arrays, use [PSMatMul](functions.md#psmatmul) instead.
+
+
+### PSDotMV
+
+In: maths.h, line: 244
+
+```c
+int PSDotMV (PSMatrix a, PSFloat *b, PSFloat *dest, PSMathOpts *opts)
+
+```
+
+
+
+
+### PSDotProduct
+
+In: maths.h, line: 234
+
+```c
+PSFloat PSDotProduct (PSFloat *a, PSFloat *b, uint64_t length, PSMathOpts *opts)
+
+```
+
+
+
+
+### PSDotSquare
+
+In: maths.h, line: 235
+
+```c
+PSFloat PSDotSquare (PSFloat *a, uint64_t length, PSMathOpts *opts)
+
+```
+
+
+
+
+### PSDotVM
+
+In: maths.h, line: 245
+
+```c
+int PSDotVM (PSFloat *a, PSMatrix b, PSMatrix dest, PSMathOpts *opts)
+
+```
+
+
+
+
+### PSDownloadFile
+
+In: utils.h, line: 137
+
+```c
+int PSDownloadFile (const char *url, const char *dest_dir)
+
+```
+
+
+
+Try to download content from **url**. The file will be genrated into **dest_dir**.  
+The functions tries to download the file by using **wget** or **curl command line utilities.  
+If those utilities are not found, download will fail.  
+
+
+#### RETURN VALUES
+
+1 in case of success, elseway 0.
+
+
+### PSEnableAcceleration
+
+In: config.h, line: 59
+
+```c
+int PSEnableAcceleration (uint16_t *config, PSAcceleration acceleration)
+
+```
+
+
+
+
+### PSErr
+
+In: log.h, line: 126
+
+```c
+void PSErr (const char *tag, const char *format, ...)
+
+```
+
+
+
+
+### PSErrNN
+
+In: log.h, line: 127
+
+```c
+void PSErrNN (const char *tag, PSModel *model, PSLayer *layer, const char *format, ...)
+
+```
+
+
+
+
+### PSFillWithBlank
+
+In: utils.h, line: 142
+
+```c
+void PSFillWithBlank (int line_length)
+
+```
+
+
+
+
+### PSFindLayerMaxState
+
+In: psyc.h, line: 415
+
+```c
+int PSFindLayerMaxState (PSLayer *layer, PSFloat *max_p, int *index_p, ...)
+
+```
+
+
+
+Find max state value and the relative neuron index for layer **layer**, and store them into **max_p** pointer (max state) and **index_p** pointer (index of neuron having maximum state value).  
+At least **max_p** or **index_p** must be provided.  
+If layer is recurrent, an extra argument for timestep must be provided as a variadic argument (as int).  
+If timestep is negative, it will be used to read states in a reverse order (ie. -1 is last timestep, -2 is last timestep - 1, etc.).  
+Timestep must be always in range of processed timesteps (hidden states), otherwise the function will fail.  
+
+
+#### RETURN VALUES
+
+1 in case of success, 0 in case of error.
+
+
+### PSFloatEquals
+
+In: maths.h, line: 254
+
+```c
+int PSFloatEquals (PSFloat a, PSFloat b, int precision)
+
+```
+
+
+
+Compare two floats **a** and **b**. Use **precision** to set precision tolerance.  
+Lower precision leads to higher tolerance.  
+By setting **precision** to zero, the two numbers must be perfectly equal (no precision tolerance at all).  
+
+
+#### RETURN VALUES
+
+1 if **a** and **b** equal, 0 if they differ.
+
+
+### PSForward
+
+In: psyc.h, line: 426
+
+```c
+int PSForward (PSModel *model, PSFloat *inputs)
+
+```
+
+
+
+Forward **inputs** to **model**. If **model** is part of a multi-model chain, **inputs** are forwarded to the first layer of the first model of the chain.  
+If the input layer doen't accept sequences as inputs, the **inputs** array's length must match the **size** of the first layer.  
+When the first layer takes sequences (if it has the flags [PS_FLAG_RECURRENT](macros.md#ps-flag-recurrent) or PS_FLAG_USE_SEQUENCES` set), the length of **inputs** should be the (input layer size * sequence length) + 1, and the first element of **inputs** should contain the length of the sequence.  
+
+
+#### RETURN VALUES
+
+1 if the process succeeds or 0 if:  
+
+ - **model** is **NULL**
+ - **model** is not built.
+ - The input layer doesn't take sequences as inputs and the output layer doesn't produce sequences as outputs.
+ - Something else in the forward process fails.
+
+#### SEE ALSO
+
+[PSClassify](functions.md#psclassify), [PSAutoregression](functions.md#psautoregression), [PSClassifyImage](functions.md#psclassifyimage)  
+
+
+
+### PSGaussianRandom
+
+In: maths.h, line: 123
+
+```c
+PSFloat PSGaussianRandom (PSFloat mean, PSFloat stddev)
+
+```
+
+
+
+
+### PSGelu
+
+In: activation.h, line: 46
+
+```c
+void PSGelu (PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts)
+
+```
+
+
+
+GELU (Gaussian Error Linear Units) activation function for vectors.  
+GELU is computed on vector **vec** of length **len** and stored into vector **dest**.  
+If **dest** is **NULL**, results will be stored into **vec** itself.  
+The **opts** argument can be used to change default acceleration used to compute results (see [PSMathOpts](types.md#psmathopts)).  
+For info about GeLU:  
+  [https://arxiv.org/abs/1606.08415](https://arxiv.org/abs/1606.08415)  
+The equivalent function to be used with scalars is **PSGeLUS**.  
+The derivative of this function is **PSGeLUDerivative**.
+
+
+### PSGeluDerivative
+
+In: activation.h, line: 53
+
+```c
+void PSGeluDerivative (PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts)
+
+```
+
+
+
+Computes the derivative of GELU activation function ([PSGelu](functions.md#psgelu)) for vectors.  
+The derivative is computed on vector **vec** of length **len** and stored into vector **dest**.  
+If **dest** is **NULL**, results will be stored into **vec** itself.  
+The **opts** argument can be used to change default acceleration used to compute results (see [PSMathOpts](types.md#psmathopts)).  
+The equivalent function to be used with scalars is [PSGeluDerivativeS](functions.md#psgeluderivatives).
+
+
+### PSGeluDerivativeS
+
+In: activation.h, line: 39
+
+```c
+PSFloat PSGeluDerivativeS (PSFloat val)
+
+```
+
+
+
+Computes derivative for GELU activation function ([PSGeluS](functions.md#psgelus)). This function applies to scalar values, so it takes the scalar **val** as argument and returns a **PFloat** scalar.  
+The equivalent function to be used with vectors/matrices is [PSGeluDerivative](functions.md#psgeluderivative).  
+
+
+#### RETURN VALUES
+
+GELU derivative scalar result.
+
+
+### PSGeluS
+
+In: activation.h, line: 36
+
+```c
+PSFloat PSGeluS (PSFloat val)
+
+```
+
+
+
+GELU (Gaussian Error Linear Units) activation function for scalars.  
+It takes the scalar **val** as argument and returns a **PFloat** scalar.  
+For info about GELU:  
+  [https://arxiv.org/abs/1606.08415](https://arxiv.org/abs/1606.08415)  
+The equivalent function to be used with vectors/matrices is [PSGelu](functions.md#psgelu).  
+The derivative of this function is [PSGeluDerivativeS](functions.md#psgeluderivatives).  
+
+
+#### RETURN VALUES
+
+GELU scalar result.
+
+
+### PSGemm
+
+In: blas.h, line: 40
+
+```c
+void PSGemm (PSBLASOrder order, char trans_a, char trans_b, int m, int n, int k, PSFloat alpha, PSFloat *a, int lda, PSFloat *b, int ldb, PSFloat beta, PSFloat *c, int ldc)
+
+```
+
+
+
+
+### PSGemv
+
+In: blas.h, line: 37
+
+```c
+void PSGemv (PSBLASOrder order, char trans, int m, int n, PSFloat alpha, PSFloat *a, int lda, PSFloat *x, PSFloat incx, PSFloat beta, PSFloat *y, int incy)
+
+```
+
+
+
+
+### PSGetAccelerationName
+
+In: config.h, line: 61
+
+```c
+const char  * PSGetAccelerationName (PSAcceleration acceleration)
+
+```
+
+
+
+
+### PSGetAttentionEnabledProjections
+
+In: attention.h, line: 49
+
+```c
+int PSGetAttentionEnabledProjections (PSLayer *layer)
+
+```
+
+
+
+
+### PSGetAttentionHeadCount
+
+In: attention.h, line: 46
+
+```c
+int PSGetAttentionHeadCount (PSLayer *layer)
+
+```
+
+
+
+
+### PSGetAttentionProviders
+
+In: attention.h, line: 47
+
+```c
+int PSGetAttentionProviders (PSLayer *layer, PSLayer ** query_provider, PSLayer ** keys_provider, PSLayer ** values_provider)
+
+```
+
+
+
+
+### PSGetAttentionScale
+
+In: attention.h, line: 45
+
+```c
+PSFloat PSGetAttentionScale (PSLayer *layer)
+
+```
+
+
+
+
+### PSGetAttentionType
+
+In: attention.h, line: 44
+
+```c
+PSAttentionType PSGetAttentionType (PSLayer *layer)
+
+```
+
+
+
+
+### PSGetAttentionTypeLabel
+
+In: attention.h, line: 43
+
+```c
+const char  * PSGetAttentionTypeLabel (PSAttentionType type)
+
+```
+
+
+
+
+### PSGetCodeOptimizationLevel
+
+In: config.h, line: 62
+
+```c
+int PSGetCodeOptimizationLevel (void)
+
+```
+
+
+
+Returns code optimization level (given by -O gcc option) as an integer.  
+Returns -1 if optimization level is unknown.
+
+
+### PSGetDropout
+
+In: dropout.h, line: 24
+
+```c
+PSFloat PSGetDropout (PSLayer *dropout_layer)
+
+```
+
+
+
+
+### PSGetDropoutLayer
+
+In: dropout.h, line: 23
+
+```c
+PSLayer  * PSGetDropoutLayer (PSLayer *parent_layer)
+
+```
+
+
+
+
+### PSGetElapsedTimeString
+
+In: utils.h, line: 143
+
+```c
+char  * PSGetElapsedTimeString (time_t elapsed_us, int long_format)
+
+```
+
+
+
+
+### PSGetEmbeddingVocabularySize
+
+In: embedding.h, line: 31
+
+```c
+int PSGetEmbeddingVocabularySize (PSLayer *layer)
+
+```
+
+
+
+
+### PSGetFirstRecurrentLayer
+
+In: psyc.h, line: 452
+
+```c
+PSLayer  * PSGetFirstRecurrentLayer (PSModel *model)
+
+```
+
+
+
+
+### PSGetGRUCell
+
+In: gru.h, line: 45
+
+```c
+PSGRUCell  * PSGetGRUCell (PSLayer *layer)
+
+```
+
+
+
+
+### PSGetHomeDirectory
+
+In: utils.h, line: 125
+
+```c
+const char  * PSGetHomeDirectory (void)
+
+```
+
+
+
+Returns user HOME directory.
+
+
+### PSGetLabelForType
+
+In: psyc.h, line: 448
+
+```c
+char  * PSGetLabelForType (PSLayerType type)
+
+```
+
+
+
+
+### PSGetLastRecurrentLayer
+
+In: psyc.h, line: 453
+
+```c
+PSLayer  * PSGetLastRecurrentLayer (PSModel *model)
+
+```
+
+
+
+
+### PSGetLayerByIndex
+
+In: psyc.h, line: 402
+
+```c
+PSLayer  * PSGetLayerByIndex (PSModel *model, int layer_index, int model_index)
+
+```
+
+
+
+
+### PSGetLayerInputSize
+
+In: psyc.h, line: 403
+
+```c
+int PSGetLayerInputSize (PSLayer *layer)
+
+```
+
+
+
+
+### PSGetLayerInputWeightsCount
+
+In: psyc.h, line: 404
+
+```c
+uint64_t PSGetLayerInputWeightsCount (PSLayer *layer, int per_neuron)
+
+```
+
+
+
+
+### PSGetLayerParametersCount
+
+In: psyc.h, line: 398
+
+```c
+uint64_t PSGetLayerParametersCount (PSLayer *layer, int param_type)
+
+```
+
+
+
+
+### PSGetLayerTypeLabel
+
+In: psyc.h, line: 449
+
+```c
+char  * PSGetLayerTypeLabel (PSLayer *layer)
+
+```
+
+
+
+
+### PSGetLSTMCell
+
+In: lstm.h, line: 53
+
+```c
+PSLSTMCell  * PSGetLSTMCell (PSLayer *layer)
+
+```
+
+
+
+
+### PSGetMaxLogLevel
+
+In: log.h, line: 131
+
+```c
+int PSGetMaxLogLevel (void)
+
+```
+
+
+
+
+### PSGetModelAtIndex
+
+In: psyc.h, line: 379
+
+```c
+PSModel  * PSGetModelAtIndex (PSModel *entrypoint, int index)
+
+```
+
+
+
+Get the model at **index** in the multi-model chain that contains the model **entrypoint**. If **index** is negative, it will be counted from the end of the model chain (ie. -1 is the last model, or tail,  of the chain).  
+
+
+#### RETURN VALUES
+
+The model or **NULL** if:  
+
+ - **entrypoint** is **NULL**
+ - the model chain is broken
+ - **index** is out of bounds.
+
+#### SEE ALSO
+
+[PSModelChainLength](functions.md#psmodelchainlength), [PSModelChainHead](functions.md#psmodelchainhead), [PSModelChainTail](functions.md#psmodelchaintail), [PSModelChainContains](functions.md#psmodelchaincontains), [PSAddModel](functions.md#psaddmodel)  
+
+
+
+### PSGetNeuron
+
+In: psyc.h, line: 419
+
+```c
+PSNeuron  * PSGetNeuron (PSLayer *layer, int index, PSNeuron *neuron)
+
+```
+
+
+
+
+### PSGetNeuronDebugID
+
+In: debug.h, line: 83
+
+```c
+char  * PSGetNeuronDebugID (PSNeuron *neuron, PSLayer *layer)
+
+```
+
+
+
+
+### PSGetNeuronInputWeights
+
+In: psyc.h, line: 420
+
+```c
+PSFloat  * PSGetNeuronInputWeights (PSNeuron *neuron)
+
+```
+
+
+
+
+### PSGetNeuronState
+
+In: psyc.h, line: 421
+
+```c
+PSFloat PSGetNeuronState (PSNeuron *neuron, ...)
+
+```
+
+
+
+
+### PSGetNextLayer
+
+In: psyc.h, line: 400
+
+```c
+PSLayer  * PSGetNextLayer (PSLayer *layer)
+
+```
+
+
+
+
+### PSGetOneHotLayerVectorSize
+
+In: psyc.h, line: 397
+
+```c
+int PSGetOneHotLayerVectorSize (PSLayer *layer)
+
+```
+
+
+
+
+### PSGetOperatorLayerProviders
+
+In: operator-layer.h, line: 35
+
+```c
+PSLayer  ** PSGetOperatorLayerProviders (PSLayer *layer, int *count)
+
+```
+
+
+
+
+### PSGetOperatorLayerType
+
+In: operator-layer.h, line: 33
+
+```c
+PSOperatorType PSGetOperatorLayerType (PSLayer *layer)
+
+```
+
+
+
+
+### PSGetOperatorLayerTypeLabel
+
+In: operator-layer.h, line: 34
+
+```c
+const char  * PSGetOperatorLayerTypeLabel (PSOperatorType operator)
+
+```
+
+
+
+
+### PSGetOutputLayer
+
+In: psyc.h, line: 401
+
+```c
+PSLayer  * PSGetOutputLayer (PSModel *model)
+
+```
+
+
+
+
+### PSGetOutputs
+
+In: psyc.h, line: 412
+
+```c
+PSFloat  * PSGetOutputs (PSLayer *layer)
+
+```
+
+
+
+
+### PSGetPositionalEncoding
+
+In: positional-encoding.h, line: 24
+
+```c
+PSMatrix PSGetPositionalEncoding (int seqlen, int size, int base)
+
+```
+
+
+
+
+### PSGetPositionalEncodingBase
+
+In: positional-encoding.h, line: 26
+
+```c
+int PSGetPositionalEncodingBase (PSLayer *layer)
+
+```
+
+
+
+
+### PSGetPositionalEncodingLength
+
+In: positional-encoding.h, line: 25
+
+```c
+int PSGetPositionalEncodingLength (PSLayer *layer)
+
+```
+
+
+
+
+### PSGetPreviousLayer
+
+In: psyc.h, line: 399
+
+```c
+PSLayer  * PSGetPreviousLayer (PSLayer *layer)
+
+```
+
+
+
+
+### PSGetRecurrentHiddenWeights
+
+In: recurrent.h, line: 23
+
+```c
+PSMatrix PSGetRecurrentHiddenWeights (PSLayer *layer)
+
+```
+
+
+
+
+### PSGetRecurrentNeuronHiddenWeights
+
+In: recurrent.h, line: 24
+
+```c
+PSFloat  * PSGetRecurrentNeuronHiddenWeights (PSNeuron *neuron)
+
+```
+
+
+
+
+### PSGetState
+
+In: psyc.h, line: 410
+
+```c
+PSFloat PSGetState (PSLayer *layer, int index, ...)
+
+```
+
+
+
+
+### PSGetStates
+
+In: psyc.h, line: 411
+
+```c
+PSFloat  * PSGetStates (PSLayer *layer, ...)
+
+```
+
+
+
+
+### PSGetTerminalColumns
+
+In: utils.h, line: 141
+
+```c
+int PSGetTerminalColumns (void)
+
+```
+
+
+
+Misc
+
+
+### PSHandleSignals
+
+In: psyc.h, line: 468
+
+```c
+void PSHandleSignals (PSSignalHandler shutdown_handler)
+
+```
+
+
+
+
+### PSInfo
+
+In: log.h, line: 123
+
+```c
+void PSInfo (const char *format, ...)
+
+```
+
+
+
+
+### PSIsAccelerationAvailable
+
+In: config.h, line: 57
+
+```c
+int PSIsAccelerationAvailable (PSAcceleration acceleration)
+
+```
+
+
+
+
+### PSIsAccelerationEnabled
+
+In: config.h, line: 58
+
+```c
+int PSIsAccelerationEnabled (uint16_t config, PSAcceleration acceleration)
+
+```
+
+
+
+
+### PSIsCausalAttention
+
+In: attention.h, line: 50
+
+```c
+int PSIsCausalAttention (PSLayer *layer)
+
+```
+
+
+
+
+### PSIsDirectory
+
+In: utils.h, line: 124
+
+```c
+int PSIsDirectory (const char *path)
+
+```
+
+
+
+Checks whether **path** is a valid directory.
+
+
+### PSIsFunctionAvailable
+
+In: debug.h, line: 80
+
+```c
+int PSIsFunctionAvailable (const char *func)
+
+```
+
+
+
+
+### PSIsXTermColor256
+
+In: log.h, line: 133
+
+```c
+int PSIsXTermColor256 (int always_check)
+
+```
+
+
+
+
+### PSIterateLossFunctions
+
+In: psyc.h, line: 469
+
+```c
+size_t PSIterateLossFunctions ( *callback)
+
+```
+
+
+
+
+### PSLayerFree
+
+In: psyc.h, line: 416
+
+```c
+void PSLayerFree (PSLayer *layer)
+
+```
+
+
+
+Free memory allocated for **layer** and all of its objects (ie. weights, states).  
+
+
+**WARN**:  this function should be called only for layers not being part of any model, since by freeing models ([PSModelFree](functions.md#psmodelfree)), all their layers will be automatically freed.  
+
+
+
+
+### PSLayerLoad
+
+In: psyc.h, line: 391
+
+```c
+int PSLayerLoad (PSLayer *layer, const char *filepath)
+
+```
+
+
+
+
+### PSLayerSave
+
+In: psyc.h, line: 392
+
+```c
+int PSLayerSave (PSLayer *layer, const char *filepath, int opts)
+
+```
+
+
+
+Save **layer** to file located at **filepath**. By default, only the layer's trainable parameters (ie. weights, biases) are saved and the layer is saved in ASCII format.  
+However, this behavior can be changed by setting the following flags into the **opts** argument:  
+
+ - [PS_IO_BINARY_MODE](macros.md#ps-io-binary-mode): save the layer data in binary format.
+ - [PS_IO_SAVE_DEFINITION](macros.md#ps-io-save-definition): also save layer's properties (ie. type, size, ...). This option cannot be used along with [PS_IO_BINARY_MODE](macros.md#ps-io-binary-mode).
+
+#### RETURN VALUES
+
+1 if the layer is saved, 0 if somethign goes wrong.  
+Possible failure reasons:  
+
+ - The **layer** argument is **NULL**.
+ - Both [PS_IO_BINARY_MODE](macros.md#ps-io-binary-mode) and [PS_IO_SAVE_DEFINITION](macros.md#ps-io-save-definition) are set.
+ - The file at **filepath** cannot be opened for writing.
+ - Some error occurs qhile writing data.
+
+
+### PSLineAppend
+
+In: log.h, line: 140
+
+```c
+int PSLineAppend (int opts, char *format, ...)
+
+```
+
+
+
+
+### PSLineEnd
+
+In: log.h, line: 143
+
+```c
+void PSLineEnd (void)
+
+```
+
+
+
+
+### PSLineFill
+
+In: log.h, line: 142
+
+```c
+int PSLineFill (void)
+
+```
+
+
+
+
+### PSLineStart
+
+In: log.h, line: 139
+
+```c
+int PSLineStart (int opts, char *format, ...)
+
+```
+
+
+
+
+### PSLoadCIFARData
+
+In: dataset.h, line: 149
+
+```c
+int PSLoadCIFARData (int type, int classes, const char *dataset_path, PSFloat ** data, int max_files, int max_elements)
+
+```
+
+
+
+Load the CIFAR dataset ([https://www.cs.toronto.edu/~kriz/cifar.html](https://www.cs.toronto.edu/~kriz/cifar.html)) from files.  
+The dataset files must be in gzip format (.gz): dataset files must be in binary version and located into **dataset_path** directory.  
+The dataset is allocated by the function itself and its pointer is stored into **data** pointer-to-pointer (it cannot be **NULL**). The length of the resulting dataset is returned by the function.  
+The CIFAR dataset comes in two fashions:  
+
+ - CIFAR-10:  each image can be classified with 10 classes.
+ - CIFAR-100: each image can be classified with 100 classes.
+
+The **classes** argument can be used to tell the function which kind of dataset is going to be loaded.  
+The **type** argument can be used to tell if the dataset is a training dataset ([PS_DATA_TYPE_TRAINING](macros.md#ps-data-type-training)) or a test dataset ([PS_DATA_TYPE_TEST](macros.md#ps-data-type-test)).  
+
+
+#### RETURN VALUES
+
+The length of the dataset (number of [PSFloat](types.md#psfloat) elements) or zero if some error occurs.  
+Possibile errors:  
+
+ - The data argument is **NULL**
+ - The value for **class** is neither 10 not 100.
+ - Dataset directory is **NULL**, or dataset files cannot be opened cannot be opened.
+ - Dataset cannot be allocated into memory
+ - Dataset file format is not valid
+
+
+### PSLoadDataFromFile
+
+In: dataset.h, line: 137
+
+```c
+PSFloat  * PSLoadDataFromFile (const char *filepath, uint64_t *datalen)
+
+```
+
+
+
+Load dataset from file located at **filepath**. Dataset is returned as an array of PSFloat elements whose length (number of elements) is stored into mandatory argument **datalen**.  
+The file must be an ASCII file where every number of the dataset is written as a string representation of floating point numbers and separated by a comma character.  
+Optionally, the whole dataset can be prefixed with its length written as a string representation of a decimal number followed by a colon separator caharcter (':').  
+Example: 3:1.25,2,-0.15 (dataset of three elements 1.25, 2.0 and -0.15) Return value: the loaded dataset or **NULL** is somethign goes wrong.  
+Possible failure reasons:  
+
+ - Mandatory arguments **filepath** or **datalen** are **NULL**.
+ - File is not found at **filepath**.
+ - File at **filepath** cannot be opened or read.
+ - Dataset cannot be allocated into memory.
+
+
+### PSLoadDataFromString
+
+In: dataset.h, line: 126
+
+```c
+PSFloat  * PSLoadDataFromString (char *str, PSTextParserOptions *opts, PSFloat *existing_data, int64_t *datalen, PSVocabulary ** vocabulary)
+
+```
+
+
+
+Load a dataset (an array of [PSFloat](types.md#psfloat) numbers) from a string. Depending on the parsing mode, each token or character found in the string will be converted to a numeric representation of itself. The dataset can be used to train a model ([PSModel](types.md#psmodel)) or it can provide inputs to the model.  
+Numeric representation of tokens/characters is defined by key-value pairs contained into **vocabulary** and indices (ids) related to token are cast to [PSFloat](types.md#psfloat).  
+The function can use an existing vocabulary or create a new one from scratch.  
+By default, the string will be parsed as a sequence of tokens ([PS_PARSER_MODE_TOKENS](macros.md#ps-parser-mode-tokens)) and each token will be converted to a number.  
+The above behavior can be changed by using [PS_PARSER_MODE_CHARS](macros.md#ps-parser-mode-chars) in the (optional) **opts** argument (see [PSTextParserOptions](types.md#pstextparseroptions)).  
+  
+When [PS_PARSER_MODE_TOKENS](macros.md#ps-parser-mode-tokens) mode is used, tokens can be matched in two ways:  
+
+ - By using a separator: in this case the string will be split by using the separators defined into **separator** member of **opts**. If **separator** is **NULL** or **opts** is **NULL**, the default separators will be those defined by the macro [PS_DEFAULT_TOKEN_SEPARATOR](macros.md#ps-default-token-separator).
+ - By using a callback that let the developers to define their own logic for identifying and extracting tokens from the input string. The callback function can be set into the **match_token** member of **opts**, and it's a function of type [PSTokenMatch](types.md#pstokenmatch). The callback receives a token to match and a pointer to an integer to store the length of the matched token. If the callback returns a non-zero value (true), it indicates a successful match and a token of the matched length will be extracted from the input string. In this case, the parsing position is moved forward by the matched length. If the callback returns 0, it signals that the token was not matched, and the parsing position will be advanced to the next byte.
+
+
+**WARN**:  The parsed string **str** may be modified during text parsing. By setting the [PS_PARSER_FLAG_PRESERVE_STRING](macros.md#ps-parser-flag-preserve-string) flag into `opts->flags`, the function will work on a copy of the string, preventing the original string from being altered.  
+
+  
+#### ARGUMENTS  
+
+ - **str**: the (null-terminated) string to be parsed (mandatory).
+ - **opts**: parsing options, it can be **NULL**.
+ - **existing_data**: optional argument that can be used to append    parsed data to an existing dataset. WARN: Since data can be reallocated, always use the returned dataset after calling the function.
+ - **datalen**: pointer to **uint64_t** where the final length of the dataset    will be stored. If **existing_data** is not **NULL**, the address pointed by **datalen** must contain the current length of the existing dataset. If **NULL** is returned by the function, the pointed address will contain zero.
+ - **vocabulary**: pointer to pointer to a [PSVocabulary](types.md#psvocabulary) struct. The    argument is mandatory and cannot be **NULL**. If the pointer pointed by **vocabulary** is **NULL**, a new [PSVocabulary](types.md#psvocabulary) will be allocated and it will be filled with parsed tokens|characters. If the pointer pointed by **vocabulary** points to an already existing vocabulary, its numeric values will be used for parsed tokens. If a token or character is not found in the existing vocabulary, it will be automatically added, unless [PS_PARSER_FLAG_READONLY_VOCAB](macros.md#ps-parser-flag-readonly-vocab) flag is set into **opts**.
+
+#### RETURN VALUES
+
+The dataset ([PSFloat](types.md#psfloat) array) or **NULL** is something goes wrong.
+
+
+### PSLoadDataFromTextFile
+
+In: dataset.h, line: 129
+
+```c
+PSFloat  * PSLoadDataFromTextFile (const char *filepath, PSTextParserOptions *opts, int64_t *datalen, PSVocabulary ** vocabulary)
+
+```
+
+
+
+Load a dataset (an array of PSFloat numbers) from the text file found at **filepath**.  
+For parsing options and other arguments, see [PSLoadDataFromString](functions.md#psloaddatafromstring).  
+
+
+#### RETURN VALUES
+
+The dataset ([PSFloat](types.md#psfloat) array) or **NULL** is something goes wrong.
+
+
+### PSLoadMNISTData
+
+In: dataset.h, line: 143
+
+```c
+int PSLoadMNISTData (int type, const char *images_file, const char *labels_file, PSFloat ** data)
+
+```
+
+
+
+Load the MNIST dataset ([https://en.wikipedia.org/wiki/MNIST_database](https://en.wikipedia.org/wiki/MNIST_database)) from files.  
+The dataset files must be in gzip format (.gz): images data must be loaded from **images_file** path and labels data must be loaded from **labels_file** path.  
+The dataset is allocated by the function itself and its pointer is stored into **data** pointer-to-pointer (it cannot be **NULL**). The length of the resulting dataset is returned by the function.  
+The **type** argument can be used to tell if the dataset is a training dataset ([PS_DATA_TYPE_TRAINING](macros.md#ps-data-type-training)) or a test dataset ([PS_DATA_TYPE_TEST](macros.md#ps-data-type-test)).  
+
+
+#### RETURN VALUES
+
+The length of the dataset (number of [PSFloat](types.md#psfloat) elements) or zero if some error occurs.  
+Possibile errors:  
+
+ - The data argument is **NULL**
+ - Dataset files are **NULL**, they don't exist or they cannot be opened.
+ - Dataset cannot be allocated into memory
+ - Dataset files are not in gzip format or some error occurs whil unzipping them.
+ - The internal format of the dataset files format is not valid.
+
+
+### PSLoadModel
+
+In: psyc.h, line: 387
+
+```c
+PSModel  * PSLoadModel (const char* filename)
+
+```
+
+
+
+Load a new model from the file located at **filepath** into **model**.  
+In order to load model's data into an already existing model, [PSModelLoad](functions.md#psmodelload) should be used instead.  
+If the file defines a multi-model chain, the whole chain will be loaded.  
+
+
+#### RETURN VALUES
+
+1 if model is successfully loaded, 0 if:  
+
+ - **filepath** is **NULL**.
+ - The file at **filepath** could not be opened for reading.
+ - The file at **filepath** is not a valid PsyC model file.
+ - PsyC version is lower than version declared in the file.
+ - Memory allocation issues.
+ - Some error occurred while reading data from file.
+
+#### SEE ALSO
+
+[PSModelLoad](functions.md#psmodelload), [PSModelSave](functions.md#psmodelsave)  
+
+
+
+### PSLog
+
+In: log.h, line: 120
+
+```c
+void PSLog (int level, const char *format, ...)
+
+```
+
+
+
+
+### PSLogLevelByName
+
+In: log.h, line: 130
+
+```c
+int PSLogLevelByName (const char *name)
+
+```
+
+
+
+
+### PSLogLevelName
+
+In: log.h, line: 129
+
+```c
+const char  * PSLogLevelName (int level)
+
+```
+
+
+
+
+### PSLRegularization
+
+In: optimization.h, line: 73
+
+```c
+int PSLRegularization (PSFloat l1, PSFloat l2, PSFloat *weights, PSFloat *wgradients, PSFloat *tmp, uint64_t len, PSFloat *l1_loss, PSFloat *l2_loss, int batches, int weight_decay, int acceleration)
+
+```
+
+
+
+
+### PSMakeDir
+
+In: utils.h, line: 126
+
+```c
+int PSMakeDir (const char *path, int recursive)
+
+```
+
+
+
+Creates directory **path** is it does not exists. If **recursive** is 1, the function will try to also create intermediate paths if they don't exists, in a similar fashion to "mkdir -p".  
+Return vale: 1 in case of success, elseway 0.
+
+
+### PSMatMul
+
+In: maths.h, line: 241
+
+```c
+int PSMatMul (PSFloat *a, PSFloat *b, PSFloat *dest, int m, int n, int k, PSMathOpts *opts)
+
+```
+
+
+
+Perform matrix multiplication between vectors (PSFloat arrays) **a** and **b**.  
+If you need to perform matrix multiplication with involve at least one [PSMatrix](types.md#psmatrix), then use [PSMatrixProduct](functions.md#psmatrixproduct) (matrix-matrix), [PSMatrixProductMV](functions.md#psmatrixproductmv) (matrix-vector) or [PSMatrixProductVM](functions.md#psmatrixproductvm) (vector-matrix) instead.  
+You can set matrix transposition using **transpose** field in the **opt** argument. In that case, **transpose** will contain the (1-based) indices of the vector arguments you want to be transposed:  
+
+ - opt->transpose = 1 (transpose **a**)
+
+Results will be stored in **dest**, that must be at least **m** * **n** long.  
+By default, data in result vector will be overwritten. Anyway, if [PS_STORE_MODE_ADD](macros.md#ps-store-mode-add) is set as **store_mode** into **opts**, result will be added to data already present in the result vector.  
+Other arguments:  
+
+ - **m**: number of rows in **a** and result **dest**
+ - **n**: number of columns in **b** and **dest**.
+ - **k**: number of columns in **a** and rows in **n**.
+
+
+**NOTE**:  if you set transposition for **a** or **b**, **m**,**n** and **k** will refer to rows and columns of the transposed matrix.  
+
+#### RETURN VALUES
+
+1 in case of success, 0 in case of failure.
+
+
+### PSMatrixAdd
+
+In: maths.h, line: 169
+
+```c
+int PSMatrixAdd (PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt)
+
+```
+
+
+
+
+### PSMatrixClear
+
+In: maths.h, line: 184
+
+```c
+void PSMatrixClear (PSMatrix matrix)
+
+```
+
+
+
+
+### PSMatrixCopy
+
+In: maths.h, line: 182
+
+```c
+int PSMatrixCopy (PSMatrix src, PSMatrix dst)
+
+```
+
+
+
+
+### PSMatrixCreate
+
+In: maths.h, line: 142
+
+```c
+PSMatrix PSMatrixCreate (PSFloat init_value, PSMatrixInitializer initializer, int ndims, ...)
+
+```
+
+
+
+
+### PSMatrixCreateWithShape
+
+In: maths.h, line: 144
+
+```c
+PSMatrix PSMatrixCreateWithShape (PSFloat init_value, PSMatrixInitializer initializer, int ndims, int *shape)
+
+```
+
+
+
+
+### PSMatrixDim
+
+In: maths.h, line: 153
+
+```c
+int PSMatrixDim (PSMatrix matrix, int dim)
+
+```
+
+
+
+
+### PSMatrixDimensions
+
+In: maths.h, line: 154
+
+```c
+int PSMatrixDimensions (PSMatrix matrix, int *dims)
+
+```
+
+
+
+
+### PSMatrixDivide
+
+In: maths.h, line: 172
+
+```c
+int PSMatrixDivide (PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt)
+
+```
+
+
+
+
+### PSMatrixDup
+
+In: maths.h, line: 180
+
+```c
+PSMatrix PSMatrixDup (PSMatrix matrix)
+
+```
+
+
+
+
+### PSMatrixDupShape
+
+In: maths.h, line: 181
+
+```c
+PSMatrix PSMatrixDupShape (PSMatrix matrix)
+
+```
+
+
+
+
+### PSMatrixEquals
+
+In: maths.h, line: 183
+
+```c
+int PSMatrixEquals (PSMatrix a, PSMatrix b, int precision, int ignore_shape)
+
+```
+
+
+
+Compare two martrices **a** and **b** having **length** length. Use **precision** to set precision tolerance. Lower precision leads to higher tolerance.  
+By setting **precision** to zero, the two vectors must be perfectly equal (no precision tolerance at all).  
+
+
+#### RETURN VALUES
+
+1 if **a** and **b** equal, 0 if they differ at some point.
+
+
+### PSMatrixExpand
+
+In: maths.h, line: 151
+
+```c
+PSMatrix PSMatrixExpand (PSMatrix src, int add, int keep_src)
+
+```
+
+
+
+Expand matrix **src** by adding **add** to its first dimension. Added data will be set to zero.  
+Beware of the fact that **src** matrix could be freed after the process, so always assing the return value of this function to a new variable, since it could lead to memory leaks in case of a **NULL** return value. Also beware of the fact that the original variable holding **src** could point to freed memry after function returns.
+
+
+### PSMatrixFlatten
+
+In: maths.h, line: 174
+
+```c
+PSMatrix PSMatrixFlatten (PSMatrix matrix)
+
+```
+
+
+
+
+### PSMatrixFree
+
+In: maths.h, line: 185
+
+```c
+void PSMatrixFree (PSMatrix matrix)
+
+```
+
+
+
+
+### PSMatrixFromArray
+
+In: maths.h, line: 150
+
+```c
+PSMatrix PSMatrixFromArray (PSFloat *array, int ndims, ...)
+
+```
+
+
+
+
+### PSMatrixGet
+
+In: maths.h, line: 163
+
+```c
+PSFloat  * PSMatrixGet (PSMatrix matrix, int ndims, uint32_t *len, ...)
+
+```
+
+
+
+
+### PSMatrixLength
+
+In: maths.h, line: 155
+
+```c
+uint64_t PSMatrixLength (PSMatrix matrix)
+
+```
+
+
+
+
+### PSMatrixMultiply
+
+In: maths.h, line: 170
+
+```c
+int PSMatrixMultiply (PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt)
+
+```
+
+
+
+
+### PSMatrixNumDims
+
+In: maths.h, line: 152
+
+```c
+int PSMatrixNumDims (PSMatrix matrix)
+
+```
+
+
+
+
+### PSMatrixPrint
+
+In: maths.h, line: 162
+
+```c
+void PSMatrixPrint (PSMatrix matrix, const char *sep, int print_shape)
+
+```
+
+
+
+
+### PSMatrixPrintInfo
+
+In: maths.h, line: 158
+
+```c
+void PSMatrixPrintInfo (PSMatrix matrix, const char *name, int newline)
+
+```
+
+
+
+
+### PSMatrixPrintShape
+
+In: maths.h, line: 159
+
+```c
+void PSMatrixPrintShape (PSMatrix matrix, int newline)
+
+```
+
+
+
+
+### PSMatrixProduct
+
+In: maths.h, line: 164
+
+```c
+int PSMatrixProduct (PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt)
+
+```
+
+
+
+Performs matrix-matrix multiplication between matrix **a** and matrix **b**.  
+Results are stored into matrix pointed by **result**. If pointer pointed by **result** is **NULL**, a new matrix is automatically allocated by the function itself and its pointer will be stored into **result**.  
+By default, function uses BLAS to compute the result. Anyway, if BLAS support is missing in PsyC build and **b** only has one dimension, function will try compute results by using [PSDotProduct](functions.md#psdotproduct) as fallback (for all other cases, it will fail!).  
+The **opt** argument can be **NULL**.  
+You can set matrix transposition using **transpose** field in the **opt** argument. In that case, **transpose** will contain the (1-based) indices of the matrix arguments you want to be transposed:  
+
+ - opt->transpose = 1 (transpose matrix **a**)
+ - opt->transpose = 2 (transpose matrix **b**)
+ - opt->transpose = (1 | 2) (transpose both matrix **a** and **b**)
+
+By default, data in result vector will be overwritten. Anyway, if [PS_STORE_MODE_ADD](macros.md#ps-store-mode-add) is set as **store_mode** into **opt**, result will be added to data already present in the result vector.  
+
+
+#### RETURN VALUES
+
+1 if operation succeeds, 0 if it fails.
+
+#### SEE ALSO
+
+[PSMatrixProductMV](functions.md#psmatrixproductmv), [PSMatrixProductVM](functions.md#psmatrixproductvm)  
+
+
+
+### PSMatrixProductMV
+
+In: maths.h, line: 165
+
+```c
+int PSMatrixProductMV (PSMatrix a, PSFloat *b, int len, PSFloat ** result, PSMathOpts *opts)
+
+```
+
+
+
+Performs matrix-vector multiplication between matrix **a** and vector **b**.  
+Argument **len** must be the length of the vector **b**.  
+Results are stored into vector pointed by pointer **result**. If pointer pointed by **result** is **NULL**, a new vector is automatically allocated by the function itself and its pointer will be stored into **result**.  
+Length of **b** vector must equal matrix **a** second dimension.  
+Length of result vector must equal matrix **a** first dimension.  
+By default, function uses BLAS to compute the result. Anyway, if BLAS support is missing in PsyC build, function will compute results by using [PSDotProduct](functions.md#psdotproduct) as fallback.  
+You can set matrix transposition using **transpose** field in the **opt** argument. In that case, **transpose** will contain the (1-based) indices of the matrix arguments you want to be transposed:  
+
+ - opt->transpose = 1 (transpose matrix **a**)
+
+By default, data in result vector will be overwritten. Anyway, if [PS_STORE_MODE_ADD](macros.md#ps-store-mode-add) is set as **store_mode** into **opts**, result will be added to data already present in the result vector.  
+
+
+#### RETURN VALUES
+
+1 if operation succeeds, 0 if it fails.
+
+#### SEE ALSO
+
+[PSMatrixProduct](functions.md#psmatrixproduct), [PSMatrixProductVM](functions.md#psmatrixproductvm)  
+
+
+
+### PSMatrixProductVM
+
+In: maths.h, line: 167
+
+```c
+int PSMatrixProductVM (PSFloat *a, PSMatrix b, int len, PSMatrix *result, PSMathOpts *opts)
+
+```
+
+
+
+Performs vector-matrix multiplication between vector **a** and matrix **b**.  
+Argument **len** must be the length of the vector **a**.  
+Results are stored into matrix pointed by **result**. If pointer pointed by **result** is **NULL**, a new matrix is automatically allocated by the function itself and its pointer will be stored into **result**.  
+The function uses BLAS to compute the result. Anyway, if BLAS support is missing in PsyC build, function will compute results by using [PSDotProduct](functions.md#psdotproduct) as fallback.  
+missing in PsyC build, function will fail.  
+You can set matrix transposition using **transpose** field in the **opt** argument. In that case, **transpose** will contain the (1-based) indices of the operand arguments you want to be transposed:  
+
+ - opt->transpose = 2 (transpose matrix **b**)
+
+By default, data in result vector will be overwritten. Anyway, if [PS_STORE_MODE_ADD](macros.md#ps-store-mode-add) is set as **store_mode** into **opts**, result will be added to data already present in the result vector.  
+
+
+#### RETURN VALUES
+
+1 if operation succeeds, 0 if it fails.
+
+#### SEE ALSO
+
+[PSMatrixProduct](functions.md#psmatrixproduct), [PSMatrixProductMV](functions.md#psmatrixproductmv)  
+
+
+
+### PSMatrixRandom
+
+In: maths.h, line: 148
+
+```c
+PSMatrix PSMatrixRandom (int ndims, ...)
+
+```
+
+
+
+
+### PSMatrixResetTransposed
+
+In: maths.h, line: 179
+
+```c
+void PSMatrixResetTransposed (PSMatrix matrix)
+
+```
+
+
+
+
+### PSMatrixReshape
+
+In: maths.h, line: 173
+
+```c
+PSMatrix PSMatrixReshape (PSMatrix matrix, int num_dims, ...)
+
+```
+
+
+
+
+### PSMatrixShapeType
+
+In: maths.h, line: 157
+
+```c
+int PSMatrixShapeType (PSMatrix matrix)
+
+```
+
+
+
+
+### PSMatrixSplit
+
+In: maths.h, line: 175
+
+```c
+PSMatrix  * PSMatrixSplit (PSMatrix matrix, int num_slices, int axis, PSMathOpts *opts)
+
+```
+
+
+
+
+### PSMatrixStride
+
+In: maths.h, line: 156
+
+```c
+int PSMatrixStride (PSMatrix matrix, int dim)
+
+```
+
+
+
+
+### PSMatrixSubtract
+
+In: maths.h, line: 171
+
+```c
+int PSMatrixSubtract (PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt)
+
+```
+
+
+
+
+### PSMatrixSwapAxes
+
+In: maths.h, line: 178
+
+```c
+PSMatrix PSMatrixSwapAxes (PSMatrix matrix, int axis1, int axis2)
+
+```
+
+
+
+
+### PSMatrixTranspose
+
+In: maths.h, line: 177
+
+```c
+PSMatrix PSMatrixTranspose (PSMatrix matrix, int rebuild, PSMathOpts *opts)
+
+```
+
+
+
+
+### PSMatrixWithGaussianRandom
+
+In: maths.h, line: 149
+
+```c
+PSMatrix PSMatrixWithGaussianRandom (PSFloat stddev, int ndims, ...)
+
+```
+
+
+
+
+### PSMatrixWrite
+
+In: maths.h, line: 160
+
+```c
+int PSMatrixWrite (PSMatrix matrix, const char *sep, char bracket, int indent, FILE *out)
+
+```
+
+
+
+
+### PSMatrixZeros
+
+In: maths.h, line: 147
+
+```c
+PSMatrix PSMatrixZeros (int ndims, ...)
+
+```
+
+
+
+
+### PSMean
+
+In: maths.h, line: 231
+
+```c
+PSFloat PSMean (PSFloat *a, uint64_t length, PSMathOpts *opts)
+
+```
+
+
+
+
+### PSModelBuild
+
+In: psyc.h, line: 374
+
+```c
+int PSModelBuild (PSModel *model)
+
+```
+
+
+
+Build **model** so that it can be used for training of for predictions.  
+If the model is already built, the function will just return 1. In order to rebuild an already built model, [PSModelRebuild](functions.md#psmodelrebuild) should be used.  
+The function will check the model's architecture and it will perfrom various actions on it:  
+
+ - It will allocate and initialize all needed internal data.
+ - It will set proper flags both on the model and the layers.
+ - It will determine and set the eventual recurrent mode ([PSRecurrentNetworkMode](types.md#psrecurrentnetworkmode)) depening on model's architecture.
+ - It will resolve eventual layer placeholders making them real layers.
+ - If the loss function (member **loss** of **model**) is **NULL**, it will automatically determine it:
+   - [PSCrossEntropyLoss](functions.md#pscrossentropyloss) will be used if the output layer is a SoftMax layer.
+   - PSQuadraticLoss in all the other cases.
+ - If **model** is part of a multi-model chain, it will check and update all the chain properties.
+
+#### RETURN VALUES
+
+1 is **model** is successfully built, 0 if:  
+
+ - **model** is **NULL**.
+ - **model** is empty (it contains no layers).
+ - There was some memory allocation issue.
+ - The structure of the **model** is not valid (ie. some layer is **NULL**)
+ - **model** contains one or more layer placeholders and the function failed to resolve one of them.
+ - **model** (or one of its layers) handles sequences-at-once but some of its layers is recurrent.
+ - **model** (or one of its layers) is recurrent but some of its layers uses sequences-at-once.
+ - **model** is recurrent but both the input layer and the output layer are not.
+ - **model** is part of a multi-model chain but the chain is broken or not valid.
+
+#### SEE ALSO
+
+[PSModelIsBuilt](functions.md#psmodelisbuilt), [PSModelRebuild](functions.md#psmodelrebuild)  
+
+
+
+### PSModelChainContains
+
+In: psyc.h, line: 382
+
+```c
+int PSModelChainContains (PSModel *chain, PSModel *model)
+
+```
+
+
+
+Check whether **model** is contained by the multi-model chain **chain**.  
+
+
+#### RETURN VALUES
+
+- 1 if **model** is contained by **chain** or **model** == **chain**
+ - 0 if **model** is not contained by **chain** or the chain is broken.
+
+#### SEE ALSO
+
+[PSGetModelAtIndex](functions.md#psgetmodelatindex), [PSModelChainLength](functions.md#psmodelchainlength), [PSModelChainHead](functions.md#psmodelchainhead), [PSModelChainTail](functions.md#psmodelchaintail), [PSAddModel](functions.md#psaddmodel)  
+
+
+
+### PSModelChainHead
+
+In: psyc.h, line: 380
+
+```c
+PSModel  * PSModelChainHead (PSModel *model)
+
+```
+
+
+
+Get the first model (head) of the multi-model chain that contains **model**.  
+If **model** is not a multi-model chain, the function will return the **model** itself.  
+
+
+#### RETURN VALUES
+
+The first model of the chain or **NULL** if:  
+
+ - **model** is **NULL**
+ - the chain is broken.
+
+#### SEE ALSO
+
+[PSGetModelAtIndex](functions.md#psgetmodelatindex), [PSModelChainLength](functions.md#psmodelchainlength), [PSModelChainTail](functions.md#psmodelchaintail), [PSModelChainContains](functions.md#psmodelchaincontains), [PSAddModel](functions.md#psaddmodel)  
+
+
+
+### PSModelChainLength
+
+In: psyc.h, line: 378
+
+```c
+int PSModelChainLength (PSModel *model)
+
+```
+
+
+
+Get the number of models in multi-model **model**.  
+
+
+#### RETURN VALUES
+
+The number of models or:  
+
+   - 0 if **model** is **NULL** or if the model chain is broken
+   - 1 if **model** is not a multi-model chain.
+
+#### SEE ALSO
+
+[PSGetModelAtIndex](functions.md#psgetmodelatindex), [PSModelChainHead](functions.md#psmodelchainhead), [PSModelChainTail](functions.md#psmodelchaintail), [PSModelChainContains](functions.md#psmodelchaincontains), [PSAddModel](functions.md#psaddmodel)  
+
+
+
+### PSModelChainTail
+
+In: psyc.h, line: 381
+
+```c
+PSModel  * PSModelChainTail (PSModel *model)
+
+```
+
+
+
+Get the last model (tail) of the multi-model chain that contains **model**.  
+If **model** is not a multi-model chain, the function will return the **model** itself.  
+
+
+#### RETURN VALUES
+
+The last model of the chain or **NULL** if:  
+
+ - **model** is **NULL**
+ - the chain is broken.
+
+#### SEE ALSO
+
+[PSGetModelAtIndex](functions.md#psgetmodelatindex), [PSModelChainLength](functions.md#psmodelchainlength), [PSModelChainHead](functions.md#psmodelchainhead), [PSModelChainContains](functions.md#psmodelchaincontains), [PSAddModel](functions.md#psaddmodel)  
+
+
+
+### PSModelCheck
+
+In: psyc.h, line: 376
+
+```c
+int PSModelCheck (PSModel *model)
+
+```
+
+
+
+
+### PSModelClone
+
+In: psyc.h, line: 367
+
+```c
+PSModel  * PSModelClone (PSModel *model, int layout_only)
+
+```
+
+
+
+
+### PSModelCreate
+
+In: psyc.h, line: 366
+
+```c
+PSModel  * PSModelCreate (const char* name)
+
+```
+
+
+
+Create a new, empty model. The optional argument **name** can be used to give a name to the model.  
+
+
+**NOTE**:  the model will duplicate the eventually provided **name** and it will keep it inside its internal data. The duplicated string will be automatically freed by freeing the whole model ([PSModelFree](functions.md#psmodelfree)).  
+
+#### RETURN VALUES
+
+Pointer to the created model or **NULL** if memory could not be allocated for it.
+
+
+### PSModelDumpDeltas
+
+In: psyc.h, line: 384
+
+```c
+int PSModelDumpDeltas (PSModel *model, const char* filename)
+
+```
+
+
+
+
+### PSModelDumpStates
+
+In: psyc.h, line: 383
+
+```c
+int PSModelDumpStates (PSModel *model, const char* filename)
+
+```
+
+
+
+
+### PSModelFree
+
+In: psyc.h, line: 385
+
+```c
+void PSModelFree (PSModel *model)
+
+```
+
+
+
+Free **model** and all its related objects (layers, data, ...). If the model is part of a multi-model chain, all models following **model** will also be freed.  
+The functions safely checks whether **model** is **NULL** and it does nothing in this case.
+
+
+### PSModelGetStatus
+
+In: psyc.h, line: 371
+
+```c
+int PSModelGetStatus (PSModel *model)
+
+```
+
+
+
+Get the value of **status** of **model**. If **model** is part of a multi-model chain, the function will retrieve the status of the first model of the chain.  
+Common status values are:  
+
+ - [PS_STATUS_UNTRAINED](macros.md#ps-status-untrained)
+ - [PS_STATUS_TRAINED](macros.md#ps-status-trained)
+ - [PS_STATUS_TRAINING](macros.md#ps-status-training)
+ - [PS_STATUS_VALIDATING](macros.md#ps-status-validating)
+ - [PS_STATUS_PAUSED](macros.md#ps-status-paused)
+ - [PS_STATUS_ABORTED](macros.md#ps-status-aborted)
+ - [PS_STATUS_ERROR](macros.md#ps-status-error)
+
+#### RETURN VALUES
+
+The status of **model** or 0 if **model** is **NULL**.
+
+#### SEE ALSO
+
+[PSModelSetStatus](functions.md#psmodelsetstatus)  
+
+
+
+### PSModelIsBuilt
+
+In: psyc.h, line: 373
+
+```c
+int PSModelIsBuilt (PSModel *model)
+
+```
+
+
+
+Check whether **model** is built (see: [PSModelBuild](functions.md#psmodelbuild)).  
+
+
+#### RETURN VALUES
+
+1 if the model is built, 0 if it's not built.
+
+#### SEE ALSO
+
+[PSModelBuild](functions.md#psmodelbuild), [PSModelRebuild](functions.md#psmodelrebuild)  
+
+
+
+### PSModelLoad
+
+In: psyc.h, line: 368
+
+```c
+int PSModelLoad (PSModel *model, const char* filepath)
+
+```
+
+
+
+Load model data (including layers and their parameters) from file located at **filepath** into **model**.  
+This function requires an already existing model. In order to load a new model from scratch from, [PSLoadModel](functions.md#psloadmodel) should be used instead.  
+If **model** is empty (it has no layers), both the model structure and data such as layer parameters will be loaded into the model itself).  
+If **model** is not empty (it already has layers), only data such as layer parameters will be loaded into model. In this case, the structure of **model** must match the structure declared by the file.  
+If the file defines a multi-model chain, the whole chain will be loaded ( in this case, if **model** is not empty, the **model** chain structure must match the structure that has to be loaded from the file).  
+
+
+#### RETURN VALUES
+
+1 if **model** is successfully loaded, 0 if:  
+
+ - **model** is **NULL** or **filepath** is **NULL**.
+ - The file at **filepath** could not be opened for reading.
+ - The file at **filepath** is not a valid PsyC model file.
+ - PsyC version is lower than version declared in the file.
+ - **model** is not empty and its structure differs from the one declared by the file (ie. different number of layers or models, different layer types, and so on).
+ - Some error occurred while reading data from file.
+
+#### SEE ALSO
+
+[PSModelSave](functions.md#psmodelsave), [PSLoadModel](functions.md#psloadmodel)  
+
+
+
+### PSModelPrintInfo
+
+In: psyc.h, line: 377
+
+```c
+void PSModelPrintInfo (PSModel *model)
+
+```
+
+
+
+
+### PSModelRebuild
+
+In: psyc.h, line: 375
+
+```c
+int PSModelRebuild (PSModel *model)
+
+```
+
+
+
+Rebuild an already built **model** by resetting its **built** state and calling [PSModelBuild](functions.md#psmodelbuild). If **model** is not built, calling this function is the same as directly calling [PSModelBuild](functions.md#psmodelbuild).  
+
+
+#### RETURN VALUES
+
+See [PSModelBuild](functions.md#psmodelbuild).
+
+#### SEE ALSO
+
+[PSModelBuild](functions.md#psmodelbuild), [PSModelIsBuilt](functions.md#psmodelisbuilt)  
+
+
+
+### PSModelSave
+
+In: psyc.h, line: 369
+
+```c
+int PSModelSave (PSModel *model, const char* filepath)
+
+```
+
+
+
+Save **model** to file located at **filepath**. The function will save both model's structure (ie layer propeties) and data (ie. parameters).  
+If **model** is part of a multi-model chain, the whole chain will be saved.  
+
+
+#### RETURN VALUES
+
+1 if **model** is successfully saved, 0 if:  
+
+ - **model** is **NULL** or **filepath** is **NULL**.
+ - **model** is empty (it has no layers).
+ - The file at **filepath** could not be opened for writing.
+ - Some error occurred while writing data to file.
+
+#### SEE ALSO
+
+[PSModelLoad](functions.md#psmodelload), [PSLoadModel](functions.md#psloadmodel)  
+
+
+
+### PSModelSetName
+
+In: psyc.h, line: 370
+
+```c
+int PSModelSetName (PSModel *model, char *name)
+
+```
+
+
+
+Set the name of **model** with the string provided with the argument **name**.  
+If **name** is **NULL** and **model** already has a name, model's **name** will be cleared.  
+
+
+**NOTE**:  the model will duplicate the provided **name** and it will keep it inside its internal data. The duplicated string will be automatically freed by freeing the whole model ([PSModelFree](functions.md#psmodelfree)). If **model** already has a name, the original name will be automatically freed.  
+
+#### RETURN VALUES
+
+1 is name is successfully set or 0 if:  
+
+ - **model** is **NULL**.
+ - memory cannot be allocated.
+
+
+### PSModelSetStatus
+
+In: psyc.h, line: 372
+
+```c
+void PSModelSetStatus (PSModel *model, int status, int *old)
+
+```
+
+
+
+Set **status** as the status of **model**. The optional argument **old** can be used to retrieve the old status of **model** before updating it with the value of **status**.  
+If **model** is part of a multi-model chain, hte new status will be set on all the models that are part of the model chain.  
+Common used status values are:  
+
+ - [PS_STATUS_UNTRAINED](macros.md#ps-status-untrained)
+ - [PS_STATUS_TRAINED](macros.md#ps-status-trained)
+ - [PS_STATUS_TRAINING](macros.md#ps-status-training)
+ - [PS_STATUS_VALIDATING](macros.md#ps-status-validating)
+ - [PS_STATUS_PAUSED](macros.md#ps-status-paused)
+ - [PS_STATUS_ABORTED](macros.md#ps-status-aborted)
+ - [PS_STATUS_ERROR](macros.md#ps-status-error)
+
+#### SEE ALSO
+
+[PSModelGetStatus](functions.md#psmodelgetstatus)  
+
+
+
+### PSMultiplyVectors
+
+In: maths.h, line: 193
+
+```c
+PSFloat  * PSMultiplyVectors (PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+
+```
+
+
+
+
+### PSMultiplyVectorScalar
+
+In: maths.h, line: 197
+
+```c
+PSFloat  * PSMultiplyVectorScalar (PSFloat *a, PSFloat b, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+
+```
+
+
+
+
+### PSNesterovOptimization
+
+In: optimization.h, line: 37
+
+```c
+int PSNesterovOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, uint64_t len, int acceleration, int iteration, struct PSTrainingOptions *options)
+
+```
+
+
+
+
+### PSNormalizedRandom
+
+In: maths.h, line: 122
+
+```c
+PSFloat PSNormalizedRandom (void)
+
+```
+
+
+
+
+### PSNormalizeToken
+
+In: dataset.h, line: 125
+
+```c
+char  * PSNormalizeToken (char *token, int len)
+
+```
+
+
+
+
+### PSNotice
+
+In: log.h, line: 124
+
+```c
+void PSNotice (const char *format, ...)
+
+```
+
+
+
+
+### PSOuterProduct
+
+In: maths.h, line: 246
+
+```c
+int PSOuterProduct (PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t alen, uint64_t blen, PSMathOpts *opts)
+
+```
+
+
+
+Multiply every element of vector **a** (having **alen** length) by every element of vector **b** (having **blen** length) and store results into vector **dest** (whose length must be **alen** * **blen**).
+
+
+### PSPathJoin
+
+In: utils.h, line: 128
+
+```c
+char  * PSPathJoin (int count, ...)
+
+```
+
+
+
+Joins multiple file path components into a single path string.  
+Argument **count** is used to specify how many components will be consumed.  
+Path components must be passed as variadic arguments.  
+
+
+#### RETURN VALUES
+
+String containing the joined path or **NULL** if something goes               wrong. Returned string is allocated into heap, so it's up               to the developer to free it as soon as it is no longer needed.
+
+
+### PSPauseTraining
+
+In: psyc.h, line: 443
+
+```c
+void PSPauseTraining (PSModel *model)
+
+```
+
+
+
+
+### PSPrintableLength
+
+In: utils.h, line: 133
+
+```c
+int PSPrintableLength (const char *s)
+
+```
+
+
+
+
+### PSPrintSameLine
+
+In: log.h, line: 136
+
+```c
+void PSPrintSameLine (char *format, ...)
+
+```
+
+
+
+
+### PSProgressBar
+
+In: log.h, line: 137
+
+```c
+int PSProgressBar (int num, int tot, int style, int color, int flags, int maxlen, char *label)
+
+```
+
+
+
+
+### PSQuadraticLoss
+
+In: psyc.h, line: 457
+
+```c
+PSFloat PSQuadraticLoss (PSFloat *x, PSFloat *y, int size, int onehot_size)
+
+```
+
+
+
+
+### PSRandomInt
+
+In: maths.h, line: 124
+
+```c
+unsigned int PSRandomInt (unsigned int range, PSFloat *weights, int *err, PSMathOpts *opts)
+
+```
+
+
+
+
+### PSRelu
+
+In: activation.h, line: 45
+
+```c
+void PSRelu (PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts)
+
+```
+
+
+
+ReLU (Rectified Linear Unit) activation function for vectors.  
+ReLU is computed on vector **vec** of length **len** and stored into vector **dest**.  
+If **dest** is **NULL**, results will be stored into **vec** itself.  
+The **opts** argument can be used to change default acceleration used to compute results (see [PSMathOpts](types.md#psmathopts)).  
+For info about ReLU:  
+  [https://en.wikipedia.org/wiki/Rectifier_(neural_networks](https://en.wikipedia.org/wiki/Rectifier_(neural_networks))  
+  
+The equivalent function to be used with scalars is [PSReluS](functions.md#psrelus).  
+The derivative of this function is [PSReluDerivative](functions.md#psreluderivative).
+
+
+### PSReluDerivative
+
+In: activation.h, line: 51
+
+```c
+void PSReluDerivative (PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts)
+
+```
+
+
+
+Computes the derivative of ReLU activation function ([PSRelu](functions.md#psrelu)) for vectors.  
+The derivative is computed on vector **vec** of length **len** and stored into vector **dest**.  
+If **dest** is **NULL**, results will be stored into **vec** itself.  
+The **opts** argument can be used to change default acceleration used to compute results (see [PSMathOpts](types.md#psmathopts)).  
+The equivalent function to be used with scalars is [PSReluDerivativeS](functions.md#psreluderivatives).
+
+
+### PSReluDerivativeS
+
+In: activation.h, line: 38
+
+```c
+PSFloat PSReluDerivativeS (PSFloat val)
+
+```
+
+
+
+Computes derivative for ReLU activation function ([PSReluS](functions.md#psrelus)). This function applies to scalar values, so it takes the scalar **val** as argument and returns a **PFloat** scalar.  
+The equivalent function to be used with vectors/matrices is [PSReluDerivative](functions.md#psreluderivative).  
+
+
+#### RETURN VALUES
+
+ReLU derivative scalar result.
+
+
+### PSReluS
+
+In: activation.h, line: 35
+
+```c
+PSFloat PSReluS (PSFloat val)
+
+```
+
+
+
+ReLU (Rectified Linear Unit) activation function for scalars.  
+It takes the scalar **val** as argument and returns a **PFloat** scalar.  
+For info about ReLU:  
+  [https://en.wikipedia.org/wiki/Rectifier_(neural_networks](https://en.wikipedia.org/wiki/Rectifier_(neural_networks))  
+The equivalent function to be used with vectors/matrices is [PSRelu](functions.md#psrelu).  
+The derivative of this function is [PSReluDerivativeS](functions.md#psreluderivatives).  
+
+
+#### RETURN VALUES
+
+ReLU scalar result.
+
+
+### PSResetDebugInfo
+
+In: debug.h, line: 104
+
+```c
+void PSResetDebugInfo (void)
+
+```
+
+
+
+
+### PSResetLayerStateSequence
+
+In: psyc.h, line: 406
+
+```c
+int PSResetLayerStateSequence (PSLayer *layer, uint32_t steps, int retain_previous)
+
+```
+
+
+
+
+### PSResetModelStateSequences
+
+In: psyc.h, line: 408
+
+```c
+int PSResetModelStateSequences (PSModel *model, uint32_t steps, int retain_previous)
+
+```
+
+
+
+
+### PSResetTransposedWeights
+
+In: psyc.h, line: 386
+
+```c
+void PSResetTransposedWeights (PSModel *model)
+
+```
+
+
+
+
+### PSRMSPropOptimization
+
+In: optimization.h, line: 61
+
+```c
+int PSRMSPropOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, uint64_t len, int acceleration, int iteration, struct PSTrainingOptions *options)
+
+```
+
+
+
+
+### PSSaveDataToFile
+
+In: dataset.h, line: 138
+
+```c
+int PSSaveDataToFile (const char *path, PSFloat *data, uint64_t len, int opts)
+
+```
+
+
+
+Save dataset **data** to the file located at **path**. The dataset must be an array of PSFloat elements whose length (number of elements) defined by argument **len**.  
+By default, the dataset is saved as a comma-separated list of its values written as string representations of floating point numbers.  
+The datasets itself is prefixed with its length written as a string representation of a decimal number followed by a colon separator caharcter (':').  
+Example: 3:1.25,2,-0.15 (dataset of three elements 1.25, 2.0 and -0.15) If flag [PS_IO_BINARY_MODE](macros.md#ps-io-binary-mode) is set into **opts**, the dataset will be saved in binary format.  
+
+
+#### RETURN VALUES
+
+1 if datasets is successfully saved, 0 in case of failure.  
+Possible failure reasons:  
+
+ - Mandatory arguments **path** or **data** are **NULL**.
+ - File at **path** cannot be opened for writing.
+ - Some error occurs while writing to the file.
+
+
+### PSSetAttentionQueryProvider
+
+In: attention.h, line: 51
+
+```c
+int PSSetAttentionQueryProvider (PSLayer *layer, PSLayer *provider)
+
+```
+
+
+
+
+### PSSetDefaultTrainingOptions
+
+In: psyc.h, line: 450
+
+```c
+void PSSetDefaultTrainingOptions (PSTrainingOptions *options)
+
+```
+
+
+
+
+### PSSetDropout
+
+In: dropout.h, line: 25
+
+```c
+void PSSetDropout (PSLayer *dropout_layer, PSFloat dropout)
+
+```
+
+
+
+
+### PSSetNeuronState
+
+In: psyc.h, line: 422
+
+```c
+int PSSetNeuronState (PSNeuron *neuron, double state, ...)
+
+```
+
+
+
+
+### PSSetRecurrentNetworkMode
+
+In: psyc.h, line: 451
+
+```c
+int PSSetRecurrentNetworkMode (PSModel *model, PSRecurrentNetworkMode mode)
+
+```
+
+
+
+
+### PSSetState
+
+In: psyc.h, line: 413
+
+```c
+int PSSetState (PSLayer *layer, PSFloat state, int index, ...)
+
+```
+
+
+
+
+### PSSigmoid
+
+In: activation.h, line: 42
+
+```c
+void PSSigmoid (PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts)
+
+```
+
+
+
+Sigmoid activation function for vectors. Sigmoid is computed on vector **vec** of length **len** and stored into vector **dest**. If **dest** is **NULL**, results will be stored into **vec** itself.  
+The **opts** argument can be used to change default acceleration used to compute results (see [PSMathOpts](types.md#psmathopts)).  
+For info about sigmoid:  
+  [https://en.wikipedia.org/wiki/Sigmoid_function](https://en.wikipedia.org/wiki/Sigmoid_function)  
+The equivalent function to be used with scalars is [PSSigmoidS](functions.md#pssigmoids).  
+The derivative of this function is [PSSigmoidDerivative](functions.md#pssigmoidderivative).
+
+
+### PSSigmoidDerivative
+
+In: activation.h, line: 47
+
+```c
+void PSSigmoidDerivative (PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts)
+
+```
+
+
+
+Computes the derivative of sigmoid activation function ([PSSigmoid](functions.md#pssigmoid)) for vectors. The sigmoid derivative is computed on vector **vec** of length **len** and stored into vector **dest**. If **dest** is **NULL**, results will be stored into **vec** itself.  
+The **opts** argument can be used to change default acceleration used to compute results (see [PSMathOpts](types.md#psmathopts)).  
+The equivalent function to be used with scalars is [PSSigmoidDerivativeS](functions.md#pssigmoidderivatives).
+
+
+### PSSigmoidDerivativeS
+
+In: activation.h, line: 37
+
+```c
+PSFloat PSSigmoidDerivativeS (PSFloat val)
+
+```
+
+
+
+Computes derivative for sigmoid activation function ([PSSigmoidS](functions.md#pssigmoids)).  
+This function applies to scalar values, so it takes the scalar **val** as argument and returns a **PFloat** scalar.  
+The equivalent function to be used with vectors/matrices is [PSSigmoidDerivative](functions.md#pssigmoidderivative).  
+
+
+#### RETURN VALUES
+
+ReLU derivative scalar result.
+
+
+### PSSigmoidS
+
+In: activation.h, line: 34
+
+```c
+PSFloat PSSigmoidS (PSFloat val)
+
+```
+
+
+
+Sigmoid activation function for scalars. It takes the scalar **val** as argument and returns a **PFloat** scalar.  
+For info about sigmoid:  
+  [https://en.wikipedia.org/wiki/Sigmoid_function](https://en.wikipedia.org/wiki/Sigmoid_function)  
+The equivalent function to be used with vectors/matrices is [PSSigmoid](functions.md#pssigmoid).  
+The derivative of this function is [PSSigmoidDerivativeS](functions.md#pssigmoidderivatives).  
+
+
+#### RETURN VALUES
+
+Sigmoid scalar result.
+
+
+### PSSoftmax
+
+In: activation.h, line: 55
+
+```c
+void PSSoftmax (PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts)
+
+```
+
+
+
+Computes Softmax function on vector **vec** of length **len**. Result is stored into vector **dest**. If **dest** is **NULL**, result will be stored into **vec** itself.  
+The **opts** argument can be used to change default acceleration used to compute results (see [PSMathOpts](types.md#psmathopts)).  
+The Softmax function can be used to get the probability distribution from a series of numbers.  
+For more info about Softmax:  
+    [https://en.wikipedia.org/wiki/Softmax_function](https://en.wikipedia.org/wiki/Softmax_function)
+
+
+### PSStateSequenceLength
+
+In: psyc.h, line: 414
+
+```c
+int PSStateSequenceLength (PSLayer *layer)
+
+```
+
+
+
+
+### PSStdDev
+
+In: maths.h, line: 233
+
+```c
+PSFloat PSStdDev (PSFloat *a, uint64_t len, PSMathOpts *opts)
+
+```
+
+
+
+
+### PSStringJoin
+
+In: utils.h, line: 132
+
+```c
+char  * PSStringJoin (char ** strings, char *sep, int len)
+
+```
+
+
+
+Strings
+
+
+### PSSubtractScalarVector
+
+In: maths.h, line: 203
+
+```c
+PSFloat  * PSSubtractScalarVector (PSFloat b, PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+
+```
+
+
+
+
+### PSSubtractVectors
+
+In: maths.h, line: 191
+
+```c
+PSFloat  * PSSubtractVectors (PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+
+```
+
+
+
+
+### PSSubtractVectorScalar
+
+In: maths.h, line: 201
+
+```c
+PSFloat  * PSSubtractVectorScalar (PSFloat *a, PSFloat b, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+
+```
+
+
+
+
+### PSTanhActivation
+
+In: activation.h, line: 43
+
+```c
+void PSTanhActivation (PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts)
+
+```
+
+
+
+Tanh (hyperbolic tangent) activation function for vectors. Hyperbolic tangent is computed on vector **vec** of length **len** and stored into vector **dest**.  
+If **dest** is **NULL**, results will be stored into **vec** itself.  
+The **opts** argument can be used to change default acceleration used to compute results (see [PSMathOpts](types.md#psmathopts)).  
+The derivative of this function is [PSTanhDerivative](functions.md#pstanhderivative).
+
+
+### PSTanhDerivative
+
+In: activation.h, line: 49
+
+```c
+void PSTanhDerivative (PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts)
+
+```
+
+
+
+Computes the derivative of tanh (hyperbolic tangent) activation function ([PSTanhActivation](functions.md#pstanhactivation)) for vectors. The derivative is computed on vector **vec** of length **len** and stored into vector **dest**.  
+If **dest** is **NULL**, results will be stored into **vec** itself.  
+The **opts** argument can be used to change default acceleration used to compute results (see [PSMathOpts](types.md#psmathopts)).  
+The equivalent function to be used with scalars is [PSTanhDerivativeS](functions.md#pstanhderivatives).
+
+
+### PSTanhDerivativeS
+
+In: activation.h, line: 40
+
+```c
+PSFloat PSTanhDerivativeS (PSFloat val)
+
+```
+
+
+
+
+### PSTest
+
+In: psyc.h, line: 445
+
+```c
+float PSTest (PSModel *model, PSFloat *test_data, int data_size, PSTrainingOptions *options)
+
+```
+
+
+
+
+### PSTrain
+
+In: psyc.h, line: 437
+
+```c
+void PSTrain (PSModel *model, PSFloat *training_data, int data_size, PSFloat *test_data, int test_size, PSTrainingOptions *options)
+
+```
+
+
+
+Train **model** over **training_data**. Training epochs, batch size, optimization, and other optimizer settings are defined into optional **options**.  
+#### ARGUMENTS  
+
+ - **model**: The neural model to be trained (mandatory)
+ - **training_data**: an array of [PSFloat](types.md#psfloat) containing the tarining dataset    (ie. inputs, expected predictions)
+ - **data_size**: length of **training_data** array.
+ - **test_data**: optional dataset that can be used for testing purpose
+ - **test_size**: length of **test_data** array.
+ - **options**: optional training options (see [PSTrainingOptions](types.md#pstrainingoptions)). If **NULL**, the training process will use default options.
+
+Training/test data layout:  
+
+ - For normal feedforward models, the array must contain alternating inputs/predictions pairs, one pair for each element to be trained. So, each training/test element pair must contain:     - Input values, having the same length of the model's input layer
+     - Prediction values, having the same length of the model's output layer. If output layer has the [PS_FLAG_ONEHOT](macros.md#ps-flag-onehot) flag, predictions length muse be 1, and it must contain the index of the expected maximum state.   Total number of traing elements is given by:     array size / (input_size + output_size)
+ - For recurrent model or models using sequences, layout can have different forms. Regardless of that, first element of the array must contain the total number of training/test elements. For each training/test sequence, the sequence length must be specified. Different forms can be:
+   - Many-to-many: the default mode for recurrent models that produce sequences having the same length of the input sequence. In this case, the first element of the sequence segment is the sequence length, followed by inputs/predictions pair.
+
+If some error occurs, [PS_STATUS_ERROR](macros.md#ps-status-error) will be set on **model** and the function will immediately exit.  
+If **model** is not built, the function will automatically try to build it by calling [PSModelBuild](functions.md#psmodelbuild).  
+Possible failure reasons:  
+
+ - **model** is **NULL**
+ - **model** is not built and it cannot be build.
+ - The learning rate is negative.
+ - **model** is part of a multi-model chain but the chain is broken or invalid.
+ - [PS_TRAINING_FLAG_SEQ2SEQ](macros.md#ps-training-flag-seq2seq) is set into flags of **options** but the model's architecture is not valid for sequence-to-sequence mode (ie. the model does not use sequences at all).
+
+
+### PSTrainingDebugDump
+
+In: debug.h, line: 84
+
+```c
+void PSTrainingDebugDump (PSModel *model, char *fmt, ...)
+
+```
+
+
+
+
+### PSTrainingDebugDumpGradient
+
+In: debug.h, line: 94
+
+```c
+void PSTrainingDebugDumpGradient (PSModel *model, int phase, const char *func, PSLayer *layer, int gradient_idx, int weight_size, int weight_idx, int is_avx, int avx_len)
+
+```
+
+
+
+
+### PSTrainingDebugDumpHeader
+
+In: debug.h, line: 87
+
+```c
+void PSTrainingDebugDumpHeader (PSModel *model, int data_size, int test_size, int epochs, PSFloat learning_rate, int batch_size)
+
+```
+
+
+
+
+### PSTrainingDebugDumpStep
+
+In: debug.h, line: 85
+
+```c
+void PSTrainingDebugDumpStep (PSDebugStepInfo *info, char *format, ...)
+
+```
+
+
+
+
+### PSTrainingProgressBar
+
+In: psyc.h, line: 461
+
+```c
+void PSTrainingProgressBar (PSModel *model, int status, int epochs, int batches, PSFloat *loss, PSFloat *accuracy, time_t *elapsed, int validating_current, int validating_tot)
+
+```
+
+
+
+
+### PSUTF8CodepointSize
+
+In: utf8.h, line: 32
+
+```c
+int PSUTF8CodepointSize (uint32_t cp)
+
+```
+
+
+
+
+### PSUTF8Decode
+
+In: utf8.h, line: 36
+
+```c
+uint32_t PSUTF8Decode (PSUTF8Char c)
+
+```
+
+
+
+from UTF-8 encoding to Unicode Codepoint
+
+
+### PSUTF8Encode
+
+In: utf8.h, line: 37
+
+```c
+PSUTF8Char PSUTF8Encode (uint32_t codepoint)
+
+```
+
+
+
+From Unicode Codepoint to UTF-8 encoding
+
+
+### PSUTF8IsAlpha
+
+In: utf8.h, line: 41
+
+```c
+int PSUTF8IsAlpha (PSUTF8Char uc)
+
+```
+
+
+
+
+### PSUTF8IsAlphaNum
+
+In: utf8.h, line: 44
+
+```c
+int PSUTF8IsAlphaNum (PSUTF8Char uc)
+
+```
+
+
+
+
+### PSUTF8IsDigit
+
+In: utf8.h, line: 40
+
+```c
+int PSUTF8IsDigit (PSUTF8Char uc)
+
+```
+
+
+
+
+### PSUTF8IsLower
+
+In: utf8.h, line: 43
+
+```c
+int PSUTF8IsLower (PSUTF8Char uc)
+
+```
+
+
+
+
+### PSUTF8IsPunct
+
+In: utf8.h, line: 39
+
+```c
+int PSUTF8IsPunct (PSUTF8Char uc)
+
+```
+
+
+
+
+### PSUTF8IsSpace
+
+In: utf8.h, line: 38
+
+```c
+int PSUTF8IsSpace (PSUTF8Char uc)
+
+```
+
+
+
+
+### PSUTF8IsUpper
+
+In: utf8.h, line: 42
+
+```c
+int PSUTF8IsUpper (PSUTF8Char uc)
+
+```
+
+
+
+
+### PSUTF8IsValidChar
+
+In: utf8.h, line: 34
+
+```c
+int PSUTF8IsValidChar (PSUTF8Char c)
+
+```
+
+
+
+
+### PSUTF8Next
+
+In: utf8.h, line: 35
+
+```c
+int PSUTF8Next (char *txt, PSUTF8Char *ch)
+
+```
+
+
+
+
+### PSUTF8StrLen
+
+In: utf8.h, line: 31
+
+```c
+int PSUTF8StrLen (const char *s)
+
+```
+
+
+
+
+### PSUTF8StrNCpy
+
+In: utf8.h, line: 33
+
+```c
+char  * PSUTF8StrNCpy (char *dest, const char *src, size_t n)
+
+```
+
+
+
+
+### PSUTF8ToLower
+
+In: utf8.h, line: 46
+
+```c
+PSUTF8Char PSUTF8ToLower (PSUTF8Char uc)
+
+```
+
+
+
+
+### PSUTF8ToUpper
+
+In: utf8.h, line: 45
+
+```c
+PSUTF8Char PSUTF8ToUpper (PSUTF8Char uc)
+
+```
+
+
+
+
+### PSVariance
+
+In: maths.h, line: 232
+
+```c
+PSFloat PSVariance (PSFloat *a, uint64_t len, PSMathOpts *opts)
+
+```
+
+
+
+
+### PSVectorAbs
+
+In: maths.h, line: 217
+
+```c
+PSFloat  * PSVectorAbs (PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+
+```
+
+
+
+
+### PSVectorClip
+
+In: maths.h, line: 219
+
+```c
+PSFloat  * PSVectorClip (PSFloat *a, PSFloat min, PSFloat max, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+
+```
+
+
+
+
+### PSVectorConvertToMatrix
+
+In: maths.h, line: 257
+
+```c
+PSMatrix PSVectorConvertToMatrix (PSFloat *vec, uint64_t len, int ndims, int *shape)
+
+```
+
+
+
+Convert the vector **vec** of length **len** to a [PSMatrix](types.md#psmatrix). This function differs from [PSMatrixFromArray](functions.md#psmatrixfromarray) since it reallocates the vector in order to make room for the matrix header that will contain matrix's properties.  
+So the vector is reallocated and its memory is moved by the size of the matrix header.  
+It's possible to specify the matrix's shape by using the **ndims** argument and the **shape** argument:  
+
+ - **ndims**: number of dimensions (axes) of the matrix shape.
+ - **shape**: the shape itself.
+
+If **shape** is **NULL** or **ndims** is zero, the function will use a default shape of {**len**} (if **ndims** is 0 or 1) or {1, **len**} (if **ndims** is 2).  
+The function will fail if **shape** is **NULL** and **ndims** is greater than 2.  
+
+
+**WARN**:  if the function succeeds, it's not possible to use the source vector **vec** anymore, since its data have been moved in memory and the original address could have been reallocated.  
+
+
+
+**WARN**:  the vector **vec** must be an array of [PSFloat](types.md#psfloat) that was previously allocated (ie. by using [PSVectorCreate](macros.md#psvectorcreate), [PSVectorDup](functions.md#psvectordup), **malloc**, **calloc** or **realloc**). Using global/static arrays or arrays from the stack frame will lead to memory corruption.  
+
+#### RETURN VALUES
+
+The matrix or **NULL** if the function fails.  
+Possible failure reasons:  
+
+ - **vec** is **NULL**.
+ - **len** is zero.
+ - **ndims** is greater than [PS_MATRIX_MAX_DIMENSIONS](macros.md#ps-matrix-max-dimensions).
+ - **shape** is **NULL** but **ndims** is greater than 2.
+ - **len** mismatches **shape** (**len** must equals the product of shape axes).
+ - Memory allocation failure
+
+#### SEE ALSO
+
+[PSMatrixFromArray](functions.md#psmatrixfromarray)  
+
+
+
+### PSVectorDup
+
+In: maths.h, line: 252
+
+```c
+PSFloat  * PSVectorDup (PSFloat *src, size_t length)
+
+```
+
+
+
+
+### PSVectorEquals
+
+In: maths.h, line: 255
+
+```c
+int PSVectorEquals (PSFloat *a, PSFloat *b, uint64_t length, int precision, uint64_t *index)
+
+```
+
+
+
+Compare two vectors **a** and **b** having **length** length. Use **precision** to set precision tolerance. Lower precision leads to higher tolerance.  
+By setting **precision** to zero, the two vectors must be perfectly equal (no precision tolerance at all).  
+Use **index** pointer if you need to know the index of the first non-equal elements.  
+
+
+#### RETURN VALUES
+
+1 if **a** and **b** equal, 0 if they differ at some point.
+
+
+### PSVectorExp
+
+In: maths.h, line: 213
+
+```c
+PSFloat  * PSVectorExp (PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+
+```
+
+
+
+
+### PSVectorFill
+
+In: maths.h, line: 236
+
+```c
+void PSVectorFill (PSFloat *vec, PSFloat val, uint64_t len, PSMathOpts *opts)
+
+```
+
+
+
+
+### PSVectorMapWithLimit
+
+In: maths.h, line: 223
+
+```c
+PSFloat  * PSVectorMapWithLimit (PSFloat *a, PSFloat limit, PSFloat mapper, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+
+```
+
+
+
+
+### PSVectorMax
+
+In: maths.h, line: 227
+
+```c
+PSFloat PSVectorMax (PSFloat *a, uint64_t *index, uint64_t length, PSMathOpts *opts)
+
+```
+
+
+
+
+### PSVectorNeg
+
+In: maths.h, line: 215
+
+```c
+PSFloat  * PSVectorNeg (PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+
+```
+
+
+
+
+### PSVectorPower
+
+In: maths.h, line: 225
+
+```c
+PSFloat  * PSVectorPower (PSFloat *a, PSFloat exp, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+
+```
+
+
+
+
+### PSVectorPrint
+
+In: maths.h, line: 238
+
+```c
+void PSVectorPrint (PSFloat *vec, uint64_t len, char* sep)
+
+```
+
+
+
+
+### PSVectorRandom
+
+In: maths.h, line: 253
+
+```c
+PSFloat  * PSVectorRandom (size_t len)
+
+```
+
+
+
+
+### PSVectorReduceSum
+
+In: maths.h, line: 229
+
+```c
+PSFloat PSVectorReduceSum (PSFloat *a, uint64_t length, PSMathOpts *opts)
+
+```
+
+
+
+
+### PSVectorSplit
+
+In: maths.h, line: 251
+
+```c
+PSFloat  ** PSVectorSplit (PSFloat *vec, int len, int num_slices)
+
+```
+
+
+
+
+### PSVectorSqrt
+
+In: maths.h, line: 211
+
+```c
+PSFloat  * PSVectorSqrt (PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+
+```
+
+
+
+
+### PSVectorTanh
+
+In: maths.h, line: 209
+
+```c
+PSFloat  * PSVectorTanh (PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+
+```
+
+
+
+
+### PSVectorThreshold
+
+In: maths.h, line: 221
+
+```c
+PSFloat  * PSVectorThreshold (PSFloat *a, PSFloat min, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+
+```
+
+
+
+
+### PSVectorTranspose
+
+In: maths.h, line: 239
+
+```c
+PSFloat  * PSVectorTranspose (PSFloat *vec, PSFloat *dest, int acceleration, int ndims, ...)
+
+```
+
+
+
+Create a transposed version of **vec**, considering it a matrix with a shape of **ndims** dimensions.  
+Use variadic arguments to set up-to 3 dimensions in the shape, (ie rows, columns for 2-D array).  
+If **dest** is not **NULL**, transposed vector will be stored into it.  
+
+
+#### RETURN VALUES
+
+The transposed array, with size of dim1*dim12*dim3, or **NULL** if something goes wrong. If **dest** is not **NULL**, return value will be **dest** or **NULL** if something goes wrong.  
+NOTES:  
+
+- Variadic dimensions refer to original matrix shape, and not to the resulting transposed matrix.
+
+- If you need to transpose a [PSMatrix](types.md#psmatrix), use [PSMatrixTranspose](functions.md#psmatrixtranspose) instead.
+
+
+### PSVectorWrite
+
+In: maths.h, line: 237
+
+```c
+void PSVectorWrite (PSFloat *vec, uint64_t len, char* sep, FILE *f)
+
+```
+
+
+
+
+### PSVLineAppend
+
+In: log.h, line: 141
+
+```c
+int PSVLineAppend (int opts, char *format, va_list args)
+
+```
+
+
+
+
+### PSVLog
+
+In: log.h, line: 121
+
+```c
+void PSVLog (int level, const char *format, va_list args)
+
+```
+
+
+
+
+### PSVocabularyAdd
+
+In: dataset.h, line: 119
+
+```c
+int64_t PSVocabularyAdd (PSVocabulary *vocabulary, char *token)
+
+```
+
+
+
+Add token **token** to **vocabulary**. The token is added to the internal dictionary of **vocabulary** and a numeric index (ID) is assigned to it.  
+The index is a progressive number. If the token already exists, the internal dictionary won't be updated and the token's numeric value (id) is immediately returned.  
+
+
+#### RETURN VALUES
+
+The numeric index (ID) of the token. If token could not be added to the dictionary or **token** is **NULL**, the function will return [PS_INVALID_TOKEN_ID](macros.md#ps-invalid-token-id).
+
+
+### PSVocabularyCreate
+
+In: dataset.h, line: 118
+
+```c
+PSVocabulary  * PSVocabularyCreate (int64_t initial_capacity)
+
+```
+
+
+
+Create a [PSVocabulary](types.md#psvocabulary) with initial capacity of **initial_capacity**.  
+
+
+#### RETURN VALUES
+
+The vocabulary or **NULL** if memory cannot be allocated.
+
+
+### PSVocabularyErrorString
+
+In: dataset.h, line: 122
+
+```c
+const char  * PSVocabularyErrorString (int err)
+
+```
+
+
+
+
+### PSVocabularyFree
+
+In: dataset.h, line: 123
+
+```c
+void PSVocabularyFree (PSVocabulary *vocabulary)
+
+```
+
+
+
+
+### PSVocabularyGetTokenByID
+
+In: dataset.h, line: 121
+
+```c
+const char  * PSVocabularyGetTokenByID (PSVocabulary *vocabulary, int64_t id)
+
+```
+
+
+
+Get the token associated with **id** from **vocabulary**.  
+
+
+#### RETURN VALUES
+
+The token associated with **id** or **NULL** if no **token** is found with **id**. Also return **NULL** if **vocabulary** is **NULL**.
+
+
+### PSVocabularyGetTokenID
+
+In: dataset.h, line: 120
+
+```c
+int64_t PSVocabularyGetTokenID (PSVocabulary *vocabulary, char *token)
+
+```
+
+
+
+Get the ID the token **token** from vocabulary **vocabulary**.  
+
+
+#### RETURN VALUES
+
+The numeric index (ID) of the token. If token is not found into **vocabulary**, the function will return [PS_TOKEN_NOT_FOUND](macros.md#ps-token-not-found).  
+If **vocabulary** is **NULL** or **token** is **NULL**, the function will return [PS_INVALID_TOKEN_ID](macros.md#ps-invalid-token-id).
+
+
+### PSVPrintSameLine
+
+In: log.h, line: 135
+
+```c
+void PSVPrintSameLine (char *format, va_list args)
+
+```
+
+
+
+
+### PSWarn
+
+In: log.h, line: 125
+
+```c
+void PSWarn (const char *format, ...)
+
+```
+
+
+
+
+### PSWindowGradOptimization
+
+In: optimization.h, line: 49
+
+```c
+int PSWindowGradOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, uint64_t len, int acceleration, int iteration, struct PSTrainingOptions *options)
+
+```
+
+
+
+
+### PSWorkingDirectory
+
+In: utils.h, line: 127
+
+```c
+const char  * PSWorkingDirectory (void)
+
+```
+
+
+
+Returns PsyC working directory, that is, by default `$HOME/.psyc`.  
+A custom working directory can be specified at compile-time using **PS_WORKING_DIR** macro or by setting **PS_WORKING_DIR** environment variable.  
+The function will try to automatically create the working directory if it doesn't exist.  
+
+
+#### RETURN VALUES
+
+Path to the working directory or **NULL** in case something goes wrong.  
+
+
+**NOTE**:  it returns a static string, so it cannot be freed.  
+
+
+
+
+### PSXTermColor256ToANSI
+
+In: log.h, line: 134
+
+```c
+int PSXTermColor256ToANSI (uint8_t color, int bgcolor)
+
+```
+
+
+

@@ -1,0 +1,124 @@
+.\" Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that the above copyright notice and this paragraph are
+.\" duplicated in all such forms and that any documentation,
+.\" advertising materials, and other materials related to such
+.\" distribution and use acknowledge that the software was developed
+.\" by the copyright holder. The name of the
+.\" copyright holder may not be used to endorse or promote products derived
+.\" from this software without specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+.TH PSTrain 3 2023-12-01 "PsyC 0.9.3" "PsyC Library Functions Manual"
+
+.SH NAME
+PSTrain
+
+.SH LIBRARY
+PsyC (-lpsyc)
+
+.SH SYNOPSIS
+
+.B
+#include <psyc/psyc.h>
+
+.I
+void  
+.br
+\fBPSTrain\fR(\fIPSModel *model\fR, \fIPSFloat *training_data\fR, \fIint data_size\fR, \fIPSFloat *test_data\fR, \fIint test_size\fR, \fIPSTrainingOptions *options\fR)
+.SH DESCRIPTION
+Train \fImodel\fR over \fItraining_data\fR. Training epochs, batch size, optimization, and other optimizer settings are defined into optional \fIoptions\fR.
+.br
+.B ARGUMENTS
+.br
+
+.RS 4
+.TP
+.B model
+The neural model to be trained (mandatory)
+.br
+
+.TP
+.B training_data
+an array of \fIPSFloat\fR containing the tarining dataset    (ie. inputs, expected predictions)
+.br
+
+.TP
+.B data_size
+length of \fItraining_data\fR array.
+.br
+
+.TP
+.B test_data
+optional dataset that can be used for testing purpose
+.br
+
+.TP
+.B test_size
+length of \fItest_data\fR array.
+.br
+
+.TP
+.B options
+optional training options (see \fIPSTrainingOptions\fR). If \fINULL\fR, the training process will use default options.
+.RE
+.RE
+
+Training/test data layout:
+.br
+
+.RS 4
+\[bu] For normal feedforward models, the array must contain alternating inputs/predictions pairs, one pair for each element to be trained. So, each training/test element pair must contain:     - Input values, having the same length of the model's input layer
+.br
+
+.RS 4
+\[bu] Prediction values, having the same length of the model's output layer. If output layer has the \fIPS_FLAG_ONEHOT\fR flag, predictions length muse be 1, and it must contain the index of the expected maximum state.   Total number of traing elements is given by:     array size / (input_size + output_size)
+.br
+
+.RE
+\[bu] For recurrent model or models using sequences, layout can have different forms. Regardless of that, first element of the array must contain the total number of training/test elements. For each training/test sequence, the sequence length must be specified. Different forms can be:
+.br
+
+.RS 4
+\[bu] Many-to-many: the default mode for recurrent models that produce sequences having the same length of the input sequence. In this case, the first element of the sequence segment is the sequence length, followed by inputs/predictions pair.
+.RE
+.RE
+
+If some error occurs, \fIPS_STATUS_ERROR\fR will be set on \fImodel\fR and the function will immediately exit.
+.br
+If \fImodel\fR is not built, the function will automatically try to build it by calling \fIPSModelBuild\fR.
+.br
+Possible failure reasons:
+.br
+
+.RS 4
+.TP
+.B model
+is \fINULL\fR
+.br
+
+.TP
+.B model
+is not built and it cannot be build.
+.br
+
+\[bu] The learning rate is negative.
+.br
+
+.TP
+.B model
+is part of a multi-model chain but the chain is broken or invalid.
+.br
+
+.TP
+.B PS_TRAINING_FLAG_SEQ2SEQ
+is set into flags of \fIoptions\fR but the model's architecture is not valid for sequence-to-sequence mode (ie. the model does not use sequences at all).
+.br
+.RE
+
+.SH SEE ALSO
+PSModelBuild(3)

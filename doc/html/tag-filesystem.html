@@ -1,0 +1,140 @@
+<!doctype html>
+<!--
+Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+All rights reserved.
+
+Redistribution and use in source and binary forms are permitted
+provided that the above copyright notice and this paragraph are
+duplicated in all such forms and that any documentation,
+advertising materials, and other materials related to such
+distribution and use acknowledge that the software was developed
+by the copyright holder. The name of the
+copyright holder may not be used to endorse or promote products derived
+from this software without specific prior written permission.
+THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+-->
+<html lang="en">
+   <head>
+       <title>PsyC Documentation - FILESYSTEM</title>
+       <link rel="stylesheet" type="text/css" href="style.css">
+       <script language="javascript" src="main.js"></script>
+   </head>
+   <body class="psyc-doc psyc-tag">
+       <header>
+           <h1>PsyC Documentation <span class="version">0.9.3</span></h1>
+           <h2>API Reference - FILESYSTEM</h2>
+           <nav id="top-menu">
+               <ul>
+                   <li>
+                       <a href="index.html">INDEX</a>
+                   </li>
+               </ul>
+           </nav>
+           <nav id="main-menu">
+               <ul>
+                   <li>
+                       <a class="" href="functions.html">Functions</a>
+                   </li>
+                   <li>
+                       <a class="" href="types.html">Types</a>
+                   </li>
+                   <li>
+                       <a class="" href="macros.html">Macros</a>
+                   </li>
+               </ul>
+           </nav>
+       </header>
+       <main>
+           <nav id="sidebar">
+               <h2>FILESYSTEM</h2>
+               <ul>
+<li><a href="#function-psisdirectory">PSIsDirectory</a></li>
+<li><a href="#function-psgethomedirectory">PSGetHomeDirectory</a></li>
+<li><a href="#function-psmakedir">PSMakeDir</a></li>
+<li><a href="#function-psworkingdirectory">PSWorkingDirectory</a></li>
+<li><a href="#function-pspathjoin">PSPathJoin</a></li>
+               </ul>
+           </nav>
+           <section id="doc">
+<div class="details function" id="function-psisdirectory">
+<h3 class="name">PSIsDirectory</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">124</span></div>
+<div class="tags"><span class="tag filesystem" data-href="tag-filesystem.html">FILESYSTEM</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">int</span> <span class="identifier name">PSIsDirectory</span> (<span class="arguments"><span class="argument"><span class="type">const char *</span><span class="identifier pointer-name" data-identifier-id=function-psisdirectory-path>path</span></span></span>)</code>
+</div>
+<div class="description">
+Checks whether <span class="identifier-ref" data-identifier-id="function-psisdirectory-path" data-parent-id="function-psisdirectory">path</span> is a valid directory.
+</div>
+</div>
+
+<div class="details function" id="function-psgethomedirectory">
+<h3 class="name">PSGetHomeDirectory</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">125</span></div>
+<div class="tags"><span class="tag filesystem" data-href="tag-filesystem.html">FILESYSTEM</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">const char *</span><span class="identifier name">PSGetHomeDirectory</span> (<span class="arguments"><span class="argument void">void</span></span>)</code>
+</div>
+<div class="description">
+Returns user HOME directory.
+</div>
+</div>
+
+<div class="details function" id="function-psmakedir">
+<h3 class="name">PSMakeDir</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">126</span></div>
+<div class="tags"><span class="tag filesystem" data-href="tag-filesystem.html">FILESYSTEM</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">int</span> <span class="identifier name">PSMakeDir</span> (<span class="arguments"><span class="argument"><span class="type">const char *</span><span class="identifier pointer-name" data-identifier-id=function-psmakedir-path>path</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psmakedir-recursive>recursive</span></span></span>)</code>
+</div>
+<div class="description">
+Creates directory <span class="identifier-ref" data-identifier-id="function-psmakedir-path" data-parent-id="function-psmakedir">path</span> is it does not exists. If <span class="identifier-ref" data-identifier-id="function-psmakedir-recursive" data-parent-id="function-psmakedir">recursive</span> is 1, the function will try to also create intermediate paths if they don&#39;t exists, in a similar fashion to &quot;mkdir -p&quot;.<br/>Return vale: 1 in case of success, elseway 0.
+</div>
+</div>
+
+<div class="details function" id="function-psworkingdirectory">
+<h3 class="name">PSWorkingDirectory</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">127</span></div>
+<div class="tags"><span class="tag filesystem" data-href="tag-filesystem.html">FILESYSTEM</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">const char *</span><span class="identifier name">PSWorkingDirectory</span> (<span class="arguments"><span class="argument void">void</span></span>)</code>
+</div>
+<div class="description">
+Returns PsyC working directory, that is, by default <code>$HOME/.psyc</code>.<br/>A custom working directory can be specified at compile-time using <span class="identifier-ref">PS_WORKING_DIR</span> macro or by setting <span class="identifier-ref">PS_WORKING_DIR</span> environment variable.<br/>The function will try to automatically create the working directory if it doesn&#39;t exist.  
+<h4 class="return-values">RETURN VALUES</h4>
+Path to the working directory or <span class="identifier-ref">NULL</span> in case something goes wrong.
+<div class="note"><span class="note-prefix">NOTE:</span>  it returns a static string, so it cannot be freed.</div>  
+</div>
+</div>
+
+<div class="details function" id="function-pspathjoin">
+<h3 class="name">PSPathJoin</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">128</span></div>
+<div class="tags"><span class="tag filesystem" data-href="tag-filesystem.html">FILESYSTEM</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">char *</span><span class="identifier name">PSPathJoin</span> (<span class="arguments"><span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-pspathjoin-count>count</span></span>, <span class="argument variadic">...</span></span>)</code>
+</div>
+<div class="description">
+Joins multiple file path components into a single path string.<br/>Argument <span class="identifier-ref" data-identifier-id="function-pspathjoin-count" data-parent-id="function-pspathjoin">count</span> is used to specify how many components will be consumed.<br/>Path components must be passed as variadic arguments.  
+<h4 class="return-values">RETURN VALUES</h4>
+String containing the joined path or <span class="identifier-ref">NULL</span> if something goes               wrong. Returned string is allocated into heap, so it&#39;s up               to the developer to free it as soon as it is no longer needed.
+</div>
+</div>
+
+           </section>
+       </main>
+       <footer>
+           <div class="contacts">
+               <span><label>PsyC project page:</label> <a href="https://github.com/artix75/psyc" target="_blank">https://github.com/artix75/psyc</a></span> &bullet; <span><label>Report bugs to:</label> <a href="https://github.com/artix75/psyc/issues" target="_blank">https://github.com/artix75/psyc/issues</a></span>
+           </div>
+           <div class="license-info">
+               <div class="license"><img src="License-BSD-3-Clause-blue.svg"> PsyC is released under the <a href="https://opensource.org/license/bsd-3-clause/">BSD-3 Clause</a>
+               </div>
+               <div class="copyright">Copyright &copy; 2016-2023 Giuseppe Fabio Nicotra
+               </div>
+           </div>
+       </footer>
+   </body>
+</html>

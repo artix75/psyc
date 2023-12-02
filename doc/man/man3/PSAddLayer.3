@@ -1,0 +1,83 @@
+.\" Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that the above copyright notice and this paragraph are
+.\" duplicated in all such forms and that any documentation,
+.\" advertising materials, and other materials related to such
+.\" distribution and use acknowledge that the software was developed
+.\" by the copyright holder. The name of the
+.\" copyright holder may not be used to endorse or promote products derived
+.\" from this software without specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+.TH PSAddLayer 3 2023-12-01 "PsyC 0.9.3" "PsyC Library Functions Manual"
+
+.SH NAME
+PSAddLayer
+
+.SH LIBRARY
+PsyC (-lpsyc)
+
+.SH SYNOPSIS
+
+.B
+#include <psyc/psyc.h>
+
+.I
+PSLayer  *
+.br
+\fBPSAddLayer\fR(\fIPSModel *model\fR, \fIPSLayerType type\fR, \fIint size\fR, \fIPSLayerDef *layer_def\fR)
+.SH DESCRIPTION
+Add a new layer (instance of \fIPSLayer\fR) of type \fItype\fR and size \fIsize\fR to \fImodel\fR. Special layer properties can be defined by the optional argument \fIlayer_def\fR.
+.br
+If \fIlayer_def\fR is \fINULL\fR, the function will use the default layer configuration.
+.br
+The member \fIload_from\fR of \fIlayer_def\fR can be used to load the new layer's parameters from a file.
+.br
+The new model will be automatically allocated and added to model layers.
+.br
+
+.br
+\fBNOTE\fR:  the new layer should never be freed directly. By freeing \fImodel\fR (\fIPSModelFree\fR), all model's layers will be automatically freed.
+.br
+
+.SH RETURN VALUES
+Pointer to the added layer or \fINULL\fR if something goes wrong.
+Possible failure reasons:
+.br
+
+.RS 4
+\[bu] \fImodel\fR is \fINULL\fR
+.br
+
+\[bu] \fImodel\fR is empty and \fItype\fR is not \fIFullyConnected\fR (the first layer must be always of type FullyConnected).
+.br
+
+\[bu] The new layer cannot be allocated into memory or the model's \fIlayers\fR array cannot be resized.
+.br
+
+\[bu] The model's last layer is \fINULL\fR.
+.br
+
+\[bu] The new layer cannot be initialized. The reason for the initialization failure can vary depending on the layer type.
+.br
+
+\[bu] The new layer is recurrent or the model is recurrent but the recurrent mode of all layers is not consistent. In order to build consistent recurrent models, one of the following feature must be satisfied:
+.br
+
+.RS 4
+\[bu] All layers must be recurrent, or
+.br
+
+\[bu] first N layers are recurrent and the remaining layers are not      recurrent, or
+.br
+
+\[bu] first N layers are not recurrent the remaining layers are recurrent.
+.br
+.RE
+
+.SH SEE ALSO
+PSModelFree(3)
