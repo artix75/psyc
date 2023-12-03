@@ -287,7 +287,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details function_pointer" id="function_pointer-psdotproductdebug">
 <h3 class="name">PSDotProductDebug</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">72</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">74</span></div>
 <div class="code">
 <code class="definition">
 <span class="keyword">typedef </span><span class="type return-type">void</span>  (* <span class="identifier">PSDotProductDebug</span>) (<span class="arguments"><span class="argument void">void</span></span>)</code>
@@ -329,7 +329,7 @@ PsyC&#39;s type for floating-point numbers. By default, it&#39;s an alias for th
 
 <div class="details function_pointer" id="function_pointer-psfloatfunc">
 <h3 class="name">PSFloatFunc</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">75</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">77</span></div>
 <div class="code">
 <code class="definition">
 <span class="keyword">typedef </span><span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span>  (* <span class="identifier">PSFloatFunc</span>) (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier" data-identifier-id=function_pointer-psfloatfunc-n>n</span></span></span>)</code>
@@ -455,7 +455,7 @@ PsyC&#39;s type for floating-point numbers. By default, it&#39;s an alias for th
 
 <div class="details struct" id="struct-psmathopts">
 <h3 class="name">PSMathOpts</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">109</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">111</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span></div><div class="code">
 <code class="definition">
 <span class="keyword">typedef struct</span> {<br><span class="member"><span class="type">int</span> <span class="identifier">acceleration</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">store_mode</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">transpose</span></span>;<br><span class="member"><span class="type">char</span> <span class="identifier">argtype[3]</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">vector_len</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span> <span class="identifier">tmpdest</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#function_pointer-psdotproductdebug">PSDotProductDebug</a></span> <span class="identifier">debugStep</span></span>;<br><span class="member"><span class="type">void *</span> <span class="identifier">data</span></span>;<br>} <span class="identifier">PSMathOpts</span><br></code>
@@ -507,16 +507,19 @@ This structure can be passed to various operations. Not all of its properties ar
 
 <div class="details type" id="type-psmatrix">
 <h3 class="name">PSMatrix</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">140</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">148</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="keyword">typedef </span><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span> <span class="identifier">PSMatrix</span></code>
+</div>
+<div class="description">
+Basically, <a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a> can be used as a normal array of <a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> numbers. However, PSMatrix objects created by using the specific functions (<a class="psyc-func" href="functions.html#function-psmatrixcreate">PSMatrixCreate</a>, <a class="psyc-func" href="functions.html#function-psmatrixzeros">PSMatrixZeros</a>, and so on) will also contain several private informations about the matrix itself that allow them to be used as multidimensional matrices.<br/>Therefore, by using the PSMatrix-related functions provided by PsyC&#39;s API, it&#39;s possible to get info about the matrix (length, shape, ...) or to perform several operations (ie. transposition, matrix multiplication, etc.) on them.<br/><div class="warn"><span class="warn-prefix">WARN:</span>  matrix&#39;s private data are actually allocated just before the memory address pointed by <a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a>, so the matrix object should **NEVER** be freed by calling the usual <span class="identifier-ref">free</span> function or similar functions: the dedicated <a class="psyc-func" href="functions.html#function-psmatrixfree">PSMatrixFree</a> function should be called instead.</div>  
 </div>
 </div>
 
 <div class="details function_pointer" id="function_pointer-psmatrixinitializer">
 <h3 class="name">PSMatrixInitializer</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">141</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">149</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="keyword">typedef </span><span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span>  (* <span class="identifier">PSMatrixInitializer</span>) (<span class="arguments"><span class="argument void">void</span></span>)</code>
@@ -547,6 +550,9 @@ This structure can be passed to various operations. Not all of its properties ar
 <div class="code">
 <code class="definition">
 <span class="keyword">typedef </span><span class="type"><a class="psyc-type" href="types.html#struct-psmodel">PSModel</a></span> <span class="identifier">PSNeuralNetwork</span></code>
+</div>
+<div class="description">
+Kept type name used in older version since I still love it :) (and it also sounds more &#39;Psyc-y&#39;)
 </div>
 </div>
 

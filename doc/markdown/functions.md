@@ -179,7 +179,7 @@ PSLayer  * PSAddPoolingLayer (PSModel *model, PSLayerDef *ldef)
 
 ### PSAddVectors
 
-In: maths.h, line: 189
+In: maths.h, line: 197
 
 ```c
 PSFloat  * PSAddVectors (PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length, PSMathOpts *opts)
@@ -191,7 +191,7 @@ PSFloat  * PSAddVectors (PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
 
 ### PSAddVectorScalar
 
-In: maths.h, line: 199
+In: maths.h, line: 207
 
 ```c
 PSFloat  * PSAddVectorScalar (PSFloat *a, PSFloat b, PSFloat *dest, uint64_t length, PSMathOpts *opts)
@@ -455,7 +455,7 @@ PSFloat PSCrossEntropyLoss (PSFloat *x, PSFloat *y, int size, int onehot_size)
 
 ### PSCumulativeSum
 
-In: maths.h, line: 230
+In: maths.h, line: 238
 
 ```c
 int PSCumulativeSum (PSFloat *a, PSFloat *dest, uint64_t length)
@@ -539,7 +539,7 @@ void PSDeleteNeuron (PSNeuron *neuron)
 
 ### PSDiagonalFlatten
 
-In: maths.h, line: 249
+In: maths.h, line: 257
 
 ```c
 PSMatrix PSDiagonalFlatten (PSMatrix matrix)
@@ -551,7 +551,7 @@ PSMatrix PSDiagonalFlatten (PSMatrix matrix)
 
 ### PSDiagonalFlattenVector
 
-In: maths.h, line: 250
+In: maths.h, line: 258
 
 ```c
 PSMatrix PSDiagonalFlattenVector (PSFloat *vec, uint64_t len)
@@ -563,7 +563,7 @@ PSMatrix PSDiagonalFlattenVector (PSFloat *vec, uint64_t len)
 
 ### PSDiagonalMask
 
-In: maths.h, line: 248
+In: maths.h, line: 256
 
 ```c
 PSMatrix PSDiagonalMask (int size)
@@ -800,7 +800,7 @@ void PSDisableAcceleration (uint16_t *config, PSAcceleration acceleration)
 
 ### PSDivideScalarVector
 
-In: maths.h, line: 207
+In: maths.h, line: 215
 
 ```c
 PSFloat  * PSDivideScalarVector (PSFloat b, PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
@@ -812,7 +812,7 @@ PSFloat  * PSDivideScalarVector (PSFloat b, PSFloat *a, PSFloat *dest, uint64_t 
 
 ### PSDivideVectors
 
-In: maths.h, line: 195
+In: maths.h, line: 203
 
 ```c
 PSFloat  * PSDivideVectors (PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length, PSMathOpts *opts)
@@ -824,7 +824,7 @@ PSFloat  * PSDivideVectors (PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t leng
 
 ### PSDivideVectorScalar
 
-In: maths.h, line: 205
+In: maths.h, line: 213
 
 ```c
 PSFloat  * PSDivideVectorScalar (PSFloat *a, PSFloat b, PSFloat *dest, uint64_t length, PSMathOpts *opts)
@@ -836,7 +836,7 @@ PSFloat  * PSDivideVectorScalar (PSFloat *a, PSFloat b, PSFloat *dest, uint64_t 
 
 ### PSDot
 
-In: maths.h, line: 243
+In: maths.h, line: 251
 
 ```c
 int PSDot (PSMatrix a, PSMatrix b, PSFloat *dest, PSMathOpts *opts)
@@ -861,7 +861,7 @@ If you need to perform matrix multiplication on two PSFloat arrays, use [PSMatMu
 
 ### PSDotMV
 
-In: maths.h, line: 244
+In: maths.h, line: 252
 
 ```c
 int PSDotMV (PSMatrix a, PSFloat *b, PSFloat *dest, PSMathOpts *opts)
@@ -873,7 +873,7 @@ int PSDotMV (PSMatrix a, PSFloat *b, PSFloat *dest, PSMathOpts *opts)
 
 ### PSDotProduct
 
-In: maths.h, line: 234
+In: maths.h, line: 242
 
 ```c
 PSFloat PSDotProduct (PSFloat *a, PSFloat *b, uint64_t length, PSMathOpts *opts)
@@ -885,7 +885,7 @@ PSFloat PSDotProduct (PSFloat *a, PSFloat *b, uint64_t length, PSMathOpts *opts)
 
 ### PSDotSquare
 
-In: maths.h, line: 235
+In: maths.h, line: 243
 
 ```c
 PSFloat PSDotSquare (PSFloat *a, uint64_t length, PSMathOpts *opts)
@@ -897,7 +897,7 @@ PSFloat PSDotSquare (PSFloat *a, uint64_t length, PSMathOpts *opts)
 
 ### PSDotVM
 
-In: maths.h, line: 245
+In: maths.h, line: 253
 
 ```c
 int PSDotVM (PSFloat *a, PSMatrix b, PSMatrix dest, PSMathOpts *opts)
@@ -1001,7 +1001,7 @@ Timestep must be always in range of processed timesteps (hidden states), otherwi
 
 ### PSFloatEquals
 
-In: maths.h, line: 254
+In: maths.h, line: 262
 
 ```c
 int PSFloatEquals (PSFloat a, PSFloat b, int precision)
@@ -1053,7 +1053,7 @@ When the first layer takes sequences (if it has the flags [PS_FLAG_RECURRENT](ma
 
 ### PSGaussianRandom
 
-In: maths.h, line: 123
+In: maths.h, line: 125
 
 ```c
 PSFloat PSGaussianRandom (PSFloat mean, PSFloat stddev)
@@ -2194,7 +2194,7 @@ Return vale: 1 in case of success, elseway 0.
 
 ### PSMatMul
 
-In: maths.h, line: 241
+In: maths.h, line: 249
 
 ```c
 int PSMatMul (PSFloat *a, PSFloat *b, PSFloat *dest, int m, int n, int k, PSMathOpts *opts)
@@ -2227,7 +2227,7 @@ Other arguments:
 
 ### PSMatrixAdd
 
-In: maths.h, line: 169
+In: maths.h, line: 177
 
 ```c
 int PSMatrixAdd (PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt)
@@ -2239,7 +2239,7 @@ int PSMatrixAdd (PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt)
 
 ### PSMatrixClear
 
-In: maths.h, line: 184
+In: maths.h, line: 192
 
 ```c
 void PSMatrixClear (PSMatrix matrix)
@@ -2248,10 +2248,12 @@ void PSMatrixClear (PSMatrix matrix)
 
 
 
+Set all values of **matrix** to zero. If **matrix** is **NULL**, the function does nothing at all.
+
 
 ### PSMatrixCopy
 
-In: maths.h, line: 182
+In: maths.h, line: 190
 
 ```c
 int PSMatrixCopy (PSMatrix src, PSMatrix dst)
@@ -2260,10 +2262,22 @@ int PSMatrixCopy (PSMatrix src, PSMatrix dst)
 
 
 
+Copy values of matrix **src** to matrix **dst**. Both **src** and **dst** must have the same shape.  
+
+
+**NOTE**:  if **dst** owns a cached transposed version of itself, the cached version will be cleared. At the same time, if **dst** is the cached transposed version of another matrix, the cached version of the owner matrix will be cleared.  
+
+#### RETURN VALUES
+
+1 in case of success, 0 if:  
+
+ - **src** is **NULL** or **dst** is **NULL**.
+ - **src** and **dst** have different shapes.
+
 
 ### PSMatrixCreate
 
-In: maths.h, line: 142
+In: maths.h, line: 150
 
 ```c
 PSMatrix PSMatrixCreate (PSFloat init_value, PSMatrixInitializer initializer, int ndims, ...)
@@ -2272,10 +2286,27 @@ PSMatrix PSMatrixCreate (PSFloat init_value, PSMatrixInitializer initializer, in
 
 
 
+Create a new matrix having number of dimensions defined by **ndims**. The shape of the matrix is given by variadic arguments that follow **ndims**.  
+The argument **init_value** can be used to define the initial value of the matrix numbers or, optionally, the **initializer** callback can be used to initialize the matrix values.  
+If the matrix cannot be allocated, **errno** will be set to **ENOMEM**.  
+
+
+#### RETURN VALUES
+
+The allocated matrix or **NULL** if:  
+
+ - the number of dimensions (**ndims**) is greater than [PS_MATRIX_MAX_DIMENSIONS](macros.md#ps-matrix-max-dimensions) or less than one.
+ - it's not possible to allocate the matrix in memory.
+
+
+**WARN**:  the address pointed by the returned pointer should never be freed directly. The specific function [PSMatrixFree](functions.md#psmatrixfree) should be used instead.  
+
+
+
 
 ### PSMatrixCreateWithShape
 
-In: maths.h, line: 144
+In: maths.h, line: 152
 
 ```c
 PSMatrix PSMatrixCreateWithShape (PSFloat init_value, PSMatrixInitializer initializer, int ndims, int *shape)
@@ -2284,10 +2315,26 @@ PSMatrix PSMatrixCreateWithShape (PSFloat init_value, PSMatrixInitializer initia
 
 
 
+Create a new matrix having number of dimensions defined by **ndims** and shape defined by **shape**. The argument **init_value** can be used to define the initial value of the matrix numbers or, optionally, the **initializer** callback can be used to initialize the matrix values.  
+If the matrix cannot be allocated, **errno** will be set to **ENOMEM**.  
+
+
+#### RETURN VALUES
+
+The allocated matrix or **NULL** if:  
+
+ - the number of dimensions (**ndims**) is greater than [PS_MATRIX_MAX_DIMENSIONS](macros.md#ps-matrix-max-dimensions) or less than one.
+ - it's not possible to allocate the matrix in memory.
+
+
+**WARN**:  the address pointed by the returned pointer should never be freed directly. The specific function [PSMatrixFree](functions.md#psmatrixfree) should be used instead.  
+
+
+
 
 ### PSMatrixDim
 
-In: maths.h, line: 153
+In: maths.h, line: 161
 
 ```c
 int PSMatrixDim (PSMatrix matrix, int dim)
@@ -2296,22 +2343,12 @@ int PSMatrixDim (PSMatrix matrix, int dim)
 
 
 
-
-### PSMatrixDimensions
-
-In: maths.h, line: 154
-
-```c
-int PSMatrixDimensions (PSMatrix matrix, int *dims)
-
-```
-
-
+Return the size of the dimension **dim** of **matrix**. If **dim** is out of bounds or if **matrix** is **NULL**, the function will return zero.
 
 
 ### PSMatrixDivide
 
-In: maths.h, line: 172
+In: maths.h, line: 180
 
 ```c
 int PSMatrixDivide (PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt)
@@ -2323,7 +2360,7 @@ int PSMatrixDivide (PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt)
 
 ### PSMatrixDup
 
-In: maths.h, line: 180
+In: maths.h, line: 188
 
 ```c
 PSMatrix PSMatrixDup (PSMatrix matrix)
@@ -2332,10 +2369,25 @@ PSMatrix PSMatrixDup (PSMatrix matrix)
 
 
 
+Duplicate **matrix** by creating a new matrix having the same shape as **matrix** and by copying all values of **matrix** to the new matrix.  
+
+
+#### RETURN VALUES
+
+The new matrix or **NULL** if:  
+
+ - **matrix** is **NULL**.
+ - it's not possible to allocate the matrix in memory.
+
+
+**WARN**:  the address pointed by the returned pointer should never be freed directly. The specific function [PSMatrixFree](functions.md#psmatrixfree) should be used instead.  
+
+
+
 
 ### PSMatrixDupShape
 
-In: maths.h, line: 181
+In: maths.h, line: 189
 
 ```c
 PSMatrix PSMatrixDupShape (PSMatrix matrix)
@@ -2344,10 +2396,25 @@ PSMatrix PSMatrixDupShape (PSMatrix matrix)
 
 
 
+Create a new (zero-filled) matrix having the same shape as **matrix**.  
+
+
+#### RETURN VALUES
+
+The new matrix or **NULL** if:  
+
+ - **matrix** is **NULL**.
+ - it's not possible to allocate the matrix in memory.
+
+
+**WARN**:  the address pointed by the returned pointer should never be freed directly. The specific function [PSMatrixFree](functions.md#psmatrixfree) should be used instead.  
+
+
+
 
 ### PSMatrixEquals
 
-In: maths.h, line: 183
+In: maths.h, line: 191
 
 ```c
 int PSMatrixEquals (PSMatrix a, PSMatrix b, int precision, int ignore_shape)
@@ -2367,7 +2434,7 @@ By setting **precision** to zero, the two vectors must be perfectly equal (no pr
 
 ### PSMatrixExpand
 
-In: maths.h, line: 151
+In: maths.h, line: 159
 
 ```c
 PSMatrix PSMatrixExpand (PSMatrix src, int add, int keep_src)
@@ -2376,13 +2443,22 @@ PSMatrix PSMatrixExpand (PSMatrix src, int add, int keep_src)
 
 
 
-Expand matrix **src** by adding **add** to its first dimension. Added data will be set to zero.  
-Beware of the fact that **src** matrix could be freed after the process, so always assing the return value of this function to a new variable, since it could lead to memory leaks in case of a **NULL** return value. Also beware of the fact that the original variable holding **src** could point to freed memry after function returns.
+Create a new matrix having the shape of **src** but with the first dimension increased by the value of **add**. The original values **src** will be copied to the new matrix, and all the new values belonging to thecexpanded dimension will be initialized to zero.  
+If **keep_src** is zero, the original matrix **src** will be freed.  
+
+
+#### RETURN VALUES
+
+The new expanded matrix or:  
+
+ - **src** itself if **add** is less that one.
+ - **NULL** if **src** is **NULL**.
+ - **NULL** if memory cannot be allocated.
 
 
 ### PSMatrixFlatten
 
-In: maths.h, line: 174
+In: maths.h, line: 182
 
 ```c
 PSMatrix PSMatrixFlatten (PSMatrix matrix)
@@ -2394,7 +2470,7 @@ PSMatrix PSMatrixFlatten (PSMatrix matrix)
 
 ### PSMatrixFree
 
-In: maths.h, line: 185
+In: maths.h, line: 193
 
 ```c
 void PSMatrixFree (PSMatrix matrix)
@@ -2406,7 +2482,7 @@ void PSMatrixFree (PSMatrix matrix)
 
 ### PSMatrixFromArray
 
-In: maths.h, line: 150
+In: maths.h, line: 158
 
 ```c
 PSMatrix PSMatrixFromArray (PSFloat *array, int ndims, ...)
@@ -2415,10 +2491,30 @@ PSMatrix PSMatrixFromArray (PSFloat *array, int ndims, ...)
 
 
 
+Create a new matrix having number of dimensions defined by **ndims**. The shape of the matrix is given by variadic arguments that follow **ndims**.  
+The values of the matrix will be initialized with values of **array**.  
+If the matrix cannot be allocated, **errno** will be set to **ENOMEM**.  
+
+
+**WARN**:  the length of **array** must be at least the same of the length of the matrix, so if the matrix has two dimensions of shape [2, 3] (two rows with three columns), the provided array's length cannot be less than six.  
+
+#### RETURN VALUES
+
+The allocated matrix or **NULL** if:  
+
+ - **array** is **NULL**.
+ - the number of dimensions (**ndims**) is greater than [PS_MATRIX_MAX_DIMENSIONS](macros.md#ps-matrix-max-dimensions) or less than one.
+ - it's not possible to allocate the matrix in memory.
+
+
+**WARN**:  the address pointed by the returned pointer should never be freed directly. The specific function [PSMatrixFree](functions.md#psmatrixfree) should be used instead.  
+
+
+
 
 ### PSMatrixGet
 
-In: maths.h, line: 163
+In: maths.h, line: 171
 
 ```c
 PSFloat  * PSMatrixGet (PSMatrix matrix, int ndims, uint32_t *len, ...)
@@ -2430,7 +2526,7 @@ PSFloat  * PSMatrixGet (PSMatrix matrix, int ndims, uint32_t *len, ...)
 
 ### PSMatrixLength
 
-In: maths.h, line: 155
+In: maths.h, line: 163
 
 ```c
 uint64_t PSMatrixLength (PSMatrix matrix)
@@ -2439,10 +2535,17 @@ uint64_t PSMatrixLength (PSMatrix matrix)
 
 
 
+Get the total number of values belonging to **matrix** (ie. a matrix with shape (2,3) will return 6).  
+
+
+#### RETURN VALUES
+
+The total number of values belonging to **matrix** or zero if **matrix** is **NULL**.
+
 
 ### PSMatrixMultiply
 
-In: maths.h, line: 170
+In: maths.h, line: 178
 
 ```c
 int PSMatrixMultiply (PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt)
@@ -2454,7 +2557,7 @@ int PSMatrixMultiply (PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt)
 
 ### PSMatrixNumDims
 
-In: maths.h, line: 152
+In: maths.h, line: 160
 
 ```c
 int PSMatrixNumDims (PSMatrix matrix)
@@ -2463,10 +2566,12 @@ int PSMatrixNumDims (PSMatrix matrix)
 
 
 
+Return the number of dimensions of **matrix**. If **matrix** is **NULL**, the function will return zero.
+
 
 ### PSMatrixPrint
 
-In: maths.h, line: 162
+In: maths.h, line: 170
 
 ```c
 void PSMatrixPrint (PSMatrix matrix, const char *sep, int print_shape)
@@ -2478,7 +2583,7 @@ void PSMatrixPrint (PSMatrix matrix, const char *sep, int print_shape)
 
 ### PSMatrixPrintInfo
 
-In: maths.h, line: 158
+In: maths.h, line: 166
 
 ```c
 void PSMatrixPrintInfo (PSMatrix matrix, const char *name, int newline)
@@ -2490,7 +2595,7 @@ void PSMatrixPrintInfo (PSMatrix matrix, const char *name, int newline)
 
 ### PSMatrixPrintShape
 
-In: maths.h, line: 159
+In: maths.h, line: 167
 
 ```c
 void PSMatrixPrintShape (PSMatrix matrix, int newline)
@@ -2502,7 +2607,7 @@ void PSMatrixPrintShape (PSMatrix matrix, int newline)
 
 ### PSMatrixProduct
 
-In: maths.h, line: 164
+In: maths.h, line: 172
 
 ```c
 int PSMatrixProduct (PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt)
@@ -2536,7 +2641,7 @@ By default, data in result vector will be overwritten. Anyway, if [PS_STORE_MODE
 
 ### PSMatrixProductMV
 
-In: maths.h, line: 165
+In: maths.h, line: 173
 
 ```c
 int PSMatrixProductMV (PSMatrix a, PSFloat *b, int len, PSFloat ** result, PSMathOpts *opts)
@@ -2570,7 +2675,7 @@ By default, data in result vector will be overwritten. Anyway, if [PS_STORE_MODE
 
 ### PSMatrixProductVM
 
-In: maths.h, line: 167
+In: maths.h, line: 175
 
 ```c
 int PSMatrixProductVM (PSFloat *a, PSMatrix b, int len, PSMatrix *result, PSMathOpts *opts)
@@ -2603,7 +2708,7 @@ By default, data in result vector will be overwritten. Anyway, if [PS_STORE_MODE
 
 ### PSMatrixRandom
 
-In: maths.h, line: 148
+In: maths.h, line: 156
 
 ```c
 PSMatrix PSMatrixRandom (int ndims, ...)
@@ -2612,10 +2717,27 @@ PSMatrix PSMatrixRandom (int ndims, ...)
 
 
 
+Create a new matrix having number of dimensions defined by **ndims**. The shape of the matrix is given by variadic arguments that follow **ndims**.  
+The values of the matrix will be initialized with random numbers from 0.0 to 1.0.  
+If the matrix cannot be allocated, **errno** will be set to **ENOMEM**.  
+
+
+#### RETURN VALUES
+
+The allocated matrix or **NULL** if:  
+
+ - the number of dimensions (**ndims**) is greater than [PS_MATRIX_MAX_DIMENSIONS](macros.md#ps-matrix-max-dimensions) or less than one.
+ - it's not possible to allocate the matrix in memory.
+
+
+**WARN**:  the address pointed by the returned pointer should never be freed directly. The specific function [PSMatrixFree](functions.md#psmatrixfree) should be used instead.  
+
+
+
 
 ### PSMatrixResetTransposed
 
-In: maths.h, line: 179
+In: maths.h, line: 187
 
 ```c
 void PSMatrixResetTransposed (PSMatrix matrix)
@@ -2627,7 +2749,7 @@ void PSMatrixResetTransposed (PSMatrix matrix)
 
 ### PSMatrixReshape
 
-In: maths.h, line: 173
+In: maths.h, line: 181
 
 ```c
 PSMatrix PSMatrixReshape (PSMatrix matrix, int num_dims, ...)
@@ -2637,9 +2759,29 @@ PSMatrix PSMatrixReshape (PSMatrix matrix, int num_dims, ...)
 
 
 
+### PSMatrixShape
+
+In: maths.h, line: 162
+
+```c
+int PSMatrixShape (PSMatrix matrix, int *shape)
+
+```
+
+
+
+Get the shape of **matrix** and store it into **shape** array. The **shape** array must be big enough to hold at least [PS_MATRIX_MAX_DIMENSIONS](macros.md#ps-matrix-max-dimensions) elements.  
+If **shape** is **NULL**, the function will just return the number of dimensions (so, the length of the shape array of **matrix**).  
+
+
+#### RETURN VALUES
+
+The number of dimensions of **matrix** or zero if **matrix** is **NULL**.
+
+
 ### PSMatrixShapeType
 
-In: maths.h, line: 157
+In: maths.h, line: 165
 
 ```c
 int PSMatrixShapeType (PSMatrix matrix)
@@ -2651,7 +2793,7 @@ int PSMatrixShapeType (PSMatrix matrix)
 
 ### PSMatrixSplit
 
-In: maths.h, line: 175
+In: maths.h, line: 183
 
 ```c
 PSMatrix  * PSMatrixSplit (PSMatrix matrix, int num_slices, int axis, PSMathOpts *opts)
@@ -2663,7 +2805,7 @@ PSMatrix  * PSMatrixSplit (PSMatrix matrix, int num_slices, int axis, PSMathOpts
 
 ### PSMatrixStride
 
-In: maths.h, line: 156
+In: maths.h, line: 164
 
 ```c
 int PSMatrixStride (PSMatrix matrix, int dim)
@@ -2672,10 +2814,17 @@ int PSMatrixStride (PSMatrix matrix, int dim)
 
 
 
+Get the stride of the dimension **dim** of **matrix**. For example, a matrix with shape (2,3) has a stride of 3 for dimension 0 while a matrix with shape (2,3,3) has a stride of 9 for dimension 0, 3 for dimension 1 and 1 for dimension 2.  
+
+
+#### RETURN VALUES
+
+The stride of dimension **dim** or zero if **matrix** is **NULL**.
+
 
 ### PSMatrixSubtract
 
-In: maths.h, line: 171
+In: maths.h, line: 179
 
 ```c
 int PSMatrixSubtract (PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt)
@@ -2687,7 +2836,7 @@ int PSMatrixSubtract (PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt)
 
 ### PSMatrixSwapAxes
 
-In: maths.h, line: 178
+In: maths.h, line: 186
 
 ```c
 PSMatrix PSMatrixSwapAxes (PSMatrix matrix, int axis1, int axis2)
@@ -2699,7 +2848,7 @@ PSMatrix PSMatrixSwapAxes (PSMatrix matrix, int axis1, int axis2)
 
 ### PSMatrixTranspose
 
-In: maths.h, line: 177
+In: maths.h, line: 185
 
 ```c
 PSMatrix PSMatrixTranspose (PSMatrix matrix, int rebuild, PSMathOpts *opts)
@@ -2711,7 +2860,7 @@ PSMatrix PSMatrixTranspose (PSMatrix matrix, int rebuild, PSMathOpts *opts)
 
 ### PSMatrixWithGaussianRandom
 
-In: maths.h, line: 149
+In: maths.h, line: 157
 
 ```c
 PSMatrix PSMatrixWithGaussianRandom (PSFloat stddev, int ndims, ...)
@@ -2720,10 +2869,27 @@ PSMatrix PSMatrixWithGaussianRandom (PSFloat stddev, int ndims, ...)
 
 
 
+Create a new matrix having number of dimensions defined by **ndims**. The shape of the matrix is given by variadic arguments that follow **ndims**.  
+The values of the matrix will be initialized with random numbers from a gaussian distribution having zero mean and the standard deviation defined by **stddev**.  
+If the matrix cannot be allocated, **errno** will be set to **ENOMEM**.  
+
+
+#### RETURN VALUES
+
+The allocated matrix or **NULL** if:  
+
+ - the number of dimensions (**ndims**) is greater than [PS_MATRIX_MAX_DIMENSIONS](macros.md#ps-matrix-max-dimensions) or less than one.
+ - it's not possible to allocate the matrix in memory.
+
+
+**WARN**:  the address pointed by the returned pointer should never be freed directly. The specific function [PSMatrixFree](functions.md#psmatrixfree) should be used instead.  
+
+
+
 
 ### PSMatrixWrite
 
-In: maths.h, line: 160
+In: maths.h, line: 168
 
 ```c
 int PSMatrixWrite (PSMatrix matrix, const char *sep, char bracket, int indent, FILE *out)
@@ -2735,7 +2901,7 @@ int PSMatrixWrite (PSMatrix matrix, const char *sep, char bracket, int indent, F
 
 ### PSMatrixZeros
 
-In: maths.h, line: 147
+In: maths.h, line: 155
 
 ```c
 PSMatrix PSMatrixZeros (int ndims, ...)
@@ -2744,10 +2910,26 @@ PSMatrix PSMatrixZeros (int ndims, ...)
 
 
 
+Create a new, zero-filled, matrix having number of dimensions defined by **ndims**. The shape of the matrix is given by variadic arguments that follows **ndims**.  
+If the matrix cannot be allocated, **errno** will be set to **ENOMEM**.  
+
+
+#### RETURN VALUES
+
+The allocated matrix or **NULL** if:  
+
+ - the number of dimensions (**ndims**) is greater than [PS_MATRIX_MAX_DIMENSIONS](macros.md#ps-matrix-max-dimensions) or less than one.
+ - it's not possible to allocate the matrix in memory.
+
+
+**WARN**:  the address pointed by the returned pointer should never be freed directly. The specific function [PSMatrixFree](functions.md#psmatrixfree) should be used instead.  
+
+
+
 
 ### PSMean
 
-In: maths.h, line: 231
+In: maths.h, line: 239
 
 ```c
 PSFloat PSMean (PSFloat *a, uint64_t length, PSMathOpts *opts)
@@ -3206,7 +3388,7 @@ Common used status values are:
 
 ### PSMultiplyVectors
 
-In: maths.h, line: 193
+In: maths.h, line: 201
 
 ```c
 PSFloat  * PSMultiplyVectors (PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length, PSMathOpts *opts)
@@ -3218,7 +3400,7 @@ PSFloat  * PSMultiplyVectors (PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t le
 
 ### PSMultiplyVectorScalar
 
-In: maths.h, line: 197
+In: maths.h, line: 205
 
 ```c
 PSFloat  * PSMultiplyVectorScalar (PSFloat *a, PSFloat b, PSFloat *dest, uint64_t length, PSMathOpts *opts)
@@ -3242,7 +3424,7 @@ int PSNesterovOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PS
 
 ### PSNormalizedRandom
 
-In: maths.h, line: 122
+In: maths.h, line: 124
 
 ```c
 PSFloat PSNormalizedRandom (void)
@@ -3278,7 +3460,7 @@ void PSNotice (const char *format, ...)
 
 ### PSOuterProduct
 
-In: maths.h, line: 246
+In: maths.h, line: 254
 
 ```c
 int PSOuterProduct (PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t alen, uint64_t blen, PSMathOpts *opts)
@@ -3373,7 +3555,7 @@ PSFloat PSQuadraticLoss (PSFloat *x, PSFloat *y, int size, int onehot_size)
 
 ### PSRandomInt
 
-In: maths.h, line: 124
+In: maths.h, line: 126
 
 ```c
 unsigned int PSRandomInt (unsigned int range, PSFloat *weights, int *err, PSMathOpts *opts)
@@ -3737,7 +3919,7 @@ int PSStateSequenceLength (PSLayer *layer)
 
 ### PSStdDev
 
-In: maths.h, line: 233
+In: maths.h, line: 241
 
 ```c
 PSFloat PSStdDev (PSFloat *a, uint64_t len, PSMathOpts *opts)
@@ -3763,7 +3945,7 @@ Strings
 
 ### PSSubtractScalarVector
 
-In: maths.h, line: 203
+In: maths.h, line: 211
 
 ```c
 PSFloat  * PSSubtractScalarVector (PSFloat b, PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
@@ -3775,7 +3957,7 @@ PSFloat  * PSSubtractScalarVector (PSFloat b, PSFloat *a, PSFloat *dest, uint64_
 
 ### PSSubtractVectors
 
-In: maths.h, line: 191
+In: maths.h, line: 199
 
 ```c
 PSFloat  * PSSubtractVectors (PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length, PSMathOpts *opts)
@@ -3787,7 +3969,7 @@ PSFloat  * PSSubtractVectors (PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t le
 
 ### PSSubtractVectorScalar
 
-In: maths.h, line: 201
+In: maths.h, line: 209
 
 ```c
 PSFloat  * PSSubtractVectorScalar (PSFloat *a, PSFloat b, PSFloat *dest, uint64_t length, PSMathOpts *opts)
@@ -4152,7 +4334,7 @@ PSUTF8Char PSUTF8ToUpper (PSUTF8Char uc)
 
 ### PSVariance
 
-In: maths.h, line: 232
+In: maths.h, line: 240
 
 ```c
 PSFloat PSVariance (PSFloat *a, uint64_t len, PSMathOpts *opts)
@@ -4164,7 +4346,7 @@ PSFloat PSVariance (PSFloat *a, uint64_t len, PSMathOpts *opts)
 
 ### PSVectorAbs
 
-In: maths.h, line: 217
+In: maths.h, line: 225
 
 ```c
 PSFloat  * PSVectorAbs (PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
@@ -4176,7 +4358,7 @@ PSFloat  * PSVectorAbs (PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *
 
 ### PSVectorClip
 
-In: maths.h, line: 219
+In: maths.h, line: 227
 
 ```c
 PSFloat  * PSVectorClip (PSFloat *a, PSFloat min, PSFloat max, PSFloat *dest, uint64_t length, PSMathOpts *opts)
@@ -4188,7 +4370,7 @@ PSFloat  * PSVectorClip (PSFloat *a, PSFloat min, PSFloat max, PSFloat *dest, ui
 
 ### PSVectorConvertToMatrix
 
-In: maths.h, line: 257
+In: maths.h, line: 265
 
 ```c
 PSMatrix PSVectorConvertToMatrix (PSFloat *vec, uint64_t len, int ndims, int *shape)
@@ -4234,7 +4416,7 @@ Possible failure reasons:
 
 ### PSVectorDup
 
-In: maths.h, line: 252
+In: maths.h, line: 260
 
 ```c
 PSFloat  * PSVectorDup (PSFloat *src, size_t length)
@@ -4246,7 +4428,7 @@ PSFloat  * PSVectorDup (PSFloat *src, size_t length)
 
 ### PSVectorEquals
 
-In: maths.h, line: 255
+In: maths.h, line: 263
 
 ```c
 int PSVectorEquals (PSFloat *a, PSFloat *b, uint64_t length, int precision, uint64_t *index)
@@ -4267,7 +4449,7 @@ Use **index** pointer if you need to know the index of the first non-equal eleme
 
 ### PSVectorExp
 
-In: maths.h, line: 213
+In: maths.h, line: 221
 
 ```c
 PSFloat  * PSVectorExp (PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
@@ -4279,7 +4461,7 @@ PSFloat  * PSVectorExp (PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *
 
 ### PSVectorFill
 
-In: maths.h, line: 236
+In: maths.h, line: 244
 
 ```c
 void PSVectorFill (PSFloat *vec, PSFloat val, uint64_t len, PSMathOpts *opts)
@@ -4291,7 +4473,7 @@ void PSVectorFill (PSFloat *vec, PSFloat val, uint64_t len, PSMathOpts *opts)
 
 ### PSVectorMapWithLimit
 
-In: maths.h, line: 223
+In: maths.h, line: 231
 
 ```c
 PSFloat  * PSVectorMapWithLimit (PSFloat *a, PSFloat limit, PSFloat mapper, PSFloat *dest, uint64_t length, PSMathOpts *opts)
@@ -4303,7 +4485,7 @@ PSFloat  * PSVectorMapWithLimit (PSFloat *a, PSFloat limit, PSFloat mapper, PSFl
 
 ### PSVectorMax
 
-In: maths.h, line: 227
+In: maths.h, line: 235
 
 ```c
 PSFloat PSVectorMax (PSFloat *a, uint64_t *index, uint64_t length, PSMathOpts *opts)
@@ -4315,7 +4497,7 @@ PSFloat PSVectorMax (PSFloat *a, uint64_t *index, uint64_t length, PSMathOpts *o
 
 ### PSVectorNeg
 
-In: maths.h, line: 215
+In: maths.h, line: 223
 
 ```c
 PSFloat  * PSVectorNeg (PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
@@ -4327,7 +4509,7 @@ PSFloat  * PSVectorNeg (PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *
 
 ### PSVectorPower
 
-In: maths.h, line: 225
+In: maths.h, line: 233
 
 ```c
 PSFloat  * PSVectorPower (PSFloat *a, PSFloat exp, PSFloat *dest, uint64_t length, PSMathOpts *opts)
@@ -4339,7 +4521,7 @@ PSFloat  * PSVectorPower (PSFloat *a, PSFloat exp, PSFloat *dest, uint64_t lengt
 
 ### PSVectorPrint
 
-In: maths.h, line: 238
+In: maths.h, line: 246
 
 ```c
 void PSVectorPrint (PSFloat *vec, uint64_t len, char* sep)
@@ -4351,7 +4533,7 @@ void PSVectorPrint (PSFloat *vec, uint64_t len, char* sep)
 
 ### PSVectorRandom
 
-In: maths.h, line: 253
+In: maths.h, line: 261
 
 ```c
 PSFloat  * PSVectorRandom (size_t len)
@@ -4363,7 +4545,7 @@ PSFloat  * PSVectorRandom (size_t len)
 
 ### PSVectorReduceSum
 
-In: maths.h, line: 229
+In: maths.h, line: 237
 
 ```c
 PSFloat PSVectorReduceSum (PSFloat *a, uint64_t length, PSMathOpts *opts)
@@ -4375,7 +4557,7 @@ PSFloat PSVectorReduceSum (PSFloat *a, uint64_t length, PSMathOpts *opts)
 
 ### PSVectorSplit
 
-In: maths.h, line: 251
+In: maths.h, line: 259
 
 ```c
 PSFloat  ** PSVectorSplit (PSFloat *vec, int len, int num_slices)
@@ -4387,7 +4569,7 @@ PSFloat  ** PSVectorSplit (PSFloat *vec, int len, int num_slices)
 
 ### PSVectorSqrt
 
-In: maths.h, line: 211
+In: maths.h, line: 219
 
 ```c
 PSFloat  * PSVectorSqrt (PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
@@ -4399,7 +4581,7 @@ PSFloat  * PSVectorSqrt (PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts 
 
 ### PSVectorTanh
 
-In: maths.h, line: 209
+In: maths.h, line: 217
 
 ```c
 PSFloat  * PSVectorTanh (PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
@@ -4411,7 +4593,7 @@ PSFloat  * PSVectorTanh (PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts 
 
 ### PSVectorThreshold
 
-In: maths.h, line: 221
+In: maths.h, line: 229
 
 ```c
 PSFloat  * PSVectorThreshold (PSFloat *a, PSFloat min, PSFloat *dest, uint64_t length, PSMathOpts *opts)
@@ -4423,7 +4605,7 @@ PSFloat  * PSVectorThreshold (PSFloat *a, PSFloat min, PSFloat *dest, uint64_t l
 
 ### PSVectorTranspose
 
-In: maths.h, line: 239
+In: maths.h, line: 247
 
 ```c
 PSFloat  * PSVectorTranspose (PSFloat *vec, PSFloat *dest, int acceleration, int ndims, ...)
@@ -4449,7 +4631,7 @@ NOTES:
 
 ### PSVectorWrite
 
-In: maths.h, line: 237
+In: maths.h, line: 245
 
 ```c
 void PSVectorWrite (PSFloat *vec, uint64_t len, char* sep, FILE *f)

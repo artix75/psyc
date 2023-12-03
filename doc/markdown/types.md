@@ -302,7 +302,7 @@ typedef union {
 
 ### PSDotProductDebug
 
-In: maths.h, line: 72
+In: maths.h, line: 74
 
 ```c
 typedef void (* PSDotProductDebug) (void)
@@ -346,7 +346,7 @@ PsyC's type for floating-point numbers. By default, it's an alias for the **floa
 
 ### PSFloatFunc
 
-In: maths.h, line: 75
+In: maths.h, line: 77
 
 ```c
 typedef PSFloat (* PSFloatFunc) (PSFloat n)
@@ -634,7 +634,7 @@ typedef struct {
 
 ### PSMathOpts
 
-In: maths.h, line: 109
+In: maths.h, line: 111
 
 ```c
 typedef struct {  
@@ -671,7 +671,7 @@ Properties:
 
 ### PSMatrix
 
-In: maths.h, line: 140
+In: maths.h, line: 148
 
 ```c
 typedef PSFloat * PSMatrix
@@ -679,10 +679,18 @@ typedef PSFloat * PSMatrix
 
 
 
+Basically, [PSMatrix](types.md#psmatrix) can be used as a normal array of [PSFloat](types.md#psfloat) numbers. However, PSMatrix objects created by using the specific functions ([PSMatrixCreate](functions.md#psmatrixcreate), [PSMatrixZeros](functions.md#psmatrixzeros), and so on) will also contain several private informations about the matrix itself that allow them to be used as multidimensional matrices.  
+Therefore, by using the PSMatrix-related functions provided by PsyC's API, it's possible to get info about the matrix (length, shape, ...) or to perform several operations (ie. transposition, matrix multiplication, etc.) on them.  
+
+
+**WARN**:  matrix's private data are actually allocated just before the memory address pointed by [PSMatrix](types.md#psmatrix), so the matrix object should **NEVER** be freed by calling the usual **free** function or similar functions: the dedicated [PSMatrixFree](functions.md#psmatrixfree) function should be called instead.  
+
+
+
 
 ### PSMatrixInitializer
 
-In: maths.h, line: 141
+In: maths.h, line: 149
 
 ```c
 typedef PSFloat (* PSMatrixInitializer) (void)
@@ -749,6 +757,8 @@ typedef PSModel PSNeuralNetwork
 ```
 
 
+
+Kept type name used in older version since I still love it :) (and it also sounds more 'Psyc-y')
 
 
 ### PSNeuron

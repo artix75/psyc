@@ -635,7 +635,7 @@ int writeBinaryMatrix(PSMatrix matrix, FILE *f) {
     if (f == NULL) return 0;
     if (matrix == NULL) return fputc(0, f) != EOF;
     int shape[3];
-    int shape_len = PSMatrixDimensions(matrix, shape), i;
+    int shape_len = PSMatrixShape(matrix, shape), i;
     if (fputc((uint8_t) shape_len, f) == EOF) return 0;
     for (i = 0; i < shape_len; i++) {
         if (fputc((uint8_t) shape[i], f) == EOF) return 0;

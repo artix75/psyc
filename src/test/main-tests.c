@@ -4612,8 +4612,8 @@ static int checkMatrixTransposition(PSMatrix m, const PSFloat *tdata,
     int ndims, tndims;
     int dims[3] = {0};
     int tdims[3] = {0};
-    ndims = PSMatrixDimensions(m, dims);
-    tndims = PSMatrixDimensions(tm, tdims);
+    ndims = PSMatrixShape(m, dims);
+    tndims = PSMatrixShape(tm, tdims);
     testAssertWithMessage(
         (tndims == ndims), test,
         "%s: Transposed dimension count %d != %d", descr, tndims, ndims
@@ -6011,7 +6011,7 @@ int testMatrixOp(PSMatrix a, PSMatrix b, testMatrixOpFunc func,
     testAssertWithMessageOrGoto(
         (ok && res != NULL), final, test, "%s: operation failed", testdescr
     );
-    nd = PSMatrixDimensions(res, shape);
+    nd = PSMatrixShape(res, shape);
     testAssertWithMessageOrGoto(
         (ok = expected_nd == nd), final, test, "%s: expected shape size "
         "was %d, got %d", testdescr, expected_nd, nd
@@ -6036,7 +6036,7 @@ int testMatrixOp(PSMatrix a, PSMatrix b, testMatrixOpFunc func,
     testAssertWithMessageOrGoto(
         (ok && res != NULL), final, test, "%s: operation failed", testdescr
     );
-    nd = PSMatrixDimensions(res, shape);
+    nd = PSMatrixShape(res, shape);
     testAssertWithMessageOrGoto(
         (ok = expected_nd == nd), final, test, "%s: expected shape size "
         "was %d, got %d", testdescr, expected_nd, nd
@@ -6061,7 +6061,7 @@ int testMatrixOp(PSMatrix a, PSMatrix b, testMatrixOpFunc func,
     testAssertWithMessageOrGoto(
         (ok && res != NULL), final, test, "%s: operation failed", testdescr
     );
-    nd = PSMatrixDimensions(res, shape);
+    nd = PSMatrixShape(res, shape);
     testAssertWithMessageOrGoto(
         (ok = expected_nd == nd), final, test, "%s: expected shape size "
         "was %d, got %d", testdescr, expected_nd, nd
@@ -6085,7 +6085,7 @@ int testMatrixOp(PSMatrix a, PSMatrix b, testMatrixOpFunc func,
     testAssertWithMessageOrGoto(
         (ok && res != NULL), final, test, "%s: operation failed", testdescr
     );
-    nd = PSMatrixDimensions(res, shape);
+    nd = PSMatrixShape(res, shape);
     testAssertWithMessageOrGoto(
         (ok = expected_nd == nd), final, test, "%s: expected shape size "
         "was %d, got %d", testdescr, expected_nd, nd
@@ -6149,7 +6149,7 @@ int testMathsMatrixAdd(TestCase *tc, Test *test) {
     );
     PSVectorCopy(am, am_values, PSMatrixLength(am));
     PSVectorCopy(bm, bm_values, PSMatrixLength(bm));
-    nd = PSMatrixDimensions(am, shape);
+    nd = PSMatrixShape(am, shape);
     ok = testMatrixOp(am, bm, PSMatrixAdd, nd, shape, exp_am_bm,
                       "PSMatrixAdd: shape(2,3) + shape(2,3)", test);
     if (!ok) goto final;
@@ -6166,7 +6166,7 @@ int testMathsMatrixAdd(TestCase *tc, Test *test) {
     );
     PSVectorCopy(av, av_values, PSMatrixLength(av));
     PSVectorCopy(bv, bv_values, PSMatrixLength(bv));
-    nd = PSMatrixDimensions(av, shape);
+    nd = PSMatrixShape(av, shape);
     ok = testMatrixOp(av, bv, PSMatrixAdd, nd, shape, exp_av_bv,
                       "PSMatrixAdd: shape(1,3) + shape(1,3)", test);
     if (!ok) goto final;
@@ -6179,7 +6179,7 @@ int testMathsMatrixAdd(TestCase *tc, Test *test) {
                       "PSMatrixAdd: shape(1,3) + shape(3,1)", test);
     if (!ok) goto final;
 
-    nd = PSMatrixDimensions(am, shape);
+    nd = PSMatrixShape(am, shape);
     ok = testMatrixOp(am, bv, PSMatrixAdd, nd, shape, exp_am_bv,
                       "PSMatrixAdd: shape(2,3) + shape(1,3)", test);
     if (!ok) goto final;
@@ -6189,7 +6189,7 @@ int testMathsMatrixAdd(TestCase *tc, Test *test) {
         (ok = scalar != NULL), final, test,
         "could not create %s matrix with shape 1", "scalar"
     );
-    nd = PSMatrixDimensions(am, shape);
+    nd = PSMatrixShape(am, shape);
     ok = testMatrixOp(am, scalar, PSMatrixAdd, nd, shape, exp_am_scalar,
                       "PSMatrixAdd: shape(2,3) + shape(1)", test);
     if (!ok) goto final;
@@ -6248,7 +6248,7 @@ int testMathsMatrixMultiply(TestCase *tc, Test *test) {
     );
     PSVectorCopy(am, am_values, PSMatrixLength(am));
     PSVectorCopy(bm, bm_values, PSMatrixLength(bm));
-    nd = PSMatrixDimensions(am, shape);
+    nd = PSMatrixShape(am, shape);
     ok = testMatrixOp(am, bm, PSMatrixMultiply, nd, shape, exp_am_bm,
                       "PSMatrixMultiply: shape(2,3) + shape(2,3)", test);
     if (!ok) goto final;
@@ -6265,7 +6265,7 @@ int testMathsMatrixMultiply(TestCase *tc, Test *test) {
     );
     PSVectorCopy(av, av_values, PSMatrixLength(av));
     PSVectorCopy(bv, bv_values, PSMatrixLength(bv));
-    nd = PSMatrixDimensions(av, shape);
+    nd = PSMatrixShape(av, shape);
     ok = testMatrixOp(av, bv, PSMatrixMultiply, nd, shape, exp_av_bv,
                       "PSMatrixMultiply: shape(1,3) + shape(1,3)", test);
     if (!ok) goto final;
@@ -6278,7 +6278,7 @@ int testMathsMatrixMultiply(TestCase *tc, Test *test) {
                       "PSMatrixMultiply: shape(1,3) + shape(3,1)", test);
     if (!ok) goto final;
 
-    nd = PSMatrixDimensions(am, shape);
+    nd = PSMatrixShape(am, shape);
     ok = testMatrixOp(am, bv, PSMatrixMultiply, nd, shape, exp_am_bv,
                       "PSMatrixMultiply: shape(2,3) + shape(1,3)", test);
     if (!ok) goto final;
@@ -6288,7 +6288,7 @@ int testMathsMatrixMultiply(TestCase *tc, Test *test) {
         (ok = scalar != NULL), final, test,
         "could not create %s matrix with shape 1", "scalar"
     );
-    nd = PSMatrixDimensions(am, shape);
+    nd = PSMatrixShape(am, shape);
     ok = testMatrixOp(am, scalar, PSMatrixMultiply, nd, shape, exp_am_scalar,
                       "PSMatrixMultiply: shape(2,3) + shape(1)", test);
     if (!ok) goto final;
@@ -6351,7 +6351,7 @@ int testMathsMatrixSubtract(TestCase *tc, Test *test) {
     );
     PSVectorCopy(am, am_values, PSMatrixLength(am));
     PSVectorCopy(bm, bm_values, PSMatrixLength(bm));
-    nd = PSMatrixDimensions(am, shape);
+    nd = PSMatrixShape(am, shape);
     ok = testMatrixOp(am, bm, PSMatrixSubtract, nd, shape, exp_am_bm,
                       "PSMatrixSubtract: shape(2,3) + shape(2,3)", test);
     if (!ok) goto final;
@@ -6368,7 +6368,7 @@ int testMathsMatrixSubtract(TestCase *tc, Test *test) {
     );
     PSVectorCopy(av, av_values, PSMatrixLength(av));
     PSVectorCopy(bv, bv_values, PSMatrixLength(bv));
-    nd = PSMatrixDimensions(av, shape);
+    nd = PSMatrixShape(av, shape);
     ok = testMatrixOp(av, bv, PSMatrixSubtract, nd, shape, exp_av_bv,
                       "PSMatrixSubtract: shape(1,3) + shape(1,3)", test);
     if (!ok) goto final;
@@ -6381,7 +6381,7 @@ int testMathsMatrixSubtract(TestCase *tc, Test *test) {
                       "PSMatrixSubtract: shape(1,3) + shape(3,1)", test);
     if (!ok) goto final;
 
-    nd = PSMatrixDimensions(am, shape);
+    nd = PSMatrixShape(am, shape);
     ok = testMatrixOp(am, bv, PSMatrixSubtract, nd, shape, exp_am_bv,
                       "PSMatrixSubtract: shape(2,3) + shape(1,3)", test);
     if (!ok) goto final;
@@ -6391,7 +6391,7 @@ int testMathsMatrixSubtract(TestCase *tc, Test *test) {
         (ok = scalar != NULL), final, test,
         "could not create %s matrix with shape 1", "scalar"
     );
-    nd = PSMatrixDimensions(am, shape);
+    nd = PSMatrixShape(am, shape);
     ok = testMatrixOp(am, scalar, PSMatrixSubtract, nd, shape, exp_am_scalar,
                       "PSMatrixSubtract: shape(2,3) + shape(1)", test);
     if (!ok) goto final;
@@ -6454,7 +6454,7 @@ int testMathsMatrixDivide(TestCase *tc, Test *test) {
     );
     PSVectorCopy(am, am_values, PSMatrixLength(am));
     PSVectorCopy(bm, bm_values, PSMatrixLength(bm));
-    nd = PSMatrixDimensions(am, shape);
+    nd = PSMatrixShape(am, shape);
     ok = testMatrixOp(am, bm, PSMatrixDivide, nd, shape, exp_am_bm,
                       "PSMatrixDivide: shape(2,3) + shape(2,3)", test);
     if (!ok) goto final;
@@ -6471,7 +6471,7 @@ int testMathsMatrixDivide(TestCase *tc, Test *test) {
     );
     PSVectorCopy(av, av_values, PSMatrixLength(av));
     PSVectorCopy(bv, bv_values, PSMatrixLength(bv));
-    nd = PSMatrixDimensions(av, shape);
+    nd = PSMatrixShape(av, shape);
     ok = testMatrixOp(av, bv, PSMatrixDivide, nd, shape, exp_av_bv,
                       "PSMatrixDivide: shape(1,3) + shape(1,3)", test);
     if (!ok) goto final;
@@ -6484,7 +6484,7 @@ int testMathsMatrixDivide(TestCase *tc, Test *test) {
                       "PSMatrixDivide: shape(1,3) + shape(3,1)", test);
     if (!ok) goto final;
 
-    nd = PSMatrixDimensions(am, shape);
+    nd = PSMatrixShape(am, shape);
     ok = testMatrixOp(am, bv, PSMatrixDivide, nd, shape, exp_am_bv,
                       "PSMatrixDivide: shape(2,3) + shape(1,3)", test);
     if (!ok) goto final;
@@ -6494,7 +6494,7 @@ int testMathsMatrixDivide(TestCase *tc, Test *test) {
         (ok = scalar != NULL), final, test,
         "could not create %s matrix with shape 1", "scalar"
     );
-    nd = PSMatrixDimensions(am, shape);
+    nd = PSMatrixShape(am, shape);
     ok = testMatrixOp(am, scalar, PSMatrixDivide, nd, shape, exp_am_scalar,
                       "PSMatrixDivide: shape(2,3) + shape(1)", test);
     if (!ok) goto final;
@@ -6669,7 +6669,7 @@ int testMathsVecToMatrix(TestCase *tc, Test *test) {
     if (!success) goto final;
     int mshape[PS_MAX_SEQUENCE_LENGTH] = {0};
     int ndims = 0, d;
-    ndims = PSMatrixDimensions(matrix, mshape);
+    ndims = PSMatrixShape(matrix, mshape);
     for (d = 0; d < ndims; d++) {
         success = (shape[d] == mshape[d]);
         testAssertWithMessageOrGoto(

@@ -13,7 +13,7 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSMatrixExpand 3 2023-12-01 "PsyC 0.9.3" "PsyC Library Functions Manual"
+.TH PSMatrixExpand 3 2023-12-03 "PsyC 0.9.3" "PsyC Library Functions Manual"
 
 .SH NAME
 PSMatrixExpand
@@ -31,6 +31,20 @@ PSMatrix
 .br
 \fBPSMatrixExpand\fR(\fIPSMatrix src\fR, \fIint add\fR, \fIint keep_src\fR)
 .SH DESCRIPTION
-Expand matrix \fIsrc\fR by adding \fIadd\fR to its first dimension. Added data will be set to zero.
+Create a new matrix having the shape of \fIsrc\fR but with the first dimension increased by the value of \fIadd\fR. The original values \fIsrc\fR will be copied to the new matrix, and all the new values belonging to thecexpanded dimension will be initialized to zero.
 .br
-Beware of the fact that \fIsrc\fR matrix could be freed after the process, so always assing the return value of this function to a new variable, since it could lead to memory leaks in case of a \fINULL\fR return value. Also beware of the fact that the original variable holding \fIsrc\fR could point to freed memry after function returns.
+If \fIkeep_src\fR is zero, the original matrix \fIsrc\fR will be freed.  
+
+.SH RETURN VALUES
+The new expanded matrix or:
+
+.RS 4
+\[bu] \fIsrc\fR itself if \fIadd\fR is less that one.
+.br
+
+\[bu] \fINULL\fR if \fIsrc\fR is \fINULL\fR.
+.br
+
+\[bu] \fINULL\fR if memory cannot be allocated.
+.br
+.RE

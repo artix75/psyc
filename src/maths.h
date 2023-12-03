@@ -56,6 +56,8 @@
 #define PSVectorZero(len) calloc(len, sizeof(PSFloat))
 #define PSVectorCreate(len) malloc(len * sizeof(PSFloat))
 
+#define PSMatrixDimensions(matrix, shape) PSMatrixShape(matrix, shape)
+
 #define PS_STORE_MODE_SET 0
 #define PS_STORE_MODE_ADD 1
 #define PS_STORE_MODE_SUB 2
@@ -130,13 +132,19 @@ unsigned int PSRandomInt(unsigned int range, PSFloat *weights, int *err,
 #define PSMatrixStrideBytes(matrix,i) \
     (PSMatrixStride(matrix,i) * sizeof(PSFloat))
 
-/* Basically, `PSMatrix` can be used as a normal array of `PSFloat`.
- * Anyway, it privately holds more info that allow it to be used as a
- * multidimensional matrix, so that matrix operations can be performed on
- * then (transposition, matrix multiplication, etc.).
- * Private data is actually allocated just before the memory address pointed
- * by `PSMatrix`, so you should **NEVER** free PSMatrix by usual `free`,
- * but you have to call PSMatrixFree instead. */
+/* Basically, `PSMatrix` can be used as a normal array of `PSFloat`
+ * numbers. However, PSMatrix objects created by using the specific functions
+ * (`PSMatrixCreate`, `PSMatrixZeros`, and so on) will also contain several
+ * private informations about the matrix itself that allow them to be used as
+ * multidimensional matrices.
+ * Therefore, by using the PSMatrix-related functions provided by PsyC's API,
+ * it's possible to get info about the matrix (length, shape, ...) or to
+ * perform several operations (ie. transposition, matrix multiplication, etc.)
+ * on them.
+ * WARN: matrix's private data are actually allocated just before the memory
+ * address pointed by `PSMatrix`, so the matrix object should **NEVER** be
+ * freed by calling the usual `free` function or similar functions: the
+ * dedicated `PSMatrixFree` function should be called instead. */
 typedef PSFloat *PSMatrix;
 typedef PSFloat (*PSMatrixInitializer)(PSMatrix matrix, int idx, PSFloat n);
 PSMatrix PSMatrixCreate(PSFloat init_value, PSMatrixInitializer initializer,
@@ -151,7 +159,7 @@ PSMatrix PSMatrixFromArray(PSFloat *array, int ndims, ...);
 PSMatrix PSMatrixExpand(PSMatrix src, int add, int keep_src);
 int PSMatrixNumDims(PSMatrix matrix);
 int PSMatrixDim(PSMatrix matrix, int dim);
-int PSMatrixDimensions(PSMatrix matrix, int *dims);
+int PSMatrixShape(PSMatrix matrix, int *shape);
 uint64_t PSMatrixLength(PSMatrix matrix);
 int PSMatrixStride(PSMatrix matrix, int dim);
 int PSMatrixShapeType(PSMatrix matrix);

@@ -214,7 +214,7 @@ unsigned int PSRandomInt(unsigned int range, PSFloat *weights, int *err,
 
 typedef struct PSMatrixHeader {
     int ndims;
-    int dims[PS_MATRIX_MAX_DIMENSIONS];
+    int shape[PS_MATRIX_MAX_DIMENSIONS];
     PSMatrix transposed;
     PSMatrix transposed_from;
     uint64_t length;
@@ -276,6 +276,17 @@ static int getShapeType(int nd, int *dims) {
     return PS_SHAPE_TYPE_MATRIX;
 }
 
+/* Create a new matrix having number of dimensions defined by `ndims` and
+ * shape defined by `shape`. The argument `init_value` can be used to define
+ * the initial value of the matrix numbers or, optionally, the `initializer`
+ * callback can be used to initialize the matrix values.
+ * If the matrix cannot be allocated, `errno` will be set to `ENOMEM`.
+ * Return value: the allocated matrix or NULL if:
+ *  - the number of dimensions (`ndims`) is greater than
+ *    `PS_MATRIX_MAX_DIMENSIONS` or less than one.
+ *  - it's not possible to allocate the matrix in memory.
+ * WARN: the address pointed by the returned pointer should never be freed
+ * directly. The specific function `PSMatrixFree` should be used instead. */
 PSMatrix PSMatrixCreateWithShape(PSFloat init_value,
                                  PSMatrixInitializer initializer,
                                  int ndims, int *shape)
@@ -321,8 +332,8 @@ PSMatrix PSMatrixCreateWithShape(PSFloat init_value,
     hdr->transposed_from = NULL;
     hdr->ndims = ndims;
     for (i = 0; i < PS_MATRIX_MAX_DIMENSIONS; i++) {
-        if (i < ndims) hdr->dims[i] = shape[i];
-        else hdr->dims[i] = 0;
+        if (i < ndims) hdr->shape[i] = shape[i];
+        else hdr->shape[i] = 0;
     }
     hdr->length = len;
     if (initializer != NULL) {
@@ -352,6 +363,18 @@ PSMatrix PSMatrixCreateV(PSFloat init_value, PSMatrixInitializer initializer,
     return PSMatrixCreateWithShape(init_value, initializer, ndims, dims);
 }
 
+/* Create a new matrix having number of dimensions defined by `ndims`. The
+ * shape of the matrix is given by variadic arguments that follow `ndims`.
+ * The argument `init_value` can be used to define the initial value of the
+ * matrix numbers or, optionally, the `initializer` callback can be used to
+ * initialize the matrix values.
+ * If the matrix cannot be allocated, `errno` will be set to `ENOMEM`.
+ * Return value: the allocated matrix or NULL if:
+ *  - the number of dimensions (`ndims`) is greater than
+ *    `PS_MATRIX_MAX_DIMENSIONS` or less than one.
+ *  - it's not possible to allocate the matrix in memory.
+ * WARN: the address pointed by the returned pointer should never be freed
+ * directly. The specific function `PSMatrixFree` should be used instead. */
 PSMatrix PSMatrixCreate(PSFloat init_value, PSMatrixInitializer initializer,
                         int ndims, ...)
 {
@@ -363,6 +386,16 @@ PSMatrix PSMatrixCreate(PSFloat init_value, PSMatrixInitializer initializer,
     return matrix;
 }
 
+/* Create a new, zero-filled, matrix having number of dimensions defined by
+ * `ndims`. The shape of the matrix is given by variadic arguments that follows
+ * `ndims`.
+ * If the matrix cannot be allocated, `errno` will be set to `ENOMEM`.
+ * Return value: the allocated matrix or NULL if:
+ *  - the number of dimensions (`ndims`) is greater than
+ *    `PS_MATRIX_MAX_DIMENSIONS` or less than one.
+ *  - it's not possible to allocate the matrix in memory.
+ * WARN: the address pointed by the returned pointer should never be freed
+ * directly. The specific function `PSMatrixFree` should be used instead. */
 PSMatrix PSMatrixZeros(int ndims, ...) {
     PSMatrix matrix = NULL;
     va_list args;
@@ -372,6 +405,18 @@ PSMatrix PSMatrixZeros(int ndims, ...) {
     return matrix;
 }
 
+/* Create a new matrix having number of dimensions defined by `ndims`. The
+ * shape of the matrix is given by variadic arguments that follow `ndims`.
+ * The values of the matrix will be initialized with random numbers from a
+ * gaussian distribution having zero mean and the standard deviation defined
+ * by `stddev`.
+ * If the matrix cannot be allocated, `errno` will be set to `ENOMEM`.
+ * Return value: the allocated matrix or NULL if:
+ *  - the number of dimensions (`ndims`) is greater than
+ *    `PS_MATRIX_MAX_DIMENSIONS` or less than one.
+ *  - it's not possible to allocate the matrix in memory.
+ * WARN: the address pointed by the returned pointer should never be freed
+ * directly. The specific function `PSMatrixFree` should be used instead. */
 PSMatrix PSMatrixWithGaussianRandom(PSFloat stddev, int ndims, ...) {
     PSMatrix matrix = NULL;
     va_list args;
@@ -383,6 +428,17 @@ PSMatrix PSMatrixWithGaussianRandom(PSFloat stddev, int ndims, ...) {
     return matrix;
 }
 
+/* Create a new matrix having number of dimensions defined by `ndims`. The
+ * shape of the matrix is given by variadic arguments that follow `ndims`.
+ * The values of the matrix will be initialized with random numbers from 0.0
+ * to 1.0.
+ * If the matrix cannot be allocated, `errno` will be set to `ENOMEM`.
+ * Return value: the allocated matrix or NULL if:
+ *  - the number of dimensions (`ndims`) is greater than
+ *    `PS_MATRIX_MAX_DIMENSIONS` or less than one.
+ *  - it's not possible to allocate the matrix in memory.
+ * WARN: the address pointed by the returned pointer should never be freed
+ * directly. The specific function `PSMatrixFree` should be used instead. */
 PSMatrix PSMatrixRandom(int ndims, ...) {
     PSMatrix matrix = NULL;
     va_list args;
@@ -392,6 +448,20 @@ PSMatrix PSMatrixRandom(int ndims, ...) {
     return matrix;
 }
 
+/* Create a new matrix having number of dimensions defined by `ndims`. The
+ * shape of the matrix is given by variadic arguments that follow `ndims`.
+ * The values of the matrix will be initialized with values of `array`.
+ * If the matrix cannot be allocated, `errno` will be set to `ENOMEM`.
+ * WARN: the length of `array` must be at least the same of the length of the
+ * matrix, so if the matrix has two dimensions of shape [2, 3] (two rows with
+ * three columns), the provided array's length cannot be less than six.
+ * Return value: the allocated matrix or NULL if:
+ *  - `array` is NULL.
+ *  - the number of dimensions (`ndims`) is greater than
+ *    `PS_MATRIX_MAX_DIMENSIONS` or less than one.
+ *  - it's not possible to allocate the matrix in memory.
+ * WARN: the address pointed by the returned pointer should never be freed
+ * directly. The specific function `PSMatrixFree` should be used instead. */
 PSMatrix PSMatrixFromArray(PSFloat *array, int ndims, ...) {
     if (array == NULL) return NULL;
     PSMatrix matrix = NULL;
@@ -405,6 +475,13 @@ PSMatrix PSMatrixFromArray(PSFloat *array, int ndims, ...) {
     return matrix;
 }
 
+/* Duplicate `matrix` by creating a new matrix having the same shape as
+ * `matrix` and by copying all values of `matrix` to the new matrix.
+ * Return value: the new matrix or NULL if:
+ *  - `matrix` is NULL.
+ *  - it's not possible to allocate the matrix in memory.
+ * WARN: the address pointed by the returned pointer should never be freed
+ * directly. The specific function `PSMatrixFree` should be used instead. */
 PSMatrix PSMatrixDup(PSMatrix matrix) {
     if (matrix == NULL) return NULL;
     uint64_t len = PSMatrixLength(matrix);
@@ -424,6 +501,12 @@ PSMatrix PSMatrixDup(PSMatrix matrix) {
     return clone;
 }
 
+/* Create a new (zero-filled) matrix having the same shape as `matrix`.
+ * Return value: the new matrix or NULL if:
+ *  - `matrix` is NULL.
+ *  - it's not possible to allocate the matrix in memory.
+ * WARN: the address pointed by the returned pointer should never be freed
+ * directly. The specific function `PSMatrixFree` should be used instead. */
 PSMatrix PSMatrixDupShape(PSMatrix matrix) {
     if (matrix == NULL) return NULL;
     uint64_t len = PSMatrixLength(matrix);
@@ -443,6 +526,15 @@ PSMatrix PSMatrixDupShape(PSMatrix matrix) {
     return clone;
 }
 
+/* Copy values of matrix `src` to matrix `dst`. Both `src` and `dst` must have
+ * the same shape.
+ * NOTE: if `dst` owns a cached transposed version of itself, the cached
+ * version will be cleared. At the same time, if `dst` is the cached transposed
+ * version of another matrix, the cached version of the owner matrix will be
+ * cleared.
+ * Return value: 1 in case of success, 0 if:
+ *  - `src` is NULL or `dst` is NULL.
+ *  - `src` and `dst` have different shapes. */
 int PSMatrixCopy(PSMatrix src, PSMatrix dst) {
     if (src == NULL) {
         PSErr(__func__, "`src` matrix is NULL");
@@ -454,8 +546,8 @@ int PSMatrixCopy(PSMatrix src, PSMatrix dst) {
     }
     int src_dims[PS_MATRIX_MAX_DIMENSIONS];
     int dst_dims[PS_MATRIX_MAX_DIMENSIONS];
-    int src_ndims = PSMatrixDimensions(src, src_dims),
-        dst_ndims = PSMatrixDimensions(dst, dst_dims),
+    int src_ndims = PSMatrixShape(src, src_dims),
+        dst_ndims = PSMatrixShape(dst, dst_dims),
         src_len = PSMatrixLength(src), i;
     if (src_ndims != dst_ndims) {
         PSErr(__func__, "`src` dimensions != `dst` dimensions: %d != %d",
@@ -472,7 +564,11 @@ int PSMatrixCopy(PSMatrix src, PSMatrix dst) {
         }
     }
     PSMatrixHeader *dst_hdr = PSMatrixGetHeader(dst);
-    dst_hdr->transposed_from = NULL;
+    if (dst_hdr->transposed_from != NULL) {
+        PSMatrixHeader *owner_hdr = PSMatrixGetHeader(dst_hdr->transposed_from);
+        owner_hdr->transposed = NULL;
+        dst_hdr->transposed_from = NULL;
+    }
     if (dst_hdr->transposed != NULL) {
         PSMatrixFree(dst_hdr->transposed);
         dst_hdr->transposed = NULL;
@@ -481,18 +577,23 @@ int PSMatrixCopy(PSMatrix src, PSMatrix dst) {
     return 1;
 }
 
+/* Set all values of `matrix` to zero. If `matrix` is NULL, the function does
+ * nothing at all.*/
 void PSMatrixClear(PSMatrix matrix) {
     if (matrix == NULL) return;
     PSVectorClear(matrix, PSMatrixLength(matrix));
 }
 
-/* Expand matrix `src` by adding `add` to its first dimension. Added data will
- * be set to zero.
- * Beware of the fact that `src` matrix could be freed after the process,
- * so always assing the return value of this function to a new variable, since
- * it could lead to memory leaks in case of a NULL return value. Also beware of
- * the fact that the original variable holding `src` could point to freed
- * memry after function returns. */
+/* Create a new matrix having the shape of `src` but with the first dimension
+ * increased by the value of `add`. The original values `src` will be copied to
+ * the new matrix, and all the new values belonging to thecexpanded dimension
+ * will be initialized to zero.
+ * If `keep_src` is zero, the original matrix `src` will be freed.
+ * Return value: the new expanded matrix or:
+ *  - `src` itself if `add` is less that one.
+ *  - NULL if `src` is NULL.
+ *  - NULL if memory cannot be allocated.
+ */
 PSMatrix PSMatrixExpand(PSMatrix src, int add, int keep_src) {
     if (src == NULL) return NULL;
     if (add <= 0) return src;
@@ -505,7 +606,7 @@ PSMatrix PSMatrixExpand(PSMatrix src, int add, int keep_src) {
         return PSMatrixTranspose(matrix, 1, &opts);
     }
     int new_dims[PS_MATRIX_MAX_DIMENSIONS] = {0};
-    int ndims = PSMatrixDimensions(src, new_dims);
+    int ndims = PSMatrixShape(src, new_dims);
     int curlen = PSMatrixLength(src);
     new_dims[0] += add;
     matrix = PSMatrixCreateWithShape(0.0, NULL, ndims, new_dims);
@@ -518,48 +619,68 @@ PSMatrix PSMatrixExpand(PSMatrix src, int add, int keep_src) {
     return matrix;
 }
 
+/* Return the number of dimensions of `matrix`. If `matrix` is NULL, the
+ * function will return zero. */
 int PSMatrixNumDims(PSMatrix matrix) {
     if (matrix == NULL) return 0;
     PSMatrixHeader *hdr = PSMatrixGetHeader(matrix);
     return hdr->ndims;
 }
 
+/* Return the size of the dimension `dim` of `matrix`. If `dim` is out of
+ * bounds or if `matrix` is NULL, the function will return zero. */
 int PSMatrixDim(PSMatrix matrix, int dim) {
     if (matrix == NULL) return 0;
     PSMatrixHeader *hdr = PSMatrixGetHeader(matrix);
     if (dim >= hdr->ndims) return 0;
-    return hdr->dims[dim];
+    return hdr->shape[dim];
 }
 
-int PSMatrixDimensions(PSMatrix matrix, int *dims) {
+/* Get the shape of `matrix` and store it into `shape` array. The `shape`
+ * array must be big enough to hold at least `PS_MATRIX_MAX_DIMENSIONS`
+ * elements.
+ * If `shape` is NULL, the function will just return the number of dimensions
+ * (so, the length of the shape array of `matrix`).
+ * Return value: the number of dimensions of `matrix` or zero if `matrix` is
+ * NULL. */
+int PSMatrixShape(PSMatrix matrix, int *shape) {
     if (matrix == NULL) return 0;
     int ndims = PSMatrixNumDims(matrix);
-    if (dims == NULL) return ndims;
+    if (shape == NULL) return ndims;
     PSMatrixHeader *hdr = PSMatrixGetHeader(matrix);
-    memcpy(dims, hdr->dims, (PS_MATRIX_MAX_DIMENSIONS * sizeof(int)));
+    memcpy(shape, hdr->shape, (PS_MATRIX_MAX_DIMENSIONS * sizeof(int)));
     return ndims;
 }
 
+/* Get the total number of values belonging to `matrix` (ie. a matrix with
+ * shape (2,3) will return 6).
+ * Return value: the total number of values belonging to `matrix` or zero if
+ * `matrix` is NULL. */
 uint64_t PSMatrixLength(PSMatrix matrix) {
     if (matrix == NULL) return 0;
     PSMatrixHeader *hdr = PSMatrixGetHeader(matrix);
     return hdr->length;
 }
 
+/* Get the stride of the dimension `dim` of `matrix`. For example, a matrix
+ * with shape (2,3) has a stride of 3 for dimension 0 while a matrix with shape
+ * (2,3,3) has a stride of 9 for dimension 0, 3 for dimension 1 and 1 for
+ * dimension 2.
+ * Return value: the stride of dimension `dim` or zero if `matrix` is NULL. */
 int PSMatrixStride(PSMatrix matrix, int dim) {
     if (matrix == NULL) return 0;
     int refdim = dim + 1;
     PSMatrixHeader *hdr = PSMatrixGetHeader(matrix);
     if (refdim >= PS_MATRIX_MAX_DIMENSIONS || refdim >= hdr->ndims) return 1;
     int stride = 1;
-    while (refdim < hdr->ndims) stride *= hdr->dims[refdim++];
+    while (refdim < hdr->ndims) stride *= hdr->shape[refdim++];
     return stride;
 }
 
 int PSMatrixShapeType(PSMatrix matrix) {
     if (matrix == NULL) return PS_SHAPE_TYPE_NONE;
     int dims[PS_MATRIX_MAX_DIMENSIONS];
-    int ndims = PSMatrixDimensions(matrix, dims);
+    int ndims = PSMatrixShape(matrix, dims);
     return getShapeType(ndims, dims);
 }
 
@@ -573,7 +694,7 @@ void PSMatrixPrintInfo(PSMatrix matrix, const char *name, int newline) {
         return;
     }
     int dims[PS_MATRIX_MAX_DIMENSIONS] = {0};
-    int ndims = PSMatrixDimensions(matrix, dims);
+    int ndims = PSMatrixShape(matrix, dims);
     printf(
         "Matrix %s dimensions = %d, shape = (%s)%s",
         name, ndims, matrixDimensionsToString(ndims, dims), nl
@@ -583,7 +704,7 @@ void PSMatrixPrintInfo(PSMatrix matrix, const char *name, int newline) {
 void PSMatrixPrintShape(PSMatrix matrix, int newline) {
     if (matrix == NULL) return;
     int shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
-    int nd = PSMatrixDimensions(matrix, shape), i;
+    int nd = PSMatrixShape(matrix, shape), i;
     if (nd > PS_MATRIX_MAX_DIMENSIONS) {
         PSWarn("%s: invalid matrix", __func__);
         return;
@@ -608,7 +729,7 @@ int PSMatrixWrite(PSMatrix matrix, const char *sep, char bracket,
         return 0;
     }
     int shape[PS_MATRIX_MAX_DIMENSIONS];
-    int ndims = PSMatrixDimensions(matrix, shape), i, j, k;
+    int ndims = PSMatrixShape(matrix, shape), i, j, k;
     int last_dim = ndims - 1;
     int index[PS_MATRIX_MAX_DIMENSIONS] = {0};
     int prev_index[PS_MATRIX_MAX_DIMENSIONS];
@@ -663,7 +784,7 @@ void PSMatrixPrint(PSMatrix matrix, const char *sep, int print_shape) {
     if (matrix == NULL) return;
     if (print_shape) {
         int shape[PS_MATRIX_MAX_DIMENSIONS];
-        int ndims = PSMatrixDimensions(matrix, shape);
+        int ndims = PSMatrixShape(matrix, shape);
         printf("Matrix (shape = %s):\n",matrixDimensionsToString(ndims,shape));
     }
     PSMatrixWrite(matrix, sep, '[', 2, stdout);
@@ -682,9 +803,9 @@ PSFloat *PSMatrixGet(PSMatrix matrix, int ndims, uint32_t *len, ...) {
         if (refdim >= hdr->ndims) stride = 1;
         else stride = PSMatrixStride(matrix, i);
         int idx = va_arg(args, int);
-        if (idx >= hdr->dims[i]) {
+        if (idx >= hdr->shape[i]) {
             PSWarn("%s: index %d is out of bounds for axis[%d] (%d)",
-                   __func__, idx, i, hdr->dims[i]);
+                   __func__, idx, i, hdr->shape[i]);
             values = NULL;
             stride = 0;
             break;
@@ -724,8 +845,8 @@ static int genericMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *out,
     }
     int shape_a[PS_MATRIX_MAX_DIMENSIONS] = {0};
     int shape_b[PS_MATRIX_MAX_DIMENSIONS] = {0};
-    int ndims_a = PSMatrixDimensions(a, shape_a);
-    int ndims_b = PSMatrixDimensions(b, shape_b);
+    int ndims_a = PSMatrixShape(a, shape_a);
+    int ndims_b = PSMatrixShape(b, shape_b);
     uint64_t len = 0;
     if (ndims_a == 0 || ndims_b == 0) {
         /* `a` or `b` is scalar */
@@ -783,7 +904,7 @@ static int genericMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *out,
     niter_b = PSMatrixLength(b) / l;
     if (*out != NULL) {
         int out_shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
-        int out_ndims = PSMatrixDimensions(*out, out_shape);
+        int out_ndims = PSMatrixShape(*out, out_shape);
         if (out_ndims != nd) {
             PSErr(
                 __func__, "`out` matrix has %d dimension(s), but "
@@ -822,7 +943,7 @@ static int genericMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *out,
             if (swap_b == NULL) return 0;
             int bs = PSMatrixStride(swap_b, 0);
             int tshape_b[PS_MATRIX_MAX_DIMENSIONS] = {0};
-            PSMatrixDimensions(b, tshape_b);
+            PSMatrixShape(b, tshape_b);
             for (i = 0; i < blen; i++) {
                 int offset = i * bs;
                 PSFloat *src = b + offset, *dst = swap_b + offset;
@@ -834,12 +955,12 @@ static int genericMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *out,
                 if (!success) goto final;
             }
             b = swap_b;
-            PSMatrixDimensions(b, tshape_b);
+            PSMatrixShape(b, tshape_b);
             int last_db = tshape_b[ndims_b - 1];
             tshape_b[ndims_b - 1] = tshape_b[ndims_b - 2];
             tshape_b[ndims_b - 2] = last_db;
             PSMatrixHeader *hdr = PSMatrixGetHeader(b);
-            memcpy(hdr->dims, tshape_b, PS_MATRIX_MAX_DIMENSIONS * sizeof(int));
+            memcpy(hdr->shape, tshape_b, PS_MATRIX_MAX_DIMENSIONS * sizeof(int));
             l = tshape_b[ndims_b - 1];
             int as = PSMatrixStride(a, 0), k;
             for (i = 0; i < niter_a; i++) {
@@ -902,8 +1023,8 @@ static int genericMatrixOperation(PSMatrix a, PSMatrix b, PSMatrix *result,
     int dims_a[PS_MATRIX_MAX_DIMENSIONS];
     int dims_b[PS_MATRIX_MAX_DIMENSIONS];
     /* Number of dimensions */
-    int ndims_a = PSMatrixDimensions(a, dims_a);
-    int ndims_b = PSMatrixDimensions(b, dims_b);
+    int ndims_a = PSMatrixShape(a, dims_a);
+    int ndims_b = PSMatrixShape(b, dims_b);
     if (ndims_a == 0) {
         PSErr(func, "Invalid matrix `a`");
         return 0;
@@ -977,7 +1098,7 @@ static int genericMatrixOperation(PSMatrix a, PSMatrix b, PSMatrix *result,
         *result = out;
     } else {
         int shape_o[PS_MATRIX_MAX_DIMENSIONS] = {0};
-        int ndims_o = PSMatrixDimensions(out, shape_o);
+        int ndims_o = PSMatrixShape(out, shape_o);
         int same_out_shape = (ndims_o == deepest_nd);
         if (same_out_shape) {
             for (i = 0; i < deepest_nd; i++) {
@@ -1054,7 +1175,7 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
     UNUSED(use_acf);
 #endif
     int dims_a[PS_MATRIX_MAX_DIMENSIONS];
-    int ndims = PSMatrixDimensions(a, dims_a);
+    int ndims = PSMatrixShape(a, dims_a);
     if (ndims == 0) {
         PSErr(__func__, "Invalid matrix");
         return 0;
@@ -1194,7 +1315,7 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
     int mdims_b[PS_MATRIX_MAX_DIMENSIONS];
     int tdims_b[PS_MATRIX_MAX_DIMENSIONS];
     int *dims_b = mdims_b;
-    int ndims = PSMatrixDimensions(b, dims_b);
+    int ndims = PSMatrixShape(b, dims_b);
     if (ndims == 0) {
         PSErr(__func__, "Invalid matrix");
         return 0;
@@ -1378,8 +1499,8 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
     int tdims_a[PS_MATRIX_MAX_DIMENSIONS];
     int tdims_b[PS_MATRIX_MAX_DIMENSIONS];
     /* Number of dimensions */
-    int ndims_a = PSMatrixDimensions(a, mdims_a);
-    int ndims_b = PSMatrixDimensions(b, mdims_b);
+    int ndims_a = PSMatrixShape(a, mdims_a);
+    int ndims_b = PSMatrixShape(b, mdims_b);
     if (ndims_a == 0) {
         PSErr(__func__, "Invalid matrix `a`");
         return 0;
@@ -1501,8 +1622,8 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
     } else {
         int odims_a[PS_MATRIX_MAX_DIMENSIONS] = {0};
         int odims_b[PS_MATRIX_MAX_DIMENSIONS] = {0};
-        int o_ndims_a = PSMatrixDimensions(orig_a, odims_a),
-            o_ndims_b = PSMatrixDimensions(orig_b, odims_b);
+        int o_ndims_a = PSMatrixShape(orig_a, odims_a),
+            o_ndims_b = PSMatrixShape(orig_b, odims_b);
         if (transpose) {
             int orig_transp = transpose;
             if (reverse_args) {
@@ -1836,7 +1957,7 @@ int PSMatrixDivide(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt)
 {
     if (b != NULL) {
         int shape_b[PS_MATRIX_MAX_DIMENSIONS] = {0};
-        int nd_b = PSMatrixDimensions(b, shape_b);
+        int nd_b = PSMatrixShape(b, shape_b);
         if (getShapeType(nd_b, shape_b) == PS_SHAPE_TYPE_SCALAR && *b == 0) {
             PSErr(__func__, "division by zero");
             return 0;
@@ -1887,7 +2008,7 @@ PSMatrix *PSMatrixSplit(PSMatrix matrix, int num_slices, int axis,
 {
     if (matrix == NULL) return NULL;
     int shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
-    int ndims = PSMatrixDimensions(matrix, shape);
+    int ndims = PSMatrixShape(matrix, shape);
     uint64_t len = PSMatrixLength(matrix);
     if (len == 0 || ndims <= 0) {
         PSErr(__func__, "cannot split an empty matrix");
@@ -1935,7 +2056,7 @@ PSMatrix *PSMatrixSplit(PSMatrix matrix, int num_slices, int axis,
         matrix = PSMatrixTranspose(matrix, 0, opts);
         success = (matrix != NULL);
         if (!success) goto final;
-        PSMatrixDimensions(matrix, shape);
+        PSMatrixShape(matrix, shape);
     }
     int elem_size = 1;
     for (i = 1; i < ndims; i++) elem_size *= shape[i];
@@ -1978,7 +2099,7 @@ PSMatrix PSMatrixTranspose(PSMatrix matrix, int rebuild, PSMathOpts *opts) {
         hdr->transposed = NULL;
     } else if (hdr->transposed_from != NULL) return hdr->transposed_from;
     int ndims = hdr->ndims;
-    int *dims = hdr->dims;
+    int *dims = hdr->shape;
     int ncols = 0, nrows = 0, dlen = 0, t_ncols = 0, t_dlen = 0;
     uint64_t x, y, z, idx, i;
     PSMatrix transposed = NULL;
@@ -2056,7 +2177,7 @@ PSMatrix PSMatrixSwapAxes(PSMatrix matrix, int axis1, int axis2) {
         int idx = i;
         if (axis1 == i) idx = axis2;
         else if (axis2 == i) idx = axis1;
-        shape[i] = hdr->dims[idx];
+        shape[i] = hdr->shape[idx];
     }
     PSMatrix swapped = PSMatrixCreateWithShape(0, NULL, hdr->ndims, shape);
     if (swapped == NULL) {
@@ -2068,7 +2189,7 @@ PSMatrix PSMatrixSwapAxes(PSMatrix matrix, int axis1, int axis2) {
         (axis1 == last_axis && axis2 == last_axis - 1))
     {
         int stride = PSMatrixStride(swapped, 0);
-        int rows = hdr->dims[last_axis - 1], cols = hdr->dims[last_axis];
+        int rows = hdr->shape[last_axis - 1], cols = hdr->shape[last_axis];
         for (i = 0; i < shape[0]; i++) {
             PSFloat *transposed = PSVectorTranspose(
                 src_p, dst_p, PSGlobalAcceleration, 2, rows, cols
@@ -2112,8 +2233,8 @@ int PSMatrixEquals(PSMatrix a, PSMatrix b, int precision, int ignore_shape) {
     if (!ignore_shape) {
         int shape_a[PS_MATRIX_MAX_DIMENSIONS] = {0};
         int shape_b[PS_MATRIX_MAX_DIMENSIONS] = {0};
-        int ndims_a = PSMatrixDimensions(a, shape_a),
-            ndims_b = PSMatrixDimensions(b, shape_b), i;
+        int ndims_a = PSMatrixShape(a, shape_a),
+            ndims_b = PSMatrixShape(b, shape_b), i;
         if (ndims_a != ndims_b) return 0;
         for (i = 0; i < ndims_a; i++) {
             if (shape_a[i] != shape_b[i]) return 0;
@@ -2979,7 +3100,7 @@ int PSDot(PSMatrix a, PSMatrix b, PSMatrix dest, PSMathOpts *opts) {
         return 1;
     } else if (!a_is_vec && b_is_vec) {
         /* matrix-vector multiplication */
-        int ndims = PSMatrixDimensions(a, dims_a);
+        int ndims = PSMatrixShape(a, dims_a);
         int len = (transpose & 1 ? dims_a[0] : dims_a[ndims - 1]);
         int do_free_tmpdest = 0;
         if (len <= 0) {
@@ -3012,7 +3133,7 @@ int PSDot(PSMatrix a, PSMatrix b, PSMatrix dest, PSMathOpts *opts) {
         return 1;
     } else if (a_is_vec && !b_is_vec) {
         /* vector-matrix multiplication */
-        PSMatrixDimensions(b, dims_b);
+        PSMatrixShape(b, dims_b);
         int len = dims_b[1];
         int do_free_tmpdest = 0;
         if (len <= 0) {
@@ -3628,7 +3749,7 @@ PSMatrix PSVectorConvertToMatrix(PSFloat *vec, uint64_t len, int ndims,
     memset(hdr, 0, PSMatrixHeaderSize);
     hdr->length = len;
     hdr->ndims = ndims;
-    for (i = 0; i < ndims; i++) hdr->dims[i] = shape[i];
+    for (i = 0; i < ndims; i++) hdr->shape[i] = shape[i];
     hdr->transposed = NULL;
     hdr->transposed_from = NULL;
     return matrix;

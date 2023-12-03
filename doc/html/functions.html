@@ -205,7 +205,6 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 <li><a href="#function-psmatrixcreate">PSMatrixCreate</a></li>
 <li><a href="#function-psmatrixcreatewithshape">PSMatrixCreateWithShape</a></li>
 <li><a href="#function-psmatrixdim">PSMatrixDim</a></li>
-<li><a href="#function-psmatrixdimensions">PSMatrixDimensions</a></li>
 <li><a href="#function-psmatrixdivide">PSMatrixDivide</a></li>
 <li><a href="#function-psmatrixdup">PSMatrixDup</a></li>
 <li><a href="#function-psmatrixdupshape">PSMatrixDupShape</a></li>
@@ -227,6 +226,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 <li><a href="#function-psmatrixrandom">PSMatrixRandom</a></li>
 <li><a href="#function-psmatrixresettransposed">PSMatrixResetTransposed</a></li>
 <li><a href="#function-psmatrixreshape">PSMatrixReshape</a></li>
+<li><a href="#function-psmatrixshape">PSMatrixShape</a></li>
 <li><a href="#function-psmatrixshapetype">PSMatrixShapeType</a></li>
 <li><a href="#function-psmatrixsplit">PSMatrixSplit</a></li>
 <li><a href="#function-psmatrixstride">PSMatrixStride</a></li>
@@ -536,7 +536,7 @@ Possible failure reasons:<br/>
 
 <div class="details function" id="function-psaddvectors">
 <h3 class="name">PSAddVectors</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">189</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">197</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSAddVectors</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psaddvectors-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psaddvectors-b>b</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psaddvectors-dest>dest</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psaddvectors-length>length</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psaddvectors-opts>opts</span></span></span>)</code>
@@ -545,7 +545,7 @@ Possible failure reasons:<br/>
 
 <div class="details function" id="function-psaddvectorscalar">
 <h3 class="name">PSAddVectorScalar</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">199</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">207</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSAddVectorScalar</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psaddvectorscalar-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier" data-identifier-id=function-psaddvectorscalar-b>b</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psaddvectorscalar-dest>dest</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psaddvectorscalar-length>length</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psaddvectorscalar-opts>opts</span></span></span>)</code>
@@ -775,7 +775,7 @@ Forward <span class="identifier-ref" data-identifier-id="function-psclassify-inp
 
 <div class="details function" id="function-pscumulativesum">
 <h3 class="name">PSCumulativeSum</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">230</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">238</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSCumulativeSum</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-pscumulativesum-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-pscumulativesum-dest>dest</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-pscumulativesum-length>length</span></span></span>)</code>
@@ -838,7 +838,7 @@ Forward <span class="identifier-ref" data-identifier-id="function-psclassify-inp
 
 <div class="details function" id="function-psdiagonalflatten">
 <h3 class="name">PSDiagonalFlatten</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">249</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">257</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier name">PSDiagonalFlatten</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psdiagonalflatten-matrix>matrix</span></span></span>)</code>
@@ -847,7 +847,7 @@ Forward <span class="identifier-ref" data-identifier-id="function-psclassify-inp
 
 <div class="details function" id="function-psdiagonalflattenvector">
 <h3 class="name">PSDiagonalFlattenVector</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">250</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">258</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier name">PSDiagonalFlattenVector</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdiagonalflattenvector-vec>vec</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psdiagonalflattenvector-len>len</span></span></span>)</code>
@@ -856,7 +856,7 @@ Forward <span class="identifier-ref" data-identifier-id="function-psclassify-inp
 
 <div class="details function" id="function-psdiagonalmask">
 <h3 class="name">PSDiagonalMask</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">248</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">256</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier name">PSDiagonalMask</span> (<span class="arguments"><span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psdiagonalmask-size>size</span></span></span>)</code>
@@ -1038,7 +1038,7 @@ The item (<a class="psyc-type" href="types.html#struct-psdictitem">PSDictItem</a
 
 <div class="details function" id="function-psdividescalarvector">
 <h3 class="name">PSDivideScalarVector</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">207</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">215</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSDivideScalarVector</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier" data-identifier-id=function-psdividescalarvector-b>b</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdividescalarvector-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdividescalarvector-dest>dest</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psdividescalarvector-length>length</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdividescalarvector-opts>opts</span></span></span>)</code>
@@ -1047,7 +1047,7 @@ The item (<a class="psyc-type" href="types.html#struct-psdictitem">PSDictItem</a
 
 <div class="details function" id="function-psdividevectors">
 <h3 class="name">PSDivideVectors</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">195</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">203</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSDivideVectors</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdividevectors-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdividevectors-b>b</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdividevectors-dest>dest</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psdividevectors-length>length</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdividevectors-opts>opts</span></span></span>)</code>
@@ -1056,7 +1056,7 @@ The item (<a class="psyc-type" href="types.html#struct-psdictitem">PSDictItem</a
 
 <div class="details function" id="function-psdividevectorscalar">
 <h3 class="name">PSDivideVectorScalar</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">205</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">213</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSDivideVectorScalar</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdividevectorscalar-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier" data-identifier-id=function-psdividevectorscalar-b>b</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdividevectorscalar-dest>dest</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psdividevectorscalar-length>length</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdividevectorscalar-opts>opts</span></span></span>)</code>
@@ -1065,7 +1065,7 @@ The item (<a class="psyc-type" href="types.html#struct-psdictitem">PSDictItem</a
 
 <div class="details function" id="function-psdot">
 <h3 class="name">PSDot</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">243</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">251</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSDot</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psdot-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psdot-b>b</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdot-dest>dest</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdot-opts>opts</span></span></span>)</code>
@@ -1080,7 +1080,7 @@ Performs matrix-matrix multiplication, matrix-vector multiplication, vector-matr
 
 <div class="details function" id="function-psdotmv">
 <h3 class="name">PSDotMV</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">244</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">252</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSDotMV</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psdotmv-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdotmv-b>b</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdotmv-dest>dest</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdotmv-opts>opts</span></span></span>)</code>
@@ -1089,7 +1089,7 @@ Performs matrix-matrix multiplication, matrix-vector multiplication, vector-matr
 
 <div class="details function" id="function-psdotproduct">
 <h3 class="name">PSDotProduct</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">234</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">242</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier name">PSDotProduct</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdotproduct-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdotproduct-b>b</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psdotproduct-length>length</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdotproduct-opts>opts</span></span></span>)</code>
@@ -1098,7 +1098,7 @@ Performs matrix-matrix multiplication, matrix-vector multiplication, vector-matr
 
 <div class="details function" id="function-psdotsquare">
 <h3 class="name">PSDotSquare</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">235</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">243</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier name">PSDotSquare</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdotsquare-a>a</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psdotsquare-length>length</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdotsquare-opts>opts</span></span></span>)</code>
@@ -1107,7 +1107,7 @@ Performs matrix-matrix multiplication, matrix-vector multiplication, vector-matr
 
 <div class="details function" id="function-psdotvm">
 <h3 class="name">PSDotVM</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">245</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">253</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSDotVM</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdotvm-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psdotvm-b>b</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psdotvm-dest>dest</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdotvm-opts>opts</span></span></span>)</code>
@@ -1180,7 +1180,7 @@ Find max state value and the relative neuron index for layer <span class="identi
 
 <div class="details function" id="function-psfloatequals">
 <h3 class="name">PSFloatEquals</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">254</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">262</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSFloatEquals</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier" data-identifier-id=function-psfloatequals-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier" data-identifier-id=function-psfloatequals-b>b</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psfloatequals-precision>precision</span></span></span>)</code>
@@ -1227,7 +1227,7 @@ Forward <span class="identifier-ref" data-identifier-id="function-psforward-inpu
 
 <div class="details function" id="function-psgaussianrandom">
 <h3 class="name">PSGaussianRandom</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">123</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">125</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier name">PSGaussianRandom</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier" data-identifier-id=function-psgaussianrandom-mean>mean</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier" data-identifier-id=function-psgaussianrandom-stddev>stddev</span></span></span>)</code>
@@ -2160,7 +2160,7 @@ Creates directory <span class="identifier-ref" data-identifier-id="function-psma
 
 <div class="details function" id="function-psmatmul">
 <h3 class="name">PSMatMul</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">241</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">249</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSMatMul</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psmatmul-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psmatmul-b>b</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psmatmul-dest>dest</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psmatmul-m>m</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psmatmul-n>n</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psmatmul-k>k</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psmatmul-opts>opts</span></span></span>)</code>
@@ -2197,7 +2197,7 @@ Results will be stored in <span class="identifier-ref" data-identifier-id="funct
 
 <div class="details function" id="function-psmatrixadd">
 <h3 class="name">PSMatrixAdd</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">169</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">177</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSMatrixAdd</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixadd-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixadd-b>b</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psmatrixadd-result>result</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psmatrixadd-opt>opt</span></span></span>)</code>
@@ -2206,61 +2206,107 @@ Results will be stored in <span class="identifier-ref" data-identifier-id="funct
 
 <div class="details function" id="function-psmatrixclear">
 <h3 class="name">PSMatrixClear</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">184</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">192</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">void</span> <span class="identifier name">PSMatrixClear</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixclear-matrix>matrix</span></span></span>)</code>
+</div>
+<div class="description">
+Set all values of <span class="identifier-ref" data-identifier-id="function-psmatrixclear-matrix" data-parent-id="function-psmatrixclear">matrix</span> to zero. If <span class="identifier-ref" data-identifier-id="function-psmatrixclear-matrix" data-parent-id="function-psmatrixclear">matrix</span> is <span class="identifier-ref">NULL</span>, the function does nothing at all.
 </div>
 </div>
 
 <div class="details function" id="function-psmatrixcopy">
 <h3 class="name">PSMatrixCopy</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">182</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">190</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSMatrixCopy</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixcopy-src>src</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixcopy-dst>dst</span></span></span>)</code>
+</div>
+<div class="description">
+Copy values of matrix <span class="identifier-ref" data-identifier-id="function-psmatrixcopy-src" data-parent-id="function-psmatrixcopy">src</span> to matrix <span class="identifier-ref" data-identifier-id="function-psmatrixcopy-dst" data-parent-id="function-psmatrixcopy">dst</span>. Both <span class="identifier-ref" data-identifier-id="function-psmatrixcopy-src" data-parent-id="function-psmatrixcopy">src</span> and <span class="identifier-ref" data-identifier-id="function-psmatrixcopy-dst" data-parent-id="function-psmatrixcopy">dst</span> must have the same shape.<br/><div class="note"><span class="note-prefix">NOTE:</span>  if <span class="identifier-ref" data-identifier-id="function-psmatrixcopy-dst" data-parent-id="function-psmatrixcopy">dst</span> owns a cached transposed version of itself, the cached version will be cleared. At the same time, if <span class="identifier-ref" data-identifier-id="function-psmatrixcopy-dst" data-parent-id="function-psmatrixcopy">dst</span> is the cached transposed version of another matrix, the cached version of the owner matrix will be cleared.</div>  
+<h4 class="return-values">RETURN VALUES</h4>
+1 in case of success, 0 if:
+
+
+ <ul>
+
+ <li><span class="identifier-ref" data-identifier-id="function-psmatrixcopy-src" data-parent-id="function-psmatrixcopy">src</span> is <span class="identifier-ref">NULL</span> or <span class="identifier-ref" data-identifier-id="function-psmatrixcopy-dst" data-parent-id="function-psmatrixcopy">dst</span> is <span class="identifier-ref">NULL</span>.</li>
+
+ <li><span class="identifier-ref" data-identifier-id="function-psmatrixcopy-src" data-parent-id="function-psmatrixcopy">src</span> and <span class="identifier-ref" data-identifier-id="function-psmatrixcopy-dst" data-parent-id="function-psmatrixcopy">dst</span> have different shapes.
+
+
+ </ul>
 </div>
 </div>
 
 <div class="details function" id="function-psmatrixcreate">
 <h3 class="name">PSMatrixCreate</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">142</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">150</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier name">PSMatrixCreate</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier" data-identifier-id=function-psmatrixcreate-init-value>init_value</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#function_pointer-psmatrixinitializer">PSMatrixInitializer</a></span> <span class="identifier" data-identifier-id=function-psmatrixcreate-initializer>initializer</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psmatrixcreate-ndims>ndims</span></span>, <span class="argument variadic">...</span></span>)</code>
+</div>
+<div class="description">
+Create a new matrix having number of dimensions defined by <span class="identifier-ref" data-identifier-id="function-psmatrixcreate-ndims" data-parent-id="function-psmatrixcreate">ndims</span>. The shape of the matrix is given by variadic arguments that follow <span class="identifier-ref" data-identifier-id="function-psmatrixcreate-ndims" data-parent-id="function-psmatrixcreate">ndims</span>.<br/>The argument <span class="identifier-ref" data-identifier-id="function-psmatrixcreate-init-value" data-parent-id="function-psmatrixcreate">init_value</span> can be used to define the initial value of the matrix numbers or, optionally, the <span class="identifier-ref" data-identifier-id="function-psmatrixcreate-initializer" data-parent-id="function-psmatrixcreate">initializer</span> callback can be used to initialize the matrix values.<br/>If the matrix cannot be allocated, <span class="identifier-ref">errno</span> will be set to <span class="identifier-ref">ENOMEM</span>.  
+<h4 class="return-values">RETURN VALUES</h4>
+The allocated matrix or <span class="identifier-ref">NULL</span> if:
+
+
+ <ul>
+
+ <li>the number of dimensions (<span class="identifier-ref" data-identifier-id="function-psmatrixcreate-ndims" data-parent-id="function-psmatrixcreate">ndims</span>) is greater than <a class="psyc-macro" href="macros.html#macro-ps-matrix-max-dimensions">PS_MATRIX_MAX_DIMENSIONS</a> or less than one.</li>
+
+ <li>it&#39;s not possible to allocate the matrix in memory.
+</ul>
+
+</ul>
+
+<div class="warn"><span class="warn-prefix">WARN:</span>  the address pointed by the returned pointer should never be freed directly. The specific function <a class="psyc-func" href="functions.html#function-psmatrixfree">PSMatrixFree</a> should be used instead.</div>  
 </div>
 </div>
 
 <div class="details function" id="function-psmatrixcreatewithshape">
 <h3 class="name">PSMatrixCreateWithShape</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">144</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">152</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier name">PSMatrixCreateWithShape</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier" data-identifier-id=function-psmatrixcreatewithshape-init-value>init_value</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#function_pointer-psmatrixinitializer">PSMatrixInitializer</a></span> <span class="identifier" data-identifier-id=function-psmatrixcreatewithshape-initializer>initializer</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psmatrixcreatewithshape-ndims>ndims</span></span>, <span class="argument"><span class="type">int *</span><span class="identifier pointer-name" data-identifier-id=function-psmatrixcreatewithshape-shape>shape</span></span></span>)</code>
+</div>
+<div class="description">
+Create a new matrix having number of dimensions defined by <span class="identifier-ref" data-identifier-id="function-psmatrixcreatewithshape-ndims" data-parent-id="function-psmatrixcreatewithshape">ndims</span> and shape defined by <span class="identifier-ref" data-identifier-id="function-psmatrixcreatewithshape-shape" data-parent-id="function-psmatrixcreatewithshape">shape</span>. The argument <span class="identifier-ref" data-identifier-id="function-psmatrixcreatewithshape-init-value" data-parent-id="function-psmatrixcreatewithshape">init_value</span> can be used to define the initial value of the matrix numbers or, optionally, the <span class="identifier-ref" data-identifier-id="function-psmatrixcreatewithshape-initializer" data-parent-id="function-psmatrixcreatewithshape">initializer</span> callback can be used to initialize the matrix values.<br/>If the matrix cannot be allocated, <span class="identifier-ref">errno</span> will be set to <span class="identifier-ref">ENOMEM</span>.  
+<h4 class="return-values">RETURN VALUES</h4>
+The allocated matrix or <span class="identifier-ref">NULL</span> if:
+
+
+ <ul>
+
+ <li>the number of dimensions (<span class="identifier-ref" data-identifier-id="function-psmatrixcreatewithshape-ndims" data-parent-id="function-psmatrixcreatewithshape">ndims</span>) is greater than <a class="psyc-macro" href="macros.html#macro-ps-matrix-max-dimensions">PS_MATRIX_MAX_DIMENSIONS</a> or less than one.</li>
+
+ <li>it&#39;s not possible to allocate the matrix in memory.
+</ul>
+
+</ul>
+
+<div class="warn"><span class="warn-prefix">WARN:</span>  the address pointed by the returned pointer should never be freed directly. The specific function <a class="psyc-func" href="functions.html#function-psmatrixfree">PSMatrixFree</a> should be used instead.</div>  
 </div>
 </div>
 
 <div class="details function" id="function-psmatrixdim">
 <h3 class="name">PSMatrixDim</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">153</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">161</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSMatrixDim</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixdim-matrix>matrix</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psmatrixdim-dim>dim</span></span></span>)</code>
 </div>
-</div>
-
-<div class="details function" id="function-psmatrixdimensions">
-<h3 class="name">PSMatrixDimensions</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">154</span></div>
-<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
-<code class="definition">
-<span class="type return-type">int</span> <span class="identifier name">PSMatrixDimensions</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixdimensions-matrix>matrix</span></span>, <span class="argument"><span class="type">int *</span><span class="identifier pointer-name" data-identifier-id=function-psmatrixdimensions-dims>dims</span></span></span>)</code>
+<div class="description">
+Return the size of the dimension <span class="identifier-ref" data-identifier-id="function-psmatrixdim-dim" data-parent-id="function-psmatrixdim">dim</span> of <span class="identifier-ref" data-identifier-id="function-psmatrixdim-matrix" data-parent-id="function-psmatrixdim">matrix</span>. If <span class="identifier-ref" data-identifier-id="function-psmatrixdim-dim" data-parent-id="function-psmatrixdim">dim</span> is out of bounds or if <span class="identifier-ref" data-identifier-id="function-psmatrixdim-matrix" data-parent-id="function-psmatrixdim">matrix</span> is <span class="identifier-ref">NULL</span>, the function will return zero.
 </div>
 </div>
 
 <div class="details function" id="function-psmatrixdivide">
 <h3 class="name">PSMatrixDivide</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">172</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">180</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSMatrixDivide</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixdivide-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixdivide-b>b</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psmatrixdivide-result>result</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psmatrixdivide-opt>opt</span></span></span>)</code>
@@ -2269,25 +2315,59 @@ Results will be stored in <span class="identifier-ref" data-identifier-id="funct
 
 <div class="details function" id="function-psmatrixdup">
 <h3 class="name">PSMatrixDup</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">180</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">188</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier name">PSMatrixDup</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixdup-matrix>matrix</span></span></span>)</code>
+</div>
+<div class="description">
+Duplicate <span class="identifier-ref" data-identifier-id="function-psmatrixdup-matrix" data-parent-id="function-psmatrixdup">matrix</span> by creating a new matrix having the same shape as <span class="identifier-ref" data-identifier-id="function-psmatrixdup-matrix" data-parent-id="function-psmatrixdup">matrix</span> and by copying all values of <span class="identifier-ref" data-identifier-id="function-psmatrixdup-matrix" data-parent-id="function-psmatrixdup">matrix</span> to the new matrix.  
+<h4 class="return-values">RETURN VALUES</h4>
+The new matrix or <span class="identifier-ref">NULL</span> if:
+
+
+ <ul>
+
+ <li><span class="identifier-ref" data-identifier-id="function-psmatrixdup-matrix" data-parent-id="function-psmatrixdup">matrix</span> is <span class="identifier-ref">NULL</span>.</li>
+
+ <li>it&#39;s not possible to allocate the matrix in memory.
+</ul>
+
+</ul>
+
+<div class="warn"><span class="warn-prefix">WARN:</span>  the address pointed by the returned pointer should never be freed directly. The specific function <a class="psyc-func" href="functions.html#function-psmatrixfree">PSMatrixFree</a> should be used instead.</div>  
 </div>
 </div>
 
 <div class="details function" id="function-psmatrixdupshape">
 <h3 class="name">PSMatrixDupShape</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">181</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">189</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier name">PSMatrixDupShape</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixdupshape-matrix>matrix</span></span></span>)</code>
+</div>
+<div class="description">
+Create a new (zero-filled) matrix having the same shape as <span class="identifier-ref" data-identifier-id="function-psmatrixdupshape-matrix" data-parent-id="function-psmatrixdupshape">matrix</span>.  
+<h4 class="return-values">RETURN VALUES</h4>
+The new matrix or <span class="identifier-ref">NULL</span> if:
+
+
+ <ul>
+
+ <li><span class="identifier-ref" data-identifier-id="function-psmatrixdupshape-matrix" data-parent-id="function-psmatrixdupshape">matrix</span> is <span class="identifier-ref">NULL</span>.</li>
+
+ <li>it&#39;s not possible to allocate the matrix in memory.
+</ul>
+
+</ul>
+
+<div class="warn"><span class="warn-prefix">WARN:</span>  the address pointed by the returned pointer should never be freed directly. The specific function <a class="psyc-func" href="functions.html#function-psmatrixfree">PSMatrixFree</a> should be used instead.</div>  
 </div>
 </div>
 
 <div class="details function" id="function-psmatrixequals">
 <h3 class="name">PSMatrixEquals</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">183</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">191</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSMatrixEquals</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixequals-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixequals-b>b</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psmatrixequals-precision>precision</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psmatrixequals-ignore-shape>ignore_shape</span></span></span>)</code>
@@ -2301,19 +2381,33 @@ Compare two martrices <span class="identifier-ref" data-identifier-id="function-
 
 <div class="details function" id="function-psmatrixexpand">
 <h3 class="name">PSMatrixExpand</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">151</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">159</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier name">PSMatrixExpand</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixexpand-src>src</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psmatrixexpand-add>add</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psmatrixexpand-keep-src>keep_src</span></span></span>)</code>
 </div>
 <div class="description">
-Expand matrix <span class="identifier-ref" data-identifier-id="function-psmatrixexpand-src" data-parent-id="function-psmatrixexpand">src</span> by adding <span class="identifier-ref" data-identifier-id="function-psmatrixexpand-add" data-parent-id="function-psmatrixexpand">add</span> to its first dimension. Added data will be set to zero.<br/>Beware of the fact that <span class="identifier-ref" data-identifier-id="function-psmatrixexpand-src" data-parent-id="function-psmatrixexpand">src</span> matrix could be freed after the process, so always assing the return value of this function to a new variable, since it could lead to memory leaks in case of a <span class="identifier-ref">NULL</span> return value. Also beware of the fact that the original variable holding <span class="identifier-ref" data-identifier-id="function-psmatrixexpand-src" data-parent-id="function-psmatrixexpand">src</span> could point to freed memry after function returns.
+Create a new matrix having the shape of <span class="identifier-ref" data-identifier-id="function-psmatrixexpand-src" data-parent-id="function-psmatrixexpand">src</span> but with the first dimension increased by the value of <span class="identifier-ref" data-identifier-id="function-psmatrixexpand-add" data-parent-id="function-psmatrixexpand">add</span>. The original values <span class="identifier-ref" data-identifier-id="function-psmatrixexpand-src" data-parent-id="function-psmatrixexpand">src</span> will be copied to the new matrix, and all the new values belonging to thecexpanded dimension will be initialized to zero.<br/>If <span class="identifier-ref" data-identifier-id="function-psmatrixexpand-keep-src" data-parent-id="function-psmatrixexpand">keep_src</span> is zero, the original matrix <span class="identifier-ref" data-identifier-id="function-psmatrixexpand-src" data-parent-id="function-psmatrixexpand">src</span> will be freed.  
+<h4 class="return-values">RETURN VALUES</h4>
+The new expanded matrix or:
+
+
+ <ul>
+
+ <li><span class="identifier-ref" data-identifier-id="function-psmatrixexpand-src" data-parent-id="function-psmatrixexpand">src</span> itself if <span class="identifier-ref" data-identifier-id="function-psmatrixexpand-add" data-parent-id="function-psmatrixexpand">add</span> is less that one.</li>
+
+ <li><span class="identifier-ref">NULL</span> if <span class="identifier-ref" data-identifier-id="function-psmatrixexpand-src" data-parent-id="function-psmatrixexpand">src</span> is <span class="identifier-ref">NULL</span>.</li>
+
+ <li><span class="identifier-ref">NULL</span> if memory cannot be allocated.
+
+
+ </ul>
 </div>
 </div>
 
 <div class="details function" id="function-psmatrixflatten">
 <h3 class="name">PSMatrixFlatten</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">174</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">182</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier name">PSMatrixFlatten</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixflatten-matrix>matrix</span></span></span>)</code>
@@ -2322,7 +2416,7 @@ Expand matrix <span class="identifier-ref" data-identifier-id="function-psmatrix
 
 <div class="details function" id="function-psmatrixfree">
 <h3 class="name">PSMatrixFree</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">185</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">193</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">void</span> <span class="identifier name">PSMatrixFree</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixfree-matrix>matrix</span></span></span>)</code>
@@ -2331,16 +2425,35 @@ Expand matrix <span class="identifier-ref" data-identifier-id="function-psmatrix
 
 <div class="details function" id="function-psmatrixfromarray">
 <h3 class="name">PSMatrixFromArray</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">150</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">158</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier name">PSMatrixFromArray</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psmatrixfromarray-array>array</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psmatrixfromarray-ndims>ndims</span></span>, <span class="argument variadic">...</span></span>)</code>
+</div>
+<div class="description">
+Create a new matrix having number of dimensions defined by <span class="identifier-ref" data-identifier-id="function-psmatrixfromarray-ndims" data-parent-id="function-psmatrixfromarray">ndims</span>. The shape of the matrix is given by variadic arguments that follow <span class="identifier-ref" data-identifier-id="function-psmatrixfromarray-ndims" data-parent-id="function-psmatrixfromarray">ndims</span>.<br/>The values of the matrix will be initialized with values of <span class="identifier-ref" data-identifier-id="function-psmatrixfromarray-array" data-parent-id="function-psmatrixfromarray">array</span>.<br/>If the matrix cannot be allocated, <span class="identifier-ref">errno</span> will be set to <span class="identifier-ref">ENOMEM</span>.<br/><div class="warn"><span class="warn-prefix">WARN:</span>  the length of <span class="identifier-ref" data-identifier-id="function-psmatrixfromarray-array" data-parent-id="function-psmatrixfromarray">array</span> must be at least the same of the length of the matrix, so if the matrix has two dimensions of shape [2, 3] (two rows with three columns), the provided array&#39;s length cannot be less than six.</div>  
+<h4 class="return-values">RETURN VALUES</h4>
+The allocated matrix or <span class="identifier-ref">NULL</span> if:
+
+
+ <ul>
+
+ <li><span class="identifier-ref" data-identifier-id="function-psmatrixfromarray-array" data-parent-id="function-psmatrixfromarray">array</span> is <span class="identifier-ref">NULL</span>.</li>
+
+ <li>the number of dimensions (<span class="identifier-ref" data-identifier-id="function-psmatrixfromarray-ndims" data-parent-id="function-psmatrixfromarray">ndims</span>) is greater than <a class="psyc-macro" href="macros.html#macro-ps-matrix-max-dimensions">PS_MATRIX_MAX_DIMENSIONS</a> or less than one.</li>
+
+ <li>it&#39;s not possible to allocate the matrix in memory.
+</ul>
+
+</ul>
+
+<div class="warn"><span class="warn-prefix">WARN:</span>  the address pointed by the returned pointer should never be freed directly. The specific function <a class="psyc-func" href="functions.html#function-psmatrixfree">PSMatrixFree</a> should be used instead.</div>  
 </div>
 </div>
 
 <div class="details function" id="function-psmatrixget">
 <h3 class="name">PSMatrixGet</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">163</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">171</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSMatrixGet</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixget-matrix>matrix</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psmatrixget-ndims>ndims</span></span>, <span class="argument"><span class="type">uint32_t *</span><span class="identifier pointer-name" data-identifier-id=function-psmatrixget-len>len</span></span>, <span class="argument variadic">...</span></span>)</code>
@@ -2349,16 +2462,21 @@ Expand matrix <span class="identifier-ref" data-identifier-id="function-psmatrix
 
 <div class="details function" id="function-psmatrixlength">
 <h3 class="name">PSMatrixLength</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">155</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">163</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">uint64_t</span> <span class="identifier name">PSMatrixLength</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixlength-matrix>matrix</span></span></span>)</code>
+</div>
+<div class="description">
+Get the total number of values belonging to <span class="identifier-ref" data-identifier-id="function-psmatrixlength-matrix" data-parent-id="function-psmatrixlength">matrix</span> (ie. a matrix with shape (2,3) will return 6).  
+<h4 class="return-values">RETURN VALUES</h4>
+The total number of values belonging to <span class="identifier-ref" data-identifier-id="function-psmatrixlength-matrix" data-parent-id="function-psmatrixlength">matrix</span> or zero if <span class="identifier-ref" data-identifier-id="function-psmatrixlength-matrix" data-parent-id="function-psmatrixlength">matrix</span> is <span class="identifier-ref">NULL</span>.
 </div>
 </div>
 
 <div class="details function" id="function-psmatrixmultiply">
 <h3 class="name">PSMatrixMultiply</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">170</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">178</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSMatrixMultiply</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixmultiply-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixmultiply-b>b</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psmatrixmultiply-result>result</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psmatrixmultiply-opt>opt</span></span></span>)</code>
@@ -2367,16 +2485,19 @@ Expand matrix <span class="identifier-ref" data-identifier-id="function-psmatrix
 
 <div class="details function" id="function-psmatrixnumdims">
 <h3 class="name">PSMatrixNumDims</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">152</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">160</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSMatrixNumDims</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixnumdims-matrix>matrix</span></span></span>)</code>
+</div>
+<div class="description">
+Return the number of dimensions of <span class="identifier-ref" data-identifier-id="function-psmatrixnumdims-matrix" data-parent-id="function-psmatrixnumdims">matrix</span>. If <span class="identifier-ref" data-identifier-id="function-psmatrixnumdims-matrix" data-parent-id="function-psmatrixnumdims">matrix</span> is <span class="identifier-ref">NULL</span>, the function will return zero.
 </div>
 </div>
 
 <div class="details function" id="function-psmatrixprint">
 <h3 class="name">PSMatrixPrint</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">162</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">170</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">void</span> <span class="identifier name">PSMatrixPrint</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixprint-matrix>matrix</span></span>, <span class="argument"><span class="type">const char *</span><span class="identifier pointer-name" data-identifier-id=function-psmatrixprint-sep>sep</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psmatrixprint-print-shape>print_shape</span></span></span>)</code>
@@ -2385,7 +2506,7 @@ Expand matrix <span class="identifier-ref" data-identifier-id="function-psmatrix
 
 <div class="details function" id="function-psmatrixprintinfo">
 <h3 class="name">PSMatrixPrintInfo</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">158</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">166</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">void</span> <span class="identifier name">PSMatrixPrintInfo</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixprintinfo-matrix>matrix</span></span>, <span class="argument"><span class="type">const char *</span><span class="identifier pointer-name" data-identifier-id=function-psmatrixprintinfo-name>name</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psmatrixprintinfo-newline>newline</span></span></span>)</code>
@@ -2394,7 +2515,7 @@ Expand matrix <span class="identifier-ref" data-identifier-id="function-psmatrix
 
 <div class="details function" id="function-psmatrixprintshape">
 <h3 class="name">PSMatrixPrintShape</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">159</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">167</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">void</span> <span class="identifier name">PSMatrixPrintShape</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixprintshape-matrix>matrix</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psmatrixprintshape-newline>newline</span></span></span>)</code>
@@ -2403,7 +2524,7 @@ Expand matrix <span class="identifier-ref" data-identifier-id="function-psmatrix
 
 <div class="details function" id="function-psmatrixproduct">
 <h3 class="name">PSMatrixProduct</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">164</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">172</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSMatrixProduct</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixproduct-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixproduct-b>b</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psmatrixproduct-result>result</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psmatrixproduct-opt>opt</span></span></span>)</code>
@@ -2436,7 +2557,7 @@ By default, data in result vector will be overwritten. Anyway, if <a class="psyc
 
 <div class="details function" id="function-psmatrixproductmv">
 <h3 class="name">PSMatrixProductMV</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">165</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">173</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSMatrixProductMV</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixproductmv-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psmatrixproductmv-b>b</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psmatrixproductmv-len>len</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> **</span><span class="identifier pointer-name" data-identifier-id=function-psmatrixproductmv-result>result</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psmatrixproductmv-opts>opts</span></span></span>)</code>
@@ -2465,7 +2586,7 @@ By default, data in result vector will be overwritten. Anyway, if <a class="psyc
 
 <div class="details function" id="function-psmatrixproductvm">
 <h3 class="name">PSMatrixProductVM</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">167</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">175</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSMatrixProductVM</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psmatrixproductvm-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixproductvm-b>b</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psmatrixproductvm-len>len</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psmatrixproductvm-result>result</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psmatrixproductvm-opts>opts</span></span></span>)</code>
@@ -2494,16 +2615,33 @@ By default, data in result vector will be overwritten. Anyway, if <a class="psyc
 
 <div class="details function" id="function-psmatrixrandom">
 <h3 class="name">PSMatrixRandom</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">148</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">156</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier name">PSMatrixRandom</span> (<span class="arguments"><span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psmatrixrandom-ndims>ndims</span></span>, <span class="argument variadic">...</span></span>)</code>
+</div>
+<div class="description">
+Create a new matrix having number of dimensions defined by <span class="identifier-ref" data-identifier-id="function-psmatrixrandom-ndims" data-parent-id="function-psmatrixrandom">ndims</span>. The shape of the matrix is given by variadic arguments that follow <span class="identifier-ref" data-identifier-id="function-psmatrixrandom-ndims" data-parent-id="function-psmatrixrandom">ndims</span>.<br/>The values of the matrix will be initialized with random numbers from 0.0 to 1.0.<br/>If the matrix cannot be allocated, <span class="identifier-ref">errno</span> will be set to <span class="identifier-ref">ENOMEM</span>.  
+<h4 class="return-values">RETURN VALUES</h4>
+The allocated matrix or <span class="identifier-ref">NULL</span> if:
+
+
+ <ul>
+
+ <li>the number of dimensions (<span class="identifier-ref" data-identifier-id="function-psmatrixrandom-ndims" data-parent-id="function-psmatrixrandom">ndims</span>) is greater than <a class="psyc-macro" href="macros.html#macro-ps-matrix-max-dimensions">PS_MATRIX_MAX_DIMENSIONS</a> or less than one.</li>
+
+ <li>it&#39;s not possible to allocate the matrix in memory.
+</ul>
+
+</ul>
+
+<div class="warn"><span class="warn-prefix">WARN:</span>  the address pointed by the returned pointer should never be freed directly. The specific function <a class="psyc-func" href="functions.html#function-psmatrixfree">PSMatrixFree</a> should be used instead.</div>  
 </div>
 </div>
 
 <div class="details function" id="function-psmatrixresettransposed">
 <h3 class="name">PSMatrixResetTransposed</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">179</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">187</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">void</span> <span class="identifier name">PSMatrixResetTransposed</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixresettransposed-matrix>matrix</span></span></span>)</code>
@@ -2512,16 +2650,30 @@ By default, data in result vector will be overwritten. Anyway, if <a class="psyc
 
 <div class="details function" id="function-psmatrixreshape">
 <h3 class="name">PSMatrixReshape</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">173</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">181</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier name">PSMatrixReshape</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixreshape-matrix>matrix</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psmatrixreshape-num-dims>num_dims</span></span>, <span class="argument variadic">...</span></span>)</code>
 </div>
 </div>
 
+<div class="details function" id="function-psmatrixshape">
+<h3 class="name">PSMatrixShape</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">162</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">int</span> <span class="identifier name">PSMatrixShape</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixshape-matrix>matrix</span></span>, <span class="argument"><span class="type">int *</span><span class="identifier pointer-name" data-identifier-id=function-psmatrixshape-shape>shape</span></span></span>)</code>
+</div>
+<div class="description">
+Get the shape of <span class="identifier-ref" data-identifier-id="function-psmatrixshape-matrix" data-parent-id="function-psmatrixshape">matrix</span> and store it into <span class="identifier-ref" data-identifier-id="function-psmatrixshape-shape" data-parent-id="function-psmatrixshape">shape</span> array. The <span class="identifier-ref" data-identifier-id="function-psmatrixshape-shape" data-parent-id="function-psmatrixshape">shape</span> array must be big enough to hold at least <a class="psyc-macro" href="macros.html#macro-ps-matrix-max-dimensions">PS_MATRIX_MAX_DIMENSIONS</a> elements.<br/>If <span class="identifier-ref" data-identifier-id="function-psmatrixshape-shape" data-parent-id="function-psmatrixshape">shape</span> is <span class="identifier-ref">NULL</span>, the function will just return the number of dimensions (so, the length of the shape array of <span class="identifier-ref" data-identifier-id="function-psmatrixshape-matrix" data-parent-id="function-psmatrixshape">matrix</span>).  
+<h4 class="return-values">RETURN VALUES</h4>
+The number of dimensions of <span class="identifier-ref" data-identifier-id="function-psmatrixshape-matrix" data-parent-id="function-psmatrixshape">matrix</span> or zero if <span class="identifier-ref" data-identifier-id="function-psmatrixshape-matrix" data-parent-id="function-psmatrixshape">matrix</span> is <span class="identifier-ref">NULL</span>.
+</div>
+</div>
+
 <div class="details function" id="function-psmatrixshapetype">
 <h3 class="name">PSMatrixShapeType</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">157</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">165</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSMatrixShapeType</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixshapetype-matrix>matrix</span></span></span>)</code>
@@ -2530,7 +2682,7 @@ By default, data in result vector will be overwritten. Anyway, if <a class="psyc
 
 <div class="details function" id="function-psmatrixsplit">
 <h3 class="name">PSMatrixSplit</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">175</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">183</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a> *</span><span class="identifier name">PSMatrixSplit</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixsplit-matrix>matrix</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psmatrixsplit-num-slices>num_slices</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psmatrixsplit-axis>axis</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psmatrixsplit-opts>opts</span></span></span>)</code>
@@ -2539,16 +2691,21 @@ By default, data in result vector will be overwritten. Anyway, if <a class="psyc
 
 <div class="details function" id="function-psmatrixstride">
 <h3 class="name">PSMatrixStride</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">156</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">164</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSMatrixStride</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixstride-matrix>matrix</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psmatrixstride-dim>dim</span></span></span>)</code>
+</div>
+<div class="description">
+Get the stride of the dimension <span class="identifier-ref" data-identifier-id="function-psmatrixstride-dim" data-parent-id="function-psmatrixstride">dim</span> of <span class="identifier-ref" data-identifier-id="function-psmatrixstride-matrix" data-parent-id="function-psmatrixstride">matrix</span>. For example, a matrix with shape (2,3) has a stride of 3 for dimension 0 while a matrix with shape (2,3,3) has a stride of 9 for dimension 0, 3 for dimension 1 and 1 for dimension 2.  
+<h4 class="return-values">RETURN VALUES</h4>
+The stride of dimension <span class="identifier-ref" data-identifier-id="function-psmatrixstride-dim" data-parent-id="function-psmatrixstride">dim</span> or zero if <span class="identifier-ref" data-identifier-id="function-psmatrixstride-matrix" data-parent-id="function-psmatrixstride">matrix</span> is <span class="identifier-ref">NULL</span>.
 </div>
 </div>
 
 <div class="details function" id="function-psmatrixsubtract">
 <h3 class="name">PSMatrixSubtract</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">171</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">179</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSMatrixSubtract</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixsubtract-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixsubtract-b>b</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psmatrixsubtract-result>result</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psmatrixsubtract-opt>opt</span></span></span>)</code>
@@ -2557,7 +2714,7 @@ By default, data in result vector will be overwritten. Anyway, if <a class="psyc
 
 <div class="details function" id="function-psmatrixswapaxes">
 <h3 class="name">PSMatrixSwapAxes</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">178</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">186</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier name">PSMatrixSwapAxes</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixswapaxes-matrix>matrix</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psmatrixswapaxes-axis1>axis1</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psmatrixswapaxes-axis2>axis2</span></span></span>)</code>
@@ -2566,7 +2723,7 @@ By default, data in result vector will be overwritten. Anyway, if <a class="psyc
 
 <div class="details function" id="function-psmatrixtranspose">
 <h3 class="name">PSMatrixTranspose</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">177</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">185</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier name">PSMatrixTranspose</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixtranspose-matrix>matrix</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psmatrixtranspose-rebuild>rebuild</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psmatrixtranspose-opts>opts</span></span></span>)</code>
@@ -2575,16 +2732,33 @@ By default, data in result vector will be overwritten. Anyway, if <a class="psyc
 
 <div class="details function" id="function-psmatrixwithgaussianrandom">
 <h3 class="name">PSMatrixWithGaussianRandom</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">149</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">157</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier name">PSMatrixWithGaussianRandom</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier" data-identifier-id=function-psmatrixwithgaussianrandom-stddev>stddev</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psmatrixwithgaussianrandom-ndims>ndims</span></span>, <span class="argument variadic">...</span></span>)</code>
+</div>
+<div class="description">
+Create a new matrix having number of dimensions defined by <span class="identifier-ref" data-identifier-id="function-psmatrixwithgaussianrandom-ndims" data-parent-id="function-psmatrixwithgaussianrandom">ndims</span>. The shape of the matrix is given by variadic arguments that follow <span class="identifier-ref" data-identifier-id="function-psmatrixwithgaussianrandom-ndims" data-parent-id="function-psmatrixwithgaussianrandom">ndims</span>.<br/>The values of the matrix will be initialized with random numbers from a gaussian distribution having zero mean and the standard deviation defined by <span class="identifier-ref" data-identifier-id="function-psmatrixwithgaussianrandom-stddev" data-parent-id="function-psmatrixwithgaussianrandom">stddev</span>.<br/>If the matrix cannot be allocated, <span class="identifier-ref">errno</span> will be set to <span class="identifier-ref">ENOMEM</span>.  
+<h4 class="return-values">RETURN VALUES</h4>
+The allocated matrix or <span class="identifier-ref">NULL</span> if:
+
+
+ <ul>
+
+ <li>the number of dimensions (<span class="identifier-ref" data-identifier-id="function-psmatrixwithgaussianrandom-ndims" data-parent-id="function-psmatrixwithgaussianrandom">ndims</span>) is greater than <a class="psyc-macro" href="macros.html#macro-ps-matrix-max-dimensions">PS_MATRIX_MAX_DIMENSIONS</a> or less than one.</li>
+
+ <li>it&#39;s not possible to allocate the matrix in memory.
+</ul>
+
+</ul>
+
+<div class="warn"><span class="warn-prefix">WARN:</span>  the address pointed by the returned pointer should never be freed directly. The specific function <a class="psyc-func" href="functions.html#function-psmatrixfree">PSMatrixFree</a> should be used instead.</div>  
 </div>
 </div>
 
 <div class="details function" id="function-psmatrixwrite">
 <h3 class="name">PSMatrixWrite</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">160</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">168</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSMatrixWrite</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixwrite-matrix>matrix</span></span>, <span class="argument"><span class="type">const char *</span><span class="identifier pointer-name" data-identifier-id=function-psmatrixwrite-sep>sep</span></span>, <span class="argument"><span class="type">char</span> <span class="identifier" data-identifier-id=function-psmatrixwrite-bracket>bracket</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psmatrixwrite-indent>indent</span></span>, <span class="argument"><span class="type">FILE *</span><span class="identifier pointer-name" data-identifier-id=function-psmatrixwrite-out>out</span></span></span>)</code>
@@ -2593,16 +2767,33 @@ By default, data in result vector will be overwritten. Anyway, if <a class="psyc
 
 <div class="details function" id="function-psmatrixzeros">
 <h3 class="name">PSMatrixZeros</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">147</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">155</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier name">PSMatrixZeros</span> (<span class="arguments"><span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psmatrixzeros-ndims>ndims</span></span>, <span class="argument variadic">...</span></span>)</code>
+</div>
+<div class="description">
+Create a new, zero-filled, matrix having number of dimensions defined by <span class="identifier-ref" data-identifier-id="function-psmatrixzeros-ndims" data-parent-id="function-psmatrixzeros">ndims</span>. The shape of the matrix is given by variadic arguments that follows <span class="identifier-ref" data-identifier-id="function-psmatrixzeros-ndims" data-parent-id="function-psmatrixzeros">ndims</span>.<br/>If the matrix cannot be allocated, <span class="identifier-ref">errno</span> will be set to <span class="identifier-ref">ENOMEM</span>.  
+<h4 class="return-values">RETURN VALUES</h4>
+The allocated matrix or <span class="identifier-ref">NULL</span> if:
+
+
+ <ul>
+
+ <li>the number of dimensions (<span class="identifier-ref" data-identifier-id="function-psmatrixzeros-ndims" data-parent-id="function-psmatrixzeros">ndims</span>) is greater than <a class="psyc-macro" href="macros.html#macro-ps-matrix-max-dimensions">PS_MATRIX_MAX_DIMENSIONS</a> or less than one.</li>
+
+ <li>it&#39;s not possible to allocate the matrix in memory.
+</ul>
+
+</ul>
+
+<div class="warn"><span class="warn-prefix">WARN:</span>  the address pointed by the returned pointer should never be freed directly. The specific function <a class="psyc-func" href="functions.html#function-psmatrixfree">PSMatrixFree</a> should be used instead.</div>  
 </div>
 </div>
 
 <div class="details function" id="function-psmean">
 <h3 class="name">PSMean</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">231</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">239</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier name">PSMean</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psmean-a>a</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psmean-length>length</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psmean-opts>opts</span></span></span>)</code>
@@ -3078,7 +3269,7 @@ Set <span class="identifier-ref" data-identifier-id="function-psmodelsetstatus-s
 
 <div class="details function" id="function-psmultiplyvectors">
 <h3 class="name">PSMultiplyVectors</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">193</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">201</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSMultiplyVectors</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psmultiplyvectors-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psmultiplyvectors-b>b</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psmultiplyvectors-dest>dest</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psmultiplyvectors-length>length</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psmultiplyvectors-opts>opts</span></span></span>)</code>
@@ -3087,7 +3278,7 @@ Set <span class="identifier-ref" data-identifier-id="function-psmodelsetstatus-s
 
 <div class="details function" id="function-psmultiplyvectorscalar">
 <h3 class="name">PSMultiplyVectorScalar</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">197</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">205</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSMultiplyVectorScalar</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psmultiplyvectorscalar-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier" data-identifier-id=function-psmultiplyvectorscalar-b>b</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psmultiplyvectorscalar-dest>dest</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psmultiplyvectorscalar-length>length</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psmultiplyvectorscalar-opts>opts</span></span></span>)</code>
@@ -3105,7 +3296,7 @@ Set <span class="identifier-ref" data-identifier-id="function-psmodelsetstatus-s
 
 <div class="details function" id="function-psnormalizedrandom">
 <h3 class="name">PSNormalizedRandom</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">122</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">124</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier name">PSNormalizedRandom</span> (<span class="arguments"><span class="argument void">void</span></span>)</code>
@@ -3132,7 +3323,7 @@ Set <span class="identifier-ref" data-identifier-id="function-psmodelsetstatus-s
 
 <div class="details function" id="function-psouterproduct">
 <h3 class="name">PSOuterProduct</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">246</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">254</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSOuterProduct</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psouterproduct-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psouterproduct-b>b</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psouterproduct-dest>dest</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psouterproduct-alen>alen</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psouterproduct-blen>blen</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psouterproduct-opts>opts</span></span></span>)</code>
@@ -3203,7 +3394,7 @@ String containing the joined path or <span class="identifier-ref">NULL</span> if
 
 <div class="details function" id="function-psrandomint">
 <h3 class="name">PSRandomInt</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">124</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">126</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type">unsigned int</span> <span class="identifier name">PSRandomInt</span> (<span class="arguments"><span class="argument"><span class="type">unsigned int</span> <span class="identifier" data-identifier-id=function-psrandomint-range>range</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psrandomint-weights>weights</span></span>, <span class="argument"><span class="type">int *</span><span class="identifier pointer-name" data-identifier-id=function-psrandomint-err>err</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psrandomint-opts>opts</span></span></span>)</code>
@@ -3462,7 +3653,7 @@ Computes Softmax function on vector <span class="identifier-ref" data-identifier
 
 <div class="details function" id="function-psstddev">
 <h3 class="name">PSStdDev</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">233</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">241</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier name">PSStdDev</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psstddev-a>a</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psstddev-len>len</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psstddev-opts>opts</span></span></span>)</code>
@@ -3483,7 +3674,7 @@ Strings
 
 <div class="details function" id="function-pssubtractscalarvector">
 <h3 class="name">PSSubtractScalarVector</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">203</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">211</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSSubtractScalarVector</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier" data-identifier-id=function-pssubtractscalarvector-b>b</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-pssubtractscalarvector-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-pssubtractscalarvector-dest>dest</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-pssubtractscalarvector-length>length</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-pssubtractscalarvector-opts>opts</span></span></span>)</code>
@@ -3492,7 +3683,7 @@ Strings
 
 <div class="details function" id="function-pssubtractvectors">
 <h3 class="name">PSSubtractVectors</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">191</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">199</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSSubtractVectors</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-pssubtractvectors-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-pssubtractvectors-b>b</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-pssubtractvectors-dest>dest</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-pssubtractvectors-length>length</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-pssubtractvectors-opts>opts</span></span></span>)</code>
@@ -3501,7 +3692,7 @@ Strings
 
 <div class="details function" id="function-pssubtractvectorscalar">
 <h3 class="name">PSSubtractVectorScalar</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">201</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">209</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSSubtractVectorScalar</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-pssubtractvectorscalar-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier" data-identifier-id=function-pssubtractvectorscalar-b>b</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-pssubtractvectorscalar-dest>dest</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-pssubtractvectorscalar-length>length</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-pssubtractvectorscalar-opts>opts</span></span></span>)</code>
@@ -3811,7 +4002,7 @@ From Unicode Codepoint to UTF-8 encoding
 
 <div class="details function" id="function-psvariance">
 <h3 class="name">PSVariance</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">232</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">240</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier name">PSVariance</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvariance-a>a</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psvariance-len>len</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvariance-opts>opts</span></span></span>)</code>
@@ -3820,7 +4011,7 @@ From Unicode Codepoint to UTF-8 encoding
 
 <div class="details function" id="function-psvectorabs">
 <h3 class="name">PSVectorAbs</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">217</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">225</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSVectorAbs</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorabs-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorabs-dest>dest</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psvectorabs-length>length</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorabs-opts>opts</span></span></span>)</code>
@@ -3829,7 +4020,7 @@ From Unicode Codepoint to UTF-8 encoding
 
 <div class="details function" id="function-psvectorclip">
 <h3 class="name">PSVectorClip</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">219</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">227</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSVectorClip</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorclip-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier" data-identifier-id=function-psvectorclip-min>min</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier" data-identifier-id=function-psvectorclip-max>max</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorclip-dest>dest</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psvectorclip-length>length</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorclip-opts>opts</span></span></span>)</code>
@@ -3838,7 +4029,7 @@ From Unicode Codepoint to UTF-8 encoding
 
 <div class="details function" id="function-psvectorconverttomatrix">
 <h3 class="name">PSVectorConvertToMatrix</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">257</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">265</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier name">PSVectorConvertToMatrix</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorconverttomatrix-vec>vec</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psvectorconverttomatrix-len>len</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psvectorconverttomatrix-ndims>ndims</span></span>, <span class="argument"><span class="type">int *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorconverttomatrix-shape>shape</span></span></span>)</code>
@@ -3887,7 +4078,7 @@ Possible failure reasons:<br/>
 
 <div class="details function" id="function-psvectordup">
 <h3 class="name">PSVectorDup</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">252</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">260</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSVectorDup</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectordup-src>src</span></span>, <span class="argument"><span class="type">size_t</span> <span class="identifier" data-identifier-id=function-psvectordup-length>length</span></span></span>)</code>
@@ -3896,7 +4087,7 @@ Possible failure reasons:<br/>
 
 <div class="details function" id="function-psvectorequals">
 <h3 class="name">PSVectorEquals</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">255</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">263</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSVectorEquals</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorequals-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorequals-b>b</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psvectorequals-length>length</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psvectorequals-precision>precision</span></span>, <span class="argument"><span class="type">uint64_t *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorequals-index>index</span></span></span>)</code>
@@ -3910,7 +4101,7 @@ Compare two vectors <span class="identifier-ref" data-identifier-id="function-ps
 
 <div class="details function" id="function-psvectorexp">
 <h3 class="name">PSVectorExp</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">213</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">221</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSVectorExp</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorexp-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorexp-dest>dest</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psvectorexp-length>length</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorexp-opts>opts</span></span></span>)</code>
@@ -3919,7 +4110,7 @@ Compare two vectors <span class="identifier-ref" data-identifier-id="function-ps
 
 <div class="details function" id="function-psvectorfill">
 <h3 class="name">PSVectorFill</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">236</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">244</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">void</span> <span class="identifier name">PSVectorFill</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorfill-vec>vec</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier" data-identifier-id=function-psvectorfill-val>val</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psvectorfill-len>len</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorfill-opts>opts</span></span></span>)</code>
@@ -3928,7 +4119,7 @@ Compare two vectors <span class="identifier-ref" data-identifier-id="function-ps
 
 <div class="details function" id="function-psvectormapwithlimit">
 <h3 class="name">PSVectorMapWithLimit</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">223</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">231</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSVectorMapWithLimit</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectormapwithlimit-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier" data-identifier-id=function-psvectormapwithlimit-limit>limit</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier" data-identifier-id=function-psvectormapwithlimit-mapper>mapper</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectormapwithlimit-dest>dest</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psvectormapwithlimit-length>length</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectormapwithlimit-opts>opts</span></span></span>)</code>
@@ -3937,7 +4128,7 @@ Compare two vectors <span class="identifier-ref" data-identifier-id="function-ps
 
 <div class="details function" id="function-psvectormax">
 <h3 class="name">PSVectorMax</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">227</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">235</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier name">PSVectorMax</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectormax-a>a</span></span>, <span class="argument"><span class="type">uint64_t *</span><span class="identifier pointer-name" data-identifier-id=function-psvectormax-index>index</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psvectormax-length>length</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectormax-opts>opts</span></span></span>)</code>
@@ -3946,7 +4137,7 @@ Compare two vectors <span class="identifier-ref" data-identifier-id="function-ps
 
 <div class="details function" id="function-psvectorneg">
 <h3 class="name">PSVectorNeg</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">215</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">223</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSVectorNeg</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorneg-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorneg-dest>dest</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psvectorneg-length>length</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorneg-opts>opts</span></span></span>)</code>
@@ -3955,7 +4146,7 @@ Compare two vectors <span class="identifier-ref" data-identifier-id="function-ps
 
 <div class="details function" id="function-psvectorpower">
 <h3 class="name">PSVectorPower</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">225</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">233</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSVectorPower</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorpower-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier" data-identifier-id=function-psvectorpower-exp>exp</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorpower-dest>dest</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psvectorpower-length>length</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorpower-opts>opts</span></span></span>)</code>
@@ -3964,7 +4155,7 @@ Compare two vectors <span class="identifier-ref" data-identifier-id="function-ps
 
 <div class="details function" id="function-psvectorprint">
 <h3 class="name">PSVectorPrint</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">238</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">246</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">void</span> <span class="identifier name">PSVectorPrint</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorprint-vec>vec</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psvectorprint-len>len</span></span>, <span class="argument"><span class="type">char*</span> <span class="identifier" data-identifier-id=function-psvectorprint-sep>sep</span></span></span>)</code>
@@ -3973,7 +4164,7 @@ Compare two vectors <span class="identifier-ref" data-identifier-id="function-ps
 
 <div class="details function" id="function-psvectorrandom">
 <h3 class="name">PSVectorRandom</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">253</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">261</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSVectorRandom</span> (<span class="arguments"><span class="argument"><span class="type">size_t</span> <span class="identifier" data-identifier-id=function-psvectorrandom-len>len</span></span></span>)</code>
@@ -3982,7 +4173,7 @@ Compare two vectors <span class="identifier-ref" data-identifier-id="function-ps
 
 <div class="details function" id="function-psvectorreducesum">
 <h3 class="name">PSVectorReduceSum</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">229</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">237</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier name">PSVectorReduceSum</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorreducesum-a>a</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psvectorreducesum-length>length</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorreducesum-opts>opts</span></span></span>)</code>
@@ -3991,7 +4182,7 @@ Compare two vectors <span class="identifier-ref" data-identifier-id="function-ps
 
 <div class="details function" id="function-psvectorsplit">
 <h3 class="name">PSVectorSplit</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">251</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">259</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> **</span> <span class="identifier name">PSVectorSplit</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorsplit-vec>vec</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psvectorsplit-len>len</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psvectorsplit-num-slices>num_slices</span></span></span>)</code>
@@ -4000,7 +4191,7 @@ Compare two vectors <span class="identifier-ref" data-identifier-id="function-ps
 
 <div class="details function" id="function-psvectorsqrt">
 <h3 class="name">PSVectorSqrt</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">211</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">219</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSVectorSqrt</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorsqrt-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorsqrt-dest>dest</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psvectorsqrt-length>length</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorsqrt-opts>opts</span></span></span>)</code>
@@ -4009,7 +4200,7 @@ Compare two vectors <span class="identifier-ref" data-identifier-id="function-ps
 
 <div class="details function" id="function-psvectortanh">
 <h3 class="name">PSVectorTanh</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">209</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">217</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSVectorTanh</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectortanh-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectortanh-dest>dest</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psvectortanh-length>length</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectortanh-opts>opts</span></span></span>)</code>
@@ -4018,7 +4209,7 @@ Compare two vectors <span class="identifier-ref" data-identifier-id="function-ps
 
 <div class="details function" id="function-psvectorthreshold">
 <h3 class="name">PSVectorThreshold</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">221</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">229</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSVectorThreshold</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorthreshold-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier" data-identifier-id=function-psvectorthreshold-min>min</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorthreshold-dest>dest</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psvectorthreshold-length>length</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorthreshold-opts>opts</span></span></span>)</code>
@@ -4027,7 +4218,7 @@ Compare two vectors <span class="identifier-ref" data-identifier-id="function-ps
 
 <div class="details function" id="function-psvectortranspose">
 <h3 class="name">PSVectorTranspose</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">239</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">247</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSVectorTranspose</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectortranspose-vec>vec</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectortranspose-dest>dest</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psvectortranspose-acceleration>acceleration</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psvectortranspose-ndims>ndims</span></span>, <span class="argument variadic">...</span></span>)</code>
@@ -4056,7 +4247,7 @@ NOTES:<br/>
 
 <div class="details function" id="function-psvectorwrite">
 <h3 class="name">PSVectorWrite</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">237</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">245</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag vector" data-href="tag-vector.html">VECTOR</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">void</span> <span class="identifier name">PSVectorWrite</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorwrite-vec>vec</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psvectorwrite-len>len</span></span>, <span class="argument"><span class="type">char*</span> <span class="identifier" data-identifier-id=function-psvectorwrite-sep>sep</span></span>, <span class="argument"><span class="type">FILE *</span><span class="identifier pointer-name" data-identifier-id=function-psvectorwrite-f>f</span></span></span>)</code>

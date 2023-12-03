@@ -1,0 +1,39 @@
+.\" Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that the above copyright notice and this paragraph are
+.\" duplicated in all such forms and that any documentation,
+.\" advertising materials, and other materials related to such
+.\" distribution and use acknowledge that the software was developed
+.\" by the copyright holder. The name of the
+.\" copyright holder may not be used to endorse or promote products derived
+.\" from this software without specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+.TH PSMatrixShape 3 2023-12-03 "PsyC 0.9.3" "PsyC Library Functions Manual"
+
+.SH NAME
+PSMatrixShape
+
+.SH LIBRARY
+PsyC (-lpsyc)
+
+.SH SYNOPSIS
+
+.B
+#include <psyc/maths.h>
+
+.I
+int  
+.br
+\fBPSMatrixShape\fR(\fIPSMatrix matrix\fR, \fIint *shape\fR)
+.SH DESCRIPTION
+Get the shape of \fImatrix\fR and store it into \fIshape\fR array. The \fIshape\fR array must be big enough to hold at least \fIPS_MATRIX_MAX_DIMENSIONS\fR elements.
+.br
+If \fIshape\fR is \fINULL\fR, the function will just return the number of dimensions (so, the length of the shape array of \fImatrix\fR).  
+
+.SH RETURN VALUES
+The number of dimensions of \fImatrix\fR or zero if \fImatrix\fR is \fINULL\fR.

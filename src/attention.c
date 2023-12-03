@@ -732,7 +732,7 @@ static int attentionFeedforward(PSMatrix x, PSMatrix weights, PSFloat *biases,
         opts.transpose = 0;
         if (biases != NULL || activate != NULL) {
             int xshape[3] = {0};
-            int nd = PSMatrixDimensions(x, xshape), i;
+            int nd = PSMatrixShape(x, xshape), i;
             int nrows = (nd > 1 ? xshape[0] : 1);
             PSFloat *row = dest;
             for (i = 0; i < nrows; i++) {
@@ -763,7 +763,7 @@ static int applyCausalMask(PSLayer *layer, PSFloat *mask, PSMatrix scores,
     } else {
         if (score_size <= 0) {
             int shape[3] = {0};
-            int ndims = PSMatrixDimensions(scores, shape);
+            int ndims = PSMatrixShape(scores, shape);
             if (ndims <= 0) return 0;
             score_size = shape[ndims - 1];
         }
@@ -1078,7 +1078,7 @@ static PSFloat *storeAttentionStates(PSLayer *layer, PSMatrix *states,
     } else {
         int len = PSMatrixLength(*states);
         int dest_shape[3] = {0};
-        int dest_ndims = PSMatrixDimensions(*dest, dest_shape);
+        int dest_ndims = PSMatrixShape(*dest, dest_shape);
         if (dest_ndims == 1) {
             PSMatrixFree(*dest);
             *dest = *states;
@@ -1150,7 +1150,7 @@ static int updateAttentionGradientsAndDelta(PSLayer *layer, PSFloat **gweights,
     int use_bias = !(layer->flags & PS_FLAG_NO_BIAS);
     if (use_bias && gbiases) gb = gbiases + (layer->size * param_type);
     int shape[3] = {0};
-    int ndims = PSMatrixDimensions(weights, shape);
+    int ndims = PSMatrixShape(weights, shape);
     int size;
     if (param_type == PS_SCORES_PROJ_IDX) size = 1;
     else size = (ndims > 1 ? shape[0] : 1);
@@ -1269,7 +1269,7 @@ final:
 
 PSMatrix *PSGetAttentionHeads(PSMatrix src, int num_heads) {
     int shape[3] = {0};
-    int ndims = PSMatrixDimensions(src, shape);
+    int ndims = PSMatrixShape(src, shape);
     int axis = ndims - 1;
     int axis_size = shape[axis];
     if (num_heads <= 1) {
@@ -1344,7 +1344,7 @@ PSMatrix PSAttention(PSLayer *layer, PSFloat *query, PSMatrix keys,
     if (!success) goto final;
     int score_shape[3] = {0};
     int whole_seq = PSHandleSequenceAtOnce(layer);
-    int score_ndims = PSMatrixDimensions(scores, score_shape);
+    int score_ndims = PSMatrixShape(scores, score_shape);
     success = score_ndims > 0;
     if (!success) {
         PSErrNN(NULL, NULL, layer, "invalid scores");
@@ -1685,7 +1685,7 @@ int PSAttentionBackward(PSLayer *layer, PSMatrix delta, PSFloat *query,
     /* Compute delta for scores */
     dscores = PSMatrixDupShape(dweights);
     int dwshape[3] = {0};
-    int dwdims = PSMatrixDimensions(dweights, dwshape), dwseqlen = 1,
+    int dwdims = PSMatrixShape(dweights, dwshape), dwseqlen = 1,
         dwstride, i;
     ok = keys_seqlen > 0;
     if (!ok) {
@@ -2333,8 +2333,7 @@ int PSAttentionBackprop(PSLayer *layer, PSLayer *previous_layer,
             score_inputs += (t * PSMatrixStride(score_inputs, 0));
         }
         int attn_w_shape[3] = {0};
-        int attn_w_ndims = PSMatrixDimensions(data->attention_weights,
-                                              attn_w_shape);
+        int attn_w_ndims = PSMatrixShape(data->attention_weights, attn_w_shape);
         int attn_w_size = attn_w_shape[attn_w_ndims - 1];
         attn_w += (t * attn_w_size);
         success = PSAttentionBackward(layer, delta, query, data->keys,

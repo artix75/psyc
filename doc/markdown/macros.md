@@ -638,7 +638,7 @@ In: lstm.h, line: 27
 
 ### PS_MATRIX_MAX_DIMENSIONS
 
-In: maths.h, line: 69
+In: maths.h, line: 71
 
 ```c
 #define PS_MATRIX_MAX_DIMENSIONS 3
@@ -1034,7 +1034,7 @@ In: attention.h, line: 27
 
 ### PS_SHAPE_TYPE_COL
 
-In: maths.h, line: 66
+In: maths.h, line: 68
 
 ```c
 #define PS_SHAPE_TYPE_COL 3
@@ -1045,7 +1045,7 @@ In: maths.h, line: 66
 
 ### PS_SHAPE_TYPE_MATRIX
 
-In: maths.h, line: 67
+In: maths.h, line: 69
 
 ```c
 #define PS_SHAPE_TYPE_MATRIX 4
@@ -1056,7 +1056,7 @@ In: maths.h, line: 67
 
 ### PS_SHAPE_TYPE_NONE
 
-In: maths.h, line: 63
+In: maths.h, line: 65
 
 ```c
 #define PS_SHAPE_TYPE_NONE 0
@@ -1067,7 +1067,7 @@ In: maths.h, line: 63
 
 ### PS_SHAPE_TYPE_ROW
 
-In: maths.h, line: 65
+In: maths.h, line: 67
 
 ```c
 #define PS_SHAPE_TYPE_ROW 2
@@ -1078,7 +1078,7 @@ In: maths.h, line: 65
 
 ### PS_SHAPE_TYPE_SCALAR
 
-In: maths.h, line: 64
+In: maths.h, line: 66
 
 ```c
 #define PS_SHAPE_TYPE_SCALAR 1
@@ -1177,7 +1177,7 @@ In: psyc.h, line: 59
 
 ### PS_STORE_MODE_ADD
 
-In: maths.h, line: 60
+In: maths.h, line: 62
 
 ```c
 #define PS_STORE_MODE_ADD 1
@@ -1188,7 +1188,7 @@ In: maths.h, line: 60
 
 ### PS_STORE_MODE_SET
 
-In: maths.h, line: 59
+In: maths.h, line: 61
 
 ```c
 #define PS_STORE_MODE_SET 0
@@ -1199,7 +1199,7 @@ In: maths.h, line: 59
 
 ### PS_STORE_MODE_SUB
 
-In: maths.h, line: 61
+In: maths.h, line: 63
 
 ```c
 #define PS_STORE_MODE_SUB 2
@@ -2277,7 +2277,7 @@ In: maths.h, line: 34
 
 ### PSMatrixDataSize
 
-In: maths.h, line: 129
+In: maths.h, line: 131
 
 ```c
 #define PSMatrixDataSize(matrix) (PSMatrixLength(matrix) * sizeof(PSFloat))
@@ -2286,9 +2286,20 @@ In: maths.h, line: 129
 
 
 
+### PSMatrixDimensions
+
+In: maths.h, line: 59
+
+```c
+#define PSMatrixDimensions(matrix, shape) PSMatrixShape(matrix, shape)
+```
+
+
+
+
 ### PSMatrixStrideBytes
 
-In: maths.h, line: 130
+In: maths.h, line: 132
 
 ```c
 #define PSMatrixStrideBytes(matrix,i) (PSMatrixStride(matrix,i) * sizeof(PSFloat))
@@ -2898,7 +2909,7 @@ In: buildinfo.h, line: 6
 In: buildinfo.h, line: 5
 
 ```c
-#define PSYC_GIT_DIRTY "303"
+#define PSYC_GIT_DIRTY "880"
 ```
 
 
@@ -2909,7 +2920,7 @@ In: buildinfo.h, line: 5
 In: buildinfo.h, line: 4
 
 ```c
-#define PSYC_GIT_SHA "357c6215"
+#define PSYC_GIT_SHA "5416e226"
 ```
 
 
@@ -2943,6 +2954,17 @@ In: psyc.h, line: 30
 
 ```c
 #define PSYC_VERSION "0.9.3"
+```
+
+
+
+
+### PSYCH_MAGICK_VERSION
+
+In: magick-conf.h, line: 1
+
+```c
+#define PSYCH_MAGICK_VERSION 7
 ```
 
 

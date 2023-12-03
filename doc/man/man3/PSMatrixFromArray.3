@@ -1,0 +1,61 @@
+.\" Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that the above copyright notice and this paragraph are
+.\" duplicated in all such forms and that any documentation,
+.\" advertising materials, and other materials related to such
+.\" distribution and use acknowledge that the software was developed
+.\" by the copyright holder. The name of the
+.\" copyright holder may not be used to endorse or promote products derived
+.\" from this software without specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+.TH PSMatrixFromArray 3 2023-12-03 "PsyC 0.9.3" "PsyC Library Functions Manual"
+
+.SH NAME
+PSMatrixFromArray
+
+.SH LIBRARY
+PsyC (-lpsyc)
+
+.SH SYNOPSIS
+
+.B
+#include <psyc/maths.h>
+
+.I
+PSMatrix  
+.br
+\fBPSMatrixFromArray\fR(\fIPSFloat *array\fR, \fIint ndims\fR, \fI...\fR)
+.SH DESCRIPTION
+Create a new matrix having number of dimensions defined by \fIndims\fR. The shape of the matrix is given by variadic arguments that follow \fIndims\fR.
+.br
+The values of the matrix will be initialized with values of \fIarray\fR.
+.br
+If the matrix cannot be allocated, \fIerrno\fR will be set to \fIENOMEM\fR.
+.br
+
+.br
+\fBWARN\fR:  the length of \fIarray\fR must be at least the same of the length of the matrix, so if the matrix has two dimensions of shape [2, 3] (two rows with three columns), the provided array's length cannot be less than six.
+.br
+
+.SH RETURN VALUES
+The allocated matrix or \fINULL\fR if:
+
+.RS 4
+\[bu] \fIarray\fR is \fINULL\fR.
+.br
+
+\[bu] the number of dimensions (\fIndims\fR) is greater than \fIPS_MATRIX_MAX_DIMENSIONS\fR or less than one.
+.br
+
+\[bu] it's not possible to allocate the matrix in memory.
+.RE
+.RE
+
+.br
+\fBWARN\fR:  the address pointed by the returned pointer should never be freed directly. The specific function \fIPSMatrixFree\fR should be used instead.
+.br
