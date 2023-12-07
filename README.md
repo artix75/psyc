@@ -15,6 +15,8 @@ After a five-year pause, the project restarted in the summer of 2022.
 
 ## Features
 
+Supported layer types:
+
 - Fully Connected (Dense) layers.
 - Linear layers.
 - Convolutional/Pooling layers.
@@ -45,7 +47,7 @@ PsyC can leverage certain libraries and hardware for accelerated computation.
 
 The above libraries and hardware are automatically detected by PsyC and they're not dependecies, as PsyC can run without them.
 
-Currently, there's no support for [NVIDIA® CUDA®](https://developer.nvidia.com/cuda-toolkit), but its support is planner for future releases.
+Currently, there's no support for [NVIDIA® CUDA®](https://developer.nvidia.com/cuda-toolkit), but its support is planned for future releases.
 
 ## Installation
 
