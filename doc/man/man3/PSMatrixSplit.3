@@ -1,0 +1,69 @@
+.\" Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that the above copyright notice and this paragraph are
+.\" duplicated in all such forms and that any documentation,
+.\" advertising materials, and other materials related to such
+.\" distribution and use acknowledge that the software was developed
+.\" by the copyright holder. The name of the
+.\" copyright holder may not be used to endorse or promote products derived
+.\" from this software without specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+.TH PSMatrixSplit 3 2023-12-07 "PsyC 0.9.3" "PsyC Library Functions Manual"
+
+.SH NAME
+PSMatrixSplit
+
+.SH LIBRARY
+PsyC (-lpsyc)
+
+.SH SYNOPSIS
+
+.B
+#include <psyc/maths.h>
+
+.I
+PSMatrix  *
+.br
+\fBPSMatrixSplit\fR(\fIPSMatrix matrix\fR, \fIint num_slices\fR, \fIint axis\fR, \fIPSMathOpts *opts\fR)
+.SH DESCRIPTION
+Split \fImatrix\fR into smaller matrices whose number is defined by \fInum_slices\fR. The matrix will be split on the axis (dimension) defined by the \fIaxis\fR argument.
+.br
+If the \fIaxis\fR argument is negative, it will be counted from the last dimension of the shape of \fImatrix\fR: for example, an axis of -1 means the last dimension of the shape.
+.br
+
+.br
+\fBNOTE\fR:  this function currenlty works only if \fImatrix\fR has up-to two dimensions or if \fImatrix\fR has more than two dimensions but \fIaxis\fR is the first dimension or the last dimensions (so it cannot be used to split a matrix with more than two dimensions by an intermediate axis).
+.br
+The optional \fIopts\fR argument can be used to change the default acceleration methods (by default, \fIPSGlobalAcceleration\fR is used).  
+
+.SH RETURN VALUES
+An array of \fInum_slices\fR sub-matrices whose length is or \fINULL\fR if:
+
+.RS 4
+\[bu] \fImatrix\fR is \fINULL\fR.
+.br
+
+\[bu] \fImatrix\fR is empty.
+.br
+
+\[bu] \fIaxis\fR is out of bounds.
+.br
+
+\[bu] \fImatrix\fR has more than two dimensions but \fIaxis\fR is neither the first nor the last axis.
+.br
+
+\[bu] The value of \fInum_slices\fR would not lead to an equal division (`shape[axis] % num_slices != 0`).
+.br
+
+\[bu] Memory cannot be allocate.
+.RE
+.RE
+
+.br
+\fBNOTE\fR:  it's up to the developer using this function to free both the sub-matrices (by using \fIPSMatrixFlatten\fR) and the returned array containing them.
+.br

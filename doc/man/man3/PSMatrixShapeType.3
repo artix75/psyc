@@ -1,0 +1,87 @@
+.\" Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that the above copyright notice and this paragraph are
+.\" duplicated in all such forms and that any documentation,
+.\" advertising materials, and other materials related to such
+.\" distribution and use acknowledge that the software was developed
+.\" by the copyright holder. The name of the
+.\" copyright holder may not be used to endorse or promote products derived
+.\" from this software without specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+.TH PSMatrixShapeType 3 2023-12-07 "PsyC 0.9.3" "PsyC Library Functions Manual"
+
+.SH NAME
+PSMatrixShapeType
+
+.SH LIBRARY
+PsyC (-lpsyc)
+
+.SH SYNOPSIS
+
+.B
+#include <psyc/maths.h>
+
+.I
+int  
+.br
+\fBPSMatrixShapeType\fR(\fIPSMatrix matrix\fR)
+.SH DESCRIPTION
+Get the shape type of \fImatrix\fR.  
+
+.SH RETURN VALUES
+The shape type:
+
+.RS 4
+\[bu] \fIPS_SHAPE_TYPE_NONE\fR if:
+.br
+
+.RS 4
+\[bu] \fImatrix\fR is \fINULL\fR.
+.br
+
+\[bu] Matrix's shape has zero dimensions.
+.br
+
+.RE
+\[bu] \fIPS_SHAPE_TYPE_SCALAR\fR if:
+.br
+
+.RS 4
+\[bu] Matrix's shape has one dimension of size 1.
+.br
+
+\[bu] Matrix's shape has two dimensions, both of size 1.
+.br
+
+.RE
+\[bu] \fIPS_SHAPE_TYPE_COL\fR if:
+.br
+
+.RS 4
+\[bu] Matrix's shape has one dimension of size greater than 1.
+.br
+
+\[bu] Matrix's shape has two dimensions and the first dimension is greater than 1 but the second dimension is 1.
+.br
+
+.RE
+\[bu] \fIPS_SHAPE_TYPE_ROW\fR if:
+.br
+
+.RS 4
+\[bu] Matrix's shape has two dimensions and the first dimension is 1 but the second dimension is greater than 1.
+.br
+
+.RE
+\[bu] \fIPS_SHAPE_TYPE_MATRIX\fRif:
+.br
+
+.RS 4
+\[bu] All other cases.
+.br
+.RE

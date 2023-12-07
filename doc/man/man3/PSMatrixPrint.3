@@ -1,0 +1,42 @@
+.\" Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that the above copyright notice and this paragraph are
+.\" duplicated in all such forms and that any documentation,
+.\" advertising materials, and other materials related to such
+.\" distribution and use acknowledge that the software was developed
+.\" by the copyright holder. The name of the
+.\" copyright holder may not be used to endorse or promote products derived
+.\" from this software without specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+.TH PSMatrixPrint 3 2023-12-07 "PsyC 0.9.3" "PsyC Library Functions Manual"
+
+.SH NAME
+PSMatrixPrint
+
+.SH LIBRARY
+PsyC (-lpsyc)
+
+.SH SYNOPSIS
+
+.B
+#include <psyc/maths.h>
+
+.I
+void  
+.br
+\fBPSMatrixPrint\fR(\fIPSMatrix matrix\fR, \fIconst char *sep\fR, \fIint print_shape\fR)
+.SH DESCRIPTION
+Print a string representation of \fImatrix\fR to the standard output.
+.br
+The optional argument \fIsep\fR can be used to specify the separator string for matrix values.
+.br
+If \fIsep\fR is \fINULL\fR, the default separator is a comma (',').
+.br
+If \fIprint_shape\fR is true, the matrix representation will be preceded by a header describing the shape of \fImatrix\fR.
+.br
+If \fImatrix\fR is \fINULL\fR, the function will immediately return.

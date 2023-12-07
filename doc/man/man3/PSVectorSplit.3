@@ -1,0 +1,56 @@
+.\" Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that the above copyright notice and this paragraph are
+.\" duplicated in all such forms and that any documentation,
+.\" advertising materials, and other materials related to such
+.\" distribution and use acknowledge that the software was developed
+.\" by the copyright holder. The name of the
+.\" copyright holder may not be used to endorse or promote products derived
+.\" from this software without specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+.TH PSVectorSplit 3 2023-12-07 "PsyC 0.9.3" "PsyC Library Functions Manual"
+
+.SH NAME
+PSVectorSplit
+
+.SH LIBRARY
+PsyC (-lpsyc)
+
+.SH SYNOPSIS
+
+.B
+#include <psyc/maths.h>
+
+.I
+PSFloat  **
+.br
+\fBPSVectorSplit\fR(\fIPSFloat *vec\fR, \fIint len\fR, \fIint num_slices\fR)
+.SH DESCRIPTION
+Split vector \fIvec\fR having length defined by \fIlen\fR into \fInum_slices\fR vectors.
+.br
+For example, a vector of 10 elements split into two slices will create two vectors of size 5.  
+
+.SH RETURN VALUES
+An array of \fInum_slices\fR vectors (PSFloat *) or \fINULL\fR if:
+
+.RS 4
+\[bu] \fIvec\fR is \fINULL\fR.
+.br
+
+\[bu] \fIlen\fR is zero or negative.
+.br
+
+\[bu] \fInum_slices\fR is zero or negative.
+.br
+
+\[bu] \fIlen\fR / \fInum_slices\fR does not result in equal division.
+.br
+
+\[bu] Memory allocation issues.
+.br
+.RE

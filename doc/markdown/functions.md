@@ -7,7 +7,6 @@ In: psyc.h, line: 444
 
 ```c
 void PSAbortTraining (PSModel *model)
-
 ```
 
 
@@ -19,7 +18,6 @@ In: optimization.h, line: 43
 
 ```c
 int PSAdaDeltaOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, uint64_t len, int acceleration, int iteration, struct PSTrainingOptions *options)
-
 ```
 
 
@@ -31,7 +29,6 @@ In: optimization.h, line: 55
 
 ```c
 int PSAdaGradOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, uint64_t len, int acceleration, int iteration, struct PSTrainingOptions *options)
-
 ```
 
 
@@ -43,7 +40,6 @@ In: optimization.h, line: 67
 
 ```c
 int PSAdamOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, uint64_t len, int acceleration, int iteration, struct PSTrainingOptions *options)
-
 ```
 
 
@@ -55,7 +51,6 @@ In: dataset.h, line: 151
 
 ```c
 PSLayer  * PSAddCIFARInputLayer (PSModel *model)
-
 ```
 
 
@@ -67,7 +62,6 @@ In: psyc.h, line: 395
 
 ```c
 PSLayer  * PSAddConvolutionalLayer (PSModel *model, PSLayerDef *ldef)
-
 ```
 
 
@@ -79,7 +73,6 @@ In: debug.h, line: 105
 
 ```c
 void PSAddDebugInfo (PSModel *model, char *file, const char *func, int line, PSLayer *layer, void *neuron1, void *neuron2, char *prop, double val, ...)
-
 ```
 
 
@@ -91,27 +84,24 @@ In: psyc.h, line: 393
 
 ```c
 PSLayer  * PSAddLayer (PSModel *model, PSLayerType type, int size, PSLayerDef *layer_def)
-
 ```
 
-
-
-Add a new layer (instance of [PSLayer](types.md#pslayer)) of type **type** and size **size** to **model**. Special layer properties can be defined by the optional argument **layer_def**.  
+Add a new layer (instance of [PSLayer](types.md#pslayer)) of type [type](types.md#pslayer) and size [size](types.md#psvocabulary) to [model](types.md#pslayer). Special layer properties can be defined by the optional argument **layer_def**.  
 If **layer_def** is **NULL**, the function will use the default layer configuration.  
-The member **load_from** of **layer_def** can be used to load the new layer's parameters from a file.  
+The member [load_from](types.md#pslayerdef) of **layer_def** can be used to load the new layer's parameters from a file.  
 The new model will be automatically allocated and added to model layers.  
 
 
-**NOTE**:  the new layer should never be freed directly. By freeing **model** ([PSModelFree](functions.md#psmodelfree)), all model's layers will be automatically freed.  
+**NOTE**:  the new layer should never be freed directly. By freeing [model](types.md#pslayer) ([PSModelFree](functions.md#psmodelfree)), all model's layers will be automatically freed.  
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 Pointer to the added layer or **NULL** if something goes wrong.  
 Possible failure reasons:  
 
- - **model** is **NULL**
- - **model** is empty and **type** is not **FullyConnected** (the first layer must be always of type FullyConnected).
- - The new layer cannot be allocated into memory or the model's **layers** array cannot be resized.
+ - [model](types.md#pslayer) is **NULL**
+ - [model](types.md#pslayer) is empty and [type](types.md#pslayer) is not [FullyConnected](types.md#pslayertype) (the first layer must be always of type FullyConnected).
+ - The new layer cannot be allocated into memory or the model's [layers](types.md#psmodel) array cannot be resized.
  - The model's last layer is **NULL**.
  - The new layer cannot be initialized. The reason for the initialization failure can vary depending on the layer type.
  - The new layer is recurrent or the model is recurrent but the recurrent mode of all layers is not consistent. In order to build consistent recurrent models, one of the following feature must be satisfied:
@@ -119,7 +109,7 @@ Possible failure reasons:
    - first N layers are recurrent and the remaining layers are not      recurrent, or
    - first N layers are not recurrent the remaining layers are recurrent.
 
-#### SEE ALSO
+**SEE ALSO**
 
 [PSModelFree](functions.md#psmodelfree)  
 
@@ -131,35 +121,32 @@ In: psyc.h, line: 388
 
 ```c
 int PSAddModel (PSModel *parent, PSModel *model, PSModelLink *link)
-
 ```
 
+Add [model](types.md#pslayer) to another model (**parent**), creating a chained, multi-model model.  
+If **parent** is already member of a multi-model chain but it's not the chain head, the function will automatically find the actual chain head and it will append [model](types.md#pslayer) to the chain tail.  
+The argument **link** allows setting the rules for data propagation (both forward propagation and bacpropagation) between [model](types.md#pslayer) and the model preceding it in the model chain:  
+
+ - The [layer](types.md#psmodellink) member of **link** can be used to set the layer in [model](types.md#pslayer) that will receive inputs from previous model (in forward propagation) or that will back-propagate the error (delta) to previous model.
+ - The [previous_layer](types.md#psmodellink) member of **link** can be used to set the layer in the previous model (the model in the chain that precedes [model](types.md#pslayer)) that will forward its outputs to [model](types.md#pslayer) (in forward propagation) or that will receive the error (deltas) from [model](types.md#pslayer) in backpropagation.
+
+If **link** is **NULL**, the function will try to automatically determine it by searching for the first layer in [model](types.md#pslayer) whose size matches a layer in the previous model.  
 
 
-Add **model** to another model (**parent**), creating a chained, multi-model model.  
-If **parent** is already member of a multi-model chain but it's not the chain head, the function will automatically find the actual chain head and it will append **model** to the chain tail.  
-The argument **link** allows setting the rules for data propagation (both forward propagation and bacpropagation) between **model** and the model preceding it in the model chain:  
+**RETURN VALUES**
 
- - The **layer** member of **link** can be used to set the layer in **model** that will receive inputs from previous model (in forward propagation) or that will back-propagate the error (delta) to previous model.
- - The **previous_layer** member of **link** can be used to set the layer in the previous model (the model in the chain that precedes **model**) that will forward its outputs to **model** (in forward propagation) or that will receive the error (deltas) from **model** in backpropagation.
-
-If **link** is **NULL**, the function will try to automatically determine it by searching for the first layer in **model** whose size matches a layer in the previous model.  
-
-
-#### RETURN VALUES
-
-1 if **model** is successfully added, 0 if something goes wrong.  
+1 if [model](types.md#pslayer) is successfully added, 0 if something goes wrong.  
 Possible failure reasons:  
 
- - **model** is **NULL** or **parent** is **NULL** or both are **NULL**.
- - **model** is already part of a multi-model chain.
+ - [model](types.md#pslayer) is **NULL** or **parent** is **NULL** or both are **NULL**.
+ - [model](types.md#pslayer) is already part of a multi-model chain.
  - **link** is **NULL** and it's not possible to automatically determine it.
  - **link** is not **NULL** but it's not valid, because:
     - `link->layer` is **NULL** or `link->previous_layer` is **NULL**.
     - size of `link->layer` differs from size of `link->previous_layer`.
  - Memory issues.
 
-#### SEE ALSO
+**SEE ALSO**
 
 [PSGetModelAtIndex](functions.md#psgetmodelatindex), [PSModelChainLength](functions.md#psmodelchainlength), [PSModelChainHead](functions.md#psmodelchainhead), [PSModelChainTail](functions.md#psmodelchaintail), [PSModelChainContains](functions.md#psmodelchaincontains)  
 
@@ -171,7 +158,6 @@ In: psyc.h, line: 396
 
 ```c
 PSLayer  * PSAddPoolingLayer (PSModel *model, PSLayerDef *ldef)
-
 ```
 
 
@@ -183,10 +169,25 @@ In: maths.h, line: 197
 
 ```c
 PSFloat  * PSAddVectors (PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length, PSMathOpts *opts)
-
 ```
 
+Add vector **b** to vector **a**. The argument [length](types.md#psdict) defines the length of **a** and **b**, so both **a** and **b** must contain at least [length](types.md#psdict) elements.  
+The resulting vector will have the same length of **a** and **b** and each of its elements will be the sum of the corresponding element of **a** and **b** at the same index (`dest[i] = a[i] + b[i]`).  
+Results are stored into the optional **dest** arguments. If **dest** is **NULL**, a new vector will be allocated and its address will be  returned by the function itself.  
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in **PSGlobalAcceleration** are used, if any. However, the used accelerations methods can be changed via the [acceleration](types.md#psmathopts) member of the optional argument **opts**.  
+Aside from acceleration, **opts** can also be used to set the result storage mode (by using the [store_mode](types.md#psmathopts) member):  
 
+ - [PS_STORE_MODE_ADD](macros.md#ps-store-mode-add): the result is added to the existing values of **dest**.
+ - [PS_STORE_MODE_SUB](macros.md#ps-store-mode-sub): the result is subtracted from the existing values    of **dest**.
+
+Some acceleration systems (ie. AVX) can use some storage modes to speed-up computation.  
+
+
+**RETURN VALUES**
+
+The pointer to the address of the vector containing results.  
+If **dest** is not **NULL**, the return value is **dest** itself, but if **dest** is **NULL**, the return value is the address of the newly allocated vector.  
+The function returns **NULL** if **dest** is **NULL** but the destination vector cannot be allocated in memory.
 
 
 ### PSAddVectorScalar
@@ -195,10 +196,25 @@ In: maths.h, line: 207
 
 ```c
 PSFloat  * PSAddVectorScalar (PSFloat *a, PSFloat b, PSFloat *dest, uint64_t length, PSMathOpts *opts)
-
 ```
 
+Add scalar **b** to vector **a**. The argument [length](types.md#psdict) defines the length of **a**.  
+The resulting vector will have the same length of **a** and each of its elements will be the sum of the corresponding element of **a** at the same index and scalar value b (`dest[i] = a[i] + b`).  
+Results are stored into the optional **dest** arguments. If **dest** is **NULL**, a new vector will be allocated and its address will be  returned by the function itself.  
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in **PSGlobalAcceleration** are used, if any. However, the used accelerations methods can be changed via the [acceleration](types.md#psmathopts) member of the optional argument **opts**.  
+Aside from acceleration, **opts** can also be used to set the result storage mode (by using the [store_mode](types.md#psmathopts) member):  
 
+ - [PS_STORE_MODE_ADD](macros.md#ps-store-mode-add): the result is added to the existing values of **dest**.
+ - [PS_STORE_MODE_SUB](macros.md#ps-store-mode-sub): the result is subtracted from the existing values    of **dest**.
+
+Some acceleration systems (ie. AVX) can use some storage modes to speed-up computation.  
+
+
+**RETURN VALUES**
+
+The pointer to the address of the vector containing results.  
+If **dest** is not **NULL**, the return value is **dest** itself, but if **dest** is **NULL**, the return value is the address of the newly allocated vector.  
+The function returns **NULL** if **dest** is **NULL** but the destination vector cannot be allocated in memory.
 
 
 ### PSAutoregression
@@ -207,32 +223,29 @@ In: psyc.h, line: 427
 
 ```c
 int PSAutoregression (PSModel *model, PSFloat *inputs, int randomized, PSSequenceSettings *sequence_settings)
-
 ```
 
-
-
-Forward **inputs** to **model** with autoregression mode. The model must take sequences as inputs and produce sequences as outputs.  
-If **model** is part of a multi-model chain, **inputs** are forwarded to the first layer of the first model of the chain and outputs are produced by the last layer of the last model of the chain.  
+Forward **inputs** to [model](types.md#pslayer) with autoregression mode. The model must take sequences as inputs and produce sequences as outputs.  
+If [model](types.md#pslayer) is part of a multi-model chain, **inputs** are forwarded to the first layer of the first model of the chain and outputs are produced by the last layer of the last model of the chain.  
 When the full input sequence as been forwarded, all subsequent outputs produced by the model (including the last outputs produced by the input sequence) are forwarded as the next inputs to the model itself.  
-The size of the output layer must match the size of the input layer or, if the input layer has the [PS_FLAG_ONEHOT](macros.md#ps-flag-onehot) set, its **onehot_vector_size**.  
+The size of the output layer must match the size of the input layer or, if the input layer has the [PS_FLAG_ONEHOT](macros.md#ps-flag-onehot) set, its [onehot_vector_size](types.md#pslayer).  
 If the input layer has the [PS_FLAG_ONEHOT](macros.md#ps-flag-onehot) set, the index of the highest element of the produced outputs is forwarded to the input layer. In this case, if the **randomized** argument is true, a random index is generated by using the values of the outputs as a probability distribution.  
 The iteration keeps forwarding outputs as the next inputs until one of the following events happens:  
 
- - The length of the whole output sequence produced (including the outputs produced by the original input sequence) reaches the maximum length defined into the (optional) argument **sequence_settings** or by the default value of [PS_MAX_SEQUENCE_LENGTH](macros.md#ps-max-sequence-length).
- - The index of the highest value of the produced outputs matches the value of **end** in the optional argument **sequence_settings**. If the **randomized** argument is true, the random index generated by using outputs as a probability distribution is compared with **end**. If **sequence_settings** is **NULL** or the value of the **end** member is negative, the end-matching event is ignored.
+ - The length of the whole output sequence produced (including the outputs produced by the original input sequence) reaches the maximum length defined into the (optional) argument [sequence_settings](types.md#psmodel) or by the default value of [PS_MAX_SEQUENCE_LENGTH](macros.md#ps-max-sequence-length).
+ - The index of the highest value of the produced outputs matches the value of [end](types.md#pssequencesettings) in the optional argument [sequence_settings](types.md#psmodel). If the **randomized** argument is true, the random index generated by using outputs as a probability distribution is compared with [end](types.md#pssequencesettings). If [sequence_settings](types.md#psmodel) is **NULL** or the value of the [end](types.md#pssequencesettings) member is negative, the end-matching event is ignored.
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 1 if the process succeeds or 0 if:  
 
- - **model** is **NULL**
- - **model** is not built.
+ - [model](types.md#pslayer) is **NULL**
+ - [model](types.md#pslayer) is not built.
  - The input layer doesn't take sequences as inputs and the output layer doesn't produce sequences as outputs.
- - The size of the output layer doesn't match the size of the input layer (or input layer's **onehot_vector_size** if the input layer has the flag [PS_FLAG_ONEHOT](macros.md#ps-flag-onehot) set).
+ - The size of the output layer doesn't match the size of the input layer (or input layer's [onehot_vector_size](types.md#pslayer) if the input layer has the flag [PS_FLAG_ONEHOT](macros.md#ps-flag-onehot) set).
  - Something else in the forward process fails.
 
-#### SEE ALSO
+**SEE ALSO**
 
 [PSForward](functions.md#psforward), [PSClassify](functions.md#psclassify), [PSClassifyImage](functions.md#psclassifyimage)  
 
@@ -244,7 +257,6 @@ In: blas.h, line: 36
 
 ```c
 void PSAxpy (int n, PSFloat alpha, PSFloat *x, int incx, PSFloat *y, int incy)
-
 ```
 
 
@@ -256,7 +268,6 @@ In: utils.h, line: 120
 
 ```c
 void PSBitmapClear (PSBitmap bitmap)
-
 ```
 
 
@@ -268,7 +279,6 @@ In: utils.h, line: 114
 
 ```c
 int PSBitmapCopy (PSBitmap dst, PSBitmap src)
-
 ```
 
 
@@ -280,7 +290,6 @@ In: utils.h, line: 113
 
 ```c
 PSBitmap PSBitmapCreate (size_t size)
-
 ```
 
 
@@ -292,7 +301,6 @@ In: utils.h, line: 115
 
 ```c
 PSBitmap PSBitmapDup (PSBitmap src)
-
 ```
 
 
@@ -304,7 +312,6 @@ In: utils.h, line: 118
 
 ```c
 int PSBitmapGetBit (PSBitmap bitmap, uint64_t index)
-
 ```
 
 
@@ -316,7 +323,6 @@ In: utils.h, line: 121
 
 ```c
 PSBitmap PSBitmapOp (PSBitmap a, PSBitmap b, PSBitmap dest, int op)
-
 ```
 
 
@@ -328,7 +334,6 @@ In: utils.h, line: 116
 
 ```c
 void PSBitmapRelease (PSBitmap bitmap)
-
 ```
 
 
@@ -340,7 +345,6 @@ In: utils.h, line: 119
 
 ```c
 int PSBitmapSetBit (PSBitmap bitmap, uint64_t index, int val)
-
 ```
 
 
@@ -352,7 +356,6 @@ In: utils.h, line: 117
 
 ```c
 size_t PSBitmapSize (PSBitmap bitmap)
-
 ```
 
 
@@ -364,7 +367,6 @@ In: utils.h, line: 134
 
 ```c
 unsigned int PSCalcIntStringLength (long long num)
-
 ```
 
 
@@ -376,7 +378,6 @@ In: debug.h, line: 81
 
 ```c
 int PSCatchFloatingPointExceptions (int except)
-
 ```
 
 
@@ -388,25 +389,22 @@ In: psyc.h, line: 429
 
 ```c
 int PSClassify (PSModel *model, PSFloat *inputs)
-
 ```
 
+Forward **inputs** to [model](types.md#pslayer) and get the index of the maximum state from the output layer.  
 
 
-Forward **inputs** to **model** and get the index of the maximum state from the output layer.  
-
-
-#### RETURN VALUES
+**RETURN VALUES**
 
 1 if the process succeeds or 0 if:  
 
- - **model** is **NULL**
- - **model** is not built.
+ - [model](types.md#pslayer) is **NULL**
+ - [model](types.md#pslayer) is not built.
  - The input layer doesn't take sequences as inputs and the output layer doesn't produce sequences as outputs.
  - The index of the maximum state could not be determined.
  - Something else in the forward process fails.
 
-#### SEE ALSO
+**SEE ALSO**
 
 [PSForward](functions.md#psforward), [PSAutoregression](functions.md#psautoregression), [PSClassifyImage](functions.md#psclassifyimage)  
 
@@ -418,12 +416,11 @@ In: image-data.h, line: 23
 
 ```c
 int PSClassifyImage (PSModel *model, char *filename, int grayscale, int invert, char* bgcolor, char* dump_file)
-
 ```
 
 
 
-#### SEE ALSO
+**SEE ALSO**
 
 [PSForward](functions.md#psforward), [PSAutoregression](functions.md#psautoregression), [PSClassify](functions.md#psclassify)  
 
@@ -435,7 +432,6 @@ In: embedding.h, line: 32
 
 ```c
 PSFloat  * PSCreateWord2VecTrainingData (PSFloat *tokens, size_t token_count, int window_size, int vocabulary_size, int onehot, int *num_elements_ptr)
-
 ```
 
 
@@ -447,7 +443,6 @@ In: psyc.h, line: 458
 
 ```c
 PSFloat PSCrossEntropyLoss (PSFloat *x, PSFloat *y, int size, int onehot_size)
-
 ```
 
 
@@ -459,10 +454,16 @@ In: maths.h, line: 238
 
 ```c
 int PSCumulativeSum (PSFloat *a, PSFloat *dest, uint64_t length)
-
 ```
 
+Compute the cumulative sum on elements of vector **a** having length defined by [length](types.md#psdict). The results will be stored into the vector **dest** that must have at least the same length of **a**. The value of each element of the resulting vector will be the sum of the values of **a** up to the index of the current resulting vector element (ie. `dest[2] = a[0] + a[1] + a[2]`).  
 
+
+**RETURN VALUES**
+
+1 if the function is successfully executed or 0 if:  
+
+ - **a** is **NULL** or **dest** is **NULL**.
 
 
 ### PSDebug
@@ -471,7 +472,6 @@ In: log.h, line: 122
 
 ```c
 void PSDebug (const char *format, ...)
-
 ```
 
 
@@ -483,7 +483,6 @@ In: optimization.h, line: 31
 
 ```c
 int PSDefaultOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, uint64_t len, int acceleration, int iteration, struct PSTrainingOptions *options)
-
 ```
 
 
@@ -495,7 +494,6 @@ In: psyc.h, line: 432
 
 ```c
 void PSDeleteGradient (PSGradient *gradient)
-
 ```
 
 
@@ -507,7 +505,6 @@ In: psyc.h, line: 434
 
 ```c
 void PSDeleteGradientsChain (PSGradient *** gradients, PSModel *model)
-
 ```
 
 
@@ -519,7 +516,6 @@ In: psyc.h, line: 433
 
 ```c
 void PSDeleteModelGradients (PSGradient ** gradients, PSModel *net)
-
 ```
 
 
@@ -531,7 +527,6 @@ In: psyc.h, line: 423
 
 ```c
 void PSDeleteNeuron (PSNeuron *neuron)
-
 ```
 
 
@@ -543,10 +538,30 @@ In: maths.h, line: 257
 
 ```c
 PSMatrix PSDiagonalFlatten (PSMatrix matrix)
+```
+
+Create a new squared matrix from source **matrix** having a shape with rows and columns equal to **matrix** length (matrix length x matrix length).  
+The original values of **matrix** are distributed into the new matrix over a diagonal line starting from top-left side and ending to bottom-right side.  
+Example:  
+
+```c
+PSFLoat vec[4] = {1, 2, 3, 4};
+PSMatrix src = PSMatrixFromArray(vec, 2, 2, 2); // 2x2 matrix, total len = 4
+PSMatrix new = PSDiagonalFlatten(src); // ->
+// {1, 0, 0, 0,
+//  0, 2, 0, 0,
+//  0, 0, 3, 0,
+//  0, 0, 0 ,4}
 
 ```
 
 
+**RETURN VALUES**
+
+The matrix or **NULL** if:  
+
+ - **matrix** is **NULL** or **matrix** is empty.
+ - The matrix cannot be allocated in memory.
 
 
 ### PSDiagonalFlattenVector
@@ -555,10 +570,28 @@ In: maths.h, line: 258
 
 ```c
 PSMatrix PSDiagonalFlattenVector (PSFloat *vec, uint64_t len)
+```
+
+Create a matrix of shape **len**, **len** where values of vector **vec** having length defined by **len** are distributed over a diagonal line starting from top-left side and ending to bottom-right side.  
+Example:  
+
+```c
+PSFLoat vec[4] = {1, 2, 3, 4};
+PSDiagonalFlattenVector(vec, 4); // ->
+// {1, 0, 0, 0,
+//  0, 2, 0, 0,
+//  0, 0, 3, 0,
+//  0, 0, 0 ,4}
 
 ```
 
 
+**RETURN VALUES**
+
+The matrix or **NULL** if:  
+
+ - **vec** is **NULL** or **len** is zero.
+ - The matrix cannot be allocated in memory.
 
 
 ### PSDiagonalMask
@@ -567,10 +600,26 @@ In: maths.h, line: 256
 
 ```c
 PSMatrix PSDiagonalMask (int size)
+```
+
+Create a matrix with shape [size](types.md#psvocabulary), [size](types.md#psvocabulary) diagonally filled with 1.0 from the top-left side to the bottom-right side, example:  
+
+```c
+PSDiagonalMask(4); // ->
+// {1, 0, 0, 0,
+//  1, 1, 0, 0,
+//  1, 1, 1, 0,
+//  1, 1, 1, 1}
 
 ```
 
 
+**RETURN VALUES**
+
+The matrix of **NULL** if:  
+
+ - [size](types.md#psvocabulary) is less than 1
+ - The matrix cannot be allocated in memory.
 
 
 ### PSDictClear
@@ -579,12 +628,9 @@ In: utils.h, line: 97
 
 ```c
 void PSDictClear (PSDict *dict)
-
 ```
 
-
-
-Delete all items in dictionary **dict**.
+Delete all items in dictionary [dict](types.md#psdictiterator).
 
 
 ### PSDictCreate
@@ -593,10 +639,7 @@ In: utils.h, line: 96
 
 ```c
 PSDict  * PSDictCreate (int flags)
-
 ```
-
-
 
 Create a new PSDict dictionary.
 
@@ -607,10 +650,7 @@ In: utils.h, line: 108
 
 ```c
 void PSDictFree (PSDict *dict)
-
 ```
-
-
 
 Delete the dictionary and free it's allocated memory.
 
@@ -621,15 +661,12 @@ In: utils.h, line: 98
 
 ```c
 PSDictItem  * PSDictGet (PSDict *dict, const char *key)
-
 ```
 
+Get the item associated to [key](types.md#psdictitem) in dictionary [dict](types.md#psdictiterator), if any.  
 
 
-Get the item associated to **key** in dictionary **dict**, if any.  
-
-
-#### RETURN VALUES
+**RETURN VALUES**
 
 The item (PSDictItem) or **NULL**.
 
@@ -640,10 +677,15 @@ In: utils.h, line: 105
 
 ```c
 PSDictItem  ** PSDictGetItems (PSDict *dict)
-
 ```
 
+Return an array containing all items owned by dictionary [dict](types.md#psdictiterator).  
+The size of the array is given by `dict->length`.  
 
+
+**RETURN VALUES**
+
+An array of [PSDictItem](types.md#psdictitem) containing all the values or **NULL** if                 something goes wrong.
 
 
 ### PSDictGetKeys
@@ -652,10 +694,15 @@ In: utils.h, line: 104
 
 ```c
 const char  ** PSDictGetKeys (PSDict *dict)
-
 ```
 
+Return an array containing all keys owned by dictionary [dict](types.md#psdictiterator).  
+The size of the array is given by `dict->length`.  
 
+
+**RETURN VALUES**
+
+An array of strings containing all the keys or **NULL** if                 something goes wrong.
 
 
 ### PSDictGetOrSet
@@ -664,17 +711,14 @@ In: utils.h, line: 102
 
 ```c
 PSDictItem  * PSDictGetOrSet (PSDict *dict, const char *key, PSDictValue val)
-
 ```
 
+Return value **val** if it's already set for [key](types.md#psdictitem), elseway set it and return it.  
 
 
-Return value **val** if it's already set for **key**, elseway set it and return it.  
+**RETURN VALUES**
 
-
-#### RETURN VALUES
-
-The value associated with **key**.
+The value associated with [key](types.md#psdictitem).
 
 
 ### PSDictGetPointer
@@ -683,15 +727,12 @@ In: utils.h, line: 99
 
 ```c
 void  * PSDictGetPointer (PSDict *dict, const char *key)
-
 ```
 
+Get the item associated to [key](types.md#psdictitem) in dictionary [dict](types.md#psdictiterator) as a pointer.  
 
 
-Get the item associated to **key** in dictionary **dict** as a pointer.  
-
-
-#### RETURN VALUES
+**RETURN VALUES**
 
 The item as a pointer or **NULL**.
 
@@ -702,17 +743,14 @@ In: utils.h, line: 100
 
 ```c
 int PSDictHasKey (PSDict *dict, const char *key)
-
 ```
 
+Check whether [dict](types.md#psdictiterator) has the key [key](types.md#psdictitem).  
 
 
-Check whether **dict** has the key **key**.  
+**RETURN VALUES**
 
-
-#### RETURN VALUES
-
-1 if **dict** has **key**, elseway 0.
+1 if [dict](types.md#psdictiterator) has [key](types.md#psdictitem), elseway 0.
 
 
 ### PSDictIteratorCreate
@@ -721,15 +759,12 @@ In: utils.h, line: 106
 
 ```c
 struct PSDictIterator  * PSDictIteratorCreate (PSDict *dict)
-
 ```
 
+Create a new iterator for dictionary [dict](types.md#psdictiterator). The dictionary will be allocated in memory, so it's up to the developer to free it as soon as it is no longer needed.  
 
 
-Create a new iterator for dictionary **dict**. The dictionary will be allocated in memory, so it's up to the developer to free it as soon as it is no longer needed.  
-
-
-#### RETURN VALUES
+**RETURN VALUES**
 
 The iterator or **NULL** if something goes wrong.
 
@@ -740,15 +775,12 @@ In: utils.h, line: 107
 
 ```c
 PSDictItem  * PSDictNext (PSDictIterator *iterator)
-
 ```
-
-
 
 Iterate over the next item using **iterator**.  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 The next item ([PSDictItem](types.md#psdictitem)) or **NULL** if there are no more               items to iterate.
 
@@ -759,12 +791,9 @@ In: utils.h, line: 103
 
 ```c
 void PSDictRemove (PSDict *dict, const char *key)
-
 ```
 
-
-
-Delete item associated to **key** in dictionary **dict**, if any.
+Delete item associated to [key](types.md#psdictitem) in dictionary [dict](types.md#psdictiterator), if any.
 
 
 ### PSDictSet
@@ -773,17 +802,14 @@ In: utils.h, line: 101
 
 ```c
 PSDictItem  * PSDictSet (PSDict *dict, const char *key, PSDictValue val)
-
 ```
 
+Set value **val** for key [key](types.md#psdictitem) in dictionary [dict](types.md#psdictiterator). Unless flag [PSDICT_UPDATE_DISABLED](macros.md#psdict-update-disabled) is enabled in dictionary flags, value will be set even If [key](types.md#psdictitem) is already associated to another value.  
 
 
-Set value **val** for key **key** in dictionary **dict**. Unless flag [PSDICT_UPDATE_DISABLED](macros.md#psdict-update-disabled) is enabled in dictionary flags, value will be set even If **key** is already associated to another value.  
+**RETURN VALUES**
 
-
-#### RETURN VALUES
-
-The item ([PSDictItem](types.md#psdictitem)) associated to the **key** or **NULL**.
+The item ([PSDictItem](types.md#psdictitem)) associated to the [key](types.md#psdictitem) or **NULL**.
 
 
 ### PSDisableAcceleration
@@ -792,7 +818,6 @@ In: config.h, line: 60
 
 ```c
 void PSDisableAcceleration (uint16_t *config, PSAcceleration acceleration)
-
 ```
 
 
@@ -804,10 +829,25 @@ In: maths.h, line: 215
 
 ```c
 PSFloat  * PSDivideScalarVector (PSFloat b, PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
-
 ```
 
+Divide scalar **b** by vector **a**. The argument [length](types.md#psdict) defines the length of **a**.  
+The resulting vector will have the same length of **a** and each of its elements will be the result of the division of the scalar value of **b** by the corresponding element of **a** ant the same index (`dest[i] = b / a[i]`).  
+Results are stored into the optional **dest** arguments. If **dest** is **NULL**, a new vector will be allocated and its address will be  returned by the function itself.  
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in **PSGlobalAcceleration** are used, if any. However, the used accelerations methods can be changed via the [acceleration](types.md#psmathopts) member of the optional argument **opts**.  
+Aside from acceleration, **opts** can also be used to set the result storage mode (by using the [store_mode](types.md#psmathopts) member):  
 
+ - [PS_STORE_MODE_ADD](macros.md#ps-store-mode-add): the result is added to the existing values of **dest**.
+ - [PS_STORE_MODE_SUB](macros.md#ps-store-mode-sub): the result is subtracted from the existing values    of **dest**.
+
+Some acceleration systems (ie. AVX) can use some storage modes to speed-up computation.  
+
+
+**RETURN VALUES**
+
+The pointer to the address of the vector containing results.  
+If **dest** is not **NULL**, the return value is **dest** itself, but if **dest** is **NULL**, the return value is the address of the newly allocated vector.  
+The function returns **NULL** if **dest** is **NULL** but the destination vector cannot be allocated in memory.
 
 
 ### PSDivideVectors
@@ -816,10 +856,25 @@ In: maths.h, line: 203
 
 ```c
 PSFloat  * PSDivideVectors (PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length, PSMathOpts *opts)
-
 ```
 
+Divide vector **a** by vector **b**. The argument [length](types.md#psdict) defines the length of **a** and **b**, so both **a** and **b** must contain at least [length](types.md#psdict) elements.  
+The resulting vector will have the same length of **a** and **b** and each of its elements will be the division of the corresponding element of **a** and **b** at the same index (`dest[i] = a[i] / b[i]`).  
+Results are stored into the optional **dest** arguments. If **dest** is **NULL**, a new vector will be allocated and its address will be  returned by the function itself.  
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in **PSGlobalAcceleration** are used, if any. However, the used accelerations methods can be changed via the [acceleration](types.md#psmathopts) member of the optional argument **opts**.  
+Aside from acceleration, **opts** can also be used to set the result storage mode (by using the [store_mode](types.md#psmathopts) member):  
 
+ - [PS_STORE_MODE_ADD](macros.md#ps-store-mode-add): the result is added to the existing values of **dest**.
+ - [PS_STORE_MODE_SUB](macros.md#ps-store-mode-sub): the result is subtracted from the existing values    of **dest**.
+
+Some acceleration systems (ie. AVX) can use some storage modes to speed-up computation.  
+
+
+**RETURN VALUES**
+
+The pointer to the address of the vector containing results.  
+If **dest** is not **NULL**, the return value is **dest** itself, but if **dest** is **NULL**, the return value is the address of the newly allocated vector.  
+The function returns **NULL** if **dest** is **NULL** but the destination vector cannot be allocated in memory.
 
 
 ### PSDivideVectorScalar
@@ -828,10 +883,25 @@ In: maths.h, line: 213
 
 ```c
 PSFloat  * PSDivideVectorScalar (PSFloat *a, PSFloat b, PSFloat *dest, uint64_t length, PSMathOpts *opts)
-
 ```
 
+Divide vector **a** by scalar **b**. The argument [length](types.md#psdict) defines the length of **a**.  
+The resulting vector will have the same length of **a** and each of its elements will be the result of the corresponding element of **a** at the same by the scalar value of **b** (`dest[i] = a[i] / b`).  
+Results are stored into the optional **dest** arguments. If **dest** is **NULL**, a new vector will be allocated and its address will be  returned by the function itself.  
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in **PSGlobalAcceleration** are used, if any. However, the used accelerations methods can be changed via the [acceleration](types.md#psmathopts) member of the optional argument **opts**.  
+Aside from acceleration, **opts** can also be used to set the result storage mode (by using the [store_mode](types.md#psmathopts) member):  
 
+ - [PS_STORE_MODE_ADD](macros.md#ps-store-mode-add): the result is added to the existing values of **dest**.
+ - [PS_STORE_MODE_SUB](macros.md#ps-store-mode-sub): the result is subtracted from the existing values    of **dest**.
+
+Some acceleration systems (ie. AVX) can use some storage modes to speed-up computation.  
+
+
+**RETURN VALUES**
+
+The pointer to the address of the vector containing results.  
+If **dest** is not **NULL**, the return value is **dest** itself, but if **dest** is **NULL**, the return value is the address of the newly allocated vector.  
+The function returns **NULL** if **dest** is **NULL** but the destination vector cannot be allocated in memory.
 
 
 ### PSDot
@@ -840,23 +910,29 @@ In: maths.h, line: 251
 
 ```c
 int PSDot (PSMatrix a, PSMatrix b, PSFloat *dest, PSMathOpts *opts)
-
 ```
 
-
-
 Performs matrix-matrix multiplication, matrix-vector multiplication, vector-matrix multiplication or vector-vector multiplication, depending on the value of **argtype** field in opts (default is matrix-matrix).  
-Store result is **dest**.  
+The resulting vector is stored into **dest**.  
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in **PSGlobalAcceleration** are used, if any. However, the used accelerations methods can be changed via the [acceleration](types.md#psmathopts) member of the optional argument **opts**.  
+Aside from acceleration, **opts** can also be used to set the result storage mode (by using the [store_mode](types.md#psmathopts) member):  
 
-
-#### RETURN VALUES
-
-1 in case of success, 0 in case of failure.  
+ - [PS_STORE_MODE_ADD](macros.md#ps-store-mode-add): the result is added to the existing values of **dest**.
+ - [PS_STORE_MODE_SUB](macros.md#ps-store-mode-sub): the result is subtracted from the existing values    of **dest**.
 
 
 **NOTE**:  if **argtype** for both **a** and **b** is 'V', the function will compute the dot product of the two vectors, assuming that they have the same size.  
 
-If you need to perform matrix multiplication on two PSFloat arrays, use [PSMatMul](functions.md#psmatmul) instead.
+If you need to perform matrix multiplication on two PSFloat arrays, use [PSMatMul](functions.md#psmatmul) instead.  
+**RETURN VALUES**
+
+1 in case of success, 0 in case of failure.  
+Possible failure reasons:  
+
+ - **a** is **NULL** or **b** is **NULL** or **dest** is **NULL**.
+ - Memory allocation failure.
+ - **a** is vector or **b** is vector and the resulting length would be zero.
+ - Both **a** and **b** are vectors but [vector_len](types.md#psmathopts) member of optional **opts** argument is zero or **opts** is **NULL**.
 
 
 ### PSDotMV
@@ -865,10 +941,17 @@ In: maths.h, line: 252
 
 ```c
 int PSDotMV (PSMatrix a, PSFloat *b, PSFloat *dest, PSMathOpts *opts)
-
 ```
 
+Perform matrix-vector multiplication by calling [PSDot](functions.md#psdot) and setting **argtype** member of **opts** to `argtype[0] = 'M', argtype[1] = 'V'`.  
+See [PSDot](functions.md#psdot) for a more detailed description.  
 
+
+**NOTE**:  **opts** argument is optional, and if given, it's never overwritten by the function since its values are copied to a local structure.  
+
+**RETURN VALUES**
+
+See [PSDot](functions.md#psdot).
 
 
 ### PSDotProduct
@@ -877,10 +960,16 @@ In: maths.h, line: 242
 
 ```c
 PSFloat PSDotProduct (PSFloat *a, PSFloat *b, uint64_t length, PSMathOpts *opts)
-
 ```
 
+Compute the dot product of vector **a** and vector **b**, both having length defined by [length](types.md#psdict).  
+The dot product is the sum of the product of each element of **a** by the corresponding element of **b** at the same index (`a[0] * b[0] + a[1] * b[1] + ... + a[n] * b[n]`).  
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in **PSGlobalAcceleration** are used, if any. However, the used accelerations methods can be changed via the [acceleration](types.md#psmathopts) member of the optional argument **opts**.  
 
+
+**RETURN VALUES**
+
+The resulting dot product (scalar) or zero if **a** is **NULL** or **b** is **NULL**.
 
 
 ### PSDotSquare
@@ -889,7 +978,6 @@ In: maths.h, line: 243
 
 ```c
 PSFloat PSDotSquare (PSFloat *a, uint64_t length, PSMathOpts *opts)
-
 ```
 
 
@@ -901,10 +989,17 @@ In: maths.h, line: 253
 
 ```c
 int PSDotVM (PSFloat *a, PSMatrix b, PSMatrix dest, PSMathOpts *opts)
-
 ```
 
+Perform vector-matrix multiplication by calling [PSDot](functions.md#psdot) and setting **argtype** member of **opts** to `argtype[0] = 'V', argtype[1] = 'M'`.  
+See [PSDot](functions.md#psdot) for a more detailed description.  
 
+
+**NOTE**:  **opts** argument is optional, and if given, it's never overwritten by the function since its values are copied to a local structure.  
+
+**RETURN VALUES**
+
+See [PSDot](functions.md#psdot).
 
 
 ### PSDownloadFile
@@ -913,17 +1008,14 @@ In: utils.h, line: 137
 
 ```c
 int PSDownloadFile (const char *url, const char *dest_dir)
-
 ```
-
-
 
 Try to download content from **url**. The file will be genrated into **dest_dir**.  
 The functions tries to download the file by using **wget** or **curl command line utilities.  
 If those utilities are not found, download will fail.  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 1 in case of success, elseway 0.
 
@@ -934,7 +1026,6 @@ In: config.h, line: 59
 
 ```c
 int PSEnableAcceleration (uint16_t *config, PSAcceleration acceleration)
-
 ```
 
 
@@ -946,7 +1037,6 @@ In: log.h, line: 126
 
 ```c
 void PSErr (const char *tag, const char *format, ...)
-
 ```
 
 
@@ -958,7 +1048,6 @@ In: log.h, line: 127
 
 ```c
 void PSErrNN (const char *tag, PSModel *model, PSLayer *layer, const char *format, ...)
-
 ```
 
 
@@ -970,7 +1059,6 @@ In: utils.h, line: 142
 
 ```c
 void PSFillWithBlank (int line_length)
-
 ```
 
 
@@ -982,19 +1070,16 @@ In: psyc.h, line: 415
 
 ```c
 int PSFindLayerMaxState (PSLayer *layer, PSFloat *max_p, int *index_p, ...)
-
 ```
 
-
-
-Find max state value and the relative neuron index for layer **layer**, and store them into **max_p** pointer (max state) and **index_p** pointer (index of neuron having maximum state value).  
+Find max state value and the relative neuron index for layer [layer](types.md#psmodellink), and store them into **max_p** pointer (max state) and **index_p** pointer (index of neuron having maximum state value).  
 At least **max_p** or **index_p** must be provided.  
 If layer is recurrent, an extra argument for timestep must be provided as a variadic argument (as int).  
 If timestep is negative, it will be used to read states in a reverse order (ie. -1 is last timestep, -2 is last timestep - 1, etc.).  
 Timestep must be always in range of processed timesteps (hidden states), otherwise the function will fail.  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 1 in case of success, 0 in case of error.
 
@@ -1005,17 +1090,14 @@ In: maths.h, line: 262
 
 ```c
 int PSFloatEquals (PSFloat a, PSFloat b, int precision)
-
 ```
-
-
 
 Compare two floats **a** and **b**. Use **precision** to set precision tolerance.  
 Lower precision leads to higher tolerance.  
 By setting **precision** to zero, the two numbers must be perfectly equal (no precision tolerance at all).  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 1 if **a** and **b** equal, 0 if they differ.
 
@@ -1026,26 +1108,23 @@ In: psyc.h, line: 426
 
 ```c
 int PSForward (PSModel *model, PSFloat *inputs)
-
 ```
 
-
-
-Forward **inputs** to **model**. If **model** is part of a multi-model chain, **inputs** are forwarded to the first layer of the first model of the chain.  
-If the input layer doen't accept sequences as inputs, the **inputs** array's length must match the **size** of the first layer.  
+Forward **inputs** to [model](types.md#pslayer). If [model](types.md#pslayer) is part of a multi-model chain, **inputs** are forwarded to the first layer of the first model of the chain.  
+If the input layer doen't accept sequences as inputs, the **inputs** array's length must match the [size](types.md#psvocabulary) of the first layer.  
 When the first layer takes sequences (if it has the flags [PS_FLAG_RECURRENT](macros.md#ps-flag-recurrent) or PS_FLAG_USE_SEQUENCES` set), the length of **inputs** should be the (input layer size * sequence length) + 1, and the first element of **inputs** should contain the length of the sequence.  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 1 if the process succeeds or 0 if:  
 
- - **model** is **NULL**
- - **model** is not built.
+ - [model](types.md#pslayer) is **NULL**
+ - [model](types.md#pslayer) is not built.
  - The input layer doesn't take sequences as inputs and the output layer doesn't produce sequences as outputs.
  - Something else in the forward process fails.
 
-#### SEE ALSO
+**SEE ALSO**
 
 [PSClassify](functions.md#psclassify), [PSAutoregression](functions.md#psautoregression), [PSClassifyImage](functions.md#psclassifyimage)  
 
@@ -1057,10 +1136,14 @@ In: maths.h, line: 125
 
 ```c
 PSFloat PSGaussianRandom (PSFloat mean, PSFloat stddev)
-
 ```
 
+Generate a random floating number from a gaussian distribution having mean defined by **mean** and standard deviation defined by **stddev**.  
 
+
+**RETURN VALUES**
+
+The random float number.
 
 
 ### PSGelu
@@ -1069,10 +1152,7 @@ In: activation.h, line: 46
 
 ```c
 void PSGelu (PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts)
-
 ```
-
-
 
 GELU (Gaussian Error Linear Units) activation function for vectors.  
 GELU is computed on vector **vec** of length **len** and stored into vector **dest**.  
@@ -1090,10 +1170,7 @@ In: activation.h, line: 53
 
 ```c
 void PSGeluDerivative (PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts)
-
 ```
-
-
 
 Computes the derivative of GELU activation function ([PSGelu](functions.md#psgelu)) for vectors.  
 The derivative is computed on vector **vec** of length **len** and stored into vector **dest**.  
@@ -1108,16 +1185,13 @@ In: activation.h, line: 39
 
 ```c
 PSFloat PSGeluDerivativeS (PSFloat val)
-
 ```
-
-
 
 Computes derivative for GELU activation function ([PSGeluS](functions.md#psgelus)). This function applies to scalar values, so it takes the scalar **val** as argument and returns a **PFloat** scalar.  
 The equivalent function to be used with vectors/matrices is [PSGeluDerivative](functions.md#psgeluderivative).  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 GELU derivative scalar result.
 
@@ -1128,10 +1202,7 @@ In: activation.h, line: 36
 
 ```c
 PSFloat PSGeluS (PSFloat val)
-
 ```
-
-
 
 GELU (Gaussian Error Linear Units) activation function for scalars.  
 It takes the scalar **val** as argument and returns a **PFloat** scalar.  
@@ -1141,7 +1212,7 @@ The equivalent function to be used with vectors/matrices is [PSGelu](functions.m
 The derivative of this function is [PSGeluDerivativeS](functions.md#psgeluderivatives).  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 GELU scalar result.
 
@@ -1152,7 +1223,6 @@ In: blas.h, line: 40
 
 ```c
 void PSGemm (PSBLASOrder order, char trans_a, char trans_b, int m, int n, int k, PSFloat alpha, PSFloat *a, int lda, PSFloat *b, int ldb, PSFloat beta, PSFloat *c, int ldc)
-
 ```
 
 
@@ -1164,7 +1234,6 @@ In: blas.h, line: 37
 
 ```c
 void PSGemv (PSBLASOrder order, char trans, int m, int n, PSFloat alpha, PSFloat *a, int lda, PSFloat *x, PSFloat incx, PSFloat beta, PSFloat *y, int incy)
-
 ```
 
 
@@ -1176,7 +1245,6 @@ In: config.h, line: 61
 
 ```c
 const char  * PSGetAccelerationName (PSAcceleration acceleration)
-
 ```
 
 
@@ -1188,7 +1256,6 @@ In: attention.h, line: 49
 
 ```c
 int PSGetAttentionEnabledProjections (PSLayer *layer)
-
 ```
 
 
@@ -1200,7 +1267,6 @@ In: attention.h, line: 46
 
 ```c
 int PSGetAttentionHeadCount (PSLayer *layer)
-
 ```
 
 
@@ -1212,7 +1278,6 @@ In: attention.h, line: 47
 
 ```c
 int PSGetAttentionProviders (PSLayer *layer, PSLayer ** query_provider, PSLayer ** keys_provider, PSLayer ** values_provider)
-
 ```
 
 
@@ -1224,7 +1289,6 @@ In: attention.h, line: 45
 
 ```c
 PSFloat PSGetAttentionScale (PSLayer *layer)
-
 ```
 
 
@@ -1236,7 +1300,6 @@ In: attention.h, line: 44
 
 ```c
 PSAttentionType PSGetAttentionType (PSLayer *layer)
-
 ```
 
 
@@ -1248,7 +1311,6 @@ In: attention.h, line: 43
 
 ```c
 const char  * PSGetAttentionTypeLabel (PSAttentionType type)
-
 ```
 
 
@@ -1260,10 +1322,7 @@ In: config.h, line: 62
 
 ```c
 int PSGetCodeOptimizationLevel (void)
-
 ```
-
-
 
 Returns code optimization level (given by -O gcc option) as an integer.  
 Returns -1 if optimization level is unknown.
@@ -1275,7 +1334,6 @@ In: dropout.h, line: 24
 
 ```c
 PSFloat PSGetDropout (PSLayer *dropout_layer)
-
 ```
 
 
@@ -1287,7 +1345,6 @@ In: dropout.h, line: 23
 
 ```c
 PSLayer  * PSGetDropoutLayer (PSLayer *parent_layer)
-
 ```
 
 
@@ -1299,7 +1356,6 @@ In: utils.h, line: 143
 
 ```c
 char  * PSGetElapsedTimeString (time_t elapsed_us, int long_format)
-
 ```
 
 
@@ -1311,7 +1367,6 @@ In: embedding.h, line: 31
 
 ```c
 int PSGetEmbeddingVocabularySize (PSLayer *layer)
-
 ```
 
 
@@ -1323,7 +1378,6 @@ In: psyc.h, line: 452
 
 ```c
 PSLayer  * PSGetFirstRecurrentLayer (PSModel *model)
-
 ```
 
 
@@ -1335,7 +1389,6 @@ In: gru.h, line: 45
 
 ```c
 PSGRUCell  * PSGetGRUCell (PSLayer *layer)
-
 ```
 
 
@@ -1347,10 +1400,7 @@ In: utils.h, line: 125
 
 ```c
 const char  * PSGetHomeDirectory (void)
-
 ```
-
-
 
 Returns user HOME directory.
 
@@ -1361,7 +1411,6 @@ In: psyc.h, line: 448
 
 ```c
 char  * PSGetLabelForType (PSLayerType type)
-
 ```
 
 
@@ -1373,7 +1422,6 @@ In: psyc.h, line: 453
 
 ```c
 PSLayer  * PSGetLastRecurrentLayer (PSModel *model)
-
 ```
 
 
@@ -1385,7 +1433,6 @@ In: psyc.h, line: 402
 
 ```c
 PSLayer  * PSGetLayerByIndex (PSModel *model, int layer_index, int model_index)
-
 ```
 
 
@@ -1397,7 +1444,6 @@ In: psyc.h, line: 403
 
 ```c
 int PSGetLayerInputSize (PSLayer *layer)
-
 ```
 
 
@@ -1409,7 +1455,6 @@ In: psyc.h, line: 404
 
 ```c
 uint64_t PSGetLayerInputWeightsCount (PSLayer *layer, int per_neuron)
-
 ```
 
 
@@ -1421,7 +1466,6 @@ In: psyc.h, line: 398
 
 ```c
 uint64_t PSGetLayerParametersCount (PSLayer *layer, int param_type)
-
 ```
 
 
@@ -1433,7 +1477,6 @@ In: psyc.h, line: 449
 
 ```c
 char  * PSGetLayerTypeLabel (PSLayer *layer)
-
 ```
 
 
@@ -1445,7 +1488,6 @@ In: lstm.h, line: 53
 
 ```c
 PSLSTMCell  * PSGetLSTMCell (PSLayer *layer)
-
 ```
 
 
@@ -1457,7 +1499,6 @@ In: log.h, line: 131
 
 ```c
 int PSGetMaxLogLevel (void)
-
 ```
 
 
@@ -1469,23 +1510,20 @@ In: psyc.h, line: 379
 
 ```c
 PSModel  * PSGetModelAtIndex (PSModel *entrypoint, int index)
-
 ```
 
+Get the model at [index](types.md#psmodel) in the multi-model chain that contains the model **entrypoint**. If [index](types.md#psmodel) is negative, it will be counted from the end of the model chain (ie. -1 is the last model, or tail,  of the chain).  
 
 
-Get the model at **index** in the multi-model chain that contains the model **entrypoint**. If **index** is negative, it will be counted from the end of the model chain (ie. -1 is the last model, or tail,  of the chain).  
-
-
-#### RETURN VALUES
+**RETURN VALUES**
 
 The model or **NULL** if:  
 
  - **entrypoint** is **NULL**
  - the model chain is broken
- - **index** is out of bounds.
+ - [index](types.md#psmodel) is out of bounds.
 
-#### SEE ALSO
+**SEE ALSO**
 
 [PSModelChainLength](functions.md#psmodelchainlength), [PSModelChainHead](functions.md#psmodelchainhead), [PSModelChainTail](functions.md#psmodelchaintail), [PSModelChainContains](functions.md#psmodelchaincontains), [PSAddModel](functions.md#psaddmodel)  
 
@@ -1497,7 +1535,6 @@ In: psyc.h, line: 419
 
 ```c
 PSNeuron  * PSGetNeuron (PSLayer *layer, int index, PSNeuron *neuron)
-
 ```
 
 
@@ -1509,7 +1546,6 @@ In: debug.h, line: 83
 
 ```c
 char  * PSGetNeuronDebugID (PSNeuron *neuron, PSLayer *layer)
-
 ```
 
 
@@ -1521,7 +1557,6 @@ In: psyc.h, line: 420
 
 ```c
 PSFloat  * PSGetNeuronInputWeights (PSNeuron *neuron)
-
 ```
 
 
@@ -1533,7 +1568,6 @@ In: psyc.h, line: 421
 
 ```c
 PSFloat PSGetNeuronState (PSNeuron *neuron, ...)
-
 ```
 
 
@@ -1545,7 +1579,6 @@ In: psyc.h, line: 400
 
 ```c
 PSLayer  * PSGetNextLayer (PSLayer *layer)
-
 ```
 
 
@@ -1557,7 +1590,6 @@ In: psyc.h, line: 397
 
 ```c
 int PSGetOneHotLayerVectorSize (PSLayer *layer)
-
 ```
 
 
@@ -1569,7 +1601,6 @@ In: operator-layer.h, line: 35
 
 ```c
 PSLayer  ** PSGetOperatorLayerProviders (PSLayer *layer, int *count)
-
 ```
 
 
@@ -1581,7 +1612,6 @@ In: operator-layer.h, line: 33
 
 ```c
 PSOperatorType PSGetOperatorLayerType (PSLayer *layer)
-
 ```
 
 
@@ -1593,7 +1623,6 @@ In: operator-layer.h, line: 34
 
 ```c
 const char  * PSGetOperatorLayerTypeLabel (PSOperatorType operator)
-
 ```
 
 
@@ -1605,7 +1634,6 @@ In: psyc.h, line: 401
 
 ```c
 PSLayer  * PSGetOutputLayer (PSModel *model)
-
 ```
 
 
@@ -1617,7 +1645,6 @@ In: psyc.h, line: 412
 
 ```c
 PSFloat  * PSGetOutputs (PSLayer *layer)
-
 ```
 
 
@@ -1629,7 +1656,6 @@ In: positional-encoding.h, line: 24
 
 ```c
 PSMatrix PSGetPositionalEncoding (int seqlen, int size, int base)
-
 ```
 
 
@@ -1641,7 +1667,6 @@ In: positional-encoding.h, line: 26
 
 ```c
 int PSGetPositionalEncodingBase (PSLayer *layer)
-
 ```
 
 
@@ -1653,7 +1678,6 @@ In: positional-encoding.h, line: 25
 
 ```c
 int PSGetPositionalEncodingLength (PSLayer *layer)
-
 ```
 
 
@@ -1665,7 +1689,6 @@ In: psyc.h, line: 399
 
 ```c
 PSLayer  * PSGetPreviousLayer (PSLayer *layer)
-
 ```
 
 
@@ -1677,7 +1700,6 @@ In: recurrent.h, line: 23
 
 ```c
 PSMatrix PSGetRecurrentHiddenWeights (PSLayer *layer)
-
 ```
 
 
@@ -1689,7 +1711,6 @@ In: recurrent.h, line: 24
 
 ```c
 PSFloat  * PSGetRecurrentNeuronHiddenWeights (PSNeuron *neuron)
-
 ```
 
 
@@ -1701,7 +1722,6 @@ In: psyc.h, line: 410
 
 ```c
 PSFloat PSGetState (PSLayer *layer, int index, ...)
-
 ```
 
 
@@ -1713,7 +1733,6 @@ In: psyc.h, line: 411
 
 ```c
 PSFloat  * PSGetStates (PSLayer *layer, ...)
-
 ```
 
 
@@ -1725,10 +1744,7 @@ In: utils.h, line: 141
 
 ```c
 int PSGetTerminalColumns (void)
-
 ```
-
-
 
 Misc
 
@@ -1739,7 +1755,6 @@ In: psyc.h, line: 468
 
 ```c
 void PSHandleSignals (PSSignalHandler shutdown_handler)
-
 ```
 
 
@@ -1751,7 +1766,6 @@ In: log.h, line: 123
 
 ```c
 void PSInfo (const char *format, ...)
-
 ```
 
 
@@ -1763,7 +1777,6 @@ In: config.h, line: 57
 
 ```c
 int PSIsAccelerationAvailable (PSAcceleration acceleration)
-
 ```
 
 
@@ -1775,7 +1788,6 @@ In: config.h, line: 58
 
 ```c
 int PSIsAccelerationEnabled (uint16_t config, PSAcceleration acceleration)
-
 ```
 
 
@@ -1787,7 +1799,6 @@ In: attention.h, line: 50
 
 ```c
 int PSIsCausalAttention (PSLayer *layer)
-
 ```
 
 
@@ -1799,10 +1810,7 @@ In: utils.h, line: 124
 
 ```c
 int PSIsDirectory (const char *path)
-
 ```
-
-
 
 Checks whether **path** is a valid directory.
 
@@ -1813,7 +1821,6 @@ In: debug.h, line: 80
 
 ```c
 int PSIsFunctionAvailable (const char *func)
-
 ```
 
 
@@ -1825,7 +1832,6 @@ In: log.h, line: 133
 
 ```c
 int PSIsXTermColor256 (int always_check)
-
 ```
 
 
@@ -1837,7 +1843,6 @@ In: psyc.h, line: 469
 
 ```c
 size_t PSIterateLossFunctions ( *callback)
-
 ```
 
 
@@ -1849,17 +1854,12 @@ In: psyc.h, line: 416
 
 ```c
 void PSLayerFree (PSLayer *layer)
-
 ```
 
-
-
-Free memory allocated for **layer** and all of its objects (ie. weights, states).  
+Free memory allocated for [layer](types.md#psmodellink) and all of its objects (ie. weights, states).  
 
 
 **WARN**:  this function should be called only for layers not being part of any model, since by freeing models ([PSModelFree](functions.md#psmodelfree)), all their layers will be automatically freed.  
-
-
 
 
 ### PSLayerLoad
@@ -1868,7 +1868,6 @@ In: psyc.h, line: 391
 
 ```c
 int PSLayerLoad (PSLayer *layer, const char *filepath)
-
 ```
 
 
@@ -1880,23 +1879,20 @@ In: psyc.h, line: 392
 
 ```c
 int PSLayerSave (PSLayer *layer, const char *filepath, int opts)
-
 ```
 
-
-
-Save **layer** to file located at **filepath**. By default, only the layer's trainable parameters (ie. weights, biases) are saved and the layer is saved in ASCII format.  
+Save [layer](types.md#psmodellink) to file located at **filepath**. By default, only the layer's trainable parameters (ie. weights, biases) are saved and the layer is saved in ASCII format.  
 However, this behavior can be changed by setting the following flags into the **opts** argument:  
 
  - [PS_IO_BINARY_MODE](macros.md#ps-io-binary-mode): save the layer data in binary format.
  - [PS_IO_SAVE_DEFINITION](macros.md#ps-io-save-definition): also save layer's properties (ie. type, size, ...). This option cannot be used along with [PS_IO_BINARY_MODE](macros.md#ps-io-binary-mode).
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 1 if the layer is saved, 0 if somethign goes wrong.  
 Possible failure reasons:  
 
- - The **layer** argument is **NULL**.
+ - The [layer](types.md#psmodellink) argument is **NULL**.
  - Both [PS_IO_BINARY_MODE](macros.md#ps-io-binary-mode) and [PS_IO_SAVE_DEFINITION](macros.md#ps-io-save-definition) are set.
  - The file at **filepath** cannot be opened for writing.
  - Some error occurs qhile writing data.
@@ -1908,7 +1904,6 @@ In: log.h, line: 140
 
 ```c
 int PSLineAppend (int opts, char *format, ...)
-
 ```
 
 
@@ -1920,7 +1915,6 @@ In: log.h, line: 143
 
 ```c
 void PSLineEnd (void)
-
 ```
 
 
@@ -1932,7 +1926,6 @@ In: log.h, line: 142
 
 ```c
 int PSLineFill (void)
-
 ```
 
 
@@ -1944,7 +1937,6 @@ In: log.h, line: 139
 
 ```c
 int PSLineStart (int opts, char *format, ...)
-
 ```
 
 
@@ -1956,24 +1948,21 @@ In: dataset.h, line: 149
 
 ```c
 int PSLoadCIFARData (int type, int classes, const char *dataset_path, PSFloat ** data, int max_files, int max_elements)
-
 ```
-
-
 
 Load the CIFAR dataset ([https://www.cs.toronto.edu/~kriz/cifar.html](https://www.cs.toronto.edu/~kriz/cifar.html)) from files.  
 The dataset files must be in gzip format (.gz): dataset files must be in binary version and located into **dataset_path** directory.  
-The dataset is allocated by the function itself and its pointer is stored into **data** pointer-to-pointer (it cannot be **NULL**). The length of the resulting dataset is returned by the function.  
+The dataset is allocated by the function itself and its pointer is stored into [data](types.md#psmathopts) pointer-to-pointer (it cannot be **NULL**). The length of the resulting dataset is returned by the function.  
 The CIFAR dataset comes in two fashions:  
 
  - CIFAR-10:  each image can be classified with 10 classes.
  - CIFAR-100: each image can be classified with 100 classes.
 
 The **classes** argument can be used to tell the function which kind of dataset is going to be loaded.  
-The **type** argument can be used to tell if the dataset is a training dataset ([PS_DATA_TYPE_TRAINING](macros.md#ps-data-type-training)) or a test dataset ([PS_DATA_TYPE_TEST](macros.md#ps-data-type-test)).  
+The [type](types.md#pslayer) argument can be used to tell if the dataset is a training dataset ([PS_DATA_TYPE_TRAINING](macros.md#ps-data-type-training)) or a test dataset ([PS_DATA_TYPE_TEST](macros.md#ps-data-type-test)).  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 The length of the dataset (number of [PSFloat](types.md#psfloat) elements) or zero if some error occurs.  
 Possibile errors:  
@@ -1991,10 +1980,7 @@ In: dataset.h, line: 137
 
 ```c
 PSFloat  * PSLoadDataFromFile (const char *filepath, uint64_t *datalen)
-
 ```
-
-
 
 Load dataset from file located at **filepath**. Dataset is returned as an array of PSFloat elements whose length (number of elements) is stored into mandatory argument **datalen**.  
 The file must be an ASCII file where every number of the dataset is written as a string representation of floating point numbers and separated by a comma character.  
@@ -2014,10 +2000,7 @@ In: dataset.h, line: 126
 
 ```c
 PSFloat  * PSLoadDataFromString (char *str, PSTextParserOptions *opts, PSFloat *existing_data, int64_t *datalen, PSVocabulary ** vocabulary)
-
 ```
-
-
 
 Load a dataset (an array of [PSFloat](types.md#psfloat) numbers) from a string. Depending on the parsing mode, each token or character found in the string will be converted to a numeric representation of itself. The dataset can be used to train a model ([PSModel](types.md#psmodel)) or it can provide inputs to the model.  
 Numeric representation of tokens/characters is defined by key-value pairs contained into **vocabulary** and indices (ids) related to token are cast to [PSFloat](types.md#psfloat).  
@@ -2027,14 +2010,14 @@ The above behavior can be changed by using [PS_PARSER_MODE_CHARS](macros.md#ps-p
   
 When [PS_PARSER_MODE_TOKENS](macros.md#ps-parser-mode-tokens) mode is used, tokens can be matched in two ways:  
 
- - By using a separator: in this case the string will be split by using the separators defined into **separator** member of **opts**. If **separator** is **NULL** or **opts** is **NULL**, the default separators will be those defined by the macro [PS_DEFAULT_TOKEN_SEPARATOR](macros.md#ps-default-token-separator).
- - By using a callback that let the developers to define their own logic for identifying and extracting tokens from the input string. The callback function can be set into the **match_token** member of **opts**, and it's a function of type [PSTokenMatch](types.md#pstokenmatch). The callback receives a token to match and a pointer to an integer to store the length of the matched token. If the callback returns a non-zero value (true), it indicates a successful match and a token of the matched length will be extracted from the input string. In this case, the parsing position is moved forward by the matched length. If the callback returns 0, it signals that the token was not matched, and the parsing position will be advanced to the next byte.
+ - By using a separator: in this case the string will be split by using the separators defined into [separator](types.md#pstextparseroptions) member of **opts**. If [separator](types.md#pstextparseroptions) is **NULL** or **opts** is **NULL**, the default separators will be those defined by the macro [PS_DEFAULT_TOKEN_SEPARATOR](macros.md#ps-default-token-separator).
+ - By using a callback that let the developers to define their own logic for identifying and extracting tokens from the input string. The callback function can be set into the [match_token](types.md#pstextparseroptions) member of **opts**, and it's a function of type [PSTokenMatch](types.md#pstokenmatch). The callback receives a token to match and a pointer to an integer to store the length of the matched token. If the callback returns a non-zero value (true), it indicates a successful match and a token of the matched length will be extracted from the input string. In this case, the parsing position is moved forward by the matched length. If the callback returns 0, it signals that the token was not matched, and the parsing position will be advanced to the next byte.
 
 
 **WARN**:  The parsed string **str** may be modified during text parsing. By setting the [PS_PARSER_FLAG_PRESERVE_STRING](macros.md#ps-parser-flag-preserve-string) flag into `opts->flags`, the function will work on a copy of the string, preventing the original string from being altered.  
 
   
-#### ARGUMENTS  
+**ARGUMENTS**  
 
  - **str**: the (null-terminated) string to be parsed (mandatory).
  - **opts**: parsing options, it can be **NULL**.
@@ -2042,7 +2025,7 @@ When [PS_PARSER_MODE_TOKENS](macros.md#ps-parser-mode-tokens) mode is used, toke
  - **datalen**: pointer to **uint64_t** where the final length of the dataset    will be stored. If **existing_data** is not **NULL**, the address pointed by **datalen** must contain the current length of the existing dataset. If **NULL** is returned by the function, the pointed address will contain zero.
  - **vocabulary**: pointer to pointer to a [PSVocabulary](types.md#psvocabulary) struct. The    argument is mandatory and cannot be **NULL**. If the pointer pointed by **vocabulary** is **NULL**, a new [PSVocabulary](types.md#psvocabulary) will be allocated and it will be filled with parsed tokens|characters. If the pointer pointed by **vocabulary** points to an already existing vocabulary, its numeric values will be used for parsed tokens. If a token or character is not found in the existing vocabulary, it will be automatically added, unless [PS_PARSER_FLAG_READONLY_VOCAB](macros.md#ps-parser-flag-readonly-vocab) flag is set into **opts**.
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 The dataset ([PSFloat](types.md#psfloat) array) or **NULL** is something goes wrong.
 
@@ -2053,16 +2036,13 @@ In: dataset.h, line: 129
 
 ```c
 PSFloat  * PSLoadDataFromTextFile (const char *filepath, PSTextParserOptions *opts, int64_t *datalen, PSVocabulary ** vocabulary)
-
 ```
-
-
 
 Load a dataset (an array of PSFloat numbers) from the text file found at **filepath**.  
 For parsing options and other arguments, see [PSLoadDataFromString](functions.md#psloaddatafromstring).  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 The dataset ([PSFloat](types.md#psfloat) array) or **NULL** is something goes wrong.
 
@@ -2073,18 +2053,15 @@ In: dataset.h, line: 143
 
 ```c
 int PSLoadMNISTData (int type, const char *images_file, const char *labels_file, PSFloat ** data)
-
 ```
-
-
 
 Load the MNIST dataset ([https://en.wikipedia.org/wiki/MNIST_database](https://en.wikipedia.org/wiki/MNIST_database)) from files.  
 The dataset files must be in gzip format (.gz): images data must be loaded from **images_file** path and labels data must be loaded from **labels_file** path.  
-The dataset is allocated by the function itself and its pointer is stored into **data** pointer-to-pointer (it cannot be **NULL**). The length of the resulting dataset is returned by the function.  
-The **type** argument can be used to tell if the dataset is a training dataset ([PS_DATA_TYPE_TRAINING](macros.md#ps-data-type-training)) or a test dataset ([PS_DATA_TYPE_TEST](macros.md#ps-data-type-test)).  
+The dataset is allocated by the function itself and its pointer is stored into [data](types.md#psmathopts) pointer-to-pointer (it cannot be **NULL**). The length of the resulting dataset is returned by the function.  
+The [type](types.md#pslayer) argument can be used to tell if the dataset is a training dataset ([PS_DATA_TYPE_TRAINING](macros.md#ps-data-type-training)) or a test dataset ([PS_DATA_TYPE_TEST](macros.md#ps-data-type-test)).  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 The length of the dataset (number of [PSFloat](types.md#psfloat) elements) or zero if some error occurs.  
 Possibile errors:  
@@ -2102,17 +2079,14 @@ In: psyc.h, line: 387
 
 ```c
 PSModel  * PSLoadModel (const char* filename)
-
 ```
 
-
-
-Load a new model from the file located at **filepath** into **model**.  
+Load a new model from the file located at **filepath** into [model](types.md#pslayer).  
 In order to load model's data into an already existing model, [PSModelLoad](functions.md#psmodelload) should be used instead.  
 If the file defines a multi-model chain, the whole chain will be loaded.  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 1 if model is successfully loaded, 0 if:  
 
@@ -2123,7 +2097,7 @@ If the file defines a multi-model chain, the whole chain will be loaded.
  - Memory allocation issues.
  - Some error occurred while reading data from file.
 
-#### SEE ALSO
+**SEE ALSO**
 
 [PSModelLoad](functions.md#psmodelload), [PSModelSave](functions.md#psmodelsave)  
 
@@ -2135,7 +2109,6 @@ In: log.h, line: 120
 
 ```c
 void PSLog (int level, const char *format, ...)
-
 ```
 
 
@@ -2147,7 +2120,6 @@ In: log.h, line: 130
 
 ```c
 int PSLogLevelByName (const char *name)
-
 ```
 
 
@@ -2159,7 +2131,6 @@ In: log.h, line: 129
 
 ```c
 const char  * PSLogLevelName (int level)
-
 ```
 
 
@@ -2171,7 +2142,6 @@ In: optimization.h, line: 73
 
 ```c
 int PSLRegularization (PSFloat l1, PSFloat l2, PSFloat *weights, PSFloat *wgradients, PSFloat *tmp, uint64_t len, PSFloat *l1_loss, PSFloat *l2_loss, int batches, int weight_decay, int acceleration)
-
 ```
 
 
@@ -2183,10 +2153,7 @@ In: utils.h, line: 126
 
 ```c
 int PSMakeDir (const char *path, int recursive)
-
 ```
-
-
 
 Creates directory **path** is it does not exists. If **recursive** is 1, the function will try to also create intermediate paths if they don't exists, in a similar fashion to "mkdir -p".  
 Return vale: 1 in case of success, elseway 0.
@@ -2198,19 +2165,16 @@ In: maths.h, line: 249
 
 ```c
 int PSMatMul (PSFloat *a, PSFloat *b, PSFloat *dest, int m, int n, int k, PSMathOpts *opts)
-
 ```
-
-
 
 Perform matrix multiplication between vectors (PSFloat arrays) **a** and **b**.  
 If you need to perform matrix multiplication with involve at least one [PSMatrix](types.md#psmatrix), then use [PSMatrixProduct](functions.md#psmatrixproduct) (matrix-matrix), [PSMatrixProductMV](functions.md#psmatrixproductmv) (matrix-vector) or [PSMatrixProductVM](functions.md#psmatrixproductvm) (vector-matrix) instead.  
-You can set matrix transposition using **transpose** field in the **opt** argument. In that case, **transpose** will contain the (1-based) indices of the vector arguments you want to be transposed:  
+You can set matrix transposition using [transpose](types.md#psmathopts) field in the **opt** argument. In that case, [transpose](types.md#psmathopts) will contain the (1-based) indices of the vector arguments you want to be transposed:  
 
  - opt->transpose = 1 (transpose **a**)
 
 Results will be stored in **dest**, that must be at least **m** * **n** long.  
-By default, data in result vector will be overwritten. Anyway, if [PS_STORE_MODE_ADD](macros.md#ps-store-mode-add) is set as **store_mode** into **opts**, result will be added to data already present in the result vector.  
+By default, data in result vector will be overwritten. Anyway, if [PS_STORE_MODE_ADD](macros.md#ps-store-mode-add) is set as [store_mode](types.md#psmathopts) into **opts**, result will be added to data already present in the result vector.  
 Other arguments:  
 
  - **m**: number of rows in **a** and result **dest**
@@ -2220,7 +2184,7 @@ Other arguments:
 
 **NOTE**:  if you set transposition for **a** or **b**, **m**,**n** and **k** will refer to rows and columns of the transposed matrix.  
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 1 in case of success, 0 in case of failure.
 
@@ -2231,10 +2195,36 @@ In: maths.h, line: 177
 
 ```c
 int PSMatrixAdd (PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt)
-
 ```
 
+Add matrix **a** to matrix **b**. Results are stored into matrix pointed by pointer **result**. If pointer pointed by **result** is **NULL**, a new matrix is automatically allocated by the function itself and its pointer will be stored into **result**.  
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in **PSGlobalAcceleration** are used, if any. However, the used accelerations methods can be changed via the [acceleration](types.md#psmathopts) member of the optional argument **opt**.  
+Both matrices can be transposed using [transpose](types.md#psmathopts) field in the **opt** argument. In that case, [transpose](types.md#psmathopts) will contain the (1-based) indices of the matrix arguments you want to be transposed:  
 
+ - opt->transpose = 1 (transpose matrix **a**)
+ - opt->transpose = 2 (transpose matrix **b**)
+ - opt->transpose = (1 | 2) (transpose both matrix **a** and **b**)
+
+By default, data in result matrix will be overwritten. Anyway, if [PS_STORE_MODE_ADD](macros.md#ps-store-mode-add) is set as [store_mode](types.md#psmathopts) into **opts**, result will be added to data already present in the result matrix.  
+The function will take in account the shape of both matrices so the operation is performed in different ways depending on the shapes and the shapes' type (see [PSMatrixShape](functions.md#psmatrixshape) for more details about the shape type):  
+
+ - If both **a** and **b** have the same shape or if both their shape types are vector-like shapes ([PS_SHAPE_TYPE_ROW](macros.md#ps-shape-type-row) or [PS_SHAPE_TYPE_COL](macros.md#ps-shape-type-col)) and both **a** and **b** have the same length (total number of values), every element of the resulting matrix will be the sum of every element of **a** and the corresponding element of **b**.
+ - If only one of **a** or **b** has a vector-like shape ([PS_SHAPE_TYPE_ROW](macros.md#ps-shape-type-row) or [PS_SHAPE_TYPE_COL](macros.md#ps-shape-type-col)) and the other matrix has a matrix-like shape and the length of the vector-like matrix is the same of the last dimension of the other matrix, the resulting matrix will have the shape of the matrix with a matrix-like shape and the values from the vector-like matrix will be added to the values of the "rows" of the matrix-like matrix. For example: if **a** has a shape of 2,3 and **b** has a shape of 1,3, the result will be computed as a[0] + b and a[1] + b.
+ - If **a** or **b** have a scalar-like shape ([PS_SHAPE_TYPE_SCALAR](macros.md#ps-shape-type-scalar)), the resulting matrix will have the shape of the non-scalar matrix with the scalar value of the scalar-like matrix (basically, its first and only element) added to the all the values of the non-scalar matrix.
+
+**RETURN VALUES**
+
+1 if operation succeeds, 0 if it fails.  
+Possible failure reasons:  
+
+ - **a** is **NULL** or **b** is **NULL** or **result** is **NULL**.
+ - **a** has zero dimensions or **b** has zero dimensions.
+ - Invalid shapes:
+   - Shapes differ, and
+   - neither **a** nor **b** have scalar-like shape, and
+   - both **a** and **b** have vector-like shape but their total length differ
+   - one of **a** or **b** has vector-like shape whose size differs from the matrix-like matrix last dimension.
+ - Memory allocation failure.
 
 
 ### PSMatrixClear
@@ -2243,10 +2233,7 @@ In: maths.h, line: 192
 
 ```c
 void PSMatrixClear (PSMatrix matrix)
-
 ```
-
-
 
 Set all values of **matrix** to zero. If **matrix** is **NULL**, the function does nothing at all.
 
@@ -2257,17 +2244,14 @@ In: maths.h, line: 190
 
 ```c
 int PSMatrixCopy (PSMatrix src, PSMatrix dst)
-
 ```
-
-
 
 Copy values of matrix **src** to matrix **dst**. Both **src** and **dst** must have the same shape.  
 
 
 **NOTE**:  if **dst** owns a cached transposed version of itself, the cached version will be cleared. At the same time, if **dst** is the cached transposed version of another matrix, the cached version of the owner matrix will be cleared.  
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 1 in case of success, 0 if:  
 
@@ -2281,17 +2265,14 @@ In: maths.h, line: 150
 
 ```c
 PSMatrix PSMatrixCreate (PSFloat init_value, PSMatrixInitializer initializer, int ndims, ...)
-
 ```
 
-
-
 Create a new matrix having number of dimensions defined by **ndims**. The shape of the matrix is given by variadic arguments that follow **ndims**.  
-The argument **init_value** can be used to define the initial value of the matrix numbers or, optionally, the **initializer** callback can be used to initialize the matrix values.  
+The argument [init_value](types.md#pslayerdef) can be used to define the initial value of the matrix numbers or, optionally, the **initializer** callback can be used to initialize the matrix values.  
 If the matrix cannot be allocated, **errno** will be set to **ENOMEM**.  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 The allocated matrix or **NULL** if:  
 
@@ -2300,8 +2281,6 @@ The allocated matrix or **NULL** if:
 
 
 **WARN**:  the address pointed by the returned pointer should never be freed directly. The specific function [PSMatrixFree](functions.md#psmatrixfree) should be used instead.  
-
-
 
 
 ### PSMatrixCreateWithShape
@@ -2310,16 +2289,13 @@ In: maths.h, line: 152
 
 ```c
 PSMatrix PSMatrixCreateWithShape (PSFloat init_value, PSMatrixInitializer initializer, int ndims, int *shape)
-
 ```
 
-
-
-Create a new matrix having number of dimensions defined by **ndims** and shape defined by **shape**. The argument **init_value** can be used to define the initial value of the matrix numbers or, optionally, the **initializer** callback can be used to initialize the matrix values.  
+Create a new matrix having number of dimensions defined by **ndims** and shape defined by **shape**. The argument [init_value](types.md#pslayerdef) can be used to define the initial value of the matrix numbers or, optionally, the **initializer** callback can be used to initialize the matrix values.  
 If the matrix cannot be allocated, **errno** will be set to **ENOMEM**.  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 The allocated matrix or **NULL** if:  
 
@@ -2330,18 +2306,13 @@ The allocated matrix or **NULL** if:
 **WARN**:  the address pointed by the returned pointer should never be freed directly. The specific function [PSMatrixFree](functions.md#psmatrixfree) should be used instead.  
 
 
-
-
 ### PSMatrixDim
 
 In: maths.h, line: 161
 
 ```c
 int PSMatrixDim (PSMatrix matrix, int dim)
-
 ```
-
-
 
 Return the size of the dimension **dim** of **matrix**. If **dim** is out of bounds or if **matrix** is **NULL**, the function will return zero.
 
@@ -2352,10 +2323,36 @@ In: maths.h, line: 180
 
 ```c
 int PSMatrixDivide (PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt)
-
 ```
 
+Divide matrix **a** from matrix **b**. Results are stored into matrix pointed by pointer **result**. If pointer pointed by **result** is **NULL**, a new matrix is automatically allocated by the function itself and its pointer will be stored into **result**.  
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in **PSGlobalAcceleration** are used, if any. However, the used accelerations methods can be changed via the [acceleration](types.md#psmathopts) member of the optional argument **opt**.  
+Both matrices can be transposed using [transpose](types.md#psmathopts) field in the **opt** argument. In that case, [transpose](types.md#psmathopts) will contain the (1-based) indices of the matrix arguments you want to be transposed:  
 
+ - opt->transpose = 1 (transpose matrix **a**)
+ - opt->transpose = 2 (transpose matrix **b**)
+ - opt->transpose = (1 | 2) (transpose both matrix **a** and **b**)
+
+By default, data in result matrix will be overwritten. Anyway, if [PS_STORE_MODE_ADD](macros.md#ps-store-mode-add) is set as [store_mode](types.md#psmathopts) into **opts**, result will be added to data already present in the result matrix.  
+The function will take in account the shape of both matrices so the operation is performed in different ways depending on the shapes and the shapes' type (see [PSMatrixShape](functions.md#psmatrixshape) for more details about the shape type):  
+
+ - If both **a** and **b** have the same shape or if both their shape types are vector-like shapes ([PS_SHAPE_TYPE_ROW](macros.md#ps-shape-type-row) or [PS_SHAPE_TYPE_COL](macros.md#ps-shape-type-col)) and both **a** and **b** have the same length (total number of values), every element of the resulting matrix will be the division of every element of **a** by the corresponding element of **b**.
+ - If only one of **a** or **b** has a vector-like shape ([PS_SHAPE_TYPE_ROW](macros.md#ps-shape-type-row) or [PS_SHAPE_TYPE_COL](macros.md#ps-shape-type-col)) and the other matrix has a matrix-like shape and the length of the vector-like matrix is the same of the last dimension of the other matrix, the resulting matrix will have the shape of the matrix with a matrix-like shape and the values of the "rows" of the matrix-like matrix will be divided by the values of the vector-like matrix. For example: if **a** has a shape of 2,3 and **b** has a shape of 1,3, the result will be computed as a[0] / b and a[1] / b.
+ - If **a** or **b** have a scalar-like shape ([PS_SHAPE_TYPE_SCALAR](macros.md#ps-shape-type-scalar)), the resulting matrix will have the shape of the non-scalar matrix with all the values of the non-scalar matrix divded by the scalar value of the scalar-like matrix (basically, its first and only element).
+
+**RETURN VALUES**
+
+1 if operation succeeds, 0 if it fails.  
+Possible failure reasons:  
+
+ - **a** is **NULL** or **b** is **NULL** or **result** is **NULL**.
+ - **a** has zero dimensions or **b** has zero dimensions.
+ - Invalid shapes:
+   - Shapes differ, and
+   - neither **a** nor **b** have scalar-like shape, and
+   - both **a** and **b** have vector-like shape but their total length differ
+   - one of **a** or **b** has vector-like shape whose size differs from the matrix-like matrix last dimension.
+ - Memory allocation failure.
 
 
 ### PSMatrixDup
@@ -2364,15 +2361,12 @@ In: maths.h, line: 188
 
 ```c
 PSMatrix PSMatrixDup (PSMatrix matrix)
-
 ```
-
-
 
 Duplicate **matrix** by creating a new matrix having the same shape as **matrix** and by copying all values of **matrix** to the new matrix.  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 The new matrix or **NULL** if:  
 
@@ -2381,8 +2375,6 @@ The new matrix or **NULL** if:
 
 
 **WARN**:  the address pointed by the returned pointer should never be freed directly. The specific function [PSMatrixFree](functions.md#psmatrixfree) should be used instead.  
-
-
 
 
 ### PSMatrixDupShape
@@ -2391,15 +2383,12 @@ In: maths.h, line: 189
 
 ```c
 PSMatrix PSMatrixDupShape (PSMatrix matrix)
-
 ```
-
-
 
 Create a new (zero-filled) matrix having the same shape as **matrix**.  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 The new matrix or **NULL** if:  
 
@@ -2410,24 +2399,19 @@ The new matrix or **NULL** if:
 **WARN**:  the address pointed by the returned pointer should never be freed directly. The specific function [PSMatrixFree](functions.md#psmatrixfree) should be used instead.  
 
 
-
-
 ### PSMatrixEquals
 
 In: maths.h, line: 191
 
 ```c
 int PSMatrixEquals (PSMatrix a, PSMatrix b, int precision, int ignore_shape)
-
 ```
 
-
-
-Compare two martrices **a** and **b** having **length** length. Use **precision** to set precision tolerance. Lower precision leads to higher tolerance.  
+Compare two martrices **a** and **b** having [length](types.md#psdict) length. Use **precision** to set precision tolerance. Lower precision leads to higher tolerance.  
 By setting **precision** to zero, the two vectors must be perfectly equal (no precision tolerance at all).  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 1 if **a** and **b** equal, 0 if they differ at some point.
 
@@ -2438,16 +2422,13 @@ In: maths.h, line: 159
 
 ```c
 PSMatrix PSMatrixExpand (PSMatrix src, int add, int keep_src)
-
 ```
-
-
 
 Create a new matrix having the shape of **src** but with the first dimension increased by the value of **add**. The original values **src** will be copied to the new matrix, and all the new values belonging to thecexpanded dimension will be initialized to zero.  
 If **keep_src** is zero, the original matrix **src** will be freed.  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 The new expanded matrix or:  
 
@@ -2462,10 +2443,18 @@ In: maths.h, line: 182
 
 ```c
 PSMatrix PSMatrixFlatten (PSMatrix matrix)
-
 ```
 
+Create a new matrix that is the single-dimensioned, flatten version of **matrix**.  
+For example, if **matrix** has a shape of (2,3), the resulting matrix will have a shape of (6).  
 
+
+**RETURN VALUES**
+
+The new flatten matrix or **NULL** if:  
+
+ - **matrix** is **NULL**.
+ - Memory connot be allocated.
 
 
 ### PSMatrixFree
@@ -2474,9 +2463,17 @@ In: maths.h, line: 193
 
 ```c
 void PSMatrixFree (PSMatrix matrix)
-
 ```
 
+Free **matrix** by also deleting all its private data (including the cached transposed versiob of **matrix** if any).  
+If **matrix** is **NULL**, the function will directly return.  
+
+
+**WARN**:  this function should not be directly called on **matrix** if it's  the cached transposed version of another matrix (see [PSMatrixTranspose](functions.md#psmatrixtranspose)): in this case the function [PSMatrixResetTransposed](functions.md#psmatrixresettransposed) should be used instead.  
+
+**SEE ALSO**
+
+[PSMatrixResetTransposed](functions.md#psmatrixresettransposed)  
 
 
 
@@ -2486,10 +2483,7 @@ In: maths.h, line: 158
 
 ```c
 PSMatrix PSMatrixFromArray (PSFloat *array, int ndims, ...)
-
 ```
-
-
 
 Create a new matrix having number of dimensions defined by **ndims**. The shape of the matrix is given by variadic arguments that follow **ndims**.  
 The values of the matrix will be initialized with values of **array**.  
@@ -2498,7 +2492,7 @@ If the matrix cannot be allocated, **errno** will be set to **ENOMEM**.
 
 **WARN**:  the length of **array** must be at least the same of the length of the matrix, so if the matrix has two dimensions of shape [2, 3] (two rows with three columns), the provided array's length cannot be less than six.  
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 The allocated matrix or **NULL** if:  
 
@@ -2510,15 +2504,12 @@ The allocated matrix or **NULL** if:
 **WARN**:  the address pointed by the returned pointer should never be freed directly. The specific function [PSMatrixFree](functions.md#psmatrixfree) should be used instead.  
 
 
-
-
 ### PSMatrixGet
 
 In: maths.h, line: 171
 
 ```c
 PSFloat  * PSMatrixGet (PSMatrix matrix, int ndims, uint32_t *len, ...)
-
 ```
 
 
@@ -2530,15 +2521,12 @@ In: maths.h, line: 163
 
 ```c
 uint64_t PSMatrixLength (PSMatrix matrix)
-
 ```
-
-
 
 Get the total number of values belonging to **matrix** (ie. a matrix with shape (2,3) will return 6).  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 The total number of values belonging to **matrix** or zero if **matrix** is **NULL**.
 
@@ -2549,10 +2537,36 @@ In: maths.h, line: 178
 
 ```c
 int PSMatrixMultiply (PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt)
-
 ```
 
+Multiply matrix **a** by matrix **b**. Results are stored into matrix pointed by pointer **result**. If pointer pointed by **result** is **NULL**, a new matrix is automatically allocated by the function itself and its pointer will be stored into **result**.  
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in **PSGlobalAcceleration** are used, if any. However, the used accelerations methods can be changed via the [acceleration](types.md#psmathopts) member of the optional argument **opt**.  
+Both matrices can be transposed using [transpose](types.md#psmathopts) field in the **opt** argument. In that case, [transpose](types.md#psmathopts) will contain the (1-based) indices of the matrix arguments you want to be transposed:  
 
+ - opt->transpose = 1 (transpose matrix **a**)
+ - opt->transpose = 2 (transpose matrix **b**)
+ - opt->transpose = (1 | 2) (transpose both matrix **a** and **b**)
+
+By default, data in result matrix will be overwritten. Anyway, if [PS_STORE_MODE_ADD](macros.md#ps-store-mode-add) is set as [store_mode](types.md#psmathopts) into **opts**, result will be added to data already present in the result matrix.  
+The function will take in account the shape of both matrices so the operation is performed in different ways depending on the shapes and the shapes' type (see [PSMatrixShape](functions.md#psmatrixshape) for more details about the shape type):  
+
+ - If both **a** and **b** have the same shape or if both their shape types are vector-like shapes ([PS_SHAPE_TYPE_ROW](macros.md#ps-shape-type-row) or [PS_SHAPE_TYPE_COL](macros.md#ps-shape-type-col)) and both **a** and **b** have the same length (total number of values), every element of the resulting matrix will be the multiplication of every element of **a** by the corresponding element of **b**.
+ - If only one of **a** or **b** has a vector-like shape ([PS_SHAPE_TYPE_ROW](macros.md#ps-shape-type-row) or [PS_SHAPE_TYPE_COL](macros.md#ps-shape-type-col)) and the other matrix has a matrix-like shape and the length of the vector-like matrix is the same of the last dimension of the other matrix, the resulting matrix will have the shape of the matrix with a matrix-like shape and the values from the vector-like matrix will be multiplied by the values of the "rows" of the matrix-like matrix. For example: if **a** has a shape of 2,3 and **b** has a shape of 1,3, the result will be computed as a[0] * b and a[1] * b.
+ - If **a** or **b** have a scalar-like shape ([PS_SHAPE_TYPE_SCALAR](macros.md#ps-shape-type-scalar)), the resulting matrix will have the shape of the non-scalar matrix with all the values of the non-scalar matrix multiplied by the scalar value of the scalar-like matrix (basically, its first and only element).
+
+**RETURN VALUES**
+
+1 if operation succeeds, 0 if it fails.  
+Possible failure reasons:  
+
+ - **a** is **NULL** or **b** is **NULL** or **result** is **NULL**.
+ - **a** has zero dimensions or **b** has zero dimensions.
+ - Invalid shapes:
+   - Shapes differ, and
+   - neither **a** nor **b** have scalar-like shape, and
+   - both **a** and **b** have vector-like shape but their total length differ
+   - one of **a** or **b** has vector-like shape whose size differs from the matrix-like matrix last dimension.
+ - Memory allocation failure.
 
 
 ### PSMatrixNumDims
@@ -2561,10 +2575,7 @@ In: maths.h, line: 160
 
 ```c
 int PSMatrixNumDims (PSMatrix matrix)
-
 ```
-
-
 
 Return the number of dimensions of **matrix**. If **matrix** is **NULL**, the function will return zero.
 
@@ -2575,10 +2586,13 @@ In: maths.h, line: 170
 
 ```c
 void PSMatrixPrint (PSMatrix matrix, const char *sep, int print_shape)
-
 ```
 
-
+Print a string representation of **matrix** to the standard output.  
+The optional argument **sep** can be used to specify the separator string for matrix values.  
+If **sep** is **NULL**, the default separator is a comma (',').  
+If **print_shape** is true, the matrix representation will be preceded by a header describing the shape of **matrix**.  
+If **matrix** is **NULL**, the function will immediately return.
 
 
 ### PSMatrixPrintInfo
@@ -2587,7 +2601,6 @@ In: maths.h, line: 166
 
 ```c
 void PSMatrixPrintInfo (PSMatrix matrix, const char *name, int newline)
-
 ```
 
 
@@ -2599,7 +2612,6 @@ In: maths.h, line: 167
 
 ```c
 void PSMatrixPrintShape (PSMatrix matrix, int newline)
-
 ```
 
 
@@ -2611,29 +2623,35 @@ In: maths.h, line: 172
 
 ```c
 int PSMatrixProduct (PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt)
-
 ```
-
-
 
 Performs matrix-matrix multiplication between matrix **a** and matrix **b**.  
 Results are stored into matrix pointed by **result**. If pointer pointed by **result** is **NULL**, a new matrix is automatically allocated by the function itself and its pointer will be stored into **result**.  
-By default, function uses BLAS to compute the result. Anyway, if BLAS support is missing in PsyC build and **b** only has one dimension, function will try compute results by using [PSDotProduct](functions.md#psdotproduct) as fallback (for all other cases, it will fail!).  
 The **opt** argument can be **NULL**.  
-You can set matrix transposition using **transpose** field in the **opt** argument. In that case, **transpose** will contain the (1-based) indices of the matrix arguments you want to be transposed:  
+By default, function uses BLAS to compute the result. Anyway, if BLAS support is missing in PsyC build and **b** only has one dimension, function will try compute results by using [PSDotProduct](functions.md#psdotproduct).  
+The acceleration method can be changed via the [acceleration](types.md#psmathopts) member of the optional **opt** argument.  
+Matrices can be transpose by using the [transpose](types.md#psmathopts) field in the **opt** argument. In that case, [transpose](types.md#psmathopts) will contain the (1-based) indices of the matrix arguments you want to be transposed:  
 
  - opt->transpose = 1 (transpose matrix **a**)
  - opt->transpose = 2 (transpose matrix **b**)
  - opt->transpose = (1 | 2) (transpose both matrix **a** and **b**)
 
-By default, data in result vector will be overwritten. Anyway, if [PS_STORE_MODE_ADD](macros.md#ps-store-mode-add) is set as **store_mode** into **opt**, result will be added to data already present in the result vector.  
+By default, data in result vector will be overwritten. Anyway, if [PS_STORE_MODE_ADD](macros.md#ps-store-mode-add) is set as [store_mode](types.md#psmathopts) into **opt**, result will be added to data already present in the result vector.  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
-1 if operation succeeds, 0 if it fails.
+1 if operation succeeds, 0 if it fails.  
+Possible failure reasons:  
 
-#### SEE ALSO
+ - **result** is **NULL** or **a** is **NULL** or **b** is **NULL**.
+ - **a** has zero dimensions or **b** has zero dimensions.
+ - Matrix aligment error.
+ - Invalid result shape.
+ - Matrix pointed by **result** is not **NULL** and its shape differs from resulting output shape.
+ - Memory allocation failure.
+
+**SEE ALSO**
 
 [PSMatrixProductMV](functions.md#psmatrixproductmv), [PSMatrixProductVM](functions.md#psmatrixproductvm)  
 
@@ -2645,10 +2663,7 @@ In: maths.h, line: 173
 
 ```c
 int PSMatrixProductMV (PSMatrix a, PSFloat *b, int len, PSFloat ** result, PSMathOpts *opts)
-
 ```
-
-
 
 Performs matrix-vector multiplication between matrix **a** and vector **b**.  
 Argument **len** must be the length of the vector **b**.  
@@ -2656,18 +2671,27 @@ Results are stored into vector pointed by pointer **result**. If pointer pointed
 Length of **b** vector must equal matrix **a** second dimension.  
 Length of result vector must equal matrix **a** first dimension.  
 By default, function uses BLAS to compute the result. Anyway, if BLAS support is missing in PsyC build, function will compute results by using [PSDotProduct](functions.md#psdotproduct) as fallback.  
-You can set matrix transposition using **transpose** field in the **opt** argument. In that case, **transpose** will contain the (1-based) indices of the matrix arguments you want to be transposed:  
+The acceleration method can be changed via the [acceleration](types.md#psmathopts) member of the optional **opt** argument.  
+The matrix **a** can be transpose by using [transpose](types.md#psmathopts) field in the **opt** argument. In that case, [transpose](types.md#psmathopts) will contain the (1-based) indices of the matrix arguments you want to be transposed:  
 
  - opt->transpose = 1 (transpose matrix **a**)
 
-By default, data in result vector will be overwritten. Anyway, if [PS_STORE_MODE_ADD](macros.md#ps-store-mode-add) is set as **store_mode** into **opts**, result will be added to data already present in the result vector.  
+By default, data in result vector will be overwritten. Anyway, if [PS_STORE_MODE_ADD](macros.md#ps-store-mode-add) is set as [store_mode](types.md#psmathopts) into **opts**, result will be added to data already present in the result vector.  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
-1 if operation succeeds, 0 if it fails.
+1 if operation succeeds, 0 if it fails.  
+Possible failure reasons:  
 
-#### SEE ALSO
+ - **result** is **NULL** or **a** is **NULL** or **b** is **NULL**.
+ - **a** has zero dimensions or **b** has zero dimensions.
+ - Matrix aligment error.
+ - Invalid result shape.
+ - Matrix pointed by **result** is not **NULL** and its shape differs from resulting output shape.
+ - Memory allocation failure.
+
+**SEE ALSO**
 
 [PSMatrixProduct](functions.md#psmatrixproduct), [PSMatrixProductVM](functions.md#psmatrixproductvm)  
 
@@ -2679,28 +2703,33 @@ In: maths.h, line: 175
 
 ```c
 int PSMatrixProductVM (PSFloat *a, PSMatrix b, int len, PSMatrix *result, PSMathOpts *opts)
-
 ```
-
-
 
 Performs vector-matrix multiplication between vector **a** and matrix **b**.  
 Argument **len** must be the length of the vector **a**.  
 Results are stored into matrix pointed by **result**. If pointer pointed by **result** is **NULL**, a new matrix is automatically allocated by the function itself and its pointer will be stored into **result**.  
 The function uses BLAS to compute the result. Anyway, if BLAS support is missing in PsyC build, function will compute results by using [PSDotProduct](functions.md#psdotproduct) as fallback.  
-missing in PsyC build, function will fail.  
-You can set matrix transposition using **transpose** field in the **opt** argument. In that case, **transpose** will contain the (1-based) indices of the operand arguments you want to be transposed:  
+The acceleration method can be changed via the [acceleration](types.md#psmathopts) member of the optional **opt** argument.  
+Matrix **b** can be transposed by using the  [transpose](types.md#psmathopts) field in the **opt** argument. In that case, [transpose](types.md#psmathopts) will contain the (1-based) indices of the operand arguments you want to be transposed:  
 
  - opt->transpose = 2 (transpose matrix **b**)
 
-By default, data in result vector will be overwritten. Anyway, if [PS_STORE_MODE_ADD](macros.md#ps-store-mode-add) is set as **store_mode** into **opts**, result will be added to data already present in the result vector.  
+By default, data in result vector will be overwritten. Anyway, if [PS_STORE_MODE_ADD](macros.md#ps-store-mode-add) is set as [store_mode](types.md#psmathopts) into **opts**, result will be added to data already present in the result vector.  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
-1 if operation succeeds, 0 if it fails.
+1 if operation succeeds, 0 if it fails.  
+Possible failure reasons:  
 
-#### SEE ALSO
+ - **result** is **NULL** or **a** is **NULL** or **b** is **NULL**.
+ - **a** has zero dimensions or **b** has zero dimensions.
+ - Matrix aligment error.
+ - Invalid result shape.
+ - Matrix pointed by **result** is not **NULL** and its shape differs from resulting output shape.
+ - Memory allocation failure.
+
+**SEE ALSO**
 
 [PSMatrixProduct](functions.md#psmatrixproduct), [PSMatrixProductMV](functions.md#psmatrixproductmv)  
 
@@ -2712,17 +2741,14 @@ In: maths.h, line: 156
 
 ```c
 PSMatrix PSMatrixRandom (int ndims, ...)
-
 ```
-
-
 
 Create a new matrix having number of dimensions defined by **ndims**. The shape of the matrix is given by variadic arguments that follow **ndims**.  
 The values of the matrix will be initialized with random numbers from 0.0 to 1.0.  
 If the matrix cannot be allocated, **errno** will be set to **ENOMEM**.  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 The allocated matrix or **NULL** if:  
 
@@ -2733,18 +2759,15 @@ The allocated matrix or **NULL** if:
 **WARN**:  the address pointed by the returned pointer should never be freed directly. The specific function [PSMatrixFree](functions.md#psmatrixfree) should be used instead.  
 
 
-
-
 ### PSMatrixResetTransposed
 
 In: maths.h, line: 187
 
 ```c
 void PSMatrixResetTransposed (PSMatrix matrix)
-
 ```
 
-
+Invalidate and freee the cached transposed version of **matrix**, if any (see [PSMatrixTranspose](functions.md#psmatrixtranspose)).
 
 
 ### PSMatrixReshape
@@ -2753,10 +2776,17 @@ In: maths.h, line: 181
 
 ```c
 PSMatrix PSMatrixReshape (PSMatrix matrix, int num_dims, ...)
-
 ```
 
+Create a new matrix that is the reshaped version of **matrix**. The new matrix will have the same values of **matrix** but a different shape having number of dimensions defined by **num_dims**. The new shape can be declared by using the variadic arguments after **num_dims**.  
+The total number of elements given by the new shape must be equal to the total number of element of **matrix**, so, for example, reshaping a matrix with shape 2,3 to a matrix with shape 1,6 is valid and reshaping a matrix with shape 2,3,3 to a matrix of 1,18 or a matrix of 2,9 is also valid, but reshaping a matrix of 2,3 to a matrix of 1,3 is not valid.  
+Result value: the new reshaped matrix or **NULL** if:  
 
+ - **matrix** is **NULL**.
+ - **num_dims** is zero or negative.
+ - **num_dims** is greater than [PS_MATRIX_MAX_DIMENSIONS](macros.md#ps-matrix-max-dimensions).
+ - The total number of elements of the new matrix would differ from the total number of elements of **matrix**.
+ - Memory cannot be allocated.
 
 
 ### PSMatrixShape
@@ -2765,16 +2795,13 @@ In: maths.h, line: 162
 
 ```c
 int PSMatrixShape (PSMatrix matrix, int *shape)
-
 ```
-
-
 
 Get the shape of **matrix** and store it into **shape** array. The **shape** array must be big enough to hold at least [PS_MATRIX_MAX_DIMENSIONS](macros.md#ps-matrix-max-dimensions) elements.  
 If **shape** is **NULL**, the function will just return the number of dimensions (so, the length of the shape array of **matrix**).  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 The number of dimensions of **matrix** or zero if **matrix** is **NULL**.
 
@@ -2785,10 +2812,28 @@ In: maths.h, line: 165
 
 ```c
 int PSMatrixShapeType (PSMatrix matrix)
-
 ```
 
+Get the shape type of **matrix**.  
 
+
+**RETURN VALUES**
+
+The shape type:  
+
+ - [PS_SHAPE_TYPE_NONE](macros.md#ps-shape-type-none) if:
+   - **matrix** is **NULL**.
+   - Matrix's shape has zero dimensions.
+ - [PS_SHAPE_TYPE_SCALAR](macros.md#ps-shape-type-scalar) if:
+   - Matrix's shape has one dimension of size 1.
+   - Matrix's shape has two dimensions, both of size 1.
+ - [PS_SHAPE_TYPE_COL](macros.md#ps-shape-type-col) if:
+   - Matrix's shape has one dimension of size greater than 1.
+   - Matrix's shape has two dimensions and the first dimension is greater than 1 but the second dimension is 1.
+ - [PS_SHAPE_TYPE_ROW](macros.md#ps-shape-type-row) if:
+   - Matrix's shape has two dimensions and the first dimension is 1 but the second dimension is greater than 1.
+ - [PS_SHAPE_TYPE_MATRIX](macros.md#ps-shape-type-matrix)if:
+   - All other cases.
 
 
 ### PSMatrixSplit
@@ -2797,10 +2842,28 @@ In: maths.h, line: 183
 
 ```c
 PSMatrix  * PSMatrixSplit (PSMatrix matrix, int num_slices, int axis, PSMathOpts *opts)
-
 ```
 
+Split **matrix** into smaller matrices whose number is defined by **num_slices**. The matrix will be split on the axis (dimension) defined by the **axis** argument.  
+If the **axis** argument is negative, it will be counted from the last dimension of the shape of **matrix**: for example, an axis of -1 means the last dimension of the shape.  
 
+
+**NOTE**:  this function currenlty works only if **matrix** has up-to two dimensions or if **matrix** has more than two dimensions but **axis** is the first dimension or the last dimensions (so it cannot be used to split a matrix with more than two dimensions by an intermediate axis).  
+
+The optional **opts** argument can be used to change the default acceleration methods (by default, **PSGlobalAcceleration** is used).  
+**RETURN VALUES**
+
+An array of **num_slices** sub-matrices whose length is or **NULL** if:  
+
+ - **matrix** is **NULL**.
+ - **matrix** is empty.
+ - **axis** is out of bounds.
+ - **matrix** has more than two dimensions but **axis** is neither the first nor the last axis.
+ - The value of **num_slices** would not lead to an equal division (`shape[axis] % num_slices != 0`).
+ - Memory cannot be allocate.
+
+
+**NOTE**:  it's up to the developer using this function to free both the sub-matrices (by using [PSMatrixFlatten](functions.md#psmatrixflatten)) and the returned array containing them.  
 
 
 ### PSMatrixStride
@@ -2809,15 +2872,12 @@ In: maths.h, line: 164
 
 ```c
 int PSMatrixStride (PSMatrix matrix, int dim)
-
 ```
-
-
 
 Get the stride of the dimension **dim** of **matrix**. For example, a matrix with shape (2,3) has a stride of 3 for dimension 0 while a matrix with shape (2,3,3) has a stride of 9 for dimension 0, 3 for dimension 1 and 1 for dimension 2.  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 The stride of dimension **dim** or zero if **matrix** is **NULL**.
 
@@ -2828,10 +2888,36 @@ In: maths.h, line: 179
 
 ```c
 int PSMatrixSubtract (PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt)
-
 ```
 
+Subtract matrix **b** from matrix **a**. Results are stored into matrix pointed by pointer **result**. If pointer pointed by **result** is **NULL**, a new matrix is automatically allocated by the function itself and its pointer will be stored into **result**.  
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in **PSGlobalAcceleration** are used, if any. However, the used accelerations methods can be changed via the [acceleration](types.md#psmathopts) member of the optional argument **opt**.  
+Both matrices can be transposed using [transpose](types.md#psmathopts) field in the **opt** argument. In that case, [transpose](types.md#psmathopts) will contain the (1-based) indices of the matrix arguments you want to be transposed:  
 
+ - opt->transpose = 1 (transpose matrix **a**)
+ - opt->transpose = 2 (transpose matrix **b**)
+ - opt->transpose = (1 | 2) (transpose both matrix **a** and **b**)
+
+By default, data in result matrix will be overwritten. Anyway, if [PS_STORE_MODE_ADD](macros.md#ps-store-mode-add) is set as [store_mode](types.md#psmathopts) into **opts**, result will be added to data already present in the result matrix.  
+The function will take in account the shape of both matrices so the operation is performed in different ways depending on the shapes and the shapes' type (see [PSMatrixShape](functions.md#psmatrixshape) for more details about the shape type):  
+
+ - If both **a** and **b** have the same shape or if both their shape types are vector-like shapes ([PS_SHAPE_TYPE_ROW](macros.md#ps-shape-type-row) or [PS_SHAPE_TYPE_COL](macros.md#ps-shape-type-col)) and both **a** and **b** have the same length (total number of values), every element of the resulting matrix will be the subtraction of every element of **b** from the corresponding element of **a**.
+ - If only one of **a** or **b** has a vector-like shape ([PS_SHAPE_TYPE_ROW](macros.md#ps-shape-type-row) or [PS_SHAPE_TYPE_COL](macros.md#ps-shape-type-col)) and the other matrix has a matrix-like shape and the length of the vector-like matrix is the same of the last dimension of the other matrix, the resulting matrix will have the shape of the matrix with a matrix-like shape and the values of the vector-like matrix will be subtracted from the values of the "rows" of the matrix-like matrix. For example: if **a** has a shape of 2,3 and **b** has a shape of 1,3, the result will be computed as a[0] - b and a[1] - b.
+ - If **a** or **b** have a scalar-like shape ([PS_SHAPE_TYPE_SCALAR](macros.md#ps-shape-type-scalar)), the resulting matrix will have the shape of the non-scalar matrix with the scalar value of the scalar-like matrix (basically, its first and only element) subtracted from all the values of the non-scalar matrix.
+
+**RETURN VALUES**
+
+1 if operation succeeds, 0 if it fails.  
+Possible failure reasons:  
+
+ - **a** is **NULL** or **b** is **NULL** or **result** is **NULL**.
+ - **a** has zero dimensions or **b** has zero dimensions.
+ - Invalid shapes:
+   - Shapes differ, and
+   - neither **a** nor **b** have scalar-like shape, and
+   - both **a** and **b** have vector-like shape but their total length differ
+   - one of **a** or **b** has vector-like shape whose size differs from the matrix-like matrix last dimension.
+ - Memory allocation failure.
 
 
 ### PSMatrixSwapAxes
@@ -2840,9 +2926,26 @@ In: maths.h, line: 186
 
 ```c
 PSMatrix PSMatrixSwapAxes (PSMatrix matrix, int axis1, int axis2)
-
 ```
 
+Create a new matrix by swapping axes of **matrix**. For example, swapping axes 0 and 1 of a matrix with shape of 2,3 would create a matrix with shape of 3,2 and swaping axes 1 and 2 of a matrix with shape 2,3,4 would create a matrix with a shape of 2,4,3.  
+The axes to be swapped are defined by **axis1** and **axis2** arguments: by using a negative value for an axis, it will be counted from the last dimension of the shape, so, for example, swapping the axes -1 and -2 of a matrix with shape 2,3,4 would create a matrix with shape of 2,4,3.  
+If both **axis1** and **axis2** refer to the same axis, the function will return a duplicated versiob of **matrix**.  
+
+
+**NOTE**:  despite calling this function with the first and the last axis would have the same result of [PSMatrixTranspose](functions.md#psmatrixtranspose) in terms of matrix data and shape, the swapped matrix created by [PSMatrixSwapAxes](functions.md#psmatrixswapaxes) always is an independent matrix and not the cached tranposed matrix of **matrix**.  
+
+**RETURN VALUES**
+
+The new swapped matrix or **NULL** if:  
+
+ - **matrix** is **NULL**.
+ - **axis1** is out of bounds or **axis2** is out of bounds.
+ - Memory cannot be allocated.
+
+**SEE ALSO**
+
+[PSMatrixTranspose](functions.md#psmatrixtranspose)  
 
 
 
@@ -2852,9 +2955,32 @@ In: maths.h, line: 185
 
 ```c
 PSMatrix PSMatrixTranspose (PSMatrix matrix, int rebuild, PSMathOpts *opts)
-
 ```
 
+Transpose **matrix** by swapping its first dimension with its last dimension. For example, a matrix with a shape of 2,3 will be transposed to a matrix with shape of 3,2.  
+The function won't modify **matrix** but it will create a new matrix that is the transposed version of **matrix**.  
+The trasponsed matrix is cached in the private data of **matrix** so that subsequent calls of this function with the same **matrix** and with **rebuild** argument set to zero will directly return the cached transposed matrix without recomputing the transposition.  
+The **rebuild** argument can be used to invalidate the cached transposed matrix forcing the function to rebuild it.  
+If **matrix** already is the cached transposed matrix of another matrix, the function will directly return the source matrix of **matrix**.  
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in **PSGlobalAcceleration** are used, if any. However, the used accelerations methods can be changed via the [acceleration](types.md#psmathopts) member of the optional argument **opts**.  
+
+
+**WARN**:  The cached transposed matrix is automatically freed by freeing its owner (**matrix**) with [PSMatrixFree](functions.md#psmatrixfree), so it should not be freed directly. In order to free and reset the transposed cached matrix, the function [PSMatrixResetTransposed](functions.md#psmatrixresettransposed) should be called on **matrix**.  
+
+
+
+**WARN**:  most of the functions who alter the original matrix (**matrix**) will also invalidate the cached transposed matrix if any. However, manually changing matrix's values would lead to inconsistency between the matrix and its transposed version so the transposed matrix should be invalidated with [PSMatrixResetTransposed](functions.md#psmatrixresettransposed) or rebuilt by calling [PSMatrixTranspose](functions.md#psmatrixtranspose) with **rebuild** argument set to true.  
+
+**RETURN VALUES**
+
+The transposed matrix or **NULL** if:  
+
+ - **matrix** is **NULL**.
+ - Memory canmot be allocated.
+
+**SEE ALSO**
+
+[PSMatrixSwapAxes](functions.md#psmatrixswapaxes), [PSMatrixResetTransposed](functions.md#psmatrixresettransposed), [PSMatrixFree](functions.md#psmatrixfree)  
 
 
 
@@ -2864,17 +2990,14 @@ In: maths.h, line: 157
 
 ```c
 PSMatrix PSMatrixWithGaussianRandom (PSFloat stddev, int ndims, ...)
-
 ```
-
-
 
 Create a new matrix having number of dimensions defined by **ndims**. The shape of the matrix is given by variadic arguments that follow **ndims**.  
 The values of the matrix will be initialized with random numbers from a gaussian distribution having zero mean and the standard deviation defined by **stddev**.  
 If the matrix cannot be allocated, **errno** will be set to **ENOMEM**.  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 The allocated matrix or **NULL** if:  
 
@@ -2883,8 +3006,6 @@ The allocated matrix or **NULL** if:
 
 
 **WARN**:  the address pointed by the returned pointer should never be freed directly. The specific function [PSMatrixFree](functions.md#psmatrixfree) should be used instead.  
-
-
 
 
 ### PSMatrixWrite
@@ -2893,10 +3014,27 @@ In: maths.h, line: 168
 
 ```c
 int PSMatrixWrite (PSMatrix matrix, const char *sep, char bracket, int indent, FILE *out)
-
 ```
 
+Write the string representation of **matrix** to file file stream **out**.  
+If **out** is **NULL**, the string will be printed to the standard output by default.  
+The optional **sep** argument can be used to specify the separator string for matrix's values: if **NULL**, the default separator is a comma (,).  
+The optional **bracket** argument can be used to specify the type of brackets enclosing matrix's values, and only the opening bracket is accepted as a valid value:  
 
+ - '[' to use '[' as opening bracket and ']' as closing bracket.
+ - '(' to use '(' as opening bracket and ')' as closing bracket.
+ - '{' to use '{' as opening bracket and '}' as closing bracket.
+
+If **bracket** is set to zero, the default bracket is '['. Other values for **bracket** won't be accepted.  
+The **indent** argument can be used to set indentation size (expressed in number of white spaces). If set to zero, no indentation will be used and the matrix string will be written in a single line.  
+
+
+**RETURN VALUES**
+
+The total number of bytes written or 0 if:  
+
+ - **matrix** is **NULL**.
+ - Invalid value for **bracket** (see above).
 
 
 ### PSMatrixZeros
@@ -2905,16 +3043,13 @@ In: maths.h, line: 155
 
 ```c
 PSMatrix PSMatrixZeros (int ndims, ...)
-
 ```
-
-
 
 Create a new, zero-filled, matrix having number of dimensions defined by **ndims**. The shape of the matrix is given by variadic arguments that follows **ndims**.  
 If the matrix cannot be allocated, **errno** will be set to **ENOMEM**.  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 The allocated matrix or **NULL** if:  
 
@@ -2925,18 +3060,21 @@ The allocated matrix or **NULL** if:
 **WARN**:  the address pointed by the returned pointer should never be freed directly. The specific function [PSMatrixFree](functions.md#psmatrixfree) should be used instead.  
 
 
-
-
 ### PSMean
 
 In: maths.h, line: 239
 
 ```c
 PSFloat PSMean (PSFloat *a, uint64_t length, PSMathOpts *opts)
-
 ```
 
+Compute the mean value of the elements of vector **a** having length defined by [length](types.md#psdict).  
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in **PSGlobalAcceleration** are used, if any. However, the used accelerations methods can be changed via the [acceleration](types.md#psmathopts) member of the optional argument **opts**.  
 
+
+**RETURN VALUES**
+
+The mean value of vector **a** values or zero if **a** is **NULL**.
 
 
 ### PSModelBuild
@@ -2945,12 +3083,9 @@ In: psyc.h, line: 374
 
 ```c
 int PSModelBuild (PSModel *model)
-
 ```
 
-
-
-Build **model** so that it can be used for training of for predictions.  
+Build [model](types.md#pslayer) so that it can be used for training of for predictions.  
 If the model is already built, the function will just return 1. In order to rebuild an already built model, [PSModelRebuild](functions.md#psmodelrebuild) should be used.  
 The function will check the model's architecture and it will perfrom various actions on it:  
 
@@ -2958,26 +3093,26 @@ The function will check the model's architecture and it will perfrom various act
  - It will set proper flags both on the model and the layers.
  - It will determine and set the eventual recurrent mode ([PSRecurrentNetworkMode](types.md#psrecurrentnetworkmode)) depening on model's architecture.
  - It will resolve eventual layer placeholders making them real layers.
- - If the loss function (member **loss** of **model**) is **NULL**, it will automatically determine it:
+ - If the loss function (member [loss](types.md#psmodel) of [model](types.md#pslayer)) is **NULL**, it will automatically determine it:
    - [PSCrossEntropyLoss](functions.md#pscrossentropyloss) will be used if the output layer is a SoftMax layer.
    - PSQuadraticLoss in all the other cases.
- - If **model** is part of a multi-model chain, it will check and update all the chain properties.
+ - If [model](types.md#pslayer) is part of a multi-model chain, it will check and update all the chain properties.
 
-#### RETURN VALUES
+**RETURN VALUES**
 
-1 is **model** is successfully built, 0 if:  
+1 is [model](types.md#pslayer) is successfully built, 0 if:  
 
- - **model** is **NULL**.
- - **model** is empty (it contains no layers).
+ - [model](types.md#pslayer) is **NULL**.
+ - [model](types.md#pslayer) is empty (it contains no layers).
  - There was some memory allocation issue.
- - The structure of the **model** is not valid (ie. some layer is **NULL**)
- - **model** contains one or more layer placeholders and the function failed to resolve one of them.
- - **model** (or one of its layers) handles sequences-at-once but some of its layers is recurrent.
- - **model** (or one of its layers) is recurrent but some of its layers uses sequences-at-once.
- - **model** is recurrent but both the input layer and the output layer are not.
- - **model** is part of a multi-model chain but the chain is broken or not valid.
+ - The structure of the [model](types.md#pslayer) is not valid (ie. some layer is **NULL**)
+ - [model](types.md#pslayer) contains one or more layer placeholders and the function failed to resolve one of them.
+ - [model](types.md#pslayer) (or one of its layers) handles sequences-at-once but some of its layers is recurrent.
+ - [model](types.md#pslayer) (or one of its layers) is recurrent but some of its layers uses sequences-at-once.
+ - [model](types.md#pslayer) is recurrent but both the input layer and the output layer are not.
+ - [model](types.md#pslayer) is part of a multi-model chain but the chain is broken or not valid.
 
-#### SEE ALSO
+**SEE ALSO**
 
 [PSModelIsBuilt](functions.md#psmodelisbuilt), [PSModelRebuild](functions.md#psmodelrebuild)  
 
@@ -2989,20 +3124,17 @@ In: psyc.h, line: 382
 
 ```c
 int PSModelChainContains (PSModel *chain, PSModel *model)
-
 ```
 
+Check whether [model](types.md#pslayer) is contained by the multi-model chain **chain**.  
 
 
-Check whether **model** is contained by the multi-model chain **chain**.  
+**RETURN VALUES**
 
+- 1 if [model](types.md#pslayer) is contained by **chain** or [model](types.md#pslayer) == **chain**
+ - 0 if [model](types.md#pslayer) is not contained by **chain** or the chain is broken.
 
-#### RETURN VALUES
-
-- 1 if **model** is contained by **chain** or **model** == **chain**
- - 0 if **model** is not contained by **chain** or the chain is broken.
-
-#### SEE ALSO
+**SEE ALSO**
 
 [PSGetModelAtIndex](functions.md#psgetmodelatindex), [PSModelChainLength](functions.md#psmodelchainlength), [PSModelChainHead](functions.md#psmodelchainhead), [PSModelChainTail](functions.md#psmodelchaintail), [PSAddModel](functions.md#psaddmodel)  
 
@@ -3014,23 +3146,20 @@ In: psyc.h, line: 380
 
 ```c
 PSModel  * PSModelChainHead (PSModel *model)
-
 ```
 
+Get the first model (head) of the multi-model chain that contains [model](types.md#pslayer).  
+If [model](types.md#pslayer) is not a multi-model chain, the function will return the [model](types.md#pslayer) itself.  
 
 
-Get the first model (head) of the multi-model chain that contains **model**.  
-If **model** is not a multi-model chain, the function will return the **model** itself.  
-
-
-#### RETURN VALUES
+**RETURN VALUES**
 
 The first model of the chain or **NULL** if:  
 
- - **model** is **NULL**
+ - [model](types.md#pslayer) is **NULL**
  - the chain is broken.
 
-#### SEE ALSO
+**SEE ALSO**
 
 [PSGetModelAtIndex](functions.md#psgetmodelatindex), [PSModelChainLength](functions.md#psmodelchainlength), [PSModelChainTail](functions.md#psmodelchaintail), [PSModelChainContains](functions.md#psmodelchaincontains), [PSAddModel](functions.md#psaddmodel)  
 
@@ -3042,22 +3171,19 @@ In: psyc.h, line: 378
 
 ```c
 int PSModelChainLength (PSModel *model)
-
 ```
 
+Get the number of models in multi-model [model](types.md#pslayer).  
 
 
-Get the number of models in multi-model **model**.  
-
-
-#### RETURN VALUES
+**RETURN VALUES**
 
 The number of models or:  
 
-   - 0 if **model** is **NULL** or if the model chain is broken
-   - 1 if **model** is not a multi-model chain.
+   - 0 if [model](types.md#pslayer) is **NULL** or if the model chain is broken
+   - 1 if [model](types.md#pslayer) is not a multi-model chain.
 
-#### SEE ALSO
+**SEE ALSO**
 
 [PSGetModelAtIndex](functions.md#psgetmodelatindex), [PSModelChainHead](functions.md#psmodelchainhead), [PSModelChainTail](functions.md#psmodelchaintail), [PSModelChainContains](functions.md#psmodelchaincontains), [PSAddModel](functions.md#psaddmodel)  
 
@@ -3069,23 +3195,20 @@ In: psyc.h, line: 381
 
 ```c
 PSModel  * PSModelChainTail (PSModel *model)
-
 ```
 
+Get the last model (tail) of the multi-model chain that contains [model](types.md#pslayer).  
+If [model](types.md#pslayer) is not a multi-model chain, the function will return the [model](types.md#pslayer) itself.  
 
 
-Get the last model (tail) of the multi-model chain that contains **model**.  
-If **model** is not a multi-model chain, the function will return the **model** itself.  
-
-
-#### RETURN VALUES
+**RETURN VALUES**
 
 The last model of the chain or **NULL** if:  
 
- - **model** is **NULL**
+ - [model](types.md#pslayer) is **NULL**
  - the chain is broken.
 
-#### SEE ALSO
+**SEE ALSO**
 
 [PSGetModelAtIndex](functions.md#psgetmodelatindex), [PSModelChainLength](functions.md#psmodelchainlength), [PSModelChainHead](functions.md#psmodelchainhead), [PSModelChainContains](functions.md#psmodelchaincontains), [PSAddModel](functions.md#psaddmodel)  
 
@@ -3097,7 +3220,6 @@ In: psyc.h, line: 376
 
 ```c
 int PSModelCheck (PSModel *model)
-
 ```
 
 
@@ -3109,7 +3231,6 @@ In: psyc.h, line: 367
 
 ```c
 PSModel  * PSModelClone (PSModel *model, int layout_only)
-
 ```
 
 
@@ -3121,17 +3242,14 @@ In: psyc.h, line: 366
 
 ```c
 PSModel  * PSModelCreate (const char* name)
-
 ```
 
+Create a new, empty model. The optional argument [name](types.md#psmodel) can be used to give a name to the model.  
 
 
-Create a new, empty model. The optional argument **name** can be used to give a name to the model.  
+**NOTE**:  the model will duplicate the eventually provided [name](types.md#psmodel) and it will keep it inside its internal data. The duplicated string will be automatically freed by freeing the whole model ([PSModelFree](functions.md#psmodelfree)).  
 
-
-**NOTE**:  the model will duplicate the eventually provided **name** and it will keep it inside its internal data. The duplicated string will be automatically freed by freeing the whole model ([PSModelFree](functions.md#psmodelfree)).  
-
-#### RETURN VALUES
+**RETURN VALUES**
 
 Pointer to the created model or **NULL** if memory could not be allocated for it.
 
@@ -3142,7 +3260,6 @@ In: psyc.h, line: 384
 
 ```c
 int PSModelDumpDeltas (PSModel *model, const char* filename)
-
 ```
 
 
@@ -3154,7 +3271,6 @@ In: psyc.h, line: 383
 
 ```c
 int PSModelDumpStates (PSModel *model, const char* filename)
-
 ```
 
 
@@ -3166,13 +3282,10 @@ In: psyc.h, line: 385
 
 ```c
 void PSModelFree (PSModel *model)
-
 ```
 
-
-
-Free **model** and all its related objects (layers, data, ...). If the model is part of a multi-model chain, all models following **model** will also be freed.  
-The functions safely checks whether **model** is **NULL** and it does nothing in this case.
+Free [model](types.md#pslayer) and all its related objects (layers, data, ...). If the model is part of a multi-model chain, all models following [model](types.md#pslayer) will also be freed.  
+The functions safely checks whether [model](types.md#pslayer) is **NULL** and it does nothing in this case.
 
 
 ### PSModelGetStatus
@@ -3181,12 +3294,9 @@ In: psyc.h, line: 371
 
 ```c
 int PSModelGetStatus (PSModel *model)
-
 ```
 
-
-
-Get the value of **status** of **model**. If **model** is part of a multi-model chain, the function will retrieve the status of the first model of the chain.  
+Get the value of [status](types.md#psmodel) of [model](types.md#pslayer). If [model](types.md#pslayer) is part of a multi-model chain, the function will retrieve the status of the first model of the chain.  
 Common status values are:  
 
  - [PS_STATUS_UNTRAINED](macros.md#ps-status-untrained)
@@ -3197,11 +3307,11 @@ Common status values are:
  - [PS_STATUS_ABORTED](macros.md#ps-status-aborted)
  - [PS_STATUS_ERROR](macros.md#ps-status-error)
 
-#### RETURN VALUES
+**RETURN VALUES**
 
-The status of **model** or 0 if **model** is **NULL**.
+The status of [model](types.md#pslayer) or 0 if [model](types.md#pslayer) is **NULL**.
 
-#### SEE ALSO
+**SEE ALSO**
 
 [PSModelSetStatus](functions.md#psmodelsetstatus)  
 
@@ -3213,19 +3323,16 @@ In: psyc.h, line: 373
 
 ```c
 int PSModelIsBuilt (PSModel *model)
-
 ```
 
+Check whether [model](types.md#pslayer) is built (see: [PSModelBuild](functions.md#psmodelbuild)).  
 
 
-Check whether **model** is built (see: [PSModelBuild](functions.md#psmodelbuild)).  
-
-
-#### RETURN VALUES
+**RETURN VALUES**
 
 1 if the model is built, 0 if it's not built.
 
-#### SEE ALSO
+**SEE ALSO**
 
 [PSModelBuild](functions.md#psmodelbuild), [PSModelRebuild](functions.md#psmodelrebuild)  
 
@@ -3237,30 +3344,27 @@ In: psyc.h, line: 368
 
 ```c
 int PSModelLoad (PSModel *model, const char* filepath)
-
 ```
 
-
-
-Load model data (including layers and their parameters) from file located at **filepath** into **model**.  
+Load model data (including layers and their parameters) from file located at **filepath** into [model](types.md#pslayer).  
 This function requires an already existing model. In order to load a new model from scratch from, [PSLoadModel](functions.md#psloadmodel) should be used instead.  
-If **model** is empty (it has no layers), both the model structure and data such as layer parameters will be loaded into the model itself).  
-If **model** is not empty (it already has layers), only data such as layer parameters will be loaded into model. In this case, the structure of **model** must match the structure declared by the file.  
-If the file defines a multi-model chain, the whole chain will be loaded ( in this case, if **model** is not empty, the **model** chain structure must match the structure that has to be loaded from the file).  
+If [model](types.md#pslayer) is empty (it has no layers), both the model structure and data such as layer parameters will be loaded into the model itself).  
+If [model](types.md#pslayer) is not empty (it already has layers), only data such as layer parameters will be loaded into model. In this case, the structure of [model](types.md#pslayer) must match the structure declared by the file.  
+If the file defines a multi-model chain, the whole chain will be loaded ( in this case, if [model](types.md#pslayer) is not empty, the [model](types.md#pslayer) chain structure must match the structure that has to be loaded from the file).  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
-1 if **model** is successfully loaded, 0 if:  
+1 if [model](types.md#pslayer) is successfully loaded, 0 if:  
 
- - **model** is **NULL** or **filepath** is **NULL**.
+ - [model](types.md#pslayer) is **NULL** or **filepath** is **NULL**.
  - The file at **filepath** could not be opened for reading.
  - The file at **filepath** is not a valid PsyC model file.
  - PsyC version is lower than version declared in the file.
- - **model** is not empty and its structure differs from the one declared by the file (ie. different number of layers or models, different layer types, and so on).
+ - [model](types.md#pslayer) is not empty and its structure differs from the one declared by the file (ie. different number of layers or models, different layer types, and so on).
  - Some error occurred while reading data from file.
 
-#### SEE ALSO
+**SEE ALSO**
 
 [PSModelSave](functions.md#psmodelsave), [PSLoadModel](functions.md#psloadmodel)  
 
@@ -3272,7 +3376,6 @@ In: psyc.h, line: 377
 
 ```c
 void PSModelPrintInfo (PSModel *model)
-
 ```
 
 
@@ -3284,19 +3387,16 @@ In: psyc.h, line: 375
 
 ```c
 int PSModelRebuild (PSModel *model)
-
 ```
 
+Rebuild an already built [model](types.md#pslayer) by resetting its **built** state and calling [PSModelBuild](functions.md#psmodelbuild). If [model](types.md#pslayer) is not built, calling this function is the same as directly calling [PSModelBuild](functions.md#psmodelbuild).  
 
 
-Rebuild an already built **model** by resetting its **built** state and calling [PSModelBuild](functions.md#psmodelbuild). If **model** is not built, calling this function is the same as directly calling [PSModelBuild](functions.md#psmodelbuild).  
-
-
-#### RETURN VALUES
+**RETURN VALUES**
 
 See [PSModelBuild](functions.md#psmodelbuild).
 
-#### SEE ALSO
+**SEE ALSO**
 
 [PSModelBuild](functions.md#psmodelbuild), [PSModelIsBuilt](functions.md#psmodelisbuilt)  
 
@@ -3308,25 +3408,22 @@ In: psyc.h, line: 369
 
 ```c
 int PSModelSave (PSModel *model, const char* filepath)
-
 ```
 
+Save [model](types.md#pslayer) to file located at **filepath**. The function will save both model's structure (ie layer propeties) and data (ie. parameters).  
+If [model](types.md#pslayer) is part of a multi-model chain, the whole chain will be saved.  
 
 
-Save **model** to file located at **filepath**. The function will save both model's structure (ie layer propeties) and data (ie. parameters).  
-If **model** is part of a multi-model chain, the whole chain will be saved.  
+**RETURN VALUES**
 
+1 if [model](types.md#pslayer) is successfully saved, 0 if:  
 
-#### RETURN VALUES
-
-1 if **model** is successfully saved, 0 if:  
-
- - **model** is **NULL** or **filepath** is **NULL**.
- - **model** is empty (it has no layers).
+ - [model](types.md#pslayer) is **NULL** or **filepath** is **NULL**.
+ - [model](types.md#pslayer) is empty (it has no layers).
  - The file at **filepath** could not be opened for writing.
  - Some error occurred while writing data to file.
 
-#### SEE ALSO
+**SEE ALSO**
 
 [PSModelLoad](functions.md#psmodelload), [PSLoadModel](functions.md#psloadmodel)  
 
@@ -3338,22 +3435,19 @@ In: psyc.h, line: 370
 
 ```c
 int PSModelSetName (PSModel *model, char *name)
-
 ```
 
+Set the name of [model](types.md#pslayer) with the string provided with the argument [name](types.md#psmodel).  
+If [name](types.md#psmodel) is **NULL** and [model](types.md#pslayer) already has a name, model's [name](types.md#psmodel) will be cleared.  
 
 
-Set the name of **model** with the string provided with the argument **name**.  
-If **name** is **NULL** and **model** already has a name, model's **name** will be cleared.  
+**NOTE**:  the model will duplicate the provided [name](types.md#psmodel) and it will keep it inside its internal data. The duplicated string will be automatically freed by freeing the whole model ([PSModelFree](functions.md#psmodelfree)). If [model](types.md#pslayer) already has a name, the original name will be automatically freed.  
 
-
-**NOTE**:  the model will duplicate the provided **name** and it will keep it inside its internal data. The duplicated string will be automatically freed by freeing the whole model ([PSModelFree](functions.md#psmodelfree)). If **model** already has a name, the original name will be automatically freed.  
-
-#### RETURN VALUES
+**RETURN VALUES**
 
 1 is name is successfully set or 0 if:  
 
- - **model** is **NULL**.
+ - [model](types.md#pslayer) is **NULL**.
  - memory cannot be allocated.
 
 
@@ -3363,13 +3457,10 @@ In: psyc.h, line: 372
 
 ```c
 void PSModelSetStatus (PSModel *model, int status, int *old)
-
 ```
 
-
-
-Set **status** as the status of **model**. The optional argument **old** can be used to retrieve the old status of **model** before updating it with the value of **status**.  
-If **model** is part of a multi-model chain, hte new status will be set on all the models that are part of the model chain.  
+Set [status](types.md#psmodel) as the status of [model](types.md#pslayer). The optional argument **old** can be used to retrieve the old status of [model](types.md#pslayer) before updating it with the value of [status](types.md#psmodel).  
+If [model](types.md#pslayer) is part of a multi-model chain, hte new status will be set on all the models that are part of the model chain.  
 Common used status values are:  
 
  - [PS_STATUS_UNTRAINED](macros.md#ps-status-untrained)
@@ -3380,7 +3471,7 @@ Common used status values are:
  - [PS_STATUS_ABORTED](macros.md#ps-status-aborted)
  - [PS_STATUS_ERROR](macros.md#ps-status-error)
 
-#### SEE ALSO
+**SEE ALSO**
 
 [PSModelGetStatus](functions.md#psmodelgetstatus)  
 
@@ -3392,10 +3483,25 @@ In: maths.h, line: 201
 
 ```c
 PSFloat  * PSMultiplyVectors (PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length, PSMathOpts *opts)
-
 ```
 
+Multiply vector **a** by vector **b**. The argument [length](types.md#psdict) defines the length of **a** and **b**, so both **a** and **b** must contain at least [length](types.md#psdict) elements.  
+The resulting vector will have the same length of **a** and **b** and each of its elements will be the multiplication of the corresponding element of **a** and **b** at the same index (`dest[i] = a[i] * b[i]`).  
+Results are stored into the optional **dest** arguments. If **dest** is **NULL**, a new vector will be allocated and its address will be  returned by the function itself.  
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in **PSGlobalAcceleration** are used, if any. However, the used accelerations methods can be changed via the [acceleration](types.md#psmathopts) member of the optional argument **opts**.  
+Aside from acceleration, **opts** can also be used to set the result storage mode (by using the [store_mode](types.md#psmathopts) member):  
 
+ - [PS_STORE_MODE_ADD](macros.md#ps-store-mode-add): the result is added to the existing values of **dest**.
+ - [PS_STORE_MODE_SUB](macros.md#ps-store-mode-sub): the result is subtracted from the existing values    of **dest**.
+
+Some acceleration systems (ie. AVX, Accelerate Framework) can use some storage modes to speed-up computation.  
+
+
+**RETURN VALUES**
+
+The pointer to the address of the vector containing results.  
+If **dest** is not **NULL**, the return value is **dest** itself, but if **dest** is **NULL**, the return value is the address of the newly allocated vector.  
+The function returns **NULL** if **dest** is **NULL** but the destination vector cannot be allocated in memory.
 
 
 ### PSMultiplyVectorScalar
@@ -3404,10 +3510,25 @@ In: maths.h, line: 205
 
 ```c
 PSFloat  * PSMultiplyVectorScalar (PSFloat *a, PSFloat b, PSFloat *dest, uint64_t length, PSMathOpts *opts)
-
 ```
 
+Multiply vector **a** by scalar **b**. The argument [length](types.md#psdict) defines the length of **a**.  
+The resulting vector will have the same length of **a** and each of its elements will be the multiplication of the corresponding element of **a** at the same index by scalar value b (`dest[i] = a[i] * b`).  
+Results are stored into the optional **dest** arguments. If **dest** is **NULL**, a new vector will be allocated and its address will be  returned by the function itself.  
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in **PSGlobalAcceleration** are used, if any. However, the used accelerations methods can be changed via the [acceleration](types.md#psmathopts) member of the optional argument **opts**.  
+Aside from acceleration, **opts** can also be used to set the result storage mode (by using the [store_mode](types.md#psmathopts) member):  
 
+ - [PS_STORE_MODE_ADD](macros.md#ps-store-mode-add): the result is added to the existing values of **dest**.
+ - [PS_STORE_MODE_SUB](macros.md#ps-store-mode-sub): the result is subtracted from the existing values    of **dest**.
+
+Some acceleration systems (ie. AVX) can use some storage modes to speed-up computation.  
+
+
+**RETURN VALUES**
+
+The pointer to the address of the vector containing results.  
+If **dest** is not **NULL**, the return value is **dest** itself, but if **dest** is **NULL**, the return value is the address of the newly allocated vector.  
+The function returns **NULL** if **dest** is **NULL** but the destination vector cannot be allocated in memory.
 
 
 ### PSNesterovOptimization
@@ -3416,7 +3537,6 @@ In: optimization.h, line: 37
 
 ```c
 int PSNesterovOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, uint64_t len, int acceleration, int iteration, struct PSTrainingOptions *options)
-
 ```
 
 
@@ -3428,10 +3548,14 @@ In: maths.h, line: 124
 
 ```c
 PSFloat PSNormalizedRandom (void)
-
 ```
 
+Generate a random floating number within a range of 0.0 and 1.0.  
 
+
+**RETURN VALUES**
+
+The random float number.
 
 
 ### PSNormalizeToken
@@ -3440,7 +3564,6 @@ In: dataset.h, line: 125
 
 ```c
 char  * PSNormalizeToken (char *token, int len)
-
 ```
 
 
@@ -3452,7 +3575,6 @@ In: log.h, line: 124
 
 ```c
 void PSNotice (const char *format, ...)
-
 ```
 
 
@@ -3464,12 +3586,21 @@ In: maths.h, line: 254
 
 ```c
 int PSOuterProduct (PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t alen, uint64_t blen, PSMathOpts *opts)
-
 ```
 
+Multiply every element of vector **a** (having **alen** length) by every element of vector **b** (having **blen** length) and store results into vector **dest** (whose length must be the product of **alen** by **blen**).  
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in **PSGlobalAcceleration** are used, if any. However, the used accelerations methods can be changed via the [acceleration](types.md#psmathopts) member of the optional argument **opts**.  
+Aside from acceleration, **opts** can also be used to set the result storage mode (by using the [store_mode](types.md#psmathopts) member):  
 
+ - [PS_STORE_MODE_ADD](macros.md#ps-store-mode-add): the result is added to the existing values of **dest**.
+ - [PS_STORE_MODE_SUB](macros.md#ps-store-mode-sub): the result is subtracted from the existing values    of **dest**.
 
-Multiply every element of vector **a** (having **alen** length) by every element of vector **b** (having **blen** length) and store results into vector **dest** (whose length must be **alen** * **blen**).
+**RETURN VALUES**
+
+1 is the function succeeds or zero if:  
+
+ - **a** is **NULL** or **b** is **NULL** or **dest** is **NULL**.
+ - BLAS computation error if BLAS acceleration is used.
 
 
 ### PSPathJoin
@@ -3478,17 +3609,14 @@ In: utils.h, line: 128
 
 ```c
 char  * PSPathJoin (int count, ...)
-
 ```
-
-
 
 Joins multiple file path components into a single path string.  
 Argument **count** is used to specify how many components will be consumed.  
 Path components must be passed as variadic arguments.  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 String containing the joined path or **NULL** if something goes               wrong. Returned string is allocated into heap, so it's up               to the developer to free it as soon as it is no longer needed.
 
@@ -3499,7 +3627,6 @@ In: psyc.h, line: 443
 
 ```c
 void PSPauseTraining (PSModel *model)
-
 ```
 
 
@@ -3511,7 +3638,6 @@ In: utils.h, line: 133
 
 ```c
 int PSPrintableLength (const char *s)
-
 ```
 
 
@@ -3523,7 +3649,6 @@ In: log.h, line: 136
 
 ```c
 void PSPrintSameLine (char *format, ...)
-
 ```
 
 
@@ -3535,7 +3660,6 @@ In: log.h, line: 137
 
 ```c
 int PSProgressBar (int num, int tot, int style, int color, int flags, int maxlen, char *label)
-
 ```
 
 
@@ -3547,7 +3671,6 @@ In: psyc.h, line: 457
 
 ```c
 PSFloat PSQuadraticLoss (PSFloat *x, PSFloat *y, int size, int onehot_size)
-
 ```
 
 
@@ -3559,10 +3682,18 @@ In: maths.h, line: 126
 
 ```c
 unsigned int PSRandomInt (unsigned int range, PSFloat *weights, int *err, PSMathOpts *opts)
-
 ```
 
+Generate a random unsigned integer number within a range defined by argument **range** (between zero and **range** - 1).  
+If the optional [weights](types.md#pslayer) argument is not **NULL**, it can be used as a probability distribution the affects the randomness of the result.  
+In this case, [weights](types.md#pslayer) must be an array of [PSFloat](types.md#psfloat) whose length must be equal to **range**: each element of [weights](types.md#pslayer) represents the probability (weight) of its index to be generated (for example, the weights `{0.1, 0.7, 0.2}` with a range of 3 give a probability of 70% to number 1 to be generated).  
+The optional **err** pointer can be used, if not **NULL**, to know if some error occurred and, in case of error,  the address pointed by **err** will contain 1.  
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in **PSGlobalAcceleration** are used, if any. However, the used accelerations methods can be changed via the [acceleration](types.md#psmathopts) member of the optional argument **opts**.  
 
+
+**RETURN VALUES**
+
+The random unsigned integer number.
 
 
 ### PSRelu
@@ -3571,10 +3702,7 @@ In: activation.h, line: 45
 
 ```c
 void PSRelu (PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts)
-
 ```
-
-
 
 ReLU (Rectified Linear Unit) activation function for vectors.  
 ReLU is computed on vector **vec** of length **len** and stored into vector **dest**.  
@@ -3593,10 +3721,7 @@ In: activation.h, line: 51
 
 ```c
 void PSReluDerivative (PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts)
-
 ```
-
-
 
 Computes the derivative of ReLU activation function ([PSRelu](functions.md#psrelu)) for vectors.  
 The derivative is computed on vector **vec** of length **len** and stored into vector **dest**.  
@@ -3611,16 +3736,13 @@ In: activation.h, line: 38
 
 ```c
 PSFloat PSReluDerivativeS (PSFloat val)
-
 ```
-
-
 
 Computes derivative for ReLU activation function ([PSReluS](functions.md#psrelus)). This function applies to scalar values, so it takes the scalar **val** as argument and returns a **PFloat** scalar.  
 The equivalent function to be used with vectors/matrices is [PSReluDerivative](functions.md#psreluderivative).  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 ReLU derivative scalar result.
 
@@ -3631,10 +3753,7 @@ In: activation.h, line: 35
 
 ```c
 PSFloat PSReluS (PSFloat val)
-
 ```
-
-
 
 ReLU (Rectified Linear Unit) activation function for scalars.  
 It takes the scalar **val** as argument and returns a **PFloat** scalar.  
@@ -3644,7 +3763,7 @@ The equivalent function to be used with vectors/matrices is [PSRelu](functions.m
 The derivative of this function is [PSReluDerivativeS](functions.md#psreluderivatives).  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 ReLU scalar result.
 
@@ -3655,7 +3774,6 @@ In: debug.h, line: 104
 
 ```c
 void PSResetDebugInfo (void)
-
 ```
 
 
@@ -3667,7 +3785,6 @@ In: psyc.h, line: 406
 
 ```c
 int PSResetLayerStateSequence (PSLayer *layer, uint32_t steps, int retain_previous)
-
 ```
 
 
@@ -3679,7 +3796,6 @@ In: psyc.h, line: 408
 
 ```c
 int PSResetModelStateSequences (PSModel *model, uint32_t steps, int retain_previous)
-
 ```
 
 
@@ -3691,7 +3807,6 @@ In: psyc.h, line: 386
 
 ```c
 void PSResetTransposedWeights (PSModel *model)
-
 ```
 
 
@@ -3703,7 +3818,6 @@ In: optimization.h, line: 61
 
 ```c
 int PSRMSPropOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, uint64_t len, int acceleration, int iteration, struct PSTrainingOptions *options)
-
 ```
 
 
@@ -3715,23 +3829,20 @@ In: dataset.h, line: 138
 
 ```c
 int PSSaveDataToFile (const char *path, PSFloat *data, uint64_t len, int opts)
-
 ```
 
-
-
-Save dataset **data** to the file located at **path**. The dataset must be an array of PSFloat elements whose length (number of elements) defined by argument **len**.  
+Save dataset [data](types.md#psmathopts) to the file located at **path**. The dataset must be an array of PSFloat elements whose length (number of elements) defined by argument **len**.  
 By default, the dataset is saved as a comma-separated list of its values written as string representations of floating point numbers.  
 The datasets itself is prefixed with its length written as a string representation of a decimal number followed by a colon separator caharcter (':').  
 Example: 3:1.25,2,-0.15 (dataset of three elements 1.25, 2.0 and -0.15) If flag [PS_IO_BINARY_MODE](macros.md#ps-io-binary-mode) is set into **opts**, the dataset will be saved in binary format.  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 1 if datasets is successfully saved, 0 in case of failure.  
 Possible failure reasons:  
 
- - Mandatory arguments **path** or **data** are **NULL**.
+ - Mandatory arguments **path** or [data](types.md#psmathopts) are **NULL**.
  - File at **path** cannot be opened for writing.
  - Some error occurs while writing to the file.
 
@@ -3742,7 +3853,6 @@ In: attention.h, line: 51
 
 ```c
 int PSSetAttentionQueryProvider (PSLayer *layer, PSLayer *provider)
-
 ```
 
 
@@ -3754,7 +3864,6 @@ In: psyc.h, line: 450
 
 ```c
 void PSSetDefaultTrainingOptions (PSTrainingOptions *options)
-
 ```
 
 
@@ -3766,7 +3875,6 @@ In: dropout.h, line: 25
 
 ```c
 void PSSetDropout (PSLayer *dropout_layer, PSFloat dropout)
-
 ```
 
 
@@ -3778,7 +3886,6 @@ In: psyc.h, line: 422
 
 ```c
 int PSSetNeuronState (PSNeuron *neuron, double state, ...)
-
 ```
 
 
@@ -3790,7 +3897,6 @@ In: psyc.h, line: 451
 
 ```c
 int PSSetRecurrentNetworkMode (PSModel *model, PSRecurrentNetworkMode mode)
-
 ```
 
 
@@ -3802,7 +3908,6 @@ In: psyc.h, line: 413
 
 ```c
 int PSSetState (PSLayer *layer, PSFloat state, int index, ...)
-
 ```
 
 
@@ -3814,10 +3919,7 @@ In: activation.h, line: 42
 
 ```c
 void PSSigmoid (PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts)
-
 ```
-
-
 
 Sigmoid activation function for vectors. Sigmoid is computed on vector **vec** of length **len** and stored into vector **dest**. If **dest** is **NULL**, results will be stored into **vec** itself.  
 The **opts** argument can be used to change default acceleration used to compute results (see [PSMathOpts](types.md#psmathopts)).  
@@ -3833,10 +3935,7 @@ In: activation.h, line: 47
 
 ```c
 void PSSigmoidDerivative (PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts)
-
 ```
-
-
 
 Computes the derivative of sigmoid activation function ([PSSigmoid](functions.md#pssigmoid)) for vectors. The sigmoid derivative is computed on vector **vec** of length **len** and stored into vector **dest**. If **dest** is **NULL**, results will be stored into **vec** itself.  
 The **opts** argument can be used to change default acceleration used to compute results (see [PSMathOpts](types.md#psmathopts)).  
@@ -3849,17 +3948,14 @@ In: activation.h, line: 37
 
 ```c
 PSFloat PSSigmoidDerivativeS (PSFloat val)
-
 ```
-
-
 
 Computes derivative for sigmoid activation function ([PSSigmoidS](functions.md#pssigmoids)).  
 This function applies to scalar values, so it takes the scalar **val** as argument and returns a **PFloat** scalar.  
 The equivalent function to be used with vectors/matrices is [PSSigmoidDerivative](functions.md#pssigmoidderivative).  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 ReLU derivative scalar result.
 
@@ -3870,10 +3966,7 @@ In: activation.h, line: 34
 
 ```c
 PSFloat PSSigmoidS (PSFloat val)
-
 ```
-
-
 
 Sigmoid activation function for scalars. It takes the scalar **val** as argument and returns a **PFloat** scalar.  
 For info about sigmoid:  
@@ -3882,7 +3975,7 @@ The equivalent function to be used with vectors/matrices is [PSSigmoid](function
 The derivative of this function is [PSSigmoidDerivativeS](functions.md#pssigmoidderivatives).  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 Sigmoid scalar result.
 
@@ -3893,10 +3986,7 @@ In: activation.h, line: 55
 
 ```c
 void PSSoftmax (PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts)
-
 ```
-
-
 
 Computes Softmax function on vector **vec** of length **len**. Result is stored into vector **dest**. If **dest** is **NULL**, result will be stored into **vec** itself.  
 The **opts** argument can be used to change default acceleration used to compute results (see [PSMathOpts](types.md#psmathopts)).  
@@ -3911,7 +4001,6 @@ In: psyc.h, line: 414
 
 ```c
 int PSStateSequenceLength (PSLayer *layer)
-
 ```
 
 
@@ -3923,10 +4012,16 @@ In: maths.h, line: 241
 
 ```c
 PSFloat PSStdDev (PSFloat *a, uint64_t len, PSMathOpts *opts)
-
 ```
 
+Compute the standard deviation of the elements of vector **a** having length defined by [length](types.md#psdict).  
+The standard deviation is the square root of the statistical variance (see [PSVariance](functions.md#psvariance)).  
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in **PSGlobalAcceleration** are used, if any. However, the used accelerations methods can be changed via the [acceleration](types.md#psmathopts) member of the optional argument **opts**.  
 
+
+**RETURN VALUES**
+
+The variance of vector **a** values or zero if **a** is **NULL**.
 
 
 ### PSStringJoin
@@ -3935,10 +4030,7 @@ In: utils.h, line: 132
 
 ```c
 char  * PSStringJoin (char ** strings, char *sep, int len)
-
 ```
-
-
 
 Strings
 
@@ -3949,10 +4041,25 @@ In: maths.h, line: 211
 
 ```c
 PSFloat  * PSSubtractScalarVector (PSFloat b, PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
-
 ```
 
+Subtract vector **a** from scalar **b**. The argument [length](types.md#psdict) defines the length of **a**.  
+The resulting vector will have the same length of **a** and each of its elements will be the result of the subtraction of the corresponding element of **a** ant the same index from value of **b** (`dest[i] = b - a[i]`).  
+Results are stored into the optional **dest** arguments. If **dest** is **NULL**, a new vector will be allocated and its address will be  returned by the function itself.  
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in **PSGlobalAcceleration** are used, if any. However, the used accelerations methods can be changed via the [acceleration](types.md#psmathopts) member of the optional argument **opts**.  
+Aside from acceleration, **opts** can also be used to set the result storage mode (by using the [store_mode](types.md#psmathopts) member):  
 
+ - [PS_STORE_MODE_ADD](macros.md#ps-store-mode-add): the result is added to the existing values of **dest**.
+ - [PS_STORE_MODE_SUB](macros.md#ps-store-mode-sub): the result is subtracted from the existing values    of **dest**.
+
+Some acceleration systems (ie. AVX) can use some storage modes to speed-up computation.  
+
+
+**RETURN VALUES**
+
+The pointer to the address of the vector containing results.  
+If **dest** is not **NULL**, the return value is **dest** itself, but if **dest** is **NULL**, the return value is the address of the newly allocated vector.  
+The function returns **NULL** if **dest** is **NULL** but the destination vector cannot be allocated in memory.
 
 
 ### PSSubtractVectors
@@ -3961,10 +4068,25 @@ In: maths.h, line: 199
 
 ```c
 PSFloat  * PSSubtractVectors (PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length, PSMathOpts *opts)
-
 ```
 
+Subtract vector **b** from vector **a**. The argument [length](types.md#psdict) defines the length of **a** and **b**, so both **a** and **b** must contain at least [length](types.md#psdict) elements.  
+The resulting vector will have the same length of **a** and **b** and each of its elements will be the subtraction of the corresponding element of **a** and **b** at the same index (`dest[i] = a[i] - b[i]`).  
+Results are stored into the optional **dest** arguments. If **dest** is **NULL**, a new vector will be allocated and its address will be  returned by the function itself.  
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in **PSGlobalAcceleration** are used, if any. However, the used accelerations methods can be changed via the [acceleration](types.md#psmathopts) member of the optional argument **opts**.  
+Aside from acceleration, **opts** can also be used to set the result storage mode (by using the [store_mode](types.md#psmathopts) member):  
 
+ - [PS_STORE_MODE_ADD](macros.md#ps-store-mode-add): the result is added to the existing values of **dest**.
+ - [PS_STORE_MODE_SUB](macros.md#ps-store-mode-sub): the result is subtracted from the existing values    of **dest**.
+
+Some acceleration systems (ie. AVX) can use some storage modes to speed-up computation.  
+
+
+**RETURN VALUES**
+
+The pointer to the address of the vector containing results.  
+If **dest** is not **NULL**, the return value is **dest** itself, but if **dest** is **NULL**, the return value is the address of the newly allocated vector.  
+The function returns **NULL** if **dest** is **NULL** but the destination vector cannot be allocated in memory.
 
 
 ### PSSubtractVectorScalar
@@ -3973,10 +4095,25 @@ In: maths.h, line: 209
 
 ```c
 PSFloat  * PSSubtractVectorScalar (PSFloat *a, PSFloat b, PSFloat *dest, uint64_t length, PSMathOpts *opts)
-
 ```
 
+Subtract scalar **b** from vector **a**. The argument [length](types.md#psdict) defines the length of **a**.  
+The resulting vector will have the same length of **a** and each of its elements will be the result of the subtraction of **b** from the corresponding element of **a** at the same index (`dest[i] = a[i] - b`).  
+Results are stored into the optional **dest** arguments. If **dest** is **NULL**, a new vector will be allocated and its address will be  returned by the function itself.  
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in **PSGlobalAcceleration** are used, if any. However, the used accelerations methods can be changed via the [acceleration](types.md#psmathopts) member of the optional argument **opts**.  
+Aside from acceleration, **opts** can also be used to set the result storage mode (by using the [store_mode](types.md#psmathopts) member):  
 
+ - [PS_STORE_MODE_ADD](macros.md#ps-store-mode-add): the result is added to the existing values of **dest**.
+ - [PS_STORE_MODE_SUB](macros.md#ps-store-mode-sub): the result is subtracted from the existing values    of **dest**.
+
+Some acceleration systems (ie. AVX) can use some storage modes to speed-up computation.  
+
+
+**RETURN VALUES**
+
+The pointer to the address of the vector containing results.  
+If **dest** is not **NULL**, the return value is **dest** itself, but if **dest** is **NULL**, the return value is the address of the newly allocated vector.  
+The function returns **NULL** if **dest** is **NULL** but the destination vector cannot be allocated in memory.
 
 
 ### PSTanhActivation
@@ -3985,10 +4122,7 @@ In: activation.h, line: 43
 
 ```c
 void PSTanhActivation (PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts)
-
 ```
-
-
 
 Tanh (hyperbolic tangent) activation function for vectors. Hyperbolic tangent is computed on vector **vec** of length **len** and stored into vector **dest**.  
 If **dest** is **NULL**, results will be stored into **vec** itself.  
@@ -4002,10 +4136,7 @@ In: activation.h, line: 49
 
 ```c
 void PSTanhDerivative (PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts)
-
 ```
-
-
 
 Computes the derivative of tanh (hyperbolic tangent) activation function ([PSTanhActivation](functions.md#pstanhactivation)) for vectors. The derivative is computed on vector **vec** of length **len** and stored into vector **dest**.  
 If **dest** is **NULL**, results will be stored into **vec** itself.  
@@ -4019,7 +4150,6 @@ In: activation.h, line: 40
 
 ```c
 PSFloat PSTanhDerivativeS (PSFloat val)
-
 ```
 
 
@@ -4031,7 +4161,6 @@ In: psyc.h, line: 445
 
 ```c
 float PSTest (PSModel *model, PSFloat *test_data, int data_size, PSTrainingOptions *options)
-
 ```
 
 
@@ -4043,17 +4172,14 @@ In: psyc.h, line: 437
 
 ```c
 void PSTrain (PSModel *model, PSFloat *training_data, int data_size, PSFloat *test_data, int test_size, PSTrainingOptions *options)
-
 ```
 
+Train [model](types.md#pslayer) over [training_data](types.md#pslayerdef). Training epochs, batch size, optimization, and other optimizer settings are defined into optional **options**.  
+**ARGUMENTS**  
 
-
-Train **model** over **training_data**. Training epochs, batch size, optimization, and other optimizer settings are defined into optional **options**.  
-#### ARGUMENTS  
-
- - **model**: The neural model to be trained (mandatory)
- - **training_data**: an array of [PSFloat](types.md#psfloat) containing the tarining dataset    (ie. inputs, expected predictions)
- - **data_size**: length of **training_data** array.
+ - [model](types.md#pslayer): The neural model to be trained (mandatory)
+ - [training_data](types.md#pslayerdef): an array of [PSFloat](types.md#psfloat) containing the tarining dataset    (ie. inputs, expected predictions)
+ - **data_size**: length of [training_data](types.md#pslayerdef) array.
  - **test_data**: optional dataset that can be used for testing purpose
  - **test_size**: length of **test_data** array.
  - **options**: optional training options (see [PSTrainingOptions](types.md#pstrainingoptions)). If **NULL**, the training process will use default options.
@@ -4065,14 +4191,14 @@ Training/test data layout:
  - For recurrent model or models using sequences, layout can have different forms. Regardless of that, first element of the array must contain the total number of training/test elements. For each training/test sequence, the sequence length must be specified. Different forms can be:
    - Many-to-many: the default mode for recurrent models that produce sequences having the same length of the input sequence. In this case, the first element of the sequence segment is the sequence length, followed by inputs/predictions pair.
 
-If some error occurs, [PS_STATUS_ERROR](macros.md#ps-status-error) will be set on **model** and the function will immediately exit.  
-If **model** is not built, the function will automatically try to build it by calling [PSModelBuild](functions.md#psmodelbuild).  
+If some error occurs, [PS_STATUS_ERROR](macros.md#ps-status-error) will be set on [model](types.md#pslayer) and the function will immediately exit.  
+If [model](types.md#pslayer) is not built, the function will automatically try to build it by calling [PSModelBuild](functions.md#psmodelbuild).  
 Possible failure reasons:  
 
- - **model** is **NULL**
- - **model** is not built and it cannot be build.
+ - [model](types.md#pslayer) is **NULL**
+ - [model](types.md#pslayer) is not built and it cannot be build.
  - The learning rate is negative.
- - **model** is part of a multi-model chain but the chain is broken or invalid.
+ - [model](types.md#pslayer) is part of a multi-model chain but the chain is broken or invalid.
  - [PS_TRAINING_FLAG_SEQ2SEQ](macros.md#ps-training-flag-seq2seq) is set into flags of **options** but the model's architecture is not valid for sequence-to-sequence mode (ie. the model does not use sequences at all).
 
 
@@ -4082,7 +4208,6 @@ In: debug.h, line: 84
 
 ```c
 void PSTrainingDebugDump (PSModel *model, char *fmt, ...)
-
 ```
 
 
@@ -4094,7 +4219,6 @@ In: debug.h, line: 94
 
 ```c
 void PSTrainingDebugDumpGradient (PSModel *model, int phase, const char *func, PSLayer *layer, int gradient_idx, int weight_size, int weight_idx, int is_avx, int avx_len)
-
 ```
 
 
@@ -4106,7 +4230,6 @@ In: debug.h, line: 87
 
 ```c
 void PSTrainingDebugDumpHeader (PSModel *model, int data_size, int test_size, int epochs, PSFloat learning_rate, int batch_size)
-
 ```
 
 
@@ -4118,7 +4241,6 @@ In: debug.h, line: 85
 
 ```c
 void PSTrainingDebugDumpStep (PSDebugStepInfo *info, char *format, ...)
-
 ```
 
 
@@ -4130,7 +4252,6 @@ In: psyc.h, line: 461
 
 ```c
 void PSTrainingProgressBar (PSModel *model, int status, int epochs, int batches, PSFloat *loss, PSFloat *accuracy, time_t *elapsed, int validating_current, int validating_tot)
-
 ```
 
 
@@ -4142,7 +4263,6 @@ In: utf8.h, line: 32
 
 ```c
 int PSUTF8CodepointSize (uint32_t cp)
-
 ```
 
 
@@ -4154,10 +4274,7 @@ In: utf8.h, line: 36
 
 ```c
 uint32_t PSUTF8Decode (PSUTF8Char c)
-
 ```
-
-
 
 from UTF-8 encoding to Unicode Codepoint
 
@@ -4168,10 +4285,7 @@ In: utf8.h, line: 37
 
 ```c
 PSUTF8Char PSUTF8Encode (uint32_t codepoint)
-
 ```
-
-
 
 From Unicode Codepoint to UTF-8 encoding
 
@@ -4182,7 +4296,6 @@ In: utf8.h, line: 41
 
 ```c
 int PSUTF8IsAlpha (PSUTF8Char uc)
-
 ```
 
 
@@ -4194,7 +4307,6 @@ In: utf8.h, line: 44
 
 ```c
 int PSUTF8IsAlphaNum (PSUTF8Char uc)
-
 ```
 
 
@@ -4206,7 +4318,6 @@ In: utf8.h, line: 40
 
 ```c
 int PSUTF8IsDigit (PSUTF8Char uc)
-
 ```
 
 
@@ -4218,7 +4329,6 @@ In: utf8.h, line: 43
 
 ```c
 int PSUTF8IsLower (PSUTF8Char uc)
-
 ```
 
 
@@ -4230,7 +4340,6 @@ In: utf8.h, line: 39
 
 ```c
 int PSUTF8IsPunct (PSUTF8Char uc)
-
 ```
 
 
@@ -4242,7 +4351,6 @@ In: utf8.h, line: 38
 
 ```c
 int PSUTF8IsSpace (PSUTF8Char uc)
-
 ```
 
 
@@ -4254,7 +4362,6 @@ In: utf8.h, line: 42
 
 ```c
 int PSUTF8IsUpper (PSUTF8Char uc)
-
 ```
 
 
@@ -4266,7 +4373,6 @@ In: utf8.h, line: 34
 
 ```c
 int PSUTF8IsValidChar (PSUTF8Char c)
-
 ```
 
 
@@ -4278,7 +4384,6 @@ In: utf8.h, line: 35
 
 ```c
 int PSUTF8Next (char *txt, PSUTF8Char *ch)
-
 ```
 
 
@@ -4290,7 +4395,6 @@ In: utf8.h, line: 31
 
 ```c
 int PSUTF8StrLen (const char *s)
-
 ```
 
 
@@ -4302,7 +4406,6 @@ In: utf8.h, line: 33
 
 ```c
 char  * PSUTF8StrNCpy (char *dest, const char *src, size_t n)
-
 ```
 
 
@@ -4314,7 +4417,6 @@ In: utf8.h, line: 46
 
 ```c
 PSUTF8Char PSUTF8ToLower (PSUTF8Char uc)
-
 ```
 
 
@@ -4326,7 +4428,6 @@ In: utf8.h, line: 45
 
 ```c
 PSUTF8Char PSUTF8ToUpper (PSUTF8Char uc)
-
 ```
 
 
@@ -4338,10 +4439,16 @@ In: maths.h, line: 240
 
 ```c
 PSFloat PSVariance (PSFloat *a, uint64_t len, PSMathOpts *opts)
-
 ```
 
+Compute the statistical varicance of the elements of vector **a** having length defined by [length](types.md#psdict).  
+The variance is the sum of the squared difference of the difference between each value of **a** and the mean value of **a**.  
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in **PSGlobalAcceleration** are used, if any. However, the used accelerations methods can be changed via the [acceleration](types.md#psmathopts) member of the optional argument **opts**.  
 
+
+**RETURN VALUES**
+
+The variance of vector **a** values or zero if **a** is **NULL**.
 
 
 ### PSVectorAbs
@@ -4350,10 +4457,24 @@ In: maths.h, line: 225
 
 ```c
 PSFloat  * PSVectorAbs (PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
-
 ```
 
+Compute the absolute value of every element of vector **a** having length defined by [length](types.md#psdict) (`dest[i] = abs(a[i])`).  
+Results are stored into the optional **dest** arguments. If **dest** is **NULL**, a new vector will be allocated and its address will be  returned by the function itself.  
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in **PSGlobalAcceleration** are used, if any. However, the used accelerations methods can be changed via the [acceleration](types.md#psmathopts) member of the optional argument **opts**.  
+Aside from acceleration, **opts** can also be used to set the result storage mode (by using the [store_mode](types.md#psmathopts) member):  
 
+ - [PS_STORE_MODE_ADD](macros.md#ps-store-mode-add): the result is added to the existing values of **dest**.
+ - [PS_STORE_MODE_SUB](macros.md#ps-store-mode-sub): the result is subtracted from the existing values    of **dest**.
+
+
+**WARN**:  by using [store_mode](types.md#psmathopts), acceleration will be currently disabled.  
+
+**RETURN VALUES**
+
+The pointer to the address of the vector containing results.  
+If **dest** is not **NULL**, the return value is **dest** itself, but if **dest** is **NULL**, the return value is the address of the newly allocated vector.  
+The function returns **NULL** if **dest** is **NULL** but the destination vector cannot be allocated in memory.
 
 
 ### PSVectorClip
@@ -4362,10 +4483,24 @@ In: maths.h, line: 227
 
 ```c
 PSFloat  * PSVectorClip (PSFloat *a, PSFloat min, PSFloat max, PSFloat *dest, uint64_t length, PSMathOpts *opts)
-
 ```
 
+Clip values of vector **a** having length defined by [length](types.md#psdict) to minimum value defined by **min** and maximum value defined by **max** (`dest[i] = (a[i] < min ? min : (a[i] > max ? max : a[i]))`).  
+Results are stored into the optional **dest** arguments. If **dest** is **NULL**, a new vector will be allocated and its address will be  returned by the function itself.  
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in **PSGlobalAcceleration** are used, if any. However, the used accelerations methods can be changed via the [acceleration](types.md#psmathopts) member of the optional argument **opts**.  
+Aside from acceleration, **opts** can also be used to set the result storage mode (by using the [store_mode](types.md#psmathopts) member):  
 
+ - [PS_STORE_MODE_ADD](macros.md#ps-store-mode-add): the result is added to the existing values of **dest**.
+ - [PS_STORE_MODE_SUB](macros.md#ps-store-mode-sub): the result is subtracted from the existing values    of **dest**.
+
+
+**WARN**:  by using [store_mode](types.md#psmathopts), acceleration will be currently disabled.  
+
+**RETURN VALUES**
+
+The pointer to the address of the vector containing results.  
+If **dest** is not **NULL**, the return value is **dest** itself, but if **dest** is **NULL**, the return value is the address of the newly allocated vector.  
+The function returns **NULL** if **dest** is **NULL** but the destination vector cannot be allocated in memory.
 
 
 ### PSVectorConvertToMatrix
@@ -4374,10 +4509,7 @@ In: maths.h, line: 265
 
 ```c
 PSMatrix PSVectorConvertToMatrix (PSFloat *vec, uint64_t len, int ndims, int *shape)
-
 ```
-
-
 
 Convert the vector **vec** of length **len** to a [PSMatrix](types.md#psmatrix). This function differs from [PSMatrixFromArray](functions.md#psmatrixfromarray) since it reallocates the vector in order to make room for the matrix header that will contain matrix's properties.  
 So the vector is reallocated and its memory is moved by the size of the matrix header.  
@@ -4396,7 +4528,7 @@ The function will fail if **shape** is **NULL** and **ndims** is greater than 2.
 
 **WARN**:  the vector **vec** must be an array of [PSFloat](types.md#psfloat) that was previously allocated (ie. by using [PSVectorCreate](macros.md#psvectorcreate), [PSVectorDup](functions.md#psvectordup), **malloc**, **calloc** or **realloc**). Using global/static arrays or arrays from the stack frame will lead to memory corruption.  
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 The matrix or **NULL** if the function fails.  
 Possible failure reasons:  
@@ -4408,7 +4540,7 @@ Possible failure reasons:
  - **len** mismatches **shape** (**len** must equals the product of shape axes).
  - Memory allocation failure
 
-#### SEE ALSO
+**SEE ALSO**
 
 [PSMatrixFromArray](functions.md#psmatrixfromarray)  
 
@@ -4420,10 +4552,14 @@ In: maths.h, line: 260
 
 ```c
 PSFloat  * PSVectorDup (PSFloat *src, size_t length)
-
 ```
 
+Duplicate vector **vec** having length defined by [length](types.md#psdict).  
 
+
+**RETURN VALUES**
+
+The duplicated vector or **NULL** is memory cannot be allocated.
 
 
 ### PSVectorEquals
@@ -4432,17 +4568,14 @@ In: maths.h, line: 263
 
 ```c
 int PSVectorEquals (PSFloat *a, PSFloat *b, uint64_t length, int precision, uint64_t *index)
-
 ```
 
-
-
-Compare two vectors **a** and **b** having **length** length. Use **precision** to set precision tolerance. Lower precision leads to higher tolerance.  
+Compare two vectors **a** and **b** having [length](types.md#psdict) length. Use **precision** to set precision tolerance. Lower precision leads to higher tolerance.  
 By setting **precision** to zero, the two vectors must be perfectly equal (no precision tolerance at all).  
-Use **index** pointer if you need to know the index of the first non-equal elements.  
+Use [index](types.md#psmodel) pointer if you need to know the index of the first non-equal elements.  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 1 if **a** and **b** equal, 0 if they differ at some point.
 
@@ -4453,10 +4586,24 @@ In: maths.h, line: 221
 
 ```c
 PSFloat  * PSVectorExp (PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
-
 ```
 
+Compute base-e (Euler's number) exponential  on every element of vector **a** having length defined by [length](types.md#psdict).  
+Results are stored into the optional **dest** arguments. If **dest** is **NULL**, a new vector will be allocated and its address will be  returned by the function itself.  
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in **PSGlobalAcceleration** are used, if any. However, the used accelerations methods can be changed via the [acceleration](types.md#psmathopts) member of the optional argument **opts**.  
+Aside from acceleration, **opts** can also be used to set the result storage mode (by using the [store_mode](types.md#psmathopts) member):  
 
+ - [PS_STORE_MODE_ADD](macros.md#ps-store-mode-add): the result is added to the existing values of **dest**.
+ - [PS_STORE_MODE_SUB](macros.md#ps-store-mode-sub): the result is subtracted from the existing values    of **dest**.
+
+
+**WARN**:  by using [store_mode](types.md#psmathopts), acceleration will be currently disabled.  
+
+**RETURN VALUES**
+
+The pointer to the address of the vector containing results.  
+If **dest** is not **NULL**, the return value is **dest** itself, but if **dest** is **NULL**, the return value is the address of the newly allocated vector.  
+The function returns **NULL** if **dest** is **NULL** but the destination vector cannot be allocated in memory.
 
 
 ### PSVectorFill
@@ -4465,10 +4612,10 @@ In: maths.h, line: 244
 
 ```c
 void PSVectorFill (PSFloat *vec, PSFloat val, uint64_t len, PSMathOpts *opts)
-
 ```
 
-
+Fill vector **vec** having length defined by **len** with [value](types.md#psdictitem). The function will immediately return if **vec** is **NULL** or **len** is zero.  
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in **PSGlobalAcceleration** are used, if any. However, the used accelerations methods can be changed via the [acceleration](types.md#psmathopts) member of the optional argument **opts**.
 
 
 ### PSVectorMapWithLimit
@@ -4477,10 +4624,17 @@ In: maths.h, line: 231
 
 ```c
 PSFloat  * PSVectorMapWithLimit (PSFloat *a, PSFloat limit, PSFloat mapper, PSFloat *dest, uint64_t length, PSMathOpts *opts)
-
 ```
 
+Map values of vector **a** having length defined by [length](types.md#psdict) with the value defined by **mapper**: values greater than **limit** will be represented with the value of **mapper**, while values equal or less than **limit** will be represented with negative value of **mapper** (`-(mapper)`); Results are stored into the optional **dest** arguments. If **dest** is **NULL**, a new vector will be allocated and its address will be  returned by the function itself.  
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in **PSGlobalAcceleration** are used, if any. However, the used accelerations methods can be changed via the [acceleration](types.md#psmathopts) member of the optional argument **opts**.  
 
+
+**RETURN VALUES**
+
+The pointer to the address of the vector containing results.  
+If **dest** is not **NULL**, the return value is **dest** itself, but if **dest** is **NULL**, the return value is the address of the newly allocated vector.  
+The function returns **NULL** if **dest** is **NULL** but the destination vector cannot be allocated in memory.
 
 
 ### PSVectorMax
@@ -4489,10 +4643,16 @@ In: maths.h, line: 235
 
 ```c
 PSFloat PSVectorMax (PSFloat *a, uint64_t *index, uint64_t length, PSMathOpts *opts)
-
 ```
 
+Compute the maximum value among values of vector **a** having length defined by [length](types.md#psdict).  
+The optional pointer [index](types.md#psmodel) can be used, if not **NULL**, to retrieve the index of the maximum value.  
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in **PSGlobalAcceleration** are used, if any. However, the used accelerations methods can be changed via the [acceleration](types.md#psmathopts) member of the optional argument **opts**.  
 
+
+**RETURN VALUES**
+
+The maxium value in the vector **a**.
 
 
 ### PSVectorNeg
@@ -4501,10 +4661,24 @@ In: maths.h, line: 223
 
 ```c
 PSFloat  * PSVectorNeg (PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
-
 ```
 
+Compute the negative value of every element of vector **a** having length defined by [length](types.md#psdict) (`dest[i] = -a[i]`).  
+Results are stored into the optional **dest** arguments. If **dest** is **NULL**, a new vector will be allocated and its address will be  returned by the function itself.  
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in **PSGlobalAcceleration** are used, if any. However, the used accelerations methods can be changed via the [acceleration](types.md#psmathopts) member of the optional argument **opts**.  
+Aside from acceleration, **opts** can also be used to set the result storage mode (by using the [store_mode](types.md#psmathopts) member):  
 
+ - [PS_STORE_MODE_ADD](macros.md#ps-store-mode-add): the result is added to the existing values of **dest**.
+ - [PS_STORE_MODE_SUB](macros.md#ps-store-mode-sub): the result is subtracted from the existing values    of **dest**.
+
+
+**WARN**:  by using [store_mode](types.md#psmathopts), acceleration will be currently disabled.  
+
+**RETURN VALUES**
+
+The pointer to the address of the vector containing results.  
+If **dest** is not **NULL**, the return value is **dest** itself, but if **dest** is **NULL**, the return value is the address of the newly allocated vector.  
+The function returns **NULL** if **dest** is **NULL** but the destination vector cannot be allocated in memory.
 
 
 ### PSVectorPower
@@ -4513,10 +4687,25 @@ In: maths.h, line: 233
 
 ```c
 PSFloat  * PSVectorPower (PSFloat *a, PSFloat exp, PSFloat *dest, uint64_t length, PSMathOpts *opts)
-
 ```
 
+Raise each value of vector **a** having length [length](types.md#psdict) to power of **exp**.  
+If the value of **exp** is 2, the function will just call [PSMultiplyVectors](functions.md#psmultiplyvectors) function, mutiplying **a** by itself.  
+Results are stored into the optional **dest** arguments. If **dest** is **NULL**, a new vector will be allocated and its address will be  returned by the function itself.  
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in **PSGlobalAcceleration** are used, if any. However, the used accelerations methods can be changed via the [acceleration](types.md#psmathopts) member of the optional argument **opts**.  
+Aside from acceleration, **opts** can also be used to set the result storage mode (by using the [store_mode](types.md#psmathopts) member):  
 
+ - [PS_STORE_MODE_ADD](macros.md#ps-store-mode-add): the result is added to the existing values of **dest**.
+ - [PS_STORE_MODE_SUB](macros.md#ps-store-mode-sub): the result is subtracted from the existing values    of **dest**.
+
+
+**WARN**:  by using [store_mode](types.md#psmathopts), acceleration will be currently disabled.  
+
+**RETURN VALUES**
+
+The pointer to the address of the vector containing results.  
+If **dest** is not **NULL**, the return value is **dest** itself, but if **dest** is **NULL**, the return value is the address of the newly allocated vector.  
+The function returns **NULL** if **dest** is **NULL** but the destination vector cannot be allocated in memory.
 
 
 ### PSVectorPrint
@@ -4525,10 +4714,11 @@ In: maths.h, line: 246
 
 ```c
 void PSVectorPrint (PSFloat *vec, uint64_t len, char* sep)
-
 ```
 
-
+Print a string representation of vector **vec** having length of **len** to the standard output.  
+The optional **sep** argument can be used to specify a separator string for vector's values (if **sep** is null, by default "," is used as separator).  
+If **vec** is **NULL** the function will immediately return.
 
 
 ### PSVectorRandom
@@ -4537,10 +4727,14 @@ In: maths.h, line: 261
 
 ```c
 PSFloat  * PSVectorRandom (size_t len)
-
 ```
 
+Allocate a new vector having length defined by **len** and fill it with random values within a range of 0.0 and 1.0.  
 
+
+**RETURN VALUES**
+
+The allocated vector or **NULL** if memory cannot be allocated.
 
 
 ### PSVectorReduceSum
@@ -4549,10 +4743,15 @@ In: maths.h, line: 237
 
 ```c
 PSFloat PSVectorReduceSum (PSFloat *a, uint64_t length, PSMathOpts *opts)
-
 ```
 
+Compute the sum of all the elements of vector **a** having length defined by [length](types.md#psdict).  
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in **PSGlobalAcceleration** are used, if any. However, the used accelerations methods can be changed via the [acceleration](types.md#psmathopts) member of the optional argument **opts**.  
 
+
+**RETURN VALUES**
+
+The sum of all the elements in the vector **a** or zero if **a** is **NULL**.
 
 
 ### PSVectorSplit
@@ -4561,10 +4760,21 @@ In: maths.h, line: 259
 
 ```c
 PSFloat  ** PSVectorSplit (PSFloat *vec, int len, int num_slices)
-
 ```
 
+Split vector **vec** having length defined by **len** into **num_slices** vectors.  
+For example, a vector of 10 elements split into two slices will create two vectors of size 5.  
 
+
+**RETURN VALUES**
+
+An array of **num_slices** vectors (PSFloat *) or **NULL** if:  
+
+ - **vec** is **NULL**.
+ - **len** is zero or negative.
+ - **num_slices** is zero or negative.
+ - **len** / **num_slices** does not result in equal division.
+ - Memory allocation issues.
 
 
 ### PSVectorSqrt
@@ -4573,10 +4783,24 @@ In: maths.h, line: 219
 
 ```c
 PSFloat  * PSVectorSqrt (PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
-
 ```
 
+Compute square root on every element of vector **a** having length defined by [length](types.md#psdict).  
+Results are stored into the optional **dest** arguments. If **dest** is **NULL**, a new vector will be allocated and its address will be  returned by the function itself.  
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in **PSGlobalAcceleration** are used, if any. However, the used accelerations methods can be changed via the [acceleration](types.md#psmathopts) member of the optional argument **opts**.  
+Aside from acceleration, **opts** can also be used to set the result storage mode (by using the [store_mode](types.md#psmathopts) member):  
 
+ - [PS_STORE_MODE_ADD](macros.md#ps-store-mode-add): the result is added to the existing values of **dest**.
+ - [PS_STORE_MODE_SUB](macros.md#ps-store-mode-sub): the result is subtracted from the existing values    of **dest**.
+
+
+**WARN**:  by using [store_mode](types.md#psmathopts), acceleration will be currently disabled.  
+
+**RETURN VALUES**
+
+The pointer to the address of the vector containing results.  
+If **dest** is not **NULL**, the return value is **dest** itself, but if **dest** is **NULL**, the return value is the address of the newly allocated vector.  
+The function returns **NULL** if **dest** is **NULL** but the destination vector cannot be allocated in memory.
 
 
 ### PSVectorTanh
@@ -4585,10 +4809,24 @@ In: maths.h, line: 217
 
 ```c
 PSFloat  * PSVectorTanh (PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
-
 ```
 
+Compute hyperbolic tangent (tanh) on every element of vector **a** having length defined by [length](types.md#psdict).  
+Results are stored into the optional **dest** arguments. If **dest** is **NULL**, a new vector will be allocated and its address will be  returned by the function itself.  
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in **PSGlobalAcceleration** are used, if any. However, the used accelerations methods can be changed via the [acceleration](types.md#psmathopts) member of the optional argument **opts**.  
+Aside from acceleration, **opts** can also be used to set the result storage mode (by using the [store_mode](types.md#psmathopts) member):  
 
+ - [PS_STORE_MODE_ADD](macros.md#ps-store-mode-add): the result is added to the existing values of **dest**.
+ - [PS_STORE_MODE_SUB](macros.md#ps-store-mode-sub): the result is subtracted from the existing values    of **dest**.
+
+
+**WARN**:  by using [store_mode](types.md#psmathopts), acceleration will be currently disabled.  
+
+**RETURN VALUES**
+
+The pointer to the address of the vector containing results.  
+If **dest** is not **NULL**, the return value is **dest** itself, but if **dest** is **NULL**, the return value is the address of the newly allocated vector.  
+The function returns **NULL** if **dest** is **NULL** but the destination vector cannot be allocated in memory.
 
 
 ### PSVectorThreshold
@@ -4597,10 +4835,25 @@ In: maths.h, line: 229
 
 ```c
 PSFloat  * PSVectorThreshold (PSFloat *a, PSFloat min, PSFloat *dest, uint64_t length, PSMathOpts *opts)
-
 ```
 
+Clip values of vector **a** having length defined by [length](types.md#psdict) to minimum value defined by **min** and maximum value of PSFloat ([PSFLOAT_MAX](macros.md#psfloat-max)).  
+(`dest[i] = (a[i] < min ? min : (a[i] > PSFLOAT_MAX ? PSFLOAT_MAX : a[i]))`).  
+Results are stored into the optional **dest** arguments. If **dest** is **NULL**, a new vector will be allocated and its address will be  returned by the function itself.  
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in **PSGlobalAcceleration** are used, if any. However, the used accelerations methods can be changed via the [acceleration](types.md#psmathopts) member of the optional argument **opts**.  
+Aside from acceleration, **opts** can also be used to set the result storage mode (by using the [store_mode](types.md#psmathopts) member):  
 
+ - [PS_STORE_MODE_ADD](macros.md#ps-store-mode-add): the result is added to the existing values of **dest**.
+ - [PS_STORE_MODE_SUB](macros.md#ps-store-mode-sub): the result is subtracted from the existing values    of **dest**.
+
+
+**WARN**:  by using [store_mode](types.md#psmathopts), acceleration will be currently disabled.  
+
+**RETURN VALUES**
+
+The pointer to the address of the vector containing results.  
+If **dest** is not **NULL**, the return value is **dest** itself, but if **dest** is **NULL**, the return value is the address of the newly allocated vector.  
+The function returns **NULL** if **dest** is **NULL** but the destination vector cannot be allocated in memory.
 
 
 ### PSVectorTranspose
@@ -4609,24 +4862,31 @@ In: maths.h, line: 247
 
 ```c
 PSFloat  * PSVectorTranspose (PSFloat *vec, PSFloat *dest, int acceleration, int ndims, ...)
-
 ```
 
-
-
 Create a transposed version of **vec**, considering it a matrix with a shape of **ndims** dimensions.  
-Use variadic arguments to set up-to 3 dimensions in the shape, (ie rows, columns for 2-D array).  
-If **dest** is not **NULL**, transposed vector will be stored into it.  
+Variadic arguments can be used to define the shape of the matrix (that must have max. [PS_MATRIX_MAX_DIMENSIONS](macros.md#ps-matrix-max-dimensions) dimensions).  
+If **dest** is not **NULL**, the transposed vector will be stored into memory pointed by **dest** itself.  
+If **dest** is **NULL**, the resulting vector will be allocated by the function.  
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in **PSGlobalAcceleration** are used, if any. However, the used accelerations methods can be changed via the [acceleration](types.md#psmathopts) member of the optional argument **opts**.  
 
 
-#### RETURN VALUES
+**NOTE**:   
 
-The transposed array, with size of dim1*dim12*dim3, or **NULL** if something goes wrong. If **dest** is not **NULL**, return value will be **dest** or **NULL** if something goes wrong.  
-NOTES:  
+ - The shape defined by the variadic dimensions refer to original shape of the vector (seen as a matrix) and not to the resulting transposed vector. So, if the defined shape is 2,3, the resulting shape will be 3,2.
+ - If you need to transpose a [PSMatrix](types.md#psmatrix), directly use [PSMatrixTranspose](functions.md#psmatrixtranspose) instead.  
 
-- Variadic dimensions refer to original matrix shape, and not to the resulting transposed matrix.
+**RETURN VALUES**
 
-- If you need to transpose a [PSMatrix](types.md#psmatrix), use [PSMatrixTranspose](functions.md#psmatrixtranspose) instead.
+A pointer to the transposed vector, whose size will be the product of all dimensions of the defined shape or **NULL** if something goes wrong.  
+If **dest** is not **NULL**, return value will be **dest** or **NULL** if something goes wrong.  
+If **ndims** is 1, the function will immediately return **vec** itself.  
+Possible failure reasons:  
+
+ - **ndims** is greater that [PS_MATRIX_MAX_DIMENSIONS](macros.md#ps-matrix-max-dimensions).
+ - **ndims** is zero or less than zero.
+ - One of the shape's dimension in the variadic arguments is zero or less than zero.
+ - Memory allocation failure.
 
 
 ### PSVectorWrite
@@ -4635,10 +4895,11 @@ In: maths.h, line: 245
 
 ```c
 void PSVectorWrite (PSFloat *vec, uint64_t len, char* sep, FILE *f)
-
 ```
 
-
+Write a string representation of vector **vec** having length of **len** to the file stream **f**.  
+The optional **sep** argument can be used to specify a separator string for vector's values (if **sep** is null, by default "," is used as separator).  
+If **vec** is null or **f** is null, the function will immediately return.
 
 
 ### PSVLineAppend
@@ -4647,7 +4908,6 @@ In: log.h, line: 141
 
 ```c
 int PSVLineAppend (int opts, char *format, va_list args)
-
 ```
 
 
@@ -4659,7 +4919,6 @@ In: log.h, line: 121
 
 ```c
 void PSVLog (int level, const char *format, va_list args)
-
 ```
 
 
@@ -4671,16 +4930,13 @@ In: dataset.h, line: 119
 
 ```c
 int64_t PSVocabularyAdd (PSVocabulary *vocabulary, char *token)
-
 ```
-
-
 
 Add token **token** to **vocabulary**. The token is added to the internal dictionary of **vocabulary** and a numeric index (ID) is assigned to it.  
 The index is a progressive number. If the token already exists, the internal dictionary won't be updated and the token's numeric value (id) is immediately returned.  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 The numeric index (ID) of the token. If token could not be added to the dictionary or **token** is **NULL**, the function will return [PS_INVALID_TOKEN_ID](macros.md#ps-invalid-token-id).
 
@@ -4691,15 +4947,12 @@ In: dataset.h, line: 118
 
 ```c
 PSVocabulary  * PSVocabularyCreate (int64_t initial_capacity)
-
 ```
-
-
 
 Create a [PSVocabulary](types.md#psvocabulary) with initial capacity of **initial_capacity**.  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 The vocabulary or **NULL** if memory cannot be allocated.
 
@@ -4710,7 +4963,6 @@ In: dataset.h, line: 122
 
 ```c
 const char  * PSVocabularyErrorString (int err)
-
 ```
 
 
@@ -4722,7 +4974,6 @@ In: dataset.h, line: 123
 
 ```c
 void PSVocabularyFree (PSVocabulary *vocabulary)
-
 ```
 
 
@@ -4734,15 +4985,12 @@ In: dataset.h, line: 121
 
 ```c
 const char  * PSVocabularyGetTokenByID (PSVocabulary *vocabulary, int64_t id)
-
 ```
-
-
 
 Get the token associated with **id** from **vocabulary**.  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 The token associated with **id** or **NULL** if no **token** is found with **id**. Also return **NULL** if **vocabulary** is **NULL**.
 
@@ -4753,15 +5001,12 @@ In: dataset.h, line: 120
 
 ```c
 int64_t PSVocabularyGetTokenID (PSVocabulary *vocabulary, char *token)
-
 ```
-
-
 
 Get the ID the token **token** from vocabulary **vocabulary**.  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 The numeric index (ID) of the token. If token is not found into **vocabulary**, the function will return [PS_TOKEN_NOT_FOUND](macros.md#ps-token-not-found).  
 If **vocabulary** is **NULL** or **token** is **NULL**, the function will return [PS_INVALID_TOKEN_ID](macros.md#ps-invalid-token-id).
@@ -4773,7 +5018,6 @@ In: log.h, line: 135
 
 ```c
 void PSVPrintSameLine (char *format, va_list args)
-
 ```
 
 
@@ -4785,7 +5029,6 @@ In: log.h, line: 125
 
 ```c
 void PSWarn (const char *format, ...)
-
 ```
 
 
@@ -4797,7 +5040,6 @@ In: optimization.h, line: 49
 
 ```c
 int PSWindowGradOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, uint64_t len, int acceleration, int iteration, struct PSTrainingOptions *options)
-
 ```
 
 
@@ -4809,24 +5051,19 @@ In: utils.h, line: 127
 
 ```c
 const char  * PSWorkingDirectory (void)
-
 ```
-
-
 
 Returns PsyC working directory, that is, by default `$HOME/.psyc`.  
 A custom working directory can be specified at compile-time using **PS_WORKING_DIR** macro or by setting **PS_WORKING_DIR** environment variable.  
 The function will try to automatically create the working directory if it doesn't exist.  
 
 
-#### RETURN VALUES
+**RETURN VALUES**
 
 Path to the working directory or **NULL** in case something goes wrong.  
 
 
 **NOTE**:  it returns a static string, so it cannot be freed.  
-
-
 
 
 ### PSXTermColor256ToANSI
@@ -4835,7 +5072,6 @@ In: log.h, line: 134
 
 ```c
 int PSXTermColor256ToANSI (uint8_t color, int bgcolor)
-
 ```
 
 

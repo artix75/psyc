@@ -14,7 +14,6 @@ typedef enum {
     PSAcceleration_Auto  = 32768 /* (1 << 15) */  
     PSAcceleration_All  = 0xFFFF  
 } PSAcceleration  
-
 ```
 
 
@@ -41,7 +40,6 @@ typedef enum {
     PSAdditiveAttention  = 1  
     PSInvalidAttention  = 9999  
 } PSAttentionType  
-
 ```
 
 
@@ -113,7 +111,6 @@ typedef struct {
     int param_pos;  
     int param_value;  
 } PSBLASErr  
-
 ```
 
 
@@ -128,7 +125,6 @@ typedef enum {
     PSBLASRowMajor  = 0  
     PSBLASColMajor  = 1  
 } PSBLASOrder  
-
 ```
 
 
@@ -160,7 +156,6 @@ typedef struct {
     int input_height;  
     int input_depth;  
 } PSConvolutionalSettings  
-
 ```
 
 
@@ -209,7 +204,6 @@ typedef struct {
     time_t time;  
     int has_info;  
 } PSDebugInfo  
-
 ```
 
 
@@ -227,7 +221,6 @@ typedef struct {
     PSLayer * layer;  
     PSNeuron * neuron;  
 } PSDebugStepInfo  
-
 ```
 
 
@@ -244,7 +237,6 @@ typedef struct {
     PSDictItem * table[PSDICT_HT_SIZE];  
     PSOnDictItemRelease onItemRelease;  
 } PSDict  
-
 ```
 
 
@@ -263,7 +255,6 @@ typedef struct {
     struct PSDict * dict;  
     int slot;  
 } PSDictItem  
-
 ```
 
 
@@ -278,7 +269,6 @@ typedef struct {
     PSDict * dict;  
     PSDictItem * current;  
 } PSDictIterator  
-
 ```
 
 
@@ -294,7 +284,6 @@ typedef union {
     PSFloat as_float;  
     void * as_ptr;  
 } PSDictValue  
-
 ```
 
 
@@ -319,10 +308,7 @@ In: embedding.h, line: 27
 typedef enum {  
     PSWord2Vec  = 0  
 } PSEmbeddingType  
-
 ```
-
-
 
 PSWord2Vec embedding type is based on Word2Vec algorithm created by Tomas Mikolov: [https://scholar.google.com/citations?user=oBu8kMMAAAAJ&hl=en](https://scholar.google.com/citations?user=oBu8kMMAAAAJ&hl=en) Reference: [https://code.google.com/archive/p/word2vec/](https://code.google.com/archive/p/word2vec/)
 
@@ -338,8 +324,6 @@ typedef double PSFloat
 typedef float PSFloat
 #endif
 ```
-
-
 
 PsyC's type for floating-point numbers. By default, it's an alias for the **float** type. However, if PsyC has been built with the **PS_DOUBLE_PRECISION** macro defined (usually by building PsyC with **DOUBLE_PRECISION** make variable, ie. `make DOUBLE_PRECISION=on`), PSFloat will be an alias for **double**.
 
@@ -375,7 +359,6 @@ typedef struct {
     int flags;  
     PSSequenceSettings * sequence_settings;  
 } PSForwardOptions  
-
 ```
 
 
@@ -415,7 +398,6 @@ typedef struct {
     PSFloat * weights;  
     PSFloat * tmp;  
 } PSGradient  
-
 ```
 
 
@@ -440,7 +422,6 @@ typedef struct {
     PSMatrix update_gates;  
     PSMatrix reset_gates;  
 } PSGRUCell  
-
 ```
 
 
@@ -496,7 +477,6 @@ typedef struct {
     struct PSModel * model;  
     struct PSModel * pretrainer;  
 } PSLayer  
-
 ```
 
 
@@ -546,7 +526,6 @@ typedef struct {
     int positional_initial_capacity;  
     int positional_base;  
 } PSLayerDef  
-
 ```
 
 
@@ -573,7 +552,6 @@ typedef enum {
     Linear  = 12  
     PositionalEncoding  = 13  
 } PSLayerType  
-
 ```
 
 
@@ -626,7 +604,6 @@ typedef struct {
     PSMatrix forget_gates;  
     PSFloat * initial_raw_states;  
 } PSLSTMCell  
-
 ```
 
 
@@ -647,26 +624,23 @@ typedef struct {
     PSDotProductDebug debugStep;  
     void * data;  
 } PSMathOpts  
-
 ```
-
-
 
 This structure can be passed to various operations. Not all of its properties are used by all operations.  
 Properties:  
 
- - **acceleration**: see [PSAcceleration](types.md#psacceleration)
- - **store_mode**: specifies how results will be stored into destination:
+ - [acceleration](types.md#psmathopts): see [PSAcceleration](types.md#psacceleration)
+ - [store_mode](types.md#psmathopts): specifies how results will be stored into destination:
      - [PS_STORE_MODE_SET](macros.md#ps-store-mode-set): results will overwrite dest.
      - [PS_STORE_MODE_ADD](macros.md#ps-store-mode-add): results will be added to dest.
      - [PS_STORE_MODE_SUB](macros.md#ps-store-mode-sub): results will be subtracted from dest.
- - **transpose**:  some operations involving PSMatrix could use this in order to transpose one or more matrices. The integer value indicates the (1-based) matrix argument position, ie. 1 for first matrix arg, 2 for second matrix arg, etc. More than one matrix can be set (ie. 1 | 2).
+ - [transpose](types.md#psmathopts):  some operations involving PSMatrix could use this in order to transpose one or more matrices. The integer value indicates the (1-based) matrix argument position, ie. 1 for first matrix arg, 2 for second matrix arg, etc. More than one matrix can be set (ie. 1 | 2).
  - **argtype**:    specifies if arguments are [PSMatrix](types.md#psmatrix) or [PSFloat](types.md#psfloat) (vector). Functions using this property (such as [PSDot](functions.md#psdot)), must have PSMatrix arguments and the property can be used to tell the function that one or more arguments must be treated as vectors.
      - 'M' or 'm': [PSMatrix](types.md#psmatrix) matrix
      - 'V' or 'v': [PSFloat](types.md#psfloat) vector                 The index indicated argument position (zero-based), ie: argtype[1] means that second PSMatrix argument has to be treated as vector.
- - **vector_len**: optionally pass vector length to functions that cannot retrieve this info from matrix arguments, ie. when [PSDot](functions.md#psdot) is called with both vectors (**argtype** = {'V', 'V'})
- - **tmpdest**:    some operations may use this vector as a cache in order to avoid allocating extra memory, for intermediate computations.
- - **debugStep**:  used for debugging by some operations.
+ - [vector_len](types.md#psmathopts): optionally pass vector length to functions that cannot retrieve this info from matrix arguments, ie. when [PSDot](functions.md#psdot) is called with both vectors (**argtype** = {'V', 'V'})
+ - [tmpdest](types.md#psmathopts):    some operations may use this vector as a cache in order to avoid allocating extra memory, for intermediate computations.
+ - [debugStep](types.md#psmathopts):  used for debugging by some operations.
 
 
 ### PSMatrix
@@ -677,15 +651,11 @@ In: maths.h, line: 148
 typedef PSFloat * PSMatrix
 ```
 
-
-
 Basically, [PSMatrix](types.md#psmatrix) can be used as a normal array of [PSFloat](types.md#psfloat) numbers. However, PSMatrix objects created by using the specific functions ([PSMatrixCreate](functions.md#psmatrixcreate), [PSMatrixZeros](functions.md#psmatrixzeros), and so on) will also contain several private informations about the matrix itself that allow them to be used as multidimensional matrices.  
 Therefore, by using the PSMatrix-related functions provided by PsyC's API, it's possible to get info about the matrix (length, shape, ...) or to perform several operations (ie. transposition, matrix multiplication, etc.) on them.  
 
 
 **WARN**:  matrix's private data are actually allocated just before the memory address pointed by [PSMatrix](types.md#psmatrix), so the matrix object should **NEVER** be freed by calling the usual **free** function or similar functions: the dedicated [PSMatrixFree](functions.md#psmatrixfree) function should be called instead.  
-
-
 
 
 ### PSMatrixInitializer
@@ -727,7 +697,6 @@ typedef struct {
     PSTrainCallback onBatchTrained;  
     void * context;  
 } PSModel  
-
 ```
 
 
@@ -742,7 +711,6 @@ typedef struct {
     PSLayer * layer;  
     PSLayer * previous_layer;  
 } PSModelLink  
-
 ```
 
 
@@ -755,8 +723,6 @@ In: psyc.h, line: 475
 ```c
 typedef PSModel PSNeuralNetwork
 ```
-
-
 
 Kept type name used in older version since I still love it :) (and it also sounds more 'Psyc-y')
 
@@ -773,7 +739,6 @@ typedef struct {
     void * extra;  
     struct PSLayer * layer;  
 } PSNeuron  
-
 ```
 
 
@@ -787,7 +752,6 @@ In: normalization.h, line: 27
 typedef struct {  
     PSFloat epsilon;  
 } PSNormalizationLayerSettings  
-
 ```
 
 
@@ -815,7 +779,6 @@ typedef enum {
     PSMultiplyOperator  = 2  
     PSInvalidOperator  = 999  
 } PSOperatorType  
-
 ```
 
 
@@ -854,7 +817,6 @@ typedef enum {
     ManyToOne  = 2  
     OneToMany  = 3  
 } PSRecurrentNetworkMode  
-
 ```
 
 
@@ -892,7 +854,6 @@ typedef struct {
     PSFloat * start;  
     int end;  
 } PSSequenceSettings  
-
 ```
 
 
@@ -925,27 +886,24 @@ typedef struct {
     PSTokenNormalizer normalizer;  
     PSTokenMatch match_token;  
 } PSTextParserOptions  
-
 ```
-
-
 
 Options for text parsing:  
 
- - **mode**: text parsing mode:
+ - [mode](types.md#pstextparseroptions): text parsing mode:
      - [PS_PARSER_MODE_TOKENS](macros.md#ps-parser-mode-tokens): parse text as tokens (each token will be converted to a number).
      - [PS_PARSER_MODE_CHARS](macros.md#ps-parser-mode-chars): parse text as characters (each individual character will be converted to a number).
- - **flags**: text parsing flags:
+ - [flags](types.md#pstextparseroptions): text parsing flags:
      - [PS_PARSER_FLAG_NO_NORMALIZATION](macros.md#ps-parser-flag-no-normalization): do not perform token normalization on parsed text.
      - [PS_PARSER_FLAG_PRESERVE_STRING](macros.md#ps-parser-flag-preserve-string): prevent string from being modified during parsing.
-     - [PS_PARSER_FLAG_READONLY_VOCAB](macros.md#ps-parser-flag-readonly-vocab): by enabling this flag, the vocabulary will be treated as read-only. Any parsed token that is not present in the vocabulary will not be added and will be considered <unknown> (see the **unknown_token** option).
- - **max_vocabulary_size**: maximum number of tokens that can be added to the vocabulary, except for the <unknown> token. Every new parsed token will be automatically converted to the <unknown> token (see the **unknown_token** option). If the value of this option is zero, the default value will be [PS_DEFAULT_MAX_VOCAB_SIZE](macros.md#ps-default-max-vocab-size).
- - **separator**: a set of characters that should be used as separators to split string into individual tokens (ie: ".," would split by using both '.' and ',' as separators).
- - **unknown_token**: string to be used for unmatched tokens.
- - **capacity**: initial capacity of vocabularies allocated by parsing functions (ie. [PSLoadDataFromString](functions.md#psloaddatafromstring)).
- - **buffer_size**: parsing buffer size.
- - **normalizer**: pointer to function to be used to normalize tokens (see **PSTokenNormalizer**)
- - **match_token**: pointer to function to be used to match individual tokens (it usually overrides the usage of **separator** to split string).
+     - [PS_PARSER_FLAG_READONLY_VOCAB](macros.md#ps-parser-flag-readonly-vocab): by enabling this flag, the vocabulary will be treated as read-only. Any parsed token that is not present in the vocabulary will not be added and will be considered <unknown> (see the [unknown_token](types.md#pstextparseroptions) option).
+ - [max_vocabulary_size](types.md#pstextparseroptions): maximum number of tokens that can be added to the vocabulary, except for the <unknown> token. Every new parsed token will be automatically converted to the <unknown> token (see the [unknown_token](types.md#pstextparseroptions) option). If the value of this option is zero, the default value will be [PS_DEFAULT_MAX_VOCAB_SIZE](macros.md#ps-default-max-vocab-size).
+ - [separator](types.md#pstextparseroptions): a set of characters that should be used as separators to split string into individual tokens (ie: ".," would split by using both '.' and ',' as separators).
+ - [unknown_token](types.md#pstextparseroptions): string to be used for unmatched tokens.
+ - [capacity](types.md#psvocabulary): initial capacity of vocabularies allocated by parsing functions (ie. [PSLoadDataFromString](functions.md#psloaddatafromstring)).
+ - [buffer_size](types.md#pstextparseroptions): parsing buffer size.
+ - [normalizer](types.md#pstextparseroptions): pointer to function to be used to normalize tokens (see **PSTokenNormalizer**)
+ - [match_token](types.md#pstextparseroptions): pointer to function to be used to match individual tokens (it usually overrides the usage of [separator](types.md#pstextparseroptions) to split string).
 
 
 ### PSTokenMatch
@@ -985,7 +943,6 @@ typedef struct {
     int requested_action;  
     FILE * debug_dump_to;  
 } PSTrainingInfo  
-
 ```
 
 
@@ -1016,7 +973,6 @@ typedef struct {
     PSTrainingProgressFunc printProgress;  
     FILE * debug_dump_to;  
 } PSTrainingOptions  
-
 ```
 
 
@@ -1055,7 +1011,6 @@ typedef struct {
     PSDict * token_map;  
     const char ** tokens;  
 } PSVocabulary  
-
 ```
 
 

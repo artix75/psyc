@@ -182,6 +182,12 @@ a:hover {
     margin-top: 10px;
 }
 
+#doc .details .description .code.multi-line {
+    background-color: #333;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
 #doc code .type, #doc code .type a:link, #doc code .type a:active,
 #doc code .type a:visited,
 code .kt, code .psyc-type, code .psyc-const-name {
@@ -201,7 +207,8 @@ code .k {
 }
 
 #doc .examples .code code,
-#doc.article .code code {
+#doc.article .code code,
+#doc .code.multi-line code {
     white-space: pre;
 }
 

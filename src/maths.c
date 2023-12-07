@@ -157,12 +157,17 @@ static void randomSeed(void) {
     randomSeeded = 1;
 }
 
+/* Generate a random floating number within a range of 0.0 and 1.0.
+ * Return value: the random float number. */
 PSFloat PSNormalizedRandom() {
     randomSeed();
     int r = rand();
     return ((PSFloat) r / (PSFloat) RAND_MAX);
 }
 
+/* Generate a random floating number from a gaussian distribution having mean
+ * defined by `mean` and standard deviation defined by `stddev`.
+ * Return value: the random float number. */
 PSFloat PSGaussianRandom(PSFloat mean, PSFloat stddev) {
     PSFloat theta = 2 * M_PI * PSNormalizedRandom();
     PSFloat rho = PSSqrt(-2 * PSMathLog(1 - PSNormalizedRandom()));
@@ -173,6 +178,24 @@ PSFloat PSGaussianRandom(PSFloat mean, PSFloat stddev) {
     return (r > 0.5 ? y : x);
 }
 
+/* Generate a random unsigned integer number within a range defined by argument
+ * `range` (between zero and `range` - 1).
+ * If the optional `weights` argument is not NULL, it can be used as a
+ * probability distribution the affects the randomness of the result.
+ * In this case, `weights` must be an array of `PSFloat` whose length must be
+ * equal to `range`: each element of `weights` represents the probability
+ * (weight) of its index to be generated (for example, the weights
+ * `{0.1, 0.7, 0.2}` with a range of 3 give a probability of 70% to number 1
+ * to be generated).
+ * The optional `err` pointer can be used, if not NULL, to know if some error
+ * occurred and, in case of error,  the address pointed by `err` will
+ * contain 1.
+ * The function can take advantage of the available accelerations (both
+ * hardwware and software). By default, accelerations set in
+ * `PSGlobalAcceleration` are used, if any. However, the used accelerations
+ * methods can be changed via the `acceleration` member of the optional
+ * argument `opts`.
+ * Return value: the random unsigned integer number. */
 unsigned int PSRandomInt(unsigned int range, PSFloat *weights, int *err,
                          PSMathOpts *opts)
 {
@@ -677,6 +700,23 @@ int PSMatrixStride(PSMatrix matrix, int dim) {
     return stride;
 }
 
+/* Get the shape type of `matrix`.
+ * Return value: the shape type:
+ *  - `PS_SHAPE_TYPE_NONE` if:
+ *    - `matrix` is NULL.
+ *    - Matrix's shape has zero dimensions.
+ *  - `PS_SHAPE_TYPE_SCALAR` if:
+ *    - Matrix's shape has one dimension of size 1.
+ *    - Matrix's shape has two dimensions, both of size 1.
+ *  - `PS_SHAPE_TYPE_COL` if:
+ *    - Matrix's shape has one dimension of size greater than 1.
+ *    - Matrix's shape has two dimensions and the first dimension is greater
+ *      than 1 but the second dimension is 1.
+ *  - `PS_SHAPE_TYPE_ROW` if:
+ *    - Matrix's shape has two dimensions and the first dimension is 1 but
+ *      the second dimension is greater than 1.
+ *  - `PS_SHAPE_TYPE_MATRIX`if:
+ *    - All other cases. */
 int PSMatrixShapeType(PSMatrix matrix) {
     if (matrix == NULL) return PS_SHAPE_TYPE_NONE;
     int dims[PS_MATRIX_MAX_DIMENSIONS];
@@ -713,6 +753,25 @@ void PSMatrixPrintShape(PSMatrix matrix, int newline) {
     if (newline) printf("\n");
 }
 
+/* Write the string representation of `matrix` to file file stream `out`.
+ * If `out` is NULL, the string will be printed to the standard output by
+ * default.
+ * The optional `sep` argument can be used to specify the separator string
+ * for matrix's values: if NULL, the default separator is a comma (,).
+ * The optional `bracket` argument can be used to specify the type of
+ * brackets enclosing matrix's values, and only the opening bracket is
+ * accepted as a valid value:
+ *  - '[' to use '[' as opening bracket and ']' as closing bracket.
+ *  - '(' to use '(' as opening bracket and ')' as closing bracket.
+ *  - '{' to use '{' as opening bracket and '}' as closing bracket.
+ * If `bracket` is set to zero, the default bracket is '['. Other values for
+ * `bracket` won't be accepted.
+ * The `indent` argument can be used to set indentation size (expressed in
+ * number of white spaces). If set to zero, no indentation will be used and
+ * the matrix string will be written in a single line.
+ * Return value: the total number of bytes written or 0 if:
+ *  - `matrix` is NULL.
+ *  - Invalid value for `bracket` (see above). */
 int PSMatrixWrite(PSMatrix matrix, const char *sep, char bracket,
                   int indent, FILE *out)
 {
@@ -780,6 +839,13 @@ int PSMatrixWrite(PSMatrix matrix, const char *sep, char bracket,
     return nwritten;
 }
 
+/* Print a string representation of `matrix` to the standard output.
+ * The optional argument `sep` can be used to specify the separator string for
+ * matrix values.
+ * If `sep` is NULL, the default separator is a comma (',').
+ * If `print_shape` is true, the matrix representation will be preceded
+ * by a header describing the shape of `matrix`.
+ * If `matrix` is NULL, the function will immediately return. */
 void PSMatrixPrint(PSMatrix matrix, const char *sep, int print_shape) {
     if (matrix == NULL) return;
     if (print_shape) {
@@ -1005,7 +1071,7 @@ static int genericMatrixOperation(PSMatrix a, PSMatrix b, PSMatrix *result,
         return 0;
     }
     if (b == NULL) {
-        PSErr(func, "matrix `a` cannot be null");
+        PSErr(func, "matrix `b` cannot be null");
         return 0;
     }
     if (func == NULL) func = __func__;
@@ -1137,14 +1203,24 @@ static int genericMatrixOperation(PSMatrix a, PSMatrix b, PSMatrix *result,
  * By default, function uses BLAS to compute the result. Anyway, if BLAS
  * support is missing in PsyC build, function will compute results by
  * using `PSDotProduct` as fallback.
- * You can set matrix transposition using `transpose` field in the `opt`
+ * The acceleration method can be changed via the `acceleration` member of
+ * the optional `opt` argument.
+ * The matrix `a` can be transpose by using `transpose` field in the `opt`
  * argument. In that case, `transpose` will contain the (1-based) indices
  * of the matrix arguments you want to be transposed:
  *  - opt->transpose = 1 (transpose matrix `a`)
  * By default, data in result vector will be overwritten. Anyway, if
  * `PS_STORE_MODE_ADD` is set as `store_mode` into `opts`, result will
  * be added to data already present in the result vector.
- * Return value: 1 if operation succeeds, 0 if it fails. */
+ * Return value: 1 if operation succeeds, 0 if it fails.
+ * Possible failure reasons:
+ *  - `result` is NULL or `a` is NULL or `b` is NULL.
+ *  - `a` has zero dimensions or `b` has zero dimensions.
+ *  - Matrix aligment error.
+ *  - Invalid result shape.
+ *  - Matrix pointed by `result` is not NULL and its shape differs
+ *    from resulting output shape.
+ *  - Memory allocation failure. */
 int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
                       PSMathOpts *opts)
 {
@@ -1295,15 +1371,24 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
  * The function uses BLAS to compute the result. Anyway, if BLAS
  * support is missing in PsyC build, function will compute results by
  * using `PSDotProduct` as fallback.
- * missing in PsyC build, function will fail.
- * You can set matrix transposition using `transpose` field in the `opt`
+ * The acceleration method can be changed via the `acceleration` member of
+ * the optional `opt` argument.
+ * Matrix `b` can be transposed by using the  `transpose` field in the `opt`
  * argument. In that case, `transpose` will contain the (1-based) indices
  * of the operand arguments you want to be transposed:
  *  - opt->transpose = 2 (transpose matrix `b`)
  * By default, data in result vector will be overwritten. Anyway, if
  * `PS_STORE_MODE_ADD` is set as `store_mode` into `opts`, result will
  * be added to data already present in the result vector.
- * Return value: 1 if operation succeeds, 0 if it fails. */
+ * Return value: 1 if operation succeeds, 0 if it fails.
+ * Possible failure reasons:
+ *  - `result` is NULL or `a` is NULL or `b` is NULL.
+ *  - `a` has zero dimensions or `b` has zero dimensions.
+ *  - Matrix aligment error.
+ *  - Invalid result shape.
+ *  - Matrix pointed by `result` is not NULL and its shape differs
+ *    from resulting output shape.
+ *  - Memory allocation failure. */
 int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
                       PSMathOpts *opts)
 {
@@ -1472,12 +1557,13 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
  * Results are stored into matrix pointed by `result`. If pointer
  * pointed by `result` is NULL, a new matrix is automatically allocated
  * by the function itself and its pointer will be stored into `result`.
+ * The `opt` argument can be NULL.
  * By default, function uses BLAS to compute the result. Anyway, if BLAS
  * support is missing in PsyC build and `b` only has one dimension, function
- * will try compute results by using `PSDotProduct` as fallback (for all
- * other cases, it will fail!).
- * The `opt` argument can be NULL.
- * You can set matrix transposition using `transpose` field in the `opt`
+ * will try compute results by using `PSDotProduct`.
+ * The acceleration method can be changed via the `acceleration` member of
+ * the optional `opt` argument.
+ * Matrices can be transpose by using the `transpose` field in the `opt`
  * argument. In that case, `transpose` will contain the (1-based) indices
  * of the matrix arguments you want to be transposed:
  *  - opt->transpose = 1 (transpose matrix `a`)
@@ -1486,7 +1572,16 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
  * By default, data in result vector will be overwritten. Anyway, if
  * `PS_STORE_MODE_ADD` is set as `store_mode` into `opt`, result will
  * be added to data already present in the result vector.
- * Return value: 1 if operation succeeds, 0 if it fails. */
+ * Return value: 1 if operation succeeds, 0 if it fails.
+ * Possible failure reasons:
+ *  - `result` is NULL or `a` is NULL or `b` is NULL.
+ *  - `a` has zero dimensions or `b` has zero dimensions.
+ *  - Matrix aligment error.
+ *  - Invalid result shape.
+ *  - Matrix pointed by `result` is not NULL and its shape differs
+ *    from resulting output shape.
+ *  - Memory allocation failure.
+ */
 int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
     if (result == NULL) {
         PSErr(__func__, "argument result cannot be null");
@@ -1932,18 +2027,168 @@ align_err:
     return 0;
 }
 
+/* Add matrix `a` to matrix `b`. Results are stored into matrix pointed by
+ * pointer `result`. If pointer pointed by `result` is NULL, a new matrix is
+ * automatically allocated by the function itself and its pointer will be
+ * stored into `result`.
+ * The function can take advantage of the available accelerations (both
+ * hardwware and software). By default, accelerations set in
+ * `PSGlobalAcceleration` are used, if any. However, the used accelerations
+ * methods can be changed via the `acceleration` member of the optional
+ * argument `opt`.
+ * Both matrices can be transposed using `transpose` field in the `opt`
+ * argument. In that case, `transpose` will contain the (1-based) indices
+ * of the matrix arguments you want to be transposed:
+ *  - opt->transpose = 1 (transpose matrix `a`)
+ *  - opt->transpose = 2 (transpose matrix `b`)
+ *  - opt->transpose = (1 | 2) (transpose both matrix `a` and `b`)
+ * By default, data in result matrix will be overwritten. Anyway, if
+ * `PS_STORE_MODE_ADD` is set as `store_mode` into `opts`, result will
+ * be added to data already present in the result matrix.
+ * The function will take in account the shape of both matrices so the
+ * operation is performed in different ways depending on the shapes and the
+ * shapes' type (see `PSMatrixShape` for more details about the shape type):
+ *  - If both `a` and `b` have the same shape or if both their shape types are
+ *    vector-like shapes (`PS_SHAPE_TYPE_ROW` or `PS_SHAPE_TYPE_COL`) and
+ *    both `a` and `b` have the same length (total number of values),
+ *    every element of the resulting matrix will be the sum of every element
+ *    of `a` and the corresponding element of `b`.
+ *  - If only one of `a` or `b` has a vector-like shape (`PS_SHAPE_TYPE_ROW` or
+ *    `PS_SHAPE_TYPE_COL`) and the other matrix has a matrix-like shape and the
+ *    length of the vector-like matrix is the same of the last dimension of
+ *    the other matrix, the resulting matrix will have the shape of the matrix
+ *    with a matrix-like shape and the values from the vector-like matrix will
+ *    be added to the values of the "rows" of the matrix-like matrix.
+ *    For example: if `a` has a shape of 2,3 and `b` has a shape of 1,3,
+ *    the result will be computed as a[0] + b and a[1] + b.
+ *  - If `a` or `b` have a scalar-like shape (`PS_SHAPE_TYPE_SCALAR`), the
+ *    resulting matrix will have the shape of the non-scalar matrix with the
+ *    scalar value of the scalar-like matrix (basically, its first and only
+ *    element) added to the all the values of the non-scalar matrix.
+ * Return value: 1 if operation succeeds, 0 if it fails.
+ * Possible failure reasons:
+ *  - `a` is NULL or `b` is NULL or `result` is NULL.
+ *  - `a` has zero dimensions or `b` has zero dimensions.
+ *  - Invalid shapes:
+ *    - Shapes differ, and
+ *    - neither `a` nor `b` have scalar-like shape, and
+ *    - both `a` and `b` have vector-like shape but their total length differ
+ *    - one of `a` or `b` has vector-like shape whose size differs from the
+ *      matrix-like matrix last dimension.
+ *  - Memory allocation failure.
+ */
 int PSMatrixAdd(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
     return genericMatrixOperation(
         a, b, result, PSAddVectors, PSAddVectorScalar, NULL, __func__, opt
     );
 }
 
+/* Multiply matrix `a` by matrix `b`. Results are stored into matrix pointed by
+ * pointer `result`. If pointer pointed by `result` is NULL, a new matrix is
+ * automatically allocated by the function itself and its pointer will be
+ * stored into `result`.
+ * The function can take advantage of the available accelerations (both
+ * hardwware and software). By default, accelerations set in
+ * `PSGlobalAcceleration` are used, if any. However, the used accelerations
+ * methods can be changed via the `acceleration` member of the optional
+ * argument `opt`.
+ * Both matrices can be transposed using `transpose` field in the `opt`
+ * argument. In that case, `transpose` will contain the (1-based) indices
+ * of the matrix arguments you want to be transposed:
+ *  - opt->transpose = 1 (transpose matrix `a`)
+ *  - opt->transpose = 2 (transpose matrix `b`)
+ *  - opt->transpose = (1 | 2) (transpose both matrix `a` and `b`)
+ * By default, data in result matrix will be overwritten. Anyway, if
+ * `PS_STORE_MODE_ADD` is set as `store_mode` into `opts`, result will
+ * be added to data already present in the result matrix.
+ * The function will take in account the shape of both matrices so the
+ * operation is performed in different ways depending on the shapes and the
+ * shapes' type (see `PSMatrixShape` for more details about the shape type):
+ *  - If both `a` and `b` have the same shape or if both their shape types are
+ *    vector-like shapes (`PS_SHAPE_TYPE_ROW` or `PS_SHAPE_TYPE_COL`) and
+ *    both `a` and `b` have the same length (total number of values),
+ *    every element of the resulting matrix will be the multiplication of
+ *    every element of `a` by the corresponding element of `b`.
+ *  - If only one of `a` or `b` has a vector-like shape (`PS_SHAPE_TYPE_ROW` or
+ *    `PS_SHAPE_TYPE_COL`) and the other matrix has a matrix-like shape and the
+ *    length of the vector-like matrix is the same of the last dimension of
+ *    the other matrix, the resulting matrix will have the shape of the matrix
+ *    with a matrix-like shape and the values from the vector-like matrix will
+ *    be multiplied by the values of the "rows" of the matrix-like matrix.
+ *    For example: if `a` has a shape of 2,3 and `b` has a shape of 1,3,
+ *    the result will be computed as a[0] * b and a[1] * b.
+ *  - If `a` or `b` have a scalar-like shape (`PS_SHAPE_TYPE_SCALAR`), the
+ *    resulting matrix will have the shape of the non-scalar matrix with all
+ *    the values of the non-scalar matrix multiplied by the scalar value of
+ *    the scalar-like matrix (basically, its first and only element).
+ * Return value: 1 if operation succeeds, 0 if it fails.
+ * Possible failure reasons:
+ *  - `a` is NULL or `b` is NULL or `result` is NULL.
+ *  - `a` has zero dimensions or `b` has zero dimensions.
+ *  - Invalid shapes:
+ *    - Shapes differ, and
+ *    - neither `a` nor `b` have scalar-like shape, and
+ *    - both `a` and `b` have vector-like shape but their total length differ
+ *    - one of `a` or `b` has vector-like shape whose size differs from the
+ *      matrix-like matrix last dimension.
+ *  - Memory allocation failure.
+ */
 int PSMatrixMultiply(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt)
 {
     return genericMatrixOperation(a, b, result, PSMultiplyVectors,
                                   PSMultiplyVectorScalar, NULL, __func__, opt);
 }
 
+/* Subtract matrix `b` from matrix `a`. Results are stored into matrix pointed
+ * by pointer `result`. If pointer pointed by `result` is NULL, a new matrix is
+ * automatically allocated by the function itself and its pointer will be
+ * stored into `result`.
+ * The function can take advantage of the available accelerations (both
+ * hardwware and software). By default, accelerations set in
+ * `PSGlobalAcceleration` are used, if any. However, the used accelerations
+ * methods can be changed via the `acceleration` member of the optional
+ * argument `opt`.
+ * Both matrices can be transposed using `transpose` field in the `opt`
+ * argument. In that case, `transpose` will contain the (1-based) indices
+ * of the matrix arguments you want to be transposed:
+ *  - opt->transpose = 1 (transpose matrix `a`)
+ *  - opt->transpose = 2 (transpose matrix `b`)
+ *  - opt->transpose = (1 | 2) (transpose both matrix `a` and `b`)
+ * By default, data in result matrix will be overwritten. Anyway, if
+ * `PS_STORE_MODE_ADD` is set as `store_mode` into `opts`, result will
+ * be added to data already present in the result matrix.
+ * The function will take in account the shape of both matrices so the
+ * operation is performed in different ways depending on the shapes and the
+ * shapes' type (see `PSMatrixShape` for more details about the shape type):
+ *  - If both `a` and `b` have the same shape or if both their shape types are
+ *    vector-like shapes (`PS_SHAPE_TYPE_ROW` or `PS_SHAPE_TYPE_COL`) and
+ *    both `a` and `b` have the same length (total number of values),
+ *    every element of the resulting matrix will be the subtraction of every
+ *    element of `b` from the corresponding element of `a`.
+ *  - If only one of `a` or `b` has a vector-like shape (`PS_SHAPE_TYPE_ROW` or
+ *    `PS_SHAPE_TYPE_COL`) and the other matrix has a matrix-like shape and the
+ *    length of the vector-like matrix is the same of the last dimension of
+ *    the other matrix, the resulting matrix will have the shape of the matrix
+ *    with a matrix-like shape and the values of the vector-like matrix will
+ *    be subtracted from the values of the "rows" of the matrix-like matrix.
+ *    For example: if `a` has a shape of 2,3 and `b` has a shape of 1,3,
+ *    the result will be computed as a[0] - b and a[1] - b.
+ *  - If `a` or `b` have a scalar-like shape (`PS_SHAPE_TYPE_SCALAR`), the
+ *    resulting matrix will have the shape of the non-scalar matrix with the
+ *    scalar value of the scalar-like matrix (basically, its first and only
+ *    element) subtracted from all the values of the non-scalar matrix.
+ * Return value: 1 if operation succeeds, 0 if it fails.
+ * Possible failure reasons:
+ *  - `a` is NULL or `b` is NULL or `result` is NULL.
+ *  - `a` has zero dimensions or `b` has zero dimensions.
+ *  - Invalid shapes:
+ *    - Shapes differ, and
+ *    - neither `a` nor `b` have scalar-like shape, and
+ *    - both `a` and `b` have vector-like shape but their total length differ
+ *    - one of `a` or `b` has vector-like shape whose size differs from the
+ *      matrix-like matrix last dimension.
+ *  - Memory allocation failure.
+ */
 int PSMatrixSubtract(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt)
 {
     return genericMatrixOperation(a, b, result,
@@ -1953,6 +2198,56 @@ int PSMatrixSubtract(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt)
                                   __func__, opt);
 }
 
+/* Divide matrix `a` from matrix `b`. Results are stored into matrix pointed
+ * by pointer `result`. If pointer pointed by `result` is NULL, a new matrix is
+ * automatically allocated by the function itself and its pointer will be
+ * stored into `result`.
+ * The function can take advantage of the available accelerations (both
+ * hardwware and software). By default, accelerations set in
+ * `PSGlobalAcceleration` are used, if any. However, the used accelerations
+ * methods can be changed via the `acceleration` member of the optional
+ * argument `opt`.
+ * Both matrices can be transposed using `transpose` field in the `opt`
+ * argument. In that case, `transpose` will contain the (1-based) indices
+ * of the matrix arguments you want to be transposed:
+ *  - opt->transpose = 1 (transpose matrix `a`)
+ *  - opt->transpose = 2 (transpose matrix `b`)
+ *  - opt->transpose = (1 | 2) (transpose both matrix `a` and `b`)
+ * By default, data in result matrix will be overwritten. Anyway, if
+ * `PS_STORE_MODE_ADD` is set as `store_mode` into `opts`, result will
+ * be added to data already present in the result matrix.
+ * The function will take in account the shape of both matrices so the
+ * operation is performed in different ways depending on the shapes and the
+ * shapes' type (see `PSMatrixShape` for more details about the shape type):
+ *  - If both `a` and `b` have the same shape or if both their shape types are
+ *    vector-like shapes (`PS_SHAPE_TYPE_ROW` or `PS_SHAPE_TYPE_COL`) and
+ *    both `a` and `b` have the same length (total number of values),
+ *    every element of the resulting matrix will be the division of every
+ *    element of `a` by the corresponding element of `b`.
+ *  - If only one of `a` or `b` has a vector-like shape (`PS_SHAPE_TYPE_ROW` or
+ *    `PS_SHAPE_TYPE_COL`) and the other matrix has a matrix-like shape and the
+ *    length of the vector-like matrix is the same of the last dimension of
+ *    the other matrix, the resulting matrix will have the shape of the matrix
+ *    with a matrix-like shape and the values of the "rows" of the matrix-like
+ *    matrix will be divided by the values of the vector-like matrix.
+ *    For example: if `a` has a shape of 2,3 and `b` has a shape of 1,3,
+ *    the result will be computed as a[0] / b and a[1] / b.
+ *  - If `a` or `b` have a scalar-like shape (`PS_SHAPE_TYPE_SCALAR`), the
+ *    resulting matrix will have the shape of the non-scalar matrix with all
+ *    the values of the non-scalar matrix divded by the scalar value of the
+ *    scalar-like matrix (basically, its first and only element).
+ * Return value: 1 if operation succeeds, 0 if it fails.
+ * Possible failure reasons:
+ *  - `a` is NULL or `b` is NULL or `result` is NULL.
+ *  - `a` has zero dimensions or `b` has zero dimensions.
+ *  - Invalid shapes:
+ *    - Shapes differ, and
+ *    - neither `a` nor `b` have scalar-like shape, and
+ *    - both `a` and `b` have vector-like shape but their total length differ
+ *    - one of `a` or `b` has vector-like shape whose size differs from the
+ *      matrix-like matrix last dimension.
+ *  - Memory allocation failure.
+ */
 int PSMatrixDivide(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt)
 {
     if (b != NULL) {
@@ -1970,6 +2265,22 @@ int PSMatrixDivide(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt)
                                   __func__, opt);
 }
 
+/* Create a new matrix that is the reshaped version of `matrix`. The new matrix
+ * will have the same values of `matrix` but a different shape having number of
+ * dimensions defined by `num_dims`. The new shape can be declared by using
+ * the variadic arguments after `num_dims`.
+ * The total number of elements given by the new shape must be equal to the
+ * total number of element of `matrix`, so, for example, reshaping a matrix
+ * with shape 2,3 to a matrix with shape 1,6 is valid and reshaping a matrix
+ * with shape 2,3,3 to a matrix of 1,18 or a matrix of 2,9 is also valid, but
+ * reshaping a matrix of 2,3 to a matrix of 1,3 is not valid.
+ * Result value: the new reshaped matrix or NULL if:
+ *  - `matrix` is NULL.
+ *  - `num_dims` is zero or negative.
+ *  - `num_dims` is greater than `PS_MATRIX_MAX_DIMENSIONS`.
+ *  - The total number of elements of the new matrix would differ from the
+ *    total number of elements of `matrix`.
+ *  - Memory cannot be allocated. */
 PSMatrix PSMatrixReshape(PSMatrix matrix, int num_dims, ...) {
     if (matrix == NULL) return NULL;
     if (num_dims <= 0) return NULL;
@@ -1998,11 +2309,43 @@ PSMatrix PSMatrixReshape(PSMatrix matrix, int num_dims, ...) {
     return reshaped;
 }
 
+/* Create a new matrix that is the single-dimensioned, flatten version of
+ * `matrix`.
+ * For example, if `matrix` has a shape of (2,3), the resulting matrix will
+ * have a shape of (6).
+ * Return value: the new flatten matrix or NULL if:
+ *  - `matrix` is NULL.
+ *  - Memory connot be allocated. */
 PSMatrix PSMatrixFlatten(PSMatrix matrix) {
     if (matrix == NULL) return NULL;
     return PSMatrixReshape(matrix, 1, PSMatrixLength(matrix));
 }
 
+/* Split `matrix` into smaller matrices whose number is defined by
+ * `num_slices`. The matrix will be split on the axis (dimension) defined by
+ * the `axis` argument.
+ * If the `axis` argument is negative, it will be counted from the last
+ * dimension of the shape of `matrix`: for example, an axis of -1 means the
+ * last dimension of the shape.
+ * NOTE: this function currenlty works only if `matrix` has up-to two
+ * dimensions or if `matrix` has more than two dimensions but `axis` is the
+ * first dimension or the last dimensions (so it cannot be used to split a
+ * matrix with more than two dimensions by an intermediate axis).
+ * The optional `opts` argument can be used to change the default acceleration
+ * methods (by default, `PSGlobalAcceleration` is used).
+ * Return value: an array of `num_slices` sub-matrices whose length is or NULL
+ * if:
+ *  - `matrix` is NULL.
+ *  - `matrix` is empty.
+ *  - `axis` is out of bounds.
+ *  - `matrix` has more than two dimensions but `axis` is neither the first nor
+ *    the last axis.
+ *  - The value of `num_slices` would not lead to an equal division
+ *    (`shape[axis] % num_slices != 0`).
+ *  - Memory cannot be allocate.
+ * NOTE: it's up to the developer using this function to free both the
+ * sub-matrices (by using `PSMatrixFlatten`) and the returned array containing
+ * them. */
 PSMatrix *PSMatrixSplit(PSMatrix matrix, int num_slices, int axis,
                         PSMathOpts *opts)
 {
@@ -2090,6 +2433,37 @@ final:
     return slices;
 }
 
+/* Transpose `matrix` by swapping its first dimension with its last
+ * dimension. For example, a matrix with a shape of 2,3 will be transposed to
+ * a matrix with shape of 3,2.
+ * The function won't modify `matrix` but it will create a new matrix that is
+ * the transposed version of `matrix`.
+ * The trasponsed matrix is cached in the private data of `matrix` so that
+ * subsequent calls of this function with the same `matrix` and with `rebuild`
+ * argument set to zero will directly return the cached transposed matrix
+ * without recomputing the transposition.
+ * The `rebuild` argument can be used to invalidate the cached transposed
+ * matrix forcing the function to rebuild it.
+ * If `matrix` already is the cached transposed matrix of another matrix,
+ * the function will directly return the source matrix of `matrix`.
+ * The function can take advantage of the available accelerations (both
+ * hardwware and software). By default, accelerations set in
+ * `PSGlobalAcceleration` are used, if any. However, the used accelerations
+ * methods can be changed via the `acceleration` member of the optional
+ * argument `opts`.
+ * WARN: The cached transposed matrix is automatically freed by freeing its
+ * owner (`matrix`) with `PSMatrixFree`, so it should not be freed directly. In 
+ * order to free and reset the transposed cached matrix, the function
+ * `PSMatrixResetTransposed` should be called on `matrix`.
+ * WARN: most of the functions who alter the original matrix (`matrix`)
+ * will also invalidate the cached transposed matrix if any. However, manually
+ * changing matrix's values would lead to inconsistency between the matrix and
+ * its transposed version so the transposed matrix should be invalidated with
+ * `PSMatrixResetTransposed` or rebuilt by calling `PSMatrixTranspose` with
+ * `rebuild` argument set to true.
+ * Return value: the transposed matrix or NULL if:
+ *  - `matrix` is NULL.
+ *  - Memory canmot be allocated. */
 PSMatrix PSMatrixTranspose(PSMatrix matrix, int rebuild, PSMathOpts *opts) {
     PSMatrixHeader *hdr = PSMatrixGetHeader(matrix);
     PSMatrixHeader *t_hdr = NULL;
@@ -2151,6 +2525,25 @@ final:
     return transposed;
 }
 
+/* Create a new matrix by swapping axes of `matrix`. For example, swapping axes
+ * 0 and 1 of a matrix with shape of 2,3 would create a matrix with shape of
+ * 3,2 and swaping axes 1 and 2 of a matrix with shape 2,3,4 would create a
+ * matrix with a shape of 2,4,3.
+ * The axes to be swapped are defined by `axis1` and `axis2` arguments: by
+ * using a negative value for an axis, it will be counted from the last
+ * dimension of the shape, so, for example, swapping the axes -1 and -2 of
+ * a matrix with shape 2,3,4 would create a matrix with shape of 2,4,3.
+ * If both `axis1` and `axis2` refer to the same axis, the function will
+ * return a duplicated versiob of `matrix`.
+ * NOTE: despite calling this function with the first and the last axis would
+ * have the same result of `PSMatrixTranspose` in terms of matrix data and
+ * shape, the swapped matrix created by `PSMatrixSwapAxes` always is an
+ * independent matrix and not the cached tranposed matrix of `matrix`.
+ * Return value: the new swapped matrix or NULL if:
+ *  - `matrix` is NULL.
+ *  - `axis1` is out of bounds or `axis2` is out of bounds.
+ *  - Memory cannot be allocated.
+ */
 PSMatrix PSMatrixSwapAxes(PSMatrix matrix, int axis1, int axis2) {
     if (matrix == NULL) return NULL;
     PSMatrixHeader *hdr = PSMatrixGetHeader(matrix);
@@ -2246,6 +2639,8 @@ int PSMatrixEquals(PSMatrix a, PSMatrix b, int precision, int ignore_shape) {
     return PSVectorEquals(a, b, alen, precision, NULL);
 }
 
+/* Invalidate and freee the cached transposed version of `matrix`, if any (see
+ * `PSMatrixTranspose`). */
 void PSMatrixResetTransposed(PSMatrix matrix) {
     if (matrix == NULL) return;
     PSMatrixHeader *hdr = PSMatrixGetHeader(matrix);
@@ -2255,6 +2650,12 @@ void PSMatrixResetTransposed(PSMatrix matrix) {
     }
 }
 
+/* Free `matrix` by also deleting all its private data (including the cached
+ * transposed versiob of `matrix` if any).
+ * If `matrix` is NULL, the function will directly return.
+ * WARN: this function should not be directly called on `matrix` if it's  the
+ * cached transposed version of another matrix (see `PSMatrixTranspose`): in
+ * this case the function `PSMatrixResetTransposed` should be used instead. */
 void PSMatrixFree(PSMatrix matrix) {
     if (matrix == NULL) return;
     void *ptr = (void *) getMatrixHeadPointer(matrix);
@@ -2265,6 +2666,31 @@ void PSMatrixFree(PSMatrix matrix) {
 
 /**** Operations ****/
 
+/* Add vector `b` to vector `a`. The argument `length` defines the length of
+ * `a` and `b`, so both `a` and `b` must contain at least `length` elements.
+ * The resulting vector will have the same length of `a` and `b` and each of
+ * its elements will be the sum of the corresponding element of `a` and `b`
+ * at the same index (`dest[i] = a[i] + b[i]`).
+ * Results are stored into the optional `dest` arguments. If `dest` is NULL,
+ * a new vector will be allocated and its address will be  returned by the
+ * function itself.
+ * The function can take advantage of the available accelerations (both
+ * hardwware and software). By default, accelerations set in
+ * `PSGlobalAcceleration` are used, if any. However, the used accelerations
+ * methods can be changed via the `acceleration` member of the optional
+ * argument `opts`.
+ * Aside from acceleration, `opts` can also be used to set the result storage
+ * mode (by using the `store_mode` member):
+ *  - `PS_STORE_MODE_ADD`: the result is added to the existing values of `dest`.
+ *  - `PS_STORE_MODE_SUB`: the result is subtracted from the existing values
+ *     of `dest`.
+ * Some acceleration systems (ie. AVX) can use some storage modes to speed-up
+ * computation.
+ * Return value: the pointer to the address of the vector containing results.
+ * If `dest` is not NULL, the return value is `dest` itself, but if `dest`
+ * is NULL, the return value is the address of the newly allocated vector.
+ * The function returns NULL if `dest` is NULL but the destination vector
+ * cannot be allocated in memory. */
 PSFloat *PSAddVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
                       PSMathOpts *opts)
 {
@@ -2298,6 +2724,32 @@ PSFloat *PSAddVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
     return dest;
 }
 
+/* Subtract vector `b` from vector `a`. The argument `length` defines the
+ * length of `a` and `b`, so both `a` and `b` must contain at least `length`
+ * elements.
+ * The resulting vector will have the same length of `a` and `b` and each of
+ * its elements will be the subtraction of the corresponding element of `a`
+ * and `b` at the same index (`dest[i] = a[i] - b[i]`).
+ * Results are stored into the optional `dest` arguments. If `dest` is NULL,
+ * a new vector will be allocated and its address will be  returned by the
+ * function itself.
+ * The function can take advantage of the available accelerations (both
+ * hardwware and software). By default, accelerations set in
+ * `PSGlobalAcceleration` are used, if any. However, the used accelerations
+ * methods can be changed via the `acceleration` member of the optional
+ * argument `opts`.
+ * Aside from acceleration, `opts` can also be used to set the result storage
+ * mode (by using the `store_mode` member):
+ *  - `PS_STORE_MODE_ADD`: the result is added to the existing values of `dest`.
+ *  - `PS_STORE_MODE_SUB`: the result is subtracted from the existing values
+ *     of `dest`.
+ * Some acceleration systems (ie. AVX) can use some storage modes to speed-up
+ * computation.
+ * Return value: the pointer to the address of the vector containing results.
+ * If `dest` is not NULL, the return value is `dest` itself, but if `dest`
+ * is NULL, the return value is the address of the newly allocated vector.
+ * The function returns NULL if `dest` is NULL but the destination vector
+ * cannot be allocated in memory. */
 PSFloat *PSSubtractVectors(PSFloat *a, PSFloat *b, PSFloat *dest,
                            uint64_t length, PSMathOpts *opts)
 {
@@ -2329,6 +2781,32 @@ PSFloat *PSSubtractVectors(PSFloat *a, PSFloat *b, PSFloat *dest,
     return dest;
 }
 
+/* Multiply vector `a` by vector `b`. The argument `length` defines the length
+ * of `a` and `b`, so both `a` and `b` must contain at least `length`
+ * elements.
+ * The resulting vector will have the same length of `a` and `b` and each of
+ * its elements will be the multiplication of the corresponding element of `a`
+ * and `b` at the same index (`dest[i] = a[i] * b[i]`).
+ * Results are stored into the optional `dest` arguments. If `dest` is NULL,
+ * a new vector will be allocated and its address will be  returned by the
+ * function itself.
+ * The function can take advantage of the available accelerations (both
+ * hardwware and software). By default, accelerations set in
+ * `PSGlobalAcceleration` are used, if any. However, the used accelerations
+ * methods can be changed via the `acceleration` member of the optional
+ * argument `opts`.
+ * Aside from acceleration, `opts` can also be used to set the result storage
+ * mode (by using the `store_mode` member):
+ *  - `PS_STORE_MODE_ADD`: the result is added to the existing values of `dest`.
+ *  - `PS_STORE_MODE_SUB`: the result is subtracted from the existing values
+ *     of `dest`.
+ * Some acceleration systems (ie. AVX, Accelerate Framework) can use some
+ * storage modes to speed-up computation.
+ * Return value: the pointer to the address of the vector containing results.
+ * If `dest` is not NULL, the return value is `dest` itself, but if `dest`
+ * is NULL, the return value is the address of the newly allocated vector.
+ * The function returns NULL if `dest` is NULL but the destination vector
+ * cannot be allocated in memory. */
 PSFloat *PSMultiplyVectors(PSFloat *a, PSFloat *b, PSFloat *dest,
                            uint64_t length, PSMathOpts *opts)
 {
@@ -2373,6 +2851,32 @@ PSFloat *PSMultiplyVectors(PSFloat *a, PSFloat *b, PSFloat *dest,
     return dest;
 }
 
+/* Divide vector `a` by vector `b`. The argument `length` defines the length
+ * of `a` and `b`, so both `a` and `b` must contain at least `length`
+ * elements.
+ * The resulting vector will have the same length of `a` and `b` and each of
+ * its elements will be the division of the corresponding element of `a`
+ * and `b` at the same index (`dest[i] = a[i] / b[i]`).
+ * Results are stored into the optional `dest` arguments. If `dest` is NULL,
+ * a new vector will be allocated and its address will be  returned by the
+ * function itself.
+ * The function can take advantage of the available accelerations (both
+ * hardwware and software). By default, accelerations set in
+ * `PSGlobalAcceleration` are used, if any. However, the used accelerations
+ * methods can be changed via the `acceleration` member of the optional
+ * argument `opts`.
+ * Aside from acceleration, `opts` can also be used to set the result storage
+ * mode (by using the `store_mode` member):
+ *  - `PS_STORE_MODE_ADD`: the result is added to the existing values of `dest`.
+ *  - `PS_STORE_MODE_SUB`: the result is subtracted from the existing values
+ *     of `dest`.
+ * Some acceleration systems (ie. AVX) can use some storage modes to speed-up
+ * computation.
+ * Return value: the pointer to the address of the vector containing results.
+ * If `dest` is not NULL, the return value is `dest` itself, but if `dest`
+ * is NULL, the return value is the address of the newly allocated vector.
+ * The function returns NULL if `dest` is NULL but the destination vector
+ * cannot be allocated in memory. */
 PSFloat *PSDivideVectors(PSFloat *a, PSFloat *b, PSFloat *dest,uint64_t length,
                          PSMathOpts *opts)
 {
@@ -2414,6 +2918,31 @@ PSFloat *PSDivideVectors(PSFloat *a, PSFloat *b, PSFloat *dest,uint64_t length,
     return dest;
 }
 
+/* Multiply vector `a` by scalar `b`. The argument `length` defines the length
+ * of `a`.
+ * The resulting vector will have the same length of `a` and each of its
+ * elements will be the multiplication of the corresponding element of `a`
+ * at the same index by scalar value b (`dest[i] = a[i] * b`).
+ * Results are stored into the optional `dest` arguments. If `dest` is NULL,
+ * a new vector will be allocated and its address will be  returned by the
+ * function itself.
+ * The function can take advantage of the available accelerations (both
+ * hardwware and software). By default, accelerations set in
+ * `PSGlobalAcceleration` are used, if any. However, the used accelerations
+ * methods can be changed via the `acceleration` member of the optional
+ * argument `opts`.
+ * Aside from acceleration, `opts` can also be used to set the result storage
+ * mode (by using the `store_mode` member):
+ *  - `PS_STORE_MODE_ADD`: the result is added to the existing values of `dest`.
+ *  - `PS_STORE_MODE_SUB`: the result is subtracted from the existing values
+ *     of `dest`.
+ * Some acceleration systems (ie. AVX) can use some storage modes to speed-up
+ * computation.
+ * Return value: the pointer to the address of the vector containing results.
+ * If `dest` is not NULL, the return value is `dest` itself, but if `dest`
+ * is NULL, the return value is the address of the newly allocated vector.
+ * The function returns NULL if `dest` is NULL but the destination vector
+ * cannot be allocated in memory. */
 PSFloat *PSMultiplyVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
                                 uint64_t length, PSMathOpts *opts)
 {
@@ -2446,6 +2975,31 @@ PSFloat *PSMultiplyVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
     return dest;
 }
 
+/* Add scalar `b` to vector `a`. The argument `length` defines the length
+ * of `a`.
+ * The resulting vector will have the same length of `a` and each of its
+ * elements will be the sum of the corresponding element of `a` at the same
+ * index and scalar value b (`dest[i] = a[i] + b`).
+ * Results are stored into the optional `dest` arguments. If `dest` is NULL,
+ * a new vector will be allocated and its address will be  returned by the
+ * function itself.
+ * The function can take advantage of the available accelerations (both
+ * hardwware and software). By default, accelerations set in
+ * `PSGlobalAcceleration` are used, if any. However, the used accelerations
+ * methods can be changed via the `acceleration` member of the optional
+ * argument `opts`.
+ * Aside from acceleration, `opts` can also be used to set the result storage
+ * mode (by using the `store_mode` member):
+ *  - `PS_STORE_MODE_ADD`: the result is added to the existing values of `dest`.
+ *  - `PS_STORE_MODE_SUB`: the result is subtracted from the existing values
+ *     of `dest`.
+ * Some acceleration systems (ie. AVX) can use some storage modes to speed-up
+ * computation.
+ * Return value: the pointer to the address of the vector containing results.
+ * If `dest` is not NULL, the return value is `dest` itself, but if `dest`
+ * is NULL, the return value is the address of the newly allocated vector.
+ * The function returns NULL if `dest` is NULL but the destination vector
+ * cannot be allocated in memory. */
 PSFloat *PSAddVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
                            uint64_t length, PSMathOpts *opts)
 {
@@ -2478,6 +3032,31 @@ PSFloat *PSAddVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
     return dest;
 }
 
+/* Subtract scalar `b` from vector `a`. The argument `length` defines the
+ * length of `a`.
+ * The resulting vector will have the same length of `a` and each of its
+ * elements will be the result of the subtraction of `b` from the corresponding
+ * element of `a` at the same index (`dest[i] = a[i] - b`).
+ * Results are stored into the optional `dest` arguments. If `dest` is NULL,
+ * a new vector will be allocated and its address will be  returned by the
+ * function itself.
+ * The function can take advantage of the available accelerations (both
+ * hardwware and software). By default, accelerations set in
+ * `PSGlobalAcceleration` are used, if any. However, the used accelerations
+ * methods can be changed via the `acceleration` member of the optional
+ * argument `opts`.
+ * Aside from acceleration, `opts` can also be used to set the result storage
+ * mode (by using the `store_mode` member):
+ *  - `PS_STORE_MODE_ADD`: the result is added to the existing values of `dest`.
+ *  - `PS_STORE_MODE_SUB`: the result is subtracted from the existing values
+ *     of `dest`.
+ * Some acceleration systems (ie. AVX) can use some storage modes to speed-up
+ * computation.
+ * Return value: the pointer to the address of the vector containing results.
+ * If `dest` is not NULL, the return value is `dest` itself, but if `dest`
+ * is NULL, the return value is the address of the newly allocated vector.
+ * The function returns NULL if `dest` is NULL but the destination vector
+ * cannot be allocated in memory. */
 PSFloat *PSSubtractVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
                                 uint64_t length, PSMathOpts *opts)
 {
@@ -2509,6 +3088,31 @@ PSFloat *PSSubtractVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
     return dest;
 }
 
+/* Subtract vector `a` from scalar `b`. The argument `length` defines the
+ * length of `a`.
+ * The resulting vector will have the same length of `a` and each of its
+ * elements will be the result of the subtraction of the corresponding element
+ * of `a` ant the same index from value of `b` (`dest[i] = b - a[i]`).
+ * Results are stored into the optional `dest` arguments. If `dest` is NULL,
+ * a new vector will be allocated and its address will be  returned by the
+ * function itself.
+ * The function can take advantage of the available accelerations (both
+ * hardwware and software). By default, accelerations set in
+ * `PSGlobalAcceleration` are used, if any. However, the used accelerations
+ * methods can be changed via the `acceleration` member of the optional
+ * argument `opts`.
+ * Aside from acceleration, `opts` can also be used to set the result storage
+ * mode (by using the `store_mode` member):
+ *  - `PS_STORE_MODE_ADD`: the result is added to the existing values of `dest`.
+ *  - `PS_STORE_MODE_SUB`: the result is subtracted from the existing values
+ *     of `dest`.
+ * Some acceleration systems (ie. AVX) can use some storage modes to speed-up
+ * computation.
+ * Return value: the pointer to the address of the vector containing results.
+ * If `dest` is not NULL, the return value is `dest` itself, but if `dest`
+ * is NULL, the return value is the address of the newly allocated vector.
+ * The function returns NULL if `dest` is NULL but the destination vector
+ * cannot be allocated in memory. */
 PSFloat *PSSubtractScalarVector(PSFloat b, PSFloat *a, PSFloat *dest,
                                 uint64_t length, PSMathOpts *opts)
 {
@@ -2541,6 +3145,31 @@ PSFloat *PSSubtractScalarVector(PSFloat b, PSFloat *a, PSFloat *dest,
     return dest;
 }
 
+/* Divide vector `a` by scalar `b`. The argument `length` defines the length
+ * of `a`.
+ * The resulting vector will have the same length of `a` and each of its
+ * elements will be the result of the corresponding element of `a` at the same
+ * by the scalar value of `b` (`dest[i] = a[i] / b`).
+ * Results are stored into the optional `dest` arguments. If `dest` is NULL,
+ * a new vector will be allocated and its address will be  returned by the
+ * function itself.
+ * The function can take advantage of the available accelerations (both
+ * hardwware and software). By default, accelerations set in
+ * `PSGlobalAcceleration` are used, if any. However, the used accelerations
+ * methods can be changed via the `acceleration` member of the optional
+ * argument `opts`.
+ * Aside from acceleration, `opts` can also be used to set the result storage
+ * mode (by using the `store_mode` member):
+ *  - `PS_STORE_MODE_ADD`: the result is added to the existing values of `dest`.
+ *  - `PS_STORE_MODE_SUB`: the result is subtracted from the existing values
+ *     of `dest`.
+ * Some acceleration systems (ie. AVX) can use some storage modes to speed-up
+ * computation.
+ * Return value: the pointer to the address of the vector containing results.
+ * If `dest` is not NULL, the return value is `dest` itself, but if `dest`
+ * is NULL, the return value is the address of the newly allocated vector.
+ * The function returns NULL if `dest` is NULL but the destination vector
+ * cannot be allocated in memory. */
 PSFloat *PSDivideVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
                               uint64_t length, PSMathOpts *opts)
 {
@@ -2573,6 +3202,31 @@ PSFloat *PSDivideVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
     return dest;
 }
 
+/* Divide scalar `b` by vector `a`. The argument `length` defines the length
+ * of `a`.
+ * The resulting vector will have the same length of `a` and each of its
+ * elements will be the result of the division of the scalar value of `b` by
+ * the corresponding element of `a` ant the same index (`dest[i] = b / a[i]`).
+ * Results are stored into the optional `dest` arguments. If `dest` is NULL,
+ * a new vector will be allocated and its address will be  returned by the
+ * function itself.
+ * The function can take advantage of the available accelerations (both
+ * hardwware and software). By default, accelerations set in
+ * `PSGlobalAcceleration` are used, if any. However, the used accelerations
+ * methods can be changed via the `acceleration` member of the optional
+ * argument `opts`.
+ * Aside from acceleration, `opts` can also be used to set the result storage
+ * mode (by using the `store_mode` member):
+ *  - `PS_STORE_MODE_ADD`: the result is added to the existing values of `dest`.
+ *  - `PS_STORE_MODE_SUB`: the result is subtracted from the existing values
+ *     of `dest`.
+ * Some acceleration systems (ie. AVX) can use some storage modes to speed-up
+ * computation.
+ * Return value: the pointer to the address of the vector containing results.
+ * If `dest` is not NULL, the return value is `dest` itself, but if `dest`
+ * is NULL, the return value is the address of the newly allocated vector.
+ * The function returns NULL if `dest` is NULL but the destination vector
+ * cannot be allocated in memory. */
 PSFloat *PSDivideScalarVector(PSFloat b, PSFloat *a, PSFloat *dest,
                               uint64_t length, PSMathOpts *opts)
 {
@@ -2606,6 +3260,27 @@ PSFloat *PSDivideScalarVector(PSFloat b, PSFloat *a, PSFloat *dest,
     return dest;
 }
 
+/* Compute hyperbolic tangent (tanh) on every element of vector `a` having
+ * length defined by `length`.
+ * Results are stored into the optional `dest` arguments. If `dest` is NULL,
+ * a new vector will be allocated and its address will be  returned by the
+ * function itself.
+ * The function can take advantage of the available accelerations (both
+ * hardwware and software). By default, accelerations set in
+ * `PSGlobalAcceleration` are used, if any. However, the used accelerations
+ * methods can be changed via the `acceleration` member of the optional
+ * argument `opts`.
+ * Aside from acceleration, `opts` can also be used to set the result storage
+ * mode (by using the `store_mode` member):
+ *  - `PS_STORE_MODE_ADD`: the result is added to the existing values of `dest`.
+ *  - `PS_STORE_MODE_SUB`: the result is subtracted from the existing values
+ *     of `dest`.
+ * WARN: by using `store_mode`, acceleration will be currently disabled.
+ * Return value: the pointer to the address of the vector containing results.
+ * If `dest` is not NULL, the return value is `dest` itself, but if `dest`
+ * is NULL, the return value is the address of the newly allocated vector.
+ * The function returns NULL if `dest` is NULL but the destination vector
+ * cannot be allocated in memory. */
 PSFloat *PSVectorTanh(PSFloat *a, PSFloat *dest, uint64_t length,
                       PSMathOpts *opts)
 {
@@ -2633,6 +3308,27 @@ PSFloat *PSVectorTanh(PSFloat *a, PSFloat *dest, uint64_t length,
     return dest;
 }
 
+/* Compute base-e (Euler's number) exponential  on every element of vector `a`
+ * having length defined by `length`.
+ * Results are stored into the optional `dest` arguments. If `dest` is NULL,
+ * a new vector will be allocated and its address will be  returned by the
+ * function itself.
+ * The function can take advantage of the available accelerations (both
+ * hardwware and software). By default, accelerations set in
+ * `PSGlobalAcceleration` are used, if any. However, the used accelerations
+ * methods can be changed via the `acceleration` member of the optional
+ * argument `opts`.
+ * Aside from acceleration, `opts` can also be used to set the result storage
+ * mode (by using the `store_mode` member):
+ *  - `PS_STORE_MODE_ADD`: the result is added to the existing values of `dest`.
+ *  - `PS_STORE_MODE_SUB`: the result is subtracted from the existing values
+ *     of `dest`.
+ * WARN: by using `store_mode`, acceleration will be currently disabled.
+ * Return value: the pointer to the address of the vector containing results.
+ * If `dest` is not NULL, the return value is `dest` itself, but if `dest`
+ * is NULL, the return value is the address of the newly allocated vector.
+ * The function returns NULL if `dest` is NULL but the destination vector
+ * cannot be allocated in memory. */
 PSFloat *PSVectorExp(PSFloat *a, PSFloat *dest, uint64_t length,
                      PSMathOpts *opts)
 {
@@ -2660,6 +3356,27 @@ PSFloat *PSVectorExp(PSFloat *a, PSFloat *dest, uint64_t length,
     return dest;
 }
 
+/* Compute square root on every element of vector `a` having length defined by
+ * `length`.
+ * Results are stored into the optional `dest` arguments. If `dest` is NULL,
+ * a new vector will be allocated and its address will be  returned by the
+ * function itself.
+ * The function can take advantage of the available accelerations (both
+ * hardwware and software). By default, accelerations set in
+ * `PSGlobalAcceleration` are used, if any. However, the used accelerations
+ * methods can be changed via the `acceleration` member of the optional
+ * argument `opts`.
+ * Aside from acceleration, `opts` can also be used to set the result storage
+ * mode (by using the `store_mode` member):
+ *  - `PS_STORE_MODE_ADD`: the result is added to the existing values of `dest`.
+ *  - `PS_STORE_MODE_SUB`: the result is subtracted from the existing values
+ *     of `dest`.
+ * WARN: by using `store_mode`, acceleration will be currently disabled.
+ * Return value: the pointer to the address of the vector containing results.
+ * If `dest` is not NULL, the return value is `dest` itself, but if `dest`
+ * is NULL, the return value is the address of the newly allocated vector.
+ * The function returns NULL if `dest` is NULL but the destination vector
+ * cannot be allocated in memory. */
 PSFloat *PSVectorSqrt(PSFloat *a, PSFloat *dest, uint64_t length,
                       PSMathOpts *opts)
 {
@@ -2687,6 +3404,27 @@ PSFloat *PSVectorSqrt(PSFloat *a, PSFloat *dest, uint64_t length,
     return dest;
 }
 
+/* Compute the negative value of every element of vector `a` having length
+ * defined by `length` (`dest[i] = -a[i]`).
+ * Results are stored into the optional `dest` arguments. If `dest` is NULL,
+ * a new vector will be allocated and its address will be  returned by the
+ * function itself.
+ * The function can take advantage of the available accelerations (both
+ * hardwware and software). By default, accelerations set in
+ * `PSGlobalAcceleration` are used, if any. However, the used accelerations
+ * methods can be changed via the `acceleration` member of the optional
+ * argument `opts`.
+ * Aside from acceleration, `opts` can also be used to set the result storage
+ * mode (by using the `store_mode` member):
+ *  - `PS_STORE_MODE_ADD`: the result is added to the existing values of `dest`.
+ *  - `PS_STORE_MODE_SUB`: the result is subtracted from the existing values
+ *     of `dest`.
+ * WARN: by using `store_mode`, acceleration will be currently disabled.
+ * Return value: the pointer to the address of the vector containing results.
+ * If `dest` is not NULL, the return value is `dest` itself, but if `dest`
+ * is NULL, the return value is the address of the newly allocated vector.
+ * The function returns NULL if `dest` is NULL but the destination vector
+ * cannot be allocated in memory. */
 PSFloat *PSVectorNeg(PSFloat *a, PSFloat *dest, uint64_t length,
                      PSMathOpts *opts)
 {
@@ -2719,6 +3457,27 @@ PSFloat *PSVectorNeg(PSFloat *a, PSFloat *dest, uint64_t length,
     return dest;
 }
 
+/* Compute the absolute value of every element of vector `a` having length
+ * defined by `length` (`dest[i] = abs(a[i])`).
+ * Results are stored into the optional `dest` arguments. If `dest` is NULL,
+ * a new vector will be allocated and its address will be  returned by the
+ * function itself.
+ * The function can take advantage of the available accelerations (both
+ * hardwware and software). By default, accelerations set in
+ * `PSGlobalAcceleration` are used, if any. However, the used accelerations
+ * methods can be changed via the `acceleration` member of the optional
+ * argument `opts`.
+ * Aside from acceleration, `opts` can also be used to set the result storage
+ * mode (by using the `store_mode` member):
+ *  - `PS_STORE_MODE_ADD`: the result is added to the existing values of `dest`.
+ *  - `PS_STORE_MODE_SUB`: the result is subtracted from the existing values
+ *     of `dest`.
+ * WARN: by using `store_mode`, acceleration will be currently disabled.
+ * Return value: the pointer to the address of the vector containing results.
+ * If `dest` is not NULL, the return value is `dest` itself, but if `dest`
+ * is NULL, the return value is the address of the newly allocated vector.
+ * The function returns NULL if `dest` is NULL but the destination vector
+ * cannot be allocated in memory. */
 PSFloat *PSVectorAbs(PSFloat *a, PSFloat *dest, uint64_t length,
                      PSMathOpts *opts)
 {
@@ -2746,6 +3505,28 @@ PSFloat *PSVectorAbs(PSFloat *a, PSFloat *dest, uint64_t length,
     return dest;
 }
 
+/* Clip values of vector `a` having length defined by `length` to minimum value
+ * defined by `min` and maximum value defined by `max`
+ * (`dest[i] = (a[i] < min ? min : (a[i] > max ? max : a[i]))`).
+ * Results are stored into the optional `dest` arguments. If `dest` is NULL,
+ * a new vector will be allocated and its address will be  returned by the
+ * function itself.
+ * The function can take advantage of the available accelerations (both
+ * hardwware and software). By default, accelerations set in
+ * `PSGlobalAcceleration` are used, if any. However, the used accelerations
+ * methods can be changed via the `acceleration` member of the optional
+ * argument `opts`.
+ * Aside from acceleration, `opts` can also be used to set the result storage
+ * mode (by using the `store_mode` member):
+ *  - `PS_STORE_MODE_ADD`: the result is added to the existing values of `dest`.
+ *  - `PS_STORE_MODE_SUB`: the result is subtracted from the existing values
+ *     of `dest`.
+ * WARN: by using `store_mode`, acceleration will be currently disabled.
+ * Return value: the pointer to the address of the vector containing results.
+ * If `dest` is not NULL, the return value is `dest` itself, but if `dest`
+ * is NULL, the return value is the address of the newly allocated vector.
+ * The function returns NULL if `dest` is NULL but the destination vector
+ * cannot be allocated in memory. */
 PSFloat *PSVectorClip(PSFloat *a, PSFloat min, PSFloat max, PSFloat *dest,
                       uint64_t length, PSMathOpts *opts)
 {
@@ -2778,6 +3559,28 @@ PSFloat *PSVectorClip(PSFloat *a, PSFloat min, PSFloat max, PSFloat *dest,
     return dest;
 }
 
+/* Clip values of vector `a` having length defined by `length` to minimum value
+ * defined by `min` and maximum value of PSFloat (`PSFLOAT_MAX`).
+ * (`dest[i] = (a[i] < min ? min : (a[i] > PSFLOAT_MAX ? PSFLOAT_MAX : a[i]))`).
+ * Results are stored into the optional `dest` arguments. If `dest` is NULL,
+ * a new vector will be allocated and its address will be  returned by the
+ * function itself.
+ * The function can take advantage of the available accelerations (both
+ * hardwware and software). By default, accelerations set in
+ * `PSGlobalAcceleration` are used, if any. However, the used accelerations
+ * methods can be changed via the `acceleration` member of the optional
+ * argument `opts`.
+ * Aside from acceleration, `opts` can also be used to set the result storage
+ * mode (by using the `store_mode` member):
+ *  - `PS_STORE_MODE_ADD`: the result is added to the existing values of `dest`.
+ *  - `PS_STORE_MODE_SUB`: the result is subtracted from the existing values
+ *     of `dest`.
+ * WARN: by using `store_mode`, acceleration will be currently disabled.
+ * Return value: the pointer to the address of the vector containing results.
+ * If `dest` is not NULL, the return value is `dest` itself, but if `dest`
+ * is NULL, the return value is the address of the newly allocated vector.
+ * The function returns NULL if `dest` is NULL but the destination vector
+ * cannot be allocated in memory. */
 PSFloat *PSVectorThreshold(PSFloat *a, PSFloat min, PSFloat *dest,
                            uint64_t length, PSMathOpts *opts)
 {
@@ -2810,6 +3613,23 @@ PSFloat *PSVectorThreshold(PSFloat *a, PSFloat min, PSFloat *dest,
     return dest;
 }
 
+/* Map values of vector `a` having length defined by `length` with the value
+ * defined by `mapper`: values greater than `limit` will be represented with
+ * the value of `mapper`, while values equal or less than `limit` will be
+ * represented with negative value of `mapper` (`-(mapper)`);
+ * Results are stored into the optional `dest` arguments. If `dest` is NULL,
+ * a new vector will be allocated and its address will be  returned by the
+ * function itself.
+ * The function can take advantage of the available accelerations (both
+ * hardwware and software). By default, accelerations set in
+ * `PSGlobalAcceleration` are used, if any. However, the used accelerations
+ * methods can be changed via the `acceleration` member of the optional
+ * argument `opts`.
+ * Return value: the pointer to the address of the vector containing results.
+ * If `dest` is not NULL, the return value is `dest` itself, but if `dest`
+ * is NULL, the return value is the address of the newly allocated vector.
+ * The function returns NULL if `dest` is NULL but the destination vector
+ * cannot be allocated in memory. */
 PSFloat *PSVectorMapWithLimit(PSFloat *a, PSFloat limit, PSFloat mapper,
                               PSFloat *dest, uint64_t length, PSMathOpts *opts)
 {
@@ -2830,10 +3650,24 @@ PSFloat *PSVectorMapWithLimit(PSFloat *a, PSFloat limit, PSFloat mapper,
     return dest;
 }
 
+/* Compute the maximum value among values of vector `a` having length defined
+ * by `length`.
+ * The optional pointer `index` can be used, if not NULL, to retrieve the index
+ * of the maximum value.
+ * The function can take advantage of the available accelerations (both
+ * hardwware and software). By default, accelerations set in
+ * `PSGlobalAcceleration` are used, if any. However, the used accelerations
+ * methods can be changed via the `acceleration` member of the optional
+ * argument `opts`.
+ * Return value: the maxium value in the vector `a`. */
 PSFloat PSVectorMax(PSFloat *a, uint64_t *index, uint64_t length,
                     PSMathOpts *opts)
 {
     PSFloat max = PSFLOAT_MIN;
+    if (a == NULL) {
+        if (index != NULL) *index = 0;
+        return max;
+    }
     int acceleration = PSGlobalAcceleration;
     if (opts != NULL) acceleration = opts->acceleration;
 #if defined(HAS_ACCELERATE_FRAMEWORK)
@@ -2857,7 +3691,17 @@ PSFloat PSVectorMax(PSFloat *a, uint64_t *index, uint64_t length,
     return max;
 }
 
+/* Compute the sum of all the elements of vector `a` having length defined by
+ * `length`.
+ * The function can take advantage of the available accelerations (both
+ * hardwware and software). By default, accelerations set in
+ * `PSGlobalAcceleration` are used, if any. However, the used accelerations
+ * methods can be changed via the `acceleration` member of the optional
+ * argument `opts`.
+ * Return value: the sum of all the elements in the vector `a` or zero if
+ * `a` is NULL. */
 PSFloat PSVectorReduceSum(PSFloat *a, uint64_t length, PSMathOpts *opts) {
+    if (a == NULL) return 0.0;
     PSFloat sum = 0.0;
     int acceleration = PSGlobalAcceleration;
     if (opts != NULL) acceleration = opts->acceleration;
@@ -2874,6 +3718,28 @@ PSFloat PSVectorReduceSum(PSFloat *a, uint64_t length, PSMathOpts *opts) {
     return sum;
 }
 
+/* Raise each value of vector `a` having length `length` to power of `exp`.
+ * If the value of `exp` is 2, the function will just call `PSMultiplyVectors`
+ * function, mutiplying `a` by itself.
+ * Results are stored into the optional `dest` arguments. If `dest` is NULL,
+ * a new vector will be allocated and its address will be  returned by the
+ * function itself.
+ * The function can take advantage of the available accelerations (both
+ * hardwware and software). By default, accelerations set in
+ * `PSGlobalAcceleration` are used, if any. However, the used accelerations
+ * methods can be changed via the `acceleration` member of the optional
+ * argument `opts`.
+ * Aside from acceleration, `opts` can also be used to set the result storage
+ * mode (by using the `store_mode` member):
+ *  - `PS_STORE_MODE_ADD`: the result is added to the existing values of `dest`.
+ *  - `PS_STORE_MODE_SUB`: the result is subtracted from the existing values
+ *     of `dest`.
+ * WARN: by using `store_mode`, acceleration will be currently disabled.
+ * Return value: the pointer to the address of the vector containing results.
+ * If `dest` is not NULL, the return value is `dest` itself, but if `dest`
+ * is NULL, the return value is the address of the newly allocated vector.
+ * The function returns NULL if `dest` is NULL but the destination vector
+ * cannot be allocated in memory. */
 PSFloat *PSVectorPower(PSFloat *a, PSFloat exp, PSFloat *dest, uint64_t length,
                        PSMathOpts *opts)
 {
@@ -2910,6 +3776,13 @@ PSFloat *PSVectorPower(PSFloat *a, PSFloat exp, PSFloat *dest, uint64_t length,
     return dest;
 }
 
+/* Compute the cumulative sum on elements of vector `a` having length defined by
+ * `length`. The results will be stored into the vector `dest` that must have
+ * at least the same length of `a`. The value of each element of the resulting
+ * vector will be the sum of the values of `a` up to the index of the current
+ * resulting vector element (ie. `dest[2] = a[0] + a[1] + a[2]`).
+ * Return value: 1 if the function is successfully executed or 0 if:
+ *  - `a` is NULL or `dest` is NULL. */
 int PSCumulativeSum(PSFloat *a, PSFloat *dest, uint64_t length) {
     if (a == NULL || dest == NULL) {
         PSErr(__func__, "`a` and `dest` cannot be null");
@@ -2923,8 +3796,17 @@ int PSCumulativeSum(PSFloat *a, PSFloat *dest, uint64_t length) {
     return 1;
 }
 
+/* Compute the mean value of the elements of vector `a` having length defined
+ * by `length`.
+ * The function can take advantage of the available accelerations (both
+ * hardwware and software). By default, accelerations set in
+ * `PSGlobalAcceleration` are used, if any. However, the used accelerations
+ * methods can be changed via the `acceleration` member of the optional
+ * argument `opts`.
+ * Return value: the mean value of vector `a` values or zero if `a` is NULL. */
 PSFloat PSMean(PSFloat *a, uint64_t length, PSMathOpts *opts) {
     PSFloat mean = 0.0;
+    if (a == NULL) return mean;
     int acceleration = PSGlobalAcceleration;
     if (opts != NULL) acceleration = opts->acceleration;
 #if defined(HAS_ACCELERATE_FRAMEWORK)
@@ -2941,8 +3823,18 @@ PSFloat PSMean(PSFloat *a, uint64_t length, PSMathOpts *opts) {
     return mean;
 }
 
+/* Compute the statistical varicance of the elements of vector `a` having
+ * length defined by `length`.
+ * The variance is the sum of the squared difference of the difference between
+ * each value of `a` and the mean value of `a`.
+ * The function can take advantage of the available accelerations (both
+ * hardwware and software). By default, accelerations set in
+ * `PSGlobalAcceleration` are used, if any. However, the used accelerations
+ * methods can be changed via the `acceleration` member of the optional
+ * argument `opts`.
+ * Return value: the variance of vector `a` values or zero if `a` is NULL. */
 PSFloat PSVariance(PSFloat *a, uint64_t len, PSMathOpts *opts) {
-    if (len == 0) return 0;
+    if (len == 0 || a == NULL) return 0;
     PSFloat var = 0.0;
     PSFloat *cache = NULL;
     PSFloat mean = PSMean(a, len, opts);
@@ -2976,13 +3868,36 @@ final:
     return var;
 }
 
+/* Compute the standard deviation of the elements of vector `a` having
+ * length defined by `length`.
+ * The standard deviation is the square root of the statistical variance (see
+ * `PSVariance`).
+ * The function can take advantage of the available accelerations (both
+ * hardwware and software). By default, accelerations set in
+ * `PSGlobalAcceleration` are used, if any. However, the used accelerations
+ * methods can be changed via the `acceleration` member of the optional
+ * argument `opts`.
+ * Return value: the variance of vector `a` values or zero if `a` is NULL. */
 PSFloat PSStdDev(PSFloat *a, uint64_t len, PSMathOpts *opts) {
     PSFloat variance = PSVariance(a, len, opts);
     return PSSqrt(variance);
 }
 
+/* Compute the dot product of vector `a` and vector `b`, both having length
+ * defined by `length`.
+ * The dot product is the sum of the product of each element of `a` by the
+ * corresponding element of `b` at the same index
+ * (`a[0] * b[0] + a[1] * b[1] + ... + a[n] * b[n]`).
+ * The function can take advantage of the available accelerations (both
+ * hardwware and software). By default, accelerations set in
+ * `PSGlobalAcceleration` are used, if any. However, the used accelerations
+ * methods can be changed via the `acceleration` member of the optional
+ * argument `opts`.
+ * Return value: the resulting dot product (scalar) or zero if `a` is NULL
+ * or `b` is NULL.*/
 PSFloat PSDotProduct(PSFloat *a, PSFloat *b, uint64_t length, PSMathOpts *opts)
 {
+    if (a == NULL || b == NULL) return 0;
     PSDotProductDebug debugStep = NULL;
     uint64_t i = 0;
     PSFloat result = 0.0;
@@ -3048,14 +3963,29 @@ PSFloat PSDotSquare(PSFloat *a, uint64_t length, PSMathOpts *opts) {
 
 /* Performs matrix-matrix multiplication, matrix-vector multiplication,
  * vector-matrix multiplication or vector-vector multiplication,
- * depending on the value of `argtype` field in opts (default is
- * matrix-matrix).
- * Store result is `dest`.
- * Return value: 1 in case of success, 0 in case of failure.
+ * depending on the value of `argtype` field in opts (default is matrix-matrix).
+ * The resulting vector is stored into `dest`.
+ * The function can take advantage of the available accelerations (both
+ * hardwware and software). By default, accelerations set in
+ * `PSGlobalAcceleration` are used, if any. However, the used accelerations
+ * methods can be changed via the `acceleration` member of the optional
+ * argument `opts`.
+ * Aside from acceleration, `opts` can also be used to set the result storage
+ * mode (by using the `store_mode` member):
+ *  - `PS_STORE_MODE_ADD`: the result is added to the existing values of `dest`.
+ *  - `PS_STORE_MODE_SUB`: the result is subtracted from the existing values
+ *     of `dest`.
  * NOTE: if `argtype` for both `a` and `b` is 'V', the function will compute
  * the dot product of the two vectors, assuming that they have the same size.
  * If you need to perform matrix multiplication on two PSFloat arrays,
- * use `PSMatMul` instead. */
+ * use `PSMatMul` instead.
+ * Return value: 1 in case of success, 0 in case of failure.
+ * Possible failure reasons:
+ *  - `a` is NULL or `b` is NULL or `dest` is NULL.
+ *  - Memory allocation failure.
+ *  - `a` is vector or `b` is vector and the resulting length would be zero.
+ *  - Both `a` and `b` are vectors but `vector_len` member of optional `opts`
+ *    argument is zero or `opts` is NULL. */
 int PSDot(PSMatrix a, PSMatrix b, PSMatrix dest, PSMathOpts *opts) {
     if (a == NULL || b == NULL || dest == NULL) {
         if (a == NULL) PSErr(__func__, "`a` cannot be null");
@@ -3183,13 +4113,26 @@ int PSDot(PSMatrix a, PSMatrix b, PSMatrix dest, PSMathOpts *opts) {
     return 1;
 }
 
+/* Perform matrix-vector multiplication by calling `PSDot` and setting
+ * `argtype` member of `opts` to `argtype[0] = 'M', argtype[1] = 'V'`.
+ * See `PSDot` for a more detailed description.
+ * NOTE: `opts` argument is optional, and if given, it's never overwritten
+ * by the function since its values are copied to a local structure.
+ * Return value: See `PSDot`. */
 int PSDotMV(PSMatrix a, PSFloat *b, PSFloat *dest, PSMathOpts *opts) {
-    PSMathOpts myopts = *opts;
+    PSMathOpts myopts = {0};
+    if (opts != NULL) myopts = *opts;
     myopts.argtype[0] = 'M';
     myopts.argtype[1] = 'V';
     return PSDot(a, b, dest, &myopts);
 }
 
+/* Perform vector-matrix multiplication by calling `PSDot` and setting
+ * `argtype` member of `opts` to `argtype[0] = 'V', argtype[1] = 'M'`.
+ * See `PSDot` for a more detailed description.
+ * NOTE: `opts` argument is optional, and if given, it's never overwritten
+ * by the function since its values are copied to a local structure.
+ * Return value: See `PSDot`. */
 int PSDotVM(PSFloat *a, PSMatrix b, PSMatrix dest, PSMathOpts *opts) {
     PSMathOpts myopts = *opts;
     myopts.argtype[0] = 'V';
@@ -3199,7 +4142,20 @@ int PSDotVM(PSFloat *a, PSMatrix b, PSMatrix dest, PSMathOpts *opts) {
 
 /* Multiply every element of vector `a` (having `alen` length) by every
  * element of vector `b` (having `blen` length) and store results into
- * vector `dest` (whose length must be `alen` * `blen`). */
+ * vector `dest` (whose length must be the product of `alen` by `blen`).
+ * The function can take advantage of the available accelerations (both
+ * hardwware and software). By default, accelerations set in
+ * `PSGlobalAcceleration` are used, if any. However, the used accelerations
+ * methods can be changed via the `acceleration` member of the optional
+ * argument `opts`.
+ * Aside from acceleration, `opts` can also be used to set the result storage
+ * mode (by using the `store_mode` member):
+ *  - `PS_STORE_MODE_ADD`: the result is added to the existing values of `dest`.
+ *  - `PS_STORE_MODE_SUB`: the result is subtracted from the existing values
+ *     of `dest`.
+ * Return value: 1 is the function succeeds or zero if:
+ *  - `a` is NULL or `b` is NULL or `dest` is NULL.
+ *  - BLAS computation error if BLAS acceleration is used. */
 int PSOuterProduct(PSFloat *a, PSFloat *b, PSFloat *dest,
                    uint64_t alen, uint64_t blen, PSMathOpts *opts)
 {
@@ -3286,6 +4242,13 @@ no_acceleration:
     return 1;
 }
 
+/* Fill vector `vec` having length defined by `len` with `value`. The function
+ * will immediately return if `vec` is NULL or `len` is zero.
+ * The function can take advantage of the available accelerations (both
+ * hardwware and software). By default, accelerations set in
+ * `PSGlobalAcceleration` are used, if any. However, the used accelerations
+ * methods can be changed via the `acceleration` member of the optional
+ * argument `opts`. */
 void PSVectorFill(PSFloat *vec, PSFloat val, uint64_t len, PSMathOpts *opts) {
     if (len == 0 || vec == NULL) return;
     int acceleration = PSGlobalAcceleration;
@@ -3305,12 +4268,22 @@ void PSVectorFill(PSFloat *vec, PSFloat val, uint64_t len, PSMathOpts *opts) {
     for (uint64_t i = 0; i < len; i++) vec[i] = val;
 }
 
+/* Write a string representation of vector `vec` having length of `len`
+ * to the file stream `f`.
+ * The optional `sep` argument can be used to specify a separator string for
+ * vector's values (if `sep` is null, by default "," is used as separator).
+ * If `vec` is null or `f` is null, the function will immediately return. */
 void PSVectorWrite(PSFloat *vec, uint64_t len, char* sep, FILE *f) {
     if (vec == NULL || f == NULL) return;
     if (sep == NULL) sep = ",";
     writeSerializedFloatArray(f, len, sep, 0, vec);
 }
 
+/* Print a string representation of vector `vec` having length of `len` to
+ * the standard output.
+ * The optional `sep` argument can be used to specify a separator string for
+ * vector's values (if `sep` is null, by default "," is used as separator).
+ * If `vec` is NULL the function will immediately return. */
 void PSVectorPrint(PSFloat *vec, uint64_t len, char* sep) {
     PSVectorWrite(vec, len, sep, stdout);
     printf("\n");
@@ -3318,16 +4291,35 @@ void PSVectorPrint(PSFloat *vec, uint64_t len, char* sep) {
 
 /* Create a transposed version of `vec`, considering it a matrix with a shape
  * of `ndims` dimensions.
- * Use variadic arguments to set up-to 3 dimensions in the shape,
- * (ie rows, columns for 2-D array).
- * If `dest` is not NULL, transposed vector will be stored into it.
- * Return value: the transposed array, with size of dim1*dim12*dim3, or NULL
- * if something goes wrong. If `dest` is not NULL, return value will be
- * `dest` or NULL if something goes wrong.
- * NOTES:
- * - Variadic dimensions refer to original matrix shape, and not to the
- *   resulting transposed matrix.
- * - If you need to transpose a `PSMatrix`, use `PSMatrixTranspose` instead. */
+ * Variadic arguments can be used to define the shape of the matrix (that must
+ * have max. `PS_MATRIX_MAX_DIMENSIONS` dimensions).
+ * If `dest` is not NULL, the transposed vector will be stored into memory
+ * pointed by `dest` itself.
+ * If `dest` is NULL, the resulting vector will be allocated by the function.
+ * The function can take advantage of the available accelerations (both
+ * hardwware and software). By default, accelerations set in
+ * `PSGlobalAcceleration` are used, if any. However, the used accelerations
+ * methods can be changed via the `acceleration` member of the optional
+ * argument `opts`.
+ * NOTE:
+ *  - The shape defined by the variadic dimensions refer to original shape of
+ *    the vector (seen as a matrix) and not to the resulting transposed vector.
+ *    So, if the defined shape is 2,3, the resulting shape will be 3,2.
+ *  - If you need to transpose a `PSMatrix`, directly use `PSMatrixTranspose`
+ *    instead.
+ * Return value: a pointer to the transposed vector, whose size will be the
+ * product of all dimensions of the defined shape or NULL if something goes
+ * wrong.
+ * If `dest` is not NULL, return value will be `dest` or NULL if
+ * something goes wrong.
+ * If `ndims` is 1, the function will immediately return `vec` itself.
+ * Possible failure reasons:
+ *  - `ndims` is greater that `PS_MATRIX_MAX_DIMENSIONS`.
+ *  - `ndims` is zero or less than zero.
+ *  - One of the shape's dimension in the variadic arguments is zero or
+ *    less than zero.
+ *  - Memory allocation failure.
+ */
 PSFloat *PSVectorTranspose(PSFloat *vec, PSFloat *dest, int acceleration,
                            int ndims, ...)
 {
@@ -3349,7 +4341,7 @@ PSFloat *PSVectorTranspose(PSFloat *vec, PSFloat *dest, int acceleration,
     }
     va_end(args);
     if (veclen <= 0) {
-        PSErr(__func__, "Invalid dimensions: eachdimension must be > 0");
+        PSErr(__func__, "Invalid dimensions: each dimension must be > 0");
         return NULL;
     }
     PSFloat *transposed = dest;
@@ -3517,6 +4509,18 @@ final:
     return success;
 }
 
+/* Create a matrix with shape `size`, `size` diagonally filled with 1.0 from
+ * the top-left side to the bottom-right side, example:
+ * ```
+ * PSDiagonalMask(4); // ->
+ * // {1, 0, 0, 0,
+ * //  1, 1, 0, 0,
+ * //  1, 1, 1, 0,
+ * //  1, 1, 1, 1}
+ * ```
+ * Return value: the matrix of NULL if:
+ *  - `size` is less than 1
+ *  - The matrix cannot be allocated in memory. */
 PSMatrix PSDiagonalMask(int size) {
     if (size <= 0) {
         PSErr(__func__, "invalid size: %d", size);
@@ -3534,6 +4538,21 @@ PSMatrix PSDiagonalMask(int size) {
     return mask;
 }
 
+/* Create a matrix of shape `len`, `len` where values of vector `vec` having
+ * length defined by `len` are distributed over a diagonal line starting from
+ * top-left side and ending to bottom-right side.
+ * Example:
+ * ```
+ * PSFLoat vec[4] = {1, 2, 3, 4};
+ * PSDiagonalFlattenVector(vec, 4); // ->
+ * // {1, 0, 0, 0,
+ * //  0, 2, 0, 0,
+ * //  0, 0, 3, 0,
+ * //  0, 0, 0 ,4}
+ * ```
+ * Return value: the matrix or NULL if:
+ *  - `vec` is NULL or `len` is zero.
+ *  - The matrix cannot be allocated in memory. */
 PSMatrix PSDiagonalFlattenVector(PSFloat *vec, uint64_t len) {
     if (vec == NULL || len == 0) return NULL;
     PSMatrix result = PSMatrixZeros(2, len, len);
@@ -3549,6 +4568,23 @@ PSMatrix PSDiagonalFlattenVector(PSFloat *vec, uint64_t len) {
     return result;
 }
 
+/* Create a new squared matrix from source `matrix` having a shape with rows
+ * and columns equal to `matrix` length (matrix length x matrix length).
+ * The original values of `matrix` are distributed into the new matrix over a
+ * diagonal line starting from top-left side and ending to bottom-right side.
+ * Example:
+ * ```
+ * PSFLoat vec[4] = {1, 2, 3, 4};
+ * PSMatrix src = PSMatrixFromArray(vec, 2, 2, 2); // 2x2 matrix, total len = 4
+ * PSMatrix new = PSDiagonalFlatten(src); // ->
+ * // {1, 0, 0, 0,
+ * //  0, 2, 0, 0,
+ * //  0, 0, 3, 0,
+ * //  0, 0, 0 ,4}
+ * ```
+ * Return value: the matrix or NULL if:
+ *  - `matrix` is NULL or `matrix` is empty.
+ *  - The matrix cannot be allocated in memory. */
 PSMatrix PSDiagonalFlatten(PSMatrix matrix) {
     if (matrix == NULL) return NULL;
     uint64_t len = PSMatrixLength(matrix);
@@ -3556,6 +4592,15 @@ PSMatrix PSDiagonalFlatten(PSMatrix matrix) {
     return PSDiagonalFlattenVector(matrix, len);
 }
 
+/* Split vector `vec` having length defined by `len` into `num_slices` vectors.
+ * For example, a vector of 10 elements split into two slices will create two
+ * vectors of size 5.
+ * Return value: an array of `num_slices` vectors (PSFloat *) or NULL if:
+ *  - `vec` is NULL.
+ *  - `len` is zero or negative.
+ *  - `num_slices` is zero or negative.
+ *  - `len` / `num_slices` does not result in equal division.
+ *  - Memory allocation issues. */
 PSFloat **PSVectorSplit(PSFloat *vec, int len, int num_slices) {
     if (vec == NULL) return NULL;
     if (len <= 0) {
@@ -3598,6 +4643,8 @@ fail:
     return NULL;
 }
 
+/* Duplicate vector `vec` having length defined by `length`.
+ * Return value: the duplicated vector or NULL is memory cannot be allocated.*/
 PSFloat *PSVectorDup(PSFloat *src, size_t length) {
     size_t size = length * sizeof(PSFloat);
     PSFloat *dup = malloc(size);
@@ -3609,6 +4656,9 @@ PSFloat *PSVectorDup(PSFloat *src, size_t length) {
     return dup;
 }
 
+/* Allocate a new vector having length defined by `len` and fill it with random
+ * values within a range of 0.0 and 1.0.
+ * Return value: the allocated vector or NULL if memory cannot be allocated. */
 PSFloat *PSVectorRandom(size_t len) {
     PSFloat *vec = malloc(len * sizeof(PSFloat));
     if (vec == NULL) {

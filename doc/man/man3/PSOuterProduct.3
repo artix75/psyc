@@ -13,7 +13,7 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSOuterProduct 3 2023-12-03 "PsyC 0.9.3" "PsyC Library Functions Manual"
+.TH PSOuterProduct 3 2023-12-07 "PsyC 0.9.3" "PsyC Library Functions Manual"
 
 .SH NAME
 PSOuterProduct
@@ -31,4 +31,33 @@ int
 .br
 \fBPSOuterProduct\fR(\fIPSFloat *a\fR, \fIPSFloat *b\fR, \fIPSFloat *dest\fR, \fIuint64_t alen\fR, \fIuint64_t blen\fR, \fIPSMathOpts *opts\fR)
 .SH DESCRIPTION
-Multiply every element of vector \fIa\fR (having \fIalen\fR length) by every element of vector \fIb\fR (having \fIblen\fR length) and store results into vector \fIdest\fR (whose length must be \fIalen\fR * \fIblen\fR).
+Multiply every element of vector \fIa\fR (having \fIalen\fR length) by every element of vector \fIb\fR (having \fIblen\fR length) and store results into vector \fIdest\fR (whose length must be the product of \fIalen\fR by \fIblen\fR).
+.br
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in \fIPSGlobalAcceleration\fR are used, if any. However, the used accelerations methods can be changed via the \fIacceleration\fR member of the optional argument \fIopts\fR.
+.br
+Aside from acceleration, \fIopts\fR can also be used to set the result storage mode (by using the \fIstore_mode\fR member):
+.br
+
+.RS 4
+.TP
+.B PS_STORE_MODE_ADD
+the result is added to the existing values of \fIdest\fR.
+.br
+
+.TP
+.B PS_STORE_MODE_SUB
+the result is subtracted from the existing values    of \fIdest\fR.
+.RE
+.RE
+
+
+.SH RETURN VALUES
+1 is the function succeeds or zero if:
+
+.RS 4
+\[bu] \fIa\fR is \fINULL\fR or \fIb\fR is \fINULL\fR or \fIdest\fR is \fINULL\fR.
+.br
+
+\[bu] BLAS computation error if BLAS acceleration is used.
+.br
+.RE

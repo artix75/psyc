@@ -50,26 +50,14 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
            <nav id="sidebar">
                <h2>FILESYSTEM</h2>
                <ul>
-<li><a href="#function-psisdirectory">PSIsDirectory</a></li>
 <li><a href="#function-psgethomedirectory">PSGetHomeDirectory</a></li>
+<li><a href="#function-psisdirectory">PSIsDirectory</a></li>
 <li><a href="#function-psmakedir">PSMakeDir</a></li>
-<li><a href="#function-psworkingdirectory">PSWorkingDirectory</a></li>
 <li><a href="#function-pspathjoin">PSPathJoin</a></li>
+<li><a href="#function-psworkingdirectory">PSWorkingDirectory</a></li>
                </ul>
            </nav>
            <section id="doc">
-<div class="details function" id="function-psisdirectory">
-<h3 class="name">PSIsDirectory</h3>
-<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">124</span></div>
-<div class="tags"><span class="tag filesystem" data-href="tag-filesystem.html">FILESYSTEM</span></div><div class="code">
-<code class="definition">
-<span class="type return-type">int</span> <span class="identifier name">PSIsDirectory</span> (<span class="arguments"><span class="argument"><span class="type">const char *</span><span class="identifier pointer-name" data-identifier-id=function-psisdirectory-path>path</span></span></span>)</code>
-</div>
-<div class="description">
-Checks whether <span class="identifier-ref" data-identifier-id="function-psisdirectory-path" data-parent-id="function-psisdirectory">path</span> is a valid directory.
-</div>
-</div>
-
 <div class="details function" id="function-psgethomedirectory">
 <h3 class="name">PSGetHomeDirectory</h3>
 <div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">125</span></div>
@@ -79,6 +67,18 @@ Checks whether <span class="identifier-ref" data-identifier-id="function-psisdir
 </div>
 <div class="description">
 Returns user HOME directory.
+</div>
+</div>
+
+<div class="details function" id="function-psisdirectory">
+<h3 class="name">PSIsDirectory</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">124</span></div>
+<div class="tags"><span class="tag filesystem" data-href="tag-filesystem.html">FILESYSTEM</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">int</span> <span class="identifier name">PSIsDirectory</span> (<span class="arguments"><span class="argument"><span class="type">const char *</span><span class="identifier pointer-name" data-identifier-id=function-psisdirectory-path>path</span></span></span>)</code>
+</div>
+<div class="description">
+Checks whether <span class="identifier-ref" data-identifier-id="function-psisdirectory-path" data-parent-id="function-psisdirectory">path</span> is a valid directory.
 </div>
 </div>
 
@@ -94,21 +94,6 @@ Creates directory <span class="identifier-ref" data-identifier-id="function-psma
 </div>
 </div>
 
-<div class="details function" id="function-psworkingdirectory">
-<h3 class="name">PSWorkingDirectory</h3>
-<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">127</span></div>
-<div class="tags"><span class="tag filesystem" data-href="tag-filesystem.html">FILESYSTEM</span></div><div class="code">
-<code class="definition">
-<span class="type return-type">const char *</span><span class="identifier name">PSWorkingDirectory</span> (<span class="arguments"><span class="argument void">void</span></span>)</code>
-</div>
-<div class="description">
-Returns PsyC working directory, that is, by default <code>$HOME/.psyc</code>.<br/>A custom working directory can be specified at compile-time using <span class="identifier-ref">PS_WORKING_DIR</span> macro or by setting <span class="identifier-ref">PS_WORKING_DIR</span> environment variable.<br/>The function will try to automatically create the working directory if it doesn&#39;t exist.  
-<h4 class="return-values">RETURN VALUES</h4>
-Path to the working directory or <span class="identifier-ref">NULL</span> in case something goes wrong.
-<div class="note"><span class="note-prefix">NOTE:</span>  it returns a static string, so it cannot be freed.</div>  
-</div>
-</div>
-
 <div class="details function" id="function-pspathjoin">
 <h3 class="name">PSPathJoin</h3>
 <div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">128</span></div>
@@ -120,6 +105,22 @@ Path to the working directory or <span class="identifier-ref">NULL</span> in cas
 Joins multiple file path components into a single path string.<br/>Argument <span class="identifier-ref" data-identifier-id="function-pspathjoin-count" data-parent-id="function-pspathjoin">count</span> is used to specify how many components will be consumed.<br/>Path components must be passed as variadic arguments.  
 <h4 class="return-values">RETURN VALUES</h4>
 String containing the joined path or <span class="identifier-ref">NULL</span> if something goes               wrong. Returned string is allocated into heap, so it&#39;s up               to the developer to free it as soon as it is no longer needed.
+</div>
+</div>
+
+<div class="details function" id="function-psworkingdirectory">
+<h3 class="name">PSWorkingDirectory</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">127</span></div>
+<div class="tags"><span class="tag filesystem" data-href="tag-filesystem.html">FILESYSTEM</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">const char *</span><span class="identifier name">PSWorkingDirectory</span> (<span class="arguments"><span class="argument void">void</span></span>)</code>
+</div>
+<div class="description">
+Returns PsyC working directory, that is, by default <code>$HOME/.psyc</code>.<br/>A custom working directory can be specified at compile-time using <span class="identifier-ref">PS_WORKING_DIR</span> macro or by setting <span class="identifier-ref">PS_WORKING_DIR</span> environment variable.<br/>The function will try to automatically create the working directory if it doesn&#39;t exist.  
+<h4 class="return-values">RETURN VALUES</h4>
+Path to the working directory or <span class="identifier-ref">NULL</span> in case something goes wrong.
+<div class="note"><span class="note-prefix">NOTE:</span>  it returns a static string, so it cannot be freed.
+</div>  
 </div>
 </div>
 

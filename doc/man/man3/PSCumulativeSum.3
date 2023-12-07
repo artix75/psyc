@@ -1,0 +1,42 @@
+.\" Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that the above copyright notice and this paragraph are
+.\" duplicated in all such forms and that any documentation,
+.\" advertising materials, and other materials related to such
+.\" distribution and use acknowledge that the software was developed
+.\" by the copyright holder. The name of the
+.\" copyright holder may not be used to endorse or promote products derived
+.\" from this software without specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+.TH PSCumulativeSum 3 2023-12-07 "PsyC 0.9.3" "PsyC Library Functions Manual"
+
+.SH NAME
+PSCumulativeSum
+
+.SH LIBRARY
+PsyC (-lpsyc)
+
+.SH SYNOPSIS
+
+.B
+#include <psyc/maths.h>
+
+.I
+int  
+.br
+\fBPSCumulativeSum\fR(\fIPSFloat *a\fR, \fIPSFloat *dest\fR, \fIuint64_t length\fR)
+.SH DESCRIPTION
+Compute the cumulative sum on elements of vector \fIa\fR having length defined by \fIlength\fR. The results will be stored into the vector \fIdest\fR that must have at least the same length of \fIa\fR. The value of each element of the resulting vector will be the sum of the values of \fIa\fR up to the index of the current resulting vector element (ie. `dest[2] = a[0] + a[1] + a[2]`).  
+
+.SH RETURN VALUES
+1 if the function is successfully executed or 0 if:
+
+.RS 4
+\[bu] \fIa\fR is \fINULL\fR or \fIdest\fR is \fINULL\fR.
+.br
+.RE

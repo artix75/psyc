@@ -1,0 +1,60 @@
+.\" Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that the above copyright notice and this paragraph are
+.\" duplicated in all such forms and that any documentation,
+.\" advertising materials, and other materials related to such
+.\" distribution and use acknowledge that the software was developed
+.\" by the copyright holder. The name of the
+.\" copyright holder may not be used to endorse or promote products derived
+.\" from this software without specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+.TH PSMatrixSwapAxes 3 2023-12-07 "PsyC 0.9.3" "PsyC Library Functions Manual"
+
+.SH NAME
+PSMatrixSwapAxes
+
+.SH LIBRARY
+PsyC (-lpsyc)
+
+.SH SYNOPSIS
+
+.B
+#include <psyc/maths.h>
+
+.I
+PSMatrix  
+.br
+\fBPSMatrixSwapAxes\fR(\fIPSMatrix matrix\fR, \fIint axis1\fR, \fIint axis2\fR)
+.SH DESCRIPTION
+Create a new matrix by swapping axes of \fImatrix\fR. For example, swapping axes 0 and 1 of a matrix with shape of 2,3 would create a matrix with shape of 3,2 and swaping axes 1 and 2 of a matrix with shape 2,3,4 would create a matrix with a shape of 2,4,3.
+.br
+The axes to be swapped are defined by \fIaxis1\fR and \fIaxis2\fR arguments: by using a negative value for an axis, it will be counted from the last dimension of the shape, so, for example, swapping the axes -1 and -2 of a matrix with shape 2,3,4 would create a matrix with shape of 2,4,3.
+.br
+If both \fIaxis1\fR and \fIaxis2\fR refer to the same axis, the function will return a duplicated versiob of \fImatrix\fR.
+.br
+
+.br
+\fBNOTE\fR:  despite calling this function with the first and the last axis would have the same result of \fIPSMatrixTranspose\fR in terms of matrix data and shape, the swapped matrix created by \fIPSMatrixSwapAxes\fR always is an independent matrix and not the cached tranposed matrix of \fImatrix\fR.
+.br
+
+.SH RETURN VALUES
+The new swapped matrix or \fINULL\fR if:
+
+.RS 4
+\[bu] \fImatrix\fR is \fINULL\fR.
+.br
+
+\[bu] \fIaxis1\fR is out of bounds or \fIaxis2\fR is out of bounds.
+.br
+
+\[bu] Memory cannot be allocated.
+.br
+.RE
+
+.SH SEE ALSO
+PSMatrixTranspose(3)

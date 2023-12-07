@@ -13,7 +13,7 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSMatrixProductMV 3 2023-12-03 "PsyC 0.9.3" "PsyC Library Functions Manual"
+.TH PSMatrixProductMV 3 2023-12-07 "PsyC 0.9.3" "PsyC Library Functions Manual"
 
 .SH NAME
 PSMatrixProductMV
@@ -43,7 +43,9 @@ Length of result vector must equal matrix \fIa\fR first dimension.
 .br
 By default, function uses BLAS to compute the result. Anyway, if BLAS support is missing in PsyC build, function will compute results by using \fIPSDotProduct\fR as fallback.
 .br
-You can set matrix transposition using \fItranspose\fR field in the \fIopt\fR argument. In that case, \fItranspose\fR will contain the (1-based) indices of the matrix arguments you want to be transposed:
+The acceleration method can be changed via the \fIacceleration\fR member of the optional \fIopt\fR argument.
+.br
+The matrix \fIa\fR can be transpose by using \fItranspose\fR field in the \fIopt\fR argument. In that case, \fItranspose\fR will contain the (1-based) indices of the matrix arguments you want to be transposed:
 .br
 
 .RS 4
@@ -55,6 +57,28 @@ By default, data in result vector will be overwritten. Anyway, if \fIPS_STORE_MO
 
 .SH RETURN VALUES
 1 if operation succeeds, 0 if it fails.
+Possible failure reasons:
+.br
+
+.RS 4
+\[bu] \fIresult\fR is \fINULL\fR or \fIa\fR is \fINULL\fR or \fIb\fR is \fINULL\fR.
+.br
+
+\[bu] \fIa\fR has zero dimensions or \fIb\fR has zero dimensions.
+.br
+
+\[bu] Matrix aligment error.
+.br
+
+\[bu] Invalid result shape.
+.br
+
+\[bu] Matrix pointed by \fIresult\fR is not \fINULL\fR and its shape differs from resulting output shape.
+.br
+
+\[bu] Memory allocation failure.
+.br
+.RE
 
 .SH SEE ALSO
-PSMatrixProduct(3), PSMatrixProductVM(3)
+PSDotProduct(3), PSMatrixProduct(3), PSMatrixProductVM(3)

@@ -50,39 +50,21 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
            <nav id="sidebar">
                <h2>BITMAP</h2>
                <ul>
-<li><a href="#macro-psbitmapand">PSBitmapAnd</a></li>
-<li><a href="#macro-psbitmapor">PSBitmapOr</a></li>
 <li><a href="#type-psbitmap">PSBitmap</a></li>
-<li><a href="#function-psbitmapcreate">PSBitmapCreate</a></li>
-<li><a href="#function-psbitmapcopy">PSBitmapCopy</a></li>
-<li><a href="#function-psbitmapdup">PSBitmapDup</a></li>
-<li><a href="#function-psbitmaprelease">PSBitmapRelease</a></li>
-<li><a href="#function-psbitmapsize">PSBitmapSize</a></li>
-<li><a href="#function-psbitmapgetbit">PSBitmapGetBit</a></li>
-<li><a href="#function-psbitmapsetbit">PSBitmapSetBit</a></li>
+<li><a href="#macro-psbitmapand">PSBitmapAnd</a></li>
 <li><a href="#function-psbitmapclear">PSBitmapClear</a></li>
+<li><a href="#function-psbitmapcopy">PSBitmapCopy</a></li>
+<li><a href="#function-psbitmapcreate">PSBitmapCreate</a></li>
+<li><a href="#function-psbitmapdup">PSBitmapDup</a></li>
+<li><a href="#function-psbitmapgetbit">PSBitmapGetBit</a></li>
 <li><a href="#function-psbitmapop">PSBitmapOp</a></li>
+<li><a href="#macro-psbitmapor">PSBitmapOr</a></li>
+<li><a href="#function-psbitmaprelease">PSBitmapRelease</a></li>
+<li><a href="#function-psbitmapsetbit">PSBitmapSetBit</a></li>
+<li><a href="#function-psbitmapsize">PSBitmapSize</a></li>
                </ul>
            </nav>
            <section id="doc">
-<div class="details macro" id="macro-psbitmapand">
-<h3 class="name">PSBitmapAnd</h3>
-<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">59</span></div>
-<div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag bitmap" data-href="tag-bitmap.html">BITMAP</span></div><div class="code">
-<code class="definition">
-<span class="preproc">#define </span><span class="identifier">PSBitmapAnd</span><span class="arguments">(a, b, dest)</span> <span class="macro-expansion">PSBitmapOp(a, b, dest, PS_BITMAP_OP_AND)</span></code>
-</div>
-</div>
-
-<div class="details macro" id="macro-psbitmapor">
-<h3 class="name">PSBitmapOr</h3>
-<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">60</span></div>
-<div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag bitmap" data-href="tag-bitmap.html">BITMAP</span></div><div class="code">
-<code class="definition">
-<span class="preproc">#define </span><span class="identifier">PSBitmapOr</span><span class="arguments">(a, b, dest)</span> <span class="macro-expansion">PSBitmapOp(a, b, dest, PS_BITMAP_OP_OR)</span></code>
-</div>
-</div>
-
 <div class="details type" id="type-psbitmap">
 <h3 class="name">PSBitmap</h3>
 <div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">112</span></div>
@@ -92,66 +74,12 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 </div>
 </div>
 
-<div class="details function" id="function-psbitmapcreate">
-<h3 class="name">PSBitmapCreate</h3>
-<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">113</span></div>
+<div class="details macro" id="macro-psbitmapand">
+<h3 class="name">PSBitmapAnd</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">59</span></div>
 <div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag bitmap" data-href="tag-bitmap.html">BITMAP</span></div><div class="code">
 <code class="definition">
-<span class="type return-type"><a class="psyc-type" href="types.html#type-psbitmap">PSBitmap</a></span> <span class="identifier name">PSBitmapCreate</span> (<span class="arguments"><span class="argument"><span class="type">size_t</span> <span class="identifier" data-identifier-id=function-psbitmapcreate-size>size</span></span></span>)</code>
-</div>
-</div>
-
-<div class="details function" id="function-psbitmapcopy">
-<h3 class="name">PSBitmapCopy</h3>
-<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">114</span></div>
-<div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag bitmap" data-href="tag-bitmap.html">BITMAP</span></div><div class="code">
-<code class="definition">
-<span class="type return-type">int</span> <span class="identifier name">PSBitmapCopy</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psbitmap">PSBitmap</a></span> <span class="identifier" data-identifier-id=function-psbitmapcopy-dst>dst</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psbitmap">PSBitmap</a></span> <span class="identifier" data-identifier-id=function-psbitmapcopy-src>src</span></span></span>)</code>
-</div>
-</div>
-
-<div class="details function" id="function-psbitmapdup">
-<h3 class="name">PSBitmapDup</h3>
-<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">115</span></div>
-<div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag bitmap" data-href="tag-bitmap.html">BITMAP</span></div><div class="code">
-<code class="definition">
-<span class="type return-type"><a class="psyc-type" href="types.html#type-psbitmap">PSBitmap</a></span> <span class="identifier name">PSBitmapDup</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psbitmap">PSBitmap</a></span> <span class="identifier" data-identifier-id=function-psbitmapdup-src>src</span></span></span>)</code>
-</div>
-</div>
-
-<div class="details function" id="function-psbitmaprelease">
-<h3 class="name">PSBitmapRelease</h3>
-<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">116</span></div>
-<div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag bitmap" data-href="tag-bitmap.html">BITMAP</span></div><div class="code">
-<code class="definition">
-<span class="type return-type">void</span> <span class="identifier name">PSBitmapRelease</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psbitmap">PSBitmap</a></span> <span class="identifier" data-identifier-id=function-psbitmaprelease-bitmap>bitmap</span></span></span>)</code>
-</div>
-</div>
-
-<div class="details function" id="function-psbitmapsize">
-<h3 class="name">PSBitmapSize</h3>
-<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">117</span></div>
-<div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag bitmap" data-href="tag-bitmap.html">BITMAP</span></div><div class="code">
-<code class="definition">
-<span class="type return-type">size_t</span> <span class="identifier name">PSBitmapSize</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psbitmap">PSBitmap</a></span> <span class="identifier" data-identifier-id=function-psbitmapsize-bitmap>bitmap</span></span></span>)</code>
-</div>
-</div>
-
-<div class="details function" id="function-psbitmapgetbit">
-<h3 class="name">PSBitmapGetBit</h3>
-<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">118</span></div>
-<div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag bitmap" data-href="tag-bitmap.html">BITMAP</span></div><div class="code">
-<code class="definition">
-<span class="type return-type">int</span> <span class="identifier name">PSBitmapGetBit</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psbitmap">PSBitmap</a></span> <span class="identifier" data-identifier-id=function-psbitmapgetbit-bitmap>bitmap</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psbitmapgetbit-index>index</span></span></span>)</code>
-</div>
-</div>
-
-<div class="details function" id="function-psbitmapsetbit">
-<h3 class="name">PSBitmapSetBit</h3>
-<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">119</span></div>
-<div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag bitmap" data-href="tag-bitmap.html">BITMAP</span></div><div class="code">
-<code class="definition">
-<span class="type return-type">int</span> <span class="identifier name">PSBitmapSetBit</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psbitmap">PSBitmap</a></span> <span class="identifier" data-identifier-id=function-psbitmapsetbit-bitmap>bitmap</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psbitmapsetbit-index>index</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psbitmapsetbit-val>val</span></span></span>)</code>
+<span class="preproc">#define </span><span class="identifier">PSBitmapAnd</span><span class="arguments">(a, b, dest)</span> <span class="macro-expansion">PSBitmapOp(a, b, dest, PS_BITMAP_OP_AND)</span></code>
 </div>
 </div>
 
@@ -164,12 +92,84 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 </div>
 </div>
 
+<div class="details function" id="function-psbitmapcopy">
+<h3 class="name">PSBitmapCopy</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">114</span></div>
+<div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag bitmap" data-href="tag-bitmap.html">BITMAP</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">int</span> <span class="identifier name">PSBitmapCopy</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psbitmap">PSBitmap</a></span> <span class="identifier" data-identifier-id=function-psbitmapcopy-dst>dst</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psbitmap">PSBitmap</a></span> <span class="identifier" data-identifier-id=function-psbitmapcopy-src>src</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psbitmapcreate">
+<h3 class="name">PSBitmapCreate</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">113</span></div>
+<div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag bitmap" data-href="tag-bitmap.html">BITMAP</span></div><div class="code">
+<code class="definition">
+<span class="type return-type"><a class="psyc-type" href="types.html#type-psbitmap">PSBitmap</a></span> <span class="identifier name">PSBitmapCreate</span> (<span class="arguments"><span class="argument"><span class="type">size_t</span> <span class="identifier" data-identifier-id=function-psbitmapcreate-size>size</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psbitmapdup">
+<h3 class="name">PSBitmapDup</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">115</span></div>
+<div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag bitmap" data-href="tag-bitmap.html">BITMAP</span></div><div class="code">
+<code class="definition">
+<span class="type return-type"><a class="psyc-type" href="types.html#type-psbitmap">PSBitmap</a></span> <span class="identifier name">PSBitmapDup</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psbitmap">PSBitmap</a></span> <span class="identifier" data-identifier-id=function-psbitmapdup-src>src</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psbitmapgetbit">
+<h3 class="name">PSBitmapGetBit</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">118</span></div>
+<div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag bitmap" data-href="tag-bitmap.html">BITMAP</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">int</span> <span class="identifier name">PSBitmapGetBit</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psbitmap">PSBitmap</a></span> <span class="identifier" data-identifier-id=function-psbitmapgetbit-bitmap>bitmap</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psbitmapgetbit-index>index</span></span></span>)</code>
+</div>
+</div>
+
 <div class="details function" id="function-psbitmapop">
 <h3 class="name">PSBitmapOp</h3>
 <div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">121</span></div>
 <div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag bitmap" data-href="tag-bitmap.html">BITMAP</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psbitmap">PSBitmap</a></span> <span class="identifier name">PSBitmapOp</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psbitmap">PSBitmap</a></span> <span class="identifier" data-identifier-id=function-psbitmapop-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psbitmap">PSBitmap</a></span> <span class="identifier" data-identifier-id=function-psbitmapop-b>b</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psbitmap">PSBitmap</a></span> <span class="identifier" data-identifier-id=function-psbitmapop-dest>dest</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psbitmapop-op>op</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psbitmapor">
+<h3 class="name">PSBitmapOr</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">60</span></div>
+<div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag bitmap" data-href="tag-bitmap.html">BITMAP</span></div><div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PSBitmapOr</span><span class="arguments">(a, b, dest)</span> <span class="macro-expansion">PSBitmapOp(a, b, dest, PS_BITMAP_OP_OR)</span></code>
+</div>
+</div>
+
+<div class="details function" id="function-psbitmaprelease">
+<h3 class="name">PSBitmapRelease</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">116</span></div>
+<div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag bitmap" data-href="tag-bitmap.html">BITMAP</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">void</span> <span class="identifier name">PSBitmapRelease</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psbitmap">PSBitmap</a></span> <span class="identifier" data-identifier-id=function-psbitmaprelease-bitmap>bitmap</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psbitmapsetbit">
+<h3 class="name">PSBitmapSetBit</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">119</span></div>
+<div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag bitmap" data-href="tag-bitmap.html">BITMAP</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">int</span> <span class="identifier name">PSBitmapSetBit</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psbitmap">PSBitmap</a></span> <span class="identifier" data-identifier-id=function-psbitmapsetbit-bitmap>bitmap</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psbitmapsetbit-index>index</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psbitmapsetbit-val>val</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psbitmapsize">
+<h3 class="name">PSBitmapSize</h3>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">117</span></div>
+<div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag bitmap" data-href="tag-bitmap.html">BITMAP</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">size_t</span> <span class="identifier name">PSBitmapSize</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psbitmap">PSBitmap</a></span> <span class="identifier" data-identifier-id=function-psbitmapsize-bitmap>bitmap</span></span></span>)</code>
 </div>
 </div>
 

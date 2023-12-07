@@ -376,7 +376,7 @@ Invert image pixels.
 
 ### CONFIG FILES
 
-Configuration files can be loaded via the `-c` option (see above). Every option that can be passed to the command line can also be used inside configuration files by removing the dash prefix ('-' or '--'), for example:  `layer` instead of `--layer` or `learning-rate` instead of `--learning-rate`.  Option arguments can follow the option name by separating them with spaces and every option should be written in a separate line.  The special `include` directive has the same effect of the `-c` option, and it loads another configuration file (ie. `include /path/to/config`).  #### Examples
+Configuration files can be loaded via the `-c` option (see above). Every option that can be passed to the command line can also be used inside configuration files by removing the dash prefix ('-' or '--'), for example:  `layer` instead of `--layer` or `learning-rate` instead of `--learning-rate`.  Option arguments can follow the option name by separating them with spaces and every option should be written in a separate line.  The special `include` directive has the same effect of the `-c` option, and it loads another configuration file (ie. `include /path/to/config`).  **Examples**
 
 ```ini
 # This is an example of psycl configuration file

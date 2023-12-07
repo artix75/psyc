@@ -1,0 +1,67 @@
+.\" Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that the above copyright notice and this paragraph are
+.\" duplicated in all such forms and that any documentation,
+.\" advertising materials, and other materials related to such
+.\" distribution and use acknowledge that the software was developed
+.\" by the copyright holder. The name of the
+.\" copyright holder may not be used to endorse or promote products derived
+.\" from this software without specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+.TH PSMatrixWrite 3 2023-12-07 "PsyC 0.9.3" "PsyC Library Functions Manual"
+
+.SH NAME
+PSMatrixWrite
+
+.SH LIBRARY
+PsyC (-lpsyc)
+
+.SH SYNOPSIS
+
+.B
+#include <psyc/maths.h>
+
+.I
+int  
+.br
+\fBPSMatrixWrite\fR(\fIPSMatrix matrix\fR, \fIconst char *sep\fR, \fIchar bracket\fR, \fIint indent\fR, \fIFILE *out\fR)
+.SH DESCRIPTION
+Write the string representation of \fImatrix\fR to file file stream \fIout\fR.
+.br
+If \fIout\fR is \fINULL\fR, the string will be printed to the standard output by default.
+.br
+The optional \fIsep\fR argument can be used to specify the separator string for matrix's values: if \fINULL\fR, the default separator is a comma (,).
+.br
+The optional \fIbracket\fR argument can be used to specify the type of brackets enclosing matrix's values, and only the opening bracket is accepted as a valid value:
+.br
+
+.RS 4
+\[bu] '[' to use '[' as opening bracket and ']' as closing bracket.
+.br
+
+\[bu] '(' to use '(' as opening bracket and ')' as closing bracket.
+.br
+
+\[bu] '{' to use '{' as opening bracket and '}' as closing bracket.
+.RE
+.RE
+
+If \fIbracket\fR is set to zero, the default bracket is '['. Other values for \fIbracket\fR won't be accepted.
+.br
+The \fIindent\fR argument can be used to set indentation size (expressed in number of white spaces). If set to zero, no indentation will be used and the matrix string will be written in a single line.  
+
+.SH RETURN VALUES
+The total number of bytes written or 0 if:
+
+.RS 4
+\[bu] \fImatrix\fR is \fINULL\fR.
+.br
+
+\[bu] Invalid value for \fIbracket\fR (see above).
+.br
+.RE

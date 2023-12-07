@@ -1,0 +1,69 @@
+.\" Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that the above copyright notice and this paragraph are
+.\" duplicated in all such forms and that any documentation,
+.\" advertising materials, and other materials related to such
+.\" distribution and use acknowledge that the software was developed
+.\" by the copyright holder. The name of the
+.\" copyright holder may not be used to endorse or promote products derived
+.\" from this software without specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+.TH PSDiagonalFlatten 3 2023-12-07 "PsyC 0.9.3" "PsyC Library Functions Manual"
+
+.SH NAME
+PSDiagonalFlatten
+
+.SH LIBRARY
+PsyC (-lpsyc)
+
+.SH SYNOPSIS
+
+.B
+#include <psyc/maths.h>
+
+.I
+PSMatrix  
+.br
+\fBPSDiagonalFlatten\fR(\fIPSMatrix matrix\fR)
+.SH DESCRIPTION
+Create a new squared matrix from source \fImatrix\fR having a shape with rows and columns equal to \fImatrix\fR length (matrix length x matrix length).
+.br
+The original values of \fImatrix\fR are distributed into the new matrix over a diagonal line starting from top-left side and ending to bottom-right side.
+.br
+Example:
+.br
+
+
+PSFLoat vec[4] = {1, 2, 3, 4};
+.br
+PSMatrix src = PSMatrixFromArray(vec, 2, 2, 2); // 2x2 matrix, total len = 4
+.br
+PSMatrix new = PSDiagonalFlatten(src); // ->
+.br
+// {1, 0, 0, 0,
+.br
+//  0, 2, 0, 0,
+.br
+//  0, 0, 3, 0,
+.br
+//  0, 0, 0 ,4}
+.br
+
+
+
+
+.SH RETURN VALUES
+The matrix or \fINULL\fR if:
+
+.RS 4
+\[bu] \fImatrix\fR is \fINULL\fR or \fImatrix\fR is empty.
+.br
+
+\[bu] The matrix cannot be allocated in memory.
+.br
+.RE

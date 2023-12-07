@@ -13,7 +13,7 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSVectorTranspose 3 2023-12-03 "PsyC 0.9.3" "PsyC Library Functions Manual"
+.TH PSVectorTranspose 3 2023-12-07 "PsyC 0.9.3" "PsyC Library Functions Manual"
 
 .SH NAME
 PSVectorTranspose
@@ -33,20 +33,50 @@ PSFloat  *
 .SH DESCRIPTION
 Create a transposed version of \fIvec\fR, considering it a matrix with a shape of \fIndims\fR dimensions.
 .br
-Use variadic arguments to set up-to 3 dimensions in the shape, (ie rows, columns for 2-D array).
+Variadic arguments can be used to define the shape of the matrix (that must have max. \fIPS_MATRIX_MAX_DIMENSIONS\fR dimensions).
 .br
-If \fIdest\fR is not \fINULL\fR, transposed vector will be stored into it.  
+If \fIdest\fR is not \fINULL\fR, the transposed vector will be stored into memory pointed by \fIdest\fR itself.
+.br
+If \fIdest\fR is \fINULL\fR, the resulting vector will be allocated by the function.
+.br
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in \fIPSGlobalAcceleration\fR are used, if any. However, the used accelerations methods can be changed via the \fIacceleration\fR member of the optional argument \fIopts\fR.
+.br
+
+.br
+\fBNOTE\fR: 
+.br
+
+.RS 4
+\[bu] The shape defined by the variadic dimensions refer to original shape of the vector (seen as a matrix) and not to the resulting transposed vector. So, if the defined shape is 2,3, the resulting shape will be 3,2.
+.br
+
+\[bu] If you need to transpose a \fIPSMatrix\fR, directly use \fIPSMatrixTranspose\fR instead.
+.RE
+.RE
+.br
 
 .SH RETURN VALUES
-The transposed array, with size of dim1*dim12*dim3, or \fINULL\fR if something goes wrong. If \fIdest\fR is not \fINULL\fR, return value will be \fIdest\fR or \fINULL\fR if something goes wrong.
-NOTES:
+A pointer to the transposed vector, whose size will be the product of all dimensions of the defined shape or \fINULL\fR if something goes wrong.
+If \fIdest\fR is not \fINULL\fR, return value will be \fIdest\fR or \fINULL\fR if something goes wrong.
+.br
+If \fIndims\fR is 1, the function will immediately return \fIvec\fR itself.
+.br
+Possible failure reasons:
 .br
 
 .RS 4
-\[bu] Variadic dimensions refer to original matrix shape, and not to the resulting transposed matrix.
-.RE
+\[bu] \fIndims\fR is greater that \fIPS_MATRIX_MAX_DIMENSIONS\fR.
+.br
 
-.RS 4
-\[bu] If you need to transpose a \fIPSMatrix\fR, use \fIPSMatrixTranspose\fR instead.
+\[bu] \fIndims\fR is zero or less than zero.
+.br
+
+\[bu] One of the shape's dimension in the variadic arguments is zero or less than zero.
+.br
+
+\[bu] Memory allocation failure.
 .br
 .RE
+
+.SH SEE ALSO
+PSMatrixTranspose(3)

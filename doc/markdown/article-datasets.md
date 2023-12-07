@@ -42,7 +42,7 @@ When working with classification models, the targets' size can be compressed by
 using **onehot** targets: since the expected result is the index of the expected
 "class" (in MNIST dataset is an index from 0 to 9 representing the predicted
 digit while in image-classificatio models each index can represent the class, ie. dog, train, cat, ...), it's possible to directly use the index itself and reduce the target size to just one element.
-In this cases, the [PS_FLAG_ONEHOT](macros.md#ps-flag-onehot) must be set into **flags** of the output
+In this cases, the [PS_FLAG_ONEHOT](macros.md#ps-flag-onehot) must be set into [flags](types.md#pstextparseroptions) of the output
 layer (see [PSLayer](types.md#pslayer)).
 
 Example:
@@ -94,11 +94,11 @@ is a model used to translate text from one language to another.
 PsyC usually automatically detects the model type by checking which of the
 model's layer takes sequences as inputs. This is defined by the
 [PS_FLAG_USE_SEQUENCES](macros.md#ps-flag-use-sequences) flag or by the [PS_FLAG_RECURRENT](macros.md#ps-flag-recurrent) flag (some layers
-like **RNN**, **LSTM** or **GRU** layers automatically set the [PS_FLAG_RECURRENT](macros.md#ps-flag-recurrent)).
+like **RNN**, [LSTM](types.md#pslayertype) or [GRU](types.md#pslayertype) layers automatically set the [PS_FLAG_RECURRENT](macros.md#ps-flag-recurrent)).
 So, if a model has one of this flags in the input layer and in the output layer,
-the model will be considered of type many-to-many (**ManyToMany**). If the model
+the model will be considered of type many-to-many ([ManyToMany](types.md#psrecurrentnetworkmode)). If the model
 has one of those flag in the input layer, but not in the output layer, it will
-be considered of type many-to-one (**ManyToOne**).
+be considered of type many-to-one ([ManyToOne](types.md#psrecurrentnetworkmode)).
 Sequence-to-Sequence models needs to set the [PS_TRAINING_FLAG_SEQ2SEQ](macros.md#ps-training-flag-seq2seq) in the
 training options ([PSTrainingOptions](types.md#pstrainingoptions)) passed to [PSTrain](functions.md#pstrain) function.
 
@@ -183,6 +183,7 @@ int datalen = sizeof(gru_data) / sizeof(PSFloat);
 PSTrain(gru_model, gru_data, datalen, NULL, 0, &train_opts);
 
 ```
+
 
 ```c
 /* A sequence-to-sequence model with onehot inputs. */

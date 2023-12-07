@@ -1,0 +1,103 @@
+.\" Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that the above copyright notice and this paragraph are
+.\" duplicated in all such forms and that any documentation,
+.\" advertising materials, and other materials related to such
+.\" distribution and use acknowledge that the software was developed
+.\" by the copyright holder. The name of the
+.\" copyright holder may not be used to endorse or promote products derived
+.\" from this software without specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+.TH PSMatrixAdd 3 2023-12-07 "PsyC 0.9.3" "PsyC Library Functions Manual"
+
+.SH NAME
+PSMatrixAdd
+
+.SH LIBRARY
+PsyC (-lpsyc)
+
+.SH SYNOPSIS
+
+.B
+#include <psyc/maths.h>
+
+.I
+int  
+.br
+\fBPSMatrixAdd\fR(\fIPSMatrix a\fR, \fIPSMatrix b\fR, \fIPSMatrix *result\fR, \fIPSMathOpts *opt\fR)
+.SH DESCRIPTION
+Add matrix \fIa\fR to matrix \fIb\fR. Results are stored into matrix pointed by pointer \fIresult\fR. If pointer pointed by \fIresult\fR is \fINULL\fR, a new matrix is automatically allocated by the function itself and its pointer will be stored into \fIresult\fR.
+.br
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in \fIPSGlobalAcceleration\fR are used, if any. However, the used accelerations methods can be changed via the \fIacceleration\fR member of the optional argument \fIopt\fR.
+.br
+Both matrices can be transposed using \fItranspose\fR field in the \fIopt\fR argument. In that case, \fItranspose\fR will contain the (1-based) indices of the matrix arguments you want to be transposed:
+.br
+
+.RS 4
+\[bu] opt->transpose = 1 (transpose matrix \fIa\fR)
+.br
+
+\[bu] opt->transpose = 2 (transpose matrix \fIb\fR)
+.br
+
+\[bu] opt->transpose = (1 | 2) (transpose both matrix \fIa\fR and \fIb\fR)
+.RE
+.RE
+
+By default, data in result matrix will be overwritten. Anyway, if \fIPS_STORE_MODE_ADD\fR is set as \fIstore_mode\fR into \fIopts\fR, result will be added to data already present in the result matrix.
+.br
+The function will take in account the shape of both matrices so the operation is performed in different ways depending on the shapes and the shapes' type (see \fIPSMatrixShape\fR for more details about the shape type):
+.br
+
+.RS 4
+\[bu] If both \fIa\fR and \fIb\fR have the same shape or if both their shape types are vector-like shapes (\fIPS_SHAPE_TYPE_ROW\fR or \fIPS_SHAPE_TYPE_COL\fR) and both \fIa\fR and \fIb\fR have the same length (total number of values), every element of the resulting matrix will be the sum of every element of \fIa\fR and the corresponding element of \fIb\fR.
+.br
+
+\[bu] If only one of \fIa\fR or \fIb\fR has a vector-like shape (\fIPS_SHAPE_TYPE_ROW\fR or \fIPS_SHAPE_TYPE_COL\fR) and the other matrix has a matrix-like shape and the length of the vector-like matrix is the same of the last dimension of the other matrix, the resulting matrix will have the shape of the matrix with a matrix-like shape and the values from the vector-like matrix will be added to the values of the "rows" of the matrix-like matrix. For example: if \fIa\fR has a shape of 2,3 and \fIb\fR has a shape of 1,3, the result will be computed as a[0] + b and a[1] + b.
+.br
+
+\[bu] If \fIa\fR or \fIb\fR have a scalar-like shape (\fIPS_SHAPE_TYPE_SCALAR\fR), the resulting matrix will have the shape of the non-scalar matrix with the scalar value of the scalar-like matrix (basically, its first and only element) added to the all the values of the non-scalar matrix.
+.RE
+.RE
+
+
+.SH RETURN VALUES
+1 if operation succeeds, 0 if it fails.
+Possible failure reasons:
+.br
+
+.RS 4
+\[bu] \fIa\fR is \fINULL\fR or \fIb\fR is \fINULL\fR or \fIresult\fR is \fINULL\fR.
+.br
+
+\[bu] \fIa\fR has zero dimensions or \fIb\fR has zero dimensions.
+.br
+
+\[bu] Invalid shapes:
+.br
+
+.RS 4
+\[bu] Shapes differ, and
+.br
+
+\[bu] neither \fIa\fR nor \fIb\fR have scalar-like shape, and
+.br
+
+\[bu] both \fIa\fR and \fIb\fR have vector-like shape but their total length differ
+.br
+
+\[bu] one of \fIa\fR or \fIb\fR has vector-like shape whose size differs from the matrix-like matrix last dimension.
+.br
+
+.RE
+\[bu] Memory allocation failure.
+.br
+.RE
+
+.SH SEE ALSO
+PSMatrixShape(3)

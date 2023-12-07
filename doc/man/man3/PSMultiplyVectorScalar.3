@@ -1,0 +1,63 @@
+.\" Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that the above copyright notice and this paragraph are
+.\" duplicated in all such forms and that any documentation,
+.\" advertising materials, and other materials related to such
+.\" distribution and use acknowledge that the software was developed
+.\" by the copyright holder. The name of the
+.\" copyright holder may not be used to endorse or promote products derived
+.\" from this software without specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+.TH PSMultiplyVectorScalar 3 2023-12-07 "PsyC 0.9.3" "PsyC Library Functions Manual"
+
+.SH NAME
+PSMultiplyVectorScalar
+
+.SH LIBRARY
+PsyC (-lpsyc)
+
+.SH SYNOPSIS
+
+.B
+#include <psyc/maths.h>
+
+.I
+PSFloat  *
+.br
+\fBPSMultiplyVectorScalar\fR(\fIPSFloat *a\fR, \fIPSFloat b\fR, \fIPSFloat *dest\fR, \fIuint64_t length\fR, \fIPSMathOpts *opts\fR)
+.SH DESCRIPTION
+Multiply vector \fIa\fR by scalar \fIb\fR. The argument \fIlength\fR defines the length of \fIa\fR.
+.br
+The resulting vector will have the same length of \fIa\fR and each of its elements will be the multiplication of the corresponding element of \fIa\fR at the same index by scalar value b (`dest[i] = a[i] * b`).
+.br
+Results are stored into the optional \fIdest\fR arguments. If \fIdest\fR is \fINULL\fR, a new vector will be allocated and its address will be  returned by the function itself.
+.br
+The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in \fIPSGlobalAcceleration\fR are used, if any. However, the used accelerations methods can be changed via the \fIacceleration\fR member of the optional argument \fIopts\fR.
+.br
+Aside from acceleration, \fIopts\fR can also be used to set the result storage mode (by using the \fIstore_mode\fR member):
+.br
+
+.RS 4
+.TP
+.B PS_STORE_MODE_ADD
+the result is added to the existing values of \fIdest\fR.
+.br
+
+.TP
+.B PS_STORE_MODE_SUB
+the result is subtracted from the existing values    of \fIdest\fR.
+.RE
+.RE
+
+Some acceleration systems (ie. AVX) can use some storage modes to speed-up computation.  
+
+.SH RETURN VALUES
+The pointer to the address of the vector containing results.
+If \fIdest\fR is not \fINULL\fR, the return value is \fIdest\fR itself, but if \fIdest\fR is \fINULL\fR, the return value is the address of the newly allocated vector.
+.br
+The function returns \fINULL\fR if \fIdest\fR is \fINULL\fR but the destination vector cannot be allocated in memory.
