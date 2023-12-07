@@ -36,7 +36,7 @@ forwarded to the model and (in training datasets) the expected outputs.
 So every input sample (and, eventually, its related target), is independent.
 This kind of datasets is made by a collection of inputs where each input array
 is immediately followed by the related target array.
-So, for instance, the popular MNIST ( https://en.wikipedia.org/wiki/MNIST_database  ) dataset would be described by an array of inputs of size 784 (each MNIST image is made by 28x28 pixels) immediately followed by the target values of size 10 (MNIST predictions are composed of 10 classes), and, since the MNIST training dataset consists of 60,000 images, the final array would be composed of 47,640,000 \fIPSFloat\fR elements.
+So, for instance, the popular MNIST <https://en.wikipedia.org/wiki/MNIST_database> dataset would be described by an array of inputs of size 784 (each MNIST image is made by 28x28 pixels) immediately followed by the target values of size 10 (MNIST predictions are composed of 10 classes), and, since the MNIST training dataset consists of 60,000 images, the final array would be composed of 47,640,000 \fIPSFloat\fR elements.
 While training models with standard datasets, PsyC automatically determines the
 number of samples (individual inputs+targets) of the dataset itself by dividing
 the number of dataset elements by the model's input size + model's output size.

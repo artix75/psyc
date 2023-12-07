@@ -23,17 +23,6 @@ In: types.h, line: 25
 
 
 
-### M_PI
-
-In: utils.h, line: 30
-
-```c
-#define M_PI 3.141592653589793
-```
-
-
-
-
 ### PS_ACTION_ABORT
 
 In: psyc.h, line: 64
@@ -2888,39 +2877,6 @@ In: psyc.h, line: 33
 
 ```c
 #define PSYC_CONTACT PSYC_SITE "/issues"
-```
-
-
-
-
-### PSYC_GIT_BRANCH
-
-In: buildinfo.h, line: 6
-
-```c
-#define PSYC_GIT_BRANCH "1.0-dev"
-```
-
-
-
-
-### PSYC_GIT_DIRTY
-
-In: buildinfo.h, line: 5
-
-```c
-#define PSYC_GIT_DIRTY "880"
-```
-
-
-
-
-### PSYC_GIT_SHA
-
-In: buildinfo.h, line: 4
-
-```c
-#define PSYC_GIT_SHA "5416e226"
 ```
 
 

@@ -1,0 +1,552 @@
+.\" Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that the above copyright notice and this paragraph are
+.\" duplicated in all such forms and that any documentation,
+.\" advertising materials, and other materials related to such
+.\" distribution and use acknowledge that the software was developed
+.\" by the copyright holder. The name of the
+.\" copyright holder may not be used to endorse or promote products derived
+.\" from this software without specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+.TH PSYC 7 2023-12-07 "PsyC 0.9.3" "PsyC Manual"
+
+.SH NAME
+PsyC (-lpsyc)
+
+.SH SYNOPSIS
+
+.B
+#include <psyc/all.h>
+
+.RE
+.RS 4
+.SH DESCRIPTION
+.PP
+PsyC is an open\-source C library that allows building neural networks on POSIX systems such as Linux or macOS. It provides a collection of layer types and functionalities to facilitate the construction and training of neural networks.
+.PP
+.RE
+.RS 4
+.SH FEATURES
+.PP
+Supported layer types:
+.PP
+\[bu] Fully Connected (Dense) layers.
+.br
+\[bu] Linear layers.
+.br
+\[bu] Convolutional/Pooling layers.
+.br
+\[bu] Normalization layers.
+.br
+\[bu] Dropout layers.
+.br
+\[bu] Embedding layers.
+.br
+\[bu] Recurrent, LSTM, and GRU layers.
+.br
+\[bu] Positional Encoding.
+.br
+\[bu] Attention mechanism.
+.br
+.PP
+.br
+PsyC also provides additional features:
+.PP
+\[bu] Building models composed of multiple neural networks, such as encoder\-decoder models
+.br
+\[bu] Building transformers by utilizing Attention layers and enabling a flag that allows feeding the whole sequence as inputs
+.br
+.PP
+.br
+.RE
+.RS 4
+.SH SYSTEM REQUIREMENTS
+.PP
+\[bu] POSIX\-compliant operating system (Linux, macOS)
+.br
+\[bu] zlib must be installed on your system
+.br
+.PP
+.br
+.RE
+.RS 4
+.SH SUPPORTED HARDWARE/LIBRARIES
+.PP
+PsyC can leverage certain libraries and hardware for accelerated computation.
+.PP
+\[bu] Apple® Accelerate Framework <https://developer.apple.com/documentation/accelerate> for optimal performance on Apple® Silicon CPUs
+.br
+\[bu] AVX <https://www.intel.com/content/www/us/en/support/articles/000005779/processors.html> instruction set support for improved performance on x86 CPUs
+.br
+\[bu] BLAS <https://www.netlib.org/blas/> routines support can be provided by either Apple Accelerate Framework or GNU GSL Library <https://www.gnu.org/software/gsl/> if they're found. If none of the previous options are found, PsyC still provides its own partial implementation of some BLAS routines (but it's actually quite slow in this latter case).
+.br
+.PP
+.br
+The above libraries and hardware are automatically detected by PsyC and they're not dependecies, as PsyC can run without them.
+.PP
+Currently, there's no support for NVIDIA® CUDA® <https://developer.nvidia.com/cuda\-toolkit>, but its support is planned for future releases.
+.PP
+.RE
+.RS 4
+.SH EXAMPLE
+.PP
+1. Include the necessary headers in your source file:
+.br
+.PP
+.br
+.nf
+.eo
+   #include <psyc/all.h>
+.ec
+.fi
+.PP
+2. Create a neural network:
+.br
+.PP
+.br
+.nf
+.eo
+   PSModel *model = PSModelCreate("My Awesome Model");
+.ec
+.fi
+.PP
+3. Add some layers:
+.br
+.PP
+.br
+.nf
+.eo
+   PSAddLayer(model, FullyConnected, 784, NULL); /* Input layer, size: 784) */
+   PSAddLayer(model, FullyConnected, 30, NULL); /* Hidden dense (FullyConnected) layer of size 30) */
+   PSAddLayer(model, SoftMax, 10, NULL); /* Output softmax layer of size 10) */
+.ec
+.fi
+.PP
+   The code above creates a basic neural network composed of only Fully\-Connected (Dense) layers and a Softmax layer used for the output layer. However, PsyC offers various types of layers (see the Features <#features> section). Here are some example codes:
+.PP
+.nf
+.eo
+   /* Add a convolutional layer */
+   PSLayerDef conv_def = {.filter_width = 3, .stride = 1, .padding = 2};
+   PSAddLayer(model, Convolutional, 0, &conv_def);
+.PP
+   /* Add LSTM or GRU layers */
+   PSAddLayer(model, LSTM, 10, NULL);
+   PSAddLayer(model, GRU, 10, NULL);
+.PP
+   /* Add an Attention layer */
+   PSLayerDef attn_def = {.attention_heads = 4, .causal_attention = 1};
+   PSAddLayer(model, Attention, 10, &attn_def);
+.ec
+.fi
+.PP
+4. Train your model:
+.br
+.PP
+.br
+.nf
+.eo
+   PSFloat training_data[] = {...};
+   PSTraningOptions opts = {.learning_rate = 0.01};
+   int datalen = (int) sizeof(training_data) / sizeof(PSFloat);
+   PSTrain(model, training_data, datalen, NULL, 0, &opts);
+.ec
+.fi
+.PP
+5. Get predictions:
+.br
+.PP
+.br
+   Get raw predictions by forwarding inputs to the model and by reading
+   the output layer's state:
+.PP
+.nf
+.eo
+   PSFloat inputs[] = {...};
+   PSForward(model, inputs);
+   PSLayer *output_layer = PSGetOutputLayer(model);
+   PSFloat *outputs = PSGetOutputs(output_layer);
+.ec
+.fi
+.PP
+   Or get classification predictions:
+.PP
+.nf
+.eo
+   PSFloat inputs[] = {...};
+   int predicted = PSClassify(model, inputs)
+.ec
+.fi
+.PP
+6. Finally, release the model:
+.br
+.PP
+.br
+.nf
+.eo
+   PSModelFree(model);
+.ec
+.fi
+.PP
+7. Compile your program by linking against the PsyC library, like this:
+.br
+.PP
+.br
+.nf
+.eo
+   PREFIX=/usr/local # Or whatever you used as PREFIX during install
+   gcc -I$PREFIX/include -L $PREFIX/lib -lpsyc -o myprogram myprogram.c
+.ec
+.fi
+.PP
+   or, alternatively, you can use the provided `psyc\-cc` utility:
+.PP
+.nf
+.eo
+   psyc-cc -o myprogram myprogram.c
+.ec
+.fi
+.PP
+.RE
+.RS 4
+.SH FUTURE ROADMAP
+.PP
+\[bu] GPU support (e.g., CUDA® <https://developer.nvidia.com/cuda\-toolkit>) for enhanced performance on compatible systems
+.br
+\[bu] OpenBLAS <https://www.openblas.net/> support
+.br
+\[bu] Diffusion models, VAE, GAN, and so on.
+.br
+\[bu] Bi\-directional recurreent networks
+.br
+.PP
+.br
+.RE
+.RS 4
+
+.SH MISCELLANEOUS PAGES
+psyc-datasets(7)
+
+
+.SH LIBRARY FUNCTIONS PAGES
+PSAddLayer(3)
+.br
+PSAddModel(3)
+.br
+PSAddVectors(3)
+.br
+PSAddVectorScalar(3)
+.br
+PSAutoregression(3)
+.br
+PSClassify(3)
+.br
+PSCumulativeSum(3)
+.br
+PSDiagonalFlatten(3)
+.br
+PSDiagonalFlattenVector(3)
+.br
+PSDiagonalMask(3)
+.br
+PSDictClear(3)
+.br
+PSDictCreate(3)
+.br
+PSDictFree(3)
+.br
+PSDictGet(3)
+.br
+PSDictGetItems(3)
+.br
+PSDictGetKeys(3)
+.br
+PSDictGetOrSet(3)
+.br
+PSDictGetPointer(3)
+.br
+PSDictHasKey(3)
+.br
+PSDictIteratorCreate(3)
+.br
+PSDictNext(3)
+.br
+PSDictRemove(3)
+.br
+PSDictSet(3)
+.br
+PSDivideScalarVector(3)
+.br
+PSDivideVectors(3)
+.br
+PSDivideVectorScalar(3)
+.br
+PSDot(3)
+.br
+PSDotMV(3)
+.br
+PSDotProduct(3)
+.br
+PSDotVM(3)
+.br
+PSDownloadFile(3)
+.br
+PSFindLayerMaxState(3)
+.br
+PSFloatEquals(3)
+.br
+PSForward(3)
+.br
+PSGaussianRandom(3)
+.br
+PSGelu(3)
+.br
+PSGeluDerivative(3)
+.br
+PSGeluDerivativeS(3)
+.br
+PSGeluS(3)
+.br
+PSGetCodeOptimizationLevel(3)
+.br
+PSGetHomeDirectory(3)
+.br
+PSGetModelAtIndex(3)
+.br
+PSGetTerminalColumns(3)
+.br
+PSIsDirectory(3)
+.br
+PSLayerFree(3)
+.br
+PSLayerSave(3)
+.br
+PSLoadCIFARData(3)
+.br
+PSLoadDataFromFile(3)
+.br
+PSLoadDataFromString(3)
+.br
+PSLoadDataFromTextFile(3)
+.br
+PSLoadMNISTData(3)
+.br
+PSLoadModel(3)
+.br
+PSMakeDir(3)
+.br
+PSMatMul(3)
+.br
+PSMatrixAdd(3)
+.br
+PSMatrixClear(3)
+.br
+PSMatrixCopy(3)
+.br
+PSMatrixCreate(3)
+.br
+PSMatrixCreateWithShape(3)
+.br
+PSMatrixDim(3)
+.br
+PSMatrixDivide(3)
+.br
+PSMatrixDup(3)
+.br
+PSMatrixDupShape(3)
+.br
+PSMatrixEquals(3)
+.br
+PSMatrixExpand(3)
+.br
+PSMatrixFlatten(3)
+.br
+PSMatrixFree(3)
+.br
+PSMatrixFromArray(3)
+.br
+PSMatrixLength(3)
+.br
+PSMatrixMultiply(3)
+.br
+PSMatrixNumDims(3)
+.br
+PSMatrixPrint(3)
+.br
+PSMatrixProduct(3)
+.br
+PSMatrixProductMV(3)
+.br
+PSMatrixProductVM(3)
+.br
+PSMatrixRandom(3)
+.br
+PSMatrixResetTransposed(3)
+.br
+PSMatrixReshape(3)
+.br
+PSMatrixShape(3)
+.br
+PSMatrixShapeType(3)
+.br
+PSMatrixSplit(3)
+.br
+PSMatrixStride(3)
+.br
+PSMatrixSubtract(3)
+.br
+PSMatrixSwapAxes(3)
+.br
+PSMatrixTranspose(3)
+.br
+PSMatrixWithGaussianRandom(3)
+.br
+PSMatrixWrite(3)
+.br
+PSMatrixZeros(3)
+.br
+PSMean(3)
+.br
+PSModelBuild(3)
+.br
+PSModelChainContains(3)
+.br
+PSModelChainHead(3)
+.br
+PSModelChainLength(3)
+.br
+PSModelChainTail(3)
+.br
+PSModelCreate(3)
+.br
+PSModelFree(3)
+.br
+PSModelGetStatus(3)
+.br
+PSModelIsBuilt(3)
+.br
+PSModelLoad(3)
+.br
+PSModelRebuild(3)
+.br
+PSModelSave(3)
+.br
+PSModelSetName(3)
+.br
+PSModelSetStatus(3)
+.br
+PSMultiplyVectors(3)
+.br
+PSMultiplyVectorScalar(3)
+.br
+PSNormalizedRandom(3)
+.br
+PSOuterProduct(3)
+.br
+PSPathJoin(3)
+.br
+PSRandomInt(3)
+.br
+PSRelu(3)
+.br
+PSReluDerivative(3)
+.br
+PSReluDerivativeS(3)
+.br
+PSReluS(3)
+.br
+PSSaveDataToFile(3)
+.br
+PSSigmoid(3)
+.br
+PSSigmoidDerivative(3)
+.br
+PSSigmoidDerivativeS(3)
+.br
+PSSigmoidS(3)
+.br
+PSSoftmax(3)
+.br
+PSStdDev(3)
+.br
+PSStringJoin(3)
+.br
+PSSubtractScalarVector(3)
+.br
+PSSubtractVectors(3)
+.br
+PSSubtractVectorScalar(3)
+.br
+PSTanhActivation(3)
+.br
+PSTanhDerivative(3)
+.br
+PSTrain(3)
+.br
+PSUTF8Decode(3)
+.br
+PSUTF8Encode(3)
+.br
+PSVariance(3)
+.br
+PSVectorAbs(3)
+.br
+PSVectorClip(3)
+.br
+PSVectorConvertToMatrix(3)
+.br
+PSVectorDup(3)
+.br
+PSVectorEquals(3)
+.br
+PSVectorExp(3)
+.br
+PSVectorFill(3)
+.br
+PSVectorMapWithLimit(3)
+.br
+PSVectorMax(3)
+.br
+PSVectorNeg(3)
+.br
+PSVectorPower(3)
+.br
+PSVectorPrint(3)
+.br
+PSVectorRandom(3)
+.br
+PSVectorReduceSum(3)
+.br
+PSVectorSplit(3)
+.br
+PSVectorSqrt(3)
+.br
+PSVectorTanh(3)
+.br
+PSVectorThreshold(3)
+.br
+PSVectorTranspose(3)
+.br
+PSVectorWrite(3)
+.br
+PSVocabularyAdd(3)
+.br
+PSVocabularyCreate(3)
+.br
+PSVocabularyGetTokenByID(3)
+.br
+PSVocabularyGetTokenID(3)
+.br
+PSWorkingDirectory(3)
+.SH LICENSE
+.PP
+PsyC is licensed under the BSD 3\-Clause License <https://opensource.org/licenses/BSD\-3\-Clause>.
+.nf
+.eo
+.SH PROJECT WEBPAGE
+<https://github.com/artix75/psyc>
