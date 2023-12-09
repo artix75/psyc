@@ -41,7 +41,7 @@
 #include <unistd.h>
 #endif
 
-/* PSDict */
+/**** PSDict ****/
 
 /*
  * The Dan Bernstein popuralized hash..  See
@@ -100,7 +100,7 @@ PSDict *PSDictCreate(int flags) {
     return dict;
 }
 
-/* Delete all items in dictionary `dict`. */
+/* Delete all items from dictionary `dict`. */
 void PSDictClear(PSDict *dict) {
     if (dict == NULL) return;
     for (int i = 0; i < PSDICT_HT_SIZE; i++) {
@@ -115,7 +115,7 @@ void PSDictClear(PSDict *dict) {
     }
 }
 
-/* Get the item associated to `key` in dictionary `dict`, if any.
+/* Get the item associated to `key` from dictionary `dict`, if any.
  * Return value: the item (PSDictItem) or NULL. */
 PSDictItem *PSDictGet(PSDict *dict, const char *key) {
     if (dict == NULL || key == NULL) return NULL;
@@ -192,7 +192,7 @@ PSDictItem *PSDictGetOrSet(PSDict *dict, const char *key, PSDictValue val) {
     return item;
 }
 
-/* Delete item associated to `key` in dictionary `dict`, if any. */
+/* Remove item associated to `key` from dictionary `dict`, if any. */
 void PSDictRemove(PSDict *dict, const char *key) {
     PSDictItem *item = PSDictGet(dict, key);
     if (item == NULL) return;
@@ -294,7 +294,7 @@ void PSDictFree(PSDict *dict) {
     free(dict);
 }
 
-/* Neural Network Functions */
+/**** Neural Network Functions ****/
 
 void PSAbortLayer(PSModel *model, PSLayer *layer) {
     if (model->size == 0) return;
@@ -315,7 +315,7 @@ void PSAbortLayer(PSModel *model, PSLayer *layer) {
     }
 }
 
-/* Misc */
+/**** Misc ****/
 
 int PSGetTerminalColumns() {
     static int __term_columns = -1;
@@ -402,7 +402,7 @@ char *PSGetElapsedTimeString(time_t elapsed_us, int opts) {
     return elapsed_str;
 }
 
-/* Filesystem functions */
+/**** Filesystem functions ****/
 
 /* Checks whether `path` is a valid directory. */
 int PSIsDirectory(const char *path) {
@@ -472,7 +472,7 @@ err:
     return 0;
 }
 
-/* Returns PsyC working directory, that is, by default `$HOME/.psyc`.
+/* Get PsyC working directory, that is, by default `$HOME/.psyc`.
  * A custom working directory can be specified at compile-time using
  * `PS_WORKING_DIR` macro or by setting `PS_WORKING_DIR` environment
  * variable.
@@ -634,7 +634,7 @@ int PSDownloadFile(const char *url, const char *dest_dir) {
     return exit_status == 0;
 }
 
-/* Strings */
+/**** Strings ****/
 
 char *PSStringJoin(char **strings, char *sep, int len) {
     errno = 0;

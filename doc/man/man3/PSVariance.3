@@ -13,10 +13,10 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSVariance 3 2023-12-07 "PsyC 0.9.3" "PsyC Library Functions Manual"
+.TH PSVariance 3 2023-12-09 "PsyC 0.9.3" "PsyC Library Functions Manual"
 
 .SH NAME
-PSVariance
+\fBPSVariance\fR
 
 .SH LIBRARY
 PsyC (-lpsyc)
@@ -31,7 +31,7 @@ PSFloat
 .br
 \fBPSVariance\fR(\fIPSFloat *a\fR, \fIuint64_t len\fR, \fIPSMathOpts *opts\fR)
 .SH DESCRIPTION
-Compute the statistical varicance of the elements of vector \fIa\fR having length defined by \fIlength\fR.
+Compute the statistical variance of the elements of vector \fIa\fR having length defined by \fIlength\fR.
 .br
 The variance is the sum of the squared difference of the difference between each value of \fIa\fR and the mean value of \fIa\fR.
 .br
@@ -39,3 +39,6 @@ The function can take advantage of the available accelerations (both hardwware a
 
 .SH RETURN VALUES
 The variance of vector \fIa\fR values or zero if \fIa\fR is \fINULL\fR.
+
+.SH SEE ALSO
+psyc(1)

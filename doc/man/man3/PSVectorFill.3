@@ -13,10 +13,10 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSVectorFill 3 2023-12-07 "PsyC 0.9.3" "PsyC Library Functions Manual"
+.TH PSVectorFill 3 2023-12-09 "PsyC 0.9.3" "PsyC Library Functions Manual"
 
 .SH NAME
-PSVectorFill
+\fBPSVectorFill\fR \- Fill vector with value
 
 .SH LIBRARY
 PsyC (-lpsyc)
@@ -34,3 +34,6 @@ void
 Fill vector \fIvec\fR having length defined by \fIlen\fR with \fIvalue\fR. The function will immediately return if \fIvec\fR is \fINULL\fR or \fIlen\fR is zero.
 .br
 The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in \fIPSGlobalAcceleration\fR are used, if any. However, the used accelerations methods can be changed via the \fIacceleration\fR member of the optional argument \fIopts\fR.
+
+.SH SEE ALSO
+psyc(1)

@@ -2639,7 +2639,7 @@ int PSMatrixEquals(PSMatrix a, PSMatrix b, int precision, int ignore_shape) {
     return PSVectorEquals(a, b, alen, precision, NULL);
 }
 
-/* Invalidate and freee the cached transposed version of `matrix`, if any (see
+/* Invalidate and free the cached transposed version of `matrix`, if any (see
  * `PSMatrixTranspose`). */
 void PSMatrixResetTransposed(PSMatrix matrix) {
     if (matrix == NULL) return;
@@ -3823,7 +3823,7 @@ PSFloat PSMean(PSFloat *a, uint64_t length, PSMathOpts *opts) {
     return mean;
 }
 
-/* Compute the statistical varicance of the elements of vector `a` having
+/* Compute the statistical variance of the elements of vector `a` having
  * length defined by `length`.
  * The variance is the sum of the squared difference of the difference between
  * each value of `a` and the mean value of `a`.

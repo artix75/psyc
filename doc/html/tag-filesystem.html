@@ -116,7 +116,7 @@ String containing the joined path or <span class="identifier-ref">NULL</span> if
 <span class="type return-type">const char *</span><span class="identifier name">PSWorkingDirectory</span> (<span class="arguments"><span class="argument void">void</span></span>)</code>
 </div>
 <div class="description">
-Returns PsyC working directory, that is, by default <code>$HOME/.psyc</code>.<br/>A custom working directory can be specified at compile-time using <span class="identifier-ref">PS_WORKING_DIR</span> macro or by setting <span class="identifier-ref">PS_WORKING_DIR</span> environment variable.<br/>The function will try to automatically create the working directory if it doesn&#39;t exist.  
+Get PsyC working directory, that is, by default <code>$HOME/.psyc</code>.<br/>A custom working directory can be specified at compile-time using <span class="identifier-ref">PS_WORKING_DIR</span> macro or by setting <span class="identifier-ref">PS_WORKING_DIR</span> environment variable.<br/>The function will try to automatically create the working directory if it doesn&#39;t exist.  
 <h4 class="return-values">RETURN VALUES</h4>
 Path to the working directory or <span class="identifier-ref">NULL</span> in case something goes wrong.
 <div class="note"><span class="note-prefix">NOTE:</span>  it returns a static string, so it cannot be freed.

@@ -13,10 +13,10 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSMatrixSplit 3 2023-12-07 "PsyC 0.9.3" "PsyC Library Functions Manual"
+.TH PSMatrixSplit 3 2023-12-09 "PsyC 0.9.3" "PsyC Library Functions Manual"
 
 .SH NAME
-PSMatrixSplit
+\fBPSMatrixSplit\fR \- Split matrix into smaller matrices
 
 .SH LIBRARY
 PsyC (-lpsyc)
@@ -67,3 +67,6 @@ An array of \fInum_slices\fR sub-matrices whose length is or \fINULL\fR if:
 .br
 \fBNOTE\fR:  it's up to the developer using this function to free both the sub-matrices (by using \fIPSMatrixFlatten\fR) and the returned array containing them.
 .br
+
+.SH SEE ALSO
+psyc(1)

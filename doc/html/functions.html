@@ -1002,7 +1002,7 @@ The matrix of <span class="identifier-ref">NULL</span> if:
 <span class="type return-type">void</span> <span class="identifier name">PSDictClear</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psdict">PSDict</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdictclear-dict>dict</span></span></span>)</code>
 </div>
 <div class="description">
-Delete all items in dictionary <span class="identifier-ref" data-identifier-id="function-psdictclear-dict" data-parent-id="function-psdictclear">dict</span>.
+Delete all items from dictionary <span class="identifier-ref" data-identifier-id="function-psdictclear-dict" data-parent-id="function-psdictclear">dict</span>.
 </div>
 </div>
 
@@ -1038,7 +1038,7 @@ Delete the dictionary and free it&#39;s allocated memory.
 <span class="type return-type"><a class="psyc-type" href="types.html#struct-psdictitem">PSDictItem</a> *</span><span class="identifier name">PSDictGet</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psdict">PSDict</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdictget-dict>dict</span></span>, <span class="argument"><span class="type">const char *</span><span class="identifier pointer-name" data-identifier-id=function-psdictget-key>key</span></span></span>)</code>
 </div>
 <div class="description">
-Get the item associated to <span class="identifier-ref" data-identifier-id="function-psdictget-key" data-parent-id="function-psdictget">key</span> in dictionary <span class="identifier-ref" data-identifier-id="function-psdictget-dict" data-parent-id="function-psdictget">dict</span>, if any.  
+Get the item associated to <span class="identifier-ref" data-identifier-id="function-psdictget-key" data-parent-id="function-psdictget">key</span> from dictionary <span class="identifier-ref" data-identifier-id="function-psdictget-dict" data-parent-id="function-psdictget">dict</span>, if any.  
 <h4 class="return-values">RETURN VALUES</h4>
 The item (PSDictItem) or <span class="identifier-ref">NULL</span>.
 </div>
@@ -1150,7 +1150,7 @@ The next item (<a class="psyc-type" href="types.html#struct-psdictitem">PSDictIt
 <span class="type return-type">void</span> <span class="identifier name">PSDictRemove</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psdict">PSDict</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdictremove-dict>dict</span></span>, <span class="argument"><span class="type">const char *</span><span class="identifier pointer-name" data-identifier-id=function-psdictremove-key>key</span></span></span>)</code>
 </div>
 <div class="description">
-Delete item associated to <span class="identifier-ref" data-identifier-id="function-psdictremove-key" data-parent-id="function-psdictremove">key</span> in dictionary <span class="identifier-ref" data-identifier-id="function-psdictremove-dict" data-parent-id="function-psdictremove">dict</span>, if any.
+Remove item associated to <span class="identifier-ref" data-identifier-id="function-psdictremove-key" data-parent-id="function-psdictremove">key</span> from dictionary <span class="identifier-ref" data-identifier-id="function-psdictremove-dict" data-parent-id="function-psdictremove">dict</span>, if any.
 </div>
 </div>
 
@@ -1976,9 +1976,6 @@ The model or <span class="identifier-ref">NULL</span> if:
 <div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSGetTerminalColumns</span> (<span class="arguments"><span class="argument void">void</span></span>)</code>
-</div>
-<div class="description">
-Misc
 </div>
 </div>
 
@@ -3158,7 +3155,7 @@ The allocated matrix or <span class="identifier-ref">NULL</span> if:
 <span class="type return-type">void</span> <span class="identifier name">PSMatrixResetTransposed</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixresettransposed-matrix>matrix</span></span></span>)</code>
 </div>
 <div class="description">
-Invalidate and freee the cached transposed version of <span class="identifier-ref" data-identifier-id="function-psmatrixresettransposed-matrix" data-parent-id="function-psmatrixresettransposed">matrix</span>, if any (see <a class="psyc-func" href="functions.html#function-psmatrixtranspose">PSMatrixTranspose</a>).
+Invalidate and free the cached transposed version of <span class="identifier-ref" data-identifier-id="function-psmatrixresettransposed-matrix" data-parent-id="function-psmatrixresettransposed">matrix</span>, if any (see <a class="psyc-func" href="functions.html#function-psmatrixtranspose">PSMatrixTranspose</a>).
 </div>
 </div>
 
@@ -4503,9 +4500,6 @@ The variance of vector <span class="identifier-ref" data-identifier-id="function
 <code class="definition">
 <span class="type return-type">char *</span><span class="identifier name">PSStringJoin</span> (<span class="arguments"><span class="argument"><span class="type">char **</span><span class="identifier pointer-name" data-identifier-id=function-psstringjoin-strings>strings</span></span>, <span class="argument"><span class="type">char *</span><span class="identifier pointer-name" data-identifier-id=function-psstringjoin-sep>sep</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psstringjoin-len>len</span></span></span>)</code>
 </div>
-<div class="description">
-Strings
-</div>
 </div>
 
 <div class="details function" id="function-pssubtractscalarvector">
@@ -4898,7 +4892,7 @@ From Unicode Codepoint to UTF-8 encoding
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier name">PSVariance</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvariance-a>a</span></span>, <span class="argument"><span class="type">uint64_t</span> <span class="identifier" data-identifier-id=function-psvariance-len>len</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvariance-opts>opts</span></span></span>)</code>
 </div>
 <div class="description">
-Compute the statistical varicance of the elements of vector <span class="identifier-ref" data-identifier-id="function-psvariance-a" data-parent-id="function-psvariance">a</span> having length defined by <a class="psyc-type" href="types.html#struct-psdict">length</a>.<br/>The variance is the sum of the squared difference of the difference between each value of <span class="identifier-ref" data-identifier-id="function-psvariance-a" data-parent-id="function-psvariance">a</span> and the mean value of <span class="identifier-ref" data-identifier-id="function-psvariance-a" data-parent-id="function-psvariance">a</span>.<br/>The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in <span class="identifier-ref">PSGlobalAcceleration</span> are used, if any. However, the used accelerations methods can be changed via the <a class="psyc-type" href="types.html#struct-psmathopts">acceleration</a> member of the optional argument <span class="identifier-ref" data-identifier-id="function-psvariance-opts" data-parent-id="function-psvariance">opts</span>.  
+Compute the statistical variance of the elements of vector <span class="identifier-ref" data-identifier-id="function-psvariance-a" data-parent-id="function-psvariance">a</span> having length defined by <a class="psyc-type" href="types.html#struct-psdict">length</a>.<br/>The variance is the sum of the squared difference of the difference between each value of <span class="identifier-ref" data-identifier-id="function-psvariance-a" data-parent-id="function-psvariance">a</span> and the mean value of <span class="identifier-ref" data-identifier-id="function-psvariance-a" data-parent-id="function-psvariance">a</span>.<br/>The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in <span class="identifier-ref">PSGlobalAcceleration</span> are used, if any. However, the used accelerations methods can be changed via the <a class="psyc-type" href="types.html#struct-psmathopts">acceleration</a> member of the optional argument <span class="identifier-ref" data-identifier-id="function-psvariance-opts" data-parent-id="function-psvariance">opts</span>.  
 <h4 class="return-values">RETURN VALUES</h4>
 The variance of vector <span class="identifier-ref" data-identifier-id="function-psvariance-a" data-parent-id="function-psvariance">a</span> values or zero if <span class="identifier-ref" data-identifier-id="function-psvariance-a" data-parent-id="function-psvariance">a</span> is <span class="identifier-ref">NULL</span>.
 </div>
@@ -5447,7 +5441,7 @@ The token associated with <span class="identifier-ref" data-identifier-id="funct
 <span class="type return-type">int64_t</span> <span class="identifier name">PSVocabularyGetTokenID</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psvocabulary">PSVocabulary</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvocabularygettokenid-vocabulary>vocabulary</span></span>, <span class="argument"><span class="type">char *</span><span class="identifier pointer-name" data-identifier-id=function-psvocabularygettokenid-token>token</span></span></span>)</code>
 </div>
 <div class="description">
-Get the ID the token <span class="identifier-ref" data-identifier-id="function-psvocabularygettokenid-token" data-parent-id="function-psvocabularygettokenid">token</span> from vocabulary <span class="identifier-ref" data-identifier-id="function-psvocabularygettokenid-vocabulary" data-parent-id="function-psvocabularygettokenid">vocabulary</span>.  
+Get the ID of the token <span class="identifier-ref" data-identifier-id="function-psvocabularygettokenid-token" data-parent-id="function-psvocabularygettokenid">token</span> from vocabulary <span class="identifier-ref" data-identifier-id="function-psvocabularygettokenid-vocabulary" data-parent-id="function-psvocabularygettokenid">vocabulary</span>.  
 <h4 class="return-values">RETURN VALUES</h4>
 The numeric index (ID) of the token. If token is not found into <span class="identifier-ref" data-identifier-id="function-psvocabularygettokenid-vocabulary" data-parent-id="function-psvocabularygettokenid">vocabulary</span>, the function will return <a class="psyc-macro" href="macros.html#macro-ps-token-not-found">PS_TOKEN_NOT_FOUND</a>.
 If <span class="identifier-ref" data-identifier-id="function-psvocabularygettokenid-vocabulary" data-parent-id="function-psvocabularygettokenid">vocabulary</span> is <span class="identifier-ref">NULL</span> or <span class="identifier-ref" data-identifier-id="function-psvocabularygettokenid-token" data-parent-id="function-psvocabularygettokenid">token</span> is <span class="identifier-ref">NULL</span>, the function will return <a class="psyc-macro" href="macros.html#macro-ps-invalid-token-id">PS_INVALID_TOKEN_ID</a>.
@@ -5489,7 +5483,7 @@ If <span class="identifier-ref" data-identifier-id="function-psvocabularygettoke
 <span class="type return-type">const char *</span><span class="identifier name">PSWorkingDirectory</span> (<span class="arguments"><span class="argument void">void</span></span>)</code>
 </div>
 <div class="description">
-Returns PsyC working directory, that is, by default <code>$HOME/.psyc</code>.<br/>A custom working directory can be specified at compile-time using <span class="identifier-ref">PS_WORKING_DIR</span> macro or by setting <span class="identifier-ref">PS_WORKING_DIR</span> environment variable.<br/>The function will try to automatically create the working directory if it doesn&#39;t exist.  
+Get PsyC working directory, that is, by default <code>$HOME/.psyc</code>.<br/>A custom working directory can be specified at compile-time using <span class="identifier-ref">PS_WORKING_DIR</span> macro or by setting <span class="identifier-ref">PS_WORKING_DIR</span> environment variable.<br/>The function will try to automatically create the working directory if it doesn&#39;t exist.  
 <h4 class="return-values">RETURN VALUES</h4>
 Path to the working directory or <span class="identifier-ref">NULL</span> in case something goes wrong.
 <div class="note"><span class="note-prefix">NOTE:</span>  it returns a static string, so it cannot be freed.

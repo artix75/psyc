@@ -13,10 +13,10 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSVocabularyGetTokenID 3 2023-12-07 "PsyC 0.9.3" "PsyC Library Functions Manual"
+.TH PSVocabularyGetTokenID 3 2023-12-09 "PsyC 0.9.3" "PsyC Library Functions Manual"
 
 .SH NAME
-PSVocabularyGetTokenID
+\fBPSVocabularyGetTokenID\fR \- Get the ID of the token from vocabulary
 
 .SH LIBRARY
 PsyC (-lpsyc)
@@ -31,8 +31,11 @@ int64_t
 .br
 \fBPSVocabularyGetTokenID\fR(\fIPSVocabulary *vocabulary\fR, \fIchar *token\fR)
 .SH DESCRIPTION
-Get the ID the token \fItoken\fR from vocabulary \fIvocabulary\fR.  
+Get the ID of the token \fItoken\fR from vocabulary \fIvocabulary\fR.  
 
 .SH RETURN VALUES
 The numeric index (ID) of the token. If token is not found into \fIvocabulary\fR, the function will return \fIPS_TOKEN_NOT_FOUND\fR.
 If \fIvocabulary\fR is \fINULL\fR or \fItoken\fR is \fINULL\fR, the function will return \fIPS_INVALID_TOKEN_ID\fR.
+
+.SH SEE ALSO
+psyc(1)

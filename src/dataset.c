@@ -109,7 +109,7 @@ int64_t PSVocabularyAdd(PSVocabulary *vocabulary, char *token) {
     return id;
 }
 
-/* Get the ID the token `token` from vocabulary `vocabulary`.
+/* Get the ID of the token `token` from vocabulary `vocabulary`.
  * Return value: the numeric index (ID) of the token. If token is not found
  * into `vocabulary`, the function will return `PS_TOKEN_NOT_FOUND`.
  * If `vocabulary` is NULL or `token` is NULL, the function will return

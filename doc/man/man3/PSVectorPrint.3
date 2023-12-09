@@ -13,10 +13,10 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSVectorPrint 3 2023-12-07 "PsyC 0.9.3" "PsyC Library Functions Manual"
+.TH PSVectorPrint 3 2023-12-09 "PsyC 0.9.3" "PsyC Library Functions Manual"
 
 .SH NAME
-PSVectorPrint
+\fBPSVectorPrint\fR \- Print vector as string
 
 .SH LIBRARY
 PsyC (-lpsyc)
@@ -36,3 +36,6 @@ Print a string representation of vector \fIvec\fR having length of \fIlen\fR to 
 The optional \fIsep\fR argument can be used to specify a separator string for vector's values (if \fIsep\fR is null, by default "," is used as separator).
 .br
 If \fIvec\fR is \fINULL\fR the function will immediately return.
+
+.SH SEE ALSO
+psyc(1)

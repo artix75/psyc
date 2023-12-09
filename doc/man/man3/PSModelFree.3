@@ -13,10 +13,10 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSModelFree 3 2023-12-07 "PsyC 0.9.3" "PsyC Library Functions Manual"
+.TH PSModelFree 3 2023-12-09 "PsyC 0.9.3" "PsyC Library Functions Manual"
 
 .SH NAME
-PSModelFree
+\fBPSModelFree\fR \- Free model memory
 
 .SH LIBRARY
 PsyC (-lpsyc)
@@ -34,3 +34,6 @@ void
 Free \fImodel\fR and all its related objects (layers, data, ...). If the model is part of a multi-model chain, all models following \fImodel\fR will also be freed.
 .br
 The functions safely checks whether \fImodel\fR is \fINULL\fR and it does nothing in this case.
+
+.SH SEE ALSO
+psyc(1)

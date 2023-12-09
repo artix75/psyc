@@ -13,10 +13,10 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSVocabularyAdd 3 2023-12-07 "PsyC 0.9.3" "PsyC Library Functions Manual"
+.TH PSVocabularyAdd 3 2023-12-09 "PsyC 0.9.3" "PsyC Library Functions Manual"
 
 .SH NAME
-PSVocabularyAdd
+\fBPSVocabularyAdd\fR \- Add token to vocabulary
 
 .SH LIBRARY
 PsyC (-lpsyc)
@@ -37,3 +37,6 @@ The index is a progressive number. If the token already exists, the internal dic
 
 .SH RETURN VALUES
 The numeric index (ID) of the token. If token could not be added to the dictionary or \fItoken\fR is \fINULL\fR, the function will return \fIPS_INVALID_TOKEN_ID\fR.
+
+.SH SEE ALSO
+psyc(1)

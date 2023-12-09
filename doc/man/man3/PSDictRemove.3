@@ -13,10 +13,10 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSDictRemove 3 2023-12-07 "PsyC 0.9.3" "PsyC Library Functions Manual"
+.TH PSDictRemove 3 2023-12-09 "PsyC 0.9.3" "PsyC Library Functions Manual"
 
 .SH NAME
-PSDictRemove
+\fBPSDictRemove\fR \- Remove item associated to key from dictionary
 
 .SH LIBRARY
 PsyC (-lpsyc)
@@ -31,4 +31,7 @@ void
 .br
 \fBPSDictRemove\fR(\fIPSDict *dict\fR, \fIconst char *key\fR)
 .SH DESCRIPTION
-Delete item associated to \fIkey\fR in dictionary \fIdict\fR, if any.
+Remove item associated to \fIkey\fR from dictionary \fIdict\fR, if any.
+
+.SH SEE ALSO
+psyc(1)

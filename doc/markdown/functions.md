@@ -630,7 +630,7 @@ In: utils.h, line: 97
 void PSDictClear (PSDict *dict)
 ```
 
-Delete all items in dictionary [dict](types.md#psdictiterator).
+Delete all items from dictionary [dict](types.md#psdictiterator).
 
 
 ### PSDictCreate
@@ -663,7 +663,7 @@ In: utils.h, line: 98
 PSDictItem  * PSDictGet (PSDict *dict, const char *key)
 ```
 
-Get the item associated to [key](types.md#psdictitem) in dictionary [dict](types.md#psdictiterator), if any.  
+Get the item associated to [key](types.md#psdictitem) from dictionary [dict](types.md#psdictiterator), if any.  
 
 
 **RETURN VALUES**
@@ -793,7 +793,7 @@ In: utils.h, line: 103
 void PSDictRemove (PSDict *dict, const char *key)
 ```
 
-Delete item associated to [key](types.md#psdictitem) in dictionary [dict](types.md#psdictiterator), if any.
+Remove item associated to [key](types.md#psdictitem) from dictionary [dict](types.md#psdictiterator), if any.
 
 
 ### PSDictSet
@@ -1746,7 +1746,7 @@ In: utils.h, line: 141
 int PSGetTerminalColumns (void)
 ```
 
-Misc
+
 
 
 ### PSHandleSignals
@@ -2767,7 +2767,7 @@ In: maths.h, line: 187
 void PSMatrixResetTransposed (PSMatrix matrix)
 ```
 
-Invalidate and freee the cached transposed version of **matrix**, if any (see [PSMatrixTranspose](functions.md#psmatrixtranspose)).
+Invalidate and free the cached transposed version of **matrix**, if any (see [PSMatrixTranspose](functions.md#psmatrixtranspose)).
 
 
 ### PSMatrixReshape
@@ -4032,7 +4032,7 @@ In: utils.h, line: 132
 char  * PSStringJoin (char ** strings, char *sep, int len)
 ```
 
-Strings
+
 
 
 ### PSSubtractScalarVector
@@ -4441,7 +4441,7 @@ In: maths.h, line: 240
 PSFloat PSVariance (PSFloat *a, uint64_t len, PSMathOpts *opts)
 ```
 
-Compute the statistical varicance of the elements of vector **a** having length defined by [length](types.md#psdict).  
+Compute the statistical variance of the elements of vector **a** having length defined by [length](types.md#psdict).  
 The variance is the sum of the squared difference of the difference between each value of **a** and the mean value of **a**.  
 The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in **PSGlobalAcceleration** are used, if any. However, the used accelerations methods can be changed via the [acceleration](types.md#psmathopts) member of the optional argument **opts**.  
 
@@ -5003,7 +5003,7 @@ In: dataset.h, line: 120
 int64_t PSVocabularyGetTokenID (PSVocabulary *vocabulary, char *token)
 ```
 
-Get the ID the token **token** from vocabulary **vocabulary**.  
+Get the ID of the token **token** from vocabulary **vocabulary**.  
 
 
 **RETURN VALUES**
@@ -5053,7 +5053,7 @@ In: utils.h, line: 127
 const char  * PSWorkingDirectory (void)
 ```
 
-Returns PsyC working directory, that is, by default `$HOME/.psyc`.  
+Get PsyC working directory, that is, by default `$HOME/.psyc`.  
 A custom working directory can be specified at compile-time using **PS_WORKING_DIR** macro or by setting **PS_WORKING_DIR** environment variable.  
 The function will try to automatically create the working directory if it doesn't exist.  
 

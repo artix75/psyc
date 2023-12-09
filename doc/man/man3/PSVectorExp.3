@@ -13,10 +13,10 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSVectorExp 3 2023-12-07 "PsyC 0.9.3" "PsyC Library Functions Manual"
+.TH PSVectorExp 3 2023-12-09 "PsyC 0.9.3" "PsyC Library Functions Manual"
 
 .SH NAME
-PSVectorExp
+\fBPSVectorExp\fR
 
 .SH LIBRARY
 PsyC (-lpsyc)
@@ -61,3 +61,6 @@ The pointer to the address of the vector containing results.
 If \fIdest\fR is not \fINULL\fR, the return value is \fIdest\fR itself, but if \fIdest\fR is \fINULL\fR, the return value is the address of the newly allocated vector.
 .br
 The function returns \fINULL\fR if \fIdest\fR is \fINULL\fR but the destination vector cannot be allocated in memory.
+
+.SH SEE ALSO
+psyc(1)

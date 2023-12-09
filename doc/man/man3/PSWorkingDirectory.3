@@ -13,10 +13,10 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSWorkingDirectory 3 2023-12-07 "PsyC 0.9.3" "PsyC Library Functions Manual"
+.TH PSWorkingDirectory 3 2023-12-09 "PsyC 0.9.3" "PsyC Library Functions Manual"
 
 .SH NAME
-PSWorkingDirectory
+\fBPSWorkingDirectory\fR \- Get PsyC working directory
 
 .SH LIBRARY
 PsyC (-lpsyc)
@@ -31,7 +31,7 @@ const char  *
 .br
 \fBPSWorkingDirectory\fR(\fIvoid\fR)
 .SH DESCRIPTION
-Returns PsyC working directory, that is, by default `$HOME/.psyc`.
+Get PsyC working directory, that is, by default `$HOME/.psyc`.
 .br
 A custom working directory can be specified at compile-time using \fIPS_WORKING_DIR\fR macro or by setting \fIPS_WORKING_DIR\fR environment variable.
 .br
@@ -43,3 +43,6 @@ Path to the working directory or \fINULL\fR in case something goes wrong.
 .br
 \fBNOTE\fR:  it returns a static string, so it cannot be freed.
 .br
+
+.SH SEE ALSO
+psyc(1)

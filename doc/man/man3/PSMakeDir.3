@@ -13,10 +13,10 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSMakeDir 3 2023-12-07 "PsyC 0.9.3" "PsyC Library Functions Manual"
+.TH PSMakeDir 3 2023-12-09 "PsyC 0.9.3" "PsyC Library Functions Manual"
 
 .SH NAME
-PSMakeDir
+\fBPSMakeDir\fR \- Create directory
 
 .SH LIBRARY
 PsyC (-lpsyc)
@@ -34,3 +34,6 @@ int
 Creates directory \fIpath\fR is it does not exists. If \fIrecursive\fR is 1, the function will try to also create intermediate paths if they don't exists, in a similar fashion to "mkdir -p".
 .br
 Return vale: 1 in case of success, elseway 0.
+
+.SH SEE ALSO
+psyc(1)
