@@ -91,7 +91,7 @@ In: utils.h, line: 57
 
 ### PS_CIFAR_IMAGE_SIZE
 
-In: dataset.h, line: 147
+In: dataset.h, line: 151
 
 ```c
 #define PS_CIFAR_IMAGE_SIZE (32 * 32 * 3)
@@ -194,7 +194,7 @@ In: psyc.h, line: 42
 
 ### PS_DEFAULT_MAX_VOCAB_SIZE
 
-In: dataset.h, line: 47
+In: dataset.h, line: 49
 
 ```c
 #define PS_DEFAULT_MAX_VOCAB_SIZE 15000
@@ -205,7 +205,7 @@ In: dataset.h, line: 47
 
 ### PS_DEFAULT_PARSER_CAPACITY
 
-In: dataset.h, line: 46
+In: dataset.h, line: 48
 
 ```c
 #define PS_DEFAULT_PARSER_CAPACITY 50
@@ -249,7 +249,7 @@ In: dataset.h, line: 32
 
 ### PS_DEFAULT_UNKNOWN_TOKEN
 
-In: dataset.h, line: 48
+In: dataset.h, line: 50
 
 ```c
 #define PS_DEFAULT_UNKNOWN_TOKEN "<unknown>"
@@ -493,6 +493,17 @@ In: psyc.h, line: 109
 
 
 
+### PS_IO_MAX_TOKEN_SIZE
+
+In: dataset.h, line: 37
+
+```c
+#define PS_IO_MAX_TOKEN_SIZE 1024
+```
+
+
+
+
 ### PS_IO_SAVE_DEFINITION
 
 In: psyc.h, line: 108
@@ -671,7 +682,7 @@ In: psyc.h, line: 50
 
 ### PS_MNIST_INPUT_SIZE
 
-In: dataset.h, line: 141
+In: dataset.h, line: 145
 
 ```c
 #define PS_MNIST_INPUT_SIZE (28 * 28)
@@ -781,7 +792,7 @@ In: psyc.h, line: 67
 
 ### PS_PARSER_FLAG_NO_NORMALIZATION
 
-In: dataset.h, line: 42
+In: dataset.h, line: 44
 
 ```c
 #define PS_PARSER_FLAG_NO_NORMALIZATION (1 << 0)
@@ -792,7 +803,7 @@ In: dataset.h, line: 42
 
 ### PS_PARSER_FLAG_PRESERVE_STRING
 
-In: dataset.h, line: 43
+In: dataset.h, line: 45
 
 ```c
 #define PS_PARSER_FLAG_PRESERVE_STRING (1 << 1)
@@ -803,7 +814,7 @@ In: dataset.h, line: 43
 
 ### PS_PARSER_FLAG_READONLY_VOCAB
 
-In: dataset.h, line: 44
+In: dataset.h, line: 46
 
 ```c
 #define PS_PARSER_FLAG_READONLY_VOCAB (1 << 2)
@@ -814,7 +825,7 @@ In: dataset.h, line: 44
 
 ### PS_PARSER_MODE_CHARS
 
-In: dataset.h, line: 40
+In: dataset.h, line: 42
 
 ```c
 #define PS_PARSER_MODE_CHARS 1
@@ -825,7 +836,7 @@ In: dataset.h, line: 40
 
 ### PS_PARSER_MODE_TOKENS
 
-In: dataset.h, line: 38
+In: dataset.h, line: 40
 
 ```c
 #define PS_PARSER_MODE_TOKENS 0

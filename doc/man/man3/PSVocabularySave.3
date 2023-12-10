@@ -13,10 +13,10 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSStringJoin 3 2023-12-07 "PsyC 0.9.3" "PsyC Library Functions Manual"
+.TH PSVocabularySave 3 2023-12-10 "PsyC 0.9.3" "PsyC Library Functions Manual"
 
 .SH NAME
-PSStringJoin
+\fBPSVocabularySave\fR
 
 .SH LIBRARY
 PsyC (-lpsyc)
@@ -24,11 +24,31 @@ PsyC (-lpsyc)
 .SH SYNOPSIS
 
 .B
-#include <psyc/utils.h>
+#include <psyc/dataset.h>
 
 .I
-char  *
+int  
 .br
-\fBPSStringJoin\fR(\fIchar ** strings\fR, \fIchar *sep\fR, \fIint len\fR)
+\fBPSVocabularySave\fR(\fIPSVocabulary *vocabulary\fR, \fIconst char *path\fR)
 .SH DESCRIPTION
-Strings
+Save \fIvocabulary\fR to file located at \fIpath\fR. Vocabulary tokens are written sequentially to the file as an ordered  sequence of \fINULL\fR-terminated strings.  
+
+.SH RETURN VALUES
+1 if the vocabulary has been successfully saved, 0 if:
+
+.RS 4
+\[bu] \fIvocabulary\fR is \fINULL\fR or \fIpath\fR is \fINULL\fR.
+.br
+
+\[bu] \fIpath\fR cannot be opened for writing.
+.br
+
+\[bu] Size of some token exceeds max. size (\fIPS_IO_MAX_TOKEN_SIZE\fR).
+.br
+
+\[bu] Some writing error occurs.
+.br
+.RE
+
+.SH SEE ALSO
+psyc(1)

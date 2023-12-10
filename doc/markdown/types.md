@@ -872,7 +872,7 @@ typedef void (* PSSignalHandler) (int)
 
 ### PSTextParserOptions
 
-In: dataset.h, line: 98
+In: dataset.h, line: 100
 
 ```c
 typedef struct {  
@@ -908,7 +908,7 @@ Options for text parsing:
 
 ### PSTokenMatch
 
-In: dataset.h, line: 61
+In: dataset.h, line: 63
 
 ```c
 typedef int (* PSTokenMatch) (char *str, int *len)
@@ -1002,7 +1002,7 @@ typedef uint32_t PSUTF8Char
 
 ### PSVocabulary
 
-In: dataset.h, line: 110
+In: dataset.h, line: 112
 
 ```c
 typedef struct {  

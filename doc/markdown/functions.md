@@ -47,7 +47,7 @@ int PSAdamOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloa
 
 ### PSAddCIFARInputLayer
 
-In: dataset.h, line: 151
+In: dataset.h, line: 155
 
 ```c
 PSLayer  * PSAddCIFARInputLayer (PSModel *model)
@@ -1944,7 +1944,7 @@ int PSLineStart (int opts, char *format, ...)
 
 ### PSLoadCIFARData
 
-In: dataset.h, line: 149
+In: dataset.h, line: 153
 
 ```c
 int PSLoadCIFARData (int type, int classes, const char *dataset_path, PSFloat ** data, int max_files, int max_elements)
@@ -1976,7 +1976,7 @@ Possibile errors:
 
 ### PSLoadDataFromFile
 
-In: dataset.h, line: 137
+In: dataset.h, line: 141
 
 ```c
 PSFloat  * PSLoadDataFromFile (const char *filepath, uint64_t *datalen)
@@ -1996,7 +1996,7 @@ Possible failure reasons:
 
 ### PSLoadDataFromString
 
-In: dataset.h, line: 126
+In: dataset.h, line: 130
 
 ```c
 PSFloat  * PSLoadDataFromString (char *str, PSTextParserOptions *opts, PSFloat *existing_data, int64_t *datalen, PSVocabulary ** vocabulary)
@@ -2032,7 +2032,7 @@ The dataset ([PSFloat](types.md#psfloat) array) or **NULL** is something goes wr
 
 ### PSLoadDataFromTextFile
 
-In: dataset.h, line: 129
+In: dataset.h, line: 133
 
 ```c
 PSFloat  * PSLoadDataFromTextFile (const char *filepath, PSTextParserOptions *opts, int64_t *datalen, PSVocabulary ** vocabulary)
@@ -2049,7 +2049,7 @@ The dataset ([PSFloat](types.md#psfloat) array) or **NULL** is something goes wr
 
 ### PSLoadMNISTData
 
-In: dataset.h, line: 143
+In: dataset.h, line: 147
 
 ```c
 int PSLoadMNISTData (int type, const char *images_file, const char *labels_file, PSFloat ** data)
@@ -3560,7 +3560,7 @@ The random float number.
 
 ### PSNormalizeToken
 
-In: dataset.h, line: 125
+In: dataset.h, line: 129
 
 ```c
 char  * PSNormalizeToken (char *token, int len)
@@ -3825,7 +3825,7 @@ int PSRMSPropOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSF
 
 ### PSSaveDataToFile
 
-In: dataset.h, line: 138
+In: dataset.h, line: 142
 
 ```c
 int PSSaveDataToFile (const char *path, PSFloat *data, uint64_t len, int opts)
@@ -4926,7 +4926,7 @@ void PSVLog (int level, const char *format, va_list args)
 
 ### PSVocabularyAdd
 
-In: dataset.h, line: 119
+In: dataset.h, line: 121
 
 ```c
 int64_t PSVocabularyAdd (PSVocabulary *vocabulary, char *token)
@@ -4943,7 +4943,7 @@ The numeric index (ID) of the token. If token could not be added to the dictiona
 
 ### PSVocabularyCreate
 
-In: dataset.h, line: 118
+In: dataset.h, line: 120
 
 ```c
 PSVocabulary  * PSVocabularyCreate (int64_t initial_capacity)
@@ -4959,7 +4959,7 @@ The vocabulary or **NULL** if memory cannot be allocated.
 
 ### PSVocabularyErrorString
 
-In: dataset.h, line: 122
+In: dataset.h, line: 126
 
 ```c
 const char  * PSVocabularyErrorString (int err)
@@ -4970,7 +4970,7 @@ const char  * PSVocabularyErrorString (int err)
 
 ### PSVocabularyFree
 
-In: dataset.h, line: 123
+In: dataset.h, line: 127
 
 ```c
 void PSVocabularyFree (PSVocabulary *vocabulary)
@@ -4981,7 +4981,7 @@ void PSVocabularyFree (PSVocabulary *vocabulary)
 
 ### PSVocabularyGetTokenByID
 
-In: dataset.h, line: 121
+In: dataset.h, line: 123
 
 ```c
 const char  * PSVocabularyGetTokenByID (PSVocabulary *vocabulary, int64_t id)
@@ -4997,7 +4997,7 @@ The token associated with **id** or **NULL** if no **token** is found with **id*
 
 ### PSVocabularyGetTokenID
 
-In: dataset.h, line: 120
+In: dataset.h, line: 122
 
 ```c
 int64_t PSVocabularyGetTokenID (PSVocabulary *vocabulary, char *token)
@@ -5010,6 +5010,52 @@ Get the ID of the token **token** from vocabulary **vocabulary**.
 
 The numeric index (ID) of the token. If token is not found into **vocabulary**, the function will return [PS_TOKEN_NOT_FOUND](macros.md#ps-token-not-found).  
 If **vocabulary** is **NULL** or **token** is **NULL**, the function will return [PS_INVALID_TOKEN_ID](macros.md#ps-invalid-token-id).
+
+
+### PSVocabularyLoad
+
+In: dataset.h, line: 124
+
+```c
+PSVocabulary  * PSVocabularyLoad (const char *path)
+```
+
+Load vocabulary from file located at **path**.  
+
+
+**RETURN VALUES**
+
+The pointer to vocabulary or **NULL** if:  
+
+ - **path** is **NULL**.
+ - **path** does not exists.
+ - **path** cannot be opened for reading.
+ - File at **path** is not a valid PsyC vocabulary file.
+ - Vocabulary would have zero tokens.
+ - Memory cannot be allocated.
+ - Size of some token exceeds max. size ([PS_IO_MAX_TOKEN_SIZE](macros.md#ps-io-max-token-size)).
+ - Some token cannot be added to vocabulary.
+
+
+### PSVocabularySave
+
+In: dataset.h, line: 125
+
+```c
+int PSVocabularySave (PSVocabulary *vocabulary, const char *path)
+```
+
+Save **vocabulary** to file located at **path**. Vocabulary tokens are written sequentially to the file as an ordered  sequence of **NULL**-terminated strings.  
+
+
+**RETURN VALUES**
+
+1 if the vocabulary has been successfully saved, 0 if:  
+
+ - **vocabulary** is **NULL** or **path** is **NULL**.
+ - **path** cannot be opened for writing.
+ - Size of some token exceeds max. size ([PS_IO_MAX_TOKEN_SIZE](macros.md#ps-io-max-token-size)).
+ - Some writing error occurs.
 
 
 ### PSVPrintSameLine

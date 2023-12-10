@@ -13,10 +13,10 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSGetTerminalColumns 3 2023-12-07 "PsyC 0.9.3" "PsyC Library Functions Manual"
+.TH PSVocabularyLoad 3 2023-12-10 "PsyC 0.9.3" "PsyC Library Functions Manual"
 
 .SH NAME
-PSGetTerminalColumns
+\fBPSVocabularyLoad\fR
 
 .SH LIBRARY
 PsyC (-lpsyc)
@@ -24,11 +24,43 @@ PsyC (-lpsyc)
 .SH SYNOPSIS
 
 .B
-#include <psyc/utils.h>
+#include <psyc/dataset.h>
 
 .I
-int  
+PSVocabulary  *
 .br
-\fBPSGetTerminalColumns\fR()
+\fBPSVocabularyLoad\fR(\fIconst char *path\fR)
 .SH DESCRIPTION
-Misc
+Load vocabulary from file located at \fIpath\fR.  
+
+.SH RETURN VALUES
+The pointer to vocabulary or \fINULL\fR if:
+
+.RS 4
+\[bu] \fIpath\fR is \fINULL\fR.
+.br
+
+\[bu] \fIpath\fR does not exists.
+.br
+
+\[bu] \fIpath\fR cannot be opened for reading.
+.br
+
+\[bu] File at \fIpath\fR is not a valid PsyC vocabulary file.
+.br
+
+\[bu] Vocabulary would have zero tokens.
+.br
+
+\[bu] Memory cannot be allocated.
+.br
+
+\[bu] Size of some token exceeds max. size (\fIPS_IO_MAX_TOKEN_SIZE\fR).
+.br
+
+\[bu] Some token cannot be added to vocabulary.
+.br
+.RE
+
+.SH SEE ALSO
+psyc(1)

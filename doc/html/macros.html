@@ -94,6 +94,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 <li><a href="#macro-ps-init-mode-zero">PS_INIT_MODE_ZERO</a></li>
 <li><a href="#macro-ps-invalid-token-id">PS_INVALID_TOKEN_ID</a></li>
 <li><a href="#macro-ps-io-binary-mode">PS_IO_BINARY_MODE</a></li>
+<li><a href="#macro-ps-io-max-token-size">PS_IO_MAX_TOKEN_SIZE</a></li>
 <li><a href="#macro-ps-io-save-definition">PS_IO_SAVE_DEFINITION</a></li>
 <li><a href="#macro-ps-keys-proj-idx">PS_KEYS_PROJ_IDX</a></li>
 <li><a href="#macro-ps-keys-projection">PS_KEYS_PROJECTION</a></li>
@@ -386,7 +387,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details macro" id="macro-ps-cifar-image-size">
 <h3 class="name">PS_CIFAR_IMAGE_SIZE</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">147</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">151</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_CIFAR_IMAGE_SIZE</span> <span class="value">(32 * 32 * 3)</span></code>
@@ -476,7 +477,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details macro" id="macro-ps-default-max-vocab-size">
 <h3 class="name">PS_DEFAULT_MAX_VOCAB_SIZE</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">47</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">49</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_DEFAULT_MAX_VOCAB_SIZE</span> <span class="value">15000</span></code>
@@ -485,7 +486,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details macro" id="macro-ps-default-parser-capacity">
 <h3 class="name">PS_DEFAULT_PARSER_CAPACITY</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">46</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">48</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_DEFAULT_PARSER_CAPACITY</span> <span class="value">50</span></code>
@@ -521,7 +522,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details macro" id="macro-ps-default-unknown-token">
 <h3 class="name">PS_DEFAULT_UNKNOWN_TOKEN</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">48</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">50</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_DEFAULT_UNKNOWN_TOKEN</span> <span class="value">&quot;&lt;unknown&gt;&quot;</span></code>
@@ -726,6 +727,15 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 </div>
 </div>
 
+<div class="details macro" id="macro-ps-io-max-token-size">
+<h3 class="name">PS_IO_MAX_TOKEN_SIZE</h3>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">37</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_IO_MAX_TOKEN_SIZE</span> <span class="value">1024</span></code>
+</div>
+</div>
+
 <div class="details macro" id="macro-ps-io-save-definition">
 <h3 class="name">PS_IO_SAVE_DEFINITION</h3>
 <div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">108</span></div>
@@ -872,7 +882,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details macro" id="macro-ps-mnist-input-size">
 <h3 class="name">PS_MNIST_INPUT_SIZE</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">141</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">145</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_MNIST_INPUT_SIZE</span> <span class="value">(28 * 28)</span></code>
@@ -962,7 +972,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details macro" id="macro-ps-parser-flag-no-normalization">
 <h3 class="name">PS_PARSER_FLAG_NO_NORMALIZATION</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">42</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">44</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_PARSER_FLAG_NO_NORMALIZATION</span> <span class="value">(1 &lt;&lt; 0)</span></code>
@@ -971,7 +981,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details macro" id="macro-ps-parser-flag-preserve-string">
 <h3 class="name">PS_PARSER_FLAG_PRESERVE_STRING</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">43</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">45</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_PARSER_FLAG_PRESERVE_STRING</span> <span class="value">(1 &lt;&lt; 1)</span></code>
@@ -980,7 +990,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details macro" id="macro-ps-parser-flag-readonly-vocab">
 <h3 class="name">PS_PARSER_FLAG_READONLY_VOCAB</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">44</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">46</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_PARSER_FLAG_READONLY_VOCAB</span> <span class="value">(1 &lt;&lt; 2)</span></code>
@@ -989,7 +999,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details macro" id="macro-ps-parser-mode-chars">
 <h3 class="name">PS_PARSER_MODE_CHARS</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">40</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">42</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_PARSER_MODE_CHARS</span> <span class="value">1</span></code>
@@ -998,7 +1008,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details macro" id="macro-ps-parser-mode-tokens">
 <h3 class="name">PS_PARSER_MODE_TOKENS</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">38</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">40</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_PARSER_MODE_TOKENS</span> <span class="value">0</span></code>
