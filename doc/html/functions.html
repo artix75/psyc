@@ -193,7 +193,6 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 <li><a href="#function-psloaddatafromtextfile">PSLoadDataFromTextFile</a></li>
 <li><a href="#function-psloadmnistdata">PSLoadMNISTData</a></li>
 <li><a href="#function-psloadmodel">PSLoadModel</a></li>
-<li><a href="#function-pslog">PSLog</a></li>
 <li><a href="#function-psloglevelbyname">PSLogLevelByName</a></li>
 <li><a href="#function-psloglevelname">PSLogLevelName</a></li>
 <li><a href="#function-pslregularization">PSLRegularization</a></li>
@@ -265,6 +264,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 <li><a href="#function-psouterproduct">PSOuterProduct</a></li>
 <li><a href="#function-pspathjoin">PSPathJoin</a></li>
 <li><a href="#function-pspausetraining">PSPauseTraining</a></li>
+<li><a href="#function-psprint">PSPrint</a></li>
 <li><a href="#function-psprintablelength">PSPrintableLength</a></li>
 <li><a href="#function-psprintsameline">PSPrintSameLine</a></li>
 <li><a href="#function-psprogressbar">PSProgressBar</a></li>
@@ -345,7 +345,6 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 <li><a href="#function-psvectortranspose">PSVectorTranspose</a></li>
 <li><a href="#function-psvectorwrite">PSVectorWrite</a></li>
 <li><a href="#function-psvlineappend">PSVLineAppend</a></li>
-<li><a href="#function-psvlog">PSVLog</a></li>
 <li><a href="#function-psvocabularyadd">PSVocabularyAdd</a></li>
 <li><a href="#function-psvocabularycreate">PSVocabularyCreate</a></li>
 <li><a href="#function-psvocabularyerrorstring">PSVocabularyErrorString</a></li>
@@ -354,6 +353,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 <li><a href="#function-psvocabularygettokenid">PSVocabularyGetTokenID</a></li>
 <li><a href="#function-psvocabularyload">PSVocabularyLoad</a></li>
 <li><a href="#function-psvocabularysave">PSVocabularySave</a></li>
+<li><a href="#function-psvprint">PSVPrint</a></li>
 <li><a href="#function-psvprintsameline">PSVPrintSameLine</a></li>
 <li><a href="#function-pswarn">PSWarn</a></li>
 <li><a href="#function-pswindowgradoptimization">PSWindowGradOptimization</a></li>
@@ -2353,15 +2353,6 @@ Load a new model from the file located at <span class="identifier-ref">filepath<
 </div>
 </div>
 
-<div class="details function" id="function-pslog">
-<h3 class="name">PSLog</h3>
-<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">120</span></div>
-<div class="code">
-<code class="definition">
-<span class="type return-type">void</span> <span class="identifier name">PSLog</span> (<span class="arguments"><span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-pslog-level>level</span></span>, <span class="argument"><span class="type">const char *</span><span class="identifier pointer-name" data-identifier-id=function-pslog-format>format</span></span>, <span class="argument variadic">...</span></span>)</code>
-</div>
-</div>
-
 <div class="details function" id="function-psloglevelbyname">
 <h3 class="name">PSLogLevelByName</h3>
 <div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">130</span></div>
@@ -4181,6 +4172,15 @@ String containing the joined path or <span class="identifier-ref">NULL</span> if
 </div>
 </div>
 
+<div class="details function" id="function-psprint">
+<h3 class="name">PSPrint</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">120</span></div>
+<div class="code">
+<code class="definition">
+<span class="type return-type">void</span> <span class="identifier name">PSPrint</span> (<span class="arguments"><span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psprint-level>level</span></span>, <span class="argument"><span class="type">const char *</span><span class="identifier pointer-name" data-identifier-id=function-psprint-format>format</span></span>, <span class="argument variadic">...</span></span>)</code>
+</div>
+</div>
+
 <div class="details function" id="function-psprintablelength">
 <h3 class="name">PSPrintableLength</h3>
 <div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">133</span></div>
@@ -5366,15 +5366,6 @@ Write a string representation of vector <span class="identifier-ref" data-identi
 </div>
 </div>
 
-<div class="details function" id="function-psvlog">
-<h3 class="name">PSVLog</h3>
-<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">121</span></div>
-<div class="code">
-<code class="definition">
-<span class="type return-type">void</span> <span class="identifier name">PSVLog</span> (<span class="arguments"><span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psvlog-level>level</span></span>, <span class="argument"><span class="type">const char *</span><span class="identifier pointer-name" data-identifier-id=function-psvlog-format>format</span></span>, <span class="argument"><span class="type">va_list</span> <span class="identifier" data-identifier-id=function-psvlog-args>args</span></span></span>)</code>
-</div>
-</div>
-
 <div class="details function" id="function-psvocabularyadd">
 <h3 class="name">PSVocabularyAdd</h3>
 <div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">121</span></div>
@@ -5511,6 +5502,15 @@ Save <span class="identifier-ref" data-identifier-id="function-psvocabularysave-
 
 
  </ul>
+</div>
+</div>
+
+<div class="details function" id="function-psvprint">
+<h3 class="name">PSVPrint</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">121</span></div>
+<div class="code">
+<code class="definition">
+<span class="type return-type">void</span> <span class="identifier name">PSVPrint</span> (<span class="arguments"><span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psvprint-level>level</span></span>, <span class="argument"><span class="type">const char *</span><span class="identifier pointer-name" data-identifier-id=function-psvprint-format>format</span></span>, <span class="argument"><span class="type">va_list</span> <span class="identifier" data-identifier-id=function-psvprint-args>args</span></span></span>)</code>
 </div>
 </div>
 

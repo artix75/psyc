@@ -240,6 +240,8 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 <li><a href="#macro-psismultiheadattention">PSIsMultiHeadAttention</a></li>
 <li><a href="#macro-psisrecurrent">PSIsRecurrent</a></li>
 <li><a href="#macro-psldef">PSLDEF</a></li>
+<li><a href="#macro-pslog">PSLog</a></li>
+<li><a href="#macro-pslog10">PSLog10</a></li>
 <li><a href="#macro-pslogcolorenabled">PSLogColorEnabled</a></li>
 <li><a href="#macro-pslogdisablecolor">PSLogDisableColor</a></li>
 <li><a href="#macro-pslogenablecolor">PSLogEnableColor</a></li>
@@ -250,8 +252,6 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 <li><a href="#macro-psloglevel-notice">PSLOGLEVEL_NOTICE</a></li>
 <li><a href="#macro-psloglevel-success">PSLOGLEVEL_SUCCESS</a></li>
 <li><a href="#macro-psloglevel-warn">PSLOGLEVEL_WARN</a></li>
-<li><a href="#macro-psmathlog">PSMathLog</a></li>
-<li><a href="#macro-psmathlog10">PSMathLog10</a></li>
 <li><a href="#macro-psmatrixdatasize">PSMatrixDataSize</a></li>
 <li><a href="#macro-psmatrixdimensions">PSMatrixDimensions</a></li>
 <li><a href="#macro-psmatrixstridebytes">PSMatrixStrideBytes</a></li>
@@ -2122,6 +2122,42 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 </div>
 </div>
 
+<div class="details macro" id="macro-pslog">
+<h3 class="name">PSLog</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">33</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#ifdef PS_DOUBLE_PRECISION</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSLog</span><span class="arguments">(v)</span> <span class="macro-expansion">log(v)</span>
+<br>
+<span class="preproc">#else</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSLog</span><span class="arguments">(v)</span> <span class="macro-expansion">logf(v)</span>
+<br>
+<span class="preproc">#endif</span>
+</code>
+</div>
+</div>
+
+<div class="details macro" id="macro-pslog10">
+<h3 class="name">PSLog10</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">34</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#ifdef PS_DOUBLE_PRECISION</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSLog10</span><span class="arguments">(v)</span> <span class="macro-expansion">log10(v)</span>
+<br>
+<span class="preproc">#else</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSLog10</span><span class="arguments">(v)</span> <span class="macro-expansion">log10f(v)</span>
+<br>
+<span class="preproc">#endif</span>
+</code>
+</div>
+</div>
+
 <div class="details macro" id="macro-pslogcolorenabled">
 <h3 class="name">PSLogColorEnabled</h3>
 <div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">112</span></div>
@@ -2209,42 +2245,6 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PSLOGLEVEL_WARN</span> <span class="value">4</span></code>
-</div>
-</div>
-
-<div class="details macro" id="macro-psmathlog">
-<h3 class="name">PSMathLog</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">33</span></div>
-<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span></div><div class="code">
-<code class="definition">
-<span class="preproc">#ifdef PS_DOUBLE_PRECISION</span>
-<br>
-<span class="preproc">#define </span><span class="identifier">PSMathLog</span><span class="arguments">(v)</span> <span class="macro-expansion">log(v)</span>
-<br>
-<span class="preproc">#else</span>
-<br>
-<span class="preproc">#define </span><span class="identifier">PSMathLog</span><span class="arguments">(v)</span> <span class="macro-expansion">logf(v)</span>
-<br>
-<span class="preproc">#endif</span>
-</code>
-</div>
-</div>
-
-<div class="details macro" id="macro-psmathlog10">
-<h3 class="name">PSMathLog10</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">34</span></div>
-<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span></div><div class="code">
-<code class="definition">
-<span class="preproc">#ifdef PS_DOUBLE_PRECISION</span>
-<br>
-<span class="preproc">#define </span><span class="identifier">PSMathLog10</span><span class="arguments">(v)</span> <span class="macro-expansion">log10(v)</span>
-<br>
-<span class="preproc">#else</span>
-<br>
-<span class="preproc">#define </span><span class="identifier">PSMathLog10</span><span class="arguments">(v)</span> <span class="macro-expansion">log10f(v)</span>
-<br>
-<span class="preproc">#endif</span>
-</code>
 </div>
 </div>
 

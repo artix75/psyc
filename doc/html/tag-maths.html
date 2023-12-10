@@ -57,8 +57,6 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 <li><a href="#function-psdividevectors">PSDivideVectors</a></li>
 <li><a href="#function-psdividevectorscalar">PSDivideVectorScalar</a></li>
 <li><a href="#function-psgaussianrandom">PSGaussianRandom</a></li>
-<li><a href="#macro-psmathlog">PSMathLog</a></li>
-<li><a href="#macro-psmathlog10">PSMathLog10</a></li>
 <li><a href="#struct-psmathopts">PSMathOpts</a></li>
 <li><a href="#type-psmatrix">PSMatrix</a></li>
 <li><a href="#function-psmatrixadd">PSMatrixAdd</a></li>
@@ -318,42 +316,6 @@ If <span class="identifier-ref" data-identifier-id="function-psdividevectorscala
 Generate a random floating number from a gaussian distribution having mean defined by <span class="identifier-ref" data-identifier-id="function-psgaussianrandom-mean" data-parent-id="function-psgaussianrandom">mean</span> and standard deviation defined by <span class="identifier-ref" data-identifier-id="function-psgaussianrandom-stddev" data-parent-id="function-psgaussianrandom">stddev</span>.  
 <h4 class="return-values">RETURN VALUES</h4>
 The random float number.
-</div>
-</div>
-
-<div class="details macro" id="macro-psmathlog">
-<h3 class="name">PSMathLog</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">33</span></div>
-<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span></div><div class="code">
-<code class="definition">
-<span class="preproc">#ifdef PS_DOUBLE_PRECISION</span>
-<br>
-<span class="preproc">#define </span><span class="identifier">PSMathLog</span><span class="arguments">(v)</span> <span class="macro-expansion">log(v)</span>
-<br>
-<span class="preproc">#else</span>
-<br>
-<span class="preproc">#define </span><span class="identifier">PSMathLog</span><span class="arguments">(v)</span> <span class="macro-expansion">logf(v)</span>
-<br>
-<span class="preproc">#endif</span>
-</code>
-</div>
-</div>
-
-<div class="details macro" id="macro-psmathlog10">
-<h3 class="name">PSMathLog10</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">34</span></div>
-<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span></div><div class="code">
-<code class="definition">
-<span class="preproc">#ifdef PS_DOUBLE_PRECISION</span>
-<br>
-<span class="preproc">#define </span><span class="identifier">PSMathLog10</span><span class="arguments">(v)</span> <span class="macro-expansion">log10(v)</span>
-<br>
-<span class="preproc">#else</span>
-<br>
-<span class="preproc">#define </span><span class="identifier">PSMathLog10</span><span class="arguments">(v)</span> <span class="macro-expansion">log10f(v)</span>
-<br>
-<span class="preproc">#endif</span>
-</code>
 </div>
 </div>
 

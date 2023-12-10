@@ -2103,17 +2103,6 @@ If the file defines a multi-model chain, the whole chain will be loaded.
 
 
 
-### PSLog
-
-In: log.h, line: 120
-
-```c
-void PSLog (int level, const char *format, ...)
-```
-
-
-
-
 ### PSLogLevelByName
 
 In: log.h, line: 130
@@ -3632,6 +3621,17 @@ void PSPauseTraining (PSModel *model)
 
 
 
+### PSPrint
+
+In: log.h, line: 120
+
+```c
+void PSPrint (int level, const char *format, ...)
+```
+
+
+
+
 ### PSPrintableLength
 
 In: utils.h, line: 133
@@ -4913,17 +4913,6 @@ int PSVLineAppend (int opts, char *format, va_list args)
 
 
 
-### PSVLog
-
-In: log.h, line: 121
-
-```c
-void PSVLog (int level, const char *format, va_list args)
-```
-
-
-
-
 ### PSVocabularyAdd
 
 In: dataset.h, line: 121
@@ -5056,6 +5045,17 @@ Save **vocabulary** to file located at **path**. Vocabulary tokens are written s
  - **path** cannot be opened for writing.
  - Size of some token exceeds max. size ([PS_IO_MAX_TOKEN_SIZE](macros.md#ps-io-max-token-size)).
  - Some writing error occurs.
+
+
+### PSVPrint
+
+In: log.h, line: 121
+
+```c
+void PSVPrint (int level, const char *format, va_list args)
+```
+
+
 
 
 ### PSVPrintSameLine

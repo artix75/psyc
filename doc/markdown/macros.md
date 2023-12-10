@@ -2135,6 +2135,36 @@ In: psyc.h, line: 117
 
 
 
+### PSLog
+
+In: maths.h, line: 33
+
+```c
+#ifdef PS_DOUBLE_PRECISION
+#define PSLog(v) log(v)
+#else
+#define PSLog(v) logf(v)
+#endif
+```
+
+
+
+
+### PSLog10
+
+In: maths.h, line: 34
+
+```c
+#ifdef PS_DOUBLE_PRECISION
+#define PSLog10(v) log10(v)
+#else
+#define PSLog10(v) log10f(v)
+#endif
+```
+
+
+
+
 ### PSLogColorEnabled
 
 In: log.h, line: 112
@@ -2240,36 +2270,6 @@ In: log.h, line: 28
 
 ```c
 #define PSLOGLEVEL_WARN 4
-```
-
-
-
-
-### PSMathLog
-
-In: maths.h, line: 33
-
-```c
-#ifdef PS_DOUBLE_PRECISION
-#define PSMathLog(v) log(v)
-#else
-#define PSMathLog(v) logf(v)
-#endif
-```
-
-
-
-
-### PSMathLog10
-
-In: maths.h, line: 34
-
-```c
-#ifdef PS_DOUBLE_PRECISION
-#define PSMathLog10(v) log10(v)
-#else
-#define PSMathLog10(v) log10f(v)
-#endif
 ```
 
 
