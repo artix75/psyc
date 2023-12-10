@@ -260,7 +260,7 @@ void printModelHeaderInfo(PSModelFileHeader *hdr) {
 }
 
 static void loadErr(const char *fname, FILE *f, const char *fmt, ...) {
-    PSLog(PSLOGLEVEL_ERROR, "ERROR: while loading file '%s'", fname);
+    PSPrint(PSLOGLEVEL_ERROR, "ERROR: while loading file '%s'", fname);
     if (f != NULL) {
         off_t offset = ftello(f), chars = 0, last_line_offset = 0;
         char buf[25] = {0};
@@ -274,17 +274,17 @@ static void loadErr(const char *fname, FILE *f, const char *fmt, ...) {
             }
         }
         fseeko(f, offset, SEEK_SET);
-        PSLog(
+        PSPrint(
             PSLOGLEVEL_ERROR, " (offset: %ld, line: %d, col: %ld):\n", offset,
             line, (offset - last_line_offset) + 1
         );
-        PSLog(PSLOGLEVEL_ERROR, "Near: '%s'\n", buf);
-    } else PSLog(PSLOGLEVEL_ERROR, "\n");
+        PSPrint(PSLOGLEVEL_ERROR, "Near: '%s'\n", buf);
+    } else PSPrint(PSLOGLEVEL_ERROR, "\n");
     va_list args;
     va_start(args, fmt);
-    PSVLog(PSLOGLEVEL_ERROR, fmt, args);
+    PSVPrint(PSLOGLEVEL_ERROR, fmt, args);
     va_end(args);
-    PSLog(PSLOGLEVEL_ERROR, "\n");
+    PSPrint(PSLOGLEVEL_ERROR, "\n");
 }
 
 static char *getFormatStringEnd(char *fmt, int *invalid) {

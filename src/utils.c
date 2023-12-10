@@ -622,13 +622,13 @@ int PSDownloadFile(const char *url, const char *dest_dir) {
         return 0;
     }
     if (PSLogLevel >= PSLOGLEVEL_DEBUG) {
-        PSLog(
+        PSPrint(
             PSLOGLEVEL_DEBUG,
             "Downloading file from: %s\n"
             "                   to: %s\n",
             url, dest_dir
         );
-        PSLog(PSLOGLEVEL_DEBUG, cmd);
+        PSPrint(PSLOGLEVEL_DEBUG, cmd);
     }
     exit_status = system(cmd);
     return exit_status == 0;

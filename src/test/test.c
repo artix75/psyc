@@ -89,7 +89,7 @@ int performTests(TestCase *test_case) {
         int ok = test_case->setup(test_case);
         printf(PSCOLOR_RESET);
         if (!ok) {
-            PSLog(PSLOGLEVEL_ERROR, "Setup failed!\n");
+            PSPrint(PSLOGLEVEL_ERROR, "Setup failed!\n");
             return 1;
         }
     }

@@ -117,8 +117,8 @@
 extern int PSLogLevel;
 extern FILE *PSLogFile;
 
-void PSLog(int level, const char *format, ...);
-void PSVLog(int level, const char *format, va_list args);
+void PSPrint(int level, const char *format, ...);
+void PSVPrint(int level, const char *format, va_list args);
 void PSDebug(const char *format, ...);
 void PSInfo(const char *format, ...);
 void PSNotice(const char *format, ...);

@@ -43,7 +43,7 @@ static const char *line_overwritten_by = NULL;
 int PSLogLevel = PSDEFAULT_LOGLEVEL;
 FILE *PSLogFile = NULL;
 
-void PSVLog(int level, const char *format, va_list args) {
+void PSVPrint(int level, const char *format, va_list args) {
     if (level < PSLogLevel) return;
     int use_colors = PSLogColorEnabled();
     FILE *out = PSLogFile;
@@ -78,97 +78,97 @@ void PSVLog(int level, const char *format, va_list args) {
     fflush(out);
 }
 
-void PSLog(int level, const char *format, ...) {
+void PSPrint(int level, const char *format, ...) {
     va_list args;
     va_start(args, format);
-    PSVLog(level, format, args);
+    PSVPrint(level, format, args);
     va_end(args);
 }
 
 void PSDebug(const char *format, ...) {
     if (PSLogLevel > PSLOGLEVEL_DEBUG) return;
-    PSLog(PSLOGLEVEL_DEBUG, "DEBUG: ");
+    PSPrint(PSLOGLEVEL_DEBUG, "DEBUG: ");
     va_list args;
     va_start(args, format);
-    PSVLog(PSLOGLEVEL_DEBUG, format, args);
+    PSVPrint(PSLOGLEVEL_DEBUG, format, args);
     va_end(args);
-    PSLog(PSLOGLEVEL_DEBUG, "\n");
+    PSPrint(PSLOGLEVEL_DEBUG, "\n");
 }
 
 void PSInfo(const char *format, ...) {
     if (PSLogLevel > PSLOGLEVEL_INFO) return;
     va_list args;
     va_start(args, format);
-    PSVLog(PSLOGLEVEL_INFO, format, args);
+    PSVPrint(PSLOGLEVEL_INFO, format, args);
     va_end(args);
-    PSLog(PSLOGLEVEL_INFO, "\n");
+    PSPrint(PSLOGLEVEL_INFO, "\n");
 }
 
 void PSNotice(const char *format, ...) {
     if (PSLogLevel > PSLOGLEVEL_NOTICE) return;
     va_list args;
     va_start(args, format);
-    PSVLog(PSLOGLEVEL_NOTICE, format, args);
+    PSVPrint(PSLOGLEVEL_NOTICE, format, args);
     va_end(args);
-    PSLog(PSLOGLEVEL_NOTICE, "\n");
+    PSPrint(PSLOGLEVEL_NOTICE, "\n");
 }
 
 void PSWarn(const char *format, ...) {
     if (PSLogLevel > PSLOGLEVEL_WARN) return;
-    PSLog(PSLOGLEVEL_WARN, "WARN: ");
+    PSPrint(PSLOGLEVEL_WARN, "WARN: ");
     va_list args;
     va_start(args, format);
-    PSVLog(PSLOGLEVEL_WARN, format, args);
+    PSVPrint(PSLOGLEVEL_WARN, format, args);
     va_end(args);
-    PSLog(PSLOGLEVEL_WARN, "\n");
+    PSPrint(PSLOGLEVEL_WARN, "\n");
 }
 
 void PSErr(const char *tag, const char *format, ...) {
     if (PSLogLevel > PSLOGLEVEL_ERROR) return;
-    PSLog(PSLOGLEVEL_ERROR, "ERROR");
-    if (tag != NULL) PSLog(PSLOGLEVEL_ERROR, " [%s]: ", tag);
-    else PSLog(PSLOGLEVEL_ERROR, ": ");
+    PSPrint(PSLOGLEVEL_ERROR, "ERROR");
+    if (tag != NULL) PSPrint(PSLOGLEVEL_ERROR, " [%s]: ", tag);
+    else PSPrint(PSLOGLEVEL_ERROR, ": ");
     va_list args;
     va_start(args, format);
-    PSVLog(PSLOGLEVEL_ERROR, format, args);
+    PSVPrint(PSLOGLEVEL_ERROR, format, args);
     va_end(args);
-    PSLog(PSLOGLEVEL_ERROR, "\n");
+    PSPrint(PSLOGLEVEL_ERROR, "\n");
 }
 
 void PSErrNN(const char *tag, PSModel *model, PSLayer *layer,
              const char *format, ...)
 {
     if (PSLogLevel > PSLOGLEVEL_ERROR) return;
-    PSLog(PSLOGLEVEL_ERROR, "ERROR");
+    PSPrint(PSLOGLEVEL_ERROR, "ERROR");
     int null_model = model == NULL;
     if (null_model && layer != NULL) model = layer->model;
-    if (tag != NULL) PSLog(PSLOGLEVEL_ERROR, " [%s]: ", tag);
-    else PSLog(PSLOGLEVEL_ERROR, ": ");
+    if (tag != NULL) PSPrint(PSLOGLEVEL_ERROR, " [%s]: ", tag);
+    else PSPrint(PSLOGLEVEL_ERROR, ": ");
     if (model != NULL || layer != NULL) {
         int printed_model = 1, printed_layer = 0;
         if (model != NULL && PSModelChainLength(model) > 1)
-            PSLog(PSLOGLEVEL_ERROR, "model[%d]", model->index);
+            PSPrint(PSLOGLEVEL_ERROR, "model[%d]", model->index);
         else if (model && !null_model && model->name != NULL) {
             char *ellipsis = "";
             if (strlen(model->name) > 15)
                 ellipsis = "...";
-            PSLog(PSLOGLEVEL_ERROR, "model \"%.15s%s\"", model->name,
+            PSPrint(PSLOGLEVEL_ERROR, "model \"%.15s%s\"", model->name,
                   ellipsis);
         } else printed_model = 0;
         if (layer != NULL) {
-            if (printed_model) PSLog(PSLOGLEVEL_ERROR, ", ");
-            PSLog(PSLOGLEVEL_ERROR, "Layer[%d] (%s)", layer->index,
+            if (printed_model) PSPrint(PSLOGLEVEL_ERROR, ", ");
+            PSPrint(PSLOGLEVEL_ERROR, "Layer[%d] (%s)", layer->index,
                   PSGetLayerTypeLabel(layer));
             printed_layer = 1;
         }
         if (printed_model || printed_layer)
-            PSLog(PSLOGLEVEL_ERROR, ": ");
+            PSPrint(PSLOGLEVEL_ERROR, ": ");
     }
     va_list args;
     va_start(args, format);
-    PSVLog(PSLOGLEVEL_ERROR, format, args);
+    PSVPrint(PSLOGLEVEL_ERROR, format, args);
     va_end(args);
-    PSLog(PSLOGLEVEL_ERROR, "\n");
+    PSPrint(PSLOGLEVEL_ERROR, "\n");
 }
 
 const char* PSLogLevelName(int level) {

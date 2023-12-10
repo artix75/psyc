@@ -170,7 +170,7 @@ PSFloat PSNormalizedRandom() {
  * Return value: the random float number. */
 PSFloat PSGaussianRandom(PSFloat mean, PSFloat stddev) {
     PSFloat theta = 2 * M_PI * PSNormalizedRandom();
-    PSFloat rho = PSSqrt(-2 * PSMathLog(1 - PSNormalizedRandom()));
+    PSFloat rho = PSSqrt(-2 * PSLog(1 - PSNormalizedRandom()));
     PSFloat scale = stddev * rho;
     PSFloat x = mean + scale * cos(theta);
     PSFloat y = mean + scale * sin(theta);

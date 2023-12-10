@@ -1387,11 +1387,11 @@ PSFloat PSCrossEntropyLoss(PSFloat *outputs, PSFloat *expected, int size,
     int i;
     for (i = 0; i < size; i++) {
         PSFloat o = outputs[i];
-        if (onehot_size) loss += (PSMathLog(o + PSFLOAT_EPS));
+        if (onehot_size) loss += (PSLog(o + PSFLOAT_EPS));
         else {
             PSFloat y = expected[i];
-            loss += (y * PSMathLog(o + PSFLOAT_EPS) +
-                    (1 - y) * PSMathLog((1 - o) + PSFLOAT_EPS));
+            loss += (y * PSLog(o + PSFLOAT_EPS) +
+                    (1 - y) * PSLog((1 - o) + PSFLOAT_EPS));
         }
     }
     loss *= -1;
@@ -6155,9 +6155,9 @@ void PSTrain(PSModel *model,
     }
     const char *name = model->name != NULL ? model->name : "UNNAMED";
     if (num_models == 1)
-        PSLog(PSLOGLEVEL_NOTICE, "Training model \"%s\"\n", name);
+        PSPrint(PSLOGLEVEL_NOTICE, "Training model \"%s\"\n", name);
     else {
-        PSLog(PSLOGLEVEL_NOTICE, "Training multi-model model\n");
+        PSPrint(PSLOGLEVEL_NOTICE, "Training multi-model model\n");
         PSInfo("Number of models:         %d", num_models);
         const char *input_name = (
             input_model->name != NULL ? input_model->name : "UNNAMED"
@@ -6221,7 +6221,7 @@ void PSTrain(PSModel *model,
     time(&start_t);
     tminfo = localtime(&start_t);
     strftime(timestr, 80, "%H:%M:%S", tminfo);
-    PSLog(PSLOGLEVEL_NOTICE, "Training started at %s\n", timestr);
+    PSPrint(PSLOGLEVEL_NOTICE, "Training started at %s\n", timestr);
     PSFloat prev_loss = 0.0;
     float acc = -999.99f;
     int adjust_rate = 0;
@@ -6260,7 +6260,7 @@ void PSTrain(PSModel *model,
         gettimeofday(&epoch_et, NULL);
         time_t elapsed_t = PSGetElapsedTimeUS(epoch_st, epoch_et);
         if (PSModelGetStatus(model) == PS_STATUS_ERROR) {
-            PSLog(
+            PSPrint(
                 PSLOGLEVEL_ERROR, "\nAn error occurred while training, "
                 "aborting!\n"
             );
@@ -6299,7 +6299,7 @@ void PSTrain(PSModel *model,
     printProgress(model,PS_STATUS_TRAINED,epochs,0,NULL,NULL,NULL,0,0);
     PSLineEnd();
     fflush(stdout);
-    PSLog(PSLOGLEVEL_SUCCESS, "\nCompleted in %ld sec.\n", end_t - start_t);
+    PSPrint(PSLOGLEVEL_SUCCESS, "\nCompleted in %ld sec.\n", end_t - start_t);
     model->training->ended_at = end_t;
     if (PSModelGetStatus(model) == PS_STATUS_TRAINING)
         PSModelSetStatus(model, PS_STATUS_TRAINED, NULL);

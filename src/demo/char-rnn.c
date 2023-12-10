@@ -394,8 +394,7 @@ int main(int argc, char **argv) {
     PSFloat *validation_data = NULL;*/
     int seq_length = 25;
     int ok = 1;
-    smooth_loss =
-        -PSMathLog(1.0 / (PSFloat) VOCABULARY_SIZE)*(PSFloat)seq_length;
+    smooth_loss = -PSLog(1.0 / (PSFloat) VOCABULARY_SIZE)*(PSFloat)seq_length;
     PSModel *model = PSModelCreate("Char RNN");
     if (model == NULL) {
         fprintf(stderr, "FATAL: Could not create model\n");

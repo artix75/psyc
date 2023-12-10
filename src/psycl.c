@@ -919,7 +919,7 @@ static int openHTMLDoc(char *executable) {
                   "%s\nTry to install one of the following programs:\n",
                   index_path);
             for (i = 0; i < n_programs; i++)
-                PSLog(PSLOGLEVEL_WARN, "%s\n", *(programs + i));
+                PSPrint(PSLOGLEVEL_WARN, "%s\n", *(programs + i));
             success = 0;
             goto final;
         }
@@ -1501,7 +1501,7 @@ void parseOptions(int argc, char **argv) {
             int downloaded = (path != NULL);
             if (!downloaded) PSErr(NULL, "failed to download MNIST dataset");
             else {
-                PSLog(
+                PSPrint(
                     PSLOGLEVEL_SUCCESS, "MNIST dataset downloaded at: '%s'\n",
                     path
                 );
@@ -1532,7 +1532,7 @@ void parseOptions(int argc, char **argv) {
             int downloaded = (path != NULL);
             if (!downloaded) PSErr(NULL, "failed to download CIFAR dataset");
             else {
-                PSLog(
+                PSPrint(
                     PSLOGLEVEL_SUCCESS, "CIFAR dataset downloaded at: '%s'\n",
                     path
                 );
