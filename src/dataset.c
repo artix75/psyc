@@ -27,6 +27,7 @@
 #include <dirent.h>
 #include <limits.h>
 #include <zlib.h>
+#include <errno.h>
 
 #include "dataset.h"
 #include "psyc.h"
@@ -129,6 +130,139 @@ const char *PSVocabularyGetTokenByID(PSVocabulary *vocabulary, int64_t id) {
     if (vocabulary == NULL) return NULL;
     if (id >= vocabulary->size || vocabulary->tokens == NULL) return NULL;
     return vocabulary->tokens[id];
+}
+
+/* Save `vocabulary` to file located at `path`. Vocabulary tokens are written
+ * sequentially to the file as an ordered  sequence of NULL-terminated strings.
+ * Return values: 1 if the vocabulary has been successfully saved, 0 if:
+ *  - `vocabulary` is NULL or `path` is NULL.
+ *  - `path` cannot be opened for writing.
+ *  - Size of some token exceeds max. size (`PS_IO_MAX_TOKEN_SIZE`).
+ *  - Some writing error occurs. */
+int PSVocabularySave(PSVocabulary *vocabulary, const char *path) {
+    if (vocabulary == NULL) {
+        PSErr(__func__, "mandatory argument `vocabulary` is null");
+        return 0;
+    }
+    if (path == NULL) {
+        PSErr(__func__, "mandatory argument `path` is null");
+        return 0;
+    }
+    if (vocabulary->size == 0) {
+        PSErr(__func__, "empty vocabulary");
+        return 0;
+    }
+    int success = 1;
+    int64_t i;
+    FILE *f = fopen(path, "w");
+    if (f == NULL) {
+        PSErr(__func__, "could not open '%s' for writing", path);
+        return 0;
+    }
+    errno = 0;
+    int nwritten = fprintf(f, "%" PRIi64 ":", vocabulary->size);
+    success = (nwritten >= 0);
+    if (!success) {
+        PSErr(__func__, "failed to write to file '%s'", path);
+        goto final;
+    }
+    for (i = 0; i < vocabulary->size; i++) {
+        const char *token = vocabulary->tokens[i];
+        success = (token != NULL);
+        if (!success) {
+            PSErr(__func__, "token[%" PRIi64 "] is null", i);
+            goto final;
+        }
+        nwritten = fprintf(f, "%s%c", token, '\0');
+        success = (nwritten >= 0);
+        if (!success) {
+            PSErr(__func__, "failed to write token[%" PRIi64 "] to `%s`", i,
+                  path);
+            goto final;
+        }
+        success = (nwritten <= PS_IO_MAX_TOKEN_SIZE);
+        if (!success) {
+            PSErr(__func__, "token[%" PRIi64 "] exceeds max. size %d in "
+                  "'%s'", i, PS_IO_MAX_TOKEN_SIZE, path);
+            goto final;
+        }
+    }
+final:
+    if (!success && errno > 0) PSErr(__func__, "%s", strerror(errno));
+    fclose(f);
+    return success;
+}
+
+/* Load vocabulary from file located at `path`.
+ * Return value: the pointer to vocabulary or NULL if:
+ *  - `path` is NULL.
+ *  - `path` does not exists.
+ *  - `path` cannot be opened for reading.
+ *  - File at `path` is not a valid PsyC vocabulary file.
+ *  - Vocabulary would have zero tokens.
+ *  - Memory cannot be allocated.
+ *  - Size of some token exceeds max. size (`PS_IO_MAX_TOKEN_SIZE`).
+ *  - Some token cannot be added to vocabulary. */
+PSVocabulary *PSVocabularyLoad(const char *path) {
+    if (path == NULL) {
+        PSErr(__func__, "argument `path` cannot be null");
+        return NULL;
+    }
+    if (!PSFileExists(path)) {
+        PSErr(__func__, "file not found: '%s'", path);
+        return NULL;
+    }
+    PSVocabulary *vocabulary = NULL;
+    FILE *f = fopen(path, "r");
+    if (f == NULL) {
+        PSErr(__func__, "could not open '%s' for reading", path);
+        return NULL;
+    }
+    int64_t size = 0;
+    char sep[2] = {0};
+    int matched = fscanf(f, "%" SCNi64 "%2[:]", &size, sep);
+    if (matched < 2 || sep[0] != ':') {
+        PSErr(__func__, "invalid file '%s'", path);
+        goto final;
+    }
+    if (size <= 0) {
+        PSErr(__func__, "empty vocabulary at path '%s'", path);
+        goto final;
+    }
+    vocabulary = PSVocabularyCreate(size);
+    if (vocabulary == NULL) {
+        PSErr(__func__, "cannot create vocabulary");
+        goto final;
+    }
+    char token[PS_IO_MAX_TOKEN_SIZE] = {0};
+    char c = 0;
+    char *p = token;
+    int toklen = 0;
+    while ((c = getc(f)) != EOF) {
+        if (++toklen > PS_IO_MAX_TOKEN_SIZE) {
+            PSErr(__func__, "token[%" PRIi64 "] exceeds max. size %d in "
+                  "'%s'", vocabulary->size, PS_IO_MAX_TOKEN_SIZE, path);
+            PSVocabularyFree(vocabulary);
+            vocabulary = NULL;
+            goto final;
+        }
+        *(p++) = c;
+        if (c == '\0') {
+            int64_t id = PSVocabularyAdd(vocabulary, token);
+            if (id < 0) {
+                PSErr(__func__, "could not add token from '%s'", path);
+                PSVocabularyFree(vocabulary);
+                vocabulary = NULL;
+                goto final;
+            }
+            p = token;
+            *p = '\0';
+            toklen = 0;
+        }
+    }
+final:
+    fclose(f);
+    return vocabulary;
 }
 
 const char *PSVocabularyErrorString(int err) {

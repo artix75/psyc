@@ -34,6 +34,8 @@
 #define PS_INVALID_TOKEN_ID -1
 #define PS_TOKEN_NOT_FOUND  -2
 
+#define PS_IO_MAX_TOKEN_SIZE 1024
+
 /* Parse text as separate tokens*/
 #define PS_PARSER_MODE_TOKENS  0
 /* Parse text as individual characters. */
@@ -119,6 +121,8 @@ PSVocabulary *PSVocabularyCreate(int64_t initial_capacity);
 int64_t PSVocabularyAdd(PSVocabulary *vocabulary, char *token);
 int64_t PSVocabularyGetTokenID(PSVocabulary *vocabulary, char *token);
 const char *PSVocabularyGetTokenByID(PSVocabulary *vocabulary, int64_t id);
+PSVocabulary *PSVocabularyLoad(const char *path);
+int PSVocabularySave(PSVocabulary *vocabulary, const char *path);
 const char *PSVocabularyErrorString(int err);
 void PSVocabularyFree(PSVocabulary *vocabulary);
 
