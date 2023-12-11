@@ -41,13 +41,18 @@ PsyC also provides additional features:
 
 PsyC can leverage certain libraries and hardware for accelerated computation.
 
-- [Apple® Accelerate Framework](https://developer.apple.com/documentation/accelerate) for optimal performance on Apple® Silicon CPUs
-- [AVX](https://www.intel.com/content/www/us/en/support/articles/000005779/processors.html) instruction set support for improved performance on x86 CPUs
+- [Apple® Accelerate Framework](https://developer.apple.com/documentation/accelerate) for optimal performance on Apple® Silicon CPUs.
+- [Intel® AVX](https://www.intel.com/content/www/us/en/support/articles/000005779/processors.html) instruction set support for improved performance on x86 CPUs.
 - [BLAS](https://www.netlib.org/blas/) routines support can be provided by either Apple Accelerate Framework or [GNU GSL Library](https://www.gnu.org/software/gsl/) if they're found. If none of the previous options are found, PsyC still provides its own partial implementation of some BLAS routines (but it's actually quite slow in this latter case).
 
 The above libraries and hardware are automatically detected by PsyC and they're not dependecies, as PsyC can run without them.
 
 Currently, there's no support for [NVIDIA® CUDA®](https://developer.nvidia.com/cuda-toolkit), but its support is planned for future releases.
+
+## Suggested Additional Libraries
+
+- [ImageMagick®](https://imagemagick.org/index.php) for converting images to
+data that can be used as input to models.
 
 ## Installation
 
@@ -193,6 +198,8 @@ To see its usage:
    psycl --layer fully_connected 784 --layer fully_connected 30 --layer fully_connected 10 --train --mnist --test --mnist
    ```
 
+### Demos
+
 PsyC also provides several demos.
 
 - MNIST demo
@@ -203,6 +210,20 @@ PsyC also provides several demos.
 
 After building PsyC, you can find them inside the `bin/` subdirectory that is
 found inside the PsyC source directory.
+
+## Documentation
+
+PsyC ships with its own documentation that can be found inside the [doc](doc/)
+directory of the repository.  
+The documentation comes in three formats: HTML, Markdown and UNIX manual pages.
+After installing PsyC with `make install`, documentation will be installed too.
+UNIX manual pages will be properly installed into `$PREFIX/share/man`, while
+other formats will be installed inside `$PREFIX/share/psyc` directory.
+The index page of HTML documentation can be found at [doc/html/index.html](doc/html/index.html).
+The main UNIX manual page is `psyc(7)`, so, after installing PsyC, it can be
+simply accessed with `man psyc`.
+Although the documentation is not complete and it's still in progress, most of
+the more commonly used functions and data structures are documented.
 
 ## Future Roadmap
 
