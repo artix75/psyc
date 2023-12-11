@@ -1244,7 +1244,7 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
     UNUSED(acceleration);
 #endif
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    int use_acf = PSACFEnabled(acceleration);
+    int use_acf = PSAccelerateEnabled(acceleration);
 #else
     int use_acf = 0;
     UNUSED(acceleration);
@@ -1434,7 +1434,7 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
     UNUSED(acceleration);
 #endif
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    int use_acf = PSACFEnabled(acceleration);
+    int use_acf = PSAccelerateEnabled(acceleration);
 #else
     int use_acf = 0;
     UNUSED(acceleration);
@@ -1626,7 +1626,7 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
     UNUSED(acceleration);
 #endif
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    int use_acf = PSACFEnabled(acceleration);
+    int use_acf = PSAccelerateEnabled(acceleration);
 #else
     int use_acf = 0;
     UNUSED(use_acf);
@@ -2498,7 +2498,7 @@ PSMatrix PSMatrixTranspose(PSMatrix matrix, int rebuild, PSMathOpts *opts) {
         transposed = PSMatrixZeros(2, dims[1], dims[0]);
         if (transposed == NULL) return NULL;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-        if (PSACFEnabled(acceleration)) {
+        if (PSAccelerateEnabled(acceleration)) {
             /* Use Apple Accelerate Framework */
             VDSPMTransp(matrix, transposed, dims[1], dims[0]);
             goto final;
@@ -2697,7 +2697,7 @@ PSFloat *PSAddVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
     MATHS_OPERATION_PREAMBLE()
     UNUSED(debugStep);
 #ifdef HAS_ACCELERATE_FRAMEWORK
-    if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
+    if (PSAccelerateEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VDSPAddV(a, b, dest, length);
         return dest;
     }
@@ -2755,7 +2755,7 @@ PSFloat *PSSubtractVectors(PSFloat *a, PSFloat *b, PSFloat *dest,
 {
     MATHS_OPERATION_PREAMBLE()
 #ifdef HAS_ACCELERATE_FRAMEWORK
-    if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
+    if (PSAccelerateEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VDSPSubV(a, b, dest, length);
         return dest;
     }
@@ -2812,7 +2812,7 @@ PSFloat *PSMultiplyVectors(PSFloat *a, PSFloat *b, PSFloat *dest,
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration) && mode != PS_STORE_MODE_SUB) {
+    if (PSAccelerateEnabled(acceleration) && mode != PS_STORE_MODE_SUB) {
         if (mode == PS_STORE_MODE_SET)
             VDSPMulV(a, b, dest, length);
         else if (mode == PS_STORE_MODE_ADD)
@@ -2882,7 +2882,7 @@ PSFloat *PSDivideVectors(PSFloat *a, PSFloat *b, PSFloat *dest,uint64_t length,
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
+    if (PSAccelerateEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VDSPDivV(a, b, dest, length);
         return dest;
     }
@@ -2948,7 +2948,7 @@ PSFloat *PSMultiplyVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
+    if (PSAccelerateEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VDSPMulVS(a, b, dest, length);
         return dest;
     }
@@ -3005,7 +3005,7 @@ PSFloat *PSAddVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
+    if (PSAccelerateEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VDSPAddVS(a, b, dest, length);
         return dest;
     }
@@ -3062,7 +3062,7 @@ PSFloat *PSSubtractVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
+    if (PSAccelerateEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         PSFloat invb = b * -1;
         VDSPAddVS(a, invb, dest, length);
         return dest;
@@ -3118,7 +3118,7 @@ PSFloat *PSSubtractScalarVector(PSFloat b, PSFloat *a, PSFloat *dest,
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
+    if (PSAccelerateEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         PSFloat invb = b * -1;
         VDSPAddVS(a, invb, dest, length);
         VDSPNeg(dest, dest, length);
@@ -3175,7 +3175,7 @@ PSFloat *PSDivideVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
+    if (PSAccelerateEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VDSPDivVS(a, b, dest, length);
         return dest;
     }
@@ -3233,7 +3233,7 @@ PSFloat *PSDivideScalarVector(PSFloat b, PSFloat *a, PSFloat *dest,
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK) && defined(__arm64__)
     /* This seems to lead to nan in x86 arch., so only use it with arm64 */
-    if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
+    if (PSAccelerateEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VDSPDivSV(b, a, dest, length);
         return dest;
     }
@@ -3286,7 +3286,7 @@ PSFloat *PSVectorTanh(PSFloat *a, PSFloat *dest, uint64_t length,
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
+    if (PSAccelerateEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VVTanh(a, dest, length);
         return dest;
     }
@@ -3334,7 +3334,7 @@ PSFloat *PSVectorExp(PSFloat *a, PSFloat *dest, uint64_t length,
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
+    if (PSAccelerateEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VVExp(a, dest, length);
         return dest;
     }
@@ -3382,7 +3382,7 @@ PSFloat *PSVectorSqrt(PSFloat *a, PSFloat *dest, uint64_t length,
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
+    if (PSAccelerateEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VVSqrt(a, dest, length);
         return dest;
     }
@@ -3430,7 +3430,7 @@ PSFloat *PSVectorNeg(PSFloat *a, PSFloat *dest, uint64_t length,
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
+    if (PSAccelerateEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VDSPNeg(a, dest, length);
         return dest;
     }
@@ -3483,7 +3483,7 @@ PSFloat *PSVectorAbs(PSFloat *a, PSFloat *dest, uint64_t length,
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
+    if (PSAccelerateEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VDSPAbs(a, dest, length);
         return dest;
     }
@@ -3532,7 +3532,7 @@ PSFloat *PSVectorClip(PSFloat *a, PSFloat min, PSFloat max, PSFloat *dest,
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
+    if (PSAccelerateEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VDSPClip(a, min, max, dest, length);
         return dest;
     }
@@ -3586,7 +3586,7 @@ PSFloat *PSVectorThreshold(PSFloat *a, PSFloat min, PSFloat *dest,
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
+    if (PSAccelerateEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VDSPThres(a, min, dest, length);
         return dest;
     }
@@ -3635,7 +3635,7 @@ PSFloat *PSVectorMapWithLimit(PSFloat *a, PSFloat limit, PSFloat mapper,
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
+    if (PSAccelerateEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         VDSPVLim(a, limit, mapper, dest, length);
         return dest;
     }
@@ -3671,7 +3671,7 @@ PSFloat PSVectorMax(PSFloat *a, uint64_t *index, uint64_t length,
     int acceleration = PSGlobalAcceleration;
     if (opts != NULL) acceleration = opts->acceleration;
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration)) {
+    if (PSAccelerateEnabled(acceleration)) {
         if (index == NULL) VDSPMax(a, max, length);
         else VDSPMaxIdx(a, max, (unsigned long*) index, length);
         return max;
@@ -3706,7 +3706,7 @@ PSFloat PSVectorReduceSum(PSFloat *a, uint64_t length, PSMathOpts *opts) {
     int acceleration = PSGlobalAcceleration;
     if (opts != NULL) acceleration = opts->acceleration;
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration)) {
+    if (PSAccelerateEnabled(acceleration)) {
         VDSPSumElems(a, sum, length);
         return sum;
     }
@@ -3752,7 +3752,7 @@ PSFloat *PSVectorPower(PSFloat *a, PSFloat exp, PSFloat *dest, uint64_t length,
         }
     } else if (exp == 2) return PSMultiplyVectors(a, a, dest, length, opts);
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
+    if (PSAccelerateEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
         PSFloat exps[length];
         VDSPFill(exp, exps, length);
         VVPow(a, exps, dest, length);
@@ -3810,7 +3810,7 @@ PSFloat PSMean(PSFloat *a, uint64_t length, PSMathOpts *opts) {
     int acceleration = PSGlobalAcceleration;
     if (opts != NULL) acceleration = opts->acceleration;
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration)) {
+    if (PSAccelerateEnabled(acceleration)) {
         VDSPMean(a, mean, length);
         return mean;
     }
@@ -3845,7 +3845,7 @@ PSFloat PSVariance(PSFloat *a, uint64_t len, PSMathOpts *opts) {
     }
     int do_free_cache = (cache == NULL);
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration)) {
+    if (PSAccelerateEnabled(acceleration)) {
         if (cache == NULL) cache = malloc(len * sizeof(PSFloat));
         if (cache != NULL) {
             PSSubtractVectorScalar(a, mean, cache, len, opts);
@@ -3907,7 +3907,7 @@ PSFloat PSDotProduct(PSFloat *a, PSFloat *b, uint64_t length, PSMathOpts *opts)
         debugStep = opts->debugStep;
     }
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration)) {
+    if (PSAccelerateEnabled(acceleration)) {
         VDSPDotProd(a, b, result, length);
         if (debugStep)
             debugStep(length - 1, a[length-1], b[length-1], result, 1, opts);
@@ -3939,7 +3939,7 @@ PSFloat PSDotSquare(PSFloat *a, uint64_t length, PSMathOpts *opts) {
         debugStep = opts->debugStep;
     }
 #if defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration)) {
+    if (PSAccelerateEnabled(acceleration)) {
         VDSPSumVecSqr(a, result, length);
         if (debugStep)
             debugStep(length - 1, a[length-1], a[length-1], result, 1, opts);
@@ -4177,7 +4177,7 @@ int PSOuterProduct(PSFloat *a, PSFloat *b, PSFloat *dest,
 #if defined(HAS_BLAS) || defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     PSFloat *vpdest = dest;
     int blas_enabled = PSBLASEnabled(acceleration),
-        acf_enabled = PSACFEnabled(acceleration),
+        acf_enabled = PSAccelerateEnabled(acceleration),
         do_free_vpdest = 0, use_acceleration = (blas_enabled || acf_enabled);
     if (!use_acceleration) goto no_acceleration;
     if (store_mode && (store_mode == PS_STORE_MODE_SUB || !blas_enabled)) {
@@ -4254,7 +4254,7 @@ void PSVectorFill(PSFloat *vec, PSFloat val, uint64_t len, PSMathOpts *opts) {
     int acceleration = PSGlobalAcceleration;
     if (opts != NULL) acceleration = opts->acceleration;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration)) {
+    if (PSAccelerateEnabled(acceleration)) {
         VDSPFill(val, vec, len);
         return;
     }
@@ -4366,7 +4366,7 @@ PSFloat *PSVectorTranspose(PSFloat *vec, PSFloat *dest, int acceleration,
         }
     } else if (ndims == 2) {
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-        if (PSACFEnabled(acceleration)) {
+        if (PSAccelerateEnabled(acceleration)) {
             /* Use Apple Accelerate Framework */
             VDSPMTransp(vec, transposed, dims[1], dims[0]);
             goto final;
@@ -4459,7 +4459,7 @@ int PSMatMul(PSFloat *a, PSFloat *b, PSFloat *dest, int m, int n, int k,
         b = transposed_b;
     }
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    if (PSACFEnabled(acceleration)) {
+    if (PSAccelerateEnabled(acceleration)) {
         int outlen = m * n;
         if (outlen == 0) return 0;
         PSFloat *out = dest, *tmpdest = (opts ? opts->tmpdest : NULL);

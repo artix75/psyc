@@ -9,7 +9,7 @@ In: config.h, line: 48
 typedef enum {  
     PSAcceleration_None  = 0  
     PSAcceleration_AVX  = 1 /* (1 << 0) */  
-    PSAcceleration_ACF  = 2 /* (1 << 1) */  
+    PSAcceleration_Accelerate  = 2 /* (1 << 1) */  
     PSAcceleration_BLAS  = 4 /* (1 << 2) */  
     PSAcceleration_Auto  = 32768 /* (1 << 15) */  
     PSAcceleration_All  = 0xFFFF  

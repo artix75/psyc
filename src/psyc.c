@@ -1357,7 +1357,7 @@ void PSModelPrintInfo(PSModel *model) {
     printInfoRow("AVX", "%s",
                  (PSAVXEnabled(model->acceleration) ? "yes" : "no"));
     printInfoRow("Apple Accelerate Framework", "%s",
-                 (PSACFEnabled(model->acceleration) ? "yes" : "no"));
+                 (PSAccelerateEnabled(model->acceleration) ? "yes" : "no"));
     printInfoRow("BLAS", "%s",
                  (PSBLASEnabled(model->acceleration) ? "yes" : "no"));
     if (PSLogColorEnabled()) printf(PSCOLOR_CYAN);

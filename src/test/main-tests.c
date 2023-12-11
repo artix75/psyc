@@ -1971,7 +1971,7 @@ int testConvCIFAR(TestCase *test_case, Test *test) {
     ok = ModelBackpropTest(test, CONVOLUTIONAL_CIFAR_MODEL,
                              "cifar", CIFAR_IMAGE_PATH, CIFAR_LABEL_PATH,
                               PS_CIFAR_IMAGE_SIZE, 10, "CIFAR CNN", NULL,
-                              2, 0, 8, PSAcceleration_ACF);
+                              2, 0, 8, PSAcceleration_Accelerate);
     if (!ok) return 0;
 #endif
 #ifdef USE_AVX
@@ -2194,7 +2194,7 @@ int testRNNBackprop(TestCase *test_case, Test *test) {
     ok = ModelBackpropTest(test, model_file,
                            "rnn", inputs_file, labels_file,
                            input_len, label_len, "RNN", &opts, 3, 0, 3,
-                           PSAcceleration_ACF);
+                           PSAcceleration_Accelerate);
     if (!ok) return 0;
 #endif
 #ifdef USE_AVX
@@ -2663,7 +2663,7 @@ int testLSTMBackprop(TestCase *test_case, Test *test) {
     ok = ModelBackpropTest(test, model_file,
                              "lstm", inputs_file, labels_file,
                              input_len, label_len, "LSTM", &opts, 0, 3, 3,
-                             PSAcceleration_ACF);
+                             PSAcceleration_Accelerate);
     if (!ok) return 0;
 #endif
 #ifdef USE_AVX
@@ -2847,7 +2847,7 @@ int testGRUBackprop(TestCase *test_case, Test *test) {
     ok = ModelBackpropTest(test, model_file,
                              "gru", inputs_file, labels_file,
                               input_len, label_len, "GRU", &opts, 3, 0, 3,
-                              PSAcceleration_ACF);
+                              PSAcceleration_Accelerate);
     if (!ok) return 0;
 #endif
 #ifdef USE_AVX
@@ -4645,7 +4645,7 @@ int testMathsDotProduct(TestCase *tc, Test *test) {
     PSFloat cmp_res = test_dot(x, y, 16), res;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    opts.acceleration = PSAcceleration_ACF;
+    opts.acceleration = PSAcceleration_Accelerate;
     res = PSDotProduct(x, y, 16, &opts);
     testAssertWithMessage(
         (res == cmp_res), test, "Accelerate Framework: Expected %g != %g",
@@ -4698,7 +4698,7 @@ int testMathsDot(TestCase *tc, Test *test) {
     }
     int decrnd = NORMAL_PRECISION_DEC;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    opts.acceleration = PSAcceleration_ACF;
+    opts.acceleration = PSAcceleration_Accelerate;
     ok = PSDot(matrix, y, res, &opts);
     testAssert(ok, test);
     ok = compareArrays(res, cmp_res, 2, test, "Accelerate Framework",decrnd,0);
@@ -4760,7 +4760,7 @@ int testMathsVecProd(TestCase *tc, Test *test) {
     }
 #endif
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    opts.acceleration = PSAcceleration_ACF;
+    opts.acceleration = PSAcceleration_Accelerate;
     PSVectorClear(res, 6);
     ok = PSOuterProduct(a, b, res, 2, 3, &opts);
     testAssertWithMessage(
@@ -4800,7 +4800,7 @@ int testMathsSumV(TestCase *tc, Test *test) {
     int ok = 1;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    opts.acceleration = PSAcceleration_ACF;
+    opts.acceleration = PSAcceleration_Accelerate;
     PSAddVectors(x, y, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0, 0);
     if (!ok) return 0;
@@ -4827,7 +4827,7 @@ int testMathsSubV(TestCase *tc, Test *test) {
     int ok = 1;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    opts.acceleration = PSAcceleration_ACF;
+    opts.acceleration = PSAcceleration_Accelerate;
     PSSubtractVectors(x, y, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0, 0);
     if (!ok) return 0;
@@ -4855,7 +4855,7 @@ int testMathsMulV(TestCase *tc, Test *test) {
     int ok = 1;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    opts.acceleration = PSAcceleration_ACF;
+    opts.acceleration = PSAcceleration_Accelerate;
     PSMultiplyVectors(x, y, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0, 0);
     if (!ok) return 0;
@@ -4884,7 +4884,7 @@ int testMathsDivV(TestCase *tc, Test *test) {
     int decrnd = NORMAL_PRECISION_DEC;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    opts.acceleration = PSAcceleration_ACF;
+    opts.acceleration = PSAcceleration_Accelerate;
     PSDivideVectors(x, y, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", decrnd,0);
     if (!ok) return 0;
@@ -4912,7 +4912,7 @@ int testMathsSumVS(TestCase *tc, Test *test) {
     int ok = 1;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    opts.acceleration = PSAcceleration_ACF;
+    opts.acceleration = PSAcceleration_Accelerate;
     PSAddVectorScalar(x, y, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0, 0);
     if (!ok) return 0;
@@ -4940,7 +4940,7 @@ int testMathsSubSV(TestCase *tc, Test *test) {
     int ok = 1;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    opts.acceleration = PSAcceleration_ACF;
+    opts.acceleration = PSAcceleration_Accelerate;
     PSSubtractScalarVector(x, y, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0, 0);
     if (!ok) return 0;
@@ -4968,7 +4968,7 @@ int testMathsMulVS(TestCase *tc, Test *test) {
     int ok = 1;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    opts.acceleration = PSAcceleration_ACF;
+    opts.acceleration = PSAcceleration_Accelerate;
     PSMultiplyVectorScalar(x, y, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0, 0);
     if (!ok) return 0;
@@ -4997,7 +4997,7 @@ int testMathsDivVS(TestCase *tc, Test *test) {
     int decrnd = NORMAL_PRECISION_DEC;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    opts.acceleration = PSAcceleration_ACF;
+    opts.acceleration = PSAcceleration_Accelerate;
     PSDivideVectorScalar(x, y, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", decrnd,0);
     if (!ok) return 0;
@@ -5026,7 +5026,7 @@ int testMathsDivSV(TestCase *tc, Test *test) {
     int decrnd = NORMAL_PRECISION_DEC;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    opts.acceleration = PSAcceleration_ACF;
+    opts.acceleration = PSAcceleration_Accelerate;
     PSDivideScalarVector(x, y, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", decrnd,0);
     if (!ok) return 0;
@@ -5055,7 +5055,7 @@ int testMathsClip(TestCase *tc, Test *test) {
     int decrnd = NORMAL_PRECISION_DEC;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    opts.acceleration = PSAcceleration_ACF;
+    opts.acceleration = PSAcceleration_Accelerate;
     PSVectorClip(x, min, max, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", decrnd,0);
     if (!ok) return 0;
@@ -5085,7 +5085,7 @@ int testMathsThres(TestCase *tc, Test *test) {
     int decrnd = NORMAL_PRECISION_DEC;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    opts.acceleration = PSAcceleration_ACF;
+    opts.acceleration = PSAcceleration_Accelerate;
     PSVectorThreshold(x, min, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", decrnd,0);
     if (!ok) return 0;
@@ -5112,7 +5112,7 @@ int testMathsMapLimit(TestCase *tc, Test *test) {
     int ok = 1;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    opts.acceleration = PSAcceleration_ACF;
+    opts.acceleration = PSAcceleration_Accelerate;
     PSVectorMapWithLimit(x, limit, 1, res, 6,&opts);
     ok = compareArrays(res, expected, 6, test, "Accelerate Framework", 0, 0);
     if (!ok) return 0;
@@ -5134,7 +5134,7 @@ int testMathsExp(TestCase *tc, Test *test) {
     int decrnd = NORMAL_PRECISION_DEC;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    opts.acceleration = PSAcceleration_ACF;
+    opts.acceleration = PSAcceleration_Accelerate;
     PSVectorExp(x, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", decrnd,0);
     if (!ok) return 0;
@@ -5165,7 +5165,7 @@ int testMathsPow(TestCase *tc, Test *test) {
     int precision = 3;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    opts.acceleration = PSAcceleration_ACF;
+    opts.acceleration = PSAcceleration_Accelerate;
     PSVectorPower(x, exp, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0,
                        precision);
@@ -5195,7 +5195,7 @@ int testMathsTanh(TestCase *tc, Test *test) {
     int ok = 1;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    opts.acceleration = PSAcceleration_ACF;
+    opts.acceleration = PSAcceleration_Accelerate;
     PSVectorTanh(x, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0, 0);
     if (!ok) return 0;
@@ -5223,7 +5223,7 @@ int testMathsSqrt(TestCase *tc, Test *test) {
     int decrnd = NORMAL_PRECISION_DEC;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    opts.acceleration = PSAcceleration_ACF;
+    opts.acceleration = PSAcceleration_Accelerate;
     PSVectorSqrt(x, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", decrnd,0);
     if (!ok) return 0;
@@ -5250,7 +5250,7 @@ int testMathsNeg(TestCase *tc, Test *test) {
     int ok = 1;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    opts.acceleration = PSAcceleration_ACF;
+    opts.acceleration = PSAcceleration_Accelerate;
     PSVectorNeg(x, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0, 0);
     if (!ok) return 0;
@@ -5276,7 +5276,7 @@ int testMathsAbs(TestCase *tc, Test *test) {
     int ok = 1;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    opts.acceleration = PSAcceleration_ACF;
+    opts.acceleration = PSAcceleration_Accelerate;
     PSVectorAbs(x, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0, 0);
     if (!ok) return 0;
@@ -5300,11 +5300,11 @@ int testMathsMean(TestCase *tc, Test *test) {
     PSFloat expected = 62.9413, mean;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    opts.acceleration = PSAcceleration_ACF;
+    opts.acceleration = PSAcceleration_Accelerate;
     mean = PSMean(x, 6, &opts);
     mean = getRoundedFloatDec(mean, 4);
     testAssertWithMessage(
-        (mean == expected), test, "Mean (ACF) != Expected: %g != %g",
+        (mean == expected), test, "Mean (Accelerate) != Expected: %g != %g",
         mean, expected
     );
 #endif
@@ -5334,11 +5334,11 @@ int testMathsVar(TestCase *tc, Test *test) {
     expected = getRoundedFloatDec(expected, 2);
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    opts.acceleration = PSAcceleration_ACF;
+    opts.acceleration = PSAcceleration_Accelerate;
     var = PSVariance(x, 6, &opts);
     var = getRoundedFloatDec(var, 2);
     testAssertWithMessage(
-        (var == expected), test, "Variance (ACF) != Expected: %g != %g",
+        (var == expected), test, "Variance (Accelerate) != Expected: %g != %g",
         var, expected
     );
 #endif
@@ -5367,11 +5367,11 @@ int testMathsStd(TestCase *tc, Test *test) {
     PSFloat expected = 38.3945, stddev;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    opts.acceleration = PSAcceleration_ACF;
+    opts.acceleration = PSAcceleration_Accelerate;
     stddev = PSStdDev(x, 6, &opts);
     stddev = getRoundedFloatDec(stddev, 4);
     testAssertWithMessage(
-        (stddev == expected), test, "StdDev (ACF) != Expected: %g != %g",
+        (stddev == expected), test, "StdDev (Accelerate) != Expected: %g != %g",
         stddev, expected
     );
 #endif
@@ -5401,11 +5401,11 @@ int testMathVectorFill(TestCase *tc, Test *test) {
     PSFloat filler = 3.1234;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    opts.acceleration = PSAcceleration_ACF;
+    opts.acceleration = PSAcceleration_Accelerate;
     PSVectorFill(vec, filler, 10, &opts);
     for (i = 0; i < 10; i++) {
         testAssertWithMessage(
-            vec[i] == filler, test, "(ACF) vec[%d] != filler: %g != %g",
+            vec[i] == filler, test, "(Accelerate) vec[%d] != filler: %g != %g",
             i, vec[i], filler
         );
     }
@@ -5537,7 +5537,7 @@ int testMathsMatrixTranspose(TestCase *tc, Test *test) {
     res = checkMatrixTransposition(m3d, data3DT, acceleration, descr, test);
     if (!res) goto final;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    acceleration = PSAcceleration_ACF;
+    acceleration = PSAcceleration_Accelerate;
     snprintf(descr, 54, "Matrix 2D (%s)", PSGetAccelerationName(acceleration));
     res = checkMatrixTransposition(m2d, data2DT, acceleration, descr, test);
     if (!res) goto final;
@@ -5936,7 +5936,7 @@ int testMathsMatrixProduct(TestCase *tc, Test *test) {
     numtests++;
 #endif
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    acceleration = PSAcceleration_ACF;
+    acceleration = PSAcceleration_Accelerate;
     res = testMatrixProduct(test, acceleration);
     if (!res) return 0;
     numtests++;
@@ -5961,7 +5961,7 @@ int testMathsMatrixProductMV(TestCase *tc, Test *test) {
     numtests++;
 #endif
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    acceleration = PSAcceleration_ACF;
+    acceleration = PSAcceleration_Accelerate;
     res = testMatrixProductMV(test, acceleration);
     if (!res) return 0;
     numtests++;
@@ -5983,7 +5983,7 @@ int testMathsMatrixProductVM(TestCase *tc, Test *test) {
     numtests++;
 #endif
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    acceleration = PSAcceleration_ACF;
+    acceleration = PSAcceleration_Accelerate;
     res = testMatrixProductVM(test, acceleration);
     if (!res) return 0;
     numtests++;
@@ -6030,8 +6030,8 @@ int testMatrixOp(PSMatrix a, PSMatrix b, testMatrixOpFunc func,
     memset(shape, 0, sizeof(shape));
 #endif
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    snprintf(testdescr, 255, "[ACF] %s", funcname);
-    opts.acceleration = PSAcceleration_ACF;
+    snprintf(testdescr, 255, "[Accelerate] %s", funcname);
+    opts.acceleration = PSAcceleration_Accelerate;
     ok = func(a, b, &res, &opts);
     testAssertWithMessageOrGoto(
         (ok && res != NULL), final, test, "%s: operation failed", testdescr
@@ -6638,7 +6638,7 @@ int testMathsMatMul(TestCase *tc, Test *test) {
     numtests++;
 #endif
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    acceleration = PSAcceleration_ACF;
+    acceleration = PSAcceleration_Accelerate;
     res = testMatMul(test, acceleration);
     if (!res) return 0;
     numtests++;
@@ -6693,7 +6693,7 @@ int testActSigmoid(TestCase *tc, Test *test) {
     int decrnd = NORMAL_PRECISION_DEC;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    opts.acceleration = PSAcceleration_ACF;
+    opts.acceleration = PSAcceleration_Accelerate;
     PSSigmoid(x, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", decrnd,0);
     if (!ok) return 0;
@@ -6720,7 +6720,7 @@ int testActSigmoidDeriv(TestCase *tc, Test *test) {
     int ok = 1;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    opts.acceleration = PSAcceleration_ACF;
+    opts.acceleration = PSAcceleration_Accelerate;
     PSSigmoidDerivative(x, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0, 0);
     if (!ok) return 0;
@@ -6747,7 +6747,7 @@ int testActTanh(TestCase *tc, Test *test) {
     int ok = 1;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    opts.acceleration = PSAcceleration_ACF;
+    opts.acceleration = PSAcceleration_Accelerate;
     PSTanhActivation(x, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0, 0);
     if (!ok) return 0;
@@ -6774,7 +6774,7 @@ int testActTanhDeriv(TestCase *tc, Test *test) {
     int ok = 1;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    opts.acceleration = PSAcceleration_ACF;
+    opts.acceleration = PSAcceleration_Accelerate;
     PSTanhDerivative(x, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0, 0);
     if (!ok) return 0;
@@ -6801,7 +6801,7 @@ int testActRelu(TestCase *tc, Test *test) {
     int ok = 1;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    opts.acceleration = PSAcceleration_ACF;
+    opts.acceleration = PSAcceleration_Accelerate;
     PSRelu(x, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0, 0);
     if (!ok) return 0;
@@ -6828,7 +6828,7 @@ int testActReluDeriv(TestCase *tc, Test *test) {
     int ok = 1;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    opts.acceleration = PSAcceleration_ACF;
+    opts.acceleration = PSAcceleration_Accelerate;
     PSReluDerivative(x, res, 6, &opts);
     ok = compareArrays(res, cmp_res, 6, test, "Accelerate Framework", 0, 0);
     if (!ok) return 0;
@@ -6856,7 +6856,7 @@ int testActGelu(TestCase *tc, Test *test) {
     int ok = 1;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    opts.acceleration = PSAcceleration_ACF;
+    opts.acceleration = PSAcceleration_Accelerate;
     PSGelu(x, res, 4, &opts);
     ok = compareArrays(res, y, 4, test, "Accelerate Framework", 0, 4);
     if (!ok) return 0;
@@ -6891,7 +6891,7 @@ int testActGeluDeriv(TestCase *tc, Test *test) {
     int ok = 1;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    opts.acceleration = PSAcceleration_ACF;
+    opts.acceleration = PSAcceleration_Accelerate;
     PSGeluDerivative(x, res, 4, &opts);
     ok = compareArrays(res, y, 4, test, "Accelerate Framework", 0, 3);
     if (!ok) return 0;
@@ -6927,7 +6927,7 @@ int testActSoftmax(TestCase *tc, Test *test) {
     int ok = 1;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    opts.acceleration = PSAcceleration_ACF;
+    opts.acceleration = PSAcceleration_Accelerate;
     PSSoftmax(x, res, 3, &opts);
     ok = compareArrays(res, expected, 3, test, "Accelerate Framework", 4, 0);
     if (!ok) return 0;
@@ -6971,14 +6971,14 @@ int testDefaultOptimization(TestCase *tc, Test *test) {
     ok = compareArrays(params, expected, len, test, "No Accel.", 4, 0);
     if (!ok) return 0;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    acceleration = PSAcceleration_ACF;
+    acceleration = PSAcceleration_Accelerate;
     memcpy(params, orig_params, len * sizeof(PSFloat));
     ok = PSDefaultOptimization(
         params, gradients, NULL, NULL, NULL, NULL, NULL, rate, 0.0, len,
         acceleration, 0, NULL
     );
     testAssert(ok, test);
-    ok = compareArrays(params, expected, len, test, "ACF", 4, 0);
+    ok = compareArrays(params, expected, len, test, "Accelerate", 4, 0);
     if (!ok) return 0;
 #endif
 #ifdef USE_AVX
@@ -7026,7 +7026,7 @@ int testMomentumOptimization(TestCase *tc, Test *test) {
     ok = compareArrays(params, expected, len, test, "No Accel.", 4, 0);
     if (!ok) return 0;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    acceleration = PSAcceleration_ACF;
+    acceleration = PSAcceleration_Accelerate;
     memcpy(params, orig_params, len * sizeof(PSFloat));
     memset(mem, 0, len * sizeof(PSFloat));
     for (i = 0; i < iterations; i++) {
@@ -7036,7 +7036,7 @@ int testMomentumOptimization(TestCase *tc, Test *test) {
         );
         testAssert(ok, test);
     }
-    ok = compareArrays(params, expected, len, test, "ACF.", 4, 0);
+    ok = compareArrays(params, expected, len, test, "Accelerate.", 4, 0);
     if (!ok) return 0;
 #endif
 #ifdef USE_AVX
@@ -7087,7 +7087,7 @@ int testNesterovOptimization(TestCase *tc, Test *test) {
     ok = compareArrays(params, expected, len, test, "No Accel.", 4, 0);
     if (!ok) return 0;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    acceleration = PSAcceleration_ACF;
+    acceleration = PSAcceleration_Accelerate;
     memcpy(params, orig_params, len * sizeof(PSFloat));
     memset(mem, 0, len * sizeof(PSFloat));
     for (i = 0; i < iterations; i++) {
@@ -7097,7 +7097,7 @@ int testNesterovOptimization(TestCase *tc, Test *test) {
         );
         testAssert(ok, test);
     }
-    ok = compareArrays(params, expected, len, test, "ACF", 4, 0);
+    ok = compareArrays(params, expected, len, test, "Accelerate", 4, 0);
     if (!ok) return 0;
 #endif
 #ifdef USE_AVX
@@ -7150,7 +7150,7 @@ int testAdaDeltaOptimization(TestCase *tc, Test *test) {
     ok = compareArrays(params, expected, len, test, "No Accel.", 4, 0);
     if (!ok) return 0;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    acceleration = PSAcceleration_ACF;
+    acceleration = PSAcceleration_Accelerate;
     memcpy(params, orig_params, len * sizeof(PSFloat));
     memset(mem1, 0, len * sizeof(PSFloat));
     memset(mem2, 0, len * sizeof(PSFloat));
@@ -7161,7 +7161,7 @@ int testAdaDeltaOptimization(TestCase *tc, Test *test) {
         );
         testAssert(ok, test);
     }
-    ok = compareArrays(params, expected, len, test, "ACF", 4, 0);
+    ok = compareArrays(params, expected, len, test, "Accelerate", 4, 0);
     if (!ok) return 0;
 #endif
 #ifdef USE_AVX
@@ -7213,7 +7213,7 @@ int testWindowGradOptimization(TestCase *tc, Test *test) {
     ok = compareArrays(params, expected, len, test, "No Accel.", 4, 0);
     if (!ok) return 0;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    acceleration = PSAcceleration_ACF;
+    acceleration = PSAcceleration_Accelerate;
     memcpy(params, orig_params, len * sizeof(PSFloat));
     memset(mem, 0, len * sizeof(PSFloat));
     for (i = 0; i < iterations; i++) {
@@ -7223,7 +7223,7 @@ int testWindowGradOptimization(TestCase *tc, Test *test) {
         );
         testAssert(ok, test);
     }
-    ok = compareArrays(params, expected, len, test, "ACF", 4, 0);
+    ok = compareArrays(params, expected, len, test, "Accelerate", 4, 0);
     if (!ok) return 0;
 #endif
 #ifdef USE_AVX
@@ -7274,7 +7274,7 @@ int testAdaGradOptimization(TestCase *tc, Test *test) {
     ok = compareArrays(params, expected, len, test, "No Accel.", 4, 0);
     if (!ok) return 0;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    acceleration = PSAcceleration_ACF;
+    acceleration = PSAcceleration_Accelerate;
     memcpy(params, orig_params, len * sizeof(PSFloat));
     memset(mem, 0, len * sizeof(PSFloat));
     for (i = 0; i < iterations; i++) {
@@ -7284,7 +7284,7 @@ int testAdaGradOptimization(TestCase *tc, Test *test) {
         );
         testAssert(ok, test);
     }
-    ok = compareArrays(params, expected, len, test, "ACF", 4, 0);
+    ok = compareArrays(params, expected, len, test, "Accelerate", 4, 0);
     if (!ok) return 0;
 #endif
 #ifdef USE_AVX
@@ -7335,7 +7335,7 @@ int testRMSPropOptimization(TestCase *tc, Test *test) {
     ok = compareArrays(params, expected, len, test, "No Accel.", 4, 0);
     if (!ok) return 0;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    acceleration = PSAcceleration_ACF;
+    acceleration = PSAcceleration_Accelerate;
     memcpy(params, orig_params, len * sizeof(PSFloat));
     memset(mem, 0, len * sizeof(PSFloat));
     for (i = 0; i < iterations; i++) {
@@ -7345,7 +7345,7 @@ int testRMSPropOptimization(TestCase *tc, Test *test) {
         );
         testAssert(ok, test);
     }
-    ok = compareArrays(params, expected, len, test, "ACF", 4, 0);
+    ok = compareArrays(params, expected, len, test, "Accelerate", 4, 0);
     if (!ok) return 0;
 #endif
 #ifdef USE_AVX
@@ -7398,7 +7398,7 @@ int testAdamOptimization(TestCase *tc, Test *test) {
     ok = compareArrays(params, expected, len, test, "No Accel.", 4, 0);
     if (!ok) return 0;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    acceleration = PSAcceleration_ACF;
+    acceleration = PSAcceleration_Accelerate;
     memcpy(params, orig_params, len * sizeof(PSFloat));
     memset(mem1, 0, len * sizeof(PSFloat));
     memset(mem2, 0, len * sizeof(PSFloat));
@@ -7409,7 +7409,7 @@ int testAdamOptimization(TestCase *tc, Test *test) {
         );
         testAssert(ok, test);
     }
-    ok = compareArrays(params, expected, len, test, "ACF", 4, 0);
+    ok = compareArrays(params, expected, len, test, "Accelerate", 4, 0);
     if (!ok) return 0;
 #endif
 #ifdef USE_AVX
@@ -7457,14 +7457,14 @@ int testL1WeightDecay(TestCase *tc, Test *test) {
     ok = compareArrays(params, expected, len, test, "No Accel.", 4, 0);
     if (!ok) return 0;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    acceleration = PSAcceleration_ACF;
+    acceleration = PSAcceleration_Accelerate;
     memcpy(params, orig_params, len * sizeof(PSFloat));
     ok = PSLRegularization(
         l1, 0.0, params, gradients, NULL, len, &l1_loss, NULL, batches,
         1, acceleration
     );
     testAssert(ok, test);
-    ok = compareArrays(params, expected, len, test, "ACF", 4, 0);
+    ok = compareArrays(params, expected, len, test, "Accelerate", 4, 0);
     if (!ok) return 0;
 #endif
 #ifdef USE_AVX
@@ -7508,14 +7508,14 @@ int testL2WeightDecay(TestCase *tc, Test *test) {
     ok = compareArrays(params, expected, len, test, "No Accel.", 4, 0);
     if (!ok) return 0;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    acceleration = PSAcceleration_ACF;
+    acceleration = PSAcceleration_Accelerate;
     memcpy(params, orig_params, len * sizeof(PSFloat));
     ok = PSLRegularization(
         0.0, l2, params, gradients, NULL, len, NULL, &l2_loss, batches,
         1, acceleration
     );
     testAssert(ok, test);
-    ok = compareArrays(params, expected, len, test, "ACF", 4, 0);
+    ok = compareArrays(params, expected, len, test, "Accelerate", 4, 0);
     if (!ok) return 0;
 #endif
 #ifdef USE_AVX
@@ -7564,7 +7564,7 @@ int testL1Regularization(TestCase *tc, Test *test) {
         l1_loss, expected_l1_loss
     );
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    acceleration = PSAcceleration_ACF;
+    acceleration = PSAcceleration_Accelerate;
     memcpy(gradients, orig_gradients, len * sizeof(PSFloat));
     l1_loss = 0.0;
     ok = PSLRegularization(
@@ -7572,11 +7572,12 @@ int testL1Regularization(TestCase *tc, Test *test) {
         0, acceleration
     );
     testAssert(ok, test);
-    ok = compareArrays(gradients, expected, len, test, "ACF", 4, 0);
+    ok = compareArrays(gradients, expected, len, test, "Accelerate", 4, 0);
     if (!ok) return 0;
     l1_loss = getRoundedFloatDec(l1_loss, 4);
     testAssertWithMessage(
-        l1_loss == expected_l1_loss, test, "(ACF) L1 Loss %g != expected %g",
+        l1_loss == expected_l1_loss, test,
+        "(Accelerate) L1 Loss %g != expected %g",
         l1_loss, expected_l1_loss
     );
 #endif
@@ -7633,7 +7634,7 @@ int testL2Regularization(TestCase *tc, Test *test) {
         l2_loss, expected_l2_loss
     );
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    acceleration = PSAcceleration_ACF;
+    acceleration = PSAcceleration_Accelerate;
     memcpy(gradients, orig_gradients, len * sizeof(PSFloat));
     l2_loss = 0.0;
     ok = PSLRegularization(
@@ -7641,12 +7642,13 @@ int testL2Regularization(TestCase *tc, Test *test) {
         0, acceleration
     );
     testAssert(ok, test);
-    ok = compareArrays(gradients, expected, len, test, "ACF", 4, 0);
+    ok = compareArrays(gradients, expected, len, test, "Accelerate", 4, 0);
     if (!ok) return 0;
     l2_loss = getRoundedFloatDec(l2_loss, 4);
     l2_loss = getRoundedFloatDec(l2_loss, 4);
     testAssertWithMessage(
-        l2_loss == expected_l2_loss, test, "(ACF) L2 Loss %g != expected %g",
+        l2_loss == expected_l2_loss, test,
+        "(Accelerate) L2 Loss %g != expected %g",
         l2_loss, expected_l2_loss
     );
 #endif

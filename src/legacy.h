@@ -62,6 +62,7 @@
 #define PSSaveLayer(layer, path, opts)      PSLayerSave(layer, path, opts)
 #define PSGetStates(layer, ...)             PSLayerStates(layer, __VA_ARGS__)
 #define PSGetOutputs(layer)                 PSLayerOutputs(layer)
+#define PSACFEnabled(acceleration)          PSACFEnabled(acceleration)
 
 #define FLAG_LOG_COLORS                     PS_FLAG_LOG_COLORS
 #define DATA_TYPE_TRAINING                  PS_DATA_TYPE_TRAINING
@@ -116,6 +117,7 @@
 #define OPT_TIME_LONG                       PS_OPT_TIME_LONG
 #define OPT_TIME_FULL                       PS_OPT_TIME_FULL
 #define OPT_TIME_HUMAN                      PS_OPT_TIME_HUMAN
+#define PSAcceleration_ACF                  PSAcceleration_Accelerate
 
 #define Recurrent                           RNNLayer
 

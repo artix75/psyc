@@ -362,7 +362,7 @@ void PSSoftmax(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts) {
     PSFloat max = PSFLOAT_MIN, esum = 0.0;
     PSMathOpts mopts = {0};
     PSInitActivationMathOpts(&mopts, opts);
-    if (PSACFEnabled(mopts.acceleration)) {
+    if (PSAccelerateEnabled(mopts.acceleration)) {
         max = PSVectorMax(vec, NULL, len, &mopts);
         PSSubtractVectorScalar(vec, max, dest, len, &mopts);
         PSVectorExp(dest, dest, len, &mopts);

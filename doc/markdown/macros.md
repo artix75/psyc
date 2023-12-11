@@ -1377,12 +1377,12 @@ In: maths.h, line: 35
 
 
 
-### PSACFEnabled
+### PSAccelerateEnabled
 
 In: config.h, line: 36
 
 ```c
-#define PSACFEnabled(acceleration) (PSIsAccelerationEnabled(acceleration, PSAcceleration_ACF))
+#define PSAccelerateEnabled(acceleration) (PSIsAccelerationEnabled(acceleration, PSAcceleration_Accelerate))
 ```
 
 

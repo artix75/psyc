@@ -2987,7 +2987,7 @@ int PSModelSave(PSModel *model, const char* filepath) {
         PSIsAccelerationAvailable(PSAcceleration_AVX) ? 1 : 0
     );
     int acf_available = (
-        PSIsAccelerationAvailable(PSAcceleration_ACF) ? 1 : 0
+        PSIsAccelerationAvailable(PSAcceleration_Accelerate) ? 1 : 0
     );
     fprintf(
         f, "--v%s:git=%s/%s-%s;float_size=%zu;archbits=%d;avx=%d;"

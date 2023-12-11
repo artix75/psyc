@@ -33,8 +33,8 @@
 
 #define PSAVXEnabled(acceleration) (PSIsAccelerationEnabled(acceleration,\
     PSAcceleration_AVX))
-#define PSACFEnabled(acceleration) (PSIsAccelerationEnabled(acceleration,\
-    PSAcceleration_ACF))
+#define PSAccelerateEnabled(acceleration) \
+    (PSIsAccelerationEnabled(acceleration, PSAcceleration_Accelerate))
 #define PSBLASEnabled(acceleration) (PSIsAccelerationEnabled(acceleration,\
     PSAcceleration_BLAS))
 #define PSAutoAccelerationEnabled(acceleration) \
@@ -48,7 +48,7 @@
 typedef enum PSAcceleration {
     PSAcceleration_None = 0,
     PSAcceleration_AVX  = (1 << 0),
-    PSAcceleration_ACF = (1 << 1), /* Accelerate Framework */
+    PSAcceleration_Accelerate = (1 << 1),
     PSAcceleration_BLAS = (1 << 2),
     PSAcceleration_Auto = (1 << 15),
     PSAcceleration_All  = 0xFFFF

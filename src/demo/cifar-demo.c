@@ -515,13 +515,16 @@ int main(int argc, char** argv) {
 #else
     printf("off\n");
 #endif
-    if (disable_acf)
-        PSDisableAcceleration(&(model->acceleration), PSAcceleration_ACF);
+    if (disable_acf) {
+        PSDisableAcceleration(
+            &(model->acceleration), PSAcceleration_Accelerate
+        );
+    }
     if (disable_blas)
         PSDisableAcceleration(&(model->acceleration), PSAcceleration_BLAS);
     if (no_acceleration) model->acceleration = PSAcceleration_None;
     printf("Accelerate Framework: ");
-    if (PSACFEnabled(model->acceleration)) printf("on\n");
+    if (PSAccelerateEnabled(model->acceleration)) printf("on\n");
     else printf("off\n");
     printf("BLAS: ");
     if (PSBLASEnabled(model->acceleration)) printf("on\n");

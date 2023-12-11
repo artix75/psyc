@@ -755,12 +755,12 @@ static void printAccelerationInfo(PSAcceleration acceleration) {
     if (acceleration == PSAcceleration_AVX) {
         label = "AVX";
         prop = "--avx";
-    } else if (acceleration == PSAcceleration_ACF) {
+    } else if (acceleration == PSAcceleration_Accelerate) {
         label = "Accelerate Framework";
         prop = "--accelerate-framework";
     } else if (acceleration == PSAcceleration_BLAS) {
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-        if (PSIsAccelerationAvailable(PSAcceleration_ACF))
+        if (PSIsAccelerationAvailable(PSAcceleration_Accelerate))
             notes = "(Accelerate Framework)";
 #elif defined(HAS_GSL_CBLAS)
         notes = "(GNU Scientific Library)";
@@ -778,7 +778,7 @@ static void printAvailableAccelerations(void) {
     printf("-----------------------------------------------------------------"
            "-----\n");
     printAccelerationInfo(PSAcceleration_AVX);
-    printAccelerationInfo(PSAcceleration_ACF);
+    printAccelerationInfo(PSAcceleration_Accelerate);
     printAccelerationInfo(PSAcceleration_BLAS);
 }
 
@@ -792,7 +792,7 @@ static void printInfo(void) {
             (sizeof(PSFloat) > sizeof(float) ? "yes" : "no"));
     printf("Code Optimization:      %d\n", PSGetCodeOptimizationLevel());
     printf("Available Acceleration(s):\n");
-    if (PSIsAccelerationAvailable(PSAcceleration_ACF))
+    if (PSIsAccelerationAvailable(PSAcceleration_Accelerate))
         printf("    Accelerate Framework\n");
     if (PSIsAccelerationAvailable(PSAcceleration_BLAS))
         printf("    BLAS\n");
@@ -1465,7 +1465,9 @@ void parseOptions(int argc, char **argv) {
         } else if (strcmp("--disable-accelerate", arg) == 0 ||
                    strcmp("--disable-acf", arg) == 0)
         {
-            PSDisableAcceleration(&current->acceleration, PSAcceleration_ACF);
+            PSDisableAcceleration(
+                &current->acceleration, PSAcceleration_Accelerate
+            );
         } else if (strcmp("--disable-blas", arg) == 0) {
             PSDisableAcceleration(&current->acceleration, PSAcceleration_BLAS);
         } else if (strcmp("--enable-colors", arg) == 0) {

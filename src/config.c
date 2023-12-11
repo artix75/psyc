@@ -30,10 +30,10 @@ int PSGlobalFlags = 0;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
 #define PS_UNAVAILABLE_ACCEL PSAcceleration_AVX
 #else
-#define PS_UNAVAILABLE_ACCEL (PSAcceleration_AVX | PSAcceleration_ACF)
+#define PS_UNAVAILABLE_ACCEL (PSAcceleration_AVX | PSAcceleration_Accelerate)
 #endif
 #elif !defined(__APPLE__) || !defined(HAS_ACCELERATE_FRAMEWORK)
-#define PS_UNAVAILABLE_ACCEL PSAcceleration_ACF
+#define PS_UNAVAILABLE_ACCEL PSAcceleration_Accelerate
 #else
 #define PS_UNAVAILABLE_ACCEL 0
 #endif
@@ -45,10 +45,10 @@ int PSGlobalFlags = 0;
 #define PS_UNAVAILABLE_ACCEL PSAcceleration_BLAS | PSAcceleration_AVX
 #else
 #define PS_UNAVAILABLE_ACCEL \
-    (PSAcceleration_AVX | PSAcceleration_ACF | PSAcceleration_BLAS)
+    (PSAcceleration_AVX | PSAcceleration_Accelerate | PSAcceleration_BLAS)
 #endif
 #elif !defined(__APPLE__) || !defined(HAS_ACCELERATE_FRAMEWORK)
-#define PS_UNAVAILABLE_ACCEL PSAcceleration_ACF | PSAcceleration_BLAS
+#define PS_UNAVAILABLE_ACCEL PSAcceleration_Accelerate | PSAcceleration_BLAS
 #else
 #define PS_UNAVAILABLE_ACCEL PSAcceleration_BLAS
 #endif
@@ -80,7 +80,7 @@ const char *PSGetAccelerationName(PSAcceleration acceleration) {
     switch (acceleration) {
         case PSAcceleration_None: return "None";
         case PSAcceleration_AVX: return "AVX";
-        case PSAcceleration_ACF: return "Accelerate Framework";
+        case PSAcceleration_Accelerate: return "Accelerate Framework";
         case PSAcceleration_BLAS: return "BLAS";
         case PSAcceleration_Auto: return "Auto";
         case PSAcceleration_All: return "All";
