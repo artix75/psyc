@@ -1611,7 +1611,7 @@ GELU scalar result.
 
 <div class="details function" id="function-psgetattentionenabledprojections">
 <h3 class="name">PSGetAttentionEnabledProjections</h3>
-<div class="location">In: <span class="filename">attention.h</span> - Line: <span class="line">49</span></div>
+<div class="location">In: <span class="filename">attention.h</span> - Line: <span class="line">55</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSGetAttentionEnabledProjections</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psgetattentionenabledprojections-layer>layer</span></span></span>)</code>
@@ -1620,7 +1620,7 @@ GELU scalar result.
 
 <div class="details function" id="function-psgetattentionheadcount">
 <h3 class="name">PSGetAttentionHeadCount</h3>
-<div class="location">In: <span class="filename">attention.h</span> - Line: <span class="line">46</span></div>
+<div class="location">In: <span class="filename">attention.h</span> - Line: <span class="line">52</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSGetAttentionHeadCount</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psgetattentionheadcount-layer>layer</span></span></span>)</code>
@@ -1629,7 +1629,7 @@ GELU scalar result.
 
 <div class="details function" id="function-psgetattentionproviders">
 <h3 class="name">PSGetAttentionProviders</h3>
-<div class="location">In: <span class="filename">attention.h</span> - Line: <span class="line">47</span></div>
+<div class="location">In: <span class="filename">attention.h</span> - Line: <span class="line">53</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSGetAttentionProviders</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psgetattentionproviders-layer>layer</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> **</span><span class="identifier pointer-name" data-identifier-id=function-psgetattentionproviders-query-provider>query_provider</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> **</span><span class="identifier pointer-name" data-identifier-id=function-psgetattentionproviders-keys-provider>keys_provider</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> **</span><span class="identifier pointer-name" data-identifier-id=function-psgetattentionproviders-values-provider>values_provider</span></span></span>)</code>
@@ -1638,7 +1638,7 @@ GELU scalar result.
 
 <div class="details function" id="function-psgetattentionscale">
 <h3 class="name">PSGetAttentionScale</h3>
-<div class="location">In: <span class="filename">attention.h</span> - Line: <span class="line">45</span></div>
+<div class="location">In: <span class="filename">attention.h</span> - Line: <span class="line">51</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier name">PSGetAttentionScale</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psgetattentionscale-layer>layer</span></span></span>)</code>
@@ -1647,7 +1647,7 @@ GELU scalar result.
 
 <div class="details function" id="function-psgetattentiontype">
 <h3 class="name">PSGetAttentionType</h3>
-<div class="location">In: <span class="filename">attention.h</span> - Line: <span class="line">44</span></div>
+<div class="location">In: <span class="filename">attention.h</span> - Line: <span class="line">50</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#enum-psattentiontype">PSAttentionType</a></span> <span class="identifier name">PSGetAttentionType</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psgetattentiontype-layer>layer</span></span></span>)</code>
@@ -1656,7 +1656,7 @@ GELU scalar result.
 
 <div class="details function" id="function-psgetattentiontypelabel">
 <h3 class="name">PSGetAttentionTypeLabel</h3>
-<div class="location">In: <span class="filename">attention.h</span> - Line: <span class="line">43</span></div>
+<div class="location">In: <span class="filename">attention.h</span> - Line: <span class="line">49</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type">const char *</span><span class="identifier name">PSGetAttentionTypeLabel</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#enum-psattentiontype">PSAttentionType</a></span> <span class="identifier" data-identifier-id=function-psgetattentiontypelabel-type>type</span></span></span>)</code>
@@ -2105,7 +2105,7 @@ The output layer or <span class="identifier-ref">NULL</span> if:
 
 <div class="details function" id="function-psiscausalattention">
 <h3 class="name">PSIsCausalAttention</h3>
-<div class="location">In: <span class="filename">attention.h</span> - Line: <span class="line">50</span></div>
+<div class="location">In: <span class="filename">attention.h</span> - Line: <span class="line">56</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSIsCausalAttention</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psiscausalattention-layer>layer</span></span></span>)</code>
@@ -4506,7 +4506,7 @@ Possible failure reasons:<br/>
 
 <div class="details function" id="function-pssetattentionqueryprovider">
 <h3 class="name">PSSetAttentionQueryProvider</h3>
-<div class="location">In: <span class="filename">attention.h</span> - Line: <span class="line">51</span></div>
+<div class="location">In: <span class="filename">attention.h</span> - Line: <span class="line">57</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSSetAttentionQueryProvider</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function-pssetattentionqueryprovider-layer>layer</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function-pssetattentionqueryprovider-provider>provider</span></span></span>)</code>

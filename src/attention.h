@@ -34,6 +34,12 @@
 
 #define PSIsMultiHeadAttention(layer) (PSGetAttentionHeadCount(layer) > 1)
 
+/* Attention method used to compute scores.
+ *  - `PSDotAttention`: dot-product attention score computation, inspired to
+ *    Luong attention mechanism (https://arxiv.org/abs/1508.04025).
+ *  - `PSAdditiveAttention`: additive attention score computation, inspired to
+ *    Bahdanau attention mechanism (https://arxiv.org/abs/1409.0473).
+ */
 typedef enum {
     PSDotAttention,
     PSAdditiveAttention,

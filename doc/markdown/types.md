@@ -32,7 +32,7 @@ typedef void (* PSActivationFunction) (PSFloat *vec, PSFloat *dest, uint64_t len
 
 ### PSAttentionType
 
-In: attention.h, line: 37
+In: attention.h, line: 43
 
 ```c
 typedef enum {  
@@ -42,7 +42,10 @@ typedef enum {
 } PSAttentionType  
 ```
 
+Attention method used to compute scores.  
 
+ - [PSDotAttention](types.md#psattentiontype): dot-product attention score computation, inspired to Luong attention mechanism ([https://arxiv.org/abs/1508.04025).](https://arxiv.org/abs/1508.04025).)
+ - [PSAdditiveAttention](types.md#psattentiontype): additive attention score computation, inspired to Bahdanau attention mechanism ([https://arxiv.org/abs/1409.0473).](https://arxiv.org/abs/1409.0473).)
 
 
 ### PSBackpropFunction

@@ -134,10 +134,23 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details enum" id="enum-psattentiontype">
 <h3 class="name">PSAttentionType</h3>
-<div class="location">In: <span class="filename">attention.h</span> - Line: <span class="line">37</span></div>
+<div class="location">In: <span class="filename">attention.h</span> - Line: <span class="line">43</span></div>
 <div class="code">
 <code class="definition">
 <span class="keyword">typedef enum</span> {<br><span class="member"><span class="identifier">PSDotAttention</span> = <span class="value">0</span></span>,<br><span class="member"><span class="identifier">PSAdditiveAttention</span> = <span class="value">1</span></span>,<br><span class="member"><span class="identifier">PSInvalidAttention</span> = <span class="value">9999</span></span><br>} <span class="identifier">PSAttentionType</span><br></code>
+</div>
+<div class="description">
+Attention method used to compute scores.<br/>
+
+ <ul>
+
+ <li><span class="identifier-ref" data-identifier-id="enum-psattentiontype-psdotattention" data-parent-id="enum-psattentiontype">PSDotAttention</span>: dot-product attention score computation, inspired to Luong attention mechanism (<a href="https://arxiv.org/abs/1508.04025)." target="_blank">https://arxiv.org/abs/1508.04025).</a></li>
+
+ <li><span class="identifier-ref" data-identifier-id="enum-psattentiontype-psadditiveattention" data-parent-id="enum-psattentiontype">PSAdditiveAttention</span>: additive attention score computation, inspired to Bahdanau attention mechanism (<a href="https://arxiv.org/abs/1409.0473)." target="_blank">https://arxiv.org/abs/1409.0473).</a>
+
+
+ </ul>
+
 </div>
 </div>
 

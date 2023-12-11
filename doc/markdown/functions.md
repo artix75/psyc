@@ -1295,7 +1295,7 @@ const char  * PSGetAccelerationName (PSAcceleration acceleration)
 
 ### PSGetAttentionEnabledProjections
 
-In: attention.h, line: 49
+In: attention.h, line: 55
 
 ```c
 int PSGetAttentionEnabledProjections (PSLayer *layer)
@@ -1306,7 +1306,7 @@ int PSGetAttentionEnabledProjections (PSLayer *layer)
 
 ### PSGetAttentionHeadCount
 
-In: attention.h, line: 46
+In: attention.h, line: 52
 
 ```c
 int PSGetAttentionHeadCount (PSLayer *layer)
@@ -1317,7 +1317,7 @@ int PSGetAttentionHeadCount (PSLayer *layer)
 
 ### PSGetAttentionProviders
 
-In: attention.h, line: 47
+In: attention.h, line: 53
 
 ```c
 int PSGetAttentionProviders (PSLayer *layer, PSLayer ** query_provider, PSLayer ** keys_provider, PSLayer ** values_provider)
@@ -1328,7 +1328,7 @@ int PSGetAttentionProviders (PSLayer *layer, PSLayer ** query_provider, PSLayer 
 
 ### PSGetAttentionScale
 
-In: attention.h, line: 45
+In: attention.h, line: 51
 
 ```c
 PSFloat PSGetAttentionScale (PSLayer *layer)
@@ -1339,7 +1339,7 @@ PSFloat PSGetAttentionScale (PSLayer *layer)
 
 ### PSGetAttentionType
 
-In: attention.h, line: 44
+In: attention.h, line: 50
 
 ```c
 PSAttentionType PSGetAttentionType (PSLayer *layer)
@@ -1350,7 +1350,7 @@ PSAttentionType PSGetAttentionType (PSLayer *layer)
 
 ### PSGetAttentionTypeLabel
 
-In: attention.h, line: 43
+In: attention.h, line: 49
 
 ```c
 const char  * PSGetAttentionTypeLabel (PSAttentionType type)
@@ -1845,7 +1845,7 @@ int PSIsAccelerationEnabled (uint16_t config, PSAcceleration acceleration)
 
 ### PSIsCausalAttention
 
-In: attention.h, line: 50
+In: attention.h, line: 56
 
 ```c
 int PSIsCausalAttention (PSLayer *layer)
@@ -3951,7 +3951,7 @@ Possible failure reasons:
 
 ### PSSetAttentionQueryProvider
 
-In: attention.h, line: 51
+In: attention.h, line: 57
 
 ```c
 int PSSetAttentionQueryProvider (PSLayer *layer, PSLayer *provider)
