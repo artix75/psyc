@@ -563,7 +563,7 @@ int PSLSTMForward(PSLayer *layer, ...) {
         ignore_inputs = (t > 0);
     int feed_previous_step = (t > 0 || layer->initial_states != NULL);
     PSFloat *inputs = NULL;
-    PSFloat *outputs = PSGetStates(layer, t);
+    PSFloat *outputs = PSLayerStates(layer, t);
     if (ignore_inputs) goto forward_previous_step;
     if (onehot) {
         success = (
@@ -582,7 +582,7 @@ int PSLSTMForward(PSLayer *layer, ...) {
         );
         if (!success) goto final;
     } else {
-        inputs = PSGetStates(previous, t);
+        inputs = PSLayerStates(previous, t);
         if (inputs == NULL) {
             PSErr(NULL, "Layer[%d]: previous layer[%d] has no states",
                   layer->index, previous->index);
@@ -597,7 +597,7 @@ int PSLSTMForward(PSLayer *layer, ...) {
     }
 forward_previous_step:
     if (!feed_previous_step) goto final;
-    prev_states = PSGetStates(layer, prev_t);
+    prev_states = PSLayerStates(layer, prev_t);
     if (prev_states == NULL) goto final;
     prev_z = getRawStates(layer, prev_t);
     mopts.store_mode = PS_STORE_MODE_ADD;
@@ -789,7 +789,7 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previous_layer,
             gradient_weights_f[widx] += delta_f[i];
         }
     } else {
-        PSFloat *inputs = PSGetStates(previous_layer, t);
+        PSFloat *inputs = PSLayerStates(previous_layer, t);
         if (inputs == NULL) {
             PSErr(NULL, "Layer[%d] has no outputs at step %d",
                   previous_layer->index, t);
@@ -808,7 +808,7 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previous_layer,
     }
 
     if (t > 0 || layer->initial_states != NULL) {
-        PSFloat *prev_states = PSGetStates(layer, prev_t);
+        PSFloat *prev_states = PSLayerStates(layer, prev_t);
         /* Update gradient hidden weights */
         mopts.store_mode = PS_STORE_MODE_ADD;
         PSOuterProduct(delta_c, prev_states, gradient_hweights_c,

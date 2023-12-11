@@ -472,7 +472,7 @@ int PSOnehotInputsForward(PSLayer *layer, int weights_index,
             );
             return 0;
         }
-        if (outputs == NULL) out = PSGetStates(layer, tidx);
+        if (outputs == NULL) out = PSLayerStates(layer, tidx);
         else out = outputs + (t * layer->size);
         if (out == NULL) {
             PSErr(NULL, "Layer[%d] has no outputs at %d", layer->index, tidx);
@@ -497,7 +497,7 @@ no_transposition:
             );
             return 0;
         }
-        PSFloat *outputs = PSGetStates(layer, tidx);
+        PSFloat *outputs = PSLayerStates(layer, tidx);
         if (outputs == NULL) {
             PSErr(NULL, "Layer[%d] has no outputs", layer->index);
             return 0;
@@ -535,8 +535,8 @@ int PSFullForward(PSLayer *layer, ...) {
     PSMatrix weights = layer->weights[0];
     opts.acceleration = model->acceleration;
     if (!handles_seq) {
-        PSFloat *inputs = PSGetStates(previous, t),
-                *outputs = PSGetStates(layer, t);
+        PSFloat *inputs = PSLayerStates(previous, t),
+                *outputs = PSLayerStates(layer, t);
         if (inputs == NULL) {
             PSErr(
                 NULL, "Layer[%d]: previous layer[%d] has NULL outputs",
@@ -555,7 +555,7 @@ int PSFullForward(PSLayer *layer, ...) {
         if (use_bias) {
             int seqlen = PSMatrixDim(previous->states, 0), i;
             for (i = 0; i < seqlen; i++) {
-                PSFloat *outputs = PSGetStates(layer, i);
+                PSFloat *outputs = PSLayerStates(layer, i);
                 PSVectorCopy(outputs, layer->biases, layer->size);
             }
             opts.store_mode = PS_STORE_MODE_ADD;
@@ -585,7 +585,7 @@ static int softmaxForward(PSLayer *layer, ...) {
     if (!PSFullForward(layer, seqlen, t)) return 0;
     if (seqlen < 1 || !handles_seq) seqlen = 1;
     for (int i = 0; i < seqlen; i++) {
-        PSFloat *outputs = PSGetStates(layer, i + t);
+        PSFloat *outputs = PSLayerStates(layer, i + t);
         if (outputs == NULL) {
             PSErr(NULL, "Layer[%d]: missing outputs[%d]", layer->index, i + t);
             return 0;
@@ -874,7 +874,7 @@ int PSFindLayerMaxState(PSLayer *layer, PSFloat *max_p, int *index_p, ...)
     }
     PSFloat max = PSFLOAT_MIN;
     int max_idx = -1;
-    PSFloat *states = PSGetStates(layer, seqidx);
+    PSFloat *states = PSLayerStates(layer, seqidx);
     if (states == NULL) return 0;
     for (i = 0; i < layer->size; i++) {
         PSFloat state = states[i];
@@ -1074,6 +1074,8 @@ uint64_t PSGeModelParametersCount(PSModel *model) {
     return tot;
 }
 
+/* Get the onehot vector size of `layer`. If the flag `PS_FLAG_ONEHOT` is not
+ * set into layer's flags, just return the layer size. */
 int PSGetOneHotLayerVectorSize(PSLayer *layer) {
     if (!(layer->flags & PS_FLAG_ONEHOT)) return layer->size;
     return layer->onehot_vector_size;
@@ -1099,6 +1101,12 @@ PSLayer *PSGetNextLayer(PSLayer *layer) {
     return layer->model->layers[next_layer_idx];
 }
 
+/* Return the output layer (basically, the last laye) of `model`. If `model` is
+ * part of a multi-model chain, the function will return the output layer of
+ * the output model (the last model) of the chain.
+ * Return value: the output layer or NULL if:
+ *  - `model` is NULL or `model` has no layers.
+ *  - `model` is part of a multi-model chain, but the chain is broken. */
 PSLayer *PSGetOutputLayer(PSModel *model) {
     if (model == NULL || model->layers == NULL || model->size == 0)
         return NULL;
@@ -1112,6 +1120,18 @@ PSLayer *PSGetOutputLayer(PSModel *model) {
     return model->layers[model->size - 1];
 }
 
+/* Get the layer at index `layer_index` in `model`. If `model` is part of a
+ * multi-model chain, the argument `model_index` can be used to specify the
+ * index of the sub-model of the model chain.
+ * Both `layer_index` and `model_index` accept negative values: in this case,
+ * the index is calculated from the last layer/model, for example:
+ * if `layer_index` is -1 and `model` has 5 layers, the actual index will be
+ * the last layer's index (4).
+ * Return value: the layer at specified index/indices or NULL if:
+ *  - `model` is NULL.
+ *  - `model` is a multi-model chain but it's broken/invalid.
+ *  - `layer_index` is out-of-bounds.
+ *  - `model_index` is out-of-bounds. */
 PSLayer *PSGetLayerByIndex(PSModel *model, int layer_index, int model_index) {
     if (model == NULL) return NULL;
     if (PSIsModelChain(model)) {
@@ -1121,9 +1141,7 @@ PSLayer *PSGetLayerByIndex(PSModel *model, int layer_index, int model_index) {
             PSErrNN(__func__, model, NULL, "broken model chain");
             return NULL;
         }
-        if (model_index < 0) {
-            model_index = num_models + model_index;
-        }
+        if (model_index < 0) model_index = num_models + model_index;
         if (model_index < 0 || model_index >= num_models) return NULL;
         PSModel *current = model;
         while (current != NULL && current->index != model_index)
@@ -1140,7 +1158,16 @@ PSLayer *PSGetLayerByIndex(PSModel *model, int layer_index, int model_index) {
     return model->layers[layer_index];
 }
 
+/* Determine the input size of `layer`, depending on the size of its
+ * previous layer, if any.
+ * If previous layer has set the flag `PS_FLAG_ONEHOT`, the function will
+ * determine the input size by previous layer's onehot vector size
+ * (`PSGetOneHotLayerVectorSize`).
+ * Return value: the input size of `layer` or zero if:
+ *  - `layer` is NULL.
+ *  - `layer` has no previous layer. */
 int PSGetLayerInputSize(PSLayer *layer) {
+    if (layer == NULL) return 0;
     PSLayer *previous = PSGetPreviousLayer(layer);
     if (previous == NULL) return 0;
     if (previous->flags & PS_FLAG_ONEHOT)
@@ -1826,7 +1853,22 @@ PSFloat PSGetState(PSLayer *layer, int index, ...) {
     return layer->states[index];
 }
 
-PSFloat *PSGetStates(PSLayer *layer, ...) {
+/* Grt the states (unit activation values) of `layer`. If `layer` uses
+ * sequences (ie. it's recurrent or if has flag `PS_FLAG_USE_SEQUENCES`),
+ * the function will also read the first variadic argument after `layer`
+ * that indicates the index of the states to retrieve inside the sequence.
+ * If the sequence index is negative, the function will retrieve the
+ * `initial_states` of the layer, that are the initial values of the
+ * layer states before it has received the input sequence (the can be NULL).
+ * Return value: the states of `layer` or NULL if:
+ *  - `layer` is NULL.
+ *  - `layer->states` is NULL.
+ *  - the index provided with the variadic argument is out-of-bounds (ie.
+ *    it's equal or greater than the current sequence length).
+ *  - the index provided with the variadic argument is negative but the
+ *    layer has no `initial_states`. */
+PSFloat *PSLayerStates(PSLayer *layer, ...) {
+    if (layer == NULL) return NULL;
     if (layer->states == NULL) return NULL;
     if (PSUseSequences(layer)) {
         va_list args;
@@ -1850,13 +1892,28 @@ PSFloat *PSGetStates(PSLayer *layer, ...) {
     return layer->states;
 }
 
-PSFloat *PSGetOutputs(PSLayer *layer) {
+/* Get the output values of `layer`. If layer uses sequences (ie. it's
+ * recurrent or if has flag `PS_FLAG_USE_SEQUENCES`), the function will pick
+ * the last states of the sequence, otherwise it will just return the
+ * layer `states`.
+ * Return value: the output values of `layer` or NULL if:
+ *  - `layer` is NULL.
+ *  - `layer->states` is NULL. */
+PSFloat *PSLayerOutputs(PSLayer *layer) {
     if (layer == NULL) return NULL;
     if (PSUseSequences(layer)) {
         int seqlen = PSStateSequenceLength(layer);
-        return PSGetStates(layer, seqlen - 1);
+        return PSLayerStates(layer, seqlen - 1);
     }
-    return PSGetStates(layer, 0);
+    return PSLayerStates(layer, 0);
+}
+
+/* Get the output values of the output (last) layer of `model`. The function
+ * basically calls `PSLayerOutputs` on the layer returned by `PSGetOutputLayer`.
+ */
+PSFloat *PSModelOutputs(PSModel *model) {
+    if (model == NULL) return NULL;
+    return PSLayerOutputs(PSGetOutputLayer(model));
 }
 
 PSFloat PSGetNeuronState(PSNeuron *neuron, ...) {
@@ -3504,10 +3561,41 @@ fail:
     return NULL;
 }
 
+/* Add input layer of size `size` to `model`. The layer type will be set to
+ * the default `FullyConnected` type.
+ * Special layer properties can be defined by the optional argument
+ * `layer_def`.
+ * If `layer_def` is NULL, the function will use the default layer
+ * configuration.
+ * See `PSAddLayer` for further details about adding layers.
+ * Return value: the added layer or NULL if:
+ *  - `model` is NULL.
+ *  - `model` is not empty.
+ *  - See `PSAddLayer` for more failure reasons. */
+PSLayer *PSAddInputLayer(PSModel *model, int size, PSLayerDef *layer_def) {
+    if (model == NULL) return NULL;
+    if (model->size > 0) {
+        PSErrNN(__func__, model, NULL, "model is not empty");
+        return NULL;
+    }
+    return PSAddLayer(model, FullyConnected, size, layer_def);
+}
+
+/* Add a convolutional layer to `model`. This function basically calls
+ * `PSAddLayer`:
+ * ```
+ * PSAddLayer(model, Convolutional, 0, ldef);
+ * ```
+ * Return value: see `PSAddLayer`. */
 PSLayer *PSAddConvolutionalLayer(PSModel *model, PSLayerDef *ldef) {
     return PSAddLayer(model, Convolutional, 0, ldef);
 }
 
+/* Add a pooling layer to `model`. This function basically calls `PSAddLayer`:
+ * ```
+ * PSAddLayer(model, Pooling, 0, ldef);
+ * ```
+ * Return value: see `PSAddLayer`. */
 PSLayer *PSAddPoolingLayer(PSModel *model, PSLayerDef *ldef) {
     return PSAddLayer(model, Pooling, 0, ldef);
 }
@@ -3597,7 +3685,7 @@ int inputLayerForward(PSModel *model, PSFloat *inputs, ...) {
         assert(t >= 0);
         if (!PSBeforeSequenceForward(first, seqlen, t)) return 0;
     }
-    PSFloat *states = PSGetStates(first, t);
+    PSFloat *states = PSLayerStates(first, t);
     if (states == NULL) {
         PSErr(NULL, "Layer[%d] missing states");
         return 0;
@@ -3730,7 +3818,7 @@ forward_steps:
                 ok = PSFindLayerMaxState(last, NULL, &max_idx, t);
                 if (!ok) goto final;
             } else {
-                output_states = PSGetStates(last, t);
+                output_states = PSLayerStates(last, t);
                 ok = output_states != NULL;
                 if (!ok) {
                     PSErr(NULL, "Layer[%d] has no states at step %d",
@@ -3753,7 +3841,7 @@ forward_steps:
                 if (first->flags & PS_FLAG_ONEHOT) *inputs = (PSFloat) max_idx;
                 else {
                     if (output_states == NULL)
-                        output_states = PSGetStates(last, t);
+                        output_states = PSLayerStates(last, t);
                     if (output_states == NULL) {
                         PSErr(NULL, "Layer[%d] has no states at step %d",
                               last->index, t);
@@ -3823,10 +3911,10 @@ int beforeModelForward(PSModel *model, PSFloat **inputs_p,
         int input_whole_seq = PSHandleSequenceAtOnce(link->layer);
         int seqlen = 1;
         if (!input_whole_seq) {
-            outputs = PSGetOutputs(link->previous_layer);
+            outputs = PSLayerOutputs(link->previous_layer);
         } else {
             seqlen = PSStateSequenceLength(link->previous_layer);
-            outputs = PSGetStates(link->previous_layer);
+            outputs = PSLayerStates(link->previous_layer);
         }
         if (do_feed_input) *inputs_p = outputs;
         else {
@@ -4648,9 +4736,9 @@ int PSBeforeLayerBackprop(PSLayer *layer, PSLayer *previous, int *step,
         if (PSMatrixDim(layer->delta, 0) != slen)
             if (!resetLayerDeltas(layer, 1)) return 0;
     }
-    if (*outputs == NULL && !handle_seq) *outputs = PSGetStates(layer, t);
+    if (*outputs == NULL && !handle_seq) *outputs = PSLayerStates(layer, t);
     if (*inputs == NULL && previous != NULL && !handle_seq)
-        *inputs = PSGetStates(previous, prev_t);
+        *inputs = PSLayerStates(previous, prev_t);
     if (*outputs == NULL) {
         PSErr(NULL, "Layer[%d]: NULL outputs", layer->index);
         return 0;
@@ -4969,7 +5057,7 @@ int backpropThroughTime(PSModel *model, PSFloat *y,
                     .acceleration = layer->model->acceleration
                 };
                 int ok = PSApplyDerivative(
-                    layer->derivative, delta,PSGetStates(layer, t),
+                    layer->derivative, delta, PSLayerStates(layer, t),
                     layer->size, &mopts
                 );
                 if (!ok) return 0;

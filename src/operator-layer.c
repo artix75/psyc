@@ -210,12 +210,12 @@ static PSFloat *getInputsFromProvider(PSLayer *layer, PSLayer *provider, int t)
             return NULL;
         }
     }
-    if (!PSUseSequences(provider)) return PSGetStates(provider, 0);
+    if (!PSUseSequences(provider)) return PSLayerStates(provider, 0);
     if (layer->model->index > provider->model->index)
-        return PSGetOutputs(provider);
+        return PSLayerOutputs(provider);
     if (provider->index > layer->index && t >= 0) t--;
-    if (!PSUseSequences(layer)) return PSGetOutputs(provider);
-    return PSGetStates(provider, t);
+    if (!PSUseSequences(layer)) return PSLayerOutputs(provider);
+    return PSLayerStates(provider, t);
 }
 
 int PSConcatenateForward(PSLayer *layer, int seqlen, int t) {
@@ -232,7 +232,7 @@ int PSConcatenateForward(PSLayer *layer, int seqlen, int t) {
          * inputs are only stored in one sequence's segment. */
         seqlen = 1;
     }
-    PSFloat *outputs = PSGetStates(layer, t);
+    PSFloat *outputs = PSLayerStates(layer, t);
     PSFloat *out_p = outputs;
     for (; t < seqlen; t++) {
         for (i = 0; i < providers_count; i++) {
@@ -259,7 +259,7 @@ int PSOperationForward(PSLayer *layer, int seqlen, int t) {
         len *= seqlen;
     } else seqlen = 1;
     PSOperatorType op = settings->operator;
-    PSFloat *outputs = PSGetStates(layer, t);
+    PSFloat *outputs = PSLayerStates(layer, t);
     PSMathOpts opts = {.acceleration = layer->model->acceleration};
     int is_add = op == PSAddOperator;
     for (i = 0; i < providers_count; i++) {
@@ -331,7 +331,7 @@ int PSOperationBackward(PSLayer *layer, int seqlen, int t) {
         len = layer->size;
         if (!PSIsRecurrent(layer)) t = 0;
     }
-    PSFloat *outputs = PSGetStates(layer, t);
+    PSFloat *outputs = PSLayerStates(layer, t);
     PSFloat *delta = malloc((size_t) len * sizeof(PSFloat));
     if (delta == NULL) {
         PSPrintMemoryErrorMsg();

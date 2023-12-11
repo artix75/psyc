@@ -824,9 +824,9 @@ PSFloat *PSGetAttentionQuery(PSLayer *layer, int t) {
         }
     } else {
         PSFloat *inputs = NULL;
-        if (is_after) inputs = PSGetStates(provider, t - 1);
-        else if (from_prev_model) inputs = PSGetOutputs(provider);
-        else inputs = PSGetStates(provider, t);
+        if (is_after) inputs = PSLayerStates(provider, t - 1);
+        else if (from_prev_model) inputs = PSLayerOutputs(provider);
+        else inputs = PSLayerStates(provider, t);
         if (inputs == NULL) {
             if (t > 0) goto empty_provider;
             inputs = layer->initial_states;

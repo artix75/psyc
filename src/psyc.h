@@ -392,6 +392,7 @@ int PSLayerLoad(PSLayer *layer, const char *filepath);
 int PSLayerSave(PSLayer *layer, const char *filepath, int opts);
 PSLayer *PSAddLayer(PSModel *model, PSLayerType type, int size,
                     PSLayerDef *layer_def);
+PSLayer *PSAddInputLayer(PSModel *model, int size, PSLayerDef *ldef);
 PSLayer *PSAddConvolutionalLayer(PSModel *model, PSLayerDef *ldef);
 PSLayer *PSAddPoolingLayer(PSModel *model, PSLayerDef *ldef);
 int PSGetOneHotLayerVectorSize(PSLayer *layer);
@@ -408,8 +409,9 @@ int PSResetLayerStateSequence(PSLayer *layer, uint32_t steps,
 int PSResetModelStateSequences(PSModel *model, uint32_t steps,
                                int retain_previous);
 PSFloat PSGetState(PSLayer *layer, int index, ...);
-PSFloat *PSGetStates(PSLayer *layer, ...);
-PSFloat *PSGetOutputs(PSLayer *layer);
+PSFloat *PSLayerStates(PSLayer *layer, ...);
+PSFloat *PSLayerOutputs(PSLayer *layer);
+PSFloat *PSModelOutputs(PSModel *model);
 int PSSetState(PSLayer *layer, PSFloat state, int index, ...);
 int PSStateSequenceLength(PSLayer *layer);
 int PSFindLayerMaxState(PSLayer *layer, PSFloat *max_p, int *index_p,...);

@@ -491,7 +491,7 @@ int PSGRUForward(PSLayer *layer, ...) {
     int feed_previous_step = (t > 0 || layer->initial_states != NULL);
     int reset_gates_complete = 0;
     PSFloat *inputs = NULL;
-    PSFloat *outputs = PSGetStates(layer, t);
+    PSFloat *outputs = PSLayerStates(layer, t);
     if (ignore_inputs) goto forward_previous_step;
     /* Feed inputs:
      *  candidates = dot(candidate_weights, inputs)
@@ -515,7 +515,7 @@ int PSGRUForward(PSLayer *layer, ...) {
             )
         );
     } else {
-        inputs = PSGetStates(previous, t);
+        inputs = PSLayerStates(previous, t);
         if (inputs == NULL) {
             PSErr(NULL, "Layer[%d]: previous layer[%d] has no states",
                   layer->index, previous->index);
@@ -534,7 +534,7 @@ forward_previous_step:
      *  reset_gates += dot(reset_hidden_weights, prev_states)
      */
     if (!feed_previous_step) goto make_outputs;
-    prev_states = PSGetStates(layer, prev_t);
+    prev_states = PSLayerStates(layer, prev_t);
     if (prev_states == NULL) goto make_outputs;
     mopts.store_mode = PS_STORE_MODE_ADD;
     mopts.transpose = 0;
@@ -660,7 +660,7 @@ int PSGRUBackprop(PSLayer *layer, PSLayer *previous_layer,
     PSFloat *reset_gates = getResetGates(layer, t);
     int has_prev_states = (t > 0 || layer->initial_states != NULL);
     PSFloat *prev_states = NULL;
-    if (has_prev_states) prev_states = PSGetStates(layer, prev_t);
+    if (has_prev_states) prev_states = PSLayerStates(layer, prev_t);
     if (prev_states == NULL) has_prev_states = 0;
     mopts.store_mode = PS_STORE_MODE_SET;
 
@@ -720,7 +720,7 @@ int PSGRUBackprop(PSLayer *layer, PSLayer *previous_layer,
             gradient_weights_r[widx] += delta_r[i];
         }
     } else {
-        PSFloat *inputs = PSGetStates(previous_layer, t);
+        PSFloat *inputs = PSLayerStates(previous_layer, t);
         if (inputs == NULL) {
             PSErr(NULL, "Layer[%d] has no outputs at step %d",
                   previous_layer->index, t);

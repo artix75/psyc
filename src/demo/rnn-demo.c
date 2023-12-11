@@ -180,7 +180,7 @@ void printSample(PSModel *model, int input_idx, int len) {
                 return;
             }
         } else {
-            PSFloat *states = PSGetStates(out, t);
+            PSFloat *states = PSLayerStates(out, t);
             max_idx = randomChoice(states, out->size);
             if (max_idx < 0) {
                 if (!PSFindLayerMaxState(out, NULL, &max_idx, t)) {

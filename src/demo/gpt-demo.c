@@ -1316,7 +1316,7 @@ static int getNextIndex(PSModel *gpt2_model, PSFloat temperature) {
     if (temperature == 0) {
         if (!PSFindLayerMaxState(outlayer, NULL, &next_id, t)) return -1;
     } else {
-        PSFloat *logits = PSGetStates(outlayer, t);
+        PSFloat *logits = PSLayerStates(outlayer, t);
         if (logits == NULL) {
             PSErr(NULL, "output layer has not states at index %d", t);
             return -1;

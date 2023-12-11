@@ -370,7 +370,7 @@ static int AcceleratyedConvBackprop(PSLayer *layer, PSGradient *gradient) {
     int i2c_size = privdata->im2col_size;
     PSFloat *i2c = privdata->im2col;
     if (i2c == NULL) {
-        PSFloat *inputs = PSGetStates(previous, 0);
+        PSFloat *inputs = PSLayerStates(previous, 0);
         success = inputs != NULL;
         if (!success) goto final;
         i2c = im2col(inputs, previous->size, settings->input_depth,
@@ -750,8 +750,8 @@ int PSConvolutionalForward(PSLayer *layer, ...) {
     previous_feature_size = previous->size / previous->output_depth;
     if (use_acceleration) {
         PSMathOpts mopts = {.acceleration = model->acceleration};
-        PSFloat *inputs = PSGetStates(previous, t);
-        PSFloat *outputs = PSGetStates(layer, t);
+        PSFloat *inputs = PSLayerStates(previous, t);
+        PSFloat *outputs = PSLayerStates(layer, t);
         if (inputs == NULL || outputs == NULL) {
             PSErr(NULL, "Layer[%d]: missing inputs and/or outputs");
             goto failed;

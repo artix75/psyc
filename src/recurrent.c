@@ -153,7 +153,7 @@ int PSRecurrentForward(PSLayer *layer, ...) {
     int prev_t = t - 1;
     PSFloat *inputs = NULL;
     PSFloat *prev_states = NULL;
-    PSFloat *outputs = PSGetStates(layer, t);
+    PSFloat *outputs = PSLayerStates(layer, t);
     if (outputs == NULL) {
         PSErr(NULL,  "Layer[%d]: layer[%d] has no states");
         return 0;
@@ -169,7 +169,7 @@ int PSRecurrentForward(PSLayer *layer, ...) {
     if (onehot) {
         if (!PSOnehotInputsForward(layer, 0, NULL, t, 0, 0)) return 0;
     } else {
-        inputs = PSGetStates(previous, t);
+        inputs = PSLayerStates(previous, t);
         if (inputs == NULL) {
             PSErr(NULL, "Layer[%d]: previous layer[%d] has NULL "
                   "outputs", layer->index, previous->index);
@@ -183,7 +183,7 @@ forward_previous_step:
     /* Feed previous states by multiplying them with hidden weights, add
      * the result to current states (`outputs`) and eventually add biases and
      * apply `activate` function. */
-    prev_states = PSGetStates(layer, prev_t);
+    prev_states = PSLayerStates(layer, prev_t);
     dpopt.tmpdest = hidden_values;
     dpopt.store_mode = PS_STORE_MODE_ADD;
     if (!PSDot(hidden_weights, prev_states, outputs, &dpopt)) return 0;
@@ -232,7 +232,7 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previous_layer,
         /* Update gradient */
         mopts.store_mode = PS_STORE_MODE_SET;
         if (!onehot) {
-            PSFloat *prev_layer_outputs = PSGetStates(previous_layer, tt);
+            PSFloat *prev_layer_outputs = PSLayerStates(previous_layer, tt);
             assert(prev_layer_outputs != NULL); /* TODO: emit error */
             if (use_bias) PSAddVectors(
                 delta, gradients->biases, gradients->biases, layer->size,&mopts
@@ -259,7 +259,7 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previous_layer,
             }
             /* Update gradients' hidden weights */
             mopts.store_mode = PS_STORE_MODE_ADD;
-            PSFloat *previous_states = PSGetStates(layer, prev_t);;
+            PSFloat *previous_states = PSLayerStates(layer, prev_t);;
             PSOuterProduct(
                 delta, previous_states, gradient_hidden_weights,
                 layer->size, layer->size, &mopts
@@ -282,7 +282,7 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previous_layer,
                  * timesteps tieration.
                  * So, derivative must be applied here. */
                 int ok = PSApplyDerivative(
-                    layer->derivative, new_delta, PSGetStates(layer, prev_t),
+                    layer->derivative, new_delta, PSLayerStates(layer, prev_t),
                     layer->size, &mopts
                 );
                 if (!ok) {

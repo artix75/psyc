@@ -405,8 +405,8 @@ int PSNormalizationForward(PSLayer *layer, ...) {
         va_end(args);
         if (!PSBeforeSequenceForward(layer, seqlen, t)) return 0;
     }
-    PSFloat *inputs = PSGetStates(previous, t),
-            *outputs = PSGetStates(layer, t);
+    PSFloat *inputs = PSLayerStates(previous, t),
+            *outputs = PSLayerStates(layer, t);
     PSNormalizationLayerCache *lcache = GetNormalizationCache(layer);
     if (inputs == NULL) {
         PSErr(__func__, "Layer[%d]: no inputs", layer->index);

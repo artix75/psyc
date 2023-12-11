@@ -2894,7 +2894,7 @@ int testNormalizationForward(TestCase *test_case, Test *test) {
     PSForward(model, data);
     PSLayer *normlayer = model->layers[1];
     testAssertNotNull(normlayer, test);
-    PSFloat *states = PSGetStates(normlayer, 0);
+    PSFloat *states = PSLayerStates(normlayer, 0);
     testAssertNotNull(states, test);
     for (int i = 0; i < normlayer->size; i++) {
         PSFloat s = getRoundedFloatDec(states[i], 4);
@@ -2942,7 +2942,7 @@ int testNormalizationBackprop(TestCase *test_case, Test *test) {
     );
     PSLayer *outlayer = model->layers[model->size - 1];
     testAssertNotNull(outlayer, test);
-    PSFloat *outstates = PSGetStates(outlayer, 0);
+    PSFloat *outstates = PSLayerStates(outlayer, 0);
     testAssertNotNull(outstates, test);
     PSLayer *normlayer = model->layers[2];
     testAssertNotNull(normlayer, test);
@@ -3073,9 +3073,9 @@ int testDropoutForward(TestCase *test_case, Test *test) {
     PSFloat dropout = PSGetDropout(dropout_layer);
     PSLayer *prev = PSGetPreviousLayer(dropout_layer);
     testAssertNotNull(prev, test);
-    PSFloat *prev_states = PSGetStates(prev, 0);
+    PSFloat *prev_states = PSLayerStates(prev, 0);
     testAssertNotNull(prev_states, test);
-    PSFloat *dropout_states = PSGetStates(dropout_layer, 0);
+    PSFloat *dropout_states = PSLayerStates(dropout_layer, 0);
     testAssertNotNull(dropout_states, test);
     for (int i = 0; i < dropout_layer->size; i++) {
         PSFloat prev_state = prev_states[i];
@@ -3173,11 +3173,11 @@ int testConcatOperatorForward(TestCase *test_case, Test *test) {
     testAssert(ok, test);
     PSLayer *op_layer = model->layers[3], *l1 = model->layers[1],
             *l2 = model->layers[2];
-    PSFloat *concatenated = PSGetStates(op_layer, 0);
+    PSFloat *concatenated = PSLayerStates(op_layer, 0);
     testAssertNotNull(concatenated, test);
-    PSFloat *l1_out = PSGetStates(l1, 0);
+    PSFloat *l1_out = PSLayerStates(l1, 0);
     testAssertNotNull(l1_out, test);
-    PSFloat *l2_out = PSGetStates(l2, 0);
+    PSFloat *l2_out = PSLayerStates(l2, 0);
     testAssertNotNull(l2_out, test);
     ok = compareArrays(concatenated, l1_out, l1->size, test,
                        NULL, 0, 0);
@@ -3270,11 +3270,11 @@ int testAddOperatorForward(TestCase *test_case, Test *test) {
     testAssert(ok, test);
     PSLayer *op_layer = model->layers[3], *l1 = model->layers[1],
             *l2 = model->layers[2];
-    PSFloat *opstates = PSGetStates(op_layer, 0);
+    PSFloat *opstates = PSLayerStates(op_layer, 0);
     testAssertNotNull(opstates, test);
-    PSFloat *l1_out = PSGetStates(l1, 0);
+    PSFloat *l1_out = PSLayerStates(l1, 0);
     testAssertNotNull(l1_out, test);
-    PSFloat *l2_out = PSGetStates(l2, 0);
+    PSFloat *l2_out = PSLayerStates(l2, 0);
     testAssertNotNull(l2_out, test);
     for (int i = 0; i < op_layer->size; i++) {
         PSFloat l1state = l1_out[i];
@@ -3371,11 +3371,11 @@ int testMulOperatorForward(TestCase *test_case, Test *test) {
     testAssert(ok, test);
     PSLayer *op_layer = model->layers[3], *l1 = model->layers[1],
             *l2 = model->layers[2];
-    PSFloat *opstates = PSGetStates(op_layer, 0);
+    PSFloat *opstates = PSLayerStates(op_layer, 0);
     testAssertNotNull(opstates, test);
-    PSFloat *l1_out = PSGetStates(l1, 0);
+    PSFloat *l1_out = PSLayerStates(l1, 0);
     testAssertNotNull(l1_out, test);
-    PSFloat *l2_out = PSGetStates(l2, 0);
+    PSFloat *l2_out = PSLayerStates(l2, 0);
     testAssertNotNull(l2_out, test);
     for (int i = 0; i < op_layer->size; i++) {
         PSFloat l1state = l1_out[i];
@@ -3470,7 +3470,7 @@ int testPositionalEmbedForward(TestCase *test_case, Test *test) {
     ok = PSForward(model, inputs);
     testAssert(ok, test);
     PSLayer *poslayer = model->layers[model->size - 1];
-    PSFloat *states = PSGetStates(poslayer, 0);
+    PSFloat *states = PSLayerStates(poslayer, 0);
     testAssertNotNull(states, test);
     uint64_t explen = (uint64_t) (sizeof(expected_y) / sizeof(PSFloat));
     testAssert(PSMatrixLength(states) == explen, test);
@@ -3569,7 +3569,7 @@ int testEncodedDecoderPredict(TestCase *test_case, Test *test) {
     int seqlen = PSStateSequenceLength(out), t;
     testAssert(seqlen == 2, test);
     for (t = 0; t < seqlen; t++) {
-        PSFloat *states = PSGetStates(out, t);
+        PSFloat *states = PSLayerStates(out, t);
         testAssertWithMessage(states != NULL, test, "NULL states at t[%d]", t);
         ok = compareArrays(states, expected[t], out->size, test,
                            NULL, 0, 4);
@@ -3596,7 +3596,7 @@ static int beforeDecoderForward(PSModel *decoder,
     testAssertWithMessage(link->layer->initial_states != NULL, test,
                           "Decoder layer[%d] has no initial_states",
                           link->layer->index);
-    PSFloat *encoder_output_states = PSGetOutputs(link->previous_layer);
+    PSFloat *encoder_output_states = PSLayerOutputs(link->previous_layer);
     testAssertWithMessage(encoder_output_states != NULL, test,
                           "Missing Encoder layer[%d] output states",
                           link->layer->index);

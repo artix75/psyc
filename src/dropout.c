@@ -275,8 +275,8 @@ int PSDropoutForward(PSLayer *layer, ...) {
         va_end(args);
         if (!PSBeforeSequenceForward(layer, seqlen, t)) return 0;
     }
-    PSFloat *inputs = PSGetStates(previous, t),
-            *outputs = PSGetStates(layer, t);
+    PSFloat *inputs = PSLayerStates(previous, t),
+            *outputs = PSLayerStates(layer, t);
     if (inputs == NULL) {
         PSErr(NULL, "Layer[%d]: Dropout layer has no inputs");
         return 0;

@@ -152,13 +152,16 @@ void PSErrNN(const char *tag, PSModel *model, PSLayer *layer,
             char *ellipsis = "";
             if (strlen(model->name) > 15)
                 ellipsis = "...";
-            PSPrint(PSLOGLEVEL_ERROR, "model \"%.15s%s\"", model->name,
-                  ellipsis);
+            PSPrint(
+                PSLOGLEVEL_ERROR, "model \"%.15s%s\"", model->name, ellipsis
+            );
         } else printed_model = 0;
         if (layer != NULL) {
             if (printed_model) PSPrint(PSLOGLEVEL_ERROR, ", ");
-            PSPrint(PSLOGLEVEL_ERROR, "Layer[%d] (%s)", layer->index,
-                  PSGetLayerTypeLabel(layer));
+            PSPrint(
+                PSLOGLEVEL_ERROR, "Layer[%d] (%s)", layer->index,
+                PSGetLayerTypeLabel(layer)
+            );
             printed_layer = 1;
         }
         if (printed_model || printed_layer)
