@@ -3,7 +3,7 @@
 
 ### PSAbortTraining
 
-In: psyc.h, line: 444
+In: psyc.h, line: 446
 
 ```c
 void PSAbortTraining (PSModel *model)
@@ -58,13 +58,23 @@ PSLayer  * PSAddCIFARInputLayer (PSModel *model)
 
 ### PSAddConvolutionalLayer
 
-In: psyc.h, line: 395
+In: psyc.h, line: 396
 
 ```c
 PSLayer  * PSAddConvolutionalLayer (PSModel *model, PSLayerDef *ldef)
 ```
 
+Add a convolutional layer to [model](types.md#pslayer). This function basically calls [PSAddLayer](functions.md#psaddlayer):  
 
+```c
+PSAddLayer(model, Convolutional, 0, ldef);
+
+```
+
+
+**RETURN VALUES**
+
+See [PSAddLayer](functions.md#psaddlayer).
 
 
 ### PSAddDebugInfo
@@ -76,6 +86,29 @@ void PSAddDebugInfo (PSModel *model, char *file, const char *func, int line, PSL
 ```
 
 
+
+
+### PSAddInputLayer
+
+In: psyc.h, line: 395
+
+```c
+PSLayer  * PSAddInputLayer (PSModel *model, int size, PSLayerDef *ldef)
+```
+
+Add input layer of size [size](types.md#psvocabulary) to [model](types.md#pslayer). The layer type will be set to the default [FullyConnected](types.md#pslayertype) type.  
+Special layer properties can be defined by the optional argument **layer_def**.  
+If **layer_def** is **NULL**, the function will use the default layer configuration.  
+See [PSAddLayer](functions.md#psaddlayer) for further details about adding layers.  
+
+
+**RETURN VALUES**
+
+The added layer or **NULL** if:  
+
+ - [model](types.md#pslayer) is **NULL**.
+ - [model](types.md#pslayer) is not empty.
+ - See [PSAddLayer](functions.md#psaddlayer) for more failure reasons.
 
 
 ### PSAddLayer
@@ -154,13 +187,23 @@ Possible failure reasons:
 
 ### PSAddPoolingLayer
 
-In: psyc.h, line: 396
+In: psyc.h, line: 397
 
 ```c
 PSLayer  * PSAddPoolingLayer (PSModel *model, PSLayerDef *ldef)
 ```
 
+Add a pooling layer to [model](types.md#pslayer). This function basically calls [PSAddLayer](functions.md#psaddlayer):  
 
+```c
+PSAddLayer(model, Pooling, 0, ldef);
+
+```
+
+
+**RETURN VALUES**
+
+See [PSAddLayer](functions.md#psaddlayer).
 
 
 ### PSAddVectors
@@ -219,7 +262,7 @@ The function returns **NULL** if **dest** is **NULL** but the destination vector
 
 ### PSAutoregression
 
-In: psyc.h, line: 427
+In: psyc.h, line: 429
 
 ```c
 int PSAutoregression (PSModel *model, PSFloat *inputs, int randomized, PSSequenceSettings *sequence_settings)
@@ -385,7 +428,7 @@ int PSCatchFloatingPointExceptions (int except)
 
 ### PSClassify
 
-In: psyc.h, line: 429
+In: psyc.h, line: 431
 
 ```c
 int PSClassify (PSModel *model, PSFloat *inputs)
@@ -439,7 +482,7 @@ PSFloat  * PSCreateWord2VecTrainingData (PSFloat *tokens, size_t token_count, in
 
 ### PSCrossEntropyLoss
 
-In: psyc.h, line: 458
+In: psyc.h, line: 460
 
 ```c
 PSFloat PSCrossEntropyLoss (PSFloat *x, PSFloat *y, int size, int onehot_size)
@@ -490,7 +533,7 @@ int PSDefaultOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSF
 
 ### PSDeleteGradient
 
-In: psyc.h, line: 432
+In: psyc.h, line: 434
 
 ```c
 void PSDeleteGradient (PSGradient *gradient)
@@ -501,7 +544,7 @@ void PSDeleteGradient (PSGradient *gradient)
 
 ### PSDeleteGradientsChain
 
-In: psyc.h, line: 434
+In: psyc.h, line: 436
 
 ```c
 void PSDeleteGradientsChain (PSGradient *** gradients, PSModel *model)
@@ -512,7 +555,7 @@ void PSDeleteGradientsChain (PSGradient *** gradients, PSModel *model)
 
 ### PSDeleteModelGradients
 
-In: psyc.h, line: 433
+In: psyc.h, line: 435
 
 ```c
 void PSDeleteModelGradients (PSGradient ** gradients, PSModel *net)
@@ -523,7 +566,7 @@ void PSDeleteModelGradients (PSGradient ** gradients, PSModel *net)
 
 ### PSDeleteNeuron
 
-In: psyc.h, line: 423
+In: psyc.h, line: 425
 
 ```c
 void PSDeleteNeuron (PSNeuron *neuron)
@@ -1066,7 +1109,7 @@ void PSFillWithBlank (int line_length)
 
 ### PSFindLayerMaxState
 
-In: psyc.h, line: 415
+In: psyc.h, line: 417
 
 ```c
 int PSFindLayerMaxState (PSLayer *layer, PSFloat *max_p, int *index_p, ...)
@@ -1104,7 +1147,7 @@ By setting **precision** to zero, the two numbers must be perfectly equal (no pr
 
 ### PSForward
 
-In: psyc.h, line: 426
+In: psyc.h, line: 428
 
 ```c
 int PSForward (PSModel *model, PSFloat *inputs)
@@ -1374,7 +1417,7 @@ int PSGetEmbeddingVocabularySize (PSLayer *layer)
 
 ### PSGetFirstRecurrentLayer
 
-In: psyc.h, line: 452
+In: psyc.h, line: 454
 
 ```c
 PSLayer  * PSGetFirstRecurrentLayer (PSModel *model)
@@ -1407,7 +1450,7 @@ Returns user HOME directory.
 
 ### PSGetLabelForType
 
-In: psyc.h, line: 448
+In: psyc.h, line: 450
 
 ```c
 char  * PSGetLabelForType (PSLayerType type)
@@ -1418,7 +1461,7 @@ char  * PSGetLabelForType (PSLayerType type)
 
 ### PSGetLastRecurrentLayer
 
-In: psyc.h, line: 453
+In: psyc.h, line: 455
 
 ```c
 PSLayer  * PSGetLastRecurrentLayer (PSModel *model)
@@ -1429,29 +1472,50 @@ PSLayer  * PSGetLastRecurrentLayer (PSModel *model)
 
 ### PSGetLayerByIndex
 
-In: psyc.h, line: 402
+In: psyc.h, line: 403
 
 ```c
 PSLayer  * PSGetLayerByIndex (PSModel *model, int layer_index, int model_index)
 ```
 
+Get the layer at index [layer_index](types.md#psdebuginfo) in [model](types.md#pslayer). If [model](types.md#pslayer) is part of a multi-model chain, the argument **model_index** can be used to specify the index of the sub-model of the model chain.  
+Both [layer_index](types.md#psdebuginfo) and **model_index** accept negative values: in this case, the index is calculated from the last layer/model, for example:  
+if [layer_index](types.md#psdebuginfo) is -1 and [model](types.md#pslayer) has 5 layers, the actual index will be the last layer's index (4).  
 
+
+**RETURN VALUES**
+
+The layer at specified index/indices or **NULL** if:  
+
+ - [model](types.md#pslayer) is **NULL**.
+ - [model](types.md#pslayer) is a multi-model chain but it's broken/invalid.
+ - [layer_index](types.md#psdebuginfo) is out-of-bounds.
+ - **model_index** is out-of-bounds.
 
 
 ### PSGetLayerInputSize
 
-In: psyc.h, line: 403
+In: psyc.h, line: 404
 
 ```c
 int PSGetLayerInputSize (PSLayer *layer)
 ```
 
+Determine the input size of [layer](types.md#psmodellink), depending on the size of its previous layer, if any.  
+If previous layer has set the flag [PS_FLAG_ONEHOT](macros.md#ps-flag-onehot), the function will determine the input size by previous layer's onehot vector size ([PSGetOneHotLayerVectorSize](functions.md#psgetonehotlayervectorsize)).  
 
+
+**RETURN VALUES**
+
+The input size of [layer](types.md#psmodellink) or zero if:  
+
+ - [layer](types.md#psmodellink) is **NULL**.
+ - [layer](types.md#psmodellink) has no previous layer.
 
 
 ### PSGetLayerInputWeightsCount
 
-In: psyc.h, line: 404
+In: psyc.h, line: 405
 
 ```c
 uint64_t PSGetLayerInputWeightsCount (PSLayer *layer, int per_neuron)
@@ -1462,7 +1526,7 @@ uint64_t PSGetLayerInputWeightsCount (PSLayer *layer, int per_neuron)
 
 ### PSGetLayerParametersCount
 
-In: psyc.h, line: 398
+In: psyc.h, line: 399
 
 ```c
 uint64_t PSGetLayerParametersCount (PSLayer *layer, int param_type)
@@ -1473,7 +1537,7 @@ uint64_t PSGetLayerParametersCount (PSLayer *layer, int param_type)
 
 ### PSGetLayerTypeLabel
 
-In: psyc.h, line: 449
+In: psyc.h, line: 451
 
 ```c
 char  * PSGetLayerTypeLabel (PSLayer *layer)
@@ -1531,7 +1595,7 @@ The model or **NULL** if:
 
 ### PSGetNeuron
 
-In: psyc.h, line: 419
+In: psyc.h, line: 421
 
 ```c
 PSNeuron  * PSGetNeuron (PSLayer *layer, int index, PSNeuron *neuron)
@@ -1553,7 +1617,7 @@ char  * PSGetNeuronDebugID (PSNeuron *neuron, PSLayer *layer)
 
 ### PSGetNeuronInputWeights
 
-In: psyc.h, line: 420
+In: psyc.h, line: 422
 
 ```c
 PSFloat  * PSGetNeuronInputWeights (PSNeuron *neuron)
@@ -1564,7 +1628,7 @@ PSFloat  * PSGetNeuronInputWeights (PSNeuron *neuron)
 
 ### PSGetNeuronState
 
-In: psyc.h, line: 421
+In: psyc.h, line: 423
 
 ```c
 PSFloat PSGetNeuronState (PSNeuron *neuron, ...)
@@ -1575,7 +1639,7 @@ PSFloat PSGetNeuronState (PSNeuron *neuron, ...)
 
 ### PSGetNextLayer
 
-In: psyc.h, line: 400
+In: psyc.h, line: 401
 
 ```c
 PSLayer  * PSGetNextLayer (PSLayer *layer)
@@ -1586,13 +1650,13 @@ PSLayer  * PSGetNextLayer (PSLayer *layer)
 
 ### PSGetOneHotLayerVectorSize
 
-In: psyc.h, line: 397
+In: psyc.h, line: 398
 
 ```c
 int PSGetOneHotLayerVectorSize (PSLayer *layer)
 ```
 
-
+Get the onehot vector size of [layer](types.md#psmodellink). If the flag [PS_FLAG_ONEHOT](macros.md#ps-flag-onehot) is not set into layer's flags, just return the layer size.
 
 
 ### PSGetOperatorLayerProviders
@@ -1630,24 +1694,21 @@ const char  * PSGetOperatorLayerTypeLabel (PSOperatorType operator)
 
 ### PSGetOutputLayer
 
-In: psyc.h, line: 401
+In: psyc.h, line: 402
 
 ```c
 PSLayer  * PSGetOutputLayer (PSModel *model)
 ```
 
+Return the output layer (basically, the last laye) of [model](types.md#pslayer). If [model](types.md#pslayer) is part of a multi-model chain, the function will return the output layer of the output model (the last model) of the chain.  
 
 
+**RETURN VALUES**
 
-### PSGetOutputs
+The output layer or **NULL** if:  
 
-In: psyc.h, line: 412
-
-```c
-PSFloat  * PSGetOutputs (PSLayer *layer)
-```
-
-
+ - [model](types.md#pslayer) is **NULL** or [model](types.md#pslayer) has no layers.
+ - [model](types.md#pslayer) is part of a multi-model chain, but the chain is broken.
 
 
 ### PSGetPositionalEncoding
@@ -1685,7 +1746,7 @@ int PSGetPositionalEncodingLength (PSLayer *layer)
 
 ### PSGetPreviousLayer
 
-In: psyc.h, line: 399
+In: psyc.h, line: 400
 
 ```c
 PSLayer  * PSGetPreviousLayer (PSLayer *layer)
@@ -1718,21 +1779,10 @@ PSFloat  * PSGetRecurrentNeuronHiddenWeights (PSNeuron *neuron)
 
 ### PSGetState
 
-In: psyc.h, line: 410
-
-```c
-PSFloat PSGetState (PSLayer *layer, int index, ...)
-```
-
-
-
-
-### PSGetStates
-
 In: psyc.h, line: 411
 
 ```c
-PSFloat  * PSGetStates (PSLayer *layer, ...)
+PSFloat PSGetState (PSLayer *layer, int index, ...)
 ```
 
 
@@ -1751,7 +1801,7 @@ int PSGetTerminalColumns (void)
 
 ### PSHandleSignals
 
-In: psyc.h, line: 468
+In: psyc.h, line: 470
 
 ```c
 void PSHandleSignals (PSSignalHandler shutdown_handler)
@@ -1839,7 +1889,7 @@ int PSIsXTermColor256 (int always_check)
 
 ### PSIterateLossFunctions
 
-In: psyc.h, line: 469
+In: psyc.h, line: 471
 
 ```c
 size_t PSIterateLossFunctions ( *callback)
@@ -1850,7 +1900,7 @@ size_t PSIterateLossFunctions ( *callback)
 
 ### PSLayerFree
 
-In: psyc.h, line: 416
+In: psyc.h, line: 418
 
 ```c
 void PSLayerFree (PSLayer *layer)
@@ -1871,6 +1921,25 @@ int PSLayerLoad (PSLayer *layer, const char *filepath)
 ```
 
 
+
+
+### PSLayerOutputs
+
+In: psyc.h, line: 413
+
+```c
+PSFloat  * PSLayerOutputs (PSLayer *layer)
+```
+
+Get the output values of [layer](types.md#psmodellink). If layer uses sequences (ie. it's recurrent or if has flag [PS_FLAG_USE_SEQUENCES](macros.md#ps-flag-use-sequences)), the function will pick the last states of the sequence, otherwise it will just return the layer [states](types.md#pslayer).  
+
+
+**RETURN VALUES**
+
+The output values of [layer](types.md#psmodellink) or **NULL** if:  
+
+ - [layer](types.md#psmodellink) is **NULL**.
+ - `layer->states` is **NULL**.
 
 
 ### PSLayerSave
@@ -1896,6 +1965,28 @@ Possible failure reasons:
  - Both [PS_IO_BINARY_MODE](macros.md#ps-io-binary-mode) and [PS_IO_SAVE_DEFINITION](macros.md#ps-io-save-definition) are set.
  - The file at **filepath** cannot be opened for writing.
  - Some error occurs qhile writing data.
+
+
+### PSLayerStates
+
+In: psyc.h, line: 412
+
+```c
+PSFloat  * PSLayerStates (PSLayer *layer, ...)
+```
+
+Grt the states (unit activation values) of [layer](types.md#psmodellink). If [layer](types.md#psmodellink) uses sequences (ie. it's recurrent or if has flag [PS_FLAG_USE_SEQUENCES](macros.md#ps-flag-use-sequences)), the function will also read the first variadic argument after [layer](types.md#psmodellink) that indicates the index of the states to retrieve inside the sequence.  
+If the sequence index is negative, the function will retrieve the [initial_states](types.md#pslayer) of the layer, that are the initial values of the layer states before it has received the input sequence (the can be **NULL**).  
+
+
+**RETURN VALUES**
+
+The states of [layer](types.md#psmodellink) or **NULL** if:  
+
+ - [layer](types.md#psmodellink) is **NULL**.
+ - `layer->states` is **NULL**.
+ - the index provided with the variadic argument is out-of-bounds (ie. it's equal or greater than the current sequence length).
+ - the index provided with the variadic argument is negative but the layer has no [initial_states](types.md#pslayer).
 
 
 ### PSLineAppend
@@ -3359,6 +3450,17 @@ If the file defines a multi-model chain, the whole chain will be loaded ( in thi
 
 
 
+### PSModelOutputs
+
+In: psyc.h, line: 414
+
+```c
+PSFloat  * PSModelOutputs (PSModel *model)
+```
+
+Get the output values of the output (last) layer of [model](types.md#pslayer). The function basically calls [PSLayerOutputs](functions.md#pslayeroutputs) on the layer returned by [PSGetOutputLayer](functions.md#psgetoutputlayer).
+
+
 ### PSModelPrintInfo
 
 In: psyc.h, line: 377
@@ -3612,7 +3714,7 @@ String containing the joined path or **NULL** if something goes               wr
 
 ### PSPauseTraining
 
-In: psyc.h, line: 443
+In: psyc.h, line: 445
 
 ```c
 void PSPauseTraining (PSModel *model)
@@ -3667,7 +3769,7 @@ int PSProgressBar (int num, int tot, int style, int color, int flags, int maxlen
 
 ### PSQuadraticLoss
 
-In: psyc.h, line: 457
+In: psyc.h, line: 459
 
 ```c
 PSFloat PSQuadraticLoss (PSFloat *x, PSFloat *y, int size, int onehot_size)
@@ -3781,7 +3883,7 @@ void PSResetDebugInfo (void)
 
 ### PSResetLayerStateSequence
 
-In: psyc.h, line: 406
+In: psyc.h, line: 407
 
 ```c
 int PSResetLayerStateSequence (PSLayer *layer, uint32_t steps, int retain_previous)
@@ -3792,7 +3894,7 @@ int PSResetLayerStateSequence (PSLayer *layer, uint32_t steps, int retain_previo
 
 ### PSResetModelStateSequences
 
-In: psyc.h, line: 408
+In: psyc.h, line: 409
 
 ```c
 int PSResetModelStateSequences (PSModel *model, uint32_t steps, int retain_previous)
@@ -3860,7 +3962,7 @@ int PSSetAttentionQueryProvider (PSLayer *layer, PSLayer *provider)
 
 ### PSSetDefaultTrainingOptions
 
-In: psyc.h, line: 450
+In: psyc.h, line: 452
 
 ```c
 void PSSetDefaultTrainingOptions (PSTrainingOptions *options)
@@ -3882,7 +3984,7 @@ void PSSetDropout (PSLayer *dropout_layer, PSFloat dropout)
 
 ### PSSetNeuronState
 
-In: psyc.h, line: 422
+In: psyc.h, line: 424
 
 ```c
 int PSSetNeuronState (PSNeuron *neuron, double state, ...)
@@ -3893,7 +3995,7 @@ int PSSetNeuronState (PSNeuron *neuron, double state, ...)
 
 ### PSSetRecurrentNetworkMode
 
-In: psyc.h, line: 451
+In: psyc.h, line: 453
 
 ```c
 int PSSetRecurrentNetworkMode (PSModel *model, PSRecurrentNetworkMode mode)
@@ -3904,7 +4006,7 @@ int PSSetRecurrentNetworkMode (PSModel *model, PSRecurrentNetworkMode mode)
 
 ### PSSetState
 
-In: psyc.h, line: 413
+In: psyc.h, line: 415
 
 ```c
 int PSSetState (PSLayer *layer, PSFloat state, int index, ...)
@@ -3997,7 +4099,7 @@ For more info about Softmax:
 
 ### PSStateSequenceLength
 
-In: psyc.h, line: 414
+In: psyc.h, line: 416
 
 ```c
 int PSStateSequenceLength (PSLayer *layer)
@@ -4157,7 +4259,7 @@ PSFloat PSTanhDerivativeS (PSFloat val)
 
 ### PSTest
 
-In: psyc.h, line: 445
+In: psyc.h, line: 447
 
 ```c
 float PSTest (PSModel *model, PSFloat *test_data, int data_size, PSTrainingOptions *options)
@@ -4168,7 +4270,7 @@ float PSTest (PSModel *model, PSFloat *test_data, int data_size, PSTrainingOptio
 
 ### PSTrain
 
-In: psyc.h, line: 437
+In: psyc.h, line: 439
 
 ```c
 void PSTrain (PSModel *model, PSFloat *training_data, int data_size, PSFloat *test_data, int test_size, PSTrainingOptions *options)
@@ -4248,7 +4350,7 @@ void PSTrainingDebugDumpStep (PSDebugStepInfo *info, char *format, ...)
 
 ### PSTrainingProgressBar
 
-In: psyc.h, line: 461
+In: psyc.h, line: 463
 
 ```c
 void PSTrainingProgressBar (PSModel *model, int status, int epochs, int batches, PSFloat *loss, PSFloat *accuracy, time_t *elapsed, int validating_current, int validating_tot)

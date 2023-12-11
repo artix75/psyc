@@ -13,7 +13,7 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSYC 7 2023-12-10 "PsyC 0.9.3" "PsyC Manual"
+.TH PSYC 7 2023-12-11 "PsyC 0.9.3" "PsyC Manual"
 
 .SH NAME
 PsyC (-lpsyc)
@@ -234,9 +234,15 @@ psyc-datasets(7)
 
 
 .SH LIBRARY FUNCTIONS PAGES
+PSAddConvolutionalLayer(3)
+.br
+PSAddInputLayer(3)
+.br
 PSAddLayer(3)
 .br
 PSAddModel(3)
+.br
+PSAddPoolingLayer(3)
 .br
 PSAddVectors(3)
 .br
@@ -316,13 +322,25 @@ PSGetCodeOptimizationLevel(3)
 .br
 PSGetHomeDirectory(3)
 .br
+PSGetLayerByIndex(3)
+.br
+PSGetLayerInputSize(3)
+.br
 PSGetModelAtIndex(3)
+.br
+PSGetOneHotLayerVectorSize(3)
+.br
+PSGetOutputLayer(3)
 .br
 PSIsDirectory(3)
 .br
 PSLayerFree(3)
 .br
+PSLayerOutputs(3)
+.br
 PSLayerSave(3)
+.br
+PSLayerStates(3)
 .br
 PSLoadCIFARData(3)
 .br
@@ -429,6 +447,8 @@ PSModelGetStatus(3)
 PSModelIsBuilt(3)
 .br
 PSModelLoad(3)
+.br
+PSModelOutputs(3)
 .br
 PSModelRebuild(3)
 .br

@@ -718,7 +718,7 @@ typedef struct {
 
 ### PSNeuralNetwork
 
-In: psyc.h, line: 475
+In: psyc.h, line: 477
 
 ```c
 typedef PSModel PSNeuralNetwork

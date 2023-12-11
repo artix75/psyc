@@ -1,0 +1,56 @@
+.\" Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that the above copyright notice and this paragraph are
+.\" duplicated in all such forms and that any documentation,
+.\" advertising materials, and other materials related to such
+.\" distribution and use acknowledge that the software was developed
+.\" by the copyright holder. The name of the
+.\" copyright holder may not be used to endorse or promote products derived
+.\" from this software without specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+.TH PSLayerStates 3 2023-12-11 "PsyC 0.9.3" "PsyC Library Functions Manual"
+
+.SH NAME
+\fBPSLayerStates\fR
+
+.SH LIBRARY
+PsyC (-lpsyc)
+
+.SH SYNOPSIS
+
+.B
+#include <psyc/psyc.h>
+
+.I
+PSFloat  *
+.br
+\fBPSLayerStates\fR(\fIPSLayer *layer\fR, \fI...\fR)
+.SH DESCRIPTION
+Grt the states (unit activation values) of \fIlayer\fR. If \fIlayer\fR uses sequences (ie. it's recurrent or if has flag \fIPS_FLAG_USE_SEQUENCES\fR), the function will also read the first variadic argument after \fIlayer\fR that indicates the index of the states to retrieve inside the sequence.
+.br
+If the sequence index is negative, the function will retrieve the \fIinitial_states\fR of the layer, that are the initial values of the layer states before it has received the input sequence (the can be \fINULL\fR).  
+
+.SH RETURN VALUES
+The states of \fIlayer\fR or \fINULL\fR if:
+
+.RS 4
+\[bu] \fIlayer\fR is \fINULL\fR.
+.br
+
+\[bu] `layer->states` is \fINULL\fR.
+.br
+
+\[bu] the index provided with the variadic argument is out-of-bounds (ie. it's equal or greater than the current sequence length).
+.br
+
+\[bu] the index provided with the variadic argument is negative but the layer has no \fIinitial_states\fR.
+.br
+.RE
+
+.SH SEE ALSO
+psyc(1)

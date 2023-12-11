@@ -1,0 +1,48 @@
+.\" Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that the above copyright notice and this paragraph are
+.\" duplicated in all such forms and that any documentation,
+.\" advertising materials, and other materials related to such
+.\" distribution and use acknowledge that the software was developed
+.\" by the copyright holder. The name of the
+.\" copyright holder may not be used to endorse or promote products derived
+.\" from this software without specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+.TH PSLayerOutputs 3 2023-12-11 "PsyC 0.9.3" "PsyC Library Functions Manual"
+
+.SH NAME
+\fBPSLayerOutputs\fR
+
+.SH LIBRARY
+PsyC (-lpsyc)
+
+.SH SYNOPSIS
+
+.B
+#include <psyc/psyc.h>
+
+.I
+PSFloat  *
+.br
+\fBPSLayerOutputs\fR(\fIPSLayer *layer\fR)
+.SH DESCRIPTION
+Get the output values of \fIlayer\fR. If layer uses sequences (ie. it's recurrent or if has flag \fIPS_FLAG_USE_SEQUENCES\fR), the function will pick the last states of the sequence, otherwise it will just return the layer \fIstates\fR.  
+
+.SH RETURN VALUES
+The output values of \fIlayer\fR or \fINULL\fR if:
+
+.RS 4
+\[bu] \fIlayer\fR is \fINULL\fR.
+.br
+
+\[bu] `layer->states` is \fINULL\fR.
+.br
+.RE
+
+.SH SEE ALSO
+psyc(1)

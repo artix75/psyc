@@ -1,0 +1,50 @@
+.\" Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that the above copyright notice and this paragraph are
+.\" duplicated in all such forms and that any documentation,
+.\" advertising materials, and other materials related to such
+.\" distribution and use acknowledge that the software was developed
+.\" by the copyright holder. The name of the
+.\" copyright holder may not be used to endorse or promote products derived
+.\" from this software without specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+.TH PSGetLayerInputSize 3 2023-12-11 "PsyC 0.9.3" "PsyC Library Functions Manual"
+
+.SH NAME
+\fBPSGetLayerInputSize\fR
+
+.SH LIBRARY
+PsyC (-lpsyc)
+
+.SH SYNOPSIS
+
+.B
+#include <psyc/psyc.h>
+
+.I
+int  
+.br
+\fBPSGetLayerInputSize\fR(\fIPSLayer *layer\fR)
+.SH DESCRIPTION
+Determine the input size of \fIlayer\fR, depending on the size of its previous layer, if any.
+.br
+If previous layer has set the flag \fIPS_FLAG_ONEHOT\fR, the function will determine the input size by previous layer's onehot vector size (\fIPSGetOneHotLayerVectorSize\fR).  
+
+.SH RETURN VALUES
+The input size of \fIlayer\fR or zero if:
+
+.RS 4
+\[bu] \fIlayer\fR is \fINULL\fR.
+.br
+
+\[bu] \fIlayer\fR has no previous layer.
+.br
+.RE
+
+.SH SEE ALSO
+psyc(1), PSGetOneHotLayerVectorSize(3)

@@ -57,6 +57,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 <li><a href="#function-psaddcifarinputlayer">PSAddCIFARInputLayer</a></li>
 <li><a href="#function-psaddconvolutionallayer">PSAddConvolutionalLayer</a></li>
 <li><a href="#function-psadddebuginfo">PSAddDebugInfo</a></li>
+<li><a href="#function-psaddinputlayer">PSAddInputLayer</a></li>
 <li><a href="#function-psaddlayer">PSAddLayer</a></li>
 <li><a href="#function-psaddmodel">PSAddModel</a></li>
 <li><a href="#function-psaddpoolinglayer">PSAddPoolingLayer</a></li>
@@ -161,7 +162,6 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 <li><a href="#function-psgetoperatorlayertype">PSGetOperatorLayerType</a></li>
 <li><a href="#function-psgetoperatorlayertypelabel">PSGetOperatorLayerTypeLabel</a></li>
 <li><a href="#function-psgetoutputlayer">PSGetOutputLayer</a></li>
-<li><a href="#function-psgetoutputs">PSGetOutputs</a></li>
 <li><a href="#function-psgetpositionalencoding">PSGetPositionalEncoding</a></li>
 <li><a href="#function-psgetpositionalencodingbase">PSGetPositionalEncodingBase</a></li>
 <li><a href="#function-psgetpositionalencodinglength">PSGetPositionalEncodingLength</a></li>
@@ -169,7 +169,6 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 <li><a href="#function-psgetrecurrenthiddenweights">PSGetRecurrentHiddenWeights</a></li>
 <li><a href="#function-psgetrecurrentneuronhiddenweights">PSGetRecurrentNeuronHiddenWeights</a></li>
 <li><a href="#function-psgetstate">PSGetState</a></li>
-<li><a href="#function-psgetstates">PSGetStates</a></li>
 <li><a href="#function-psgetterminalcolumns">PSGetTerminalColumns</a></li>
 <li><a href="#function-pshandlesignals">PSHandleSignals</a></li>
 <li><a href="#function-psinfo">PSInfo</a></li>
@@ -182,7 +181,9 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 <li><a href="#function-psiteratelossfunctions">PSIterateLossFunctions</a></li>
 <li><a href="#function-pslayerfree">PSLayerFree</a></li>
 <li><a href="#function-pslayerload">PSLayerLoad</a></li>
+<li><a href="#function-pslayeroutputs">PSLayerOutputs</a></li>
 <li><a href="#function-pslayersave">PSLayerSave</a></li>
+<li><a href="#function-pslayerstates">PSLayerStates</a></li>
 <li><a href="#function-pslineappend">PSLineAppend</a></li>
 <li><a href="#function-pslineend">PSLineEnd</a></li>
 <li><a href="#function-pslinefill">PSLineFill</a></li>
@@ -250,6 +251,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 <li><a href="#function-psmodelgetstatus">PSModelGetStatus</a></li>
 <li><a href="#function-psmodelisbuilt">PSModelIsBuilt</a></li>
 <li><a href="#function-psmodelload">PSModelLoad</a></li>
+<li><a href="#function-psmodeloutputs">PSModelOutputs</a></li>
 <li><a href="#function-psmodelprintinfo">PSModelPrintInfo</a></li>
 <li><a href="#function-psmodelrebuild">PSModelRebuild</a></li>
 <li><a href="#function-psmodelsave">PSModelSave</a></li>
@@ -364,7 +366,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
            <section id="doc">
 <div class="details function" id="function-psaborttraining">
 <h3 class="name">PSAbortTraining</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">444</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">446</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type">void</span> <span class="identifier name">PSAbortTraining</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmodel">PSModel</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psaborttraining-model>model</span></span></span>)</code>
@@ -409,10 +411,22 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details function" id="function-psaddconvolutionallayer">
 <h3 class="name">PSAddConvolutionalLayer</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">395</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">396</span></div>
 <div class="tags"><span class="tag model" data-href="tag-model.html">MODEL</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier name">PSAddConvolutionalLayer</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmodel">PSModel</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psaddconvolutionallayer-model>model</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pslayerdef">PSLayerDef</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psaddconvolutionallayer-ldef>ldef</span></span></span>)</code>
+</div>
+<div class="description">
+Add a convolutional layer to <span class="identifier-ref" data-identifier-id="function-psaddconvolutionallayer-model" data-parent-id="function-psaddconvolutionallayer">model</span>. This function basically calls <a class="psyc-func" href="functions.html#function-psaddlayer">PSAddLayer</a>:<br/>
+<div class="code multi-line" --data-language="c">
+<code>
+<span class="psyc-func">PSAddLayer</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="psyc-const-name">Convolutional</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">ldef</span><span class="p">);</span>
+
+</code>
+</div>
+
+<h4 class="return-values">RETURN VALUES</h4>
+See <a class="psyc-func" href="functions.html#function-psaddlayer">PSAddLayer</a>.
 </div>
 </div>
 
@@ -422,6 +436,32 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 <div class="code">
 <code class="definition">
 <span class="type return-type">void</span> <span class="identifier name">PSAddDebugInfo</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmodel">PSModel</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psadddebuginfo-model>model</span></span>, <span class="argument"><span class="type">char *</span><span class="identifier pointer-name" data-identifier-id=function-psadddebuginfo-file>file</span></span>, <span class="argument"><span class="type">const char *</span><span class="identifier pointer-name" data-identifier-id=function-psadddebuginfo-func>func</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psadddebuginfo-line>line</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psadddebuginfo-layer>layer</span></span>, <span class="argument"><span class="type">void *</span><span class="identifier pointer-name" data-identifier-id=function-psadddebuginfo-neuron1>neuron1</span></span>, <span class="argument"><span class="type">void *</span><span class="identifier pointer-name" data-identifier-id=function-psadddebuginfo-neuron2>neuron2</span></span>, <span class="argument"><span class="type">char *</span><span class="identifier pointer-name" data-identifier-id=function-psadddebuginfo-prop>prop</span></span>, <span class="argument"><span class="type">double</span> <span class="identifier" data-identifier-id=function-psadddebuginfo-val>val</span></span>, <span class="argument variadic">...</span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psaddinputlayer">
+<h3 class="name">PSAddInputLayer</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">395</span></div>
+<div class="tags"><span class="tag model" data-href="tag-model.html">MODEL</span></div><div class="code">
+<code class="definition">
+<span class="type return-type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier name">PSAddInputLayer</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmodel">PSModel</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psaddinputlayer-model>model</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psaddinputlayer-size>size</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pslayerdef">PSLayerDef</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psaddinputlayer-ldef>ldef</span></span></span>)</code>
+</div>
+<div class="description">
+Add input layer of size <span class="identifier-ref" data-identifier-id="function-psaddinputlayer-size" data-parent-id="function-psaddinputlayer">size</span> to <span class="identifier-ref" data-identifier-id="function-psaddinputlayer-model" data-parent-id="function-psaddinputlayer">model</span>. The layer type will be set to the default <a class="psyc-type" href="types.html#enum-pslayertype">FullyConnected</a> type.<br/>Special layer properties can be defined by the optional argument <span class="identifier-ref">layer_def</span>.<br/>If <span class="identifier-ref">layer_def</span> is <span class="identifier-ref">NULL</span>, the function will use the default layer configuration.<br/>See <a class="psyc-func" href="functions.html#function-psaddlayer">PSAddLayer</a> for further details about adding layers.  
+<h4 class="return-values">RETURN VALUES</h4>
+The added layer or <span class="identifier-ref">NULL</span> if:
+
+
+ <ul>
+
+ <li><span class="identifier-ref" data-identifier-id="function-psaddinputlayer-model" data-parent-id="function-psaddinputlayer">model</span> is <span class="identifier-ref">NULL</span>.</li>
+
+ <li><span class="identifier-ref" data-identifier-id="function-psaddinputlayer-model" data-parent-id="function-psaddinputlayer">model</span> is not empty.</li>
+
+ <li>See <a class="psyc-func" href="functions.html#function-psaddlayer">PSAddLayer</a> for more failure reasons.
+
+
+ </ul>
 </div>
 </div>
 
@@ -530,10 +570,22 @@ Possible failure reasons:<br/>
 
 <div class="details function" id="function-psaddpoolinglayer">
 <h3 class="name">PSAddPoolingLayer</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">396</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">397</span></div>
 <div class="tags"><span class="tag model" data-href="tag-model.html">MODEL</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier name">PSAddPoolingLayer</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmodel">PSModel</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psaddpoolinglayer-model>model</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pslayerdef">PSLayerDef</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psaddpoolinglayer-ldef>ldef</span></span></span>)</code>
+</div>
+<div class="description">
+Add a pooling layer to <span class="identifier-ref" data-identifier-id="function-psaddpoolinglayer-model" data-parent-id="function-psaddpoolinglayer">model</span>. This function basically calls <a class="psyc-func" href="functions.html#function-psaddlayer">PSAddLayer</a>:<br/>
+<div class="code multi-line" --data-language="c">
+<code>
+<span class="psyc-func">PSAddLayer</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="psyc-const-name">Pooling</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">ldef</span><span class="p">);</span>
+
+</code>
+</div>
+
+<h4 class="return-values">RETURN VALUES</h4>
+See <a class="psyc-func" href="functions.html#function-psaddlayer">PSAddLayer</a>.
 </div>
 </div>
 
@@ -593,7 +645,7 @@ If <span class="identifier-ref" data-identifier-id="function-psaddvectorscalar-d
 
 <div class="details function" id="function-psautoregression">
 <h3 class="name">PSAutoregression</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">427</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">429</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSAutoregression</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmodel">PSModel</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psautoregression-model>model</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psautoregression-inputs>inputs</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psautoregression-randomized>randomized</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pssequencesettings">PSSequenceSettings</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psautoregression-sequence-settings>sequence_settings</span></span></span>)</code>
@@ -747,7 +799,7 @@ Forward <span class="identifier-ref" data-identifier-id="function-psautoregressi
 
 <div class="details function" id="function-psclassify">
 <h3 class="name">PSClassify</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">429</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">431</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSClassify</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmodel">PSModel</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psclassify-model>model</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psclassify-inputs>inputs</span></span></span>)</code>
@@ -805,7 +857,7 @@ Forward <span class="identifier-ref" data-identifier-id="function-psclassify-inp
 
 <div class="details function" id="function-pscrossentropyloss">
 <h3 class="name">PSCrossEntropyLoss</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">458</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">460</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier name">PSCrossEntropyLoss</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-pscrossentropyloss-x>x</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-pscrossentropyloss-y>y</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-pscrossentropyloss-size>size</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-pscrossentropyloss-onehot-size>onehot_size</span></span></span>)</code>
@@ -854,7 +906,7 @@ Compute the cumulative sum on elements of vector <span class="identifier-ref" da
 
 <div class="details function" id="function-psdeletegradient">
 <h3 class="name">PSDeleteGradient</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">432</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">434</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type">void</span> <span class="identifier name">PSDeleteGradient</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psgradient">PSGradient</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdeletegradient-gradient>gradient</span></span></span>)</code>
@@ -863,7 +915,7 @@ Compute the cumulative sum on elements of vector <span class="identifier-ref" da
 
 <div class="details function" id="function-psdeletegradientschain">
 <h3 class="name">PSDeleteGradientsChain</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">434</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">436</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type">void</span> <span class="identifier name">PSDeleteGradientsChain</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psgradient">PSGradient</a> ***</span><span class="identifier pointer-name" data-identifier-id=function-psdeletegradientschain-gradients>gradients</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmodel">PSModel</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdeletegradientschain-model>model</span></span></span>)</code>
@@ -872,7 +924,7 @@ Compute the cumulative sum on elements of vector <span class="identifier-ref" da
 
 <div class="details function" id="function-psdeletemodelgradients">
 <h3 class="name">PSDeleteModelGradients</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">433</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">435</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type">void</span> <span class="identifier name">PSDeleteModelGradients</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psgradient">PSGradient</a> **</span><span class="identifier pointer-name" data-identifier-id=function-psdeletemodelgradients-gradients>gradients</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmodel">PSModel</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdeletemodelgradients-net>net</span></span></span>)</code>
@@ -881,7 +933,7 @@ Compute the cumulative sum on elements of vector <span class="identifier-ref" da
 
 <div class="details function" id="function-psdeleteneuron">
 <h3 class="name">PSDeleteNeuron</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">423</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">425</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type">void</span> <span class="identifier name">PSDeleteNeuron</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psneuron">PSNeuron</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdeleteneuron-neuron>neuron</span></span></span>)</code>
@@ -1405,7 +1457,7 @@ Try to download content from <span class="identifier-ref" data-identifier-id="fu
 
 <div class="details function" id="function-psfindlayermaxstate">
 <h3 class="name">PSFindLayerMaxState</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">415</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">417</span></div>
 <div class="tags"><span class="tag model" data-href="tag-model.html">MODEL</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSFindLayerMaxState</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psfindlayermaxstate-layer>layer</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psfindlayermaxstate-max-p>max_p</span></span>, <span class="argument"><span class="type">int *</span><span class="identifier pointer-name" data-identifier-id=function-psfindlayermaxstate-index-p>index_p</span></span>, <span class="argument variadic">...</span></span>)</code>
@@ -1433,7 +1485,7 @@ Compare two floats <span class="identifier-ref" data-identifier-id="function-psf
 
 <div class="details function" id="function-psforward">
 <h3 class="name">PSForward</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">426</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">428</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSForward</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmodel">PSModel</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psforward-model>model</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psforward-inputs>inputs</span></span></span>)</code>
@@ -1661,7 +1713,7 @@ Returns code optimization level (given by -O gcc option) as an integer.<br/>Retu
 
 <div class="details function" id="function-psgetfirstrecurrentlayer">
 <h3 class="name">PSGetFirstRecurrentLayer</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">452</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">454</span></div>
 <div class="tags"><span class="tag model" data-href="tag-model.html">MODEL</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier name">PSGetFirstRecurrentLayer</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmodel">PSModel</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psgetfirstrecurrentlayer-model>model</span></span></span>)</code>
@@ -1691,7 +1743,7 @@ Returns user HOME directory.
 
 <div class="details function" id="function-psgetlabelfortype">
 <h3 class="name">PSGetLabelForType</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">448</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">450</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type">char *</span><span class="identifier name">PSGetLabelForType</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#enum-pslayertype">PSLayerType</a></span> <span class="identifier" data-identifier-id=function-psgetlabelfortype-type>type</span></span></span>)</code>
@@ -1700,7 +1752,7 @@ Returns user HOME directory.
 
 <div class="details function" id="function-psgetlastrecurrentlayer">
 <h3 class="name">PSGetLastRecurrentLayer</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">453</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">455</span></div>
 <div class="tags"><span class="tag model" data-href="tag-model.html">MODEL</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier name">PSGetLastRecurrentLayer</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmodel">PSModel</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psgetlastrecurrentlayer-model>model</span></span></span>)</code>
@@ -1709,25 +1761,59 @@ Returns user HOME directory.
 
 <div class="details function" id="function-psgetlayerbyindex">
 <h3 class="name">PSGetLayerByIndex</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">402</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">403</span></div>
 <div class="tags"><span class="tag model" data-href="tag-model.html">MODEL</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier name">PSGetLayerByIndex</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmodel">PSModel</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psgetlayerbyindex-model>model</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psgetlayerbyindex-layer-index>layer_index</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psgetlayerbyindex-model-index>model_index</span></span></span>)</code>
+</div>
+<div class="description">
+Get the layer at index <span class="identifier-ref" data-identifier-id="function-psgetlayerbyindex-layer-index" data-parent-id="function-psgetlayerbyindex">layer_index</span> in <span class="identifier-ref" data-identifier-id="function-psgetlayerbyindex-model" data-parent-id="function-psgetlayerbyindex">model</span>. If <span class="identifier-ref" data-identifier-id="function-psgetlayerbyindex-model" data-parent-id="function-psgetlayerbyindex">model</span> is part of a multi-model chain, the argument <span class="identifier-ref" data-identifier-id="function-psgetlayerbyindex-model-index" data-parent-id="function-psgetlayerbyindex">model_index</span> can be used to specify the index of the sub-model of the model chain.<br/>Both <span class="identifier-ref" data-identifier-id="function-psgetlayerbyindex-layer-index" data-parent-id="function-psgetlayerbyindex">layer_index</span> and <span class="identifier-ref" data-identifier-id="function-psgetlayerbyindex-model-index" data-parent-id="function-psgetlayerbyindex">model_index</span> accept negative values: in this case, the index is calculated from the last layer/model, for example:<br/>if <span class="identifier-ref" data-identifier-id="function-psgetlayerbyindex-layer-index" data-parent-id="function-psgetlayerbyindex">layer_index</span> is -1 and <span class="identifier-ref" data-identifier-id="function-psgetlayerbyindex-model" data-parent-id="function-psgetlayerbyindex">model</span> has 5 layers, the actual index will be the last layer&#39;s index (4).  
+<h4 class="return-values">RETURN VALUES</h4>
+The layer at specified index/indices or <span class="identifier-ref">NULL</span> if:
+
+
+ <ul>
+
+ <li><span class="identifier-ref" data-identifier-id="function-psgetlayerbyindex-model" data-parent-id="function-psgetlayerbyindex">model</span> is <span class="identifier-ref">NULL</span>.</li>
+
+ <li><span class="identifier-ref" data-identifier-id="function-psgetlayerbyindex-model" data-parent-id="function-psgetlayerbyindex">model</span> is a multi-model chain but it&#39;s broken/invalid.</li>
+
+ <li><span class="identifier-ref" data-identifier-id="function-psgetlayerbyindex-layer-index" data-parent-id="function-psgetlayerbyindex">layer_index</span> is out-of-bounds.</li>
+
+ <li><span class="identifier-ref" data-identifier-id="function-psgetlayerbyindex-model-index" data-parent-id="function-psgetlayerbyindex">model_index</span> is out-of-bounds.
+
+
+ </ul>
 </div>
 </div>
 
 <div class="details function" id="function-psgetlayerinputsize">
 <h3 class="name">PSGetLayerInputSize</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">403</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">404</span></div>
 <div class="tags"><span class="tag model" data-href="tag-model.html">MODEL</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSGetLayerInputSize</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psgetlayerinputsize-layer>layer</span></span></span>)</code>
+</div>
+<div class="description">
+Determine the input size of <span class="identifier-ref" data-identifier-id="function-psgetlayerinputsize-layer" data-parent-id="function-psgetlayerinputsize">layer</span>, depending on the size of its previous layer, if any.<br/>If previous layer has set the flag <a class="psyc-macro" href="macros.html#macro-ps-flag-onehot">PS_FLAG_ONEHOT</a>, the function will determine the input size by previous layer&#39;s onehot vector size (<a class="psyc-func" href="functions.html#function-psgetonehotlayervectorsize">PSGetOneHotLayerVectorSize</a>).  
+<h4 class="return-values">RETURN VALUES</h4>
+The input size of <span class="identifier-ref" data-identifier-id="function-psgetlayerinputsize-layer" data-parent-id="function-psgetlayerinputsize">layer</span> or zero if:
+
+
+ <ul>
+
+ <li><span class="identifier-ref" data-identifier-id="function-psgetlayerinputsize-layer" data-parent-id="function-psgetlayerinputsize">layer</span> is <span class="identifier-ref">NULL</span>.</li>
+
+ <li><span class="identifier-ref" data-identifier-id="function-psgetlayerinputsize-layer" data-parent-id="function-psgetlayerinputsize">layer</span> has no previous layer.
+
+
+ </ul>
 </div>
 </div>
 
 <div class="details function" id="function-psgetlayerinputweightscount">
 <h3 class="name">PSGetLayerInputWeightsCount</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">404</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">405</span></div>
 <div class="tags"><span class="tag model" data-href="tag-model.html">MODEL</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">uint64_t</span> <span class="identifier name">PSGetLayerInputWeightsCount</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psgetlayerinputweightscount-layer>layer</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psgetlayerinputweightscount-per-neuron>per_neuron</span></span></span>)</code>
@@ -1736,7 +1822,7 @@ Returns user HOME directory.
 
 <div class="details function" id="function-psgetlayerparameterscount">
 <h3 class="name">PSGetLayerParametersCount</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">398</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">399</span></div>
 <div class="tags"><span class="tag model" data-href="tag-model.html">MODEL</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">uint64_t</span> <span class="identifier name">PSGetLayerParametersCount</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psgetlayerparameterscount-layer>layer</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psgetlayerparameterscount-param-type>param_type</span></span></span>)</code>
@@ -1745,7 +1831,7 @@ Returns user HOME directory.
 
 <div class="details function" id="function-psgetlayertypelabel">
 <h3 class="name">PSGetLayerTypeLabel</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">449</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">451</span></div>
 <div class="tags"><span class="tag model" data-href="tag-model.html">MODEL</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">char *</span><span class="identifier name">PSGetLayerTypeLabel</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psgetlayertypelabel-layer>layer</span></span></span>)</code>
@@ -1803,7 +1889,7 @@ The model or <span class="identifier-ref">NULL</span> if:
 
 <div class="details function" id="function-psgetneuron">
 <h3 class="name">PSGetNeuron</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">419</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">421</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#struct-psneuron">PSNeuron</a> *</span><span class="identifier name">PSGetNeuron</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psgetneuron-layer>layer</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psgetneuron-index>index</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psneuron">PSNeuron</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psgetneuron-neuron>neuron</span></span></span>)</code>
@@ -1821,7 +1907,7 @@ The model or <span class="identifier-ref">NULL</span> if:
 
 <div class="details function" id="function-psgetneuroninputweights">
 <h3 class="name">PSGetNeuronInputWeights</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">420</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">422</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSGetNeuronInputWeights</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psneuron">PSNeuron</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psgetneuroninputweights-neuron>neuron</span></span></span>)</code>
@@ -1830,7 +1916,7 @@ The model or <span class="identifier-ref">NULL</span> if:
 
 <div class="details function" id="function-psgetneuronstate">
 <h3 class="name">PSGetNeuronState</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">421</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">423</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier name">PSGetNeuronState</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psneuron">PSNeuron</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psgetneuronstate-neuron>neuron</span></span>, <span class="argument variadic">...</span></span>)</code>
@@ -1839,7 +1925,7 @@ The model or <span class="identifier-ref">NULL</span> if:
 
 <div class="details function" id="function-psgetnextlayer">
 <h3 class="name">PSGetNextLayer</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">400</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">401</span></div>
 <div class="tags"><span class="tag model" data-href="tag-model.html">MODEL</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier name">PSGetNextLayer</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psgetnextlayer-layer>layer</span></span></span>)</code>
@@ -1848,10 +1934,13 @@ The model or <span class="identifier-ref">NULL</span> if:
 
 <div class="details function" id="function-psgetonehotlayervectorsize">
 <h3 class="name">PSGetOneHotLayerVectorSize</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">397</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">398</span></div>
 <div class="tags"><span class="tag model" data-href="tag-model.html">MODEL</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSGetOneHotLayerVectorSize</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psgetonehotlayervectorsize-layer>layer</span></span></span>)</code>
+</div>
+<div class="description">
+Get the onehot vector size of <span class="identifier-ref" data-identifier-id="function-psgetonehotlayervectorsize-layer" data-parent-id="function-psgetonehotlayervectorsize">layer</span>. If the flag <a class="psyc-macro" href="macros.html#macro-ps-flag-onehot">PS_FLAG_ONEHOT</a> is not set into layer&#39;s flags, just return the layer size.
 </div>
 </div>
 
@@ -1884,19 +1973,25 @@ The model or <span class="identifier-ref">NULL</span> if:
 
 <div class="details function" id="function-psgetoutputlayer">
 <h3 class="name">PSGetOutputLayer</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">401</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">402</span></div>
 <div class="tags"><span class="tag model" data-href="tag-model.html">MODEL</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier name">PSGetOutputLayer</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmodel">PSModel</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psgetoutputlayer-model>model</span></span></span>)</code>
 </div>
-</div>
+<div class="description">
+Return the output layer (basically, the last laye) of <span class="identifier-ref" data-identifier-id="function-psgetoutputlayer-model" data-parent-id="function-psgetoutputlayer">model</span>. If <span class="identifier-ref" data-identifier-id="function-psgetoutputlayer-model" data-parent-id="function-psgetoutputlayer">model</span> is part of a multi-model chain, the function will return the output layer of the output model (the last model) of the chain.  
+<h4 class="return-values">RETURN VALUES</h4>
+The output layer or <span class="identifier-ref">NULL</span> if:
 
-<div class="details function" id="function-psgetoutputs">
-<h3 class="name">PSGetOutputs</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">412</span></div>
-<div class="code">
-<code class="definition">
-<span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSGetOutputs</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psgetoutputs-layer>layer</span></span></span>)</code>
+
+ <ul>
+
+ <li><span class="identifier-ref" data-identifier-id="function-psgetoutputlayer-model" data-parent-id="function-psgetoutputlayer">model</span> is <span class="identifier-ref">NULL</span> or <span class="identifier-ref" data-identifier-id="function-psgetoutputlayer-model" data-parent-id="function-psgetoutputlayer">model</span> has no layers.</li>
+
+ <li><span class="identifier-ref" data-identifier-id="function-psgetoutputlayer-model" data-parent-id="function-psgetoutputlayer">model</span> is part of a multi-model chain, but the chain is broken.
+
+
+ </ul>
 </div>
 </div>
 
@@ -1929,7 +2024,7 @@ The model or <span class="identifier-ref">NULL</span> if:
 
 <div class="details function" id="function-psgetpreviouslayer">
 <h3 class="name">PSGetPreviousLayer</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">399</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">400</span></div>
 <div class="tags"><span class="tag model" data-href="tag-model.html">MODEL</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier name">PSGetPreviousLayer</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psgetpreviouslayer-layer>layer</span></span></span>)</code>
@@ -1956,19 +2051,10 @@ The model or <span class="identifier-ref">NULL</span> if:
 
 <div class="details function" id="function-psgetstate">
 <h3 class="name">PSGetState</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">410</span></div>
-<div class="code">
-<code class="definition">
-<span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier name">PSGetState</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psgetstate-layer>layer</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psgetstate-index>index</span></span>, <span class="argument variadic">...</span></span>)</code>
-</div>
-</div>
-
-<div class="details function" id="function-psgetstates">
-<h3 class="name">PSGetStates</h3>
 <div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">411</span></div>
 <div class="code">
 <code class="definition">
-<span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSGetStates</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psgetstates-layer>layer</span></span>, <span class="argument variadic">...</span></span>)</code>
+<span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier name">PSGetState</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psgetstate-layer>layer</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psgetstate-index>index</span></span>, <span class="argument variadic">...</span></span>)</code>
 </div>
 </div>
 
@@ -1983,7 +2069,7 @@ The model or <span class="identifier-ref">NULL</span> if:
 
 <div class="details function" id="function-pshandlesignals">
 <h3 class="name">PSHandleSignals</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">468</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">470</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type">void</span> <span class="identifier name">PSHandleSignals</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#function_pointer-pssignalhandler">PSSignalHandler</a></span> <span class="identifier" data-identifier-id=function-pshandlesignals-shutdown-handler>shutdown_handler</span></span></span>)</code>
@@ -2058,7 +2144,7 @@ Checks whether <span class="identifier-ref" data-identifier-id="function-psisdir
 
 <div class="details function" id="function-psiteratelossfunctions">
 <h3 class="name">PSIterateLossFunctions</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">469</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">471</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type">size_t</span> <span class="identifier name">PSIterateLossFunctions</span> (<span class="arguments"><span class="argument"><span class="type">*</span> <span class="identifier" data-identifier-id=function-psiteratelossfunctions-callback>callback</span></span></span>)</code>
@@ -2067,7 +2153,7 @@ Checks whether <span class="identifier-ref" data-identifier-id="function-psisdir
 
 <div class="details function" id="function-pslayerfree">
 <h3 class="name">PSLayerFree</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">416</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">418</span></div>
 <div class="tags"><span class="tag model" data-href="tag-model.html">MODEL</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">void</span> <span class="identifier name">PSLayerFree</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function-pslayerfree-layer>layer</span></span></span>)</code>
@@ -2084,6 +2170,30 @@ Free memory allocated for <span class="identifier-ref" data-identifier-id="funct
 <div class="tags"><span class="tag model" data-href="tag-model.html">MODEL</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSLayerLoad</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function-pslayerload-layer>layer</span></span>, <span class="argument"><span class="type">const char *</span><span class="identifier pointer-name" data-identifier-id=function-pslayerload-filepath>filepath</span></span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-pslayeroutputs">
+<h3 class="name">PSLayerOutputs</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">413</span></div>
+<div class="tags"><span class="tag model" data-href="tag-model.html">MODEL</span></div><div class="code">
+<code class="definition">
+<span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSLayerOutputs</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function-pslayeroutputs-layer>layer</span></span></span>)</code>
+</div>
+<div class="description">
+Get the output values of <span class="identifier-ref" data-identifier-id="function-pslayeroutputs-layer" data-parent-id="function-pslayeroutputs">layer</span>. If layer uses sequences (ie. it&#39;s recurrent or if has flag <a class="psyc-macro" href="macros.html#macro-ps-flag-use-sequences">PS_FLAG_USE_SEQUENCES</a>), the function will pick the last states of the sequence, otherwise it will just return the layer <a class="psyc-type" href="types.html#struct-pslayer">states</a>.  
+<h4 class="return-values">RETURN VALUES</h4>
+The output values of <span class="identifier-ref" data-identifier-id="function-pslayeroutputs-layer" data-parent-id="function-pslayeroutputs">layer</span> or <span class="identifier-ref">NULL</span> if:
+
+
+ <ul>
+
+ <li><span class="identifier-ref" data-identifier-id="function-pslayeroutputs-layer" data-parent-id="function-pslayeroutputs">layer</span> is <span class="identifier-ref">NULL</span>.</li>
+
+ <li><code>layer-&gt;states</code> is <span class="identifier-ref">NULL</span>.
+
+
+ </ul>
 </div>
 </div>
 
@@ -2120,6 +2230,34 @@ Possible failure reasons:<br/>
  <li>The file at <span class="identifier-ref" data-identifier-id="function-pslayersave-filepath" data-parent-id="function-pslayersave">filepath</span> cannot be opened for writing.</li>
 
  <li>Some error occurs qhile writing data.
+
+
+ </ul>
+</div>
+</div>
+
+<div class="details function" id="function-pslayerstates">
+<h3 class="name">PSLayerStates</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">412</span></div>
+<div class="tags"><span class="tag model" data-href="tag-model.html">MODEL</span></div><div class="code">
+<code class="definition">
+<span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSLayerStates</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function-pslayerstates-layer>layer</span></span>, <span class="argument variadic">...</span></span>)</code>
+</div>
+<div class="description">
+Grt the states (unit activation values) of <span class="identifier-ref" data-identifier-id="function-pslayerstates-layer" data-parent-id="function-pslayerstates">layer</span>. If <span class="identifier-ref" data-identifier-id="function-pslayerstates-layer" data-parent-id="function-pslayerstates">layer</span> uses sequences (ie. it&#39;s recurrent or if has flag <a class="psyc-macro" href="macros.html#macro-ps-flag-use-sequences">PS_FLAG_USE_SEQUENCES</a>), the function will also read the first variadic argument after <span class="identifier-ref" data-identifier-id="function-pslayerstates-layer" data-parent-id="function-pslayerstates">layer</span> that indicates the index of the states to retrieve inside the sequence.<br/>If the sequence index is negative, the function will retrieve the <a class="psyc-type" href="types.html#struct-pslayer">initial_states</a> of the layer, that are the initial values of the layer states before it has received the input sequence (the can be <span class="identifier-ref">NULL</span>).  
+<h4 class="return-values">RETURN VALUES</h4>
+The states of <span class="identifier-ref" data-identifier-id="function-pslayerstates-layer" data-parent-id="function-pslayerstates">layer</span> or <span class="identifier-ref">NULL</span> if:
+
+
+ <ul>
+
+ <li><span class="identifier-ref" data-identifier-id="function-pslayerstates-layer" data-parent-id="function-pslayerstates">layer</span> is <span class="identifier-ref">NULL</span>.</li>
+
+ <li><code>layer-&gt;states</code> is <span class="identifier-ref">NULL</span>.</li>
+
+ <li>the index provided with the variadic argument is out-of-bounds (ie. it&#39;s equal or greater than the current sequence length).</li>
+
+ <li>the index provided with the variadic argument is negative but the layer has no <a class="psyc-type" href="types.html#struct-pslayer">initial_states</a>.
 
 
  </ul>
@@ -3896,6 +4034,18 @@ Load model data (including layers and their parameters) from file located at <sp
 </div>
 </div>
 
+<div class="details function" id="function-psmodeloutputs">
+<h3 class="name">PSModelOutputs</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">414</span></div>
+<div class="tags"><span class="tag model" data-href="tag-model.html">MODEL</span></div><div class="code">
+<code class="definition">
+<span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSModelOutputs</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmodel">PSModel</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psmodeloutputs-model>model</span></span></span>)</code>
+</div>
+<div class="description">
+Get the output values of the output (last) layer of <span class="identifier-ref" data-identifier-id="function-psmodeloutputs-model" data-parent-id="function-psmodeloutputs">model</span>. The function basically calls <a class="psyc-func" href="functions.html#function-pslayeroutputs">PSLayerOutputs</a> on the layer returned by <a class="psyc-func" href="functions.html#function-psgetoutputlayer">PSGetOutputLayer</a>.
+</div>
+</div>
+
 <div class="details function" id="function-psmodelprintinfo">
 <h3 class="name">PSModelPrintInfo</h3>
 <div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">377</span></div>
@@ -4165,7 +4315,7 @@ String containing the joined path or <span class="identifier-ref">NULL</span> if
 
 <div class="details function" id="function-pspausetraining">
 <h3 class="name">PSPauseTraining</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">443</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">445</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type">void</span> <span class="identifier name">PSPauseTraining</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmodel">PSModel</a> *</span><span class="identifier pointer-name" data-identifier-id=function-pspausetraining-model>model</span></span></span>)</code>
@@ -4210,7 +4360,7 @@ String containing the joined path or <span class="identifier-ref">NULL</span> if
 
 <div class="details function" id="function-psquadraticloss">
 <h3 class="name">PSQuadraticLoss</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">457</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">459</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier name">PSQuadraticLoss</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psquadraticloss-x>x</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psquadraticloss-y>y</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psquadraticloss-size>size</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psquadraticloss-onehot-size>onehot_size</span></span></span>)</code>
@@ -4294,7 +4444,7 @@ ReLU scalar result.
 
 <div class="details function" id="function-psresetlayerstatesequence">
 <h3 class="name">PSResetLayerStateSequence</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">406</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">407</span></div>
 <div class="tags"><span class="tag model" data-href="tag-model.html">MODEL</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSResetLayerStateSequence</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psresetlayerstatesequence-layer>layer</span></span>, <span class="argument"><span class="type">uint32_t</span> <span class="identifier" data-identifier-id=function-psresetlayerstatesequence-steps>steps</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psresetlayerstatesequence-retain-previous>retain_previous</span></span></span>)</code>
@@ -4303,7 +4453,7 @@ ReLU scalar result.
 
 <div class="details function" id="function-psresetmodelstatesequences">
 <h3 class="name">PSResetModelStateSequences</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">408</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">409</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSResetModelStateSequences</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmodel">PSModel</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psresetmodelstatesequences-model>model</span></span>, <span class="argument"><span class="type">uint32_t</span> <span class="identifier" data-identifier-id=function-psresetmodelstatesequences-steps>steps</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psresetmodelstatesequences-retain-previous>retain_previous</span></span></span>)</code>
@@ -4365,7 +4515,7 @@ Possible failure reasons:<br/>
 
 <div class="details function" id="function-pssetdefaulttrainingoptions">
 <h3 class="name">PSSetDefaultTrainingOptions</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">450</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">452</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type">void</span> <span class="identifier name">PSSetDefaultTrainingOptions</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pstrainingoptions">PSTrainingOptions</a> *</span><span class="identifier pointer-name" data-identifier-id=function-pssetdefaulttrainingoptions-options>options</span></span></span>)</code>
@@ -4383,7 +4533,7 @@ Possible failure reasons:<br/>
 
 <div class="details function" id="function-pssetneuronstate">
 <h3 class="name">PSSetNeuronState</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">422</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">424</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSSetNeuronState</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psneuron">PSNeuron</a> *</span><span class="identifier pointer-name" data-identifier-id=function-pssetneuronstate-neuron>neuron</span></span>, <span class="argument"><span class="type">double</span> <span class="identifier" data-identifier-id=function-pssetneuronstate-state>state</span></span>, <span class="argument variadic">...</span></span>)</code>
@@ -4392,7 +4542,7 @@ Possible failure reasons:<br/>
 
 <div class="details function" id="function-pssetrecurrentnetworkmode">
 <h3 class="name">PSSetRecurrentNetworkMode</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">451</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">453</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSSetRecurrentNetworkMode</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmodel">PSModel</a> *</span><span class="identifier pointer-name" data-identifier-id=function-pssetrecurrentnetworkmode-model>model</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#enum-psrecurrentnetworkmode">PSRecurrentNetworkMode</a></span> <span class="identifier" data-identifier-id=function-pssetrecurrentnetworkmode-mode>mode</span></span></span>)</code>
@@ -4401,7 +4551,7 @@ Possible failure reasons:<br/>
 
 <div class="details function" id="function-pssetstate">
 <h3 class="name">PSSetState</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">413</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">415</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSSetState</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function-pssetstate-layer>layer</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier" data-identifier-id=function-pssetstate-state>state</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-pssetstate-index>index</span></span>, <span class="argument variadic">...</span></span>)</code>
@@ -4474,7 +4624,7 @@ Computes Softmax function on vector <span class="identifier-ref" data-identifier
 
 <div class="details function" id="function-psstatesequencelength">
 <h3 class="name">PSStateSequenceLength</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">414</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">416</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSStateSequenceLength</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psstatesequencelength-layer>layer</span></span></span>)</code>
@@ -4620,7 +4770,7 @@ Computes the derivative of tanh (hyperbolic tangent) activation function (<a cla
 
 <div class="details function" id="function-pstest">
 <h3 class="name">PSTest</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">445</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">447</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type">float</span> <span class="identifier name">PSTest</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmodel">PSModel</a> *</span><span class="identifier pointer-name" data-identifier-id=function-pstest-model>model</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-pstest-test-data>test_data</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-pstest-data-size>data_size</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pstrainingoptions">PSTrainingOptions</a> *</span><span class="identifier pointer-name" data-identifier-id=function-pstest-options>options</span></span></span>)</code>
@@ -4629,7 +4779,7 @@ Computes the derivative of tanh (hyperbolic tangent) activation function (<a cla
 
 <div class="details function" id="function-pstrain">
 <h3 class="name">PSTrain</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">437</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">439</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type">void</span> <span class="identifier name">PSTrain</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmodel">PSModel</a> *</span><span class="identifier pointer-name" data-identifier-id=function-pstrain-model>model</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-pstrain-training-data>training_data</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-pstrain-data-size>data_size</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-pstrain-test-data>test_data</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-pstrain-test-size>test_size</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-pstrainingoptions">PSTrainingOptions</a> *</span><span class="identifier pointer-name" data-identifier-id=function-pstrain-options>options</span></span></span>)</code>
@@ -4729,7 +4879,7 @@ If some error occurs, <a class="psyc-macro" href="macros.html#macro-ps-status-er
 
 <div class="details function" id="function-pstrainingprogressbar">
 <h3 class="name">PSTrainingProgressBar</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">461</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">463</span></div>
 <div class="code">
 <code class="definition">
 <span class="type return-type">void</span> <span class="identifier name">PSTrainingProgressBar</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmodel">PSModel</a> *</span><span class="identifier pointer-name" data-identifier-id=function-pstrainingprogressbar-model>model</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-pstrainingprogressbar-status>status</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-pstrainingprogressbar-epochs>epochs</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-pstrainingprogressbar-batches>batches</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-pstrainingprogressbar-loss>loss</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier pointer-name" data-identifier-id=function-pstrainingprogressbar-accuracy>accuracy</span></span>, <span class="argument"><span class="type">time_t *</span><span class="identifier pointer-name" data-identifier-id=function-pstrainingprogressbar-elapsed>elapsed</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-pstrainingprogressbar-validating-current>validating_current</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-pstrainingprogressbar-validating-tot>validating_tot</span></span></span>)</code>
