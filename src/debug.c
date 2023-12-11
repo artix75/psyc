@@ -270,7 +270,7 @@ void segvHandler(int sig, siginfo_t *info, void *secret) {
 #else
     printf("no\n");
 #endif
-    printf("Apple Accelerate:   ");
+    printf("Apple(R) Accelerate:   ");
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     printf("yes\n");
 #else

@@ -1356,7 +1356,7 @@ void PSModelPrintInfo(PSModel *model) {
     printInfoRow("Status", "%s", getModelStatusLabel(model));
     printInfoRow("AVX", "%s",
                  (PSAVXEnabled(model->acceleration) ? "yes" : "no"));
-    printInfoRow("Apple Accelerate Framework", "%s",
+    printInfoRow("Apple(R) Accelerate Framework", "%s",
                  (PSAccelerateEnabled(model->acceleration) ? "yes" : "no"));
     printInfoRow("BLAS", "%s",
                  (PSBLASEnabled(model->acceleration) ? "yes" : "no"));

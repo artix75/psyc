@@ -2499,7 +2499,7 @@ PSMatrix PSMatrixTranspose(PSMatrix matrix, int rebuild, PSMathOpts *opts) {
         if (transposed == NULL) return NULL;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
         if (PSAccelerateEnabled(acceleration)) {
-            /* Use Apple Accelerate Framework */
+            /* Use Apple(R) Accelerate Framework */
             VDSPMTransp(matrix, transposed, dims[1], dims[0]);
             goto final;
         }
@@ -4367,7 +4367,7 @@ PSFloat *PSVectorTranspose(PSFloat *vec, PSFloat *dest, int acceleration,
     } else if (ndims == 2) {
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
         if (PSAccelerateEnabled(acceleration)) {
-            /* Use Apple Accelerate Framework */
+            /* Use Apple(R) Accelerate Framework */
             VDSPMTransp(vec, transposed, dims[1], dims[0]);
             goto final;
         }

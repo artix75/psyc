@@ -3403,11 +3403,11 @@ int main(int argc, char **argv) {
     if (PSAVXEnabled(PSGlobalAcceleration))
         printf(" - AVX\n");
     if (PSAccelerateEnabled(PSGlobalAcceleration))
-        printf(" - Apple Accelerate Framework\n");
+        printf(" - Accelerate Framework\n");
     if (PSBLASEnabled(PSGlobalAcceleration)) {
         printf(" - BLAS");
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-        printf(" (Apple Accelerate Framework)");
+        printf(" (Accelerate Framework)");
 #elif defined(HAS_GSL_CBLAS)
         printf(" (GNU Scientific Library)");
 #endif

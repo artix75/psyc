@@ -175,7 +175,7 @@ show-build-conf:
 list-available-options:
 	@echo "Option           Argument    Description             Default"
 	@echo "=============================================================="
-	@echo "ACCELERATE       (on|off)    Apple Accelerate"
+	@echo "ACCELERATE       (on|off)    Apple(R) Accelerate"
 	@echo "                             Framework support       $(ACCELERATE)"
 	@echo "AVX              (on|off)    AVX support             $(AVX)"
 	@echo "BLAS             (on|off)    BLAS support            $(BLAS)"
