@@ -438,9 +438,13 @@ int PSIsFunctionAvailable(const char *func) {
 }
 
 int PSCatchFloatingPointExceptions(int except) {
-    if (!PSIsFunctionAvailable("feenableexcept")) return 0;
-    feenableexcept(except);
-    return 1;
+    if (!PSIsFunctionAvailable("feenableexcept")) {
+        PSWarn(
+            "%s: `feenableexcept` is not available on this system", __func__
+        );
+        return 0;
+    }
+    return feenableexcept(except) >= 0;
 }
 
 char *PSGetNeuronDebugID(PSNeuron *neuron, PSLayer *layer) {

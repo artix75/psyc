@@ -1104,7 +1104,7 @@ int PSLoadCIFARData(int type, int classes, const char *dataset_path,
     PSFloat *data_p = *data;
     for (i = 0; i < fcount; i++) {
         char *fname = datafiles[i];
-        printf("Reading %s\n", fname);
+        PSInfo("Reading %s", fname);
         FILE *f = fopen(fname, "r");
         if (f == NULL) {
             PSErr(__func__, "Could not open file %s", fname);

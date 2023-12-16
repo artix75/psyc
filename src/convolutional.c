@@ -573,7 +573,51 @@ int PSInitConvolutionalLayer(PSModel *model, PSLayer *layer,
     int stride = layer_def->stride;
     int padding = layer_def->padding;
     if (stride <= 0) stride = 1;
-    if (padding < 0) padding = 0;
+    if (padding < 0) {
+        if (padding == PS_PADDING_SAME) {
+            /* Determine the padding value that makes the output the same
+             * size as the input (padding = filter_width / 2). Stride must be
+             * 1, filter height must be 1 or the same of filter width and the
+             * filter width must be odd. */
+            if (stride != 1) {
+                PSErr(__func__, "PS_PADDING_SAME requires stride to be 1.");
+                goto err;
+            }
+            if (settings->filter_height != 1 && settings->filter_height !=
+                settings->filter_width)
+            {
+                PSErr(__func__, "PS_PADDING_SAME requires `filter_height` to "
+                      "be the same of filter_width or 1.");
+                goto err;
+            }
+            if ((settings->filter_width % 2) == 0) {
+                PSErr(__func__, "PS_PADDING_SAME requires `filter_width` to "
+                      "be odd.");
+                goto err;
+            }
+            padding = settings->filter_width / 2;
+        } else if (padding ==  PS_PADDING_FULL) {
+            /* Determine the padding value that makes the output always
+             * bigger than the input (padding = filter_width - 1).
+             * Stride must be 1 and filter height must be 1 or the same of
+             * filter width. */
+            if (stride != 1) {
+                PSErr(__func__, "PS_PADDING_FULL requires stride to be 1.");
+                goto err;
+            }
+            if (settings->filter_height != 1 && settings->filter_height !=
+                settings->filter_width)
+            {
+                PSErr(__func__, "PS_PADDING_SAME requires `filter_height` to "
+                      "be the same of filter_width or 1.");
+                goto err;
+            }
+            padding = settings->filter_width - 1;
+        } else {
+            PSErr(__func__, "invalid padding value: %d.", padding);
+            goto err;
+        }
+    }
     settings->stride = stride;
     settings->padding = padding;
     output_w = PSCalculateConvolutionalSide(input_w, settings->filter_width,

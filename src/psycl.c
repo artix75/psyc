@@ -143,6 +143,7 @@ int image_invert = 0;
 int image_grayscale = 0;
 #endif
 PSModel *model = NULL;
+char *pidfile = NULL;
 
 /* Forward declarations */
 void printHelp(const char* program_path);
@@ -582,7 +583,7 @@ static int loadCIFARData(int data_type, int classes, int argc, char **argv,
     if (data_type == PS_DATA_TYPE_TRAINING) {
         len = &datalen;
         data = &training_data;
-        dataset_len = &train_dataset_len;
+        /*dataset_len = &train_dataset_len;*/
     } else {
         len = &testlen;
         data = &test_data;
@@ -647,6 +648,17 @@ static int loadCIFARData(int data_type, int classes, int argc, char **argv,
     }
     if (dataset_len != NULL)
         *dataset_len = (*len / (PS_CIFAR_IMAGE_SIZE + classes));
+    if (max_images > 0 && data_type == PS_DATA_TYPE_TRAINING) {
+        float eval_r = 0;
+        if (eval_dataset_len > 0 && train_dataset_len > 0) {
+            eval_r = (float) eval_dataset_len /
+                     (float) (train_dataset_len + eval_dataset_len);
+        }
+        if (eval_r > 0)
+            eval_dataset_len = (int) (eval_r * max_images);
+        else eval_dataset_len = 0;
+        train_dataset_len = max_images - eval_dataset_len;
+    }
     return 1;
 }
 
@@ -726,8 +738,9 @@ static int loadData(int data_type, int argc, char **argv, int *arg_idx) {
 }
 
 static void cleanup(void) {
-    if (on_epoch_trained != NULL) free(on_epoch_trained);
-    if (on_batch_trained != NULL) free(on_batch_trained);
+    free(on_epoch_trained);
+    free(on_batch_trained);
+    free(pidfile);
 #ifdef HAS_MAGICK
     if (image_filename != NULL) free(image_filename);
 #endif
@@ -1580,6 +1593,8 @@ void parseOptions(int argc, char **argv) {
         } else if (strcmp("--doc", arg) == 0) {
             int ok = openHTMLDoc(argv[0]);
             exit(ok ? 0 : 1);
+        } else if (strcmp("--pidfile", arg) == 0 && !is_last) {
+            pidfile = strdup(argv[++i]);
         } else if (strcmp("-h", arg) == 0 || strcmp("--help", arg) == 0) {
             printHelp(argv[0]);
             cleanup();
@@ -1746,7 +1761,7 @@ void onTrainEvent(int event_type, PSModel *model, int epoch,
         cmd, CMD_MAX_LEN,
         "%s --event %s-trained --name '%s' --epoch %d --epochs %d "
         "--average-loss %g --current-loss %g --accuracy %g --learning-rate %g",
-        on_batch_trained, event, model->name, epoch, epochs, avg_loss,
+        script, event, model->name, epoch, epochs, avg_loss,
         current_loss, accuracy, *rate
     );
     if (written >= CMD_MAX_LEN) {
@@ -1768,10 +1783,16 @@ void onTrainEvent(int event_type, PSModel *model, int epoch,
     }
     int status = system(cmd);
     if (status != 0) {
-        fprintf(
-            stderr, "\nWARN: onBatchTrained script exited with status %d\n",
-            status
-        );
+        int exit_status = WEXITSTATUS(status);
+        if (exit_status == PS_STATUS_ABORTED) PSAbortTraining(model);
+        else if (exit_status == PS_STATUS_ERROR) {
+            PSAbortTraining(model);
+        } else if (exit_status != 0) {
+            fprintf(
+                stderr, "nWARN: onBatchTrained script exited with "
+                "status %d\n", exit_status
+            );
+        }
     }
 }
 
@@ -1814,6 +1835,16 @@ int main(int argc, char **argv) {
     model->name = MODEL_NAME;
     outputFile[0] = 0;
     parseOptions(argc, argv);
+    if (pidfile != NULL) {
+        FILE *pidf = fopen(pidfile, "w");
+        if (pidf == NULL) {
+            PSErr(NULL, "could not open pidfile for writing: '%s'", pidfile);
+            cleanup();
+            return 1;
+        }
+        fprintf(pidf, "%lld", (long long) getpid());
+        fclose(pidf);
+    }
     if (PSLogLevel <= PSLOGLEVEL_INFO) PSModelPrintInfo(model);
     if (training_data != NULL) {
         if (datalen == 0) {
@@ -1832,13 +1863,11 @@ int main(int argc, char **argv) {
         } else {
             int remaining = element_count - train_dataset_len;
             if (remaining < eval_dataset_len && eval_dataset_len > 0) {
-                fprintf(stderr, "WARNING: eval. dataset cannot be > %d!\n",
-                        remaining);
+                PSWarn("eval. dataset cannot be > %d!", remaining);
                 eval_dataset_len = remaining;
             }
             if (remaining == 0) {
-                fprintf(stderr,
-                        "WARNING: no dataset remaining for evaluation!\n");
+                PSWarn("no dataset remaining for evaluation!");
                 eval_dataset_len = remaining;
             }
             datalen = train_dataset_len * element_size;
@@ -1887,9 +1916,9 @@ int main(int argc, char **argv) {
         }
         int saved = PSModelSave(model, outputFile);
         if (!saved) {
-            fprintf(stderr, "Could not save model to %s\n", outputFile);
+            PSErr("could not save model to %s", outputFile);
         } else {
-            printf("model saved to %s\n", outputFile);
+            PSInfo("model saved to %s", outputFile);
         }
     }
     cleanup();
@@ -2002,6 +2031,7 @@ void printHelp(const char* program_path) {
            "rmsprop |\n"
            "                               windowgrad | nesterov | default)"
            ".\n");
+    printf("  --pidfile PATH               Save process PID to PATH.\n");
     printf("  --quiet                      Quiet output (loglevel ERROR)."
            "\n");
     printf("  --save FILE                  Save model to FILE.\n");
@@ -2117,7 +2147,7 @@ void printHelp(const char* program_path) {
     printf("LOG LEVELS:\n\n");
     printf("  "); printLogLevels(stdout); printf("\n\n");
     printf("TRAIN|TEST OPTIONS:\n\n");
-    printf("  --cifar [CLASSES             Dataset format is CIFAR.\n"
+    printf("  --cifar [CLASSES]            Dataset format is CIFAR.\n"
            "                               (classes: 10 or 100, default: "
            "10).\n"
     );

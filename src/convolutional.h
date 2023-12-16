@@ -21,6 +21,16 @@
 #include "psyc.h"
 #include "utils.h"
 
+/* Automatically determine padding in order to make the output size the same
+ * as the input size (padding = filter_width / 2). Stride must be 1,
+ * filter_height must be 1 or the same of filer_width and filter_width must be
+ * odd. */
+#define PS_PADDING_SAME -1
+/* Automatically determine padding so that the output size is always bigger
+ * than the input size (padding = filter_width - 1). Stride must be 1 and
+ * filter_height must be 1 or the same of filer_width. */
+#define PS_PADDING_FULL -2
+
 #define PSGetConvolutionalSettings(layer) \
     ((PSConvolutionalSettings *) layer->extra)
 #define PSGetColumn(index, width) (index % width)

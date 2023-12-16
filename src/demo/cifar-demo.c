@@ -20,6 +20,7 @@
 #include <string.h>
 #include <signal.h>
 #include <strings.h>
+#include <ctype.h>
 
 #include <limits.h>
 #include <execinfo.h>
@@ -34,97 +35,107 @@
 #include "../log.h"
 #include "../debug.h"
 
-#define EPOCHS 200
+#define EPOCHS 100
 /* #define BATCH_SIZE 32 */
 #define BATCH_SIZE 4
+#define VGG_BLOCKS 3
+#define USE_NORMALIZATION 1
 #define FEATURES_COUNT 32
-#define REGION_SIZE 5
-#define PADDING 2
+#define FILTER_SIZE 3
+#define PADDING 1
 #define POOL_SIZE 2
 #define TRAIN_DATASET_LEN 40000
 #define EVAL_DATASET_LEN 10000
 #define RELU_ENABLED 1
-#define LEARNING_RATE 0.01
-#define MOMENTUM 0.0
+#define LEARNING_RATE 0.1
+#define MOMENTUM 0.9
 #define ADDITIONAL_LAYERS 2
 #define FC_PREOUTPUT_SIZE 20
 #define SOFTMAX_OUTPUT 1
+#define OPTIMIZATION PSAdaDeltaOptimization
 #define L1  0.0
-#define L2  0.0001
+#define L2  0.0 /* 0.0001 */
 #define DUMP_ACTIVATIONS_EVERY 4
-#define DEFAULT_OUTPUT_FILE "/tmp/pretrained.cnn.psmodel"
+#define DEFAULT_OUTPUT_FILE "/tmp/pretrained.cifar-cnn.psmodel"
 
 #define UNUSED(V) ((void) V)
 
+/*** Globals ****/
 PSModel *model = NULL;
 char *output_path = DEFAULT_OUTPUT_FILE;
 int pause_requested;
 
+char *getOptimizationName(PSOptimization optimization);
+
 void print_help(char *progname) {
     printf("Usage %s OPTIONS\n", progname);
-    printf("    OPTIONS:\n");
-    printf("        -d, --data DATASET_DIR          Dataset directory\n");
-    printf("        -l, --load TRAINED_DT_FILE      Load pretrained model\n");
-    printf("        -s, --save TRAINED_DT_FILE      Save trained model\n"
-           "                                        "
-           "(default: %s)\n", DEFAULT_OUTPUT_FILE);
-    printf("        --classes CLASSES               10 or 100 (def. 10)\n");
-    printf("        --padding PADDING               Padding (def. %d)\n",
-        PADDING);
-    printf("        --region-size SIZE              Region Size (def. %d)\n",
-        REGION_SIZE);
-    printf("        --use-relu ONE_OR_ZERO          "
-        "Enable/Disable ReLU (def. %d)\n", RELU_ENABLED);
-    printf("        --learning-rate RATE            Learnig Rate "
-        "(def. %g)\n", LEARNING_RATE);
-    printf("        --momentum MOMENTUM             Momentum "
-        "(def. %g)\n", MOMENTUM);
-    printf("        --l1-decay DECAY                L1 Weight Decay "
-        "(def. %g)\n", L1);
-    printf("        --l2-decay DECAY                L2 Weight Decay "
-        "(def. %g)\n", L2);
-    printf("        --optimization                  Training Optimization \n"
-          "                                        "
-          "(adagrad,adadelta,adam,windowgrad,\n"
-          "                                         "
-          "nesterov,rmsprop)\n");
-    printf("        --epochs EPOCHS                 Epochs (def. %d)\n",
-        EPOCHS);
-    printf("        --batch-size SIZE               Batch size (def. %d)\n",
-        BATCH_SIZE);
-    printf("        --additional-layers NUM         Additional Convolutional "
-        "Layers (def. %d)\n", ADDITIONAL_LAYERS);
-    printf("        --add-fully-connected [SIZE]    "
-        "Additional Fully Connected Layer\n"
-        "                                        "
-        "before Output (def. size %d)\n", FC_PREOUTPUT_SIZE);
-    printf("        --softmax-output ENABLED        Softmax Output Layer "
-           "(def. %d)\n", SOFTMAX_OUTPUT);
-#ifdef USE_AVX
-    printf("        --disable-avx                   Disable AVX\n");
-#endif
+    printf("OPTIONS:\n");
+    printf("  --batch-size SIZE               Batch size (def. %d)\n",
+           BATCH_SIZE);
+    printf("  --classes CLASSES               10 or 100 (def. 10)\n");
+    printf("  --clip CLIP                     Clip gradients\n");
+    printf("  --colors                        Enable colorized output\n");
+    printf("  -d, --data DATASET_DIR          Dataset directory\n");
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
-    printf("        --disable-acf                   Disable Accelerate "
+    printf("  --disable-accelerate            Disable Accelerate "
            "Framework\n");
 #endif
-    printf("        --disable-blas                  Disable BLAS\n");
-    printf("        --no-acceleration               Disable all "
-           "accelerations\n");
-    printf("        --debug-dump-to FILE            Debug training to FILE\n"
-           "                                        "
-           "(pass 'stdout' for STDOUT)\n");
-    printf("        --dump-activations-to FILE      Dump Activations\n");
-    printf("        --dump-activations-every NUM    Dump Activations every \n"
-            "                                        "
+#ifdef USE_AVX
+    printf("  --disable-avx                   Disable AVX\n");
+#endif
+    printf("  --disable-blas                  Disable BLAS\n");
+    printf("  --dropout DROPUT                Use dropout\n");
+    printf("  --dump-activations-to FILE      Dump Activations\n");
+    printf("  --dump-activations-every NUM    Dump Activations every \n"
+           "                                  "
            "NUM batches (def. %d)\n", DUMP_ACTIVATIONS_EVERY);
-    printf("        --dump-pretrained-to FILE       Dump Pretrained Network\n");
-    printf("        --no-shuffle                    Do not shuffle data\n");
-    printf("        --max-batches MAX               Max batches (for debug)\n");
-    printf("        --max-images MAX                Max images (for debug)\n");
-    printf("        --validate-every BATCH_NUM      Validate inside epochs\n");
-    printf("        --colors                        Enable colorized output\n");
-    printf("        --progress-bar                  Use progress bar\n");
-    printf("        -h, --help                      Print this help\n");
+    printf("  --dump-pretrained-to FILE       Dump Pretrained Network\n");
+    printf("  --epochs EPOCHS                 Epochs (def. %d)\n", EPOCHS);
+    printf("  --filter-size SIZE              Filter (kernel) Size (def. %d)\n",
+        FILTER_SIZE);
+    printf("  --l1-decay DECAY                L1 Weight Decay "
+           "(def. %g)\n", L1);
+    printf("  --l2-decay DECAY                L2 Weight Decay "
+           "(def. %g)\n", L2);
+    printf("  --learning-rate RATE            Learnig Rate "
+           "(def. %g)\n", LEARNING_RATE);
+    printf("  -l, --load TRAINED_DT_FILE      Load pretrained model\n");
+    printf("  --max-batches MAX               Max batches (for debug)\n");
+    printf("  --max-images MAX                Max images (for debug)\n");
+    printf("  --momentum MOMENTUM             Momentum "
+           "(def. %g)\n", MOMENTUM);
+    printf("  --no-acceleration               Disable all "
+           "accelerations\n");
+    printf("  --no-shuffle                    Do not shuffle data\n");
+    printf("  --[no]-normalization            Enable/disable normalization\n"
+           "                                  (def. %d)\n", USE_NORMALIZATION
+    );
+    printf("  --optimization                  Training Optimization \n"
+           "                                  "
+           "(adagrad,adadelta,adam,windowgrad,\n"
+           "                                  "
+           "nesterov,rmsprop).\n"
+           "                                  "
+           "(def. %s).\n", getOptimizationName(OPTIMIZATION));
+    printf("  --padding PADDING               Padding (def. %d).\n"
+           "                                  Accepts integer or 'same' or "
+           "'full'.\n", PADDING);
+    printf("  --progress-bar                  Use progress bar\n");
+    printf("  -s, --save TRAINED_DT_FILE      Save trained model\n"
+           "                                  "
+           "(default: %s)\n", DEFAULT_OUTPUT_FILE);
+    printf("  --softmax-output ENABLED        Softmax Output Layer "
+           "(def. %d)\n", SOFTMAX_OUTPUT);
+    printf("  --use-relu ONE_OR_ZERO          "
+           "Enable/Disable ReLU (def. %d)\n", RELU_ENABLED);
+    /*printf("  --debug-dump-to FILE            Debug training to FILE\n"
+           "                                        "
+           "(pass 'stdout' for STDOUT)\n");*/
+    printf("  --validate-every BATCH_NUM      Validate inside epochs\n");
+    printf("  --vgg-blocks NUM                Number of VGG blocks\n"
+           "                                  (convolutional-pooling pairs).\n"
+           "                                  (def. %d)\n", VGG_BLOCKS);
+    printf("  -h, --help                      Print this help\n");
 }
 
 FILE *dump_activations_to = NULL;
@@ -256,6 +267,7 @@ int main(int argc, char** argv) {
     const char *pretrained_file = NULL;
     const char *dataset_path = NULL;
     char *downloaded_dataset_path = NULL;
+    int vgg_blocks = VGG_BLOCKS;
     int testlen = 0;
     int datalen = 0;
     int valdlen = 0;
@@ -265,7 +277,7 @@ int main(int argc, char** argv) {
     int padding = PADDING;
     int additional_layers = ADDITIONAL_LAYERS;
     int batch_size = BATCH_SIZE;
-    int region_size = REGION_SIZE;
+    int filter_width = FILTER_SIZE;
     int add_fully_connected = 0;
     int fc_preoutput_size = FC_PREOUTPUT_SIZE;
     int softmax_output = SOFTMAX_OUTPUT;
@@ -276,7 +288,10 @@ int main(int argc, char** argv) {
     int max_images = 0;
     int no_shuffle = 0;
     int progbar = 0;
-    PSOptimization optimization = PSDefaultOptimization;
+    PSFloat dropout = 0.0;
+    PSFloat clip = 0.0;
+    int normalization = USE_NORMALIZATION;
+    PSOptimization optimization = OPTIMIZATION;
     PSFloat learning_rate = LEARNING_RATE;
     PSFloat momentum = MOMENTUM;
     PSFloat l1_decay = L1;
@@ -295,9 +310,12 @@ int main(int argc, char** argv) {
         if (strcmp("--classes", arg) == 0 && !is_last) {
             char *next = argv[++i];
             int matched = sscanf(next, "%d", &classes);
-            if (!matched) fputs("Invalid classes", stderr);
+            if (!matched) {
+                PSErr(NULL, "invalid classes");
+                return 1;
+            }
             if (classes != 10 && classes != 100) {
-                fputs("Invalid classes", stderr);
+                PSErr(NULL, "invalid classes");
                 return 1;
             }
         } else if ((strcmp("--load", arg) == 0 || strcmp("-l", arg) == 0) &&
@@ -315,15 +333,29 @@ int main(int argc, char** argv) {
         } else if (strcmp("--epochs", arg) == 0 && (i + 1) < argc) {
             epochs = atoi(argv[++i]);
             if (epochs < 1) {
-                fprintf(stderr, "Invalid epochs: at least 1 required\n");
+                PSErr(NULL, "Invalid epochs: at least 1 required\n");
                 return 1;
             }
         } else if (strcmp("--learning-rate", arg) == 0 && (i + 1) < argc) {
             learning_rate = (PSFloat) atof(argv[++i]);
             if (learning_rate <= 0.0) {
-                fprintf(stderr, "Learning rate must be > 0\n");
+                PSErr(NULL, "Learning rate must be > 0\n");
                 return 1;
             }
+        } else if (strcmp("--normalization", arg) == 0) {
+            normalization = 1;
+        } else if (strcmp("--no-normalization", arg) == 0) {
+            normalization = 0;
+        } else if (strcmp("--dropout", arg) == 0 && (i + 1) < argc) {
+            dropout = (PSFloat) atof(argv[++i]);
+        } else if (strcmp("--vgg-blocks", arg) == 0 && (i + 1) < argc) {
+            vgg_blocks = atoi(argv[++i]);
+            if (vgg_blocks < 1) {
+                PSErr(NULL, "vgg-blocks must be >= 1.");
+                return 1;
+            }
+        } else if (strcmp("--clip", arg) == 0 && (i + 1) < argc) {
+            clip = (PSFloat) atof(argv[++i]);
         } else if (strcmp("--momentum", arg) == 0 && (i + 1) < argc) {
             momentum = (PSFloat) atof(argv[++i]);
         } else if (strcmp("--l1-decay", arg) == 0 && (i + 1) < argc) {
@@ -333,16 +365,23 @@ int main(int argc, char** argv) {
         } else if (strcmp("--use-relu", arg) == 0 && (i + 1) < argc) {
             use_relu = atoi(argv[++i]);
         } else if (strcmp("--padding", arg) == 0 && (i + 1) < argc) {
-            padding = atoi(argv[++i]);
-            if (padding < 0) padding = 0;
-        } else if (strcmp("--region-size", arg) == 0 && (i + 1) < argc) {
-            region_size = atoi(argv[++i]);
-            if (region_size < 2) {
-                fprintf(stderr, "Region size must be >= 2\n");
+            char *padstr = argv[++i];
+            if (isalpha(padstr[0])) {
+                if (strcmp("same", padstr) == 0) padding = PS_PADDING_SAME;
+                else if (strcmp("full", padstr) == 0) padding = PS_PADDING_FULL;
+                else {
+                    PSErr(NULL, "invalid padding '%s'", padstr);
+                    return 1;
+                }
+            } else padding = atoi(padstr);
+        } else if (strcmp("--filter-size", arg) == 0 && (i + 1) < argc) {
+            filter_width = atoi(argv[++i]);
+            if (filter_width < 2) {
+                PSErr(NULL, "filter-size must be >= 2\n");
                 return 1;
             }
-            if (region_size > 32) {
-                fprintf(stderr, "Region size must be < 32\n");
+            if (filter_width > 32) {
+                PSErr(NULL, "filter-size must be < 32\n");
                 return 1;
             }
         } else if (strcmp("--additional-layers", arg) == 0 && (i + 1) < argc) {
@@ -354,7 +393,7 @@ int main(int argc, char** argv) {
         } else if (strcmp("--batch-size", arg) == 0 && (i + 1) < argc) {
             batch_size = atoi(argv[++i]);
             if (batch_size < 2) {
-                fprintf(stderr, "Batch size must be >= 2\n");
+                PSErr(NULL, "Batch size must be >= 2\n");
                 return 1;
             }
         } else if (strcmp("--max-batches", arg) == 0 && (i + 1) < argc) {
@@ -394,7 +433,7 @@ int main(int argc, char** argv) {
         } else if (strcmp("--disable-avx", arg) == 0) {
             disable_avx = 1;
 #endif
-        } else if (strcmp("--disable-acf", arg) == 0) {
+        } else if (strcmp("--disable-accelerate", arg) == 0) {
             disable_acf = 1;
         } else if (strcmp("--disable-blas", arg) == 0) {
             disable_blas = 1;
@@ -419,7 +458,7 @@ int main(int argc, char** argv) {
             else if (strcmp("rmsprop", optname) == 0)
                 optimization = PSRMSPropOptimization;
             else {
-                fprintf(stderr, "Invalid optmization `%s`\n", optname);
+                PSErr(NULL, "Invalid optmization `%s`\n", optname);
                 fprintf(
                     stderr, "Valid values: adam, adagrad, adadelta, "
                     "windowgrad, nesterov\n"
@@ -434,7 +473,7 @@ int main(int argc, char** argv) {
             print_help(argv[0]);
             return 0;
         } else if (arg[0] != '-') {
-            fprintf(stderr, "Invalid argument %s\n", arg);
+            PSErr(NULL, "Invalid argument %s\n", arg);
             return 1;
         }
     }
@@ -532,34 +571,80 @@ int main(int argc, char** argv) {
     printf("Size of PSFloat: %d\n", (int) sizeof(PSFloat));
 
     if (pretrained_file == NULL) {
+        PSLayer *l = NULL;
         /* Input layer def. */
         PSLayerDef input_def = {
             .output_depth = 3, .output_columns = 32, .output_rows = 32
         };
         /* Convolutional layer def. */
         PSLayerDef conv_def = {
-            .output_depth = 16, .filter_width = region_size,
-            .filter_height = region_size, .padding = padding, .stride = 1
+            .output_depth = 32, .filter_width = filter_width,
+            .filter_height = filter_width, .padding = padding, .stride = 1
         };
-        if (use_relu) conv_def.activation = PSRelu;
         /* Pooling layer def. */
         PSLayerDef pool_def = {
             .filter_width = 2, .filter_height = 2
         };
-
-        PSAddLayer(model, FullyConnected, PS_CIFAR_IMAGE_SIZE, &input_def);
-        PSAddConvolutionalLayer(model, &conv_def);
-        PSAddPoolingLayer(model, &pool_def);
-
-        for (i = 0; i < additional_layers; i++) {
-            conv_def.output_depth = 20;
-            PSAddConvolutionalLayer(model, &conv_def);
-            PSAddPoolingLayer(model, &pool_def);
+        /* Normalization layer def. */
+        PSLayerDef norm_def = {
+            .flags = PS_FLAG_NON_TRAINABLE
+        };
+        /* Dropout layer def. */
+        PSLayerDef dropout_def = {
+            .dropout = dropout
+        };
+        PSLayerDef fc_def = {0};
+        if (use_relu) {
+            conv_def.activation = PSRelu;
+            fc_def.activation = PSRelu;
         }
 
-        /* PSAddLayer(model, FullyConnected, 512, NULL); */
-        if (add_fully_connected && fc_preoutput_size >= 10)
-            PSAddLayer(model, FullyConnected, fc_preoutput_size, NULL);
+        l = PSAddLayer(model, FullyConnected, PS_CIFAR_IMAGE_SIZE, &input_def);
+        success = (l != NULL);
+        if (!success) goto final;
+        for (i = 0; i < vgg_blocks; i++) {
+            l = PSAddConvolutionalLayer(model, &conv_def);
+            success = (l != NULL);
+            if (!success) goto final;
+
+            l = PSAddPoolingLayer(model, &pool_def);
+            success = (l != NULL);
+            if (!success) goto final;
+
+            if (normalization) {
+                l = PSAddLayer(model, Normalization, 0, &norm_def);
+                success = (l != NULL);
+                if (!success) goto final;
+            }
+
+            if (dropout) {
+                l = PSAddLayer(model, Dropout, 0, &dropout_def);
+                success = (l != NULL);
+                if (!success) goto final;
+            }
+            conv_def.output_depth *= 2;
+        }
+        int final_fc_count = vgg_blocks + 1,
+            final_fc_size = 128 * (1 << vgg_blocks);
+        while (final_fc_count-- > 0) {
+            l = PSAddLayer(model, FullyConnected, final_fc_size, &fc_def);
+            success = (l != NULL);
+            if (!success) goto final;
+
+            if (normalization) {
+                l = PSAddLayer(model, Normalization, 0, &norm_def);
+                success = (l != NULL);
+                if (!success) goto final;
+            }
+
+            if (dropout) {
+                l = PSAddLayer(model, Dropout, 0, &dropout_def);
+                success = (l != NULL);
+                if (!success) goto final;
+            }
+
+            final_fc_size /= 2;
+        }
         if (softmax_output) PSAddLayer(model, SoftMax, classes, NULL);
         else PSAddLayer(model, FullyConnected, classes, NULL);
         model->loss = PSCrossEntropyLoss;
