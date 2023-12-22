@@ -1026,7 +1026,9 @@ static int genericMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *out,
             tshape_b[ndims_b - 1] = tshape_b[ndims_b - 2];
             tshape_b[ndims_b - 2] = last_db;
             PSMatrixHeader *hdr = PSMatrixGetHeader(b);
-            memcpy(hdr->shape, tshape_b, PS_MATRIX_MAX_DIMENSIONS * sizeof(int));
+            memcpy(
+                hdr->shape, tshape_b, PS_MATRIX_MAX_DIMENSIONS * sizeof(int)
+            );
             l = tshape_b[ndims_b - 1];
             int as = PSMatrixStride(a, 0), k;
             for (i = 0; i < niter_a; i++) {

@@ -258,37 +258,37 @@ void segvHandler(int sig, siginfo_t *info, void *secret) {
     struct utsname sysinfo;
     uname(&sysinfo);
     printf("\n\n------ MISC. INFO -------\n");
-    printf("Git SHA:            %s\n", PSYC_GIT_SHA);
-    printf("Git Dirty:          %s\n", PSYC_GIT_DIRTY);
-    printf("Git Branch:         %s\n", PSYC_GIT_BRANCH);
-    printf("OS:                 %s %s %s\n",
+    printf("Git SHA:                %s\n", PSYC_GIT_SHA);
+    printf("Git Dirty:              %s\n", PSYC_GIT_DIRTY);
+    printf("Git Branch:             %s\n", PSYC_GIT_BRANCH);
+    printf("OS:                     %s %s %s\n",
         sysinfo.sysname, sysinfo.release, sysinfo.machine);
-    printf("Arch.:              %dbit\n", (sizeof(long) == 8 ? 64 : 32));
-    printf("AVX:                ");
+    printf("Arch.:                  %dbit\n", (sizeof(long) == 8 ? 64 : 32));
+    printf("AVX:                    ");
 #if USE_AVX
     printf("yes\n");
 #else
     printf("no\n");
 #endif
-    printf("Apple(R) Accelerate:   ");
+    printf("Apple(r) Accelerate:    ");
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     printf("yes\n");
 #else
     printf("no\n");
 #endif
-    printf("BLAS:               ");
+    printf("BLAS:                   ");
 #ifdef HAS_BLAS
     printf("yes\n");
 #else
     printf("no\n");
 #endif
-    printf("CBLAS:              ");
+    printf("CBLAS:                  ");
 #ifdef HAS_CBLAS
     printf("yes\n");
 #else
     printf("no\n");
 #endif
-    printf("GCC:                %d.%d.%d\n",
+    printf("GCC:                    %d.%d.%d\n",
 #ifdef __GNUC__
             __GNUC__,__GNUC_MINOR__,__GNUC_PATCHLEVEL__);
 #else
@@ -296,16 +296,16 @@ void segvHandler(int sig, siginfo_t *info, void *secret) {
 #endif
 #ifdef __clang__
 #ifdef __clang_version__
-    printf("Clang:              %s\n", __clang_version__);
+    printf("Clang:                  %s\n", __clang_version__);
 #else
-    printf("Clang:              yes\n");
+    printf("Clang:                  yes\n");
 #endif
 #endif
 #ifdef PS_OPTIMIZATION
-    printf("Optimization:       %s\n", PS_OPTIMIZATION);
+    printf("Optimization:           %s\n", PS_OPTIMIZATION);
 #endif
-    printf("Global Flags:       %d\n", PSGlobalFlags);
-    printf("Unixtime:           %lu\n", time(NULL));
+    printf("Global Flags:           %d\n", PSGlobalFlags);
+    printf("Unixtime:               %lu\n", time(NULL));
     if (last_debug_info.has_info) printLastDebugInfo();
 
     printf("\n\n------ STACK TRACE ------\n");
@@ -318,7 +318,7 @@ void segvHandler(int sig, siginfo_t *info, void *secret) {
     printf("PSTrainingInfo:    %d\n", (int) sizeof(PSTrainingInfo));
     printf("PSNeuron:          %d\n", (int) sizeof(PSNeuron));
     printf("PSLayer:           %d\n", (int) sizeof(PSLayer));
-    printf("PSModel:   %d\n", (int) sizeof(PSLayer));
+    printf("PSModel:           %d\n", (int) sizeof(PSLayer));
     printf("PSDict:            %d\n", (int) sizeof(PSDict));
     printf("PSDictItem:        %d\n", (int) sizeof(PSDictItem));
     printf("PSVocabulary:      %d\n", (int) sizeof(PSVocabulary));

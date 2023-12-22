@@ -1115,9 +1115,14 @@ void parseOptions(int argc, char **argv) {
                     i = j;
                     ldef.stride = stride;
                 } else if (strcmp("--padding", carg) == 0 && ++j < argc) {
-                    int padding = 0;
+                    int padding = 0, matched = 0;
                     char *padstr = argv[j];
-                    int matched = sscanf(padstr, "%d", &padding);
+                    if (isalpha(padstr[0])) {
+                        if (strcmp("same", padstr) == 0)
+                            padding = PS_PADDING_SAME;
+                        else if (strcmp("full", padstr) == 0)
+                            padding = PS_PADDING_FULL;
+                    } else matched = sscanf(padstr, "%d", &padding);
                     if (!matched) {
                         fprintf(stderr, "ERROR: Invalid padding %s\n", padstr);
                         goto err;
@@ -2191,6 +2196,11 @@ void printHelp(const char* program_path) {
         "    --event TYPE, --name MODEL_NAME --epoch CURRENT_EPOCH\n"
         "    --epochs TOT_EPOCHS --average-loss AVERAGE_LOSS --current-loss\n"
         "    CURRENT_LOSS --accuracy CURRENT_ACCURACY --learning-rate RATE\n"
+        "  The scripts can use special exit codes to force psycl aborting "
+        "the training \n"
+        "  process:\n"
+        "   - 3 (PS_STATUS_ERROR)\n"
+        "   - 5 (PS_STATUS_ABORTED)\n"
     );
     printf("\n");
 }

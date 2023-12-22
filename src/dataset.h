@@ -41,13 +41,60 @@
 /* Parse text as individual characters. */
 #define PS_PARSER_MODE_CHARS   1
 
+/* Disable token normalization (keep original token string). */
 #define PS_PARSER_FLAG_NO_NORMALIZATION (1 << 0)
+/* Preserve parsed string from being modified by parsing a duplicated string.*/
 #define PS_PARSER_FLAG_PRESERVE_STRING  (1 << 1)
+/* Prevent adding new tokens to vocabulary used for generating a dataset from
+ * a parsed string. */
 #define PS_PARSER_FLAG_READONLY_VOCAB   (1 << 2)
+/* Just generate a dataset that only consist of parsed tokens, with no
+ * metadata, no sequence splitting and not targets. */
+#define PS_PARSER_FLAG_ENCODE_ONLY      (1 << 3)
+/* Add a 'starting' token to the dataset:
+ *  - If the string is being parsed as collection of fixed length sequences,
+ *    the starting token will be prepended to the first sequence only.
+ *  - If the string is being split into variable-length sequences (ie. by
+ *    using a sequence separator), but the target sequence has the same length
+ *    of the input sequence, the starting token will be prepended to
+ *    every input sequence.
+ *  - If the dataset has target sequences whose length can differ from the
+ *    related input sequences (ie. targets come from another dataset),
+ *    the starting token is prepended to every target sequence and, unless
+ *    the `PS_PARSER_FLAG_EXACT_INPUTS` is set, to every input sequence.
+ *  - If no string is being provided as the starting token with `start_token`
+ *    member of `PSTextParserOptions`, by default `PS_DEFAULT_START_TOKEN` is
+ *    used. */
+#define PS_PARSER_FLAG_START_TOKEN      (1 << 4)
+/* Add an 'ending' token to the dataset:
+ *  - If the string is being parsed as collection of fixed length sequences,
+ *    the ending token will be appended to the last sequence only.
+ *  - If the string is being split into variable-length sequences (ie. by
+ *    using a sequence separator), but the target sequence has the same length
+ *    of the input sequence, the ending token will be appended to
+ *    every target sequence.
+ *  - If the dataset has target sequences whose length can differ from the
+ *    related input sequences (ie. targets come from another dataset),
+ *    the ending token is appended to every target sequence and, unless
+ *    the `PS_PARSER_FLAG_EXACT_INPUTS` is set, to every input sequence.
+ *  - If no string is being provided as the starting token with `end_token`
+ *    member of `PSTextParserOptions`, by default `PS_DEFAULT_END_TOKEN` is
+ *    used. */
+#define PS_PARSER_FLAG_END_TOKEN        (1 << 5)
+/* Let text parsing functions (ie. PSLoadDataFromString) also generate the
+ * target sequence for every input sequence. */
+#define PS_PARSER_FLAG_MAKE_TARGETS     (1 << 6)
+/* When the dataset has target sequences whose length can differ from the
+*  related input sequences (ie. targets come from another dataset), this
+*  flag prevents start/end tokens (see `PS_PARSER_FLAG_START_TOKEN` and
+*  `PS_PARSER_FLAG_START_TOKEN` to be added to the input sequences. */
+#define PS_PARSER_FLAG_EXACT_INPUTS     (1 << 7)
 
 #define PS_DEFAULT_PARSER_CAPACITY  50
 #define PS_DEFAULT_MAX_VOCAB_SIZE   15000
 #define PS_DEFAULT_UNKNOWN_TOKEN    "<unknown>"
+#define PS_DEFAULT_START_TOKEN      "<start>"
+#define PS_DEFAULT_END_TOKEN        "<end>"
 
 /* Pointer to a function that can be used to normalize tokens. It takes the
  * input `token` of length `len` and returns the normalized token.
@@ -61,6 +108,8 @@ typedef char *(*PSTokenNormalizer) (char *token, int len);
  * Return value: 1 if token has been matched, 0 if no token has been matched.
  */
 typedef int   (*PSTokenMatch) (char *str, int *len);
+
+struct PSVocabulary;
 
 /* Options for text parsing:
  *  - `mode`: text parsing mode:
@@ -77,6 +126,10 @@ typedef int   (*PSTokenMatch) (char *str, int *len);
  *               vocabulary will be treated as read-only. Any parsed token
  *               that is not present in the vocabulary will not be added and
  *               will be considered <unknown> (see the `unknown_token` option).
+ *             - See also: `PS_PARSER_FLAG_ENCODE_ONLY`,
+ *               `PS_PARSER_FLAG_MAKE_TARGETS`, `PS_PARSER_FLAG_ENCODE_ONLY`,
+ *               `PS_PARSER_FLAG_START_TOKEN`, `PS_DEFAULT_END_TOKEN`,
+ *               `PS_PARSER_FLAG_EXACT_INPUTS`.
  *  - `max_vocabulary_size`: maximum number of tokens that can be added to
  *                           the vocabulary, except for the <unknown> token.
  *                           Every new parsed token will be automatically
@@ -96,6 +149,33 @@ typedef int   (*PSTokenMatch) (char *str, int *len);
  *  - `match_token`: pointer to function to be used to match individual tokens
  *                   (it usually overrides the usage of `separator` to split
  *                   string).
+ *  - `sequence_length`: split text into multiple fixed-length sequences.
+ *  - `match_sequence_end`: pointer to function to be used to match the ending
+ *                          token of the sequence. If the callback returns 1,
+ *                          the current token will be the ending token of the
+ *                          current sequence. It produces variable length
+ *                          sequences.
+ *  - `sequence_separator`: string that can be used to split text into multiple
+ *                          sequences. If the current token is equal to
+ *                          `sequence_separator`, it will be the ending token
+ *                          of the current sequence. It produces variable
+ *                          length sequences.
+ *  - `target_dataset`: an already existing dataset tha can be used to produce
+ *                      the target sequences. For each input sequence, a
+ *                      sequence from `target_dataset` will be taken and used
+ *                      as target sequence. This can be useful to build
+ *                      datasets for sequence-to-sequence models, such as
+ *                      natural language translation models (neural machine
+ *                      translation).
+ *                      The `target_dataset` must have at least the same number
+ *                      of sequences of the dataset being generated.
+ *  - `target_datalen`: the length (number of `PSFloat` elements) of the
+ *                      `target_dataset`, if any.
+ *  - `target_vocabulary`: the vocabulary associated to the `target_dataset`,
+ *                         if any. If NULL, the same vocabulary used for the
+ *                         dataset being generated will be used.
+ *                         Example: neural machine translation use different
+ *                         vocabularies for different natural languages.
 */
 typedef struct {
     int mode;
@@ -107,9 +187,17 @@ typedef struct {
     int buffer_size;
     PSTokenNormalizer normalizer;
     PSTokenMatch match_token;
+    int sequence_length;
+    PSTokenMatch match_sequence_end;
+    const char *sequence_separator;
+    const char *start_token;
+    const char *end_token;
+    PSFloat *target_dataset;
+    int64_t target_datalen;
+    struct PSVocabulary *target_vocabulary;
 } PSTextParserOptions;
 
-typedef struct {
+typedef struct PSVocabulary {
     int64_t         size;
     int64_t         capacity;
     PSDict          *token_map;
@@ -128,7 +216,7 @@ void PSVocabularyFree(PSVocabulary *vocabulary);
 
 char *PSNormalizeToken(char *token, int len);
 PSFloat *PSLoadDataFromString(char *str, PSTextParserOptions *opts,
-                              PSFloat *existing_data, int64_t *datalen,
+                              int64_t *datalen,
                               PSVocabulary **vocabulary);
 PSFloat *PSLoadDataFromTextFile(const char *filepath,
                                 PSTextParserOptions *opts,

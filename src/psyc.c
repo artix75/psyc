@@ -2033,7 +2033,7 @@ static void updateModelForRecurrentMode(PSModel *model,
 
 /* Build `model` so that it can be used for training of for predictions.
  * If the model is already built, the function will just return 1. In order
- * to rebuild an already built model, `PSModelRebuild` should be used.
+ * to force rebuilding an already built model, `PSModelRebuild` should be used.
  * The function will check the model's architecture and it will perfrom various
  * actions on it:
  *  - It will allocate and initialize all needed internal data.
