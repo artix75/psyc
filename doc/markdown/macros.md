@@ -91,7 +91,7 @@ In: utils.h, line: 57
 
 ### PS_CIFAR_IMAGE_SIZE
 
-In: dataset.h, line: 151
+In: dataset.h, line: 239
 
 ```c
 #define PS_CIFAR_IMAGE_SIZE (32 * 32 * 3)
@@ -166,6 +166,17 @@ In: psyc.h, line: 39
 
 
 
+### PS_DEFAULT_END_TOKEN
+
+In: dataset.h, line: 97
+
+```c
+#define PS_DEFAULT_END_TOKEN "<end>"
+```
+
+
+
+
 ### PS_DEFAULT_EOS_INDEX
 
 In: psyc.h, line: 51
@@ -194,7 +205,7 @@ In: psyc.h, line: 42
 
 ### PS_DEFAULT_MAX_VOCAB_SIZE
 
-In: dataset.h, line: 49
+In: dataset.h, line: 94
 
 ```c
 #define PS_DEFAULT_MAX_VOCAB_SIZE 15000
@@ -205,7 +216,7 @@ In: dataset.h, line: 49
 
 ### PS_DEFAULT_PARSER_CAPACITY
 
-In: dataset.h, line: 48
+In: dataset.h, line: 93
 
 ```c
 #define PS_DEFAULT_PARSER_CAPACITY 50
@@ -236,6 +247,17 @@ In: psyc.h, line: 37
 
 
 
+### PS_DEFAULT_START_TOKEN
+
+In: dataset.h, line: 96
+
+```c
+#define PS_DEFAULT_START_TOKEN "<start>"
+```
+
+
+
+
 ### PS_DEFAULT_TOKEN_SEPARATOR
 
 In: dataset.h, line: 32
@@ -249,7 +271,7 @@ In: dataset.h, line: 32
 
 ### PS_DEFAULT_UNKNOWN_TOKEN
 
-In: dataset.h, line: 50
+In: dataset.h, line: 95
 
 ```c
 #define PS_DEFAULT_UNKNOWN_TOKEN "<unknown>"
@@ -682,7 +704,7 @@ In: psyc.h, line: 50
 
 ### PS_MNIST_INPUT_SIZE
 
-In: dataset.h, line: 145
+In: dataset.h, line: 233
 
 ```c
 #define PS_MNIST_INPUT_SIZE (28 * 28)
@@ -768,6 +790,28 @@ In: attention.h, line: 26
 
 
 
+### PS_PADDING_FULL
+
+In: convolutional.h, line: 32
+
+```c
+#define PS_PADDING_FULL -2
+```
+
+Automatically determine padding so that the output size is always bigger than the input size (padding = filter_width - 1). Stride must be 1 and filter_height must be 1 or the same of filer_width.
+
+
+### PS_PADDING_SAME
+
+In: convolutional.h, line: 28
+
+```c
+#define PS_PADDING_SAME -1
+```
+
+Automatically determine padding in order to make the output size the same as the input size (padding = filter_width / 2). Stride must be 1, filter_height must be 1 or the same of filer_width and filter_width must be odd.
+
+
 ### PS_PARAM_BIAS
 
 In: psyc.h, line: 66
@@ -790,9 +834,58 @@ In: psyc.h, line: 67
 
 
 
+### PS_PARSER_FLAG_ENCODE_ONLY
+
+In: dataset.h, line: 53
+
+```c
+#define PS_PARSER_FLAG_ENCODE_ONLY (1 << 3)
+```
+
+Just generate a dataset that only consist of parsed tokens, with no metadata, no sequence splitting and not targets.
+
+
+### PS_PARSER_FLAG_END_TOKEN
+
+In: dataset.h, line: 83
+
+```c
+#define PS_PARSER_FLAG_END_TOKEN (1 << 5)
+```
+
+Add an 'ending' token to the dataset:  
+
+ - If the string is being parsed as collection of fixed length sequences, the ending token will be appended to the last sequence only.
+ - If the string is being split into variable-length sequences (ie. by using a sequence separator), but the target sequence has the same length of the input sequence, the ending token will be appended to every target sequence.
+ - If the dataset has target sequences whose length can differ from the related input sequences (ie. targets come from another dataset), the ending token is appended to every target sequence and, unless the [PS_PARSER_FLAG_EXACT_INPUTS](macros.md#ps-parser-flag-exact-inputs) is set, to every input sequence.
+ - If no string is being provided as the starting token with [end_token](types.md#pstextparseroptions) member of [PSTextParserOptions](types.md#pstextparseroptions), by default [PS_DEFAULT_END_TOKEN](macros.md#ps-default-end-token) is used.
+
+
+### PS_PARSER_FLAG_EXACT_INPUTS
+
+In: dataset.h, line: 91
+
+```c
+#define PS_PARSER_FLAG_EXACT_INPUTS (1 << 7)
+```
+
+When the dataset has target sequences whose length can differ from the  related input sequences (ie. targets come from another dataset), this  flag prevents start/end tokens (see [PS_PARSER_FLAG_START_TOKEN](macros.md#ps-parser-flag-start-token) and  [PS_PARSER_FLAG_START_TOKEN](macros.md#ps-parser-flag-start-token) to be added to the input sequences.
+
+
+### PS_PARSER_FLAG_MAKE_TARGETS
+
+In: dataset.h, line: 86
+
+```c
+#define PS_PARSER_FLAG_MAKE_TARGETS (1 << 6)
+```
+
+Let text parsing functions (ie. PSLoadDataFromString) also generate the target sequence for every input sequence.
+
+
 ### PS_PARSER_FLAG_NO_NORMALIZATION
 
-In: dataset.h, line: 44
+In: dataset.h, line: 45
 
 ```c
 #define PS_PARSER_FLAG_NO_NORMALIZATION (1 << 0)
@@ -803,7 +896,7 @@ In: dataset.h, line: 44
 
 ### PS_PARSER_FLAG_PRESERVE_STRING
 
-In: dataset.h, line: 45
+In: dataset.h, line: 47
 
 ```c
 #define PS_PARSER_FLAG_PRESERVE_STRING (1 << 1)
@@ -814,13 +907,29 @@ In: dataset.h, line: 45
 
 ### PS_PARSER_FLAG_READONLY_VOCAB
 
-In: dataset.h, line: 46
+In: dataset.h, line: 50
 
 ```c
 #define PS_PARSER_FLAG_READONLY_VOCAB (1 << 2)
 ```
 
+Prevent adding new tokens to vocabulary used for generating a dataset from a parsed string.
 
+
+### PS_PARSER_FLAG_START_TOKEN
+
+In: dataset.h, line: 68
+
+```c
+#define PS_PARSER_FLAG_START_TOKEN (1 << 4)
+```
+
+Add a 'starting' token to the dataset:  
+
+ - If the string is being parsed as collection of fixed length sequences, the starting token will be prepended to the first sequence only.
+ - If the string is being split into variable-length sequences (ie. by using a sequence separator), but the target sequence has the same length of the input sequence, the starting token will be prepended to every input sequence.
+ - If the dataset has target sequences whose length can differ from the related input sequences (ie. targets come from another dataset), the starting token is prepended to every target sequence and, unless the [PS_PARSER_FLAG_EXACT_INPUTS](macros.md#ps-parser-flag-exact-inputs) is set, to every input sequence.
+ - If no string is being provided as the starting token with [start_token](types.md#pstextparseroptions) member of [PSTextParserOptions](types.md#pstextparseroptions), by default [PS_DEFAULT_START_TOKEN](macros.md#ps-default-start-token) is used.
 
 
 ### PS_PARSER_MODE_CHARS
@@ -1972,7 +2081,7 @@ In: maths.h, line: 30
 
 ### PSGetColumn
 
-In: convolutional.h, line: 26
+In: convolutional.h, line: 36
 
 ```c
 #define PSGetColumn(index, width) (index % width)
@@ -1983,7 +2092,7 @@ In: convolutional.h, line: 26
 
 ### PSGetConvolutionalSettings
 
-In: convolutional.h, line: 24
+In: convolutional.h, line: 34
 
 ```c
 #define PSGetConvolutionalSettings(layer) ((PSConvolutionalSettings *) layer->extra)
@@ -2027,7 +2136,7 @@ In: normalization.h, line: 24
 
 ### PSGetRow
 
-In: convolutional.h, line: 27
+In: convolutional.h, line: 37
 
 ```c
 #define PSGetRow(index, width) ((int) ((int) index / (int) width))

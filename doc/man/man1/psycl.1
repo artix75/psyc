@@ -13,7 +13,7 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSYCL 1 2023-12-07 "PsyC 0.9.3" "PsyC Manual"
+.TH PSYCL 1 2023-12-22 "PsyC 0.9.3" "PsyC Manual"
 
 .SH NAME
 psycl \- a command\-line interface to PsyC
@@ -271,6 +271,14 @@ Training optimization, NAME can be:
 
 (adagrad | adadelta | adam | rmsprop |
 windowgrad | nesterov | default).
+
+
+
+
+.TP
+
+.B --pidfile  PATH
+Save process PID to PATH.
 
 
 
@@ -784,7 +792,7 @@ debug, info, notice, success, warn, error
 
 .TP
 
-.B --cifar  [CLASSES
+.B --cifar  [CLASSES]
 Dataset format is CIFAR.
 
 
@@ -930,7 +938,9 @@ By using options like \fI--on-batch-trained\fR or \fI--on-epoch-trained\fR it's 
 
 The scripts will eventually receive the following arguments:
 
---event TYPE, --name MODEL_NAME --epoch CURRENT_EPOCH --epochs TOT_EPOCHS --average-loss AVERAGE_LOSS --current-loss CURRENT_LOSS --accuracy CURRENT_ACCURACY --learning-rate RATE 
+--event TYPE, --name MODEL_NAME --epoch CURRENT_EPOCH --epochs TOT_EPOCHS --average-loss AVERAGE_LOSS --current-loss CURRENT_LOSS --accuracy CURRENT_ACCURACY --learning-rate RATE The scripts can use special exit codes to force psycl aborting the training process:
+
+- 3 (PS_STATUS_ERROR) - 5 (PS_STATUS_ABORTED) 
 
 .SH EXAMPLES
 .B

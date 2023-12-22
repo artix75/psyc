@@ -113,7 +113,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
            <section id="doc">
 <div class="details function" id="function-psaddcifarinputlayer">
 <h3 class="name">PSAddCIFARInputLayer</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">155</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">243</span></div>
 <div class="tags"><span class="tag model" data-href="tag-model.html">MODEL</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#struct-pslayer">PSLayer</a> *</span><span class="identifier name">PSAddCIFARInputLayer</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmodel">PSModel</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psaddcifarinputlayer-model>model</span></span></span>)</code>
@@ -679,7 +679,7 @@ The states of <span class="identifier-ref" data-identifier-id="function-pslayers
 <span class="type return-type">int</span> <span class="identifier name">PSModelBuild</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmodel">PSModel</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psmodelbuild-model>model</span></span></span>)</code>
 </div>
 <div class="description">
-Build <span class="identifier-ref" data-identifier-id="function-psmodelbuild-model" data-parent-id="function-psmodelbuild">model</span> so that it can be used for training of for predictions.<br/>If the model is already built, the function will just return 1. In order to rebuild an already built model, <a class="psyc-func" href="functions.html#function-psmodelrebuild">PSModelRebuild</a> should be used.<br/>The function will check the model&#39;s architecture and it will perfrom various actions on it:<br/>
+Build <span class="identifier-ref" data-identifier-id="function-psmodelbuild-model" data-parent-id="function-psmodelbuild">model</span> so that it can be used for training of for predictions.<br/>If the model is already built, the function will just return 1. In order to force rebuilding an already built model, <a class="psyc-func" href="functions.html#function-psmodelrebuild">PSModelRebuild</a> should be used.<br/>The function will check the model&#39;s architecture and it will perfrom various actions on it:<br/>
 
  <ul>
 

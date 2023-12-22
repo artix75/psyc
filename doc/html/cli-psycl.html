@@ -251,6 +251,12 @@ Training optimization, NAME can be:<br>
 windowgrad | nesterov | default).<br>
 </div>
 </li>
+<li id="opt-pidfile">
+<span class="optdef"><span class="name">--pidfile</span> <span class="args"> PATH</span></span>
+<div class="description">
+Save process PID to PATH.<br>
+</div>
+</li>
 <li id="opt-quiet">
 <span class="optdef"><span class="name">--quiet</span></span>
 <div class="description">
@@ -607,7 +613,7 @@ debug, info, notice, success, warn, error
 <h3>TRAIN|TEST OPTIONS</h3>
 <ul class="cli-opt-list">
 <li id="opt-cifar">
-<span class="optdef"><span class="name">--cifar</span> <span class="args"> [CLASSES</span></span>
+<span class="optdef"><span class="name">--cifar</span> <span class="args"> [CLASSES]</span></span>
 <div class="description">
 Dataset format is CIFAR.<br>
 (classes: 10 or 100, default: 10).<br>
@@ -724,6 +730,9 @@ By using options like <a class="identifier" href="#opt-on-batch-trained">--on-ba
 possible to execute an arbitrary external script when such events happen.<br>The scripts will eventually receive the following arguments:<br>--event TYPE, --name MODEL_NAME --epoch CURRENT_EPOCH
 --epochs TOT_EPOCHS --average-loss AVERAGE_LOSS --current-loss
 CURRENT_LOSS --accuracy CURRENT_ACCURACY --learning-rate RATE
+The scripts can use special exit codes to force psycl aborting the training
+process:<br>- 3 (PS_STATUS_ERROR)
+- 5 (PS_STATUS_ABORTED)
 
 </section>
 <section class="examples">

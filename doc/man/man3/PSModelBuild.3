@@ -13,7 +13,7 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSModelBuild 3 2023-12-09 "PsyC 0.9.3" "PsyC Library Functions Manual"
+.TH PSModelBuild 3 2023-12-22 "PsyC 0.9.3" "PsyC Library Functions Manual"
 
 .SH NAME
 \fBPSModelBuild\fR \- Build model
@@ -33,7 +33,7 @@ int
 .SH DESCRIPTION
 Build \fImodel\fR so that it can be used for training of for predictions.
 .br
-If the model is already built, the function will just return 1. In order to rebuild an already built model, \fIPSModelRebuild\fR should be used.
+If the model is already built, the function will just return 1. In order to force rebuilding an already built model, \fIPSModelRebuild\fR should be used.
 .br
 The function will check the model's architecture and it will perfrom various actions on it:
 .br

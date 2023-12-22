@@ -92,17 +92,6 @@ typedef uint64_t * PSBitmap
 
 
 
-### PSBlasErr
-
-In: blas.h, line: 28
-
-```c
-typedef struct PSBlasErr
-```
-
-
-
-
 ### PSBLASErr
 
 In: blas.h, line: 28
@@ -114,6 +103,17 @@ typedef struct {
     int param_pos;  
     int param_value;  
 } PSBLASErr  
+```
+
+
+
+
+### PSBlasErr
+
+In: blas.h, line: 28
+
+```c
+typedef struct PSBlasErr
 ```
 
 
@@ -146,7 +146,7 @@ typedef int (* PSBooleanLayerCallback) (struct PSLayer *layer)
 
 ### PSConvolutionalSettings
 
-In: convolutional.h, line: 29
+In: convolutional.h, line: 39
 
 ```c
 typedef struct {  
@@ -875,7 +875,7 @@ typedef void (* PSSignalHandler) (int)
 
 ### PSTextParserOptions
 
-In: dataset.h, line: 100
+In: dataset.h, line: 180
 
 ```c
 typedef struct {  
@@ -888,6 +888,14 @@ typedef struct {
     int buffer_size;  
     PSTokenNormalizer normalizer;  
     PSTokenMatch match_token;  
+    int sequence_length;  
+    PSTokenMatch match_sequence_end;  
+    const char * sequence_separator;  
+    const char * start_token;  
+    const char * end_token;  
+    PSFloat * target_dataset;  
+    int64_t target_datalen;  
+    struct PSVocabulary * target_vocabulary;  
 } PSTextParserOptions  
 ```
 
@@ -900,6 +908,7 @@ Options for text parsing:
      - [PS_PARSER_FLAG_NO_NORMALIZATION](macros.md#ps-parser-flag-no-normalization): do not perform token normalization on parsed text.
      - [PS_PARSER_FLAG_PRESERVE_STRING](macros.md#ps-parser-flag-preserve-string): prevent string from being modified during parsing.
      - [PS_PARSER_FLAG_READONLY_VOCAB](macros.md#ps-parser-flag-readonly-vocab): by enabling this flag, the vocabulary will be treated as read-only. Any parsed token that is not present in the vocabulary will not be added and will be considered <unknown> (see the [unknown_token](types.md#pstextparseroptions) option).
+     - See also: [PS_PARSER_FLAG_ENCODE_ONLY](macros.md#ps-parser-flag-encode-only), [PS_PARSER_FLAG_MAKE_TARGETS](macros.md#ps-parser-flag-make-targets), [PS_PARSER_FLAG_ENCODE_ONLY](macros.md#ps-parser-flag-encode-only), [PS_PARSER_FLAG_START_TOKEN](macros.md#ps-parser-flag-start-token), [PS_DEFAULT_END_TOKEN](macros.md#ps-default-end-token), [PS_PARSER_FLAG_EXACT_INPUTS](macros.md#ps-parser-flag-exact-inputs).
  - [max_vocabulary_size](types.md#pstextparseroptions): maximum number of tokens that can be added to the vocabulary, except for the <unknown> token. Every new parsed token will be automatically converted to the <unknown> token (see the [unknown_token](types.md#pstextparseroptions) option). If the value of this option is zero, the default value will be [PS_DEFAULT_MAX_VOCAB_SIZE](macros.md#ps-default-max-vocab-size).
  - [separator](types.md#pstextparseroptions): a set of characters that should be used as separators to split string into individual tokens (ie: ".," would split by using both '.' and ',' as separators).
  - [unknown_token](types.md#pstextparseroptions): string to be used for unmatched tokens.
@@ -907,11 +916,17 @@ Options for text parsing:
  - [buffer_size](types.md#pstextparseroptions): parsing buffer size.
  - [normalizer](types.md#pstextparseroptions): pointer to function to be used to normalize tokens (see **PSTokenNormalizer**)
  - [match_token](types.md#pstextparseroptions): pointer to function to be used to match individual tokens (it usually overrides the usage of [separator](types.md#pstextparseroptions) to split string).
+ - [sequence_length](types.md#pstextparseroptions): split text into multiple fixed-length sequences.
+ - [match_sequence_end](types.md#pstextparseroptions): pointer to function to be used to match the ending token of the sequence. If the callback returns 1, the current token will be the ending token of the current sequence. It produces variable length sequences.
+ - [sequence_separator](types.md#pstextparseroptions): string that can be used to split text into multiple sequences. If the current token is equal to [sequence_separator](types.md#pstextparseroptions), it will be the ending token of the current sequence. It produces variable length sequences.
+ - [target_dataset](types.md#pstextparseroptions): an already existing dataset tha can be used to produce the target sequences. For each input sequence, a sequence from [target_dataset](types.md#pstextparseroptions) will be taken and used as target sequence. This can be useful to build datasets for sequence-to-sequence models, such as natural language translation models (neural machine translation). The [target_dataset](types.md#pstextparseroptions) must have at least the same number of sequences of the dataset being generated.
+ - [target_datalen](types.md#pstextparseroptions): the length (number of [PSFloat](types.md#psfloat) elements) of the [target_dataset](types.md#pstextparseroptions), if any.
+ - [target_vocabulary](types.md#pstextparseroptions): the vocabulary associated to the [target_dataset](types.md#pstextparseroptions), if any. If **NULL**, the same vocabulary used for the dataset being generated will be used. Example: neural machine translation use different vocabularies for different natural languages.
 
 
 ### PSTokenMatch
 
-In: dataset.h, line: 63
+In: dataset.h, line: 110
 
 ```c
 typedef int (* PSTokenMatch) (char *str, int *len)
@@ -1005,7 +1020,7 @@ typedef uint32_t PSUTF8Char
 
 ### PSVocabulary
 
-In: dataset.h, line: 112
+In: dataset.h, line: 200
 
 ```c
 typedef struct {  

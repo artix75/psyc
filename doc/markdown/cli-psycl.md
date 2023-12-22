@@ -114,6 +114,9 @@ Training optimization, NAME can be:
 (adagrad | adadelta | adam | rmsprop |
 windowgrad | nesterov | default).  
 
+**--pidfile**     PATH  
+Save process PID to PATH.  
+
 **--quiet**  
 Quiet output (loglevel ERROR).  
 
@@ -336,7 +339,7 @@ debug, info, notice, success, warn, error
 
 
 
-**--cifar**     [CLASSES  
+**--cifar**     [CLASSES]  
 Dataset format is CIFAR.  
 (classes: 10 or 100, default: 10).  
 
@@ -423,7 +426,7 @@ train /path/to/my/dataset
 
 ### SCRIPTS
 
-By using options like `--on-batch-trained` or `--on-epoch-trained` it's possible to execute an arbitrary external script when such events happen.  The scripts will eventually receive the following arguments:  --event TYPE, --name MODEL_NAME --epoch CURRENT_EPOCH --epochs TOT_EPOCHS --average-loss AVERAGE_LOSS --current-loss CURRENT_LOSS --accuracy CURRENT_ACCURACY --learning-rate RATE 
+By using options like `--on-batch-trained` or `--on-epoch-trained` it's possible to execute an arbitrary external script when such events happen.  The scripts will eventually receive the following arguments:  --event TYPE, --name MODEL_NAME --epoch CURRENT_EPOCH --epochs TOT_EPOCHS --average-loss AVERAGE_LOSS --current-loss CURRENT_LOSS --accuracy CURRENT_ACCURACY --learning-rate RATE The scripts can use special exit codes to force psycl aborting the training process:  - 3 (PS_STATUS_ERROR) - 5 (PS_STATUS_ABORTED) 
 
 ### EXAMPLES
 
