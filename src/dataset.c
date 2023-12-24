@@ -47,6 +47,7 @@ typedef struct {
     PSFloat *y;
     int incomplete_target;
     int64_t capacity;
+    size_t target_dataset_offset;
 } PSDataSequenceState;
 
 /* Forward declarations */
@@ -578,6 +579,10 @@ PSFloat *loadDatasetFromString(char *str, PSTextParserOptions *opts,
             if (multi_seq) data[0] = 0; /* Sequence count. */
             if (!encode_only) data[1] = 0; /* First sequence length. */
         }
+        if (y_dataset != NULL && state->target_dataset_offset > 0) {
+            y_dataset = opts->target_dataset + state->target_dataset_offset;
+            y_datalen = (opts->target_datalen - state->target_dataset_offset);
+        }
     }
     if (multi_seq) nseq_p = data;
     char *token = str, *p = str, *sep_p = NULL;
@@ -738,13 +743,13 @@ add_to_vocab:
                     len_elems_count = 2;
                     ylen = *(y_dataset++);
                     y_datalen--;
-                    if (ylen == 0 || y_datalen == 0) {
+                    if (ylen <= 0 || y_datalen == 0) {
                         PSErr(func, "`y_dataset` is truncated");
                         goto fail;
                     }
                     if (use_start_token) newlen++;
                     if (use_end_token) newlen++;
-                } else ylen = (int64_t) *xlen_p;
+                } else ylen = (int) *xlen_p;
                 newlen += (ylen + len_elems_count);
             } else newlen++;
         }
@@ -840,6 +845,11 @@ add_to_vocab:
         state->y = y;
         state->incomplete_target = incomplete_target;
         state->capacity = current_capacity;
+        if (y_dataset != NULL) {
+            state->target_dataset_offset = (
+                y_dataset - opts->target_dataset
+            );
+        }
     }
     if (multi_seq && existing_data == NULL) {
         PSDataSequenceState tmpstate = {0};
@@ -852,6 +862,11 @@ add_to_vocab:
             state->y = y;
             state->incomplete_target = incomplete_target;
             state->capacity = current_capacity;
+            if (y_dataset != NULL) {
+                state->target_dataset_offset = (
+                    y_dataset - opts->target_dataset
+                );
+            }
         }
         data = handleTruncatedTextSequenceData(
             data, &count, &current_capacity, end_token_id, opts, state
