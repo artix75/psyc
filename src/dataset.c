@@ -584,7 +584,11 @@ PSFloat *loadDatasetFromString(char *str, PSTextParserOptions *opts,
             y_datalen = (opts->target_datalen - state->target_dataset_offset);
         }
     }
-    if (multi_seq) nseq_p = data;
+    if (multi_seq) {
+        nseq_p = data;
+        if (opts->max_sequences > 0 && (int64_t)*nseq_p > opts->max_sequences)
+            return data;
+    }
     char *token = str, *p = str, *sep_p = NULL;
     char ctoken[2] = {0};
     int do_free_token = 0;
@@ -836,6 +840,8 @@ add_to_vocab:
             }
             x = NULL;
         }
+        if (opts->max_sequences > 0 && (int64_t)*nseq_p >= opts->max_sequences)
+            if (multi_seq && !incomplete_target) break;
     }
     if (state != NULL) {
         state->nseq_p = nseq_p;
@@ -1062,6 +1068,10 @@ PSFloat *PSLoadDataFromTextFile(const char *filepath,
     }
     data = malloc(capacity * sizeof(PSFloat));
     if (data == NULL) goto memerr;
+    int multi_seq = (
+        !(opts->flags & PS_PARSER_FLAG_ENCODE_ONLY) &&
+        PS_IS_MULTISEQ(opts)
+    );
     size_t nread = 0, buflen = sizeof(buf) - 1;
     *datalen = 0;
     int err = 0;
@@ -1096,6 +1106,9 @@ PSFloat *PSLoadDataFromTextFile(const char *filepath,
             buf, opts, datalen, &vocab, data, &state, __func__
         );
         if (data == NULL) goto fail;
+        if (multi_seq && opts->max_sequences > 0) {
+            if ((int64_t) *data >= opts->max_sequences) break;
+        }
     }
     if (err != 0) {
         PSErr(__func__, "Error while reading file '%s' (%d): '%s'",

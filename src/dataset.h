@@ -160,6 +160,11 @@ struct PSVocabulary;
  *                          `sequence_separator`, it will be the ending token
  *                          of the current sequence. It produces variable
  *                          length sequences.
+ *  - `max_sequences`: max number of sequences to be parsed.
+ *  - `start_token`: a string to be used as the sequence starting token (by
+ *                   default, when needed, `PS_DEFAULT_START_TOKEN` is used).
+ *  - `end_token`: a string to be used as the sequence endining token (by
+ *                 default, when needed, `PS_DEFAULT_END_TOKEN` is used).
  *  - `target_dataset`: an already existing dataset tha can be used to produce
  *                      the target sequences. For each input sequence, a
  *                      sequence from `target_dataset` will be taken and used
@@ -190,6 +195,7 @@ typedef struct {
     int sequence_length;
     PSTokenMatch match_sequence_end;
     const char *sequence_separator;
+    int64_t max_sequences;
     const char *start_token;
     const char *end_token;
     PSFloat *target_dataset;

@@ -3694,6 +3694,9 @@ int inputLayerForward(PSModel *model, PSFloat *inputs, ...) {
     return 1;
 }
 
+/* Forward recurrent inputs to model. The inputs vector must represent the
+ * actual input data to be forwarded (without the sequence length that must
+ * be passed via the `timesteps` argument. */
 int forwardThroughTime(PSModel *model, PSFloat *inputs,
                        int timesteps, int backprop, void *opts)
 {
@@ -3738,6 +3741,9 @@ int forwardThroughTime(PSModel *model, PSFloat *inputs,
                 training_opts != NULL &&
                 training_opts->flags & PS_TRAINING_FLAG_TEACHER_FORCING
             );
+            /* Teacher forcing actually disables autoregression, since it
+             * uses the target sequence (the expected values) as input
+             * sequence. */
             if (teacher_forcing) autoregression = 0;
         } else if (sequence_settings != NULL) end = sequence_settings->end;
     }
@@ -4081,6 +4087,8 @@ int modelForward(PSModel *model, PSFloat *inputs, PSFloat *global_inputs,
             ok = 0;
             goto final;
         }
+        /* First inputs element contains the sequence length, so actual
+         * input data start at inputs + 1. */
         PSFloat *rnn_inputs = (inputs != NULL ? inputs + 1 : NULL);
         ok = forwardThroughTime(model, rnn_inputs, seqlen, backprop, opts);
         if (!ok) goto final;
@@ -4977,6 +4985,10 @@ int PSFullBackprop(PSLayer *layer, PSLayer *previous_layer,
     return 1;
 }
 
+/* Backward propagate of the error (loss) for expected target (`y`) and
+ * output predictions on a recurrent model and update `gradients`.
+ * The `y` vector (expected targets) only contains actual data (the sequence
+ * length must be passed to `timesteps` argument). */
 int backpropThroughTime(PSModel *model, PSFloat *y,
                         PSGradient **gradients, PSTrainingOptions *opts,
                         int timesteps)
@@ -5511,7 +5523,7 @@ PSFloat updateModelParameters(PSModel *model,
             y = training_data + training_data_size;
             training_data += element_size;
         } else {
-            /* Recurrent model or model handling sequences*/
+            /* Recurrent model or model handling sequences */
             x = sequences[i];
             int datalen = parseSequenceData(
                 model, x, curelem, training_flags, 1,
