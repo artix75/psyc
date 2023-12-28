@@ -402,6 +402,22 @@ char *PSGetElapsedTimeString(time_t elapsed_us, int opts) {
     return elapsed_str;
 }
 
+/* Create a vector of length `len` where value at `index` is one while all the
+ * other values contain zero. */
+PSFloat *PSOneHotVector(uint64_t index, uint64_t len) {
+    if (index >= len) {
+        PSErr(__func__, "index is out-of-bounds");
+        return NULL;
+    }
+    PSFloat *vec = PSVectorZero(len);
+    if (vec == NULL) {
+        PSPrintMemoryErrorMsg();
+        return NULL;
+    }
+    vec[index] = 1;
+    return vec;
+}
+
 /**** Filesystem functions ****/
 
 /* Checks whether `path` is a valid directory. */

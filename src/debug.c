@@ -387,6 +387,7 @@ int feenableexcept(unsigned int excepts)
     unsigned int old_excepts;
 
     if (fegetenv(&fenv)) {
+        PSWarn("fegetenv failed");
         return -1;
     }
 #if (IS_ARM == 1)

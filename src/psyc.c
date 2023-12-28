@@ -46,6 +46,9 @@
 #define LAYER_PLACEHOLDER_TYPE -1
 #define PS_STATUS_ERROR_LOSS ((PSFloat) FLT_MIN)
 #define BPTT_TRUNCATE   0
+#define SEQ_MODE_PREPEND_START      (1 << 0)
+#define SEQ_MODE_APPEND_END         (1 << 1)
+#define SEQ_MODE_PREPEND_SEQLEN     (1 << 2)
 
 #define applyGradientsOnBiases(opts, grads, params, mg, xg, len, r, i, accel) \
     applyGradientsOnParameters(PS_PARAM_BIAS, opts, grads, params, mg, xg, 0, \
@@ -355,6 +358,149 @@ void dumpForwardStep(int i, PSFloat a, PSFloat b, PSFloat sum,
     );
 }
 
+static int sequenceHasStartItem(PSFloat *seq, int itemsize,
+                                PSSequenceSettings *sequence_settings)
+{
+    if (sequence_settings->start == NULL) return 0;
+    if (itemsize == 1) return *seq == *(sequence_settings->start);
+    else {
+        return memcmp(
+            seq, sequence_settings->start, itemsize * sizeof(PSFloat)
+        ) == 0;
+    }
+}
+
+static int sequenceHasEndItem(PSFloat *seq, int len, int itemsize,
+                              PSSequenceSettings *sequence_settings,
+                              PSFloat **end_vector, int *err)
+{
+    if (err != NULL) *err = 0;
+    int end = sequence_settings->end;
+    if (end < 0) return 0;
+    if (itemsize == 1) {
+        return (int)seq[len - 1] == end;
+    } else {
+        PSFloat *onehot_vec = PSOneHotVector(end, itemsize);
+        if (onehot_vec == NULL) {
+            if (err != NULL) *err = 1;
+            return 0;
+        }
+        if (end_vector != NULL) *end_vector = onehot_vec;
+        PSFloat *last = seq + (itemsize * (len - 1));
+        int is_end = memcmp(
+            last, onehot_vec, itemsize * sizeof(PSFloat)
+        ) == 0;
+        if (end_vector == NULL) free(onehot_vec);
+        return is_end;
+    }
+}
+
+/* Prepare sequence depending on the value of `mode`. If flag
+ * `SEQ_MODE_PREPEND_START` is set in `mode`, prepend the starting element
+ * defined by `sequence_settings` if needed (sequence is missing it),
+ * otherwise, remove it from the sequence if found and the flag is not set.
+ * Do the same for `SEQ_MODE_APPEND_END` and the ending element defined by
+ * `sequence_settings`.
+ * If `SEQ_MODE_PREPEND_SEQLEN` flag is set in `mode`, also prepend prepend
+ * the sequence length to the sequence itself.
+ * The function allocates a new sequence on success. If something goes wrong,
+ * it returns NULL. */
+static PSFloat *prepareSequence(PSFloat *seq, int len, int min_len,
+                                int itemsize,
+                                int *new_len,
+                                PSSequenceSettings *sequence_settings,
+                                int mode)
+{
+    PSFloat *new_seq = NULL, *end_vec = NULL;
+    if (new_len != NULL) *new_len = 0;
+    int final_len = len, datalen = len, pad_len = 0, err = 0;
+    int has_start = sequenceHasStartItem(seq, itemsize, sequence_settings);
+    int has_end = sequenceHasEndItem(
+        seq, len, itemsize, sequence_settings, &end_vec, &err
+    );
+    if (datalen <= 0) {
+        PSErr(NULL, "invalid sequence");
+        goto final;
+    }
+    if (err) goto final;
+    int offset = 0;
+    int prepend_start = mode & SEQ_MODE_PREPEND_START,
+        append_end = mode & SEQ_MODE_APPEND_END,
+        prepend_seqlen = mode & SEQ_MODE_PREPEND_SEQLEN;
+    if (prepend_start && !has_start) final_len++;
+    else if (!prepend_start && has_start) {
+        final_len--;
+        datalen--;
+        offset = 1;
+    }
+    if (append_end && !has_end) final_len++;
+    else if (!append_end && has_end) {
+        final_len--;
+        datalen--;
+    }
+    if (final_len < min_len && append_end && has_end) {
+        pad_len = min_len - final_len;
+        final_len = min_len;
+    }
+    if ((err = final_len <= 0)) {
+        PSErr(NULL, "invalid sequence");
+        goto final;
+    }
+    if (prepend_seqlen) final_len++;
+    new_seq = malloc(itemsize * final_len * sizeof(PSFloat));
+    if (new_seq == NULL) {
+        PSPrintMemoryErrorMsg();
+        goto final;
+    }
+    PSFloat *dest = new_seq;
+    if (prepend_seqlen) *(dest++) = (final_len - 1);
+    if (prepend_start && !has_start) {
+        PSFloat *start = sequence_settings->start, *tmpstart = NULL;
+        if (start == NULL) {
+            tmpstart = PSVectorZero(itemsize);
+            if (tmpstart == NULL) {
+                PSPrintMemoryErrorMsg();
+                goto final;
+            }
+            start = tmpstart;
+        }
+        if (itemsize == 1) *(dest++) = *start;
+        else {
+            PSVectorCopy(dest, start, itemsize);
+            dest += itemsize;
+        }
+        free(tmpstart);
+    }
+    if (datalen == 1) *(dest++) = *(seq + (offset * itemsize));
+    else {
+        PSVectorCopy(dest, seq + (offset * itemsize), itemsize * datalen);
+        dest += (itemsize * datalen);
+    }
+    if (append_end && (!has_end || pad_len > 0)) {
+        int end = sequence_settings->end;
+        if (end < 0) end = 0;
+        while (!has_end || pad_len > 0) {
+            if (itemsize == 1) *(dest++) = (PSFloat) end;
+            else {
+                if (end_vec == NULL) end_vec = PSOneHotVector(end, itemsize);
+                err = (end_vec == NULL);
+                if (err) goto final;
+                PSVectorCopy(dest, end_vec, itemsize);
+                dest += itemsize;
+            }
+            has_end = 1;
+            pad_len--;
+        }
+    }
+final:
+    free(end_vec);
+    if (err) {
+        free(new_seq);
+        new_seq = NULL;
+    } else if (new_len != NULL) *new_len = final_len;
+    return new_seq;
+}
+
 /**** Forward Functions ****/
 
 int checkLayerForForward(PSLayer *layer) {
@@ -649,7 +795,7 @@ static void shuffleSequences(PSFloat **sequences, int size) {
 }
 
 static int parseSequenceData(PSModel *model, PSFloat *data,
-                             int sequence_index, int flags, int backprop,
+                             int sequence_index, int flags, int has_targets,
                              int *x_seqlen, PSFloat **x,
                              int *y_seqlen, PSFloat **y)
 {
@@ -674,7 +820,7 @@ static int parseSequenceData(PSModel *model, PSFloat *data,
     int input_size = input_layer->size, output_size = output_layer->size;
     if (output_layer->flags & PS_FLAG_ONEHOT) output_size = 1;
     int autoregression = output_model->flags & PS_FLAG_AUTOREGRESSION;
-    int seq2seq = backprop && (flags & PS_TRAINING_FLAG_SEQ2SEQ);
+    int seq2seq = has_targets && (flags & PS_TRAINING_FLAG_SEQ2SEQ);
     if (seq2seq && !autoregression) return 0;
     else if (!seq2seq && autoregression) seq2seq = 1;
     if (!input_seq && seq2seq) return 0;
@@ -699,7 +845,7 @@ static int parseSequenceData(PSModel *model, PSFloat *data,
     if (x_seqlen != NULL) *x_seqlen = xlen;
     if (x != NULL) *x = xp;
     int xdatalen = (xlen * input_size), ydatalen = 0;
-    if (backprop) {
+    if (has_targets) {
         if (seq2seq && !selfsupervised) {
             /* x_seqlen[1] | X[xdatalen] | y_seqlen[1] | Y[ydatalen] */
             ysize_p = data + 1 + xdatalen;
@@ -3872,9 +4018,9 @@ int useAutoRegression(PSModel *model,
     if (!PSUseSequences(model->layers[model->size - 1])) return 0;
     if (model->flags & PS_FLAG_AUTOREGRESSION) return 1;
     else if (forward_opts != NULL)
-        return forward_opts->flags & PS_FLAG_AUTOREGRESSION;
+        return forward_opts->flags & PS_TRAINING_FLAG_AUTOREGRESSION;
     else if (training_opts != NULL && model->next == NULL)
-        return training_opts->flags & PS_FLAG_AUTOREGRESSION;
+        return training_opts->flags & PS_TRAINING_FLAG_AUTOREGRESSION;
     return 0;
 }
 
@@ -4041,26 +4187,20 @@ int modelForward(PSModel *model, PSFloat *inputs, PSFloat *global_inputs,
                     train_opts->flags & PS_TRAINING_FLAG_TEACHER_FORCING
                 );
                 if (teacher_forcing && seqlen > 0) {
-                    int input_size = input_layer->size,
-                        ysize = input_size * seqlen,
-                        /* Make room for <start> */
-                        full_ysize = input_size * ++seqlen,
-                        /* Add one float for sequence length */
-                        datasize = (full_ysize + 1) * sizeof(PSFloat);
-                    PSFloat *start = (&(model->sequence_settings))->start;
-                    tmpinputs = malloc(datasize);
-                    ok = (tmpinputs != NULL);
+                    int final_len = 0;
+                    tmpinputs = prepareSequence(
+                        y, seqlen, 0, input_layer->size, &final_len,
+                        &(model->sequence_settings),
+                        SEQ_MODE_PREPEND_START | SEQ_MODE_PREPEND_SEQLEN
+                    );
+                    ok = (tmpinputs != NULL && final_len > 1);
                     if (!ok) {
-                        PSPrintMemoryErrorMsg();
+                        PSErrNN(NULL, model, NULL, "forward: cannot prepare "
+                                "target sequence for teacher forcing");
                         goto final;
                     }
-                    PSFloat *yseq = tmpinputs;
-                    *(yseq++) = (PSFloat) seqlen;
-                    if (start != NULL)
-                        PSVectorCopy(yseq, start, input_size);
-                    else PSVectorClear(yseq, input_size);
-                    PSVectorCopy(yseq + input_size, y, ysize);
                     inputs = tmpinputs;
+                    seqlen = final_len - 1;
                 }
             }
         }
@@ -5116,33 +5256,41 @@ PSGradient **modelBackprop(PSModel *model,
         opts != NULL && opts->flags & PS_TRAINING_FLAG_TEACHER_FORCING
     );
     if (teacher_forcing && PSUseSequences(output_layer)) {
+        /* Since teacher forcing used expected targets (y) as inputs during
+         * forward step after prepending the sequence start
+         * (sequence_settings.start) to them ([<start>,y0,y1,...]), the
+         * sequence ending item will be appended to the actual expected
+         * targets: [y0,y1,...,<end>]. */
         seqlen = PSStateSequenceLength(model->layers[0]);
-        if (seqlen > 0) {
-            int onehot_labels = output_layer->flags & PS_FLAG_ONEHOT;
-            int osize = (onehot_labels ? 1 : output_layer->size);
-            tmpy = malloc(osize * seqlen * sizeof(PSFloat));
-            ok = (tmpy != NULL);
-            if (!ok) {
-                PSPrintMemoryErrorMsg();
-                goto final;
-            }
-            PSVectorCopy(tmpy, y, osize * (seqlen - 1));
-            int end = model->sequence_settings.end;
-            if (end < 0) end = 0;
-            if (onehot_labels) tmpy[seqlen - 1] = (PSFloat) end;
-            else {
-                if (end >= osize) {
-                    ok = 0;
-                    PSErr(NULL, "model sequence_settings.end (%d) exceeds "
-                          "output layer size (%d)", end, osize);
-                    goto final;
-                }
-                PSFloat *last_item = tmpy + ((seqlen - 1) * osize);
-                PSVectorClear(last_item, osize);
-                last_item[end] = 1;
-            }
-            y = tmpy;
+        ok = (seqlen > 1);
+        if (!ok) {
+            PSErrNN(NULL, model, NULL, "using teacher forcing but input "
+                    "sequence length has less then two items.");
         }
+        int onehot_labels = output_layer->flags & PS_FLAG_ONEHOT;
+        int osize = (onehot_labels ? 1 : output_layer->size);
+        int ylen = seqlen - 1, tmpy_len = 0;
+        int seq2seq = (
+            (opts != NULL && opts->flags & PS_TRAINING_FLAG_SEQ2SEQ) ||
+            model->flags & PS_FLAG_AUTOREGRESSION
+        );
+        if (seq2seq) ylen = (int) *(y - 1);
+        /* Append the sequence 'end' item if not already found at the end
+         * of the `y` sequence and eventually trim the sequence 'start' item
+         * if found at the beginning of the sequence. */
+        tmpy = prepareSequence(
+            y, ylen, seqlen, osize, &tmpy_len,
+            &(model->sequence_settings), SEQ_MODE_APPEND_END
+        );
+        ok = (tmpy != NULL && seqlen == tmpy_len);
+        if (!ok) {
+            PSErrNN(NULL, model, NULL, "backprop: cannot prepare target "
+                    "sequence for teacher forcing");
+            free(tmpy);
+            tmpy = NULL;
+            goto final;
+        }
+        y = tmpy;
     }
     PSLayer *backprop_from = output_layer, *previous_layer = NULL;
     ok = resetDeltas(model);
@@ -5694,7 +5842,40 @@ final:
     if (PSModelGetStatus(model) == PS_STATUS_ERROR) return PS_STATUS_ERROR_LOSS;
     int onehot = output_layer->flags & PS_FLAG_ONEHOT;
     if (onehot) label_data_size = 1;
-    if (output_is_seq) label_data_size *= y_seqlen;
+    PSFloat *tmpy = NULL;
+    if (output_is_seq) {
+        int num_states = PSStateSequenceLength(output_layer);
+        if (num_states != y_seqlen) {
+            PSModel *outmodel = output_layer->model;
+            int teacher_forcing = (
+                training_flags & PS_TRAINING_FLAG_TEACHER_FORCING &&
+                outmodel->previous != NULL
+            );
+            if (!teacher_forcing) {
+                PSErrNN(NULL, model, NULL, "sequence length differs from "
+                        "hidden states count but teacher forcing is not "
+                        "enabled");
+                PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
+                return PS_STATUS_ERROR_LOSS;
+            }
+            int tmpy_len = 0;
+            tmpy = prepareSequence(
+                y, y_seqlen, num_states, label_data_size, &tmpy_len,
+                &(outmodel->sequence_settings), SEQ_MODE_APPEND_END
+            );
+            if (tmpy == NULL || num_states != tmpy_len) {
+                PSErrNN(__func__, model, NULL, "cannot prepare target "
+                        "sequence for teacher forcing");
+                free(tmpy);
+                tmpy = NULL;
+                PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
+                return PS_STATUS_ERROR_LOSS;
+            }
+            y = tmpy;
+            y_seqlen = num_states;
+        }
+        label_data_size *= y_seqlen;
+    }
     PSFloat outputs[label_data_size];
     for (i = 0; i < label_data_size; i++) {
         if (onehot) {
@@ -5712,6 +5893,7 @@ final:
     PSFloat loss =
         output_model->loss(outputs, y, label_data_size, onehot_size);
     if (output_is_seq && y_seqlen > 0) loss /= y_seqlen;
+    free(tmpy);
     return loss + l1_loss + l2_loss;
 }
 
@@ -5883,6 +6065,8 @@ float validate(PSModel *model, PSFloat *test_data, int data_size,
     int elements_count;
     int reads_input_sequence = 0, emits_output_sequence = 0;
     int flags = (opts != NULL ? opts->flags : 0);
+    int teacher_forcing = 0;
+    PSModel *output_model = NULL;
     PSFloat **sequences = NULL;
     if (PSUseSequences(model)) {
         /*  First training data number for Recurrent networks must indicate */
@@ -5895,7 +6079,21 @@ float validate(PSModel *model, PSFloat *test_data, int data_size,
             model, test_data, elements_count, flags
         );
         if (sequences == NULL) goto err;
+        if (PSIsModelChain(model) && PSModelChainLength(model) > 1) {
+            output_model = PSModelChainTail(model);
+            if (output_model == NULL) {
+                PSErrNN(NULL, model, NULL, "broken model chain");
+                goto err;
+            }
+            teacher_forcing = (
+                flags & PS_TRAINING_FLAG_TEACHER_FORCING &&
+                PSUseSequences(output_model)
+            );
+        }
     } else elements_count = data_size / element_size;
+    PSForwardOptions fwopts = {0};
+    if (flags & PS_TRAINING_FLAG_AUTOREGRESSION)
+        fwopts.flags |= PS_TRAINING_FLAG_AUTOREGRESSION;
     /* PSFloat outputs[output_size]; */
     if (log) printf("Test data elements: %d\n", elements_count);
     PSModelSetStatus(model, PS_STATUS_VALIDATING, NULL);
@@ -5918,7 +6116,7 @@ float validate(PSModel *model, PSFloat *test_data, int data_size,
             test_data += input_size;
             expected = test_data;
 
-            int ok = PSForward(model, inputs);
+            int ok = forward(model, inputs, 0, &fwopts);
             if (!ok) goto err;
 
             int omax = 0; /* Output index with max value */
@@ -5934,33 +6132,50 @@ float validate(PSModel *model, PSFloat *test_data, int data_size,
         } else {
             /*  Recurrent or sequences*/
             inputs = sequences[i];
-            if (reads_input_sequence) {
-                seqlen = (int) *inputs;
-                expected = inputs + 1 + (seqlen * input_size);
-            } else {
-                seqlen = (int) *(inputs + model->input_size);
-                expected = inputs + model->input_size + 1;
-            }
-            if (seqlen == 0) {
+            int seq_datalen = parseSequenceData(
+                model, inputs, i, flags, 1, NULL, NULL, &seqlen, &expected
+            );
+            if (seqlen == 0 || seq_datalen <= 0) {
                 errmsg = "recurrent data with zero seqlen";
                 goto err;
             }
             int ok = PSResetModelStateSequences(model, seqlen, 0);
             if (!ok) goto err;
-            ok = PSForward(model, inputs);
+            ok = forward(model, inputs, 0, &fwopts);
             if (!ok) goto err;
 
             int correct_states = 0;
             if (emits_output_sequence) {
                 int output_seqlen = PSStateSequenceLength(output_layer);
                 int steps_to_check = seqlen, max_seqlen = seqlen;
+                PSFloat *tmpy = NULL;
+                int tmpy_len = 0;
+                if (teacher_forcing) {
+                    tmpy = prepareSequence(
+                        expected, seqlen, seqlen, y_size, &tmpy_len,
+                        &(output_model->sequence_settings), SEQ_MODE_APPEND_END
+                    );
+                    if (tmpy == NULL) {
+                        PSErrNN(__func__, model, NULL, "cannot prepare target "
+                                "sequence for teacher forcing validation");
+                        free(tmpy);
+                        tmpy = NULL;
+                        goto err;
+                    }
+                    expected = tmpy;
+                    seqlen = tmpy_len;
+                    steps_to_check = max_seqlen = seqlen;
+                }
                 if (output_seqlen < seqlen) {
                     steps_to_check = output_seqlen;
                 } else if (output_seqlen > seqlen)
                     max_seqlen = output_seqlen;
                 int label_data_size = y_size * steps_to_check;
                 int last_label_idx = (label_data_size - 1);
-                if (label_data_size <= 0) goto err;
+                if (label_data_size <= 0) {
+                    free(tmpy);
+                    goto err;
+                }
                 PSFloat outputs[label_data_size];
                 for (j = 0; j < label_data_size; j++) {
                     int is_last_label = (j == last_label_idx);
@@ -5986,6 +6201,7 @@ float validate(PSModel *model, PSFloat *test_data, int data_size,
                 correct_amount += (
                     (float) correct_states / (float) max_seqlen
                 );
+                free(tmpy);
             } else {
                 int omax = 0; /* Output index with max value */
                 int emax = 0; /* Expected index with max value */
@@ -6255,10 +6471,10 @@ void PSTrain(PSModel *model,
     }
     const char *name = model->name != NULL ? model->name : "UNNAMED";
     if (num_models == 1)
-        PSPrint(PSLOGLEVEL_NOTICE, "Training model \"%s\"\n", name);
+        PSNotice("Training model \"%s\"\n", name);
     else {
-        PSPrint(PSLOGLEVEL_NOTICE, "Training multi-model model\n");
-        PSInfo("Number of models:         %d", num_models);
+        PSNotice("Training multi-model model\n");
+        PSInfo("Number of models:           %d", num_models);
         const char *input_name = (
             input_model->name != NULL ? input_model->name : "UNNAMED"
         );

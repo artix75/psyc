@@ -141,5 +141,6 @@ int PSDownloadFile(const char *url, const char *dest_dir);
 int PSGetTerminalColumns();
 void PSFillWithBlank(int line_length);
 char *PSGetElapsedTimeString(time_t elapsed_us, int long_format);
+PSFloat *PSOneHotVector(uint64_t index, uint64_t len);
 
 #endif /* __PS_UTILS_H */
