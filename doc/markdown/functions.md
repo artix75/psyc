@@ -47,7 +47,7 @@ int PSAdamOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloa
 
 ### PSAddCIFARInputLayer
 
-In: dataset.h, line: 243
+In: dataset.h, line: 249
 
 ```c
 PSLayer  * PSAddCIFARInputLayer (PSModel *model)
@@ -2035,7 +2035,7 @@ int PSLineStart (int opts, char *format, ...)
 
 ### PSLoadCIFARData
 
-In: dataset.h, line: 241
+In: dataset.h, line: 247
 
 ```c
 int PSLoadCIFARData (int type, int classes, const char *dataset_path, PSFloat ** data, int max_files, int max_elements)
@@ -2067,7 +2067,7 @@ Possibile errors:
 
 ### PSLoadDataFromFile
 
-In: dataset.h, line: 229
+In: dataset.h, line: 235
 
 ```c
 PSFloat  * PSLoadDataFromFile (const char *filepath, uint64_t *datalen)
@@ -2087,7 +2087,7 @@ Possible failure reasons:
 
 ### PSLoadDataFromString
 
-In: dataset.h, line: 218
+In: dataset.h, line: 224
 
 ```c
 PSFloat  * PSLoadDataFromString (char *str, PSTextParserOptions *opts, int64_t *datalen, PSVocabulary ** vocabulary)
@@ -2141,7 +2141,7 @@ The dataset ([PSFloat](types.md#psfloat) array) or **NULL** is something goes wr
 
 ### PSLoadDataFromTextFile
 
-In: dataset.h, line: 221
+In: dataset.h, line: 227
 
 ```c
 PSFloat  * PSLoadDataFromTextFile (const char *filepath, PSTextParserOptions *opts, int64_t *datalen, PSVocabulary ** vocabulary)
@@ -2158,7 +2158,7 @@ The dataset ([PSFloat](types.md#psfloat) array) or **NULL** is something goes wr
 
 ### PSLoadMNISTData
 
-In: dataset.h, line: 235
+In: dataset.h, line: 241
 
 ```c
 int PSLoadMNISTData (int type, const char *images_file, const char *labels_file, PSFloat ** data)
@@ -3669,7 +3669,7 @@ The random float number.
 
 ### PSNormalizeToken
 
-In: dataset.h, line: 217
+In: dataset.h, line: 223
 
 ```c
 char  * PSNormalizeToken (char *token, int len)
@@ -3687,6 +3687,17 @@ void PSNotice (const char *format, ...)
 ```
 
 
+
+
+### PSOneHotVector
+
+In: utils.h, line: 144
+
+```c
+PSFloat  * PSOneHotVector (uint64_t index, uint64_t len)
+```
+
+Create a vector of length **len** where value at [index](types.md#psmodel) is one while all the other values contain zero.
 
 
 ### PSOuterProduct
@@ -3945,7 +3956,7 @@ int PSRMSPropOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSF
 
 ### PSSaveDataToFile
 
-In: dataset.h, line: 230
+In: dataset.h, line: 236
 
 ```c
 int PSSaveDataToFile (const char *path, PSFloat *data, uint64_t len, int opts)
@@ -5035,7 +5046,7 @@ int PSVLineAppend (int opts, char *format, va_list args)
 
 ### PSVocabularyAdd
 
-In: dataset.h, line: 209
+In: dataset.h, line: 215
 
 ```c
 int64_t PSVocabularyAdd (PSVocabulary *vocabulary, char *token)
@@ -5052,7 +5063,7 @@ The numeric index (ID) of the token. If token could not be added to the dictiona
 
 ### PSVocabularyCreate
 
-In: dataset.h, line: 208
+In: dataset.h, line: 214
 
 ```c
 PSVocabulary  * PSVocabularyCreate (int64_t initial_capacity)
@@ -5068,7 +5079,7 @@ The vocabulary or **NULL** if memory cannot be allocated.
 
 ### PSVocabularyErrorString
 
-In: dataset.h, line: 214
+In: dataset.h, line: 220
 
 ```c
 const char  * PSVocabularyErrorString (int err)
@@ -5079,7 +5090,7 @@ const char  * PSVocabularyErrorString (int err)
 
 ### PSVocabularyFree
 
-In: dataset.h, line: 215
+In: dataset.h, line: 221
 
 ```c
 void PSVocabularyFree (PSVocabulary *vocabulary)
@@ -5090,7 +5101,7 @@ void PSVocabularyFree (PSVocabulary *vocabulary)
 
 ### PSVocabularyGetTokenByID
 
-In: dataset.h, line: 211
+In: dataset.h, line: 217
 
 ```c
 const char  * PSVocabularyGetTokenByID (PSVocabulary *vocabulary, int64_t id)
@@ -5106,7 +5117,7 @@ The token associated with **id** or **NULL** if no **token** is found with **id*
 
 ### PSVocabularyGetTokenID
 
-In: dataset.h, line: 210
+In: dataset.h, line: 216
 
 ```c
 int64_t PSVocabularyGetTokenID (PSVocabulary *vocabulary, char *token)
@@ -5123,7 +5134,7 @@ If **vocabulary** is **NULL** or **token** is **NULL**, the function will return
 
 ### PSVocabularyLoad
 
-In: dataset.h, line: 212
+In: dataset.h, line: 218
 
 ```c
 PSVocabulary  * PSVocabularyLoad (const char *path)
@@ -5148,7 +5159,7 @@ The pointer to vocabulary or **NULL** if:
 
 ### PSVocabularySave
 
-In: dataset.h, line: 213
+In: dataset.h, line: 219
 
 ```c
 int PSVocabularySave (PSVocabulary *vocabulary, const char *path)

@@ -875,7 +875,7 @@ typedef void (* PSSignalHandler) (int)
 
 ### PSTextParserOptions
 
-In: dataset.h, line: 180
+In: dataset.h, line: 185
 
 ```c
 typedef struct {  
@@ -891,6 +891,7 @@ typedef struct {
     int sequence_length;  
     PSTokenMatch match_sequence_end;  
     const char * sequence_separator;  
+    int64_t max_sequences;  
     const char * start_token;  
     const char * end_token;  
     PSFloat * target_dataset;  
@@ -919,6 +920,9 @@ Options for text parsing:
  - [sequence_length](types.md#pstextparseroptions): split text into multiple fixed-length sequences.
  - [match_sequence_end](types.md#pstextparseroptions): pointer to function to be used to match the ending token of the sequence. If the callback returns 1, the current token will be the ending token of the current sequence. It produces variable length sequences.
  - [sequence_separator](types.md#pstextparseroptions): string that can be used to split text into multiple sequences. If the current token is equal to [sequence_separator](types.md#pstextparseroptions), it will be the ending token of the current sequence. It produces variable length sequences.
+ - [max_sequences](types.md#pstextparseroptions): max number of sequences to be parsed.
+ - [start_token](types.md#pstextparseroptions): a string to be used as the sequence starting token (by default, when needed, [PS_DEFAULT_START_TOKEN](macros.md#ps-default-start-token) is used).
+ - [end_token](types.md#pstextparseroptions): a string to be used as the sequence endining token (by default, when needed, [PS_DEFAULT_END_TOKEN](macros.md#ps-default-end-token) is used).
  - [target_dataset](types.md#pstextparseroptions): an already existing dataset tha can be used to produce the target sequences. For each input sequence, a sequence from [target_dataset](types.md#pstextparseroptions) will be taken and used as target sequence. This can be useful to build datasets for sequence-to-sequence models, such as natural language translation models (neural machine translation). The [target_dataset](types.md#pstextparseroptions) must have at least the same number of sequences of the dataset being generated.
  - [target_datalen](types.md#pstextparseroptions): the length (number of [PSFloat](types.md#psfloat) elements) of the [target_dataset](types.md#pstextparseroptions), if any.
  - [target_vocabulary](types.md#pstextparseroptions): the vocabulary associated to the [target_dataset](types.md#pstextparseroptions), if any. If **NULL**, the same vocabulary used for the dataset being generated will be used. Example: neural machine translation use different vocabularies for different natural languages.
@@ -1020,7 +1024,7 @@ typedef uint32_t PSUTF8Char
 
 ### PSVocabulary
 
-In: dataset.h, line: 200
+In: dataset.h, line: 206
 
 ```c
 typedef struct {  

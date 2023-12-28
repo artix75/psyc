@@ -91,7 +91,7 @@ In: utils.h, line: 57
 
 ### PS_CIFAR_IMAGE_SIZE
 
-In: dataset.h, line: 239
+In: dataset.h, line: 245
 
 ```c
 #define PS_CIFAR_IMAGE_SIZE (32 * 32 * 3)
@@ -704,7 +704,7 @@ In: psyc.h, line: 50
 
 ### PS_MNIST_INPUT_SIZE
 
-In: dataset.h, line: 233
+In: dataset.h, line: 239
 
 ```c
 #define PS_MNIST_INPUT_SIZE (28 * 28)
