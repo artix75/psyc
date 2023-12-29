@@ -471,14 +471,15 @@ int PSAdamOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
         if (PSGetCodeOptimizationLevel() > 0)
             acceleration = PSAcceleration_None;
     }
+    iteration = iteration + 1;
     int success = 1;
     if (acceleration == PSAcceleration_None) {
         for (uint64_t i = 0; i < len; i++) {
             PSFloat correct1, correct2, dx;
             mgrads[i] = mgrads[i] * beta1 + (1 - beta1) * grads[i];
             xgrads[i] = xgrads[i] * beta2 + (1 - beta2) * grads[i] * grads[i];
-            correct1 = mgrads[i] * (1 - PSPow(beta1, iteration));
-            correct2 = xgrads[i] * (1 - PSPow(beta2, iteration));
+            correct1 = mgrads[i] / (1 - PSPow(beta1, iteration));
+            correct2 = xgrads[i] / (1 - PSPow(beta2, iteration));
             dx =  - rate * correct1 / (PSSqrt(correct2) + eps);
             params[i] += dx;
         }
@@ -524,13 +525,13 @@ int PSAdamOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
         PSVectorPower(grads, 2, tmp, len, &mopts);
         PSMultiplyVectorScalar(tmp, (1 - beta2), tmp, len, &mopts);
         PSAddVectors(xgrads, tmp, xgrads, len, &mopts);
-        /* correct1 = mgrads[i] * (1 - PSPow(beta1, iteration))*/
+        /* correct1 = mgrads[i] / (1 - PSPow(beta1, iteration))*/
         mopts.store_mode = PS_STORE_MODE_SET;
-        PSMultiplyVectorScalar(
+        PSDivideVectorScalar(
             mgrads, (1 - PSPow(beta1, iteration)), correct1, len, &mopts
         );
-        /* correct2 = xgrads[i] * (1 - PSPow(beta2, iteration))*/
-        PSMultiplyVectorScalar(
+        /* correct2 = xgrads[i] / (1 - PSPow(beta2, iteration))*/
+        PSDivideVectorScalar(
             xgrads, (1 - PSPow(beta2, iteration)), correct2, len, &mopts
         );
         /* dx =  - rate * correct1 / (PSSqrt(correct2) + eps); */
