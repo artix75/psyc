@@ -169,8 +169,10 @@ PSFloat PSNormalizedRandom() {
  * defined by `mean` and standard deviation defined by `stddev`.
  * Return value: the random float number. */
 PSFloat PSGaussianRandom(PSFloat mean, PSFloat stddev) {
-    PSFloat theta = 2 * M_PI * PSNormalizedRandom();
-    PSFloat rho = PSSqrt(-2 * PSLog(1 - PSNormalizedRandom()));
+    PSFloat r1 = PSNormalizedRandom(), r2 = (1 - PSNormalizedRandom());
+    if (r2 <= 0) r2 = PSFLOAT_EPS;
+    PSFloat theta = 2 * M_PI * r1;
+    PSFloat rho = PSSqrt(-2 * PSLog(r2));
     PSFloat scale = stddev * rho;
     PSFloat x = mean + scale * cos(theta);
     PSFloat y = mean + scale * sin(theta);

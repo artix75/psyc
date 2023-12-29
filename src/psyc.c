@@ -3401,6 +3401,7 @@ err:
     return NULL;
 }
 
+/* TODO: Remove? */
 void PSSetDefaultLayerDef(PSLayerDef *ldef, PSLayerType type) {
     memset(ldef, 0, sizeof(*ldef));
     UNUSED(type);
@@ -6645,7 +6646,7 @@ void PSPauseTraining(PSModel *model) {
 
 void PSAbortTraining(PSModel *model) {
     if (model->training != NULL) {
-        printf("\nAborting...\n");
+        PSInfo("\nAborting...");
         model->training->requested_action = PS_ACTION_ABORT;
     }
 }
