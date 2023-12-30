@@ -2225,7 +2225,11 @@ int testRNNStep(TestCase *test_case, Test *test) {
         model, training_data, 1, elements_count, RNN_LEARNING_RATE,
         NULL, sequences
     );
-    UNUSED(loss);
+    PSFloat expected_loss = 1.395162;
+    int loss_equals = compareFloats(loss, expected_loss, 0,4);
+    testAssertWithMessage(
+        loss_equals, test, "loss != expected: %f != %f", loss, expected_loss
+    );
     for (i = 1; i < model->size; i++) {
         PSLayer *layer = model->layers[i];
         int wsize = (int) PSGetLayerInputWeightsCount(layer, 1);
@@ -3662,7 +3666,11 @@ int testEncodedDecoderBackprop(TestCase *test_case, Test *test) {
     PSFloat loss = updateModelParameters(
         model, training_data, 1, elements_count, 0.3, &opts, seq
     );
-    UNUSED(loss);
+    PSFloat expected_loss = 0.004653;
+    ok = compareFloats(loss, expected_loss, 0, 4);
+    testAssertWithMessage(
+        ok, test, "loss != expected: %f != %f", loss, expected_loss
+    );
     ok = (model->status != PS_STATUS_ERROR);
     if (ok) ok = (decoder->status != PS_STATUS_ERROR);
     encDecBackpropTest = NULL;
