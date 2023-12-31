@@ -449,8 +449,19 @@ int PSLineAppend(int opts, char *format, ...) {
 int PSLineStart(int opts, char *format, ...) {
     int overwrite = (opts & PS_LINE_OVERWRITE);
     if (printing_on_same_line && !overwrite) fflush(stdout);
+    int curlen = current_line_length;
     current_line_length = 0;
     if (overwrite) {
+        int tw = PSGetTerminalColumns();
+        if (tw > 0) {
+            /* Prevent line starting on a new line because of terminal width
+             * overflow. */
+            int nrows = 1 + (curlen / tw);
+            while (nrows-- > 1) {
+                /* Move cursor to the beginning of previous line. */
+                printf("\x1b[F");
+            }
+        }
         printing_on_same_line = 1;
         line_overwritten_by = __func__;
         printf("\r");
