@@ -128,7 +128,8 @@ PSFloat l1_decay = 0.0;
 PSFloat l2_decay = 0.0;
 PSFloat momentum = 0.0;
 PSOptimization optimization = PSDefaultOptimization;
-int validate_every = 0;
+int training_metrics = 0;
+float training_accuracy_percent = 0;
 int batch_size = BATCH_SIZE;
 char outputFile[PATH_MAX];
 int training_flags = 0;
@@ -150,11 +151,15 @@ void printHelp(const char* program_path);
 int parseOptionsFromFile(const char *filename);
 PSLossFunction getLossFunctionByName(char *name);
 void onBatchTrained(PSModel *model, int epoch, int epochs,
-                    PSFloat loss, PSFloat current_loss, float accuracy,
-                    PSFloat *rate, PSFloat *training_data);
+                    PSFloat loss, PSFloat current_loss,
+                    PSFloat validation_loss, float accuracy,
+                    float validation_accuracy, PSFloat *rate,
+                    PSFloat *training_data);
 void onEpochTrained(PSModel *model, int epoch, int epochs,
-                    PSFloat loss, PSFloat current_loss, float accuracy,
-                    PSFloat *rate, PSFloat *training_data);
+                    PSFloat loss, PSFloat current_loss,
+                    PSFloat validation_loss, float accuracy,
+                    float validation_accuracy, PSFloat *rate,
+                    PSFloat *training_data);
 PSLayer *PSMakeLayerPlaceholder(int layer_index, int model_index);
 int PSIsLayerPlaceholder(PSLayer *layer);
 static void cleanup(void);
@@ -465,7 +470,7 @@ static int loadMNISTData(int data_type, int argc, char **argv, int *arg_idx) {
         descr = "training";
     } else {
         image_data_index = MNIST_TEST_IMAGES;
-        label_data_index = MNIST_TRAIN_LABELS;
+        label_data_index = MNIST_TEST_LABELS;
         len = &testlen;
         data = &test_data;
         descr = "test";
@@ -666,9 +671,7 @@ static int loadData(int data_type, int argc, char **argv, int *arg_idx) {
     int mnist = 0, cifar = 0, i = *arg_idx;
     if (strcmp("--mnist", argv[i]) == 0) {
         mnist = 1;
-        *arg_idx = ++i;
     } else if (strcmp("--cifar", argv[i]) == 0) {
-        *arg_idx = ++i;
         if (i < argc) {
             int matched = sscanf(argv[i], "%d", &cifar);
             if (matched) ++i;
@@ -1467,13 +1470,41 @@ void parseOptions(int argc, char **argv) {
                 goto err;
             }
             current->loss = func;
-        } else if (strcmp("--validate-every", arg) == 0 && !is_last) {
-            char *everystr = argv[++i];
-            int matched = sscanf(everystr, "%d", &validate_every);
-            if (!matched) {
-                fprintf(stderr, "Invalid --validate-every %s\n", everystr);
-                goto err;
+        } else if (strcmp("--metrics", arg) == 0 && !is_last) {
+            char *metrics_str = argv[++i], *metrics_name = NULL;
+            while ((metrics_name = strtok(metrics_str, ",")) != NULL) {
+                if (strcmp("accuracy", metrics_name)) {
+                    training_metrics |= PS_TRAINING_METRICS_ACCURACY;
+                } else {
+                    fprintf(
+                        stderr, "ERROR: invalid value for --metrics: '%s'\n",
+                        metrics_name
+                    );
+                    goto err;
+                }
             }
+        } else if (strcmp("--training-accuracy-percent", arg)==0 && !is_last) {
+            char *perc_str = argv[++i];
+            float acc_perc = 0;
+            if (strcmp("auto", perc_str) == 0) {
+                training_accuracy_percent = PS_ACCURACY_DATASIZE_AUTO;
+            } else {
+                int matched = sscanf(perc_str, "%f", &acc_perc);
+                if (!matched) {
+                    fprintf(
+                        stderr, "ERROR: nvalid value for --training-accuracy-"
+                        "percent %s\n", perc_str
+                    );
+                    goto err;
+                }
+            }
+            if (acc_perc > 0) {
+                if (acc_perc < 1) training_accuracy_percent = acc_perc;
+                else training_accuracy_percent = (acc_perc / 100.0);
+                if (training_accuracy_percent > 1)
+                    training_accuracy_percent = 1;
+            }
+            training_metrics |= PS_TRAINING_METRICS_ACCURACY;
         } else if (strcmp("--training-no-shuffle", arg) == 0) {
             training_flags |= PS_TRAINING_NO_SHUFFLE;
         } else if (strcmp("--training-adjust-rate", arg) == 0) {
@@ -1747,9 +1778,10 @@ cleanup:
 
 /* Event functions */
 
-void onTrainEvent(int event_type, PSModel *model, int epoch,
-                  int epochs, PSFloat avg_loss, PSFloat current_loss,
-                  float accuracy, PSFloat *rate)
+void onTrainEvent(int event_type, PSModel *model, int epoch, int epochs,
+                  PSFloat avg_loss, PSFloat current_loss,
+                  PSFloat validation_loss, float accuracy,
+                  float validation_accuracy, PSFloat *rate)
 {
     char *script = NULL, *event = NULL;
     if (event_type == TRAIN_EVENT_BATCH) {
@@ -1762,32 +1794,42 @@ void onTrainEvent(int event_type, PSModel *model, int epoch,
     if (script == NULL) return;
     char cmd[CMD_MAX_LEN];
     cmd[0] = 0;
+    char *cmd_p = cmd;
     int written = snprintf(
-        cmd, CMD_MAX_LEN,
+        cmd_p, CMD_MAX_LEN,
         "%s --event %s-trained --name '%s' --epoch %d --epochs %d "
-        "--average-loss %g --current-loss %g --accuracy %g --learning-rate %g",
+        "--average-loss %f --current-loss %f --accuracy %f --learning-rate %f",
         script, event, model->name, epoch, epochs, avg_loss,
         current_loss, accuracy, *rate
     );
-    if (written >= CMD_MAX_LEN) {
-        fprintf(stderr, "\nWARN: onBatchTrained command is too big!\n");
-        return;
+    if (written >= CMD_MAX_LEN) goto cmd_overflow;
+    cmd_p = ((char *) cmd) + written;
+    if (event_type == TRAIN_EVENT_EPOCH && test_data != NULL) {
+        written += snprintf(
+            cmd_p, CMD_MAX_LEN - written,
+            " --validation-loss %f --validation-accuracy %f",
+            validation_loss, validation_accuracy
+        );
+        if (written >= CMD_MAX_LEN) goto cmd_overflow;
+        cmd_p = ((char *) cmd) + written;
     }
     PSTrainingInfo *info = model->training;
     if (info != NULL) {
-        char *p = cmd + written;
         written += snprintf(
-            p, CMD_MAX_LEN,
+            cmd_p, CMD_MAX_LEN - written,
             " --batch %d --element %d",
             info->current_batch, info->current_element
         );
-    }
-    if (written >= CMD_MAX_LEN) {
-        fprintf(stderr, "\nWARN: onBatchTrained command is too big!\n");
-        return;
+        if (written >= CMD_MAX_LEN) goto cmd_overflow;
+        cmd_p = ((char *) cmd) + written;
     }
     int status = system(cmd);
     if (status != 0) {
+        int do_exit = (
+            status == SIGINT || status == SIGQUIT ||
+            status == SIGKILL || status == SIGTERM
+        );
+        if (do_exit) exit(status);
         int exit_status = WEXITSTATUS(status);
         if (exit_status == PS_STATUS_ABORTED) PSAbortTraining(model);
         else if (exit_status == PS_STATUS_ERROR) {
@@ -1799,11 +1841,16 @@ void onTrainEvent(int event_type, PSModel *model, int epoch,
             );
         }
     }
+    return;
+cmd_overflow:
+    fprintf(stderr, "\nWARN: onBatchTrained command is too big!\n");
 }
 
 void onBatchTrained(PSModel *model, int epoch, int epochs,
-                    PSFloat avg_loss, PSFloat current_loss, float accuracy,
-                    PSFloat *rate, PSFloat *training_data)
+                    PSFloat avg_loss, PSFloat current_loss,
+                    PSFloat validation_loss, float accuracy,
+                    float validation_accuracy, PSFloat *rate,
+                    PSFloat *training_data)
 {
 
     UNUSED(training_data);
@@ -1814,19 +1861,21 @@ void onBatchTrained(PSModel *model, int epoch, int epochs,
     }
     onTrainEvent(
         TRAIN_EVENT_BATCH, model, epoch, epochs, avg_loss, current_loss,
-        accuracy, rate
+        validation_loss, accuracy, validation_accuracy, rate
     );
 }
 
 void onEpochTrained(PSModel *model, int epoch, int epochs,
-                    PSFloat avg_loss, PSFloat current_loss, float accuracy,
-                    PSFloat *rate, PSFloat *training_data)
+                    PSFloat avg_loss, PSFloat current_loss,
+                    PSFloat validation_loss, float accuracy,
+                    float validation_accuracy, PSFloat *rate,
+                    PSFloat *training_data)
 {
     UNUSED(training_data);
     if (on_epoch_trained == NULL) return;
     onTrainEvent(
         TRAIN_EVENT_EPOCH, model, epoch, epochs, avg_loss, current_loss,
-        accuracy, rate
+        validation_loss, accuracy, validation_accuracy, rate
     );
 }
 
@@ -1892,14 +1941,18 @@ int main(int argc, char **argv) {
             .l2_decay = (PSFloat) l2_decay,
             .momentum = (PSFloat) momentum,
             .optimization = optimization,
-            .validate_every_batches = validate_every
+            .metrics = training_metrics,
+            .accuracy_dataset_percent = training_accuracy_percent,
         };
         PSTrain(model, training_data, datalen, validation_data, valdlen,
                 &options);
         free(training_data);
     }
     if (test_data != NULL) {
-        PSTest(model, test_data, testlen, NULL);
+        PSTrainingOptions options = {.flags = training_flags};
+        PSFloat test_loss = 0;
+        PSTest(model, test_data, testlen, &test_loss, &options);
+        UNUSED(test_loss);
         free(test_data);
     }
 
@@ -2010,6 +2063,8 @@ void printHelp(const char* program_path) {
            "(see 'LOG LEVELS' section).\n");
     printf("  --loss-function FUNC         Loss Function (see 'LOSS "
            "FUNCTIONS' section).\n");
+    printf("  --metrics                    Training metrics (see 'METRICS' "
+           "section).\n");
     printf("  --model                      Start new model (it can be used\n"
            "                               multiple times to create chained "
            "models\n"
@@ -2048,10 +2103,13 @@ void printHelp(const char* program_path) {
            "                               Train model with TRAIN_DATASET.\n"
            "                               (see 'TRAIN|TEST OPTIONS' section"
            ").\n");
+    printf("  --training-accuracy-percent  Percentage of training dataset to "
+           "be used for\n"
+           "                               training accuracy metrics "
+           "(0.0-1.0 | 'auto').\n");
     printf("  --training-adjust-rate       Auto-adjust learn rate.\n");
     printf("  --training-datalen LEN       Training data length.\n");
     printf("  --training-no-shuffle        Prevent dataset shuffle.\n");
-    printf("  --validate-every BATCH_NUM   Validate inside epochs.\n");
     printf("  --validation-datalen LEN     Validation data length.\n");
     printf("  --verbose                    Verbose output (loglevel DEBUG)."
            "\n");
@@ -2151,6 +2209,9 @@ void printHelp(const char* program_path) {
     printf("\n");
     printf("LOG LEVELS:\n\n");
     printf("  "); printLogLevels(stdout); printf("\n\n");
+    printf("METRICS:\n\n");
+    printf("  - accuracy\n");
+    printf("\n");
     printf("TRAIN|TEST OPTIONS:\n\n");
     printf("  --cifar [CLASSES]            Dataset format is CIFAR.\n"
            "                               (classes: 10 or 100, default: "
@@ -2192,10 +2253,15 @@ void printHelp(const char* program_path) {
         "`--on-epoch-trained` it's\n"
         "  possible to execute an arbitrary external script when such events "
         "happen.\n"
-        "  The scripts will eventually receive the following arguments:\n"
-        "    --event TYPE, --name MODEL_NAME --epoch CURRENT_EPOCH\n"
-        "    --epochs TOT_EPOCHS --average-loss AVERAGE_LOSS --current-loss\n"
-        "    CURRENT_LOSS --accuracy CURRENT_ACCURACY --learning-rate RATE\n"
+        "  The scripts will eventually receive the following options:\n"
+        "    --event TYPE --name MODEL_NAME --epoch CURRENT_EPOCH\n"
+        "    --epochs TOT_EPOCHS --average-loss AVERAGE_LOSS\n"
+        "    --current-loss BATCH_LOSS --accuracy TRAINING_ACCURACY\n"
+        "    --learning-rate RATE\n"
+        "  Optional options:\n"
+        "    --validation-loss VALIDATION_LOSS --validation-accuracy "
+        "VALIDATION_ACCURACY\n"
+        "    --batch BATCH_NUM --element ELEMENT_INDEX\n"
         "  The scripts can use special exit codes to force psycl aborting "
         "the training \n"
         "  process:\n"

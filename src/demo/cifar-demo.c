@@ -126,12 +126,12 @@ void print_help(char *progname) {
            "(default: %s)\n", DEFAULT_OUTPUT_FILE);
     printf("  --softmax-output ENABLED        Softmax Output Layer "
            "(def. %d)\n", SOFTMAX_OUTPUT);
+    printf("  --training-accuracy [PERCENT]   Measure training accuracy.\n");
     printf("  --use-relu ONE_OR_ZERO          "
            "Enable/Disable ReLU (def. %d)\n", RELU_ENABLED);
     /*printf("  --debug-dump-to FILE            Debug training to FILE\n"
            "                                        "
            "(pass 'stdout' for STDOUT)\n");*/
-    printf("  --validate-every BATCH_NUM      Validate inside epochs\n");
     printf("  --vgg-blocks NUM                Number of VGG blocks\n"
            "                                  (convolutional-pooling pairs).\n"
            "                                  (def. %d)\n", VGG_BLOCKS);
@@ -159,8 +159,10 @@ void handler(int sig) {
 }
 
 void onBatchTrained(PSModel *model, int epoch, int epochs,
-                    PSFloat loss, PSFloat batch_loss, float accuracy,
-                    PSFloat *rate, PSFloat *training_data)
+                    PSFloat loss, PSFloat batch_loss,
+                    PSFloat validation_loss, float accuracy,
+                    float validation_accuracy, PSFloat *rate,
+                    PSFloat *training_data)
 {
     UNUSED(epoch);
     UNUSED(epochs);
@@ -168,6 +170,8 @@ void onBatchTrained(PSModel *model, int epoch, int epochs,
     UNUSED(batch_loss);
     UNUSED(accuracy);
     UNUSED(rate);
+    UNUSED(validation_loss);
+    UNUSED(validation_accuracy);
     if (dump_activations_str == NULL && max_batches <= 0) return;
     if (model == NULL) return;
     if (model->training == NULL) return;
@@ -296,7 +300,8 @@ int main(int argc, char** argv) {
     PSFloat momentum = MOMENTUM;
     PSFloat l1_decay = L1;
     PSFloat l2_decay = L2;
-    int validate_every = 0;
+    int metrics = 0;
+    float training_accuracy_percent = 0;
     UNUSED(disable_avx); /* Actually not used if USE_AVX macro not defined */
 
     FILE *debug_dump_to = NULL;
@@ -392,8 +397,8 @@ int main(int argc, char** argv) {
             if (softmax_output < 0) softmax_output = 0;
         } else if (strcmp("--batch-size", arg) == 0 && (i + 1) < argc) {
             batch_size = atoi(argv[++i]);
-            if (batch_size < 2) {
-                PSErr(NULL, "Batch size must be >= 2\n");
+            if (batch_size < 1) {
+                PSErr(NULL, "Batch size must be >= 1\n");
                 return 1;
             }
         } else if (strcmp("--max-batches", arg) == 0 && (i + 1) < argc) {
@@ -402,9 +407,19 @@ int main(int argc, char** argv) {
         } else if (strcmp("--max-images", arg) == 0 && (i + 1) < argc) {
             max_images = atoi(argv[++i]);
             if (max_images < 0)  max_images = 0;
-        } else if (strcmp("--validate-every", arg) == 0 && (i + 1) < argc) {
-            validate_every = atoi(argv[++i]);
-            if (validate_every < 0)  validate_every = 0;
+        } else if (strcmp("--training-accuracy", arg) == 0) {
+            if ((i + 1) < argc && argv[i + 1][0] != '-') {
+                char *percent_str = argv[++i];
+                if (strcmp("auto", percent_str) == 0)
+                    training_accuracy_percent = PS_ACCURACY_DATASIZE_AUTO;
+                else
+                    training_accuracy_percent = atof(percent_str);
+                if (training_accuracy_percent > 1)
+                    training_accuracy_percent /= 100;
+                if (training_accuracy_percent > 1)
+                    training_accuracy_percent = 1;
+            }
+            metrics |= PS_TRAINING_METRICS_ACCURACY;
         } else if (strcmp("--add-fully-connected", arg) == 0) {
             add_fully_connected = 1;
             if ((i + 1) < argc && argv[i + 1][0] != '-') {
@@ -724,7 +739,8 @@ int main(int argc, char** argv) {
             .l2_decay = l2_decay,
             .momentum = momentum,
             .debug_dump_to = debug_dump_to,
-            .validate_every_batches = validate_every
+            .metrics = metrics,
+            .accuracy_dataset_percent= training_accuracy_percent,
         };
         if (optimization != PSDefaultOptimization)
             train_opts.optimization = optimization;
@@ -741,7 +757,8 @@ int main(int argc, char** argv) {
     if (testlen > 0 && test_data != NULL && model->status == PS_STATUS_TRAINED)
     {
         printf("Test Data len: %d\n", testlen);
-        PSTest(model, test_data, testlen, NULL);
+        PSFloat test_loss = 0;
+        PSTest(model, test_data, testlen, &test_loss, NULL);
     }
     /* if (pretrained_file == NULL) */
     PSModelSave(model, output_path);

@@ -109,7 +109,7 @@ static size_t loss_functions_count = sizeof(loss_functions) /
 char *getLossFunctionName(PSLossFunction function);
 char *getModelStatusLabel(PSModel *model);
 float validate(PSModel *model, PSFloat *test_data, int data_size,
-               PSTrainingOptions *opts, int log);
+               PSTrainingOptions *opts, PSFloat *loss, int log);
 int PSInitConvolutionalLayer(PSModel *model, PSLayer *layer,
                              PSLayerDef *ldef);
 int PSInitPoolingLayer(PSModel *model, PSLayer *layer,
@@ -150,6 +150,7 @@ static PSModel *cloneModel(PSModel *model, int layout_only,
                                      PSModel *parent);
 int PSIsLayerPlaceholder(PSLayer *layer);
 void PSAbortLayer(PSModel *model, PSLayer *layer);
+PSTrainingOptions *PSGetModelTrainingOptions(PSModel *model);
 
 /**** Miscellaneous functions ****/
 
@@ -189,156 +190,243 @@ void PSHandleSignals(PSSignalHandler shutdown_handler) {
 }
 
 void PSLogTrainingProgress(PSModel *model, int status, int epochs,
-                           int batches, PSFloat *loss, PSFloat *accuracy,
-                           time_t *elapsed, int validating_current,
-                           int validating_tot)
+                           int batches, PSFloat *loss, float *accuracy,
+                           PSFloat *test_loss,  float *test_accuracy,
+                           time_t *elapsed)
 {
-    UNUSED(validating_current);
-    static int epoch_printed = -1;
+    static int printed_epoch = -1;
+    static int min_fixed_len = 0;
+    static int fixed_prefix_len = 0;
+    static char *default_prefix = "Batch ";
+    int tcols = PSGetTerminalColumns();
     if (PSLogLevel > PSLOGLEVEL_INFO) return;
     if (model->training == NULL) return;
     if (status == PS_STATUS_TRAINED || status == PS_STATUS_ERROR) {
         PSLineEnd();
-        epoch_printed = -1;
+        printed_epoch = -1;
         return;
     }
+    int use_color = PSLogColorEnabled();
+    if (min_fixed_len == 0) {
+        /* Predict possible minimum length for fixed elements. */
+        min_fixed_len = strlen(
+            "999%, loss=99.99, val.loss=99.99, val.acc=9.99 (999.9ms)"
+        );
+        fixed_prefix_len = strlen(default_prefix);
+    }
+    char *line_prefix = "";
+    if (!use_color) line_prefix = default_prefix;
     if (model->training->current_batch == 0) {
-        if (epoch_printed != model->training->current_epoch) {
+        if (printed_epoch != model->training->current_epoch) {
             PSLineEnd();
+            if (use_color) printf(PSCOLOR_BOLD);
             printf("Epoch %d/%d:\n", model->training->current_epoch + 1,
                     epochs);
+            if (use_color) printf(PSCOLOR_RESET);
             fflush(stdout);
-            epoch_printed = model->training->current_epoch;
+            printed_epoch = model->training->current_epoch;
         }
     }
     int batch_num = model->training->current_batch + 1;
     int percent =
         (int) roundf(((float) batch_num / (float) batches) * 100.0f);
     int pad = PSCalcIntStringLength(batches);
+    int min_len = min_fixed_len + 1 + pad * 2;
+    if (!use_color && (min_len + fixed_prefix_len) > tcols) line_prefix = "";
     int lnflags = PS_LINE_PLAIN_ASCII | PS_LINE_FILL;
     PSLineStart(
-        PS_LINE_OVERWRITE, " - Batch %*d/%d %3d%%", pad, batch_num,
+        PS_LINE_OVERWRITE, "%s%*d/%d %3d%%", line_prefix, pad, batch_num,
         batches, percent
     );
-    char *elapsed_str = "";
-    if (elapsed != NULL) elapsed_str = PSGetElapsedTimeString(*elapsed, 0);
+    char *elapsed_str = NULL, *eta_str = NULL;
+    if (elapsed != NULL) {
+        elapsed_str = PSGetElapsedTimeString(*elapsed, 0);
+        if (status == PS_STATUS_TRAINING && batch_num < batches) {
+            time_t eta = *elapsed * (batches - batch_num);
+            eta_str = PSGetElapsedTimeString(eta, 0);
+        }
+    }
     if (status == PS_STATUS_VALIDATING) {
-        if (validating_tot > 0)
-            PSLineAppend(lnflags, ", validating %d element(s)", validating_tot);
-        else PSLineAppend(lnflags, ", validating...");
+        if (model->training != NULL && model->training->test_size > 0) {
+            int val_perc = (int) roundf(
+                (
+                    (float) (model->training->current_test + 1) /
+                    (float) model->training->num_tests
+                ) * 100.0f
+            );
+            PSLineAppend(lnflags, ", validating %d%%", val_perc);
+        } else PSLineAppend(lnflags, ", validating...");
     } else if (status == PS_STATUS_TRAINING) {
         if (batch_num < batches) {
             assert(loss != NULL);
             if (accuracy != NULL) {
                 PSLineAppend(
-                    lnflags, ", loss = %.2lf, acc. = %.2lf, avg. time = %s",
+                    PS_LINE_PLAIN_ASCII, ", loss=%.2lf, acc=%.2lf, %s/batch",
                     *loss, *accuracy, elapsed_str
                 );
             } else {
-                PSLineAppend(lnflags, ", loss = %.2lf, avg. time = %s",
+                PSLineAppend(PS_LINE_PLAIN_ASCII, ", loss=%.2lf, %s/batch",
                              *loss, elapsed_str);
             }
+            if (eta_str != NULL) PSLineAppend(lnflags, " (ETA: %s)", eta_str);
+            else PSLineFill();
         } else {
+            int n_info = 0;
             if (loss != NULL) {
-                if (accuracy != NULL) {
-                    PSLineAppend(lnflags, ", loss = %.2lf, acc. = %.2f (%s)",
-                                 *loss, *accuracy, elapsed_str);
-                } else {
-                    PSLineAppend(lnflags, ", loss = %.2lf (%s)", *loss,
-                                 elapsed_str);
-                }
-                PSLineEnd();
-            } else PSLineFill();
+                PSLineAppend(PS_LINE_PLAIN_ASCII, ", loss=%.2lf", *loss);
+                n_info++;
+            }
+            if (accuracy != NULL) {
+                PSLineAppend(PS_LINE_PLAIN_ASCII, ", acc=%.2f", *accuracy);
+                n_info++;
+            }
+            if (test_loss != NULL) {
+                PSLineAppend(
+                    PS_LINE_PLAIN_ASCII, ", val.loss=%.2lf", *test_loss
+                );
+                n_info++;
+            }
+            if (test_accuracy != NULL) {
+                PSLineAppend(
+                    PS_LINE_PLAIN_ASCII, ", val.acc=%.2f", *test_accuracy
+                );
+                n_info++;
+            }
+            if (elapsed != NULL) {
+                PSLineAppend(PS_LINE_PLAIN_ASCII, " (%s)", elapsed_str);
+                n_info++;
+            }
+            PSLineFill();
+            if (n_info > 0) PSLineEnd();
         }
     } else {
         PSLineFill();
     }
+    free(elapsed_str);
+    free(eta_str);
 }
 
 void PSTrainingProgressBar(PSModel *model, int status, int epochs,
-                           int batches, PSFloat *loss, PSFloat *accuracy,
-                           time_t *elapsed, int validating_current,
-                           int validating_tot)
+                           int batches, PSFloat *loss, float *accuracy,
+                           PSFloat *test_loss,  float *test_accuracy,
+                           time_t *elapsed)
 {
-    UNUSED(validating_current);
-    UNUSED(validating_tot);
+    UNUSED(test_accuracy);
+    UNUSED(test_loss);
     static int epoch_printed = -1;
-    static int min_sfx_len = -1;
+    static int bar_width = -1;
+    static int print_batches = 1;
     if (PSLogLevel > PSLOGLEVEL_INFO) return;
     if (model->training == NULL) return;
-    if (status == PS_STATUS_TRAINED || status == PS_STATUS_ERROR) {
+    int training_ended = (
+        status == PS_STATUS_TRAINED || status == PS_STATUS_ERROR ||
+        status == PS_STATUS_ABORTED
+    );
+    if (training_ended) {
         PSLineEnd();
         epoch_printed = -1;
-        min_sfx_len = -1;
+        bar_width = -1;
         return;
-    }
-    if (model->training->current_batch == 0) {
-        if (epoch_printed != model->training->current_epoch) {
-            PSLineEnd();
-            printf("Epoch %d/%d:\n", model->training->current_epoch + 1,
-                    epochs);
-            fflush(stdout);
-            epoch_printed = model->training->current_epoch;
-        }
     }
     int tw = PSGetTerminalColumns();
     int batch_num = model->training->current_batch + 1;
     int pad = PSCalcIntStringLength(batches);
-    PSLineStart(
-        PS_LINE_OVERWRITE, "Batch %*d/%d ", pad, batch_num, batches
-    );
-    int maxlen = tw - 1;
-    char *elapsed_str = "";
+    if (bar_width < 0) {
+        /* Determine progress bar width depending on the length of the other
+         * elements. */
+        PSTrainingOptions *topts = PSGetModelTrainingOptions(model);
+        int metrics = (topts != NULL ? topts->metrics : 0),
+            has_tests = (model->training->test_size > 0);
+        char sfx_sample[50] = {0};
+        int sfxlen;
+        if (!has_tests) sfxlen = sprintf(sfx_sample, " | loss: 99.99");
+        else sfxlen = sprintf(sfx_sample, " | loss=99.99");
+        char *sfx_p = sfx_sample + sfxlen;
+        if (metrics & PS_TRAINING_METRICS_ACCURACY) {
+            if (!has_tests)
+                sfxlen += snprintf(sfx_p, 50 - sfxlen, "| acc: 9.99");
+            else
+                sfxlen += snprintf(sfx_p, 50 - sfxlen, "| acc=9.99");
+            sfx_p = sfx_sample + sfxlen;
+        }
+        if (has_tests) {
+            sfxlen += snprintf(
+                sfx_p, 50 - sfxlen, " | v.loss: 99.99 | v.acc: 9.99"
+            );
+            sfx_p = sfx_sample + sfxlen;
+        } else sfxlen += snprintf(sfx_p, 50 - sfxlen, " | 999.9ms");
+        bar_width = tw - sfxlen - ((pad * 2) + 2);
+        if (bar_width < 26) {
+            print_batches = 0;
+            bar_width += ((pad * 2) + 2);
+        }
+    }
+    int use_color = PSLogColorEnabled();
+    if (model->training->current_batch == 0) {
+        if (epoch_printed != model->training->current_epoch) {
+            PSLineEnd();
+            /*if (use_color) printf(PSCOLOR_BOLD);*/
+            printf("Epoch %d/%d:\n", model->training->current_epoch + 1,
+                    epochs);
+            /*if (use_color) printf(PSCOLOR_RESET);*/
+            fflush(stdout);
+            epoch_printed = model->training->current_epoch;
+        }
+    }
+    if (print_batches)
+        PSLineStart(PS_LINE_OVERWRITE, "%*d/%d ", pad, batch_num, batches);
+    else {
+        int percent = (int) roundf(((batch_num + 1) / (float)batches) * 100.0);
+        PSLineStart(PS_LINE_OVERWRITE, "%*-3d%% ", percent);
+    }
+    char *elapsed_str = NULL;
     char sfx[35] = {0};
     int epoch_ended = 0;
+    int sfxlen = 0;
     if (status == PS_STATUS_VALIDATING) {
-        maxlen -= snprintf(sfx, 35, " | validating...");
+        sfxlen += snprintf(sfx, 35, " | validating...");
     } else if (status == PS_STATUS_TRAINING) {
         if (elapsed != NULL) elapsed_str = PSGetElapsedTimeString(*elapsed, 0);
         if (batch_num < batches) {
             if (accuracy != NULL) {
-                maxlen -= snprintf(
-                    sfx, 35, " | loss: %.2lf | acc: %.2lf | %s",
+                sfxlen += snprintf(
+                    sfx, 35, " | loss: %5.2lf | acc: %.2lf | %s",
                     *loss, *accuracy, elapsed_str
                 );
             } else {
-                maxlen -= snprintf(
-                    sfx, 35, " | loss: %.2lf | %s", *loss, elapsed_str
+                sfxlen += snprintf(
+                    sfx, 35, " | loss: %5.2lf | %s", *loss, elapsed_str
                 );
             }
         } else {
             if (loss != NULL) {
                 if (accuracy != NULL) {
-                    maxlen -= snprintf(
-                        sfx, 35, " | loss: %.2lf |acc: %.2f | %s",
+                    sfxlen += snprintf(
+                        sfx, 35, " | loss: %5.2lf | acc: %.2f | %s",
                         *loss, *accuracy, elapsed_str
                     );
                 } else {
-                    maxlen -= snprintf(
-                        sfx, 35, " | loss: %.2lf | %s", *loss, elapsed_str
+                    sfxlen += snprintf(
+                        sfx, 35, " | loss: %5.2lf | %s", *loss, elapsed_str
                     );
                 }
                 epoch_ended = 1;
             }
         }
     }
-    if (min_sfx_len < 0) min_sfx_len = (tw - 1 - maxlen);
-    else {
-        int minlen = (tw - 1 - min_sfx_len);
-        if (maxlen > minlen) maxlen = minlen;
-    }
     int style = PS_PROGRESS_STYLE_DOUBLE_DASH, color = 0,
         flags = PS_PROGRESS_FLAG_JUST_BAR;
-    if (PSLogColorEnabled()) {
+    if (use_color) {
         color = 1;
         style = PS_PROGRESS_STYLE_LINE;
     }
-    PSProgressBar(batch_num, batches, style, color, flags, maxlen, NULL);
+    PSProgressBar(batch_num, batches, style, color, flags, bar_width, NULL);
     if (sfx[0]) {
         int lnflags = PS_LINE_PLAIN_ASCII | PS_LINE_FILL;
         PSLineAppend(lnflags, "%s", sfx);
     }
     if (epoch_ended) PSLineEnd();
+    free(elapsed_str);
 }
 
 void dumpForwardStep(int i, PSFloat a, PSFloat b, PSFloat sum,
@@ -5540,6 +5628,172 @@ void clipGradients(PSGradient **grads, PSFloat min, PSFloat max, int count,
     }
 }
 
+static PSFloat getLoss(PSModel *model, PSFloat *y, int y_seqlen,
+                       int backprop, PSFloat *outputs,
+                       PSFloat l1_loss, PSFloat l2_loss,
+                       PSFloat *net_loss, PSTrainingOptions *opts)
+{
+    static PSTrainingOptions dfopts = {0};
+    if (opts == NULL) opts = &dfopts;
+    if (net_loss != NULL) *net_loss = 0;
+    int batch_size = opts->batch_size;
+    if (batch_size <= 0) batch_size = 1;
+    PSLayer *output_layer = PSGetOutputLayer(model);
+    assert(output_layer != NULL);
+    PSModel *output_model = output_layer->model;
+    assert(output_model != NULL);
+    int target_elem_size = output_layer->size, ok = 1, i;
+    int onehot = output_layer->flags & PS_FLAG_ONEHOT;
+    if (onehot) target_elem_size = 1;
+    int outputs_size = target_elem_size;
+    int is_recurrent = PSIsRecurrent(model), output_is_seq = 0;
+    if (is_recurrent || PSUseSequences(model)) {
+        if (is_recurrent) output_is_seq = PSIsRecurrent(output_layer);
+        else output_is_seq = PSHandleSequenceAtOnce(output_layer);
+    }
+    int num_states = 1, resized_outputs = 0;
+    PSFloat *tmpy = NULL;
+    PSFloat *tmpoutputs = NULL;
+    if (output_is_seq) {
+        num_states = PSStateSequenceLength(output_layer);
+        assert(num_states > 0);
+        if (num_states != y_seqlen) {
+            PSModel *outmodel = output_layer->model;
+            int teacher_forcing = (
+                opts->flags & PS_TRAINING_FLAG_TEACHER_FORCING &&
+                outmodel->previous != NULL
+            );
+            if (!teacher_forcing) {
+                PSErrNN(NULL, model, NULL, "sequence length differs from "
+                        "hidden states count but teacher forcing is not "
+                        "enabled");
+                ok = 0;
+                goto final;
+            }
+            if (backprop) {
+                int tmpy_len = 0;
+                tmpy = prepareSequence(
+                    y, y_seqlen, num_states, target_elem_size, &tmpy_len,
+                    &(outmodel->sequence_settings), SEQ_MODE_APPEND_END
+                );
+                ok = (tmpy != NULL && num_states == tmpy_len);
+                if (!ok) {
+                    PSErrNN(
+                        __func__, model, NULL, "cannot prepare target sequence "
+                        "for teacher forcing (hidden states = %d, target seq. "
+                        "length = %d, original seq. length = %d)", num_states,
+                        tmpy_len, y_seqlen
+                    );
+                    goto final;
+                }
+                y = tmpy;
+                y_seqlen = num_states;
+            }
+            if (outputs != NULL) {
+                if (y_seqlen > num_states) {
+                    PSFloat *resized = calloc(
+                        y_seqlen, target_elem_size * sizeof(PSFloat)
+                    );
+                    ok = (resized != NULL);
+                    if (!ok) {
+                        PSPrintMemoryErrorMsg();
+                        goto final;
+                    }
+                    PSVectorCopy(
+                        resized, outputs, target_elem_size * num_states
+                    );
+                    resized_outputs = 1;
+                    outputs = resized;
+                    tmpoutputs = outputs;
+                } else if (num_states > y_seqlen) {
+                    PSFloat *resized = calloc(
+                        num_states, target_elem_size * sizeof(PSFloat)
+                    );
+                    ok = (resized != NULL);
+                    if (!ok) {
+                        PSPrintMemoryErrorMsg();
+                        goto final;
+                    }
+                    PSVectorCopy(
+                        resized, y, target_elem_size * y_seqlen
+                    );
+                    if (y == tmpy) free(tmpy);
+                    y = resized;
+                    tmpy = y;
+                }
+            }
+        }
+        outputs_size *= y_seqlen;
+    }
+    if (outputs == NULL) {
+        tmpoutputs = malloc(outputs_size * sizeof(PSFloat));
+        outputs = tmpoutputs;
+    }
+    for (i = 0; i < outputs_size; i++) {
+        if (onehot) {
+            int idx = (int) *(y + i);
+            PSFloat state;
+            if (i >= num_states) {
+                ok = resized_outputs && i < y_seqlen;
+                if (!ok) {
+                    PSErrNN(__func__, model, NULL, "index %d is out-of-bounds");
+                    goto final;
+                }
+                state = 0;
+            } else state = PSGetState(output_layer, idx, i);
+            outputs[i] = state;
+        } else {
+            if (!output_is_seq) outputs[i] = PSGetState(output_layer, i);
+            else i = fetchSequenceOutputState(output_layer, outputs, i, 0);
+        }
+    }
+    if (opts->l1_decay != 0)
+        l1_loss *= (opts->l1_decay / batch_size);
+    if (opts->l2_decay != 0)
+        l2_loss = (0.5 * (opts->l2_decay / batch_size) * l2_loss);
+    int onehot_size = (onehot ? output_layer->size : 0);
+    PSFloat loss = output_model->loss(
+        outputs, y, outputs_size, onehot_size
+    );
+    if (output_is_seq && y_seqlen > 0) loss /= y_seqlen;
+final:
+    free(tmpy);
+    free(tmpoutputs);
+    if (!ok) {
+        PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
+        return PS_STATUS_ERROR_LOSS;
+    }
+    if (net_loss != NULL) *net_loss = loss;
+    return loss + l1_loss + l2_loss;
+}
+
+static float getTrainingAccuracy(PSModel *model, PSFloat *data,
+                                 PSFloat **sequence_head, int element_size,
+                                 int max_samples, int *tot_samples,
+                                 int *tot_correct,
+                                 PSTrainingOptions *options)
+{
+    int batch_size = (options != NULL ? options->batch_size : 1);
+    if (batch_size <= 0) batch_size = 1;
+    int nsamples = batch_size;
+    if ((*tot_samples + nsamples) > max_samples)
+        nsamples = max_samples - *tot_samples;
+    int datasize;
+    if (sequence_head == NULL) datasize = (element_size * nsamples);
+    else {
+        data = *sequence_head;
+        datasize = *(sequence_head + nsamples) - *sequence_head;
+    }
+    int prev_status = 0;
+    PSModelSetStatus(model, PS_STATUS_VALIDATING, &prev_status);
+    float acc = validate(model, data, datasize, options, NULL, 0);
+    PSModelSetStatus(model, PS_STATUS_TRAINING, NULL);
+    int correct_results = acc * (float) nsamples;
+    *tot_correct += correct_results;
+    *tot_samples += nsamples;
+    return *tot_correct / (float) *tot_samples;
+}
+
 /* Iterate over a single batch of training elements (`training_data`) and
  * obtain  batch's gradients by back-propagation on each element of the batch
  * itself (by calling the `backprop` function).
@@ -5550,13 +5804,16 @@ void clipGradients(PSGradient **grads, PSFloat min, PSFloat max, int count,
  * The function will return the calculated error (loss). */
 PSFloat updateModelParameters(PSModel *model,
                               PSFloat *training_data,
-                              int batch_size, int elements_count,
+                              int elements_count,
                               PSFloat rate, PSTrainingOptions* opts, ...)
 {
+    static PSTrainingOptions dfopts = {0};
     assert(model->previous == NULL);
+    if (opts == NULL) opts = &dfopts;
     int i, j, gradsize = 0, midx = 0, x_seqlen = 0, y_seqlen = 0,
         iteration = 0, apply_clip = 0;
-    assert(batch_size > 0);
+    int batch_size = opts->batch_size;
+    if (batch_size <= 0) batch_size = 1;
     PSFloat *x = NULL; /* Training element */
     PSFloat *y = NULL; /* Labels */
     PSFloat l1 = 0.0, l2 = 0.0, l1_loss = 0.0, l2_loss = 0.0, momentum = 0.0,
@@ -5841,90 +6098,36 @@ PSFloat updateModelParameters(PSModel *model,
 final:
     PSDeleteGradientsChain(gradients, model);
     if (PSModelGetStatus(model) == PS_STATUS_ERROR) return PS_STATUS_ERROR_LOSS;
-    int onehot = output_layer->flags & PS_FLAG_ONEHOT;
-    if (onehot) label_data_size = 1;
-    PSFloat *tmpy = NULL;
-    if (output_is_seq) {
-        int num_states = PSStateSequenceLength(output_layer);
-        if (num_states != y_seqlen) {
-            PSModel *outmodel = output_layer->model;
-            int teacher_forcing = (
-                training_flags & PS_TRAINING_FLAG_TEACHER_FORCING &&
-                outmodel->previous != NULL
-            );
-            if (!teacher_forcing) {
-                PSErrNN(NULL, model, NULL, "sequence length differs from "
-                        "hidden states count but teacher forcing is not "
-                        "enabled");
-                PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
-                return PS_STATUS_ERROR_LOSS;
-            }
-            int tmpy_len = 0;
-            tmpy = prepareSequence(
-                y, y_seqlen, num_states, label_data_size, &tmpy_len,
-                &(outmodel->sequence_settings), SEQ_MODE_APPEND_END
-            );
-            if (tmpy == NULL || num_states != tmpy_len) {
-                PSErrNN(__func__, model, NULL, "cannot prepare target "
-                        "sequence for teacher forcing");
-                free(tmpy);
-                tmpy = NULL;
-                PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
-                return PS_STATUS_ERROR_LOSS;
-            }
-            y = tmpy;
-            y_seqlen = num_states;
-        }
-        label_data_size *= y_seqlen;
-    }
-    PSFloat outputs[label_data_size];
-    for (i = 0; i < label_data_size; i++) {
-        if (onehot) {
-            int idx = (int) *(y + i);
-            outputs[i] = PSGetState(output_layer, idx, i);
-        } else {
-            if (!output_is_seq) outputs[i] = PSGetState(output_layer, i);
-            else i = fetchSequenceOutputState(output_layer, outputs, i, 0);
-        }
-    }
-    if (opts == NULL) l1 = l2 = 0.0;
-    if (l1 != 0.0) l1_loss *= (opts->l1_decay / batch_size);
-    if (l2 != 0.0) l2_loss = (0.5 * (opts->l2_decay / batch_size) * l2_loss);
-    int onehot_size = (onehot ? output_layer->size : 0);
-    PSFloat loss =
-        output_model->loss(outputs, y, label_data_size, onehot_size);
-    if (output_is_seq && y_seqlen > 0) loss /= y_seqlen;
-    free(tmpy);
-    return loss + l1_loss + l2_loss;
+    return getLoss(model, y, y_seqlen, 1, NULL, l1_loss,l2_loss, NULL, opts);
 }
 
 /* Iterate training data for the entire epoch. Unless the training flag
  * PS_TRAINING_NO_SHUFFLE is set, training data is randomly shuffled
  * (Stochastic Gradient Descent). Training data is divided into batches
  * depending on `batch_size` and, for each batch, gradients are generated
- * and applied on model's by the `updateModelParameters` */
+ * and used to update model's parameters using `updateModelParameters`. */
 PSFloat gradientDescent(PSModel *model,
                         PSFloat *training_data,
                         int element_size,
                         int elements_count,
                         PSFloat learning_rate,
-                        int batch_size,
                         PSTrainingOptions *options,
-                        int epochs,
-                        PSFloat *test_data,
-                        int test_size)
+                        int epochs, float *training_accuracy)
 {
+    static PSTrainingOptions dfopts = {0};
     PSTrainingContext *training_ctx = getTrainingContext(model);
     if (training_ctx == NULL) {
         PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
         return PS_STATUS_ERROR_LOSS;
     }
+    if (options == NULL) options = &dfopts;
+    if (training_accuracy != NULL) *training_accuracy = 0;
     PSTrainingProgressFunc printProgress = NULL;
-    int batches_count = elements_count / batch_size;
+    int flags = options->flags, batch_size = options->batch_size,
+        is_model_chain = PSIsModelChain(model);
+    if (batch_size <= 0) batch_size = 1;
+    int batch_count = elements_count / batch_size;
     PSFloat **sequences = NULL, **sequence_head = NULL;
-    int flags = 0, do_validate = 0;
-    int is_model_chain = PSIsModelChain(model);
-    if (options != NULL) flags = options->flags;
     if (PSIsRecurrent(model) || PSHandleSequenceAtOnce(model)) {
         PSLayer *out = PSGetOutputLayer(model);
         if (out == NULL) {
@@ -5953,39 +6156,57 @@ PSFloat gradientDescent(PSModel *model,
         if (!(flags & PS_TRAINING_NO_SHUFFLE))
             shuffle(training_data, elements_count, element_size);
     }
-    PSFloat err = 0.0, avg_err = 0.0, acc = 0.0, tot_acc = 0.0, avg_acc = 0.0;
-    long tot_t = 0, avg_t, elapsed_t, test_data_size, validations = 0;
-    int offset = (element_size * batch_size), validate_every = 0, i;
-    if (options != NULL) {
-        validate_every = options->validate_every_batches;
-        if (validate_every > 0 && test_data != NULL) {
-            if (options->max_validation_elements <= 0) {
-                int max_test_elements = (int) (0.05 * elements_count);
-                options->max_validation_elements =
-                    (batch_size *options->validate_every_batches) / 2;
-                if (options->max_validation_elements > max_test_elements)
-                    options->max_validation_elements = max_test_elements;
-            }
-            test_data_size = options->max_validation_elements *element_size;
-            if (test_data_size > test_size) test_data_size = test_size * 0.1;
-            do_validate = 1;
-        }
-        printProgress = options->printProgress;
+    PSFloat loss = 0.0, avg_loss = 0.0;
+    float accuracy = 0.0;
+    float *accuracy_p = NULL;
+    long tot_t = 0, avg_t, elapsed_t;
+    int step_size = (element_size * batch_size), i;
+    int measure_accuracy = options->metrics & PS_TRAINING_METRICS_ACCURACY,
+        accuracy_max_samples = 0, accuracy_samples = 0,
+        accuracy_batch_interval = 1, accuracy_correct_results = 0;
+    if (measure_accuracy) {
+        float accuracy_dataset_size = options->accuracy_dataset_percent;
+        if (accuracy_dataset_size > 0) {
+            if (accuracy_dataset_size > 1) accuracy_dataset_size = 1;
+            accuracy_max_samples =
+                (int) roundf(accuracy_dataset_size * (float) elements_count);
+            int acc_batches = accuracy_max_samples / batch_size;
+            if ((accuracy_max_samples % batch_size) != 0)
+                acc_batches++;
+            accuracy_batch_interval = batch_count / acc_batches;
+        } else accuracy_max_samples = elements_count;
+        accuracy_p = &accuracy;
     }
+    printProgress = options->printProgress;
     if (printProgress == NULL) printProgress = PSLogTrainingProgress;
     sequence_head = sequences;
-    for (i = 0; i < batches_count; i++) {
+    /* Iterate all epoch's batches. */
+    for (i = 0; i < batch_count; i++) {
         model->training->current_batch = i;
         int batch_num = i + 1;
+        if (measure_accuracy && accuracy_samples < accuracy_max_samples) {
+            /* Measure training accuracy. */
+            int do_measure = 1;
+            if (accuracy_batch_interval > 0)
+                do_measure = (i % accuracy_batch_interval) == 0;
+            if (do_measure) {
+                accuracy = getTrainingAccuracy(
+                    model, training_data, sequence_head, element_size,
+                    accuracy_max_samples, &accuracy_samples,
+                    &accuracy_correct_results, options
+                );
+            }
+        }
+        /* Update model's parameters and get loss for current batch. */
         struct timeval st, et;
         gettimeofday(&st, NULL);
-        PSFloat batch_err = updateModelParameters(
-            model, training_data, batch_size, elements_count, learning_rate,
+        PSFloat batch_loss = updateModelParameters(
+            model, training_data, elements_count, learning_rate,
             options, sequence_head
         );
         gettimeofday(&et, NULL);
         elapsed_t = PSGetElapsedTimeUS(st, et);
-        err += batch_err;
+        loss += batch_loss;
         if (PSModelGetStatus(model) == PS_STATUS_ERROR) {
             PSErr(NULL, "Gradient descent failed at batch %d for model '%s'",
                   i, (model->name != NULL ? model->name : "UNNAMED")
@@ -5994,34 +6215,16 @@ PSFloat gradientDescent(PSModel *model,
         }
         tot_t += elapsed_t;
         avg_t = (tot_t / batch_num);
-        if (batch_num < batches_count) {
-            avg_err = err / (PSFloat) batch_num;
-            if (do_validate) {
-                if (i > 0 && (batch_num % validate_every) == 0) {
-                    printProgress(
-                        model, PS_STATUS_VALIDATING, epochs, batches_count,
-                        NULL, NULL, NULL, 0, test_data_size / element_size
-                    );
-                    acc = validate(
-                        model, test_data, test_data_size, options, 0
-                    );
-                    tot_acc += acc;
-                    avg_acc = tot_acc / (PSFloat) ++validations;
-                }
-                printProgress(
-                    model, PS_STATUS_TRAINING, epochs, batches_count,
-                    &avg_err, &avg_acc, &avg_t, 0, 0
-                );
-            } else {
-                printProgress(
-                    model, PS_STATUS_TRAINING, epochs, batches_count,
-                    &avg_err, NULL, &avg_t, 0, 0
-                );
-            }
+        if (batch_num < batch_count) {
+            avg_loss = loss / (PSFloat) batch_num;
+            printProgress(
+                model, PS_STATUS_TRAINING, epochs, batch_count,
+                &avg_loss, accuracy_p, NULL, NULL, &avg_t
+            );
         } else {
             printProgress(
-                model, PS_STATUS_TRAINING, epochs, batches_count, NULL, NULL,
-                NULL, 0, 0
+                model, PS_STATUS_TRAINING, epochs, batch_count, NULL, NULL,
+                NULL, NULL, NULL
             );
         }
         if (PSModelGetStatus(model) == PS_STATUS_ERROR) {
@@ -6030,12 +6233,12 @@ PSFloat gradientDescent(PSModel *model,
         }
         if (model->onBatchTrained != NULL) {
             model->onBatchTrained(
-                model, model->training->current_epoch,
-                epochs, avg_err, batch_err, avg_acc, &learning_rate,
+                model, model->training->current_epoch, epochs, avg_loss,
+                batch_loss, 0, accuracy, 0, &learning_rate,
                 (sequences != NULL ? *sequence_head : training_data)
             );
         }
-        if (sequences == NULL) training_data += offset;
+        if (sequences == NULL) training_data += step_size;
         else sequence_head += batch_size;
         int action = model->training->requested_action;
         if (action == PS_ACTION_ABORT) {
@@ -6045,14 +6248,17 @@ PSFloat gradientDescent(PSModel *model,
     }
 final:
     if (sequences != NULL) free(sequences);
-    return err / (PSFloat) batches_count;
+    if (measure_accuracy && training_accuracy != NULL)
+        *training_accuracy = accuracy;
+    return loss / (PSFloat) batch_count;
 }
 
 float validate(PSModel *model, PSFloat *test_data, int data_size,
-               PSTrainingOptions *opts, int log)
+               PSTrainingOptions *opts, PSFloat *loss, int log)
 {
     int i, j;
-    unsigned char previous_status = PSModelGetStatus(model);
+    int previous_status = PSModelGetStatus(model);
+    int was_training = previous_status == PS_STATUS_TRAINING;
     char *errmsg = NULL;
     float accuracy = 0.0f;
     int correct_results = 0;
@@ -6067,6 +6273,13 @@ float validate(PSModel *model, PSFloat *test_data, int data_size,
     int reads_input_sequence = 0, emits_output_sequence = 0;
     int flags = (opts != NULL ? opts->flags : 0);
     int teacher_forcing = 0;
+    int steps_to_check = 0, max_seqlen = 0;
+    int print_progress = (
+        was_training && !log && opts != NULL && opts->printProgress != NULL &&
+        model->training != NULL
+    );
+    PSFloat *outputs = NULL;
+    PSFloat *tmpy = NULL;
     PSModel *output_model = NULL;
     PSFloat **sequences = NULL;
     if (PSUseSequences(model)) {
@@ -6095,8 +6308,11 @@ float validate(PSModel *model, PSFloat *test_data, int data_size,
     PSForwardOptions fwopts = {0};
     if (flags & PS_TRAINING_FLAG_AUTOREGRESSION)
         fwopts.flags |= PS_TRAINING_FLAG_AUTOREGRESSION;
-    /* PSFloat outputs[output_size]; */
     if (log) printf("Test data elements: %d\n", elements_count);
+    if (model->training != NULL) {
+        model->training->test_size = data_size;
+        model->training->num_tests = elements_count;
+    }
     PSModelSetStatus(model, PS_STATUS_VALIDATING, NULL);
     time_t start_t, end_t;
     char timestr[80];
@@ -6104,37 +6320,43 @@ float validate(PSModel *model, PSFloat *test_data, int data_size,
     time(&start_t);
     tminfo = localtime(&start_t);
     strftime(timestr, 80, "%H:%M:%S", tminfo);
+    PSFloat tot_loss = 0.0;
     if (log) PSInfo("Testing started at %s", timestr);
     for (i = 0; i < elements_count; i++) {
+        if (model->training != NULL) model->training->current_test = i;
         if (log) printf("\rTesting %d/%d", i + 1, elements_count);
+        else if (print_progress) opts->printProgress(
+            model, PS_STATUS_VALIDATING, opts->epochs,
+            model->training->current_batch + 1, NULL, NULL, NULL, NULL, NULL
+        );
         fflush(stdout);
         PSFloat *inputs = NULL;
-        PSFloat *expected = NULL;
+        PSFloat *targets = NULL;
         int seqlen = 0;
         if (sequences == NULL) {
             /*  Non Recurrent and no sequences*/
             inputs = test_data;
             test_data += input_size;
-            expected = test_data;
+            targets = test_data;
 
             int ok = forward(model, inputs, 0, &fwopts);
             if (!ok) goto err;
 
             int omax = 0; /* Output index with max value */
-            int emax = 0; /* Expected index with max value */
+            int emax = 0; /* Target index with max value */
             if (!PSFindLayerMaxState(output_layer, NULL, &omax)) {
                 PSErr(NULL, "Could not find output layer max state");
                 goto err;
             }
-            if (!onehot) emax = arrayMaxIndex(expected, output_size);
-            else emax = (int) *(expected);
+            if (!onehot) emax = arrayMaxIndex(targets, output_size);
+            else emax = (int) *(targets);
             if (omax == emax) correct_results++;
             test_data += output_size;
         } else {
             /*  Recurrent or sequences*/
             inputs = sequences[i];
             int seq_datalen = parseSequenceData(
-                model, inputs, i, flags, 1, NULL, NULL, &seqlen, &expected
+                model, inputs, i, flags, 1, NULL, NULL, &seqlen, &targets
             );
             if (seqlen == 0 || seq_datalen <= 0) {
                 errmsg = "recurrent data with zero seqlen";
@@ -6148,42 +6370,40 @@ float validate(PSModel *model, PSFloat *test_data, int data_size,
             int correct_states = 0;
             if (emits_output_sequence) {
                 int output_seqlen = PSStateSequenceLength(output_layer);
-                int steps_to_check = seqlen, max_seqlen = seqlen;
-                PSFloat *tmpy = NULL;
+                max_seqlen = steps_to_check = seqlen;
                 int tmpy_len = 0;
                 if (teacher_forcing) {
                     tmpy = prepareSequence(
-                        expected, seqlen, seqlen, y_size, &tmpy_len,
+                        targets, seqlen, seqlen, y_size, &tmpy_len,
                         &(output_model->sequence_settings), SEQ_MODE_APPEND_END
                     );
                     if (tmpy == NULL) {
                         PSErrNN(__func__, model, NULL, "cannot prepare target "
                                 "sequence for teacher forcing validation");
-                        free(tmpy);
-                        tmpy = NULL;
                         goto err;
                     }
-                    expected = tmpy;
+                    targets = tmpy;
                     seqlen = tmpy_len;
                     steps_to_check = max_seqlen = seqlen;
                 }
-                if (output_seqlen < seqlen) {
+                if (output_seqlen < seqlen)
                     steps_to_check = output_seqlen;
-                } else if (output_seqlen > seqlen)
+                else if (output_seqlen > seqlen)
                     max_seqlen = output_seqlen;
                 int label_data_size = y_size * steps_to_check;
                 int last_label_idx = (label_data_size - 1);
-                if (label_data_size <= 0) {
-                    free(tmpy);
+                if (label_data_size <= 0) goto err;
+                outputs = PSVectorCreate(label_data_size);
+                if (outputs == NULL) {
+                    PSPrintMemoryErrorMsg();
                     goto err;
                 }
-                PSFloat outputs[label_data_size];
                 for (j = 0; j < label_data_size; j++) {
                     int is_last_label = (j == last_label_idx);
                     j = fetchSequenceOutputState(
                         output_layer, outputs, j, onehot
                     );
-                    if (onehot && (outputs[j] == expected[j]))
+                    if (onehot && (outputs[j] == targets[j]))
                         correct_states++;
                     else if (
                         !onehot && j > 0 &&
@@ -6194,7 +6414,7 @@ float validate(PSModel *model, PSFloat *test_data, int data_size,
                             outputs + (t * y_size), y_size
                         );
                         int emax = arrayMaxIndex(
-                            expected + (t * y_size), y_size
+                            targets + (t * y_size), y_size
                         );
                         if (emax == omax) correct_states++;
                     }
@@ -6202,18 +6422,23 @@ float validate(PSModel *model, PSFloat *test_data, int data_size,
                 correct_amount += (
                     (float) correct_states / (float) max_seqlen
                 );
-                free(tmpy);
             } else {
                 int omax = 0; /* Output index with max value */
-                int emax = 0; /* Expected index with max value */
+                int emax = 0; /* targets index with max value */
                 if (!PSFindLayerMaxState(output_layer, NULL, &omax)) {
                     PSErr(NULL, "Could not find output layer max state");
                     goto err;
                 }
-                if (!onehot) emax = arrayMaxIndex(expected, output_size);
-                else emax = (int) *expected;
+                if (!onehot) emax = arrayMaxIndex(targets, output_size);
+                else emax = (int) *targets;
                 if (omax == emax) correct_results++;
             }
+        }
+        if (loss != NULL) {
+            tot_loss += getLoss(
+                model, targets, seqlen, 0, outputs, 0, 0, NULL, opts
+            );
+            if (PSModelGetStatus(model) == PS_STATUS_ERROR) goto err;
         }
     }
     if (log) {
@@ -6224,16 +6449,28 @@ float validate(PSModel *model, PSFloat *test_data, int data_size,
     if (log) printf("\nCompleted in %ld sec.\n", end_t - start_t);
     if (!emits_output_sequence) {
         accuracy = (float) correct_results / (float) elements_count;
-        if (log) printf("Accuracy (%d/%d): %.2f\n",
-                        correct_results, elements_count,accuracy);
+        if (log) {
+            printf(
+                "Accuracy (%d/%d): %.2f\n", correct_results,
+                elements_count,accuracy
+            );
+        }
     } else {
         accuracy = correct_amount / (float) elements_count;
         free(sequences);
         if (log) printf("Accuracy: %.2f\n", accuracy);
     }
     PSModelSetStatus(model, previous_status, NULL);
+    if (loss != NULL) {
+        *loss = tot_loss / elements_count;
+        if (log) printf("Loss: %.2f\n", *loss);
+    }
+    free(outputs);
+    free(tmpy);
     return accuracy;
 err:
+    free(outputs);
+    free(tmpy);
     if (errmsg == NULL) {
         if (PSModelGetStatus(model) == PS_STATUS_VALIDATING)
             errmsg = "an error occurred while validating, aborting!";
@@ -6453,6 +6690,8 @@ void PSTrain(PSModel *model,
               model->name != NULL ? model->name : "UNNAMED");
         return;
     }
+    float training_accuracy = 0;
+    float *training_accuracy_p = NULL;
     int is_recurrent = PSIsRecurrent(model);
     int handle_seq = PSHandleSequenceAtOnce(model);
     int use_sequences = is_recurrent || handle_seq;
@@ -6469,6 +6708,31 @@ void PSTrain(PSModel *model,
                   "is not available for this model: %s", err);
             return;
         }
+    }
+    int measure_accuracy = (options->metrics & PS_TRAINING_METRICS_ACCURACY);
+    if (measure_accuracy) {
+        if (options->accuracy_dataset_percent < 0) {
+            /* Automatically find `accuracy_dataset_percent`. */
+            default_options = *options;
+            options = &default_options; /* Work on a copy of options. */
+            if (test_size > 0 && test_data != NULL) {
+                if (use_sequences) {
+                    float test_elem_count = (float) *test_data;
+                    options->accuracy_dataset_percent = (
+                        test_elem_count / (float) elements_count
+                    );
+                } else {
+                    options->accuracy_dataset_percent = (
+                        (float) test_size / (float) data_size
+                    );
+                }
+            } else {
+                 options->accuracy_dataset_percent = (float) data_size * 0.2;
+            }
+            if (options->accuracy_dataset_percent > 1)
+                options->accuracy_dataset_percent = 1;
+        }
+        training_accuracy_p = &training_accuracy;
     }
     const char *name = model->name != NULL ? model->name : "UNNAMED";
     if (num_models == 1)
@@ -6488,11 +6752,6 @@ void PSTrain(PSModel *model,
     PSInfo("Training data elements:     %d", elements_count);
     PSInfo("Batch Size:                 %d", batch_size);
     PSInfo("Learning Rate:              %g", learning_rate);
-    if (options->validate_every_batches > 0) {
-        printf(
-            "Validate Every: %d batch(es)\n",  options->validate_every_batches
-        );
-    }
     int use_weight_decay = (
         (options->l1_decay != 0 || options->l2_decay != 0) &&
         (options->flags & PS_TRAINING_WEIGHT_DECAY)
@@ -6528,8 +6787,22 @@ void PSTrain(PSModel *model,
         loss_func_name = getLossFunctionName(output_model->loss);
         PSInfo("Loss Function:              %s", loss_func_name);
     }
-    /* Start training */
+    if (options->metrics) {
+        if (measure_accuracy) {
+            PSPrint(PSLOGLEVEL_INFO, "Metrics:                    accuracy");
+            float acc_data_size = options->accuracy_dataset_percent;
+            if (acc_data_size > 0 && acc_data_size < 1) {
+                int acc_data_perc = (int) (acc_data_size * 100);
+                PSPrint(
+                    PSLOGLEVEL_INFO, " (%d%% of training dataset)",
+                    acc_data_perc
+                );
+            }
+            PSPrint(PSLOGLEVEL_INFO, "\n");
+        }
+    }
     int was_paused = (PSModelGetStatus(model) == PS_STATUS_PAUSED);
+    /* Start training */
     PSModelSetStatus(model, PS_STATUS_TRAINING, NULL);
     time_t start_t, end_t;
     char timestr[80];
@@ -6541,9 +6814,7 @@ void PSTrain(PSModel *model,
     PSPrint(PSLOGLEVEL_NOTICE, "Training started at %s\n", timestr);
     PSFloat prev_loss = 0.0;
     float acc = -999.99f;
-    int adjust_rate = 0;
-    if (options != NULL)
-        adjust_rate = (options->flags & PS_TRAINING_ADJUST_RATE);
+    int adjust_rate = adjust_rate = (options->flags & PS_TRAINING_ADJUST_RATE);
     int first_epoch = 0;
     if (model->training != NULL) {
         if (was_paused) first_epoch = model->training->current_epoch;
@@ -6560,7 +6831,13 @@ void PSTrain(PSModel *model,
     }
     model->training->batch_size = batch_size;
     model->training->requested_action = PS_ACTION_NONE;
+    model->training->data_size = data_size;
+    model->training->test_size = test_size;
+    model->training->current_test = 0;
+    model->training->num_tests = 0;
     for (i = first_epoch; i < epochs; i++) {
+        PSFloat test_loss = 0.0;
+        training_accuracy = 0;
         model->training->current_epoch = i;
         if (is_recurrent) {
             if (!PSResetModelStateSequences(model, 0, 0)) {
@@ -6572,8 +6849,7 @@ void PSTrain(PSModel *model,
         gettimeofday(&epoch_st, NULL);
         PSFloat loss = gradientDescent(model, training_data, element_size,
                                        elements_count, learning_rate,
-                                       batch_size, options, epochs,
-                                       test_data, test_size);
+                                       options, epochs, &training_accuracy);
         gettimeofday(&epoch_et, NULL);
         time_t elapsed_t = PSGetElapsedTimeUS(epoch_st, epoch_et);
         if (PSModelGetStatus(model) == PS_STATUS_ERROR) {
@@ -6584,26 +6860,30 @@ void PSTrain(PSModel *model,
             return;
         }
         int batches_count = elements_count / batch_size;
-        PSFloat *acc_p = NULL;
+        float *acc_p = NULL;
         if (test_data  && PSModelGetStatus(model) == PS_STATUS_TRAINING) {
+            model->training->current_test = 0;
             printProgress(
                 model, PS_STATUS_VALIDATING, epochs, batches_count, NULL,
-                NULL, NULL, 0, 0
+                NULL, NULL, NULL, NULL
             );
-            acc = validate(model, test_data, test_size, options, 0);
-            acc_p = (PSFloat *) &acc;
+            acc = validate(
+                model, test_data, test_size, options, &test_loss, 0
+            );
+            acc_p = &acc;
         }
         if (i > 0 && loss > prev_loss && adjust_rate)
             learning_rate *= 0.5;
         if (model->onEpochTrained != NULL) {
             model->onEpochTrained(
-                model, i, epochs, loss, loss, acc, &learning_rate, NULL
+                model, i, epochs, loss, loss, test_loss, training_accuracy,
+                acc, &learning_rate, NULL
             );
         }
         prev_loss = loss;
         printProgress(
             model, PS_STATUS_TRAINING, epochs, batches_count, &loss,
-            acc_p, &elapsed_t, 0, 0
+            training_accuracy_p, &test_loss, acc_p, &elapsed_t
         );
         fflush(stdout);
         int action = model->training->requested_action;
@@ -6613,7 +6893,9 @@ void PSTrain(PSModel *model,
         }
     }
     time(&end_t);
-    printProgress(model,PS_STATUS_TRAINED,epochs,0,NULL,NULL,NULL,0,0);
+    printProgress(
+        model, PS_STATUS_TRAINED, epochs, 0, NULL, NULL, NULL, NULL, NULL
+    );
     PSLineEnd();
     fflush(stdout);
     PSPrint(PSLOGLEVEL_SUCCESS, "\nCompleted in %ld sec.\n", end_t - start_t);
@@ -6629,11 +6911,29 @@ void PSTrain(PSModel *model,
     }
 }
 
+/* Test `model` the against `test_data` dataset having length defined by the
+ * `data_size` argument.
+ * Tests are usualy performed on a different dataset than the one used for
+ * training in order to measure how the model performs on different data.
+ * This can be useful to determine undefitting (the model is not sufficiently
+ * trained) or overfitting (the model has been trained to much on the training
+ * dataset and it cannot generalize its predictions to different examples).
+ * Underfitting generally leads to lower performances in the training data,
+ * while overfitting generally leads to better performances on the training
+ * dataset than on the one used for testing.
+ * The function computes the accuracy of the predictions (the number of correct
+ * prediction with respect to the expected targets given by the dataset itself).
+ * In addition, the function can also compute the overall loss of the
+ * predictions made by using the pointer `loss`.
+ * The argument `opts` can be used to set the same training options used for
+ * training (ie. the `flags`).
+ * Return value: the accuracy of the predictions, where 1.0 means that all
+ * predictions were correct while 0.0 means that no prediction was correct. */
 float PSTest(PSModel *model, PSFloat *test_data, int data_size,
-             PSTrainingOptions *options)
+             PSFloat *loss, PSTrainingOptions *options)
 {
     int do_log = (PSLogLevel <= PSLOGLEVEL_INFO);
-    return validate(model, test_data, data_size, options, do_log);
+    return validate(model, test_data, data_size, options, loss, do_log);
 }
 
 void PSPauseTraining(PSModel *model) {

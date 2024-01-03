@@ -292,7 +292,7 @@ PSGradient ***backprop(PSModel *model, PSFloat *x, PSFloat *y,
 
 PSFloat updateModelParameters(PSModel *model,
                               PSFloat *training_data,
-                              int batch_size, int elements_count,
+                              int elements_count,
                               PSFloat rate, PSTrainingOptions* opts, ...);
 
 PSFloat *PSGetDropoutMask(PSLayer *layer, int t);
@@ -1056,6 +1056,7 @@ int main(int argc, char** argv) {
     printf(
         "\n%d tests performed in %s\n", tot_tests, elapsed_str
     );
+    free(elapsed_str);
     int succeded = tot_tests - tot_failed;
     if (succeded > 0)
         printf(PSCOLOR_GREEN "Succeeded: %d\n" PSCOLOR_RESET, succeded);
@@ -1754,7 +1755,7 @@ int testFullAccuracy(TestCase *test_case, Test *test) {
             return 0;
         }
     }
-    PSFloat accuracy = PSTest(model, test_data, testlen, NULL),
+    PSFloat accuracy = PSTest(model, test_data, testlen, NULL, NULL),
             expected = 100.0;
     accuracy = PSRound(accuracy * 100.0);
     testAssertWithMessage(
@@ -2221,9 +2222,10 @@ int testRNNStep(TestCase *test_case, Test *test) {
     int elements_count = (int) *training_data;
 
     int i, j, w;
+    PSTrainingOptions topts = {.batch_size = 1};
     PSFloat loss = updateModelParameters(
-        model, training_data, 1, elements_count, RNN_LEARNING_RATE,
-        NULL, sequences
+        model, training_data, elements_count, RNN_LEARNING_RATE,
+        &topts, sequences
     );
     PSFloat expected_loss = 1.395162;
     int loss_equals = compareFloats(loss, expected_loss, 0,4);
@@ -2440,10 +2442,10 @@ int testRNNOneHot(TestCase *test_case, Test *test) {
         return 0;
     }
     PSFloat onehot_accuracy = PSTest(
-        onehot_model, onehot_data, onehot_datalen, NULL
+        onehot_model, onehot_data, onehot_datalen, NULL, NULL
     );
     PSFloat std_accuracy = PSTest(
-        standard_model, standard_data, standard_datalen, NULL
+        standard_model, standard_data, standard_datalen, NULL, NULL
     );
     ok = (onehot_model->status != PS_STATUS_ERROR);
     testAssertWithMessageOrGoto(
@@ -3664,7 +3666,7 @@ int testEncodedDecoderBackprop(TestCase *test_case, Test *test) {
     PSFloat *seq[] = {NULL};
     seq[0] = training_data;
     PSFloat loss = updateModelParameters(
-        model, training_data, 1, elements_count, 0.3, &opts, seq
+        model, training_data, elements_count, 0.3, &opts, seq
     );
     PSFloat expected_loss = 0.004653;
     ok = compareFloats(loss, expected_loss, 0, 4);

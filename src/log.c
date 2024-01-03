@@ -410,7 +410,9 @@ int PSVLineAppend(int opts, char *format, va_list args) {
     int len = 0, tw = PSGetTerminalColumns();
     int available = tw - current_line_length, minlen = available;
     int is_plain_ascii = (opts & PS_LINE_PLAIN_ASCII),
-        fill = (opts & PS_LINE_FILL);
+        fill = (opts & PS_LINE_FILL),
+        clear = (opts & PS_LINE_CLEAR);
+    if (clear) fill = 0;
     char buf[255] = {0};
     char *str = NULL;
     if (!is_plain_ascii) {
@@ -433,6 +435,7 @@ int PSVLineAppend(int opts, char *format, va_list args) {
             current_line_length += printf("%-*s", minlen, buf);
         }
     }
+    if (clear) PSLineClear(PS_LINE_CLEAR_FROM_CURSOR);
     fflush(stdout);
     return current_line_length;
 }
@@ -456,8 +459,9 @@ int PSLineStart(int opts, char *format, ...) {
         if (tw > 0) {
             /* Prevent line starting on a new line because of terminal width
              * overflow. */
-            int nrows = 1 + (curlen / tw);
-            while (nrows-- > 1) {
+            int nrows = (curlen / tw) - 1 + (curlen % tw ? 1 : 0); //RESTORE?
+            if (nrows < 0) nrows = 0;
+            while (nrows-- > 0) {
                 /* Move cursor to the beginning of previous line. */
                 printf("\x1b[F");
             }
@@ -478,6 +482,10 @@ int PSLineStart(int opts, char *format, ...) {
 int PSLineFill(void) {
     if (!printing_on_same_line) PSLineStart(PS_LINE_OVERWRITE, NULL);
     return PSLineAppend(PS_LINE_FILL, "");
+}
+
+void PSLineClear(int mode) {
+    printf("\x1b[%dK", mode);
 }
 
 void PSLineEnd(void) {

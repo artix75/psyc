@@ -129,6 +129,7 @@ int performTests(TestCase *test_case) {
     char *elapsed_str = PSGetElapsedTimeString(elapsed_t, 0);
     test_case->failed_count = errors;
     printf("Tests performed in %s.\n", elapsed_str);
+    free(elapsed_str);
     printf("Found ");
     if (errors > 0) printf(PSCOLOR_RED "%d errors.\n", errors);
     else printf(PSCOLOR_GREEN "no errors.\n");

@@ -27,7 +27,7 @@
 #include "activation.h"
 #include "optimization.h"
 
-#define PSYC_VERSION                "0.9.3"
+#define PSYC_VERSION                "0.9.4"
 #define PSYC_NAME                   "PsyC"
 #define PSYC_SITE                   "https://github.com/artix75/psyc"
 #define PSYC_CONTACT                PSYC_SITE "/issues"
@@ -75,6 +75,8 @@
 #define PS_TRAINING_PHASE_BACKPROP      2
 #define PS_TRAINING_PHASE_UPDATE_GRAD   3
 
+#define PS_ACCURACY_DATASIZE_AUTO  -1
+
 #define PS_NULL_VALUE PSFLOAT_MIN
 
 /* Layer/Model Flags */
@@ -102,6 +104,9 @@
 #define PS_TRAINING_FLAG_AUTOREGRESSION    (1 << 7)
 #define PS_TRAINING_FLAG_TEACHER_FORCING   (1 << 8)
 #define PS_TRAINING_FLAG_SEQ2SEQ           (1 << 9)
+
+/* Training Metrics */
+#define PS_TRAINING_METRICS_ACCURACY      (1 << 0)
 
 /* I/O options */
 
@@ -147,7 +152,10 @@ typedef void     (*PSTrainCallback) (struct PSModel *model,
                                      int epoch, int epochs,
                                      PSFloat average_loss,
                                      PSFloat current_loss,
-                                     float accuracy, PSFloat *rate,
+                                     PSFloat validation_loss,
+                                     float accuracy,
+                                     float validation_accuracy,
+                                     PSFloat *rate,
                                      PSFloat *training_data);
 typedef int      (*PSLinkDataRetriever) (struct PSLayer *layer);
 typedef int      (*PSBeforeForwardCallback) (struct PSModel *model,
@@ -160,11 +168,12 @@ typedef int      (*PSBeforeBackpropCallback) (struct PSModel *model,
                                               struct PSGradient **gradients);
 typedef void     (*PSTrainingProgressFunc) (struct PSModel *model,
                                             int status, int epochs,
-                                            int batches, PSFloat *loss,
-                                            PSFloat *accuracy,
-                                            time_t *elapsed,
-                                            int validating_current,
-                                            int validating_tot);
+                                            int batches,
+                                            PSFloat *loss,
+                                            float *accuracy,
+                                            PSFloat *validation_loss,
+                                            float *validation_accuracy,
+                                            time_t *elapsed);
 typedef void     (*PSSignalHandler) (int);
 
 typedef struct PSLayerDef {
@@ -273,17 +282,21 @@ typedef struct PSTrainingOptions {
     PSFloat                     clip;
     PSOptimization              optimization;
     int                         bptt_truncate;
-    int                         validate_every_batches;
-    int                         max_validation_elements;
+    int                         metrics;
+    float                       accuracy_dataset_percent;
     PSTrainingProgressFunc      printProgress;
     FILE                        *debug_dump_to;
 } PSTrainingOptions;
 
 typedef struct {
-    int     current_epoch;
-    int     current_batch;
-    int     current_element;
-    int     batch_size;
+    int         current_epoch;
+    int         current_batch;
+    int         current_element;
+    int         batch_size;
+    int         data_size;
+    int         current_test;
+    int         test_size;
+    int         num_tests;
     time_t  started_at;
     time_t  ended_at;
     int     requested_action;
@@ -444,7 +457,7 @@ void PSTrain(PSModel *model,
              PSTrainingOptions *options);
 void PSPauseTraining(PSModel *model);
 void PSAbortTraining(PSModel *model);
-float PSTest(PSModel *model, PSFloat *test_data, int data_size,
+float PSTest(PSModel *model, PSFloat *test_data, int data_size, PSFloat *loss,
              PSTrainingOptions *options);
 /* int arrayMaxIndex(PSFloat *array, int len); */
 char *PSGetLabelForType(PSLayerType type);
@@ -461,9 +474,9 @@ PSFloat PSCrossEntropyLoss(PSFloat *x, PSFloat *y, int size, int onehot_size);
 
 /* Training progress logging functions */
 void PSTrainingProgressBar(PSModel *model, int status, int epochs,
-                           int batches, PSFloat *loss, PSFloat *accuracy,
-                           time_t *elapsed, int validating_current,
-                           int validating_tot);
+                           int batches, PSFloat *loss, float *accuracy,
+                           PSFloat *test_loss,  float *test_accuracy,
+                           time_t *elapsed);
 
 /* Miscellaneous functions */
 

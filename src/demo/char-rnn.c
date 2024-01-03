@@ -101,8 +101,10 @@ int randomChoice(PSFloat *weights, int count) {
 }
 
 void onBatchTrained(PSModel *model, int epoch, int epochs,
-                    PSFloat loss, PSFloat current_loss, float accuracy,
-                    PSFloat *rate, PSFloat *training_data)
+                    PSFloat loss, PSFloat current_loss,
+                    PSFloat validation_loss, float accuracy,
+                    float validation_accuracy, PSFloat *rate,
+                    PSFloat *training_data)
 {
     UNUSED(epoch);
     UNUSED(loss);
@@ -111,6 +113,8 @@ void onBatchTrained(PSModel *model, int epoch, int epochs,
     UNUSED(model);
     UNUSED(epochs);
     UNUSED(training_data);
+    UNUSED(validation_loss);
+    UNUSED(validation_accuracy);
     last_batch_loss = current_loss;
     if (log_sequences) {
         int seqlen = (int) training_data[0], i;
@@ -135,8 +139,10 @@ void onBatchTrained(PSModel *model, int epoch, int epochs,
 }
 
 void onEpochTrained(PSModel *model, int epoch, int epochs,
-                    PSFloat loss, PSFloat current_loss, float accuracy,
-                    PSFloat *rate, PSFloat *training_data)
+                    PSFloat loss, PSFloat current_loss,
+                    PSFloat validation_loss, float accuracy,
+                    float validation_accuracy, PSFloat *rate,
+                    PSFloat *training_data)
 {
     UNUSED(epoch);
     UNUSED(epochs);
@@ -145,6 +151,8 @@ void onEpochTrained(PSModel *model, int epoch, int epochs,
     UNUSED(accuracy);
     UNUSED(rate);
     UNUSED(training_data);
+    UNUSED(validation_loss);
+    UNUSED(validation_accuracy);
     if (sample_every > 0 && (epoch % sample_every) != 0) return;
     int iteration =
         (epoch * num_elements) + model->training->current_element;

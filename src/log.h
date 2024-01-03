@@ -104,9 +104,15 @@
 #define PS_PROGRESS_FLAG_XTERM256_CODE  (1 << 6)
 #define PS_PROGRESS_FLAG_PERCENT_RIGHT  (1 << 7)
 
+/*** Line append flags. ***/
 #define PS_LINE_FILL            (1 << 1)
 #define PS_LINE_OVERWRITE       (1 << 2)
 #define PS_LINE_PLAIN_ASCII     (1 << 3)
+#define PS_LINE_CLEAR           (1 << 4)
+/*** PSLineClear modes. ***/
+#define PS_LINE_CLEAR_FROM_CURSOR   0
+#define PS_LINE_CLEAR_TO_CURSOR     1
+#define PS_LINE_CLEAR_ALL           2
 
 #define PSClearScreen() (printf("\x1b[1;1H\x1b[2J"))
 #define PSLogColorEnabled() (PSGlobalFlags & PS_FLAG_LOG_COLORS)
@@ -140,6 +146,7 @@ int PSLineStart(int opts, char *format, ...);
 int PSLineAppend(int opts, char *format, ...);
 int PSVLineAppend(int opts, char *format, va_list args);
 int PSLineFill(void);
+void PSLineClear(int mode);
 void PSLineEnd(void);
 
 #endif /* __LOG_H__ */

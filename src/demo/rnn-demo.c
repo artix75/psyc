@@ -434,7 +434,8 @@ int main(int argc, char** argv) {
     }
     if (TEST_DATA_LEN > 0) {
         printf("Test Data len: %d\n", TEST_DATA_LEN);
-        PSTest(model, test_data, TEST_DATA_LEN, NULL);
+        PSFloat test_loss = 0;
+        PSTest(model, test_data, TEST_DATA_LEN, &test_loss, NULL);
     }
     if (print_sample) printSample(model, 0, sample_len);
     if (output_path != NULL) PSModelSave(model, output_path);

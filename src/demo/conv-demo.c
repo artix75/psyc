@@ -153,7 +153,8 @@ int main(int argc, char** argv) {
 
     if (testlen > 0 && test_data != NULL) {
         printf("Test Data len: %d\n", testlen);
-        PSTest(model, test_data, testlen, NULL);
+        PSFloat test_loss = 0;
+        PSTest(model, test_data, testlen, &test_loss, NULL);
     }
     if (pretrained_file == NULL)
         PSModelSave(model, "/tmp/pretrained.cnn.psmodel");

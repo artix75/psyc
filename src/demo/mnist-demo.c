@@ -344,18 +344,24 @@ int main(int argc, char** argv) {
     printf("Data len: %d\n", datalen);
     PSModelPrintInfo(model);
 
-    if (!loaded) PSTrain(model, training_data, datalen, NULL, 0, PSTRAINOPT(
-        .optimization = optimization,
-        .learning_rate = learning_rate,
-        .batch_size = 10,
-        .epochs = epochs
-    ));
+    if (!loaded) {
+        PSTrainingOptions topts = {
+            .optimization = optimization,
+            .learning_rate = learning_rate,
+            .batch_size = 10,
+            .epochs = epochs
+        };
+        PSTrain(
+            model, training_data, datalen, test_data, testlen, &topts
+        );
+    }
     success = (model->status != PS_STATUS_ERROR);
     if (!success) goto final;
 
     if (testlen > 0 && test_data != NULL) {
         printf("Test Data len: %d\n", testlen);
-        PSTest(model, test_data, testlen, NULL);
+        PSFloat test_loss = 0;
+        PSTest(model, test_data, testlen, &test_loss, NULL);
     }
 final:
     if (found_files_count > 0) {

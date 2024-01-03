@@ -278,6 +278,7 @@ void PSPrintBenchmarkResults(PSBenchmarkResults *results, int num_results) {
             PSCOLOR_CYAN " -> %s:" PSCOLOR_RESET " %*ldus %15s\n",
             name, pad, res->avg_time_us, elapsed_str
         );
+        free(elapsed_str);
         res++;
     }
 }
@@ -297,6 +298,7 @@ void PSWriteBenchmarkResultsToCSV(PSBenchmarkConfig *cfg,
         char *elapsed_str = PSGetElapsedTimeString(res->avg_time_us, 0);
         fprintf(f, "\"%s\",\"%s\",%ld,\"%s\"\n", cfgname, name,
                 res->avg_time_us, elapsed_str);
+        free(elapsed_str);
         res++;
     }
 }
@@ -328,6 +330,7 @@ void PSWriteBenchmarkResultsToJSON(PSBenchmarkConfig *cfg,
                 elapsed_str);
         fprintf(f, "            }%s", sep);
         res++;
+        free(elapsed_str);
     }
     fprintf(f, "        ]\n");
     fprintf(f, "    }");
@@ -3473,10 +3476,12 @@ int main(int argc, char **argv) {
             performed_benchmarks++;
             free(results);
             time_t elapsed = PSGetElapsedTimeUS(st, et);
+            char *elapsed_str = PSGetElapsedTimeString(elapsed, 1);
             printf(
                 " -> %d benchmark(s) performed in %s\n\n",
-                num_results, PSGetElapsedTimeString(elapsed, 1)
+                num_results, elapsed_str
             );
+            free(elapsed_str);
         }
     }
 final:

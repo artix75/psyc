@@ -360,7 +360,11 @@ int PSCompareVersion(const char* vers1, const char* vers2) {
 }
 
 char *PSGetElapsedTimeString(time_t elapsed_us, int opts) {
-    static char elapsed_str[256];
+    char *elapsed_str = malloc(256);
+    if (elapsed_str == NULL) {
+        PSPrintMemoryErrorMsg();
+        return NULL;
+    }
     static const char *time_units_short[] = {"us", "ms", "s", "m", "h"};
     static const char *time_units_long[] = {
         "usec.", "msec.", "sec.", "min.", "hour(s)"
