@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+Copyright (C) 2016-2024 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
 All rights reserved.
 
 Redistribution and use in source and binary forms are permitted
@@ -23,7 +23,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
    </head>
    <body class="psyc-doc psyc-cli-tool">
        <header>
-           <h1>PsyC Documentation <span class="version">0.9.3</span></h1>
+           <h1>PsyC Documentation <span class="version">0.9.4</span></h1>
            <h2>Command Line Utilities</h2>
            <nav id="top-menu">
                <ul>
@@ -201,6 +201,12 @@ Set log level (see <a class="identifier" href="#section-log-levels">LOG LEVELS</
 Loss Function (see <a class="identifier" href="#section-loss-functions">LOSS FUNCTIONS</a> section).<br>
 </div>
 </li>
+<li id="opt-metrics">
+<span class="optdef"><span class="name">--metrics</span></span>
+<div class="description">
+Training metrics (see <a class="identifier" href="#section-metrics">METRICS</a> section).<br>
+</div>
+</li>
 <li id="opt-model">
 <span class="optdef"><span class="name">--model</span></span>
 <div class="description">
@@ -283,6 +289,13 @@ Train model with TRAIN_DATASET.<br>
 (see <a class="identifier" href="#section-train-test-options">TRAIN|TEST OPTIONS</a> section).<br>
 </div>
 </li>
+<li id="opt-training-accuracy-percent">
+<span class="optdef"><span class="name">--training-accuracy-percent</span></span>
+<div class="description">
+Percentage of training dataset to be used for
+training accuracy metrics (0.0-1.0 | 'auto').<br>
+</div>
+</li>
 <li id="opt-training-adjust-rate">
 <span class="optdef"><span class="name">--training-adjust-rate</span></span>
 <div class="description">
@@ -299,12 +312,6 @@ Training data length.<br>
 <span class="optdef"><span class="name">--training-no-shuffle</span></span>
 <div class="description">
 Prevent dataset shuffle.<br>
-</div>
-</li>
-<li id="opt-validate-every">
-<span class="optdef"><span class="name">--validate-every</span> <span class="args"> BATCH_NUM</span></span>
-<div class="description">
-Validate inside epochs.<br>
 </div>
 </li>
 <li id="opt-validation-datalen">
@@ -609,6 +616,11 @@ Format: [model_index:]layer_index
 debug, info, notice, success, warn, error
 
 </section>
+<section class="section" id="section-metrics">
+<h3>METRICS</h3>
+- accuracy
+
+</section>
 <section class="section" id="section-train-test-options">
 <h3>TRAIN|TEST OPTIONS</h3>
 <ul class="cli-opt-list">
@@ -727,9 +739,12 @@ and it loads another configuration file (ie. <strong>include /path/to/config</st
 <section class="section" id="section-scripts">
 <h3>SCRIPTS</h3>
 By using options like <a class="identifier" href="#opt-on-batch-trained">--on-batch-trained</a> or <a class="identifier" href="#opt-on-epoch-trained">--on-epoch-trained</a> it's
-possible to execute an arbitrary external script when such events happen.<br>The scripts will eventually receive the following arguments:<br>--event TYPE, --name MODEL_NAME --epoch CURRENT_EPOCH
---epochs TOT_EPOCHS --average-loss AVERAGE_LOSS --current-loss
-CURRENT_LOSS --accuracy CURRENT_ACCURACY --learning-rate RATE
+possible to execute an arbitrary external script when such events happen.<br>The scripts will eventually receive the following options:<br>--event TYPE --name MODEL_NAME --epoch CURRENT_EPOCH
+--epochs TOT_EPOCHS --average-loss AVERAGE_LOSS
+--current-loss BATCH_LOSS --accuracy TRAINING_ACCURACY
+--learning-rate RATE
+Optional options:<br>--validation-loss VALIDATION_LOSS --validation-accuracy VALIDATION_ACCURACY
+--batch BATCH_NUM --example EXAMPLE_INDEX
 The scripts can use special exit codes to force psycl aborting the training
 process:<br>- 3 (PS_STATUS_ERROR)
 - 5 (PS_STATUS_ABORTED)
@@ -757,7 +772,7 @@ Build a model with input size of 784, a fully connected layer of size 30, an out
            <div class="license-info">
                <div class="license"><img src="License-BSD-3-Clause-blue.svg"> PsyC is released under the <a href="https://opensource.org/license/bsd-3-clause/">BSD-3 Clause</a>
                </div>
-               <div class="copyright">Copyright &copy; 2016-2023 Giuseppe Fabio Nicotra
+               <div class="copyright">Copyright &copy; 2016-2024 Giuseppe Fabio Nicotra
                </div>
            </div>
        </footer>

@@ -1,4 +1,4 @@
-# PsyC Documentation - 0.9.3
+# PsyC Documentation - 0.9.4
 ## Macros
 
 ### DBL_DECIMAL_DIG
@@ -18,6 +18,17 @@ In: types.h, line: 25
 
 ```c
 #define FLT_DECIMAL_DIG (FLT_DIG + 2)
+```
+
+
+
+
+### PS_ACCURACY_DATASIZE_AUTO
+
+In: psyc.h, line: 78
+
+```c
+#define PS_ACCURACY_DATASIZE_AUTO -1
 ```
 
 
@@ -282,7 +293,7 @@ In: dataset.h, line: 95
 
 ### PS_FLAG_ACCEL_DISABLED
 
-In: psyc.h, line: 84
+In: psyc.h, line: 86
 
 ```c
 #define PS_FLAG_ACCEL_DISABLED (1 << 2) /* Formerly FLAG_AVX_DISABLED (< v0.4):
@@ -293,7 +304,7 @@ In: psyc.h, line: 84
 
 ### PS_FLAG_AUTOREGRESSION
 
-In: psyc.h, line: 92
+In: psyc.h, line: 94
 
 ```c
 #define PS_FLAG_AUTOREGRESSION (1 << 7)
@@ -319,7 +330,7 @@ In: config.h, line: 25
 
 ### PS_FLAG_NO_BIAS
 
-In: psyc.h, line: 88
+In: psyc.h, line: 90
 
 ```c
 #define PS_FLAG_NO_BIAS (1 << 3)
@@ -330,7 +341,7 @@ In: psyc.h, line: 88
 
 ### PS_FLAG_NON_TRAINABLE
 
-In: psyc.h, line: 90
+In: psyc.h, line: 92
 
 ```c
 #define PS_FLAG_NON_TRAINABLE (1 << 5)
@@ -341,7 +352,7 @@ In: psyc.h, line: 90
 
 ### PS_FLAG_NONE
 
-In: psyc.h, line: 81
+In: psyc.h, line: 83
 
 ```c
 #define PS_FLAG_NONE 0
@@ -352,7 +363,7 @@ In: psyc.h, line: 81
 
 ### PS_FLAG_ONEHOT
 
-In: psyc.h, line: 83
+In: psyc.h, line: 85
 
 ```c
 #define PS_FLAG_ONEHOT (1 << 1)
@@ -363,7 +374,7 @@ In: psyc.h, line: 83
 
 ### PS_FLAG_PRETRAINER
 
-In: psyc.h, line: 89
+In: psyc.h, line: 91
 
 ```c
 #define PS_FLAG_PRETRAINER (1 << 4)
@@ -374,7 +385,7 @@ In: psyc.h, line: 89
 
 ### PS_FLAG_RANDREGRESSION
 
-In: psyc.h, line: 93
+In: psyc.h, line: 95
 
 ```c
 #define PS_FLAG_RANDREGRESSION (1 << 8)
@@ -385,7 +396,7 @@ In: psyc.h, line: 93
 
 ### PS_FLAG_RECURRENT
 
-In: psyc.h, line: 82
+In: psyc.h, line: 84
 
 ```c
 #define PS_FLAG_RECURRENT (1 << 0)
@@ -396,7 +407,7 @@ In: psyc.h, line: 82
 
 ### PS_FLAG_SELF_ATTENTION
 
-In: psyc.h, line: 94
+In: psyc.h, line: 96
 
 ```c
 #define PS_FLAG_SELF_ATTENTION (1 << 16)
@@ -407,7 +418,7 @@ In: psyc.h, line: 94
 
 ### PS_FLAG_USE_SEQUENCES
 
-In: psyc.h, line: 91
+In: psyc.h, line: 93
 
 ```c
 #define PS_FLAG_USE_SEQUENCES (1 << 6)
@@ -506,7 +517,7 @@ In: dataset.h, line: 34
 
 ### PS_IO_BINARY_MODE
 
-In: psyc.h, line: 109
+In: psyc.h, line: 114
 
 ```c
 #define PS_IO_BINARY_MODE (1 << 1)
@@ -528,7 +539,7 @@ In: dataset.h, line: 37
 
 ### PS_IO_SAVE_DEFINITION
 
-In: psyc.h, line: 108
+In: psyc.h, line: 113
 
 ```c
 #define PS_IO_SAVE_DEFINITION (1 << 0)
@@ -570,9 +581,53 @@ In: psyc.h, line: 35
 
 
 
+### PS_LINE_CLEAR
+
+In: log.h, line: 111
+
+```c
+#define PS_LINE_CLEAR (1 << 4)
+```
+
+
+
+
+### PS_LINE_CLEAR_ALL
+
+In: log.h, line: 115
+
+```c
+#define PS_LINE_CLEAR_ALL 2
+```
+
+
+
+
+### PS_LINE_CLEAR_FROM_CURSOR
+
+In: log.h, line: 113
+
+```c
+#define PS_LINE_CLEAR_FROM_CURSOR 0
+```
+
+
+
+
+### PS_LINE_CLEAR_TO_CURSOR
+
+In: log.h, line: 114
+
+```c
+#define PS_LINE_CLEAR_TO_CURSOR 1
+```
+
+
+
+
 ### PS_LINE_FILL
 
-In: log.h, line: 107
+In: log.h, line: 108
 
 ```c
 #define PS_LINE_FILL (1 << 1)
@@ -583,7 +638,7 @@ In: log.h, line: 107
 
 ### PS_LINE_OVERWRITE
 
-In: log.h, line: 108
+In: log.h, line: 109
 
 ```c
 #define PS_LINE_OVERWRITE (1 << 2)
@@ -594,7 +649,7 @@ In: log.h, line: 108
 
 ### PS_LINE_PLAIN_ASCII
 
-In: log.h, line: 109
+In: log.h, line: 110
 
 ```c
 #define PS_LINE_PLAIN_ASCII (1 << 3)
@@ -715,7 +770,7 @@ In: dataset.h, line: 239
 
 ### PS_NULL_VALUE
 
-In: psyc.h, line: 78
+In: psyc.h, line: 80
 
 ```c
 #define PS_NULL_VALUE PSFLOAT_MIN
@@ -1330,7 +1385,7 @@ In: dataset.h, line: 35
 
 ### PS_TRAINING_ADJUST_RATE
 
-In: psyc.h, line: 98
+In: psyc.h, line: 100
 
 ```c
 #define PS_TRAINING_ADJUST_RATE (1 << 1)
@@ -1341,7 +1396,7 @@ In: psyc.h, line: 98
 
 ### PS_TRAINING_EPOCH_AS_SEQUENCE
 
-In: psyc.h, line: 100
+In: psyc.h, line: 102
 
 ```c
 #define PS_TRAINING_EPOCH_AS_SEQUENCE (1 << 3)
@@ -1352,7 +1407,7 @@ In: psyc.h, line: 100
 
 ### PS_TRAINING_FLAG_AUTOREGRESSION
 
-In: psyc.h, line: 102
+In: psyc.h, line: 104
 
 ```c
 #define PS_TRAINING_FLAG_AUTOREGRESSION (1 << 7)
@@ -1363,7 +1418,7 @@ In: psyc.h, line: 102
 
 ### PS_TRAINING_FLAG_SELFSUPERVISED
 
-In: psyc.h, line: 101
+In: psyc.h, line: 103
 
 ```c
 #define PS_TRAINING_FLAG_SELFSUPERVISED (1 << 4)
@@ -1374,7 +1429,7 @@ In: psyc.h, line: 101
 
 ### PS_TRAINING_FLAG_SEQ2SEQ
 
-In: psyc.h, line: 104
+In: psyc.h, line: 106
 
 ```c
 #define PS_TRAINING_FLAG_SEQ2SEQ (1 << 9)
@@ -1385,7 +1440,7 @@ In: psyc.h, line: 104
 
 ### PS_TRAINING_FLAG_TEACHER_FORCING
 
-In: psyc.h, line: 103
+In: psyc.h, line: 105
 
 ```c
 #define PS_TRAINING_FLAG_TEACHER_FORCING (1 << 8)
@@ -1394,9 +1449,20 @@ In: psyc.h, line: 103
 
 
 
+### PS_TRAINING_METRICS_ACCURACY
+
+In: psyc.h, line: 109
+
+```c
+#define PS_TRAINING_METRICS_ACCURACY (1 << 0)
+```
+
+
+
+
 ### PS_TRAINING_NO_SHUFFLE
 
-In: psyc.h, line: 97
+In: psyc.h, line: 99
 
 ```c
 #define PS_TRAINING_NO_SHUFFLE (1 << 0)
@@ -1440,7 +1506,7 @@ In: psyc.h, line: 76
 
 ### PS_TRAINING_WEIGHT_DECAY
 
-In: psyc.h, line: 99
+In: psyc.h, line: 101
 
 ```c
 #define PS_TRAINING_WEIGHT_DECAY (1 << 2)
@@ -1576,7 +1642,7 @@ In: config.h, line: 38
 
 ### PSClearScreen
 
-In: log.h, line: 111
+In: log.h, line: 117
 
 ```c
 #define PSClearScreen() (printf("\x1b[1;1H\x1b[2J"))
@@ -1954,7 +2020,7 @@ In: utils.h, line: 40
 
 ### PSDisablePretraining
 
-In: psyc.h, line: 120
+In: psyc.h, line: 125
 
 ```c
 #define PSDisablePretraining(layer) (layer->pretrain = NULL)
@@ -2169,7 +2235,7 @@ In: config.h, line: 43
 
 ### PSHandleSequenceAtOnce
 
-In: psyc.h, line: 115
+In: psyc.h, line: 120
 
 ```c
 #define PSHandleSequenceAtOnce(o) (PSUseSequences(o) && !PSIsRecurrent(o))
@@ -2191,7 +2257,7 @@ In: config.h, line: 30
 
 ### PSIsModelChain
 
-In: psyc.h, line: 116
+In: psyc.h, line: 121
 
 ```c
 #define PSIsModelChain(model) (model->previous != NULL || model->next != NULL)
@@ -2202,7 +2268,7 @@ In: psyc.h, line: 116
 
 ### PSIsModelTraining
 
-In: psyc.h, line: 121
+In: psyc.h, line: 126
 
 ```c
 #define PSIsModelTraining(model) (PSModelGetStatus(model) == PS_STATUS_TRAINING)
@@ -2224,7 +2290,7 @@ In: attention.h, line: 35
 
 ### PSIsRecurrent
 
-In: psyc.h, line: 111
+In: psyc.h, line: 116
 
 ```c
 #define PSIsRecurrent(o) (o->flags & PS_FLAG_RECURRENT)
@@ -2235,7 +2301,7 @@ In: psyc.h, line: 111
 
 ### PSLDEF
 
-In: psyc.h, line: 117
+In: psyc.h, line: 122
 
 ```c
 #define PSLDEF(...) ((PSLayerDef *) &((PSLayerDef) {__VA_ARGS__}))
@@ -2276,7 +2342,7 @@ In: maths.h, line: 34
 
 ### PSLogColorEnabled
 
-In: log.h, line: 112
+In: log.h, line: 118
 
 ```c
 #define PSLogColorEnabled() (PSGlobalFlags & PS_FLAG_LOG_COLORS)
@@ -2287,7 +2353,7 @@ In: log.h, line: 112
 
 ### PSLogDisableColor
 
-In: log.h, line: 114
+In: log.h, line: 120
 
 ```c
 #define PSLogDisableColor() (PSGlobalFlags &= ~((unsigned) PS_FLAG_LOG_COLORS))
@@ -2298,7 +2364,7 @@ In: log.h, line: 114
 
 ### PSLogEnableColor
 
-In: log.h, line: 113
+In: log.h, line: 119
 
 ```c
 #define PSLogEnableColor() (PSGlobalFlags |= PS_FLAG_LOG_COLORS)
@@ -2434,7 +2500,7 @@ In: maths.h, line: 36
 
 ### PSPrintMemoryErrorMsg
 
-In: log.h, line: 115
+In: log.h, line: 121
 
 ```c
 #define PSPrintMemoryErrorMsg() PSErr(NULL, "Could not allocate memory!")
@@ -2482,7 +2548,7 @@ In: config.h, line: 31
 
 ### PSSetRecurrent
 
-In: psyc.h, line: 112
+In: psyc.h, line: 117
 
 ```c
 #define PSSetRecurrent(o) (o->flags |= PS_FLAG_RECURRENT)
@@ -2496,7 +2562,7 @@ In: psyc.h, line: 112
 In: debug.h, line: 28
 
 ```c
-#define PSShouldDebugDump(model) (model->training != NULL && model->training->debug_dump_to != NULL && model->training->current_element == 0 && model->training->current_epoch == 0)
+#define PSShouldDebugDump(model) (model->training != NULL && model->training->debug_dump_to != NULL && model->training->current_example == 0 && model->training->current_epoch == 0)
 ```
 
 
@@ -2630,7 +2696,7 @@ In: activation.h, line: 25
 
 ### PSTRAINOPT
 
-In: psyc.h, line: 118
+In: psyc.h, line: 123
 
 ```c
 #define PSTRAINOPT(...) ((PSTrainingOptions *) &((PSTrainingOptions) {__VA_ARGS__}))
@@ -2641,7 +2707,7 @@ In: psyc.h, line: 118
 
 ### PSUseSequences
 
-In: psyc.h, line: 113
+In: psyc.h, line: 118
 
 ```c
 #define PSUseSequences(o) (o->flags & (PS_FLAG_RECURRENT | PS_FLAG_USE_SEQUENCES))
@@ -3029,7 +3095,7 @@ In: psyc.h, line: 32
 In: psyc.h, line: 30
 
 ```c
-#define PSYC_VERSION "0.9.3"
+#define PSYC_VERSION "0.9.4"
 ```
 
 

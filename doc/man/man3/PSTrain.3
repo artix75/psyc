@@ -1,4 +1,4 @@
-.\" Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+.\" Copyright (C) 2016-2024 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms are permitted
@@ -13,7 +13,7 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSTrain 3 2023-12-09 "PsyC 0.9.3" "PsyC Library Functions Manual"
+.TH PSTrain 3 2024-01-03 "PsyC 0.9.4" "PsyC Library Functions Manual"
 
 .SH NAME
 \fBPSTrain\fR \- Train model over training data
@@ -31,7 +31,7 @@ void
 .br
 \fBPSTrain\fR(\fIPSModel *model\fR, \fIPSFloat *training_data\fR, \fIint data_size\fR, \fIPSFloat *test_data\fR, \fIint test_size\fR, \fIPSTrainingOptions *options\fR)
 .SH DESCRIPTION
-Train \fImodel\fR over \fItraining_data\fR. Training epochs, batch size, optimization, and other optimizer settings are defined into optional \fIoptions\fR.
+Train \fImodel\fR over \fItraining_data\fR. Training epochs, batch size, optimization, and other optimizer settings are defined into optional \fIoptions\fR argument.
 .br
 .B ARGUMENTS
 .br
@@ -54,7 +54,7 @@ length of \fItraining_data\fR array.
 
 .TP
 .B test_data
-optional dataset that can be used for testing purpose
+optional dataset that can be used for testing (validation).
 .br
 
 .TP
@@ -72,15 +72,15 @@ Training/test data layout:
 .br
 
 .RS 4
-\[bu] For normal feedforward models, the array must contain alternating inputs/predictions pairs, one pair for each element to be trained. So, each training/test element pair must contain:     - Input values, having the same length of the model's input layer
+\[bu] For normal feedforward models, the array must contain alternating inputs/predictions pairs, one pair for each example in the dataset. So, each training/test example pair must contain:     - Input values, having the same length of the model's input layer
 .br
 
 .RS 4
-\[bu] Prediction values, having the same length of the model's output layer. If output layer has the \fIPS_FLAG_ONEHOT\fR flag, predictions length muse be 1, and it must contain the index of the expected maximum state.   Total number of traing elements is given by:     array size / (input_size + output_size)
+\[bu] Target values, having the same length of the model's output layer. If output layer has the \fIPS_FLAG_ONEHOT\fR flag, predictions length muse be 1, and it must contain the index of the expected maximum state.   The total number of training examples is given by:     array size / (input_size + output_size)
 .br
 
 .RE
-\[bu] For recurrent model or models using sequences, layout can have different forms. Regardless of that, first element of the array must contain the total number of training/test elements. For each training/test sequence, the sequence length must be specified. Different forms can be:
+\[bu] For recurrent model or models using sequences, the layout of the dataset can have different forms. Regardless of that, the first element of the array must contain the total number of training/test sequences. For each training/test sequence, the sequence length must be specified. Different forms can be:
 .br
 
 .RS 4

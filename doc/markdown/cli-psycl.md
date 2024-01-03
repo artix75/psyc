@@ -85,6 +85,9 @@ Set log level (see [LOG LEVELS](#section-log-levels) section).
 **--loss-function**     FUNC  
 Loss Function (see [LOSS FUNCTIONS](#section-loss-functions) section).  
 
+**--metrics**  
+Training metrics (see [METRICS](#section-metrics) section).  
+
 **--model**  
 Start new model (it can be used
 multiple times to create chained models
@@ -131,6 +134,10 @@ Test model against TEST_DATASET.
 Train model with TRAIN_DATASET.  
 (see [TRAIN|TEST OPTIONS](#section-train-test-options) section).  
 
+**--training-accuracy-percent**  
+Percentage of training dataset to be used for
+training accuracy metrics (0.0-1.0 | 'auto').  
+
 **--training-adjust-rate**  
 Auto-adjust learn rate.  
 
@@ -139,9 +146,6 @@ Training data length.
 
 **--training-no-shuffle**  
 Prevent dataset shuffle.  
-
-**--validate-every**     BATCH_NUM  
-Validate inside epochs.  
 
 **--validation-datalen**     LEN  
 Validation data length.  
@@ -335,6 +339,10 @@ Format: [model_index:]layer_index
 
 debug, info, notice, success, warn, error 
 
+### METRICS
+
+- accuracy 
+
 ### TRAIN|TEST OPTIONS
 
 
@@ -426,7 +434,7 @@ train /path/to/my/dataset
 
 ### SCRIPTS
 
-By using options like `--on-batch-trained` or `--on-epoch-trained` it's possible to execute an arbitrary external script when such events happen.  The scripts will eventually receive the following arguments:  --event TYPE, --name MODEL_NAME --epoch CURRENT_EPOCH --epochs TOT_EPOCHS --average-loss AVERAGE_LOSS --current-loss CURRENT_LOSS --accuracy CURRENT_ACCURACY --learning-rate RATE The scripts can use special exit codes to force psycl aborting the training process:  - 3 (PS_STATUS_ERROR) - 5 (PS_STATUS_ABORTED) 
+By using options like `--on-batch-trained` or `--on-epoch-trained` it's possible to execute an arbitrary external script when such events happen.  The scripts will eventually receive the following options:  --event TYPE --name MODEL_NAME --epoch CURRENT_EPOCH --epochs TOT_EPOCHS --average-loss AVERAGE_LOSS --current-loss BATCH_LOSS --accuracy TRAINING_ACCURACY --learning-rate RATE Optional options:  --validation-loss VALIDATION_LOSS --validation-accuracy VALIDATION_ACCURACY --batch BATCH_NUM --example EXAMPLE_INDEX The scripts can use special exit codes to force psycl aborting the training process:  - 3 (PS_STATUS_ERROR) - 5 (PS_STATUS_ABORTED) 
 
 ### EXAMPLES
 

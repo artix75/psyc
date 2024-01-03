@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+Copyright (C) 2016-2024 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
 All rights reserved.
 
 Redistribution and use in source and binary forms are permitted
@@ -23,7 +23,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
    </head>
    <body class="psyc-doc psyc-macros">
        <header>
-           <h1>PsyC Documentation <span class="version">0.9.3</span></h1>
+           <h1>PsyC Documentation <span class="version">0.9.4</span></h1>
            <h2>API Reference - Macros</h2>
            <nav id="top-menu">
                <ul>
@@ -52,6 +52,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
                <ul>
 <li><a href="#macro-dbl-decimal-dig">DBL_DECIMAL_DIG</a></li>
 <li><a href="#macro-flt-decimal-dig">FLT_DECIMAL_DIG</a></li>
+<li><a href="#macro-ps-accuracy-datasize-auto">PS_ACCURACY_DATASIZE_AUTO</a></li>
 <li><a href="#macro-ps-action-abort">PS_ACTION_ABORT</a></li>
 <li><a href="#macro-ps-action-none">PS_ACTION_NONE</a></li>
 <li><a href="#macro-ps-action-pause">PS_ACTION_PAUSE</a></li>
@@ -101,6 +102,10 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 <li><a href="#macro-ps-keys-proj-idx">PS_KEYS_PROJ_IDX</a></li>
 <li><a href="#macro-ps-keys-projection">PS_KEYS_PROJECTION</a></li>
 <li><a href="#macro-ps-layer-types">PS_LAYER_TYPES</a></li>
+<li><a href="#macro-ps-line-clear">PS_LINE_CLEAR</a></li>
+<li><a href="#macro-ps-line-clear-all">PS_LINE_CLEAR_ALL</a></li>
+<li><a href="#macro-ps-line-clear-from-cursor">PS_LINE_CLEAR_FROM_CURSOR</a></li>
+<li><a href="#macro-ps-line-clear-to-cursor">PS_LINE_CLEAR_TO_CURSOR</a></li>
 <li><a href="#macro-ps-line-fill">PS_LINE_FILL</a></li>
 <li><a href="#macro-ps-line-overwrite">PS_LINE_OVERWRITE</a></li>
 <li><a href="#macro-ps-line-plain-ascii">PS_LINE_PLAIN_ASCII</a></li>
@@ -175,6 +180,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 <li><a href="#macro-ps-training-flag-selfsupervised">PS_TRAINING_FLAG_SELFSUPERVISED</a></li>
 <li><a href="#macro-ps-training-flag-seq2seq">PS_TRAINING_FLAG_SEQ2SEQ</a></li>
 <li><a href="#macro-ps-training-flag-teacher-forcing">PS_TRAINING_FLAG_TEACHER_FORCING</a></li>
+<li><a href="#macro-ps-training-metrics-accuracy">PS_TRAINING_METRICS_ACCURACY</a></li>
 <li><a href="#macro-ps-training-no-shuffle">PS_TRAINING_NO_SHUFFLE</a></li>
 <li><a href="#macro-ps-training-phase-backprop">PS_TRAINING_PHASE_BACKPROP</a></li>
 <li><a href="#macro-ps-training-phase-forward">PS_TRAINING_PHASE_FORWARD</a></li>
@@ -337,6 +343,15 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">FLT_DECIMAL_DIG</span> <span class="value">(FLT_DIG + 2)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-accuracy-datasize-auto">
+<h3 class="name">PS_ACCURACY_DATASIZE_AUTO</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">78</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_ACCURACY_DATASIZE_AUTO</span> <span class="value">-1</span></code>
 </div>
 </div>
 
@@ -558,7 +573,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details macro" id="macro-ps-flag-accel-disabled">
 <h3 class="name">PS_FLAG_ACCEL_DISABLED</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">84</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">86</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_FLAG_ACCEL_DISABLED</span> <span class="value">(1 &lt;&lt; 2) /* Formerly FLAG_AVX_DISABLED (&lt; v0.4):</span></code>
@@ -567,7 +582,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details macro" id="macro-ps-flag-autoregression">
 <h3 class="name">PS_FLAG_AUTOREGRESSION</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">92</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">94</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_FLAG_AUTOREGRESSION</span> <span class="value">(1 &lt;&lt; 7)</span></code>
@@ -594,7 +609,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details macro" id="macro-ps-flag-no-bias">
 <h3 class="name">PS_FLAG_NO_BIAS</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">88</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">90</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_FLAG_NO_BIAS</span> <span class="value">(1 &lt;&lt; 3)</span></code>
@@ -603,7 +618,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details macro" id="macro-ps-flag-non-trainable">
 <h3 class="name">PS_FLAG_NON_TRAINABLE</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">90</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">92</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_FLAG_NON_TRAINABLE</span> <span class="value">(1 &lt;&lt; 5)</span></code>
@@ -612,7 +627,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details macro" id="macro-ps-flag-none">
 <h3 class="name">PS_FLAG_NONE</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">81</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">83</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_FLAG_NONE</span> <span class="value">0</span></code>
@@ -621,7 +636,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details macro" id="macro-ps-flag-onehot">
 <h3 class="name">PS_FLAG_ONEHOT</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">83</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">85</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_FLAG_ONEHOT</span> <span class="value">(1 &lt;&lt; 1)</span></code>
@@ -630,7 +645,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details macro" id="macro-ps-flag-pretrainer">
 <h3 class="name">PS_FLAG_PRETRAINER</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">89</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">91</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_FLAG_PRETRAINER</span> <span class="value">(1 &lt;&lt; 4)</span></code>
@@ -639,7 +654,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details macro" id="macro-ps-flag-randregression">
 <h3 class="name">PS_FLAG_RANDREGRESSION</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">93</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">95</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_FLAG_RANDREGRESSION</span> <span class="value">(1 &lt;&lt; 8)</span></code>
@@ -648,7 +663,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details macro" id="macro-ps-flag-recurrent">
 <h3 class="name">PS_FLAG_RECURRENT</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">82</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">84</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_FLAG_RECURRENT</span> <span class="value">(1 &lt;&lt; 0)</span></code>
@@ -657,7 +672,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details macro" id="macro-ps-flag-self-attention">
 <h3 class="name">PS_FLAG_SELF_ATTENTION</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">94</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">96</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_FLAG_SELF_ATTENTION</span> <span class="value">(1 &lt;&lt; 16)</span></code>
@@ -666,7 +681,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details macro" id="macro-ps-flag-use-sequences">
 <h3 class="name">PS_FLAG_USE_SEQUENCES</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">91</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">93</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_FLAG_USE_SEQUENCES</span> <span class="value">(1 &lt;&lt; 6)</span></code>
@@ -747,7 +762,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details macro" id="macro-ps-io-binary-mode">
 <h3 class="name">PS_IO_BINARY_MODE</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">109</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">114</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_IO_BINARY_MODE</span> <span class="value">(1 &lt;&lt; 1)</span></code>
@@ -765,7 +780,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details macro" id="macro-ps-io-save-definition">
 <h3 class="name">PS_IO_SAVE_DEFINITION</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">108</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">113</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_IO_SAVE_DEFINITION</span> <span class="value">(1 &lt;&lt; 0)</span></code>
@@ -799,9 +814,45 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 </div>
 </div>
 
+<div class="details macro" id="macro-ps-line-clear">
+<h3 class="name">PS_LINE_CLEAR</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">111</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_LINE_CLEAR</span> <span class="value">(1 &lt;&lt; 4)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-line-clear-all">
+<h3 class="name">PS_LINE_CLEAR_ALL</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">115</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_LINE_CLEAR_ALL</span> <span class="value">2</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-line-clear-from-cursor">
+<h3 class="name">PS_LINE_CLEAR_FROM_CURSOR</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">113</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_LINE_CLEAR_FROM_CURSOR</span> <span class="value">0</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-line-clear-to-cursor">
+<h3 class="name">PS_LINE_CLEAR_TO_CURSOR</h3>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">114</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_LINE_CLEAR_TO_CURSOR</span> <span class="value">1</span></code>
+</div>
+</div>
+
 <div class="details macro" id="macro-ps-line-fill">
 <h3 class="name">PS_LINE_FILL</h3>
-<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">107</span></div>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">108</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_LINE_FILL</span> <span class="value">(1 &lt;&lt; 1)</span></code>
@@ -810,7 +861,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details macro" id="macro-ps-line-overwrite">
 <h3 class="name">PS_LINE_OVERWRITE</h3>
-<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">108</span></div>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">109</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_LINE_OVERWRITE</span> <span class="value">(1 &lt;&lt; 2)</span></code>
@@ -819,7 +870,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details macro" id="macro-ps-line-plain-ascii">
 <h3 class="name">PS_LINE_PLAIN_ASCII</h3>
-<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">109</span></div>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">110</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_LINE_PLAIN_ASCII</span> <span class="value">(1 &lt;&lt; 3)</span></code>
@@ -918,7 +969,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details macro" id="macro-ps-null-value">
 <h3 class="name">PS_NULL_VALUE</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">78</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">80</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_NULL_VALUE</span> <span class="value">PSFLOAT_MIN</span></code>
@@ -1465,7 +1516,7 @@ Add a &#39;starting&#39; token to the dataset:<br/>
 
 <div class="details macro" id="macro-ps-training-adjust-rate">
 <h3 class="name">PS_TRAINING_ADJUST_RATE</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">98</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">100</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_TRAINING_ADJUST_RATE</span> <span class="value">(1 &lt;&lt; 1)</span></code>
@@ -1474,7 +1525,7 @@ Add a &#39;starting&#39; token to the dataset:<br/>
 
 <div class="details macro" id="macro-ps-training-epoch-as-sequence">
 <h3 class="name">PS_TRAINING_EPOCH_AS_SEQUENCE</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">100</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">102</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_TRAINING_EPOCH_AS_SEQUENCE</span> <span class="value">(1 &lt;&lt; 3)</span></code>
@@ -1483,7 +1534,7 @@ Add a &#39;starting&#39; token to the dataset:<br/>
 
 <div class="details macro" id="macro-ps-training-flag-autoregression">
 <h3 class="name">PS_TRAINING_FLAG_AUTOREGRESSION</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">102</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">104</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_TRAINING_FLAG_AUTOREGRESSION</span> <span class="value">(1 &lt;&lt; 7)</span></code>
@@ -1492,7 +1543,7 @@ Add a &#39;starting&#39; token to the dataset:<br/>
 
 <div class="details macro" id="macro-ps-training-flag-selfsupervised">
 <h3 class="name">PS_TRAINING_FLAG_SELFSUPERVISED</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">101</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">103</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_TRAINING_FLAG_SELFSUPERVISED</span> <span class="value">(1 &lt;&lt; 4)</span></code>
@@ -1501,7 +1552,7 @@ Add a &#39;starting&#39; token to the dataset:<br/>
 
 <div class="details macro" id="macro-ps-training-flag-seq2seq">
 <h3 class="name">PS_TRAINING_FLAG_SEQ2SEQ</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">104</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">106</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_TRAINING_FLAG_SEQ2SEQ</span> <span class="value">(1 &lt;&lt; 9)</span></code>
@@ -1510,16 +1561,25 @@ Add a &#39;starting&#39; token to the dataset:<br/>
 
 <div class="details macro" id="macro-ps-training-flag-teacher-forcing">
 <h3 class="name">PS_TRAINING_FLAG_TEACHER_FORCING</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">103</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">105</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_TRAINING_FLAG_TEACHER_FORCING</span> <span class="value">(1 &lt;&lt; 8)</span></code>
 </div>
 </div>
 
+<div class="details macro" id="macro-ps-training-metrics-accuracy">
+<h3 class="name">PS_TRAINING_METRICS_ACCURACY</h3>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">109</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_TRAINING_METRICS_ACCURACY</span> <span class="value">(1 &lt;&lt; 0)</span></code>
+</div>
+</div>
+
 <div class="details macro" id="macro-ps-training-no-shuffle">
 <h3 class="name">PS_TRAINING_NO_SHUFFLE</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">97</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">99</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_TRAINING_NO_SHUFFLE</span> <span class="value">(1 &lt;&lt; 0)</span></code>
@@ -1555,7 +1615,7 @@ Add a &#39;starting&#39; token to the dataset:<br/>
 
 <div class="details macro" id="macro-ps-training-weight-decay">
 <h3 class="name">PS_TRAINING_WEIGHT_DECAY</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">99</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">101</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_TRAINING_WEIGHT_DECAY</span> <span class="value">(1 &lt;&lt; 2)</span></code>
@@ -1672,7 +1732,7 @@ Add a &#39;starting&#39; token to the dataset:<br/>
 
 <div class="details macro" id="macro-psclearscreen">
 <h3 class="name">PSClearScreen</h3>
-<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">111</span></div>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">117</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PSClearScreen</span><span class="arguments">()</span> <span class="macro-expansion">(printf(&quot;\x1b[1;1H\x1b[2J&quot;))</span></code>
@@ -1987,7 +2047,7 @@ Add a &#39;starting&#39; token to the dataset:<br/>
 
 <div class="details macro" id="macro-psdisablepretraining">
 <h3 class="name">PSDisablePretraining</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">120</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">125</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PSDisablePretraining</span><span class="arguments">(layer)</span> <span class="macro-expansion">(layer-&gt;pretrain = NULL)</span></code>
@@ -2203,7 +2263,7 @@ Add a &#39;starting&#39; token to the dataset:<br/>
 
 <div class="details macro" id="macro-pshandlesequenceatonce">
 <h3 class="name">PSHandleSequenceAtOnce</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">115</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">120</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PSHandleSequenceAtOnce</span><span class="arguments">(o)</span> <span class="macro-expansion">(PSUseSequences(o) &amp;&amp; !PSIsRecurrent(o))</span></code>
@@ -2221,7 +2281,7 @@ Add a &#39;starting&#39; token to the dataset:<br/>
 
 <div class="details macro" id="macro-psismodelchain">
 <h3 class="name">PSIsModelChain</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">116</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">121</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PSIsModelChain</span><span class="arguments">(model)</span> <span class="macro-expansion">(model-&gt;previous != NULL || model-&gt;next != NULL)</span></code>
@@ -2230,7 +2290,7 @@ Add a &#39;starting&#39; token to the dataset:<br/>
 
 <div class="details macro" id="macro-psismodeltraining">
 <h3 class="name">PSIsModelTraining</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">121</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">126</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PSIsModelTraining</span><span class="arguments">(model)</span> <span class="macro-expansion">(PSModelGetStatus(model) == PS_STATUS_TRAINING)</span></code>
@@ -2248,7 +2308,7 @@ Add a &#39;starting&#39; token to the dataset:<br/>
 
 <div class="details macro" id="macro-psisrecurrent">
 <h3 class="name">PSIsRecurrent</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">111</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">116</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PSIsRecurrent</span><span class="arguments">(o)</span> <span class="macro-expansion">(o-&gt;flags &amp; PS_FLAG_RECURRENT)</span></code>
@@ -2257,7 +2317,7 @@ Add a &#39;starting&#39; token to the dataset:<br/>
 
 <div class="details macro" id="macro-psldef">
 <h3 class="name">PSLDEF</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">117</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">122</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PSLDEF</span><span class="arguments">(...)</span> <span class="macro-expansion">((PSLayerDef *) &amp;((PSLayerDef) {__VA_ARGS__}))</span></code>
@@ -2302,7 +2362,7 @@ Add a &#39;starting&#39; token to the dataset:<br/>
 
 <div class="details macro" id="macro-pslogcolorenabled">
 <h3 class="name">PSLogColorEnabled</h3>
-<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">112</span></div>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">118</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PSLogColorEnabled</span><span class="arguments">()</span> <span class="macro-expansion">(PSGlobalFlags &amp; PS_FLAG_LOG_COLORS)</span></code>
@@ -2311,7 +2371,7 @@ Add a &#39;starting&#39; token to the dataset:<br/>
 
 <div class="details macro" id="macro-pslogdisablecolor">
 <h3 class="name">PSLogDisableColor</h3>
-<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">114</span></div>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">120</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PSLogDisableColor</span><span class="arguments">()</span> <span class="macro-expansion">(PSGlobalFlags &amp;= ~((unsigned) PS_FLAG_LOG_COLORS))</span></code>
@@ -2320,7 +2380,7 @@ Add a &#39;starting&#39; token to the dataset:<br/>
 
 <div class="details macro" id="macro-pslogenablecolor">
 <h3 class="name">PSLogEnableColor</h3>
-<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">113</span></div>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">119</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PSLogEnableColor</span><span class="arguments">()</span> <span class="macro-expansion">(PSGlobalFlags |= PS_FLAG_LOG_COLORS)</span></code>
@@ -2437,7 +2497,7 @@ Add a &#39;starting&#39; token to the dataset:<br/>
 
 <div class="details macro" id="macro-psprintmemoryerrormsg">
 <h3 class="name">PSPrintMemoryErrorMsg</h3>
-<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">115</span></div>
+<div class="location">In: <span class="filename">log.h</span> - Line: <span class="line">121</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PSPrintMemoryErrorMsg</span><span class="arguments">()</span> <span class="macro-expansion">PSErr(NULL, &quot;Could not allocate memory!&quot;)</span></code>
@@ -2482,7 +2542,7 @@ Add a &#39;starting&#39; token to the dataset:<br/>
 
 <div class="details macro" id="macro-pssetrecurrent">
 <h3 class="name">PSSetRecurrent</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">112</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">117</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PSSetRecurrent</span><span class="arguments">(o)</span> <span class="macro-expansion">(o-&gt;flags |= PS_FLAG_RECURRENT)</span></code>
@@ -2494,7 +2554,7 @@ Add a &#39;starting&#39; token to the dataset:<br/>
 <div class="location">In: <span class="filename">debug.h</span> - Line: <span class="line">28</span></div>
 <div class="code">
 <code class="definition">
-<span class="preproc">#define </span><span class="identifier">PSShouldDebugDump</span><span class="arguments">(model)</span> <span class="macro-expansion">(model-&gt;training != NULL &amp;&amp; model-&gt;training-&gt;debug_dump_to != NULL &amp;&amp; model-&gt;training-&gt;current_element == 0 &amp;&amp; model-&gt;training-&gt;current_epoch == 0)</span></code>
+<span class="preproc">#define </span><span class="identifier">PSShouldDebugDump</span><span class="arguments">(model)</span> <span class="macro-expansion">(model-&gt;training != NULL &amp;&amp; model-&gt;training-&gt;debug_dump_to != NULL &amp;&amp; model-&gt;training-&gt;current_example == 0 &amp;&amp; model-&gt;training-&gt;current_epoch == 0)</span></code>
 </div>
 </div>
 
@@ -2626,7 +2686,7 @@ Add a &#39;starting&#39; token to the dataset:<br/>
 
 <div class="details macro" id="macro-pstrainopt">
 <h3 class="name">PSTRAINOPT</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">118</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">123</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PSTRAINOPT</span><span class="arguments">(...)</span> <span class="macro-expansion">((PSTrainingOptions *) &amp;((PSTrainingOptions) {__VA_ARGS__}))</span></code>
@@ -2635,7 +2695,7 @@ Add a &#39;starting&#39; token to the dataset:<br/>
 
 <div class="details macro" id="macro-psusesequences">
 <h3 class="name">PSUseSequences</h3>
-<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">113</span></div>
+<div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">118</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PSUseSequences</span><span class="arguments">(o)</span> <span class="macro-expansion">(o-&gt;flags &amp; (PS_FLAG_RECURRENT | PS_FLAG_USE_SEQUENCES))</span></code>
@@ -2953,7 +3013,7 @@ Add a &#39;starting&#39; token to the dataset:<br/>
 <div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">30</span></div>
 <div class="code">
 <code class="definition">
-<span class="preproc">#define </span><span class="identifier">PSYC_VERSION</span> <span class="value">&quot;0.9.3&quot;</span></code>
+<span class="preproc">#define </span><span class="identifier">PSYC_VERSION</span> <span class="value">&quot;0.9.4&quot;</span></code>
 </div>
 </div>
 
@@ -2975,7 +3035,7 @@ Add a &#39;starting&#39; token to the dataset:<br/>
            <div class="license-info">
                <div class="license"><img src="License-BSD-3-Clause-blue.svg"> PsyC is released under the <a href="https://opensource.org/license/bsd-3-clause/">BSD-3 Clause</a>
                </div>
-               <div class="copyright">Copyright &copy; 2016-2023 Giuseppe Fabio Nicotra
+               <div class="copyright">Copyright &copy; 2016-2024 Giuseppe Fabio Nicotra
                </div>
            </div>
        </footer>

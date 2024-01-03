@@ -1,4 +1,4 @@
-# PsyC Documentation - 0.9.3
+# PsyC Documentation - 0.9.4
 ## Types
 
 ### PSAcceleration
@@ -50,7 +50,7 @@ Attention method used to compute scores.
 
 ### PSBackpropFunction
 
-In: psyc.h, line: 129
+In: psyc.h, line: 134
 
 ```c
 typedef int (* PSBackpropFunction) (struct PSLayer *layer, struct PSLayer *previousLayer, struct PSGradient *layer_gradients, ...)
@@ -61,7 +61,7 @@ typedef int (* PSBackpropFunction) (struct PSLayer *layer, struct PSLayer *previ
 
 ### PSBeforeBackpropCallback
 
-In: psyc.h, line: 157
+In: psyc.h, line: 165
 
 ```c
 typedef int (* PSBeforeBackpropCallback) (struct PSModel *model, PSFloat *y, struct PSTrainingOptions *opts, struct PSGradient ** gradients)
@@ -72,7 +72,7 @@ typedef int (* PSBeforeBackpropCallback) (struct PSModel *model, PSFloat *y, str
 
 ### PSBeforeForwardCallback
 
-In: psyc.h, line: 153
+In: psyc.h, line: 161
 
 ```c
 typedef int (* PSBeforeForwardCallback) (struct PSModel *model, PSFloat *inputs, int seqlen, int backprop, void *opts)
@@ -135,7 +135,7 @@ typedef enum {
 
 ### PSBooleanLayerCallback
 
-In: psyc.h, line: 134
+In: psyc.h, line: 139
 
 ```c
 typedef int (* PSBooleanLayerCallback) (struct PSLayer *layer)
@@ -166,7 +166,7 @@ typedef struct {
 
 ### PSCopyLayerCallback
 
-In: psyc.h, line: 135
+In: psyc.h, line: 140
 
 ```c
 typedef int (* PSCopyLayerCallback) (struct PSLayer *, struct PSLayer *)
@@ -187,7 +187,7 @@ typedef struct {
     int status;  
     int current_epoch;  
     int current_batch;  
-    int current_element;  
+    int current_example;  
     int layer_index;  
     int layer_type;  
     int neuron_index;  
@@ -344,7 +344,7 @@ typedef PSFloat (* PSFloatFunc) (PSFloat n)
 
 ### PSForwardFunction
 
-In: psyc.h, line: 128
+In: psyc.h, line: 133
 
 ```c
 typedef int (* PSForwardFunction) (struct PSLayer *layer, ...)
@@ -355,7 +355,7 @@ typedef int (* PSForwardFunction) (struct PSLayer *layer, ...)
 
 ### PSForwardOptions
 
-In: psyc.h, line: 256
+In: psyc.h, line: 265
 
 ```c
 typedef struct {  
@@ -369,7 +369,7 @@ typedef struct {
 
 ### PSGenericLayerCallback
 
-In: psyc.h, line: 133
+In: psyc.h, line: 138
 
 ```c
 typedef void (* PSGenericLayerCallback) (struct PSLayer *layer)
@@ -380,7 +380,7 @@ typedef void (* PSGenericLayerCallback) (struct PSLayer *layer)
 
 ### PSGetParamCountFunction
 
-In: psyc.h, line: 139
+In: psyc.h, line: 144
 
 ```c
 typedef uint64_t (* PSGetParamCountFunction) (struct PSLayer *layer, int type)
@@ -391,7 +391,7 @@ typedef uint64_t (* PSGetParamCountFunction) (struct PSLayer *layer, int type)
 
 ### PSGradient
 
-In: psyc.h, line: 218
+In: psyc.h, line: 227
 
 ```c
 typedef struct {  
@@ -432,7 +432,7 @@ typedef struct {
 
 ### PSInitStatesFunc
 
-In: psyc.h, line: 140
+In: psyc.h, line: 145
 
 ```c
 typedef int (* PSInitStatesFunc) (struct PSLayer *layer, uint32_t steps, int retain_previous)
@@ -443,7 +443,7 @@ typedef int (* PSInitStatesFunc) (struct PSLayer *layer, uint32_t steps, int ret
 
 ### PSLayer
 
-In: psyc.h, line: 301
+In: psyc.h, line: 314
 
 ```c
 typedef struct {  
@@ -487,7 +487,7 @@ typedef struct {
 
 ### PSLayerDef
 
-In: psyc.h, line: 170
+In: psyc.h, line: 179
 
 ```c
 typedef struct {  
@@ -536,7 +536,7 @@ typedef struct {
 
 ### PSLayerType
 
-In: psyc.h, line: 226
+In: psyc.h, line: 235
 
 ```c
 typedef enum {  
@@ -562,7 +562,7 @@ typedef enum {
 
 ### PSLinkDataRetriever
 
-In: psyc.h, line: 152
+In: psyc.h, line: 160
 
 ```c
 typedef int (* PSLinkDataRetriever) (struct PSLayer *layer)
@@ -573,7 +573,7 @@ typedef int (* PSLinkDataRetriever) (struct PSLayer *layer)
 
 ### PSLossFunction
 
-In: psyc.h, line: 144
+In: psyc.h, line: 149
 
 ```c
 typedef PSFloat (* PSLossFunction) (PSFloat* x, PSFloat* y, int size, int onehot_size)
@@ -674,7 +674,7 @@ typedef PSFloat (* PSMatrixInitializer) (void)
 
 ### PSModel
 
-In: psyc.h, line: 341
+In: psyc.h, line: 354
 
 ```c
 typedef struct {  
@@ -707,7 +707,7 @@ typedef struct {
 
 ### PSModelLink
 
-In: psyc.h, line: 336
+In: psyc.h, line: 349
 
 ```c
 typedef struct {  
@@ -721,7 +721,7 @@ typedef struct {
 
 ### PSNeuralNetwork
 
-In: psyc.h, line: 477
+In: psyc.h, line: 490
 
 ```c
 typedef PSModel PSNeuralNetwork
@@ -732,7 +732,7 @@ Kept type name used in older version since I still love it :) (and it also sound
 
 ### PSNeuron
 
-In: psyc.h, line: 293
+In: psyc.h, line: 306
 
 ```c
 typedef struct {  
@@ -800,7 +800,7 @@ typedef int (* PSOptimization) (PSFloat *params, PSFloat *grads, PSFloat *mgrads
 
 ### PSPretrainLayerFunction
 
-In: psyc.h, line: 136
+In: psyc.h, line: 141
 
 ```c
 typedef int (* PSPretrainLayerFunction) (struct PSLayer *, PSFloat *training_data, int data_size)
@@ -811,7 +811,7 @@ typedef int (* PSPretrainLayerFunction) (struct PSLayer *, PSFloat *training_dat
 
 ### PSRecurrentNetworkMode
 
-In: psyc.h, line: 243
+In: psyc.h, line: 252
 
 ```c
 typedef enum {  
@@ -827,7 +827,7 @@ typedef enum {
 
 ### PSResizeStatesFunc
 
-In: psyc.h, line: 142
+In: psyc.h, line: 147
 
 ```c
 typedef int (* PSResizeStatesFunc) (struct PSLayer *layer, uint32_t steps, uint32_t previous_steps)
@@ -849,7 +849,7 @@ typedef PSFloat (* PSScalarActivationFunction) (PSFloat)
 
 ### PSSequenceSettings
 
-In: psyc.h, line: 250
+In: psyc.h, line: 259
 
 ```c
 typedef struct {  
@@ -864,7 +864,7 @@ typedef struct {
 
 ### PSSignalHandler
 
-In: psyc.h, line: 168
+In: psyc.h, line: 177
 
 ```c
 typedef void (* PSSignalHandler) (int)
@@ -941,10 +941,10 @@ typedef int (* PSTokenMatch) (char *str, int *len)
 
 ### PSTrainCallback
 
-In: psyc.h, line: 146
+In: psyc.h, line: 151
 
 ```c
-typedef void (* PSTrainCallback) (struct PSModel *model, int epoch, int epochs, PSFloat average_loss, PSFloat current_loss, float accuracy, PSFloat *rate, PSFloat *training_data)
+typedef void (* PSTrainCallback) (struct PSModel *model, int epoch, int epochs, PSFloat average_loss, PSFloat current_loss, PSFloat validation_loss, float accuracy, float validation_accuracy, PSFloat *rate, PSFloat *training_data)
 ```
 
 
@@ -952,14 +952,18 @@ typedef void (* PSTrainCallback) (struct PSModel *model, int epoch, int epochs, 
 
 ### PSTrainingInfo
 
-In: psyc.h, line: 282
+In: psyc.h, line: 291
 
 ```c
 typedef struct {  
     int current_epoch;  
     int current_batch;  
-    int current_element;  
+    int current_example;  
     int batch_size;  
+    int data_size;  
+    int current_test;  
+    int test_size;  
+    int num_tests;  
     time_t started_at;  
     time_t ended_at;  
     int requested_action;  
@@ -972,7 +976,7 @@ typedef struct {
 
 ### PSTrainingOptions
 
-In: psyc.h, line: 261
+In: psyc.h, line: 270
 
 ```c
 typedef struct {  
@@ -990,8 +994,8 @@ typedef struct {
     PSFloat clip;  
     PSOptimization optimization;  
     int bptt_truncate;  
-    int validate_every_batches;  
-    int max_validation_elements;  
+    int metrics;  
+    float accuracy_dataset_percent;  
     PSTrainingProgressFunc printProgress;  
     FILE * debug_dump_to;  
 } PSTrainingOptions  
@@ -1002,10 +1006,10 @@ typedef struct {
 
 ### PSTrainingProgressFunc
 
-In: psyc.h, line: 161
+In: psyc.h, line: 169
 
 ```c
-typedef void (* PSTrainingProgressFunc) (struct PSModel *model, int status, int epochs, int batches, PSFloat *loss, PSFloat *accuracy, time_t *elapsed, int validating_current, int validating_tot)
+typedef void (* PSTrainingProgressFunc) (struct PSModel *model, int status, int epochs, int batches, PSFloat *loss, float *accuracy, PSFloat *validation_loss, float *validation_accuracy, time_t *elapsed)
 ```
 
 

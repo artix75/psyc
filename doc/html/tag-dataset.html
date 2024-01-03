@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-Copyright (C) 2016-2023 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+Copyright (C) 2016-2024 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
 All rights reserved.
 
 Redistribution and use in source and binary forms are permitted
@@ -23,7 +23,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
    </head>
    <body class="psyc-doc psyc-tag">
        <header>
-           <h1>PsyC Documentation <span class="version">0.9.3</span></h1>
+           <h1>PsyC Documentation <span class="version">0.9.4</span></h1>
            <h2>API Reference - DATASET</h2>
            <nav id="top-menu">
                <ul>
@@ -72,7 +72,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 <div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">247</span></div>
 <div class="tags"><span class="tag dataset" data-href="tag-dataset.html">DATASET</span></div><div class="code">
 <code class="definition">
-<span class="type return-type">int</span> <span class="identifier name">PSLoadCIFARData</span> (<span class="arguments"><span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psloadcifardata-type>type</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psloadcifardata-classes>classes</span></span>, <span class="argument"><span class="type">const char *</span><span class="identifier pointer-name" data-identifier-id=function-psloadcifardata-dataset-path>dataset_path</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> **</span><span class="identifier pointer-name" data-identifier-id=function-psloadcifardata-data>data</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psloadcifardata-max-files>max_files</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psloadcifardata-max-elements>max_elements</span></span></span>)</code>
+<span class="type return-type">int</span> <span class="identifier name">PSLoadCIFARData</span> (<span class="arguments"><span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psloadcifardata-type>type</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psloadcifardata-classes>classes</span></span>, <span class="argument"><span class="type">const char *</span><span class="identifier pointer-name" data-identifier-id=function-psloadcifardata-dataset-path>dataset_path</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> **</span><span class="identifier pointer-name" data-identifier-id=function-psloadcifardata-data>data</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psloadcifardata-max-files>max_files</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psloadcifardata-max-examples>max_examples</span></span></span>)</code>
 </div>
 <div class="description">
 Load the CIFAR dataset (<a href="https://www.cs.toronto.edu/~kriz/cifar.html" target="_blank">https://www.cs.toronto.edu/~kriz/cifar.html</a>) from files.<br/>The dataset files must be in gzip format (.gz): dataset files must be in binary version and located into <span class="identifier-ref" data-identifier-id="function-psloadcifardata-dataset-path" data-parent-id="function-psloadcifardata">dataset_path</span> directory.<br/>The dataset is allocated by the function itself and its pointer is stored into <span class="identifier-ref" data-identifier-id="function-psloadcifardata-data" data-parent-id="function-psloadcifardata">data</span> pointer-to-pointer (it cannot be <span class="identifier-ref">NULL</span>). The length of the resulting dataset is returned by the function.<br/>The CIFAR dataset comes in two fashions:<br/>
@@ -394,7 +394,7 @@ Save <span class="identifier-ref" data-identifier-id="function-psvocabularysave-
            <div class="license-info">
                <div class="license"><img src="License-BSD-3-Clause-blue.svg"> PsyC is released under the <a href="https://opensource.org/license/bsd-3-clause/">BSD-3 Clause</a>
                </div>
-               <div class="copyright">Copyright &copy; 2016-2023 Giuseppe Fabio Nicotra
+               <div class="copyright">Copyright &copy; 2016-2024 Giuseppe Fabio Nicotra
                </div>
            </div>
        </footer>
