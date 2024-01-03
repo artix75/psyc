@@ -245,7 +245,7 @@ int PSLoadMNISTData(int type, const char *images_file, const char *labels_file,
 #define PS_CIFAR_IMAGE_SIZE (32 * 32 * 3)
 
 int PSLoadCIFARData(int type, int classes, const char *dataset_path,
-                    PSFloat **data, int max_files, int max_elements);
+                    PSFloat **data, int max_files, int max_examples);
 PSLayer *PSAddCIFARInputLayer(PSModel *model);
 
 #endif /* __PS_DATASET_H */

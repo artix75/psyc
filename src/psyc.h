@@ -291,7 +291,7 @@ typedef struct PSTrainingOptions {
 typedef struct {
     int         current_epoch;
     int         current_batch;
-    int         current_element;
+    int         current_example;
     int         batch_size;
     int         data_size;
     int         current_test;

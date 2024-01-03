@@ -445,7 +445,7 @@ PSFloat *loadDatasetFromString(char *str, PSTextParserOptions *opts,
                 PSErr(func, "no sequence splitting provided");
                 goto fail;
             }
-            /* Read target number of sequences from the  first element of
+            /* Read target number of sequences from the first element of
              * target dataset. */
             y_nseq = (int64_t) *(y_dataset++);
             y_datalen--;
@@ -1578,7 +1578,7 @@ static int compareFilenames(const void* a, const void* b) {
  *  - Dataset file format is not valid
  */
 int PSLoadCIFARData(int type, int classes, const char *dataset_path,
-                    PSFloat **data, int max_files, int max_elements)
+                    PSFloat **data, int max_files, int max_examples)
 {
     if (data == NULL) {
         PSErr(__func__, "argument `data` cannot be null");
@@ -1590,7 +1590,7 @@ int PSLoadCIFARData(int type, int classes, const char *dataset_path,
     }
     int label_size = (classes == 100 ? 2 : 1);
     int img_count = CIFAR_FILE_IMG_COUNT;
-    if (max_elements > 0) img_count = max_elements;
+    if (max_examples > 0) img_count = max_examples;
     int expected_fsize = (CIFAR_IMAGE_BYTESIZE + label_size) * img_count;
     int fcount = 0, dataset_size = 0, i, j, k;
     char datafiles[CIFAR_DATAFILE_COUNT][255];

@@ -71,7 +71,7 @@ PSFloat clip = CLIP;
 PSOptimization optimization = OPTIMIZATION;
 int sample_every = SAMPLE_EVERY_EPOCHS;
 int use_random_choice = 1;
-int num_elements = 0;
+int num_examples = 0;
 int do_validate = 1;
 PSFloat smooth_loss = 0.0;
 PSFloat last_batch_loss = 0.0;
@@ -155,7 +155,7 @@ void onEpochTrained(PSModel *model, int epoch, int epochs,
     UNUSED(validation_accuracy);
     if (sample_every > 0 && (epoch % sample_every) != 0) return;
     int iteration =
-        (epoch * num_elements) + model->training->current_element;
+        (epoch * num_examples) + model->training->current_example;
     printSample(model, 0, SAMPLE_LEN);
     if (last_batch_loss != 0) {
         PSFloat curloss = last_batch_loss * 25;
@@ -448,7 +448,7 @@ int main(int argc, char **argv) {
         .clip = clip,
         .optimization = optimization
     };
-    num_elements = (int)training_data[0];
+    num_examples = (int)training_data[0];
     PSFloat *test_data = training_data;
     int test_data_len = TRAIN_DATA_LEN;
     if (!do_validate) {

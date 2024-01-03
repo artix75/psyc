@@ -464,7 +464,7 @@ char *PSGetNeuronDebugID(PSNeuron *neuron, PSLayer *layer) {
 void PSTrainingDebugDump(PSModel *model, char *format, ...) {
     if (model->training == NULL) return;
     if (model->training->debug_dump_to == NULL) return;
-    if (model->training->current_element > 0) return;
+    if (model->training->current_example > 0) return;
     if (model->training->current_batch > 0) return;
     if (model->training->current_epoch > 0) return;
     va_list ap;
@@ -478,7 +478,7 @@ void PSTrainingDebugDumpStep(PSDebugStepInfo *info, char *format, ...) {
     PSModel *model = info->model;
     if (model->training == NULL) return;
     if (model->training->debug_dump_to == NULL) return;
-    if (model->training->current_element > 0) return;
+    if (model->training->current_example > 0) return;
     if (model->training->current_batch > 0) return;
     if (model->training->current_epoch > 0) return;
     int training_phase = info->training_phase;
@@ -525,7 +525,7 @@ void PSTrainingDebugDumpGradient(PSModel *model,
     if (model->training == NULL) return;
     if (model->training->debug_dump_to == NULL) return;
     int batch_size = model->training->batch_size;
-    if (model->training->current_element != (batch_size - 1)) return;
+    if (model->training->current_example != (batch_size - 1)) return;
     char *phase_name = NULL;
     switch (phase) {
     case PS_DEBUG_PHASE_UPDATE_GRADS: phase_name = "update_gradients"; break;
@@ -739,7 +739,7 @@ int PSDumpGradients(PSModel *model, PSGradient ***gradients,
         if (model->training != NULL) {
             int epoch = model->training->current_epoch,
                 batch = model->training->current_batch,
-                elem  = model->training->current_element;
+                elem  = model->training->current_example;
             len += snprintf(
                 p, maxlen, "psyc-gradients-%s-%d-%d-%d.dump",
                 name, epoch, batch, elem
@@ -802,8 +802,8 @@ void PSAddDebugInfo(PSModel *model, char *file, const char *func,
         if (net->training != NULL) {
             last_debug_info.current_epoch = net->training->current_epoch;
             last_debug_info.current_batch = net->training->current_batch;
-            last_debug_info.current_element =
-                net->training->current_element;
+            last_debug_info.current_example =
+                net->training->current_example;
         }
     }
     if (layer != NULL) {

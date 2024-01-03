@@ -851,16 +851,16 @@ static PSFloat norm(PSFloat* vector, int size) {
     return norm;
 }
 
-static void shuffle(PSFloat *array, int size, int element_size) {
+static void shuffle(PSFloat *array, int size, int example_size) {
     srand ( time(NULL) );
-    int byte_size = element_size * sizeof(PSFloat);
+    int byte_size = example_size * sizeof(PSFloat);
     for (int i = size - 1; i > 0; i--) {
         int j = rand() % (i+1);
         /* printf("Shuffle cycle %d: random is %d\n", i, j); */
-        PSFloat tmp_a[element_size];
-        PSFloat tmp_b[element_size];
-        int idx_a = i * element_size;
-        int idx_b = j * element_size;
+        PSFloat tmp_a[example_size];
+        PSFloat tmp_b[example_size];
+        int idx_a = i * example_size;
+        int idx_b = j * example_size;
         /* printf("-> idx_a: %d\n", idx_a); */
         /* printf("-> idx_b: %d\n", idx_b); */
         memcpy(tmp_a, array + idx_a, byte_size);
@@ -1004,26 +1004,26 @@ fail:
 }
 
 PSFloat *PSGetInputsFromTrainingData(PSFloat *training_data, int data_size,
-                                     int num_elements, int input_size,
+                                     int num_examples, int input_size,
                                      int label_size, int recurrent_input,
                                      int recurrent_output,
                                      int *count, size_t *result_size)
 {
     if (training_data == NULL || data_size <= 0) return NULL;
-    int element_size = input_size + label_size;
+    int example_size = input_size + label_size;
     int recurrent = (recurrent_input || recurrent_output);
-    if (num_elements <= 0) {
-        /* Auto-detect number of elements */
+    if (num_examples <= 0) {
+        /* Auto-detect number of examples. */
         if (recurrent) {
-            /*  First training data number for Recurrent networks must
-             *indicate the data elements count */
-            num_elements = (int) *(training_data++);
+            /* First training data element for sequence datasets must
+             * indicate the number fo sequences in the dataset itself. */
+            num_examples = (int) *(training_data++);
             data_size--;
-        } else num_elements = data_size / element_size;
+        } else num_examples = data_size / example_size;
     }
-    if (num_elements <= 0) return NULL;
-    if (count != NULL) *count = num_elements;
-    size_t size = num_elements * input_size * sizeof(PSFloat);
+    if (num_examples <= 0) return NULL;
+    if (count != NULL) *count = num_examples;
+    size_t size = num_examples * input_size * sizeof(PSFloat);
     if (result_size != NULL) *result_size = size;
     PSFloat *inputs = malloc(size);
     if (inputs == NULL) {
@@ -1031,8 +1031,8 @@ PSFloat *PSGetInputsFromTrainingData(PSFloat *training_data, int data_size,
         return NULL;
     }
     PSFloat *data_p = training_data, *inputs_p = inputs;
-    int nwritten = 0, tot_recurrent_elements = 0;
-    while (num_elements > 0) {
+    int nwritten = 0, tot_recurrent_examples = 0;
+    while (num_examples > 0) {
         if (!recurrent) {
             memcpy(inputs_p, data_p, input_size * sizeof(PSFloat));
             data_p += input_size;
@@ -1059,11 +1059,11 @@ PSFloat *PSGetInputsFromTrainingData(PSFloat *training_data, int data_size,
             nwritten += seq_input_size;
             inputs_p += input_len;
             data_p += input_len + label_len;
-            tot_recurrent_elements += input_len;
+            tot_recurrent_examples += input_len;
         }
-        num_elements--;
+        num_examples--;
     }
-    if (recurrent && count != NULL) *count = tot_recurrent_elements;
+    if (recurrent && count != NULL) *count = tot_recurrent_examples;
     return inputs;
 fail:
     free(inputs);
@@ -2810,8 +2810,8 @@ static PSModel *cloneModel(PSModel *model, int layout_only, PSModel *parent) {
             if (clone->training == NULL) goto memerr;
             clone->training->current_epoch = model->training->current_epoch;
             clone->training->current_batch = model->training->current_batch;
-            clone->training->current_element =
-                model->training->current_element;
+            clone->training->current_example =
+                model->training->current_example;
             clone->training->batch_size = model->training->batch_size;
             clone->training->started_at = model->training->started_at;
             clone->training->ended_at = model->training->ended_at;
@@ -3232,10 +3232,10 @@ static void DumpModelHeader(PSModel *model, FILE *dump_file) {
     if (model->training != NULL) {
         fprintf(dump_file,
             "training:started_at=%ld,current_epoch=%d,current_batch=%d,"
-            "current_element=%d,batch_size=%d\n",
+            "current_example=%d,batch_size=%d\n",
             model->training->started_at, model->training->current_epoch,
             model->training->current_batch,
-            model->training->current_element, model->training->batch_size
+            model->training->current_example, model->training->batch_size
         );
     }
 }
@@ -5768,7 +5768,7 @@ final:
 }
 
 static float getTrainingAccuracy(PSModel *model, PSFloat *data,
-                                 PSFloat **sequence_head, int element_size,
+                                 PSFloat **sequence_head, int example_size,
                                  int max_samples, int *tot_samples,
                                  int *tot_correct,
                                  PSTrainingOptions *options)
@@ -5779,7 +5779,7 @@ static float getTrainingAccuracy(PSModel *model, PSFloat *data,
     if ((*tot_samples + nsamples) > max_samples)
         nsamples = max_samples - *tot_samples;
     int datasize;
-    if (sequence_head == NULL) datasize = (element_size * nsamples);
+    if (sequence_head == NULL) datasize = (example_size * nsamples);
     else {
         data = *sequence_head;
         datasize = *(sequence_head + nsamples) - *sequence_head;
@@ -5794,7 +5794,7 @@ static float getTrainingAccuracy(PSModel *model, PSFloat *data,
     return *tot_correct / (float) *tot_samples;
 }
 
-/* Iterate over a single batch of training elements (`training_data`) and
+/* Iterate over a single batch of training examples (`training_data`) and
  * obtain  batch's gradients by back-propagation on each element of the batch
  * itself (by calling the `backprop` function).
  * Then, gradients are applied on model's parameters (weights and biases)
@@ -5804,7 +5804,7 @@ static float getTrainingAccuracy(PSModel *model, PSFloat *data,
  * The function will return the calculated error (loss). */
 PSFloat updateModelParameters(PSModel *model,
                               PSFloat *training_data,
-                              int elements_count,
+                              int num_examples,
                               PSFloat rate, PSTrainingOptions* opts, ...)
 {
     static PSTrainingOptions dfopts = {0};
@@ -5814,8 +5814,8 @@ PSFloat updateModelParameters(PSModel *model,
         iteration = 0, apply_clip = 0;
     int batch_size = opts->batch_size;
     if (batch_size <= 0) batch_size = 1;
-    PSFloat *x = NULL; /* Training element */
-    PSFloat *y = NULL; /* Labels */
+    PSFloat *x = NULL; /* Inputs */
+    PSFloat *y = NULL; /* Tragets */
     PSFloat l1 = 0.0, l2 = 0.0, l1_loss = 0.0, l2_loss = 0.0, momentum = 0.0,
             clip_max = 0.0, clip_min = 0.0;
     PSModel *output_model = model;
@@ -5864,7 +5864,7 @@ PSFloat updateModelParameters(PSModel *model,
         else
             output_is_seq = PSHandleSequenceAtOnce(output_layer);
     }
-    UNUSED(elements_count); /* TODO: remove elements_count arg if not needed */
+    UNUSED(num_examples); /* TODO: remove num_examples arg if not needed */
     PSOptimization optimization = PSDefaultOptimization;
     int use_weight_decay = 0, divide_grads_by_batches = 0, training_flags = 0;
     if (opts != NULL) {
@@ -5909,30 +5909,30 @@ PSFloat updateModelParameters(PSModel *model,
     PSGradient ***bp_dest_gradients = gradients;
     if (apply_clip) bp_dest_gradients = NULL;
     beforeBatchTraining(model);
-    /* Iterate elements of the batch and, for each element, get gradients
+    /* Iterate the examples of the batch and, for each example, get gradients
      * from the backpropagation of the error. Then, sum the backpropagation
      * gradients to the batch's gradients. */
     for (i = 0; i < batch_size; i++) {
-        int curelem = 0;
+        int cur_example = 0;
         if (model->training != NULL) {
-            model->training->current_element =
+            model->training->current_example =
                 (model->training->current_batch * batch_size) + i;
-            iteration = model->training->current_element + 1;
-            curelem = model->training->current_element;
+            iteration = model->training->current_example + 1;
+            cur_example = model->training->current_example;
         }
         /* Backpropagate the error through the model layers and get
          * gradients for the current element. */
         if (sequences == NULL) {
             /* Non-recurrent and non-sequence model */
-            int element_size = training_data_size + label_data_size;
+            int example_size = training_data_size + label_data_size;
             x = training_data;
             y = training_data + training_data_size;
-            training_data += element_size;
+            training_data += example_size;
         } else {
             /* Recurrent model or model handling sequences */
             x = sequences[i];
             int datalen = parseSequenceData(
-                model, x, curelem, training_flags, 1,
+                model, x, cur_example, training_flags, 1,
                 &x_seqlen, NULL, &y_seqlen, &y
             );
             if (datalen <= 0 || x_seqlen <= 0 || y_seqlen <= 0) {
@@ -6108,8 +6108,8 @@ final:
  * and used to update model's parameters using `updateModelParameters`. */
 PSFloat gradientDescent(PSModel *model,
                         PSFloat *training_data,
-                        int element_size,
-                        int elements_count,
+                        int example_size,
+                        int num_examples,
                         PSFloat learning_rate,
                         PSTrainingOptions *options,
                         int epochs, float *training_accuracy)
@@ -6126,7 +6126,7 @@ PSFloat gradientDescent(PSModel *model,
     int flags = options->flags, batch_size = options->batch_size,
         is_model_chain = PSIsModelChain(model);
     if (batch_size <= 0) batch_size = 1;
-    int batch_count = elements_count / batch_size;
+    int batch_count = num_examples / batch_size;
     PSFloat **sequences = NULL, **sequence_head = NULL;
     if (PSIsRecurrent(model) || PSHandleSequenceAtOnce(model)) {
         PSLayer *out = PSGetOutputLayer(model);
@@ -6144,23 +6144,23 @@ PSFloat gradientDescent(PSModel *model,
             }
         }
         sequences = getDatasetSequences(
-            model, training_data, elements_count, flags
+            model, training_data, num_examples, flags
         );
         if (sequences == NULL) {
             PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
             return PS_STATUS_ERROR_LOSS;
         }
         if (!(flags & PS_TRAINING_NO_SHUFFLE))
-            shuffleSequences(sequences, elements_count);
+            shuffleSequences(sequences, num_examples);
     } else {
         if (!(flags & PS_TRAINING_NO_SHUFFLE))
-            shuffle(training_data, elements_count, element_size);
+            shuffle(training_data, num_examples, example_size);
     }
     PSFloat loss = 0.0, avg_loss = 0.0;
     float accuracy = 0.0;
     float *accuracy_p = NULL;
     long tot_t = 0, avg_t, elapsed_t;
-    int step_size = (element_size * batch_size), i;
+    int step_size = (example_size * batch_size), i;
     int measure_accuracy = options->metrics & PS_TRAINING_METRICS_ACCURACY,
         accuracy_max_samples = 0, accuracy_samples = 0,
         accuracy_batch_interval = 1, accuracy_correct_results = 0;
@@ -6169,12 +6169,12 @@ PSFloat gradientDescent(PSModel *model,
         if (accuracy_dataset_size > 0) {
             if (accuracy_dataset_size > 1) accuracy_dataset_size = 1;
             accuracy_max_samples =
-                (int) roundf(accuracy_dataset_size * (float) elements_count);
+                (int) roundf(accuracy_dataset_size * (float) num_examples);
             int acc_batches = accuracy_max_samples / batch_size;
             if ((accuracy_max_samples % batch_size) != 0)
                 acc_batches++;
             accuracy_batch_interval = batch_count / acc_batches;
-        } else accuracy_max_samples = elements_count;
+        } else accuracy_max_samples = num_examples;
         accuracy_p = &accuracy;
     }
     printProgress = options->printProgress;
@@ -6191,7 +6191,7 @@ PSFloat gradientDescent(PSModel *model,
                 do_measure = (i % accuracy_batch_interval) == 0;
             if (do_measure) {
                 accuracy = getTrainingAccuracy(
-                    model, training_data, sequence_head, element_size,
+                    model, training_data, sequence_head, example_size,
                     accuracy_max_samples, &accuracy_samples,
                     &accuracy_correct_results, options
                 );
@@ -6201,7 +6201,7 @@ PSFloat gradientDescent(PSModel *model,
         struct timeval st, et;
         gettimeofday(&st, NULL);
         PSFloat batch_loss = updateModelParameters(
-            model, training_data, elements_count, learning_rate,
+            model, training_data, num_examples, learning_rate,
             options, sequence_head
         );
         gettimeofday(&et, NULL);
@@ -6268,8 +6268,8 @@ float validate(PSModel *model, PSFloat *test_data, int data_size,
     int output_size = model->output_size;
     int onehot = output_layer->flags & PS_FLAG_ONEHOT;
     int y_size = (onehot ? 1 : output_size);
-    int element_size = input_size + output_size;
-    int elements_count;
+    int example_size = input_size + output_size;
+    int num_examples;
     int reads_input_sequence = 0, emits_output_sequence = 0;
     int flags = (opts != NULL ? opts->flags : 0);
     int teacher_forcing = 0;
@@ -6283,14 +6283,14 @@ float validate(PSModel *model, PSFloat *test_data, int data_size,
     PSModel *output_model = NULL;
     PSFloat **sequences = NULL;
     if (PSUseSequences(model)) {
-        /*  First training data number for Recurrent networks must indicate */
-        /*  the data elements count */
-        elements_count = (int) *(test_data++);
+        /*  First training data element for sequence datasets must indicate */
+        /*  the number fo sequences in the dataset itself. */
+        num_examples = (int) *(test_data++);
         data_size--;
         reads_input_sequence = PSUseSequences(model->layers[0]);
         emits_output_sequence = PSUseSequences(output_layer);
         sequences = getDatasetSequences(
-            model, test_data, elements_count, flags
+            model, test_data, num_examples, flags
         );
         if (sequences == NULL) goto err;
         if (PSIsModelChain(model) && PSModelChainLength(model) > 1) {
@@ -6304,14 +6304,14 @@ float validate(PSModel *model, PSFloat *test_data, int data_size,
                 PSUseSequences(output_model)
             );
         }
-    } else elements_count = data_size / element_size;
+    } else num_examples = data_size / example_size;
     PSForwardOptions fwopts = {0};
     if (flags & PS_TRAINING_FLAG_AUTOREGRESSION)
         fwopts.flags |= PS_TRAINING_FLAG_AUTOREGRESSION;
-    if (log) printf("Test data elements: %d\n", elements_count);
+    if (log) printf("Test data examples: %d\n", num_examples);
     if (model->training != NULL) {
         model->training->test_size = data_size;
-        model->training->num_tests = elements_count;
+        model->training->num_tests = num_examples;
     }
     PSModelSetStatus(model, PS_STATUS_VALIDATING, NULL);
     time_t start_t, end_t;
@@ -6322,9 +6322,9 @@ float validate(PSModel *model, PSFloat *test_data, int data_size,
     strftime(timestr, 80, "%H:%M:%S", tminfo);
     PSFloat tot_loss = 0.0;
     if (log) PSInfo("Testing started at %s", timestr);
-    for (i = 0; i < elements_count; i++) {
+    for (i = 0; i < num_examples; i++) {
         if (model->training != NULL) model->training->current_test = i;
-        if (log) printf("\rTesting %d/%d", i + 1, elements_count);
+        if (log) printf("\rTesting %d/%d", i + 1, num_examples);
         else if (print_progress) opts->printProgress(
             model, PS_STATUS_VALIDATING, opts->epochs,
             model->training->current_batch + 1, NULL, NULL, NULL, NULL, NULL
@@ -6448,21 +6448,21 @@ float validate(PSModel *model, PSFloat *test_data, int data_size,
     time(&end_t);
     if (log) printf("\nCompleted in %ld sec.\n", end_t - start_t);
     if (!emits_output_sequence) {
-        accuracy = (float) correct_results / (float) elements_count;
+        accuracy = (float) correct_results / (float) num_examples;
         if (log) {
             printf(
                 "Accuracy (%d/%d): %.2f\n", correct_results,
-                elements_count,accuracy
+                num_examples,accuracy
             );
         }
     } else {
-        accuracy = correct_amount / (float) elements_count;
+        accuracy = correct_amount / (float) num_examples;
         free(sequences);
         if (log) printf("Accuracy: %.2f\n", accuracy);
     }
     PSModelSetStatus(model, previous_status, NULL);
     if (loss != NULL) {
-        *loss = tot_loss / elements_count;
+        *loss = tot_loss / num_examples;
         if (log) printf("Loss: %.2f\n", *loss);
     }
     free(outputs);
@@ -6570,31 +6570,31 @@ int PSPretrainLayers(PSModel *model, PSFloat *training_data,
 
 /* Train `model` over `training_data`. Training epochs, batch size,
  * optimization, and other optimizer settings are defined into optional
- * `options`.
+ * `options` argument.
  * Arguments:
  *  - `model`: The neural model to be trained (mandatory)
  *  - `training_data`: an array of `PSFloat` containing the tarining dataset
  *     (ie. inputs, expected predictions)
  *  - `data_size`: length of `training_data` array.
- *  - `test_data`: optional dataset that can be used for testing purpose
+ *  - `test_data`: optional dataset that can be used for testing (validation).
  *  - `test_size`: length of `test_data` array.
  *  - `options`: optional training options (see `PSTrainingOptions`).
  *               If NULL, the training process will use default options.
  * Training/test data layout:
  *  - For normal feedforward models, the array must contain alternating
- *    inputs/predictions pairs, one pair for each element to be trained.
- *    So, each training/test element pair must contain:
+ *    inputs/predictions pairs, one pair for each example in the dataset.
+ *    So, each training/test example pair must contain:
  *      - Input values, having the same length of the model's input layer
- *      - Prediction values, having the same length of the model's output
+ *      - Target values, having the same length of the model's output
  *        layer. If output layer has the `PS_FLAG_ONEHOT` flag, predictions
  *        length muse be 1, and it must contain the index of the expected
  *        maximum state.
- *    Total number of traing elements is given by:
+ *    The total number of training examples is given by:
  *      array size / (input_size + output_size)
- *  - For recurrent model or models using sequences, layout can have
- *    different forms.
- *    Regardless of that, first element of the array must contain the total
- *    number of training/test elements.
+ *  - For recurrent model or models using sequences, the layout of the dataset
+ *    can have different forms.
+ *    Regardless of that, the first element of the array must contain the total
+ *    number of training/test sequences.
  *    For each training/test sequence, the sequence length must be specified.
  *    Different forms can be:
  *    - Many-to-many: the default mode for recurrent models that produce
@@ -6621,7 +6621,7 @@ void PSTrain(PSModel *model,
              int test_size,
              PSTrainingOptions *options)
 {
-    int epochs = 0, batch_size = 0, i, elements_count;
+    int epochs = 0, batch_size = 0, i, num_examples;
     PSFloat learning_rate = 0.0;
     if (!PSModelIsBuilt(model)) {
         if (!PSModelBuild(model)) {
@@ -6682,7 +6682,7 @@ void PSTrain(PSModel *model,
     }
     int input_size = input_model->input_size,
         output_size = output_model->output_size;
-    int element_size = input_size + output_size;
+    int example_size = input_size + output_size;
     /* Eventually pretrain layers (if pretrainable layers are found) */
     if (!PSPretrainLayers(model, training_data, data_size)) {
         PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
@@ -6696,11 +6696,11 @@ void PSTrain(PSModel *model,
     int handle_seq = PSHandleSequenceAtOnce(model);
     int use_sequences = is_recurrent || handle_seq;
     if (use_sequences) {
-        /*  First training data number for Recurrent networks must indicate */
-        /*  the data elements count */
-        elements_count = (int) *(training_data++);
+        /* First training data element for sequence datasets must
+         * indicate the number fo sequences in the dataset itself. */
+        num_examples = (int) *(training_data++);
         data_size--;
-    } else elements_count = data_size / element_size;
+    } else num_examples = data_size / example_size;
     if (options->flags & PS_TRAINING_FLAG_SEQ2SEQ) {
         char *err = NULL;
         if (!isSequence2SequenceAvailable(model, &err)) {
@@ -6719,7 +6719,7 @@ void PSTrain(PSModel *model,
                 if (use_sequences) {
                     float test_elem_count = (float) *test_data;
                     options->accuracy_dataset_percent = (
-                        test_elem_count / (float) elements_count
+                        test_elem_count / (float) num_examples
                     );
                 } else {
                     options->accuracy_dataset_percent = (
@@ -6749,7 +6749,7 @@ void PSTrain(PSModel *model,
         PSInfo("Input model:               \"%s\"", input_name);
         PSInfo("Output model:              \"%s\"", output_name);
     }
-    PSInfo("Training data elements:     %d", elements_count);
+    PSInfo("Training data examples:     %d", num_examples);
     PSInfo("Batch Size:                 %d", batch_size);
     PSInfo("Learning Rate:              %g", learning_rate);
     int use_weight_decay = (
@@ -6847,8 +6847,8 @@ void PSTrain(PSModel *model,
             }
         }
         gettimeofday(&epoch_st, NULL);
-        PSFloat loss = gradientDescent(model, training_data, element_size,
-                                       elements_count, learning_rate,
+        PSFloat loss = gradientDescent(model, training_data, example_size,
+                                       num_examples, learning_rate,
                                        options, epochs, &training_accuracy);
         gettimeofday(&epoch_et, NULL);
         time_t elapsed_t = PSGetElapsedTimeUS(epoch_st, epoch_et);
@@ -6859,7 +6859,7 @@ void PSTrain(PSModel *model,
             );
             return;
         }
-        int batches_count = elements_count / batch_size;
+        int batches_count = num_examples / batch_size;
         float *acc_p = NULL;
         if (test_data  && PSModelGetStatus(model) == PS_STATUS_TRAINING) {
             model->training->current_test = 0;

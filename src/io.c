@@ -2394,7 +2394,7 @@ int PSLayerSave(PSLayer *layer, const char *filepath, int opts) {
 int loadModelDefinition(PSModel *model, FILE *f, char *vers) {
     int ok = 1;
     int idx = 0, val = 0;
-    int epochs = 0, batch_count = 0, elements = 0, status = PS_STATUS_UNTRAINED,
+    int epochs = 0, batch_count = 0, examples = 0, status = PS_STATUS_UNTRAINED,
         batch_size = 0, rnn_mode = NonRecurrent,
         max_sequence_len = PS_MAX_SEQUENCE_LENGTH,
         sequence_end = -1, is_built = 0,
@@ -2408,7 +2408,7 @@ int loadModelDefinition(PSModel *model, FILE *f, char *vers) {
             case 2:  epochs = val; break;
             case 3:  batch_count = val; break;
             case 4:  status = val; break;
-            case 5:  elements = val; break;
+            case 5:  examples = val; break;
             case 6:  batch_size = val; break;
             case 7:  rnn_mode = (PSRecurrentNetworkMode) val; break;
             case 8:  max_sequence_len = val; break;
@@ -2434,7 +2434,7 @@ int loadModelDefinition(PSModel *model, FILE *f, char *vers) {
         }
         model->training->current_epoch = epochs;
         model->training->current_batch = batch_count;
-        model->training->current_element = elements;
+        model->training->current_example = examples;
         model->training->batch_size = batch_size;
     }
     if (PSCompareVersion(vers, "0.4.0") >= 0) {
@@ -2850,12 +2850,12 @@ PSModel *PSLoadModel(const char* filepath) {
 
 static int writeModel(PSModel *model, FILE *f) {
     int ok = 1, opts = 0, i;
-    int current_epoch = 0, current_batch = 0, current_element = 0,
+    int current_epoch = 0, current_batch = 0, current_example = 0,
         batch_size = 0;
     if (model->training != NULL) {
         current_epoch = model->training->current_epoch;
         current_batch = model->training->current_batch;
-        current_element = model->training->current_element;
+        current_example = model->training->current_example;
         batch_size = model->training->batch_size;
     }
     PSRecurrentNetworkMode rnn_mode = model->rnn_mode;
@@ -2864,7 +2864,7 @@ static int writeModel(PSModel *model, FILE *f) {
     int loss_function = getLossFunctionIndex(model->loss);
     fprintf(f, "model:%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n", model->flags,
             loss_function, current_epoch, current_batch, model->status,
-            current_element, batch_size, (int) rnn_mode,
+            current_example, batch_size, (int) rnn_mode,
             max_steps, eos, PSModelIsBuilt(model));
     if (model->name != NULL) {
         int namelen = strlen(model->name);

@@ -93,17 +93,17 @@ int main(int argc, char** argv) {
             return 1;
         }
 
-        int element_size = model->input_size + model->output_size;
-        int element_count = datalen / element_size;
-        if (element_count < train_dataset_len) {
-            printf("Loaded dataset elements %d < %d\n", element_count,
+        int example_size = model->input_size + model->output_size;
+        int num_examples = datalen / example_size;
+        if (num_examples < train_dataset_len) {
+            printf("Loaded dataset examples %d < %d\n", num_examples,
                    TRAIN_DATASET_LEN);
             if (training_data != NULL) free(training_data);
             if (test_data != NULL) free(test_data);
             PSModelFree(model);
             return 1;
         } else {
-            int remaining = element_count - train_dataset_len;
+            int remaining = num_examples - train_dataset_len;
             if (remaining < eval_dataset_len && eval_dataset_len > 0) {
                 printf("WARNING: eval. dataset cannot be > %d!\n", remaining);
                 eval_dataset_len = remaining;
@@ -112,11 +112,11 @@ int main(int argc, char** argv) {
                 printf("WARNING: no dataset remained for evaluation!\n");
                 eval_dataset_len = remaining;
             }
-            datalen = train_dataset_len * element_size;
+            datalen = train_dataset_len * example_size;
             if (eval_dataset_len == 0) validation_data = NULL;
             else {
                 validation_data = training_data + datalen;
-                valdlen = eval_dataset_len * element_size;
+                valdlen = eval_dataset_len * example_size;
             }
         }
 

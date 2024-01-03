@@ -1817,8 +1817,8 @@ void onTrainEvent(int event_type, PSModel *model, int epoch, int epochs,
     if (info != NULL) {
         written += snprintf(
             cmd_p, CMD_MAX_LEN - written,
-            " --batch %d --element %d",
-            info->current_batch, info->current_element
+            " --batch %d --example %d",
+            info->current_batch, info->current_example
         );
         if (written >= CMD_MAX_LEN) goto cmd_overflow;
         cmd_p = ((char *) cmd) + written;
@@ -1906,16 +1906,16 @@ int main(int argc, char **argv) {
             cleanup();
             return 1;
         }
-        int element_size = model->input_size + model->output_size;
-        int element_count = datalen / element_size;
-        if (train_dataset_len == 0) train_dataset_len = element_count;
-        if (element_count < train_dataset_len) {
-            PSErr(NULL, "loaded dataset elements %d < %d\n", element_count,
+        int example_size = model->input_size + model->output_size;
+        int num_examples = datalen / example_size;
+        if (train_dataset_len == 0) train_dataset_len = num_examples;
+        if (num_examples < train_dataset_len) {
+            PSErr(NULL, "loaded dataset examples %d < %d\n", num_examples,
                   train_dataset_len);
             cleanup();
             return 1;
         } else {
-            int remaining = element_count - train_dataset_len;
+            int remaining = num_examples - train_dataset_len;
             if (remaining < eval_dataset_len && eval_dataset_len > 0) {
                 PSWarn("eval. dataset cannot be > %d!", remaining);
                 eval_dataset_len = remaining;
@@ -1924,11 +1924,11 @@ int main(int argc, char **argv) {
                 PSWarn("no dataset remaining for evaluation!");
                 eval_dataset_len = remaining;
             }
-            datalen = train_dataset_len * element_size;
+            datalen = train_dataset_len * example_size;
             if (eval_dataset_len == 0) validation_data = NULL;
             else {
                 validation_data = training_data + datalen;
-                valdlen = eval_dataset_len * element_size;
+                valdlen = eval_dataset_len * example_size;
             }
         }
 
@@ -2261,7 +2261,7 @@ void printHelp(const char* program_path) {
         "  Optional options:\n"
         "    --validation-loss VALIDATION_LOSS --validation-accuracy "
         "VALIDATION_ACCURACY\n"
-        "    --batch BATCH_NUM --element ELEMENT_INDEX\n"
+        "    --batch BATCH_NUM --example EXAMPLE_INDEX\n"
         "  The scripts can use special exit codes to force psycl aborting "
         "the training \n"
         "  process:\n"

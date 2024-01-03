@@ -23,7 +23,7 @@
 #include "maths.h"
 #include "config.h"
 
-#define Word2VecTraingDataElements(n_tokens, window) \
+#define Word2VecTraingDataExamples(n_tokens, window) \
     (n_tokens * (window * 2) - (window * (window + 1)))
 #define GetEmbeddingSettings(layer) ((PSEmbeddingSettings *) layer->extra)
 
@@ -42,7 +42,7 @@ typedef PSFloat *(*PSEmbeddingDataGenerator) (PSFloat *tokens,
                                               int window_size,
                                               int vocabulary_size,
                                               int onehot,
-                                              int *n_elements);
+                                              int *n_examples);
 
 /* Forward declarations */
 PSMatrix PSInitWeights(PSLayer *layer, int rows, int columns,
@@ -54,7 +54,7 @@ int PSFullBackprop(PSLayer *layer, PSLayer *previous_layer,
                  PSGradient *gradient, ...);
 int PSFullForward(PSLayer *layer, ...);
 PSFloat *PSGetInputsFromTrainingData(PSFloat *training_data, int data_size,
-                                     int num_elements, int input_size,
+                                     int num_examples, int input_size,
                                      int label_size, int recurrent_input,
                                      int recurrent_output,
                                      int *count, size_t *result_size);
@@ -64,28 +64,28 @@ PSFloat *PSGetInputsFromTrainingData(PSFloat *training_data, int data_size,
 static int getWord2VecTrainingDataLength(int tokens_count, int window_size,
                                          int onehot, int vocabulary_size)
 {
-    int n_elements = Word2VecTraingDataElements(tokens_count, window_size);
-    if (n_elements <= 0) return 0;
-    n_elements *= 2; /* Include both inputs and labels */
-    if (onehot && vocabulary_size > 0) n_elements *= vocabulary_size;
-    return n_elements;
+    int n_examples = Word2VecTraingDataExamples(tokens_count, window_size);
+    if (n_examples <= 0) return 0;
+    n_examples *= 2; /* Include both inputs and labels */
+    if (onehot && vocabulary_size > 0) n_examples *= vocabulary_size;
+    return n_examples;
 }
 
 PSFloat *PSCreateWord2VecTrainingData(PSFloat *tokens, size_t token_count,
                                       int window_size, int vocabulary_size,
-                                      int onehot, int *num_elements_p)
+                                      int onehot, int *num_examples_p)
 {
     if (token_count == 0) return NULL;
     PSFloat *training_data = NULL;
-    int n_elements = getWord2VecTrainingDataLength(
+    int n_examples = getWord2VecTrainingDataLength(
         token_count, window_size, onehot, vocabulary_size
     );
-    if (n_elements <= 0) {
-        PSErr(__func__, "traing data would contain no elements");
+    if (n_examples <= 0) {
+        PSErr(__func__, "training data would contain no examples");
         return NULL;
     }
-    if (num_elements_p != NULL) *num_elements_p = n_elements;
-    size_t size = (size_t) n_elements * sizeof(PSFloat);
+    if (num_examples_p != NULL) *num_examples_p = n_examples;
+    size_t size = (size_t) n_examples * sizeof(PSFloat);
     training_data = malloc(size * sizeof(PSFloat));
     if (training_data == NULL) {
         PSPrintMemoryErrorMsg();
@@ -252,9 +252,10 @@ int PSPretrainEmbeddingLayer(PSLayer *layer, PSFloat *training_data,
         goto final;
     }
     int onehot = previous->flags & PS_FLAG_ONEHOT;
-    int pretaing_num_elements = 0;
+    int pretraining_num_examples = 0;
     pretrain_data = make_data(tokens, (size_t) num_tokens, window_size,
-                              vocabulary_size, onehot, &pretaing_num_elements);
+                              vocabulary_size, onehot,
+                              &pretraining_num_examples);
     if (pretrain_data == NULL) {
         PSErr(__func__, "Layer[%d]: failed to generate pretraining data",
               layer->index);
@@ -275,7 +276,7 @@ int PSPretrainEmbeddingLayer(PSLayer *layer, PSFloat *training_data,
         options->epochs = 50;/* TODO: use a constant or automatic calc.*/
     if (options->learning_rate <= 0)
         options->learning_rate = 0.1; /* TODO: use a constant or autocalc.*/
-    PSTrain(pretrainer, pretrain_data, pretaing_num_elements, NULL, 0,
+    PSTrain(pretrainer, pretrain_data, pretraining_num_examples, NULL, 0,
             options);
     if (PSModelGetStatus(pretrainer) == PS_STATUS_ERROR) {
         PSErr(__func__, "Layer[%d]: pretraining failed!",

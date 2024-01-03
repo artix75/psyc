@@ -27,7 +27,7 @@
 
 #define PSShouldDebugDump(model) (model->training != NULL &&\
  model->training->debug_dump_to != NULL &&\
- model->training->current_element == 0 &&\
+ model->training->current_example == 0 &&\
  model->training->current_epoch == 0)
 
 #define PSAssertWithMessage(expr, fmt, ...) do {\
@@ -48,7 +48,7 @@ typedef struct PSDebugInfo {
     int status;
     int current_epoch;
     int current_batch;
-    int current_element;
+    int current_example;
     int layer_index;
     int layer_type;
     int neuron_index;

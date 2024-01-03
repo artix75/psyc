@@ -672,20 +672,20 @@ int main(int argc, char** argv) {
             return 1;
         }
 
-        int element_size = model->input_size + model->output_size;
-        printf("Element Size = %d (%d + %d)\n", element_size,
+        int example_size = model->input_size + model->output_size;
+        printf("Example Size = %d (%d + %d)\n", example_size,
                model->input_size, model->output_size);
-        int element_count = datalen / element_size;
-        printf("Training elements (initial): %d\n", element_count);
-        if (element_count < train_dataset_len) {
-            printf("Loaded dataset elements %d < %d\n", element_count,
+        int num_examples = datalen / example_size;
+        printf("Training examples (initial): %d\n", num_examples);
+        if (num_examples < train_dataset_len) {
+            printf("Loaded dataset examples %d < %d\n", num_examples,
                    TRAIN_DATASET_LEN);
             if (training_data != NULL) free(training_data);
             if (test_data != NULL) free(test_data);
             PSModelFree(model);
             return 1;
         } else {
-            int remaining = element_count - train_dataset_len;
+            int remaining = num_examples - train_dataset_len;
             if (remaining < eval_dataset_len && eval_dataset_len > 0) {
                 printf("WARNING: eval. dataset cannot be > %d!\n", remaining);
                 eval_dataset_len = remaining;
@@ -695,19 +695,19 @@ int main(int argc, char** argv) {
                 eval_dataset_len = remaining;
             }
             printf("Evaluation dataset length: %d\n", eval_dataset_len);
-            datalen = train_dataset_len * element_size;
+            datalen = train_dataset_len * example_size;
             if (eval_dataset_len == 0) validation_data = NULL;
             else {
                 validation_data = training_data + datalen;
-                valdlen = eval_dataset_len * element_size;
-                int validation_elements_count = valdlen / element_size;
-                element_count = datalen / element_size;
-                printf("Evaluation elements: %d\n", validation_elements_count);
-                printf("Training elements: %d\n", element_count);
+                valdlen = eval_dataset_len * example_size;
+                int validation_example_count = valdlen / example_size;
+                num_examples = datalen / example_size;
+                printf("Evaluation examples: %d\n", validation_example_count);
+                printf("Training examples: %d\n", num_examples);
             }
             if (testlen > 0 && test_data != NULL) {
-                int test_elements_count = testlen / element_size;
-                printf("Test elements: %d\n", test_elements_count);
+                int test_example_count = testlen / example_size;
+                printf("Test examples: %d\n", test_example_count);
             }
         }
     } else {
