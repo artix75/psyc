@@ -10,6 +10,7 @@ Usage: psyc-cc [OPTIONS] [SOURCE] [-- GCC_OPTS]
 
 Compile a C source file against Psyc library.  
 
+
 ### OPTIONS
 
 
@@ -23,9 +24,8 @@ Print CFLAGS and exit
 **--ldflags**  
 Print LDFLAGS and exit
 
-
-
-@OPT() 
+**--c++**  
+SOURCE is a C++ source
 
 **-o, --output**     PATH  
 Output path

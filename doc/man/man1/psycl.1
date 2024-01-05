@@ -13,7 +13,7 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSYCL 1 2024-01-03 "PsyC 0.9.4" "PsyC Manual"
+.TH PSYCL 1 2024-01-05 "PsyC 0.9.4" "PsyC Manual"
 
 .SH NAME
 psycl \- a command\-line interface to PsyC
@@ -948,13 +948,33 @@ train /path/to/my/dataset
 .SH SCRIPTS
 By using options like \fI--on-batch-trained\fR or \fI--on-epoch-trained\fR it's possible to execute an arbitrary external script when such events happen.
 
-The scripts will eventually receive the following options:
+The script will eventually receive the following options:
 
---event TYPE --name MODEL_NAME --epoch CURRENT_EPOCH --epochs TOT_EPOCHS --average-loss AVERAGE_LOSS --current-loss BATCH_LOSS --accuracy TRAINING_ACCURACY --learning-rate RATE Optional options:
+--event TYPE --name MODEL_NAME --epoch CURRENT_EPOCH --epochs TOT_EPOCHS --average-loss AVERAGE_LOSS --current-loss BATCH_LOSS --accuracy TRAINING_ACCURACY --learning-rate RATE.
 
---validation-loss VALIDATION_LOSS --validation-accuracy VALIDATION_ACCURACY --batch BATCH_NUM --example EXAMPLE_INDEX The scripts can use special exit codes to force psycl aborting the training process:
+Optional options:
 
-- 3 (PS_STATUS_ERROR) - 5 (PS_STATUS_ABORTED) 
+--validation-loss VALIDATION_LOSS --validation-accuracy VALIDATION_ACCURACY --batch BATCH_NUM --example EXAMPLE_INDEX.
+
+The scripts can use special exit codes to force psycl aborting the training process:
+
+
+
+
+.TP
+
+.B \[bu] 3
+(PS_STATUS_ERROR) 
+
+
+.TP
+
+.B \[bu] 5
+(PS_STATUS_ABORTED) 
+
+
+
+
 
 .SH EXAMPLES
 .B

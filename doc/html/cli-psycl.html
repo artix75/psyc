@@ -739,15 +739,19 @@ and it loads another configuration file (ie. <strong>include /path/to/config</st
 <section class="section" id="section-scripts">
 <h3>SCRIPTS</h3>
 By using options like <a class="identifier" href="#opt-on-batch-trained">--on-batch-trained</a> or <a class="identifier" href="#opt-on-epoch-trained">--on-epoch-trained</a> it's
-possible to execute an arbitrary external script when such events happen.<br>The scripts will eventually receive the following options:<br>--event TYPE --name MODEL_NAME --epoch CURRENT_EPOCH
+possible to execute an arbitrary external script when such events happen.<br>The script will eventually receive the following options:<br>--event TYPE --name MODEL_NAME --epoch CURRENT_EPOCH
 --epochs TOT_EPOCHS --average-loss AVERAGE_LOSS
 --current-loss BATCH_LOSS --accuracy TRAINING_ACCURACY
---learning-rate RATE
-Optional options:<br>--validation-loss VALIDATION_LOSS --validation-accuracy VALIDATION_ACCURACY
---batch BATCH_NUM --example EXAMPLE_INDEX
-The scripts can use special exit codes to force psycl aborting the training
-process:<br>- 3 (PS_STATUS_ERROR)
-- 5 (PS_STATUS_ABORTED)
+--learning-rate RATE.<br>Optional options:<br>--validation-loss VALIDATION_LOSS --validation-accuracy VALIDATION_ACCURACY
+--batch BATCH_NUM --example EXAMPLE_INDEX.<br>The scripts can use special exit codes to force psycl aborting the training
+process:<br><dl>
+<dt>- 3</dt>
+<dd>(PS_STATUS_ERROR)
+</dd>
+<dt>- 5</dt>
+<dd>(PS_STATUS_ABORTED)
+</dd>
+</dl>
 
 </section>
 <section class="examples">
