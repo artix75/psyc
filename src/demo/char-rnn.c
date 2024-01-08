@@ -236,38 +236,38 @@ void printHelp(char *executable) {
     for (i = 0; i < namelen; i++)
         optimization_name[i] = tolower(uc_optimization_name[i]);
     printf("Usage %s [OPTIONS]\n", executable);
-    printf("    OPTIONS:\n");
-    printf("        -l, --load MODEL_FILE           Load model\n");
-    printf("        -s, --load MODEL_FILE           Save model\n");
-    printf("        --learning-rate RATE            Learnig Rate "
-        "(def. %g)\n", LEARNING_RATE);
-    printf("        --lstm                          Use LSTM instead of RNN\n");
-    printf("        --gru                           Use GRU instead of RNN\n");
-    printf("        --clip CLIP                     Gradient clip "
-        "(def. %g)\n", CLIP);
-    printf("        --optimization                  Training Optimization \n"
-          "                                        "
-          "(adagrad,adadelta,adam,windowgrad,\n"
-          "                                         "
-          "nesterov,rmsprop,none)\n"
-          "                                        "
-          "Default: %s\n", optimization_name
-    );
-    printf("        --epochs EPOCHS                 Epochs (def. %d)\n",
+    printf("\nOPTIONS:\n");
+    printf("  --clip CLIP                       Gradient clip "
+           "(def. %g)\n", CLIP);
+    printf("  --colors                          Enable colorized output\n");
+    printf("  --epochs EPOCHS                   Epochs (def. %d)\n",
         EPOCHS);
-    printf("        --hidden-size NUM               Hidden layer size "
+    printf("  --gru                             Use GRU instead of RNN\n");
+    printf("  --hidden-size NUM                 Hidden layer size "
         "(def. %d)\n", HIDDEN_SIZE);
-    printf("        --print-sample-every EPOCHS     Print sample epoch interval"
-        "(def. %d)\n", SAMPLE_EVERY_EPOCHS);
-    printf("        --no-sample-randomization       Disable sample text "
+    printf("  -s, --load MODEL_FILE             Save model\n");
+    printf("  --learning-rate RATE              Learnig Rate "
+        "(def. %g)\n", LEARNING_RATE);
+    printf("  -l, --load MODEL_FILE             Load model\n");
+    printf("  --lstm                            Use LSTM instead of RNN\n");
+    printf("  --no-sample-randomization         Disable sample text "
            "randomization\n");
-    printf("        --no-validation                 Do not validate\n");
+    printf("  --no-validation                   Do not validate\n");
+    printf("  --optimization                    Training Optimization \n"
+           "                                    "
+           "(adagrad,adadelta,adam,windowgrad,\n"
+           "                                    "
+           "nesterov,rmsprop,none)\n"
+           "                                    "
+           "Default: %s\n", optimization_name
+    );
+    printf("  --print-sample-every EPOCHS       Print sample epoch interval"
+        "(def. %d)\n", SAMPLE_EVERY_EPOCHS);
     /*printf("        --catch-fpe                     Catch floating-point "
         "exceptions\n");
       printf("        --log-sequences                 Log X and Y sequences\n");
     */
-    printf("        --colors                        Enable colorized output\n");
-    printf("        -h, --help                      Print this help\n");
+    printf("  -h, --help                        Print this help\n");
 }
 
 void parseOptions(int argc, char **argv) {

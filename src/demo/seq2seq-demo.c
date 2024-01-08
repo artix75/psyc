@@ -281,11 +281,11 @@ int main(int argc, char **argv) {
         int max_mul_x = MULTABLE_NROWS;
         input_size = output_size = (max_mul_x * MULTABLE_NCOLS) + 1;
         table = getMultiplicationTable(max_mul_x);
-        int sent_len = 3, x_sent_count = (max_mul_x / sent_len);
-        int sent_count = x_sent_count * max_mul_x;
+        int seq_len = 3, x_seq_count = (MULTABLE_NCOLS / seq_len);
+        int seq_count = x_seq_count * max_mul_x;
         int xlen, ylen, r, c;
-        xlen = ylen = sent_len + 1;
-        data_size = (1 + (sent_count * (xlen + ylen)));
+        xlen = ylen = seq_len + 1;
+        data_size = (1 + (seq_count * (xlen + ylen)));
         PSFloat *row = table;
         table_train_data = calloc(data_size, sizeof(PSFloat));
         if (table_train_data == NULL) {
@@ -293,19 +293,19 @@ int main(int argc, char **argv) {
             return 1;
         }
         PSFloat *data_p = table_train_data;
-        *(data_p++) = (PSFloat) sent_count;
+        *(data_p++) = (PSFloat) seq_count;
         for (r = 0; r < max_mul_x; r++) {
-            for (c = 0; c < 10; c += sent_len) {
-                int xidx = c, yidx = c + sent_len, x, y;
+            for (c = 0; c < 10; c += seq_len) {
+                int xidx = c, yidx = c + seq_len, x, y;
                 if (yidx >= 10) break;
                 PSFloat *xsrc = row + xidx, *ysrc = row + yidx;
-                *(data_p++) = (PSFloat) x_sent_count;
-                for (x = 0; x < sent_len; x++) {
+                *(data_p++) = (PSFloat) seq_len;
+                for (x = 0; x < seq_len; x++) {
                     PSFloat xval = xsrc[x];
                     *(data_p++) = xval;
                 }
-                *(data_p++) = (PSFloat) x_sent_count;
-                for (y = 0; y < sent_len; y++) {
+                *(data_p++) = (PSFloat) seq_len;
+                for (y = 0; y < seq_len; y++) {
                     PSFloat yval = 0;
                     if ((yidx + y) < 10) yval = ysrc[y];
                     *(data_p++) = yval;

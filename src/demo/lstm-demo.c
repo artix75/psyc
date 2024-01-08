@@ -56,48 +56,48 @@ int use_random_choice = 0;
 
 void print_help(char *progname) {
     printf("Usage %s OPTIONS\n", progname);
-    printf("    OPTIONS:\n");
-    printf("        -l, --load TRAINED_DT_FILE      Load pretrained model\n");
-    printf("        -s, --save TRAINED_DT_FILE      Save trained model\n"
+    printf("\nOPTIONS:\n");
+    printf("  --batch-size SIZE                     Batch size (def. %d)\n",
+        BATCHES);
+    printf("  --colors                              Enable colorized output\n");
+#ifdef USE_AVX
+    printf("  --disable-avx                         Disable AVX\n");
+#endif
+    printf("  --embedding SIZE                      Use embedding layer\n");
+    printf("  --embedding-epochs EPOCHS             Embedding layer training "
+           "epochs (def. %d)\n", EMBED_EPOCHS);
+    printf("  --embedding-learn-rate RATE           Embedding layer learning "
+           "rate\n");
+    printf("  --embedding-load PATH                 Load pretrained "
+           "embedding layer\n");
+    printf("  --embedding-save PATH                 Save trained embedding "
+           "layer\n");
+    printf("  --epochs EPOCHS                       Epochs (def. %d)\n",
+        EPOCHS);
+    printf("  --hidden-size SIZE                    Hidden size (def. %d)\n",
+        HIDDEN_SIZE);
+    printf("  --l1-decay DECAY                      L1 Weight Decay "
+        "(def. %g)\n", L1);
+    printf("  --l2-decay DECAY                      L2 Weight Decay "
+        "(def. %g)\n", L2);
+    printf("  --learning-rate RATE                  Learnig Rate "
+        "(def. %g)\n", LEARNING_RATE);
+    printf("  -l, --load TRAINED_DT_FILE            Load pretrained model\n");
+    printf("  --momentum MOMENTUM                   Momentum "
+        "(def. %g)\n", MOMENTUM);
+    printf("  --optimization                        Training Optimization \n"
+           "                                        "
+           "(adagrad,adadelta,adam,windowgrad,\n"
+           "                                         "
+           "nesterov,rmsprop)\n");
+    printf("  --print-sample                        Print sample\n");
+    printf("  -s, --save TRAINED_DT_FILE            Save trained model\n"
            "                                        "
            "(default: %s)\n", DEFAULT_OUTPUT_FILE);
-    printf("        --hidden-size SIZE              Hidden size (def. %d)\n",
-        HIDDEN_SIZE);
-    printf("        --learning-rate RATE            Learnig Rate "
-        "(def. %g)\n", LEARNING_RATE);
-    printf("        --momentum MOMENTUM             Momentum "
-        "(def. %g)\n", MOMENTUM);
-    printf("        --l1-decay DECAY                L1 Weight Decay "
-        "(def. %g)\n", L1);
-    printf("        --l2-decay DECAY                L2 Weight Decay "
-        "(def. %g)\n", L2);
-    printf("        --optimization                  Training Optimization \n"
-          "                                        "
-          "(adagrad,adadelta,adam,windowgrad,\n"
-          "                                         "
-          "nesterov,rmsprop)\n");
-    printf("        --epochs EPOCHS                 Epochs (def. %d)\n",
-        EPOCHS);
-    printf("        --batch-size SIZE               Batch size (def. %d)\n",
-        BATCHES);
-    printf("        --embedding SIZE                Use embedding layer\n");
-    printf("        --embedding-learn-rate RATE     Embedding layer learning "
-           "rate\n");
-    printf("        --embedding-epochs EPOCHS       Embedding layer training "
-           "epochs (def. %d)\n", EMBED_EPOCHS);
-    printf("        --embedding-load PATH           Load pretrained "
-           "embedding layer\n");
-    printf("        --embedding-save PATH           Save trained embedding "
-           "layer\n");
-#ifdef USE_AVX
-    printf("        --disable-avx                   Disable AVX\n");
-#endif
-    printf("        --shuffle                       Shuffle data\n");
-    printf("        --print-sample                  Print sample\n");
-    printf("        --sample-length LEN             Sample words count "
+    printf("  --sample-length LEN                   Sample words count "
           "(def. %d)\n", SAMPLE_LEN);
-    printf("        --colors                        Enable colorized output\n");
-    printf("        -h, --help                      Print this help\n");
+    printf("  --shuffle                             Shuffle data\n");
+    printf("  -h, --help                            Print this help\n");
 }
 
 void handler(int sig) {

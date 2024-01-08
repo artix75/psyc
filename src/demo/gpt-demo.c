@@ -1511,27 +1511,27 @@ void printHelp(char *executable) {
     int i;
     printf("Usage: %s [OPTIONS] [PROMPT]\n", executable);
     printf("\nOPTIONS:\n\n");
-    printf("    --model MODELSIZE       GPT2 Model, available models:\n");
+    printf("  --[no-]binary-format      Enable/Disable saving layer\n"
+           "                            parameters in binary format in order\n"
+           "                            to save space and speed-up loading\n"
+           "                            (default: %s)\n",
+           (use_binary_files ? "enabled" : "disabled"));
+    printf("  -i, --interactive         Interactive prompt\n");
+    printf("  --max-output-tokens N     Max tokens to generate (def. %d)\n",
+        max_output_tokens);
+    printf("  --model MODELSIZE         GPT2 Model, available models:\n");
     printf("                            ");
     for (i = 0; i < models_count; i++)
         printf("%s%d", (i > 0 ? "," : ""), PSAvailableGPT2Models[i]);
     printf("\n");
     printf("                            Default: %d\n", model_size);
-    printf("    --model-dir PATH        Custom model directory\n");
-    printf("    --max-output-tokens N   Max tokens to generate (def. %d)\n",
-        max_output_tokens);
-    printf("    --temperature TEMP      Temperature (0-1) (def. %d\n",
+    printf("  --model-dir PATH          Custom model directory\n");
+    printf("  --overwrite-downloaded    Overwrite downloaded GPT2 files\n");
+    printf("  --overwrite-extracted     Overwrite extracted GPT2 files\n");
+    printf("  --temperature TEMP        Temperature (0-1) (def. %d\n",
         DEFAULT_TEMPERATURE);
-    printf("    --overwrite-downloaded  Overwrite downloaded GPT2 files\n");
-    printf("    --overwrite-extracted   Overwrite extracted GPT2 files\n");
-    printf("    --[no-]binary-format    Enable/Disable saving layer\n"
-           "                            parameters in binary format in order\n"
-           "                            to save space and speed-up loading\n"
-           "                            (default: %s)\n",
-           (use_binary_files ? "enabled" : "disabled"));
-    printf("    -i, --interactive       Interactive prompt\n");
-    printf("    -v, --verbose           Verbose output\n");
-    printf("    -h, --help              Print this help\n");
+    printf("  -v, --verbose             Verbose output\n");
+    printf("  -h, --help                Print this help\n");
 }
 
 int parseOptions(int argc, char **argv) {

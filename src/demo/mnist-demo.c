@@ -160,24 +160,24 @@ void printHelp(char *executable) {
     printf("Usage: %s [OPTIONS] [TRAIN_IMAGES [TRAIN_LABELS [TEST_IMAGES "
            "[TEST_LABELS]]]]]\n", executable);
     printf("\nOPTIONS:\n\n");
-    printf("        -l, --load MODEL_FILE           Load model\n");
-    printf("        --hidden-size SIZE              Hidden Layer size "
-          "(def. %d)\n", HIDDEN_SIZE);
-    printf("        --softmax                       Softmax Output\n");
-    printf("        --optimization                  Training Optimization \n"
-          "                                        "
-          "(adagrad,adadelta,adam,windowgrad,\n"
-          "                                         "
-          "nesterov, rmsprop, none)\n"
-          "                                        "
-          "Default: %s\n", optimization_name
-    );
-    printf("        --epochs EPOCHS                 Epochs (def. %d)\n",
+    printf("  --colors                              Enable colorized output\n");
+    printf("  --epochs EPOCHS                       Epochs (def. %d)\n",
            EPOCHS);
-    printf("        --learning-rate RATE            Learning Rate "
+    printf("  --hidden-size SIZE                    Hidden Layer size "
+          "(def. %d)\n", HIDDEN_SIZE);
+    printf("  --learning-rate RATE                  Learning Rate "
         "(def. %g)\n", LEARNING_RATE);
-    printf("        --colors                        Enable colorized output\n");
-    printf("    -h, --help                          Print this help\n");
+    printf("  -l, --load MODEL_FILE                 Load model\n");
+    printf("  --optimization                        Training Optimization \n"
+           "                                        "
+           "(adagrad,adadelta,adam,windowgrad,\n"
+           "                                        "
+           "nesterov, rmsprop, none)\n"
+           "                                        "
+           "Default: %s\n", optimization_name
+    );
+    printf("  --softmax                             Softmax Output\n");
+    printf("  -h, --help                            Print this help\n");
 }
 
 int parseOptions(int argc, char **argv) {

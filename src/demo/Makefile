@@ -31,9 +31,6 @@ gpt-demo.o:
 $(LOCALBINDIR)/mnist-demo: $(OBJS) mnist-demo.o
 	$(call print-action,$(LINK_ACTION_NAME),$@,$(LINK_ACTION_COLOR))
 	$(CC) -o $@ $^ $(LDFLAGS)
-$(LOCALBINDIR)/conv-demo: $(OBJS) conv-demo.o
-	$(call print-action,$(LINK_ACTION_NAME),$@,$(LINK_ACTION_COLOR))
-	$(CC) -o $@ $^ $(LDFLAGS)
 $(LOCALBINDIR)/rnn-demo: $(OBJS) rnn-demo.o
 	$(call print-action,$(LINK_ACTION_NAME),$@,$(LINK_ACTION_COLOR))
 	$(CC) -o $@ $^ $(LDFLAGS)
@@ -52,4 +49,4 @@ $(LOCALBINDIR)/seq2seq-demo: $(OBJS) seq2seq-demo.o
 $(LOCALBINDIR)/gpt-demo: $(OBJS) gpt-demo.o
 	$(call print-action,$(LINK_ACTION_NAME),$@,$(LINK_ACTION_COLOR))
 	$(CC) -o $@ $^ $(LDFLAGS) $(GPT_LDFLAGS)
-all: $(addprefix $(LOCALBINDIR)/, mnist-demo conv-demo rnn-demo lstm-demo char-rnn cifar-demo gpt-demo seq2seq-demo)
+all: $(addprefix $(LOCALBINDIR)/, mnist-demo rnn-demo lstm-demo char-rnn cifar-demo gpt-demo seq2seq-demo)
