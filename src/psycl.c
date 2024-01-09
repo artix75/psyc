@@ -27,6 +27,8 @@
 #include <limits.h>
 #include <assert.h>
 #include <sys/utsname.h>
+#include <signal.h>
+
 #include "psyc.h"
 #include "config.h"
 #include "utils.h"
