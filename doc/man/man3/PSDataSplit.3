@@ -1,0 +1,84 @@
+.\" Copyright (C) 2016-2024 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that the above copyright notice and this paragraph are
+.\" duplicated in all such forms and that any documentation,
+.\" advertising materials, and other materials related to such
+.\" distribution and use acknowledge that the software was developed
+.\" by the copyright holder. The name of the
+.\" copyright holder may not be used to endorse or promote products derived
+.\" from this software without specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+.TH PSDataSplit 3 2024-01-10 "PsyC 0.9.4" "PsyC Library Functions Manual"
+
+.SH NAME
+\fBPSDataSplit\fR
+
+.SH LIBRARY
+PsyC (-lpsyc)
+
+.SH SYNOPSIS
+
+.B
+#include <psyc/dataset.h>
+
+.I
+int  
+.br
+\fBPSDataSplit\fR(\fIPSFloat *data\fR, \fIuint64_t datalen\fR, \fIfloat percentage\fR, \fIint input_size\fR, \fIint target_size\fR, \fIPSFloat ** left\fR, \fIPSFloat ** right\fR, \fIuint64_t *left_length\fR, \fIuint64_t *right_length\fR, \fIint opts\fR)
+.SH DESCRIPTION
+Split \fIdata\fR into two separated datasets. This function can useful to separate validation data used for testing models from data used for training them.
+.br
+The \fIdatalen\fR argument must contain the length (number of elements) of the \fIdata\fR array, while \fIinput_size\fR and \fItarget_size\fR must contain the number of elements of each single input (\fIinput_size\fR) and each single target (\fItarget_size\fR). For example, if the dataset consists of 28x28 images the value for \fIinput_size\fR must be 784 and if the targets are composed of ten classes (such in popular MNIST dataset), the value of \fItarget_size\fR should be 10. If \fIdata\fR contains no targets, the value of \fItarget_size\fR must be zero.
+.br
+The size of the resulting datasets (called left and right dataset), are defined by the value of \fIpercentage\fR that is the percentage of \fIdata\fR that goes to the "left" datasets and must be expressed with a value between 0.0 and 1.0, so, for example, a percentage of 0.8 means that the left dataset will receive the 80% of the examples  from \fIdata\fR and, consequently, the right dataset will receive the 20% of the examples from \fIdata\fR.
+.br
+The way the data is distributed between the two datasets can vary depending on the value of \fIopts\fR. By default, the examples at the beginning of \fIdata\fR go to the left dataset until the selected percentage is reached and then the remaining examples go to the right dataset.
+.br
+If \fIopts\fR has the \fIPS_DATA_EVENLY_SPREAD\fR flag enabled, data will be evenly distributed to both datasets in an uniform way.
+.br
+If \fIopts\fR has the \fIPS_DATA_SHUFFLE\fR flag enabled, data will be randomly assigned to both datasets.
+.br
+If \fIdata\fR is made up of sequences, the \fIPS_DATA_SEQUENCES\fR flag must be enabled into the \fIopts\fR argument. If input sequences and target sequences may have different lengths, the flag \fIPS_DATA_SEQ2SEQ\fR must be enabled into the \fIopts\fR argument.
+.br
+The addresses of the resulting datasets will be stored into the \fIleft\fR and \fIright\fR arguments and their lengths (number of their respective elements) will be stored into the \fIleft_length\fR and \fIright_length\fR arguments.
+.br
+
+.br
+\fBNOTE\fR:  if \fIdata\fR has no sequences and neither \fIPS_DATA_SHUFFLE\fR nor \fIPS_DATA_EVENLY_SPREAD\fR flags is set, the function won't allocate the resulting datasets, so \fIleft\fR will contain the pointer to the original address of \fIdata\fR and \fIright\fR will contain the pointer to the first element of \fIdata\fR that will belong to the right dataset. This means that the right dataset should **never be freed** by its own. In all the other cases, memory for both the left and the right dataset will be allocated and must be freed when not used anymore.
+.br
+
+.SH RETURN VALUES
+1 in case of success, 0 in case of failure.
+Possible failure reasons:
+.br
+
+.RS 4
+\[bu] at least one of \fIdata\fR, \fIleft\fR, \fIright\fR, \fIleft_length\fR or \fIright_length\fR is \fINULL\fR.
+.br
+
+\[bu] \fIdatalen\fR is zero.
+.br
+
+\[bu] \fIinput_size\fR is zero.
+.br
+
+\[bu] \fIopts\fR has the flags \fIPS_DATA_SEQUENCES\fR or \fIPS_DATA_SEQ2SEQ\fR enabled but \fItarget_size\fR is zero.
+.br
+
+\[bu] \fIpercentage\fR is less than or equal to 0 or greater than or equal to 1.
+.br
+
+\[bu] \fIopts\fR has the flags \fIPS_DATA_SEQUENCES\fR or \fIPS_DATA_SEQ2SEQ\fR enabled but the dataset contains no sequences (the value of the first element of \fIdata\fR is less than or equal to zero.
+.br
+
+\[bu] There's no enough memory to be allocated for left and right datasets.
+.br
+.RE
+
+.SH SEE ALSO
+psyc(1)

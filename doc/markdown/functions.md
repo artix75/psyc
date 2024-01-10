@@ -47,7 +47,7 @@ int PSAdamOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloa
 
 ### PSAddCIFARInputLayer
 
-In: dataset.h, line: 249
+In: dataset.h, line: 259
 
 ```c
 PSLayer  * PSAddCIFARInputLayer (PSModel *model)
@@ -507,6 +507,40 @@ Compute the cumulative sum on elements of vector **a** having length defined by 
 1 if the function is successfully executed or 0 if:  
 
  - **a** is **NULL** or **dest** is **NULL**.
+
+
+### PSDataSplit
+
+In: dataset.h, line: 242
+
+```c
+int PSDataSplit (PSFloat *data, uint64_t datalen, float percentage, int input_size, int target_size, PSFloat ** left, PSFloat ** right, uint64_t *left_length, uint64_t *right_length, int opts)
+```
+
+Split [data](types.md#psmathopts) into two separated datasets. This function can useful to separate validation data used for testing models from data used for training them.  
+The **datalen** argument must contain the length (number of elements) of the [data](types.md#psmathopts) array, while [input_size](types.md#psmodel) and **target_size** must contain the number of elements of each single input ([input_size](types.md#psmodel)) and each single target (**target_size**). For example, if the dataset consists of 28x28 images the value for [input_size](types.md#psmodel) must be 784 and if the targets are composed of ten classes (such in popular MNIST dataset), the value of **target_size** should be 10. If [data](types.md#psmathopts) contains no targets, the value of **target_size** must be zero.  
+The size of the resulting datasets (called left and right dataset), are defined by the value of **percentage** that is the percentage of [data](types.md#psmathopts) that goes to the "left" datasets and must be expressed with a value between 0.0 and 1.0, so, for example, a percentage of 0.8 means that the left dataset will receive the 80% of the examples  from [data](types.md#psmathopts) and, consequently, the right dataset will receive the 20% of the examples from [data](types.md#psmathopts).  
+The way the data is distributed between the two datasets can vary depending on the value of **opts**. By default, the examples at the beginning of [data](types.md#psmathopts) go to the left dataset until the selected percentage is reached and then the remaining examples go to the right dataset.  
+If **opts** has the [PS_DATA_EVENLY_SPREAD](macros.md#ps-data-evenly-spread) flag enabled, data will be evenly distributed to both datasets in an uniform way.  
+If **opts** has the [PS_DATA_SHUFFLE](macros.md#ps-data-shuffle) flag enabled, data will be randomly assigned to both datasets.  
+If [data](types.md#psmathopts) is made up of sequences, the [PS_DATA_SEQUENCES](macros.md#ps-data-sequences) flag must be enabled into the **opts** argument. If input sequences and target sequences may have different lengths, the flag [PS_DATA_SEQ2SEQ](macros.md#ps-data-seq2seq) must be enabled into the **opts** argument.  
+The addresses of the resulting datasets will be stored into the **left** and **right** arguments and their lengths (number of their respective elements) will be stored into the **left_length** and **right_length** arguments.  
+
+
+**NOTE**:  if [data](types.md#psmathopts) has no sequences and neither [PS_DATA_SHUFFLE](macros.md#ps-data-shuffle) nor [PS_DATA_EVENLY_SPREAD](macros.md#ps-data-evenly-spread) flags is set, the function won't allocate the resulting datasets, so **left** will contain the pointer to the original address of [data](types.md#psmathopts) and **right** will contain the pointer to the first element of [data](types.md#psmathopts) that will belong to the right dataset. This means that the right dataset should **never be freed** by its own. In all the other cases, memory for both the left and the right dataset will be allocated and must be freed when not used anymore.  
+
+**RETURN VALUES**
+
+1 in case of success, 0 in case of failure.  
+Possible failure reasons:  
+
+ - at least one of [data](types.md#psmathopts), **left**, **right**, **left_length** or **right_length** is **NULL**.
+ - **datalen** is zero.
+ - [input_size](types.md#psmodel) is zero.
+ - **opts** has the flags [PS_DATA_SEQUENCES](macros.md#ps-data-sequences) or [PS_DATA_SEQ2SEQ](macros.md#ps-data-seq2seq) enabled but **target_size** is zero.
+ - **percentage** is less than or equal to 0 or greater than or equal to 1.
+ - **opts** has the flags [PS_DATA_SEQUENCES](macros.md#ps-data-sequences) or [PS_DATA_SEQ2SEQ](macros.md#ps-data-seq2seq) enabled but the dataset contains no sequences (the value of the first element of [data](types.md#psmathopts) is less than or equal to zero.
+ - There's no enough memory to be allocated for left and right datasets.
 
 
 ### PSDebug
@@ -2046,7 +2080,7 @@ int PSLineStart (int opts, char *format, ...)
 
 ### PSLoadCIFARData
 
-In: dataset.h, line: 247
+In: dataset.h, line: 257
 
 ```c
 int PSLoadCIFARData (int type, int classes, const char *dataset_path, PSFloat ** data, int max_files, int max_examples)
@@ -2078,7 +2112,7 @@ Possibile errors:
 
 ### PSLoadDataFromFile
 
-In: dataset.h, line: 235
+In: dataset.h, line: 240
 
 ```c
 PSFloat  * PSLoadDataFromFile (const char *filepath, uint64_t *datalen)
@@ -2098,7 +2132,7 @@ Possible failure reasons:
 
 ### PSLoadDataFromString
 
-In: dataset.h, line: 224
+In: dataset.h, line: 229
 
 ```c
 PSFloat  * PSLoadDataFromString (char *str, PSTextParserOptions *opts, int64_t *datalen, PSVocabulary ** vocabulary)
@@ -2152,7 +2186,7 @@ The dataset ([PSFloat](types.md#psfloat) array) or **NULL** is something goes wr
 
 ### PSLoadDataFromTextFile
 
-In: dataset.h, line: 227
+In: dataset.h, line: 232
 
 ```c
 PSFloat  * PSLoadDataFromTextFile (const char *filepath, PSTextParserOptions *opts, int64_t *datalen, PSVocabulary ** vocabulary)
@@ -2169,7 +2203,7 @@ The dataset ([PSFloat](types.md#psfloat) array) or **NULL** is something goes wr
 
 ### PSLoadMNISTData
 
-In: dataset.h, line: 241
+In: dataset.h, line: 251
 
 ```c
 int PSLoadMNISTData (int type, const char *images_file, const char *labels_file, PSFloat ** data)
@@ -3680,7 +3714,7 @@ The random float number.
 
 ### PSNormalizeToken
 
-In: dataset.h, line: 223
+In: dataset.h, line: 228
 
 ```c
 char  * PSNormalizeToken (char *token, int len)
@@ -3967,7 +4001,7 @@ int PSRMSPropOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSF
 
 ### PSSaveDataToFile
 
-In: dataset.h, line: 236
+In: dataset.h, line: 241
 
 ```c
 int PSSaveDataToFile (const char *path, PSFloat *data, uint64_t len, int opts)
@@ -5068,7 +5102,7 @@ int PSVLineAppend (int opts, char *format, va_list args)
 
 ### PSVocabularyAdd
 
-In: dataset.h, line: 215
+In: dataset.h, line: 220
 
 ```c
 int64_t PSVocabularyAdd (PSVocabulary *vocabulary, char *token)
@@ -5085,7 +5119,7 @@ The numeric index (ID) of the token. If token could not be added to the dictiona
 
 ### PSVocabularyCreate
 
-In: dataset.h, line: 214
+In: dataset.h, line: 219
 
 ```c
 PSVocabulary  * PSVocabularyCreate (int64_t initial_capacity)
@@ -5101,7 +5135,7 @@ The vocabulary or **NULL** if memory cannot be allocated.
 
 ### PSVocabularyErrorString
 
-In: dataset.h, line: 220
+In: dataset.h, line: 225
 
 ```c
 const char  * PSVocabularyErrorString (int err)
@@ -5112,7 +5146,7 @@ const char  * PSVocabularyErrorString (int err)
 
 ### PSVocabularyFree
 
-In: dataset.h, line: 221
+In: dataset.h, line: 226
 
 ```c
 void PSVocabularyFree (PSVocabulary *vocabulary)
@@ -5123,7 +5157,7 @@ void PSVocabularyFree (PSVocabulary *vocabulary)
 
 ### PSVocabularyGetTokenByID
 
-In: dataset.h, line: 217
+In: dataset.h, line: 222
 
 ```c
 const char  * PSVocabularyGetTokenByID (PSVocabulary *vocabulary, int64_t id)
@@ -5139,7 +5173,7 @@ The token associated with **id** or **NULL** if no **token** is found with **id*
 
 ### PSVocabularyGetTokenID
 
-In: dataset.h, line: 216
+In: dataset.h, line: 221
 
 ```c
 int64_t PSVocabularyGetTokenID (PSVocabulary *vocabulary, char *token)
@@ -5156,7 +5190,7 @@ If **vocabulary** is **NULL** or **token** is **NULL**, the function will return
 
 ### PSVocabularyLoad
 
-In: dataset.h, line: 218
+In: dataset.h, line: 223
 
 ```c
 PSVocabulary  * PSVocabularyLoad (const char *path)
@@ -5181,7 +5215,7 @@ The pointer to vocabulary or **NULL** if:
 
 ### PSVocabularySave
 
-In: dataset.h, line: 219
+In: dataset.h, line: 224
 
 ```c
 int PSVocabularySave (PSVocabulary *vocabulary, const char *path)

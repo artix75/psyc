@@ -900,6 +900,309 @@ char *PSNormalizeToken(char *token, int len) {
     return token;
 }
 
+/**** Generic Dataset Functions. ****/
+
+/* Split `data` into two separated datasets. This function can useful to
+ * separate validation data used for testing models from data used for
+ * training them.
+ * The `datalen` argument must contain the length (number of elements) of the
+ * `data` array, while `input_size` and `target_size` must contain the number
+ * of elements of each single input (`input_size`) and each single target
+ * (`target_size`). For example, if the dataset consists of 28x28 images
+ * the value for `input_size` must be 784 and if the targets are composed of
+ * ten classes (such in popular MNIST dataset), the value of `target_size`
+ * should be 10. If `data` contains no targets, the value of `target_size`
+ * must be zero.
+ * The size of the resulting datasets (called left and right dataset), are
+ * defined by the value of `percentage` that is the percentage of `data` that
+ * goes to the "left" datasets and must be expressed with a value between 0.0
+ * and 1.0, so, for example, a percentage of 0.8 means that the left dataset
+ * will receive the 80% of the examples  from `data` and, consequently, the
+ * right dataset will receive the 20% of the examples from `data`.
+ * The way the data is distributed between the two datasets can vary depending
+ * on the value of `opts`. By default, the examples at the beginning of `data`
+ * go to the left dataset until the selected percentage is reached and then
+ * the remaining examples go to the right dataset.
+ * If `opts` has the `PS_DATA_EVENLY_SPREAD` flag enabled, data will be
+ * evenly distributed to both datasets in an uniform way.
+ * If `opts` has the `PS_DATA_SHUFFLE` flag enabled, data will be randomly
+ * assigned to both datasets.
+ * If `data` is made up of sequences, the `PS_DATA_SEQUENCES` flag must be
+ * enabled into the `opts` argument. If input sequences and target sequences
+ * may have different lengths, the flag `PS_DATA_SEQ2SEQ` must be enabled
+ * into the `opts` argument.
+ * The addresses of the resulting datasets will be stored into the `left`
+ * and `right` arguments and their lengths (number of their respective elements)
+ * will be stored into the `left_length` and `right_length` arguments.
+ * NOTE: if `data` has no sequences and neither `PS_DATA_SHUFFLE` nor
+ * `PS_DATA_EVENLY_SPREAD` flags is set, the function won't allocate the
+ * resulting datasets, so `left` will contain the pointer to the original
+ * address of `data` and `right` will contain the pointer to the first element
+ * of `data` that will belong to the right dataset. This means that the right
+ * dataset should **never be freed** by its own. In all the other cases,
+ * memory for both the left and the right dataset will be allocated and must
+ * be freed when not used anymore.
+ * Return value: 1 in case of success, 0 in case of failure.
+ * Possible failure reasons:
+ *  - at least one of `data`, `left`, `right`, `left_length` or `right_length`
+ *    is NULL.
+ *  - `datalen` is zero.
+ *  - `input_size` is zero.
+ *  - `opts` has the flags `PS_DATA_SEQUENCES` or `PS_DATA_SEQ2SEQ` enabled
+ *    but `target_size` is zero.
+ *  - `percentage` is less than or equal to 0 or greater than or equal to 1.
+ *  - `opts` has the flags `PS_DATA_SEQUENCES` or `PS_DATA_SEQ2SEQ` enabled
+ *    but the dataset contains no sequences (the value of the first element
+ *    of `data` is less than or equal to zero.
+ *  - There's no enough memory to be allocated for left and right datasets. */
+int PSDataSplit(PSFloat *data, uint64_t datalen, float percentage,
+                int input_size, int target_size,
+                PSFloat **left, PSFloat **right,
+                uint64_t *left_length, uint64_t *right_length,
+                int opts)
+{
+    PSFloat *left_data = NULL, *right_data = NULL;
+    int success = (data != NULL);
+    if (!success) {
+        PSErr(__func__, "missing mandatory argument `data`");
+        goto final;
+    }
+    success = (datalen > 0);
+    if (!success) {
+        PSErr(__func__, "empty dataset");
+        goto final;
+    }
+    success = (left != NULL);
+    if (!success) {
+        PSErr(__func__, "missing mandatory argument `left`");
+        goto final;
+    }
+    success = (right != NULL);
+    if (!success) {
+        PSErr(__func__, "missing mandatory argument `right`");
+        goto final;
+    }
+    success = (left_length != NULL);
+    if (!success) {
+        PSErr(__func__, "missing mandatory argument `left_length`");
+        goto final;
+    }
+    success = (right_length != NULL);
+    if (!success) {
+        PSErr(__func__, "missing mandatory argument `right_length`");
+        goto final;
+    }
+    success = (percentage > 0 && percentage < 1);
+    if (!success) {
+        PSErr(__func__, "`percentage` must be greater 0 and less than 1");
+        goto final;
+    }
+    int seq2seq = opts & PS_DATA_SEQ2SEQ,
+        has_targets = target_size > 0 || seq2seq,
+        has_seqs = (opts & PS_DATA_SEQUENCES) || seq2seq,
+        shuffle = opts & PS_DATA_SHUFFLE,
+        evenly_split = opts & PS_DATA_EVENLY_SPREAD;
+    success = !has_targets || target_size > 0;
+    if (!success) {
+        PSErr(__func__, "`target_size` must be greater than zero");
+        goto final;
+    }
+    success = input_size > 0;
+    if (!success) {
+        PSErr(__func__, "`input_size` must be greater than zero");
+        goto final;
+    }
+    uint64_t example_size = 0, n_examples = 0;
+    PSFloat *data_p = data;
+    if (has_seqs) n_examples = (uint64_t) *(data_p++);
+    else {
+        example_size = input_size + target_size;
+        success = example_size > 0;
+        if (!success) {
+            PSErr(__func__, "invalid example size");
+            goto final;
+        }
+        n_examples = datalen / example_size;
+    }
+    success = n_examples > 0;
+    if (!success) {
+        PSErr(__func__, "no examples found in dataset");
+        goto final;
+    }
+    uint64_t left_examples =
+        (uint64_t) lroundf(percentage * (float) n_examples);
+    uint64_t right_examples = n_examples - left_examples;
+    uint64_t llen = 0, rlen = 0, llen_alloc = 0, rlen_alloc = 0;
+    if (!has_seqs) {
+        llen_alloc = left_examples * example_size;
+        rlen_alloc = right_examples * example_size;
+        if (!shuffle && !evenly_split) {
+            /* Trivial situation. */
+            *left_length = llen_alloc;
+            *right_length = rlen_alloc;
+            *left = data;
+            *right = data + llen_alloc;
+            return 1;
+        }
+    } else {
+        /* Heuristically predict left and right size. */
+        llen_alloc = (uint64_t) (percentage * (float) datalen);
+        rlen_alloc = (uint64_t) ((1 - percentage) * (float) datalen);
+    }
+    left_data = malloc(llen_alloc * sizeof(PSFloat));
+    success = (left_data != NULL);
+    if (!success) {
+        PSPrintMemoryErrorMsg();
+        goto final;
+    }
+    right_data = malloc(rlen_alloc * sizeof(PSFloat));
+    success = (right_data != NULL);
+    if (!success) {
+        PSPrintMemoryErrorMsg();
+        goto final;
+    }
+    PSFloat **big = NULL, **small = NULL;
+    uint64_t small_examples = 0, big_examples = 0, slice_examples = 0,
+             n_slices = 0, i;
+    uint64_t *small_len = NULL, *big_len = NULL, *small_len_alloc = NULL,
+             *big_len_alloc = NULL;
+    if (shuffle || evenly_split) {
+        if (percentage >= 0.5) {
+            big = &left_data;
+            big_examples = left_examples;
+            big_len = &llen;
+            big_len_alloc = &llen_alloc;
+            small = &right_data;
+            small_examples = right_examples;
+            small_len = &rlen;
+            small_len_alloc = &rlen_alloc;
+        } else {
+            big = &right_data;
+            big_examples = right_examples;
+            big_len = &rlen;
+            big_len_alloc = &rlen_alloc;
+            small = &left_data;
+            small_examples = left_examples;
+            small_len = &llen;
+            small_len_alloc = &llen_alloc;
+        }
+        slice_examples = (big_examples / small_examples) + 1;
+        n_slices = n_examples / slice_examples;
+        if (n_examples % slice_examples) n_slices++;
+    }
+    if (has_seqs) {
+        left_data[llen++] = 0;
+        right_data[rlen++] = 0;
+    }
+    int example2pick = -1;
+    for (i = 0; i < n_examples; i++) {
+        /* Get current example. */
+        PSFloat *example = data_p;
+        if (has_seqs) {
+            int xlen = (int) *(data_p++), ylen = xlen;
+            data_p += (xlen * input_size);
+            if (has_targets) {
+                if (seq2seq) ylen = (int) *(data_p++);
+                data_p += ylen * input_size;
+            }
+            example_size = data_p - example;
+        } else data_p += example_size;
+        /* Determine target (destination) dataset. */
+        PSFloat **target_dataset = NULL;
+        uint64_t *target_len = NULL, *target_len_alloc = NULL;
+        if (!shuffle && !evenly_split) {
+            if (i < left_examples) {
+                target_dataset = &left_data;
+                target_len = &llen;
+                target_len_alloc = &llen_alloc;
+            } else {
+                target_dataset = &right_data;
+                target_len = &rlen;
+                target_len_alloc = &rlen_alloc;
+            }
+        } else {
+            uint64_t slice_idx = i / slice_examples;
+            int slice_example_idx = i % slice_examples;
+            uint64_t remaining_examples = (
+                n_examples - (slice_idx * slice_examples)
+            );
+            uint64_t slice_len = (
+                remaining_examples >= slice_examples ? slice_examples :
+                                                       remaining_examples
+            );
+            uint64_t small_count, big_count;
+            if (has_seqs) {
+                small_count = (uint64_t) ((*small)[0]);
+                big_count = (uint64_t) ((*big)[0]);
+            } else {
+                small_count = *small_len / example_size;
+                big_count = *big_len / example_size;
+            }
+            if (slice_example_idx == 0) {
+                /* First example of the slice, determine example2pick if
+                 * small dataset is not full. */
+                 if (small_count < small_examples) {
+                    if (shuffle)
+                        example2pick = PSRandomInt(slice_len, NULL, NULL, NULL);
+                    else
+                        example2pick = (percentage >= 0.5 ? slice_len - 1 : 0);
+                 } else example2pick = -1;
+            }
+            if (example2pick == slice_example_idx) {
+                target_dataset = small;
+                target_len = small_len;
+                target_len_alloc = small_len_alloc;
+            } else if (big_count < big_examples) {
+                target_dataset = big;
+                target_len = big_len;
+                target_len_alloc = big_len_alloc;
+            } else {
+                PSErr(NULL, "cannot determine dataset for example %llu", i);
+                success = 0;
+                goto final;
+            }
+        }
+        uint64_t curlen = *target_len;
+        *target_len += example_size;
+        if (*target_len > *target_len_alloc) {
+            PSFloat *resized = realloc(
+                *target_dataset, *target_len * sizeof(PSFloat)
+            );
+            success = (resized != NULL);
+            if (!success) {
+                PSPrintMemoryErrorMsg();
+                goto final;
+            }
+            *target_len_alloc = *target_len;
+            *target_dataset = resized;
+        }
+        PSVectorCopy(*target_dataset + curlen, example, example_size);
+        if (has_seqs) (*target_dataset)[0] += 1;
+    }
+    if (llen < llen_alloc) {
+        PSFloat *resized = realloc(left_data, llen * sizeof(PSFloat));
+        if (resized != NULL) left_data = resized;
+    }
+    if (rlen < rlen_alloc) {
+        PSFloat *resized = realloc(right_data, rlen * sizeof(PSFloat));
+        if (resized != NULL) right_data = resized;
+    }
+    *left = left_data;
+    *right = right_data;
+    *left_length = llen;
+    *right_length = rlen;
+final:
+    if (!success) {
+        if (left_length != NULL) *left_length = 0;
+        if (right_length != NULL) *right_length = 0;
+        if (left != NULL) *left = NULL;
+        if (right != NULL) *right = NULL;
+        free(left_data);
+        free(right_data);
+    }
+    return success;
+}
+
 /* Load a dataset (an array of `PSFloat` numbers) from a string. Depending
  * on the parsing mode, each token or character found in the string will be
  * converted to a numeric representation of itself. The dataset can be used to

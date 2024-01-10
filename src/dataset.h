@@ -27,6 +27,11 @@
 #define PS_DATA_TYPE_TEST       1
 #endif
 
+#define PS_DATA_SHUFFLE         (1 << 0)
+#define PS_DATA_EVENLY_SPREAD   (1 << 1)
+#define PS_DATA_SEQUENCES       PS_FLAG_USE_SEQUENCES
+#define PS_DATA_SEQ2SEQ         PS_TRAINING_FLAG_SEQ2SEQ
+
 /*** Text processing ***/
 
 #define PS_DEFAULT_TOKEN_SEPARATOR  " ,.:!?-'\"\n\t\r"
@@ -234,6 +239,11 @@ PSFloat *PSLoadDataFromTextFile(const char *filepath,
 
 PSFloat *PSLoadDataFromFile(const char *filepath, uint64_t *datalen);
 int PSSaveDataToFile(const char *path, PSFloat *data, uint64_t len, int opts);
+int PSDataSplit(PSFloat *data, uint64_t datalen, float percentage,
+                int input_size, int target_size,
+                PSFloat **left, PSFloat **right,
+                uint64_t *left_length, uint64_t *right_length,
+                int opts);
 
 /* MNIST Dataset */
 #define PS_MNIST_INPUT_SIZE (28 * 28)

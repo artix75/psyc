@@ -671,7 +671,7 @@ Kept type name used in older version since I still love it :) (and it also sound
 
 <div class="details struct" id="struct-pstextparseroptions">
 <h3 class="name">PSTextParserOptions</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">185</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">190</span></div>
 <div class="code">
 <code class="definition">
 <span class="keyword">typedef struct</span> {<br><span class="member"><span class="type">int</span> <span class="identifier">mode</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">flags</span></span>;<br><span class="member"><span class="type">int64_t</span> <span class="identifier">max_vocabulary_size</span></span>;<br><span class="member"><span class="type">const char *</span> <span class="identifier">separator</span></span>;<br><span class="member"><span class="type">const char *</span> <span class="identifier">unknown_token</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">capacity</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">buffer_size</span></span>;<br><span class="member"><span class="type">PSTokenNormalizer</span> <span class="identifier">normalizer</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#function_pointer-pstokenmatch">PSTokenMatch</a></span> <span class="identifier">match_token</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">sequence_length</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#function_pointer-pstokenmatch">PSTokenMatch</a></span> <span class="identifier">match_sequence_end</span></span>;<br><span class="member"><span class="type">const char *</span> <span class="identifier">sequence_separator</span></span>;<br><span class="member"><span class="type">int64_t</span> <span class="identifier">max_sequences</span></span>;<br><span class="member"><span class="type">const char *</span> <span class="identifier">start_token</span></span>;<br><span class="member"><span class="type">const char *</span> <span class="identifier">end_token</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span> <span class="identifier">target_dataset</span></span>;<br><span class="member"><span class="type">int64_t</span> <span class="identifier">target_datalen</span></span>;<br><span class="member"><span class="type">struct <a class="psyc-type" href="types.html#struct-psvocabulary">PSVocabulary</a> *</span> <span class="identifier">target_vocabulary</span></span>;<br>} <span class="identifier">PSTextParserOptions</span><br></code>
@@ -747,7 +747,7 @@ Options for text parsing:<br/>
 
 <div class="details function_pointer" id="function_pointer-pstokenmatch">
 <h3 class="name">PSTokenMatch</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">110</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">115</span></div>
 <div class="code">
 <code class="definition">
 <span class="keyword">typedef </span><span class="type return-type">int</span>  (* <span class="identifier">PSTokenMatch</span>) (<span class="arguments"><span class="argument"><span class="type">char *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-pstokenmatch-str>str</span></span>, <span class="argument"><span class="type">int *</span><span class="identifier pointer-name" data-identifier-id=function_pointer-pstokenmatch-len>len</span></span></span>)</code>
@@ -801,7 +801,7 @@ Options for text parsing:<br/>
 
 <div class="details struct" id="struct-psvocabulary">
 <h3 class="name">PSVocabulary</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">206</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">211</span></div>
 <div class="tags"><span class="tag dataset" data-href="tag-dataset.html">DATASET</span></div><div class="code">
 <code class="definition">
 <span class="keyword">typedef struct</span> {<br><span class="member"><span class="type">int64_t</span> <span class="identifier">size</span></span>;<br><span class="member"><span class="type">int64_t</span> <span class="identifier">capacity</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#struct-psdict">PSDict</a> *</span> <span class="identifier">token_map</span></span>;<br><span class="member"><span class="type">const char **</span> <span class="identifier">tokens</span></span>;<br>} <span class="identifier">PSVocabulary</span><br></code>
