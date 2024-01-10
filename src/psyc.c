@@ -247,7 +247,7 @@ void PSLogTrainingProgress(PSModel *model, int status, int epochs,
         }
     }
     if (status == PS_STATUS_VALIDATING) {
-        if (model->training != NULL && model->training->test_size > 0) {
+        if (model->training != NULL && model->training->num_tests > 0) {
             int val_perc = (int) roundf(
                 (
                     (float) (model->training->current_test + 1) /
@@ -6621,7 +6621,7 @@ void PSTrain(PSModel *model,
              int test_size,
              PSTrainingOptions *options)
 {
-    int epochs = 0, batch_size = 0, i, num_examples;
+    int epochs = 0, batch_size = 0, num_examples = 0, num_test_examples = 0, i;
     PSFloat learning_rate = 0.0;
     if (!PSModelIsBuilt(model)) {
         if (!PSModelBuild(model)) {
@@ -6700,7 +6700,11 @@ void PSTrain(PSModel *model,
          * indicate the number fo sequences in the dataset itself. */
         num_examples = (int) *(training_data++);
         data_size--;
-    } else num_examples = data_size / example_size;
+        if (test_data != NULL) num_test_examples = (int) *(test_data);
+    } else {
+        num_examples = data_size / example_size;
+        if (test_data != NULL) num_test_examples = test_size / example_size;
+    }
     if (options->flags & PS_TRAINING_FLAG_SEQ2SEQ) {
         char *err = NULL;
         if (!isSequence2SequenceAvailable(model, &err)) {
@@ -6750,6 +6754,8 @@ void PSTrain(PSModel *model,
         PSInfo("Output model:              \"%s\"", output_name);
     }
     PSInfo("Training data examples:     %d", num_examples);
+    if (test_data != NULL && num_test_examples > 0)
+        PSInfo("Test data examples:         %d", num_test_examples);
     PSInfo("Batch Size:                 %d", batch_size);
     PSInfo("Learning Rate:              %g", learning_rate);
     int use_weight_decay = (
