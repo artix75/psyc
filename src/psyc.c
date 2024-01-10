@@ -49,6 +49,8 @@
 #define SEQ_MODE_PREPEND_START      (1 << 0)
 #define SEQ_MODE_APPEND_END         (1 << 1)
 #define SEQ_MODE_PREPEND_SEQLEN     (1 << 2)
+#define VALIDATE_LOG_ALL        1
+#define VALIDATE_LOG_PROGRESS   2
 
 #define applyGradientsOnBiases(opts, grads, params, mg, xg, len, r, i, accel) \
     applyGradientsOnParameters(PS_PARAM_BIAS, opts, grads, params, mg, xg, 0, \
@@ -6258,7 +6260,6 @@ float validate(PSModel *model, PSFloat *test_data, int data_size,
 {
     int i, j;
     int previous_status = PSModelGetStatus(model);
-    int was_training = previous_status == PS_STATUS_TRAINING;
     char *errmsg = NULL;
     float accuracy = 0.0f;
     int correct_results = 0;
@@ -6275,9 +6276,10 @@ float validate(PSModel *model, PSFloat *test_data, int data_size,
     int teacher_forcing = 0;
     int steps_to_check = 0, max_seqlen = 0;
     int print_progress = (
-        was_training && !log && opts != NULL && opts->printProgress != NULL &&
-        model->training != NULL
+        log == VALIDATE_LOG_PROGRESS && opts != NULL &&
+        opts->printProgress != NULL && model->training != NULL
     );
+    log = (log == VALIDATE_LOG_ALL);
     PSFloat *outputs = NULL;
     PSFloat *tmpy = NULL;
     PSModel *output_model = NULL;
@@ -6874,7 +6876,8 @@ void PSTrain(PSModel *model,
                 NULL, NULL, NULL, NULL
             );
             acc = validate(
-                model, test_data, test_size, options, &test_loss, 0
+                model, test_data, test_size, options, &test_loss,
+                VALIDATE_LOG_PROGRESS
             );
             acc_p = &acc;
         }
@@ -6938,7 +6941,7 @@ void PSTrain(PSModel *model,
 float PSTest(PSModel *model, PSFloat *test_data, int data_size,
              PSFloat *loss, PSTrainingOptions *options)
 {
-    int do_log = (PSLogLevel <= PSLOGLEVEL_INFO);
+    int do_log = (PSLogLevel <= PSLOGLEVEL_INFO ? 1 : 0);
     return validate(model, test_data, data_size, options, loss, do_log);
 }
 
