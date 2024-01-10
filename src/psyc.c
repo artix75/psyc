@@ -6262,8 +6262,7 @@ float validate(PSModel *model, PSFloat *test_data, int data_size,
     int previous_status = PSModelGetStatus(model);
     char *errmsg = NULL;
     float accuracy = 0.0f;
-    int correct_results = 0;
-    float correct_amount = 0.0f;
+    int correct_results = 0, tot_results = 0;
     PSLayer *output_layer = PSGetOutputLayer(model);
     int input_size = model->input_size;
     int output_size = model->output_size;
@@ -6306,7 +6305,10 @@ float validate(PSModel *model, PSFloat *test_data, int data_size,
                 PSUseSequences(output_model)
             );
         }
-    } else num_examples = data_size / example_size;
+    } else {
+        num_examples = data_size / example_size;
+        tot_results = num_examples;
+    }
     PSForwardOptions fwopts = {0};
     if (flags & PS_TRAINING_FLAG_AUTOREGRESSION)
         fwopts.flags |= PS_TRAINING_FLAG_AUTOREGRESSION;
@@ -6421,9 +6423,8 @@ float validate(PSModel *model, PSFloat *test_data, int data_size,
                         if (emax == omax) correct_states++;
                     }
                 }
-                correct_amount += (
-                    (float) correct_states / (float) max_seqlen
-                );
+                correct_results += correct_states;
+                tot_results += max_seqlen;
             } else {
                 int omax = 0; /* Output index with max value */
                 int emax = 0; /* targets index with max value */
@@ -6449,19 +6450,14 @@ float validate(PSModel *model, PSFloat *test_data, int data_size,
     }
     time(&end_t);
     if (log) printf("\nCompleted in %ld sec.\n", end_t - start_t);
-    if (!emits_output_sequence) {
-        accuracy = (float) correct_results / (float) num_examples;
-        if (log) {
-            printf(
-                "Accuracy (%d/%d): %.2f\n", correct_results,
-                num_examples,accuracy
-            );
-        }
-    } else {
-        accuracy = correct_amount / (float) num_examples;
-        free(sequences);
-        if (log) printf("Accuracy: %.2f\n", accuracy);
+    accuracy = (float) correct_results / (float) tot_results;
+    if (log) {
+        printf(
+            "Accuracy (%d/%d): %.2f\n", correct_results,
+            tot_results, accuracy
+        );
     }
+    if (emits_output_sequence) free(sequences);
     PSModelSetStatus(model, previous_status, NULL);
     if (loss != NULL) {
         *loss = tot_loss / num_examples;
