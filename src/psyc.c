@@ -4109,6 +4109,8 @@ int useAutoRegression(PSModel *model,
 {
     if (!PSUseSequences(model)) return 0;
     if (!PSUseSequences(model->layers[model->size - 1])) return 0;
+    if (PSIsModelChain(model) && model != PSModelChainTail(model))
+        return 0;
     if (model->flags & PS_FLAG_AUTOREGRESSION) return 1;
     else if (forward_opts != NULL)
         return forward_opts->flags & PS_TRAINING_FLAG_AUTOREGRESSION;
