@@ -283,7 +283,6 @@ typedef struct PSTrainingOptions {
     PSOptimization              optimization;
     int                         bptt_truncate;
     int                         metrics;
-    float                       accuracy_dataset_percent;
     PSTrainingProgressFunc      printProgress;
     FILE                        *debug_dump_to;
 } PSTrainingOptions;
@@ -292,15 +291,18 @@ typedef struct {
     int         current_epoch;
     int         current_batch;
     int         current_example;
+    int         num_examples;
     int         batch_size;
     int         data_size;
     int         current_test;
     int         test_size;
     int         num_tests;
-    time_t  started_at;
-    time_t  ended_at;
-    int     requested_action;
-    FILE    *debug_dump_to;
+    int         correct_results;
+    int         tot_results;
+    time_t      started_at;
+    time_t      ended_at;
+    int         requested_action;
+    FILE        *debug_dump_to;
 } PSTrainingInfo;
 
 typedef struct PSNeuron {

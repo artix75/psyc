@@ -153,6 +153,8 @@ static PSModel *cloneModel(PSModel *model, int layout_only,
 int PSIsLayerPlaceholder(PSLayer *layer);
 void PSAbortLayer(PSModel *model, PSLayer *layer);
 PSTrainingOptions *PSGetModelTrainingOptions(PSModel *model);
+void updateTrainingAccuracy(PSModel *model, PSFloat *outputs, PSFloat *targets,
+                            int seqlen);
 
 /**** Miscellaneous functions ****/
 
@@ -5116,6 +5118,7 @@ int computeSoftmaxOutputDelta(PSLayer *layer, PSFloat *y, ...) {
     }
     PSVectorCopy(delta, outputs, delta_len);
     PSFloat *delta_p = delta;
+    PSFloat *targets = y;
     for (int i = 0; i < seqlen; i++) {
         uint64_t oidx;
         if (onehot) oidx = (uint64_t) *(y++);
@@ -5141,6 +5144,9 @@ int computeSoftmaxOutputDelta(PSLayer *layer, PSFloat *y, ...) {
             out_p += layer->size;
         }
     }
+    PSTrainingOptions *opts = PSGetModelTrainingOptions(model);
+    if (opts != NULL && opts->metrics & PS_TRAINING_METRICS_ACCURACY)
+        updateTrainingAccuracy(model, outputs, targets, seqlen);
     return 1;
 }
 
@@ -5166,6 +5172,7 @@ int computeOutputDelta(PSLayer *layer, PSFloat *y, ...) {
     uint64_t delta_len = PSMatrixLength(delta);
     PSMathOpts mopts = {.acceleration = model->acceleration};
     /* Compute delta */
+    PSFloat *targets = y;
     if (!onehot) PSSubtractVectors(outputs, y, delta, delta_len, &mopts);
     else {
         PSVectorCopy(delta, outputs, delta_len);
@@ -5177,6 +5184,9 @@ int computeOutputDelta(PSLayer *layer, PSFloat *y, ...) {
             delta_p += layer->size;
         }
     }
+    PSTrainingOptions *opts = PSGetModelTrainingOptions(model);
+    if (opts != NULL && opts->metrics & PS_TRAINING_METRICS_ACCURACY)
+        updateTrainingAccuracy(model, outputs, targets, seqlen);
     return 1;
 }
 
@@ -5769,31 +5779,30 @@ final:
     return loss + l1_loss + l2_loss;
 }
 
-static float getTrainingAccuracy(PSModel *model, PSFloat *data,
-                                 PSFloat **sequence_head, int example_size,
-                                 int max_samples, int *tot_samples,
-                                 int *tot_correct,
-                                 PSTrainingOptions *options)
+void updateTrainingAccuracy(PSModel *model, PSFloat *outputs, PSFloat *targets,
+                            int seqlen)
 {
-    int batch_size = (options != NULL ? options->batch_size : 1);
-    if (batch_size <= 0) batch_size = 1;
-    int nsamples = batch_size;
-    if ((*tot_samples + nsamples) > max_samples)
-        nsamples = max_samples - *tot_samples;
-    int datasize;
-    if (sequence_head == NULL) datasize = (example_size * nsamples);
-    else {
-        data = *sequence_head;
-        datasize = *(sequence_head + nsamples) - *sequence_head;
+    if (model == NULL) return;
+    if (PSIsModelChain(model)) model = PSModelChainHead(model);
+    if (model == NULL) return;
+    if (model->training == NULL) return;
+    PSLayer *outlayer = PSGetOutputLayer(model);
+    assert(outlayer != NULL);
+    PSMathOpts mopts = {.acceleration = model->acceleration};
+    int onehot = (outlayer->flags & PS_FLAG_ONEHOT), i;
+    if (seqlen < 1) seqlen = 1;
+    for (i = 0; i < seqlen; i++) {
+        uint64_t predict_idx = 0, correct_idx = 0;
+        PSVectorMax(outputs, &predict_idx, outlayer->size, &mopts);
+        if (onehot) correct_idx = (uint64_t) *(targets++);
+        else {
+            PSVectorMax(targets, &correct_idx, outlayer->size, &mopts);
+            targets += outlayer->size;
+        }
+        model->training->tot_results++;
+        if (correct_idx == predict_idx) model->training->correct_results++;
+        outputs += outlayer->size;
     }
-    int prev_status = 0;
-    PSModelSetStatus(model, PS_STATUS_VALIDATING, &prev_status);
-    float acc = validate(model, data, datasize, options, NULL, 0);
-    PSModelSetStatus(model, PS_STATUS_TRAINING, NULL);
-    int correct_results = acc * (float) nsamples;
-    *tot_correct += correct_results;
-    *tot_samples += nsamples;
-    return *tot_correct / (float) *tot_samples;
 }
 
 /* Iterate over a single batch of training examples (`training_data`) and
@@ -6108,13 +6117,13 @@ final:
  * (Stochastic Gradient Descent). Training data is divided into batches
  * depending on `batch_size` and, for each batch, gradients are generated
  * and used to update model's parameters using `updateModelParameters`. */
-PSFloat gradientDescent(PSModel *model,
-                        PSFloat *training_data,
-                        int example_size,
-                        int num_examples,
-                        PSFloat learning_rate,
-                        PSTrainingOptions *options,
-                        int epochs, float *training_accuracy)
+PSFloat trainEpoch(PSModel *model,
+                   PSFloat *training_data,
+                   int example_size,
+                   int num_examples,
+                   PSFloat learning_rate,
+                   PSTrainingOptions *options,
+                   int epochs, float *training_accuracy)
 {
     static PSTrainingOptions dfopts = {0};
     PSTrainingContext *training_ctx = getTrainingContext(model);
@@ -6163,20 +6172,11 @@ PSFloat gradientDescent(PSModel *model,
     float *accuracy_p = NULL;
     long tot_t = 0, avg_t, elapsed_t;
     int step_size = (example_size * batch_size), i;
-    int measure_accuracy = options->metrics & PS_TRAINING_METRICS_ACCURACY,
-        accuracy_max_samples = 0, accuracy_samples = 0,
-        accuracy_batch_interval = 1, accuracy_correct_results = 0;
+    int measure_accuracy = options->metrics & PS_TRAINING_METRICS_ACCURACY;
+    int min_acc_results = 10;
     if (measure_accuracy) {
-        float accuracy_dataset_size = options->accuracy_dataset_percent;
-        if (accuracy_dataset_size > 0) {
-            if (accuracy_dataset_size > 1) accuracy_dataset_size = 1;
-            accuracy_max_samples =
-                (int) roundf(accuracy_dataset_size * (float) num_examples);
-            int acc_batches = accuracy_max_samples / batch_size;
-            if ((accuracy_max_samples % batch_size) != 0)
-                acc_batches++;
-            accuracy_batch_interval = batch_count / acc_batches;
-        } else accuracy_max_samples = num_examples;
+        model->training->tot_results = 0;
+        model->training->correct_results = 0;
         accuracy_p = &accuracy;
     }
     printProgress = options->printProgress;
@@ -6186,19 +6186,6 @@ PSFloat gradientDescent(PSModel *model,
     for (i = 0; i < batch_count; i++) {
         model->training->current_batch = i;
         int batch_num = i + 1;
-        if (measure_accuracy && accuracy_samples < accuracy_max_samples) {
-            /* Measure training accuracy. */
-            int do_measure = 1;
-            if (accuracy_batch_interval > 0)
-                do_measure = (i % accuracy_batch_interval) == 0;
-            if (do_measure) {
-                accuracy = getTrainingAccuracy(
-                    model, training_data, sequence_head, example_size,
-                    accuracy_max_samples, &accuracy_samples,
-                    &accuracy_correct_results, options
-                );
-            }
-        }
         /* Update model's parameters and get loss for current batch. */
         struct timeval st, et;
         gettimeofday(&st, NULL);
@@ -6206,32 +6193,30 @@ PSFloat gradientDescent(PSModel *model,
             model, training_data, num_examples, learning_rate,
             options, sequence_head
         );
-        gettimeofday(&et, NULL);
-        elapsed_t = PSGetElapsedTimeUS(st, et);
-        loss += batch_loss;
         if (PSModelGetStatus(model) == PS_STATUS_ERROR) {
             PSErr(NULL, "Gradient descent failed at batch %d for model '%s'",
                   i, (model->name != NULL ? model->name : "UNNAMED")
             );
             goto final;
         }
-        tot_t += elapsed_t;
-        avg_t = (tot_t / batch_num);
+        loss += batch_loss;
+        if (measure_accuracy && model->training->tot_results>=min_acc_results) {
+            /* Measure training accuracy. */
+            accuracy = (float) model->training->correct_results /
+                       (float) model->training->tot_results;
+        }
         if (batch_num < batch_count) {
             avg_loss = loss / (PSFloat) batch_num;
+            long *elapsed_p = (i > 0 ? &avg_t : NULL);
             printProgress(
                 model, PS_STATUS_TRAINING, epochs, batch_count,
-                &avg_loss, accuracy_p, NULL, NULL, &avg_t
+                &avg_loss, accuracy_p, NULL, NULL, elapsed_p
             );
         } else {
             printProgress(
                 model, PS_STATUS_TRAINING, epochs, batch_count, NULL, NULL,
                 NULL, NULL, NULL
             );
-        }
-        if (PSModelGetStatus(model) == PS_STATUS_ERROR) {
-            if (sequences != NULL) free(sequences);
-            return PS_STATUS_ERROR_LOSS;
         }
         if (model->onBatchTrained != NULL) {
             model->onBatchTrained(
@@ -6247,6 +6232,10 @@ PSFloat gradientDescent(PSModel *model,
             PSModelSetStatus(model, action, NULL);
             break;
         }
+        gettimeofday(&et, NULL);
+        elapsed_t = PSGetElapsedTimeUS(st, et);
+        tot_t += elapsed_t;
+        avg_t = (tot_t / batch_num);
     }
 final:
     if (sequences != NULL) free(sequences);
@@ -6712,30 +6701,7 @@ void PSTrain(PSModel *model,
         }
     }
     int measure_accuracy = (options->metrics & PS_TRAINING_METRICS_ACCURACY);
-    if (measure_accuracy) {
-        if (options->accuracy_dataset_percent < 0) {
-            /* Automatically find `accuracy_dataset_percent`. */
-            default_options = *options;
-            options = &default_options; /* Work on a copy of options. */
-            if (test_size > 0 && test_data != NULL) {
-                if (use_sequences) {
-                    float test_elem_count = (float) *test_data;
-                    options->accuracy_dataset_percent = (
-                        test_elem_count / (float) num_examples
-                    );
-                } else {
-                    options->accuracy_dataset_percent = (
-                        (float) test_size / (float) data_size
-                    );
-                }
-            } else {
-                 options->accuracy_dataset_percent = (float) data_size * 0.2;
-            }
-            if (options->accuracy_dataset_percent > 1)
-                options->accuracy_dataset_percent = 1;
-        }
-        training_accuracy_p = &training_accuracy;
-    }
+    if (measure_accuracy) training_accuracy_p = &training_accuracy;
     const char *name = model->name != NULL ? model->name : "UNNAMED";
     if (num_models == 1)
         PSNotice("Training model \"%s\"\n", name);
@@ -6748,8 +6714,8 @@ void PSTrain(PSModel *model,
         const char *output_name = (
             output_model->name != NULL ? output_model->name : "UNNAMED"
         );
-        PSInfo("Input model:               \"%s\"", input_name);
-        PSInfo("Output model:              \"%s\"", output_name);
+        PSInfo("Input model:                \"%s\"", input_name);
+        PSInfo("Output model:               \"%s\"", output_name);
     }
     PSInfo("Training data examples:     %d", num_examples);
     if (test_data != NULL && num_test_examples > 0)
@@ -6791,20 +6757,8 @@ void PSTrain(PSModel *model,
         loss_func_name = getLossFunctionName(output_model->loss);
         PSInfo("Loss Function:              %s", loss_func_name);
     }
-    if (options->metrics) {
-        if (measure_accuracy) {
-            PSPrint(PSLOGLEVEL_INFO, "Metrics:                    accuracy");
-            float acc_data_size = options->accuracy_dataset_percent;
-            if (acc_data_size > 0 && acc_data_size < 1) {
-                int acc_data_perc = (int) (acc_data_size * 100);
-                PSPrint(
-                    PSLOGLEVEL_INFO, " (%d%% of training dataset)",
-                    acc_data_perc
-                );
-            }
-            PSPrint(PSLOGLEVEL_INFO, "\n");
-        }
-    }
+    if (measure_accuracy)
+        PSPrint(PSLOGLEVEL_INFO, "Metrics:                    accuracy\n");
     int was_paused = (PSModelGetStatus(model) == PS_STATUS_PAUSED);
     /* Start training */
     PSModelSetStatus(model, PS_STATUS_TRAINING, NULL);
@@ -6812,10 +6766,6 @@ void PSTrain(PSModel *model,
     char timestr[80];
     struct tm *tminfo;
     struct timeval epoch_st, epoch_et;
-    time(&start_t);
-    tminfo = localtime(&start_t);
-    strftime(timestr, 80, "%H:%M:%S", tminfo);
-    PSPrint(PSLOGLEVEL_NOTICE, "Training started at %s\n", timestr);
     PSFloat prev_loss = 0.0;
     float acc = -999.99f;
     int adjust_rate = adjust_rate = (options->flags & PS_TRAINING_ADJUST_RATE);
@@ -6824,8 +6774,6 @@ void PSTrain(PSModel *model,
         if (was_paused) first_epoch = model->training->current_epoch;
     } else {
         model->training = malloc(sizeof(PSTrainingInfo));
-        model->training->started_at = start_t;
-        model->training->ended_at = (time_t) 0;
         if (options != NULL)
             model->training->debug_dump_to = options->debug_dump_to;
         else model->training->debug_dump_to = NULL;
@@ -6833,12 +6781,19 @@ void PSTrain(PSModel *model,
             model, data_size, test_size, epochs, learning_rate, batch_size
         );
     }
+    model->training->num_examples = num_examples;
     model->training->batch_size = batch_size;
     model->training->requested_action = PS_ACTION_NONE;
     model->training->data_size = data_size;
     model->training->test_size = test_size;
     model->training->current_test = 0;
     model->training->num_tests = 0;
+    time(&start_t);
+    tminfo = localtime(&start_t);
+    strftime(timestr, 80, "%H:%M:%S", tminfo);
+    PSPrint(PSLOGLEVEL_NOTICE, "Training started at %s\n", timestr);
+    model->training->started_at = start_t;
+    model->training->ended_at = (time_t) 0;
     for (i = first_epoch; i < epochs; i++) {
         PSFloat test_loss = 0.0;
         training_accuracy = 0;
@@ -6851,9 +6806,10 @@ void PSTrain(PSModel *model,
             }
         }
         gettimeofday(&epoch_st, NULL);
-        PSFloat loss = gradientDescent(model, training_data, example_size,
-                                       num_examples, learning_rate,
-                                       options, epochs, &training_accuracy);
+        PSFloat loss = trainEpoch(
+            model, training_data, example_size, num_examples, learning_rate,
+            options, epochs, &training_accuracy
+        );
         gettimeofday(&epoch_et, NULL);
         time_t elapsed_t = PSGetElapsedTimeUS(epoch_st, epoch_et);
         if (PSModelGetStatus(model) == PS_STATUS_ERROR) {

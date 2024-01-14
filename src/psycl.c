@@ -131,7 +131,6 @@ PSFloat l2_decay = 0.0;
 PSFloat momentum = 0.0;
 PSOptimization optimization = PSDefaultOptimization;
 int training_metrics = 0;
-float training_accuracy_percent = 0;
 int batch_size = BATCH_SIZE;
 char outputFile[PATH_MAX];
 int training_flags = 0;
@@ -1485,28 +1484,6 @@ void parseOptions(int argc, char **argv) {
                     goto err;
                 }
             }
-        } else if (strcmp("--training-accuracy-percent", arg)==0 && !is_last) {
-            char *perc_str = argv[++i];
-            float acc_perc = 0;
-            if (strcmp("auto", perc_str) == 0) {
-                training_accuracy_percent = PS_ACCURACY_DATASIZE_AUTO;
-            } else {
-                int matched = sscanf(perc_str, "%f", &acc_perc);
-                if (!matched) {
-                    fprintf(
-                        stderr, "ERROR: nvalid value for --training-accuracy-"
-                        "percent %s\n", perc_str
-                    );
-                    goto err;
-                }
-            }
-            if (acc_perc > 0) {
-                if (acc_perc < 1) training_accuracy_percent = acc_perc;
-                else training_accuracy_percent = (acc_perc / 100.0);
-                if (training_accuracy_percent > 1)
-                    training_accuracy_percent = 1;
-            }
-            training_metrics |= PS_TRAINING_METRICS_ACCURACY;
         } else if (strcmp("--training-no-shuffle", arg) == 0) {
             training_flags |= PS_TRAINING_NO_SHUFFLE;
         } else if (strcmp("--training-adjust-rate", arg) == 0) {
@@ -1944,7 +1921,6 @@ int main(int argc, char **argv) {
             .momentum = (PSFloat) momentum,
             .optimization = optimization,
             .metrics = training_metrics,
-            .accuracy_dataset_percent = training_accuracy_percent,
         };
         PSTrain(model, training_data, datalen, validation_data, valdlen,
                 &options);
@@ -2105,10 +2081,6 @@ void printHelp(const char* program_path) {
            "                               Train model with TRAIN_DATASET.\n"
            "                               (see 'TRAIN|TEST OPTIONS' section"
            ").\n");
-    printf("  --training-accuracy-percent  Percentage of training dataset to "
-           "be used for\n"
-           "                               training accuracy metrics "
-           "(0.0-1.0 | 'auto').\n");
     printf("  --training-adjust-rate       Auto-adjust learn rate.\n");
     printf("  --training-datalen LEN       Training data length.\n");
     printf("  --training-no-shuffle        Prevent dataset shuffle.\n");

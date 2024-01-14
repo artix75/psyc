@@ -126,7 +126,7 @@ void print_help(char *progname) {
            "(default: %s)\n", DEFAULT_OUTPUT_FILE);
     printf("  --softmax-output ENABLED        Softmax Output Layer "
            "(def. %d)\n", SOFTMAX_OUTPUT);
-    printf("  --training-accuracy [PERCENT]   Measure training accuracy.\n");
+    printf("  --training-accuracy             Measure training accuracy.\n");
     printf("  --use-relu ONE_OR_ZERO          "
            "Enable/Disable ReLU (def. %d)\n", RELU_ENABLED);
     /*printf("  --debug-dump-to FILE            Debug training to FILE\n"
@@ -301,7 +301,6 @@ int main(int argc, char** argv) {
     PSFloat l1_decay = L1;
     PSFloat l2_decay = L2;
     int metrics = 0;
-    float training_accuracy_percent = 0;
     UNUSED(disable_avx); /* Actually not used if USE_AVX macro not defined */
 
     FILE *debug_dump_to = NULL;
@@ -408,17 +407,6 @@ int main(int argc, char** argv) {
             max_images = atoi(argv[++i]);
             if (max_images < 0)  max_images = 0;
         } else if (strcmp("--training-accuracy", arg) == 0) {
-            if ((i + 1) < argc && argv[i + 1][0] != '-') {
-                char *percent_str = argv[++i];
-                if (strcmp("auto", percent_str) == 0)
-                    training_accuracy_percent = PS_ACCURACY_DATASIZE_AUTO;
-                else
-                    training_accuracy_percent = atof(percent_str);
-                if (training_accuracy_percent > 1)
-                    training_accuracy_percent /= 100;
-                if (training_accuracy_percent > 1)
-                    training_accuracy_percent = 1;
-            }
             metrics |= PS_TRAINING_METRICS_ACCURACY;
         } else if (strcmp("--add-fully-connected", arg) == 0) {
             add_fully_connected = 1;
@@ -740,7 +728,6 @@ int main(int argc, char** argv) {
             .momentum = momentum,
             .debug_dump_to = debug_dump_to,
             .metrics = metrics,
-            .accuracy_dataset_percent= training_accuracy_percent,
         };
         if (optimization != PSDefaultOptimization)
             train_opts.optimization = optimization;
