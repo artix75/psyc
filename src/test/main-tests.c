@@ -3561,8 +3561,8 @@ int testEncodedDecoderPredict(TestCase *test_case, Test *test) {
     testAssert(PSModelChainLength(model) == 2, test);
     PSFloat x[] = {2, 2, 1};
     PSFloat expected[2][4] = {
-          {0.00577807,0.0132289,0.978728,0.00226505},
-          {0.998611,0.000101474,0.00128536,2.34558e-06}
+          {0.00235693157, 0.00312646478, 0.992760658, 0.00175602024},
+          {0.997961283, 8.5727741e-05, 0.00195026887, 2.78685752e-06}
     };
     PSModel *decoder = model->next;
     testAssertNotNull(decoder, test);

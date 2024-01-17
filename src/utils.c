@@ -393,7 +393,7 @@ char *PSGetElapsedTimeString(time_t elapsed_us, int opts) {
     }
     elapsed_str[0] = '\0';
     const char *unit = units[i];
-    int round = ((mod > 0) ? 1 : 0);
+    int nround = ((mod > 0) ? 1 : 0);
     if (human) {
         if (mod > 0 && i > 0) {
             const char *lower_unit = units[i - 1];
@@ -405,7 +405,7 @@ char *PSGetElapsedTimeString(time_t elapsed_us, int opts) {
     } else if (opts & PS_OPT_TIME_ROUND_SEC && i <= 2) {
         long elapsed_r = (long) PSRound(elapsed);
         snprintf(elapsed_str, 255, "%ld%s%s", elapsed_r, sep, unit);
-    } else snprintf(elapsed_str, 255, "%.*f%s%s", round, elapsed, sep, unit);
+    } else snprintf(elapsed_str, 255, "%.*f%s%s", nround, elapsed, sep, unit);
     return elapsed_str;
 }
 

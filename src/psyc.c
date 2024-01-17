@@ -143,9 +143,8 @@ int writeSerializedFloat(FILE *out, PSFloat fnum, int opts);
 int PSBeforeSequenceForward(PSLayer *layer, int seqlen, int t);
 char *PSGetRecurrentModeLabel(PSRecurrentNetworkMode mode);
 int updateModelChain(PSModel *head);
-int useAutoRegression(PSModel *model,
-                      PSForwardOptions *forward_opts,
-                      PSTrainingOptions *training_opts);
+static int useAutoRegression(PSModel *model, PSForwardOptions *forward_opts,
+                             PSTrainingOptions *training_opts);
 PSLayer *PSResolveLayerPlaceholder(PSLayer *placeholder, PSModel *model);
 PSLayer *PSMakeLayerPlaceholder(int layer_index, int model_index);
 static PSModel *cloneModel(PSModel *model, int layout_only,
@@ -3959,7 +3958,7 @@ int forwardThroughTime(PSModel *model, PSFloat *inputs,
     PSForwardOptions *forward_opts = NULL;
     if (backprop) training_opts = (PSTrainingOptions *) opts;
     else forward_opts = (PSForwardOptions *) opts;
-    int end = -1, seqlen = timesteps, autogression_since = 0;
+    int end = -1, seqlen = timesteps, autoregression_since = 0;
     int recurrent_input = (first->index == 0),
         recurrent_output = PSIsRecurrent(output_layer);
     PSSequenceSettings *sequence_settings = NULL;
@@ -3999,7 +3998,7 @@ int forwardThroughTime(PSModel *model, PSFloat *inputs,
             autoregression = 0;
             goto forward_steps;
         }
-        autogression_since = seqlen - 1;
+        autoregression_since = seqlen - 1;
         if (!backprop) timesteps = maxlen;
         if (recurrent_input) {
             tmpinputs = PSVectorZero(timesteps * input_size);
@@ -4055,7 +4054,7 @@ forward_steps:
             ok = layer->forward(layer, timesteps, t);
             if (!ok) goto final;
         }
-        if (autoregression && t >= autogression_since) {
+        if (autoregression && t >= autoregression_since) {
             if (t == timesteps - 1) break;
             int max_idx = -1;
             PSFloat *output_states = NULL;
@@ -4103,9 +4102,8 @@ final:
     return ok;
 }
 
-int useAutoRegression(PSModel *model,
-                      PSForwardOptions *forward_opts,
-                      PSTrainingOptions *training_opts)
+static int useAutoRegression(PSModel *model, PSForwardOptions *forward_opts,
+                             PSTrainingOptions *training_opts)
 {
     if (!PSUseSequences(model)) return 0;
     if (!PSUseSequences(model->layers[model->size - 1])) return 0;
