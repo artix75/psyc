@@ -27,12 +27,6 @@
 
 #define UNUSED(V) ((void) V)
 
-void PSInitActivationMathOpts(PSMathOpts *opts, PSMathOpts *srcopts) {
-    uint8_t acceleration = PSGlobalAcceleration;
-    if (srcopts != NULL) acceleration = srcopts->acceleration;
-    opts->acceleration = acceleration;
-}
-
 /*** Activation Functions ***/
 
 /* Sigmoid activation function for scalars. It takes the scalar `val` as
@@ -115,21 +109,19 @@ PSFloat PSTanhDerivativeS(PSFloat val) {
 /* Sigmoid activation function for vectors. Sigmoid is computed on vector `vec`
  * of length `len` and stored into vector `dest`. If `dest` is NULL, results
  * will be stored into `vec` itself.
- * The `opts` argument can be used to change default acceleration used to
- * compute results (see `PSMathOpts`).
+ * For the `acceleration` argument, take a look at `PSAcceleration`.
  * For info about sigmoid:
  *   https://en.wikipedia.org/wiki/Sigmoid_function
  * The equivalent function to be used with scalars is `PSSigmoidS`.
  * The derivative of this function is `PSSigmoidDerivative`. */
-void PSSigmoid(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts) {
+void PSSigmoid(PSFloat *vec, PSFloat *dest, uint64_t len, int acceleration) {
     if (dest == NULL) dest = vec;
-    PSMathOpts mopts = {0};
-    PSInitActivationMathOpts(&mopts, opts);
-    if (mopts.acceleration != PSAcceleration_None) {
-        PSVectorNeg(vec, dest, len, &mopts);
-        PSVectorExp(dest, dest, len, &mopts);
-        PSAddVectorScalar(dest, 1.0, dest, len, &mopts);
-        PSDivideScalarVector(1.0, dest, dest, len, &mopts);
+    if (acceleration != PSAcceleration_None) {
+        PSMathOpts opts = {.acceleration = acceleration};
+        PSVectorNeg(vec, dest, len, &opts);
+        PSVectorExp(dest, dest, len, &opts);
+        PSAddVectorScalar(dest, 1.0, dest, len, &opts);
+        PSDivideScalarVector(1.0, dest, dest, len, &opts);
         return;
     }
     uint64_t i;
@@ -140,16 +132,14 @@ void PSSigmoid(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts) {
  * tangent is computed on vector `vec` of length `len` and stored into vector
  * `dest`.
  * If `dest` is NULL, results will be stored into `vec` itself.
- * The `opts` argument can be used to change default acceleration used to
- * compute results (see `PSMathOpts`).
+ * For the `acceleration` argument, take a look at `PSAcceleration`.
  * The derivative of this function is `PSTanhDerivative`. */
 void PSTanhActivation(PSFloat *vec, PSFloat *dest, uint64_t len,
-                      PSMathOpts *opts)
+                      int acceleration)
 {
     if (dest == NULL) dest = vec;
-    PSMathOpts mopts = {0};
-    PSInitActivationMathOpts(&mopts, opts);
-    PSVectorTanh(vec, dest, len, &mopts);
+    PSMathOpts opts = {.acceleration = acceleration};
+    PSVectorTanh(vec, dest, len, &opts);
 }
 
 /* ReLU (Rectified Linear Unit) activation function for vectors.
@@ -157,37 +147,33 @@ void PSTanhActivation(PSFloat *vec, PSFloat *dest, uint64_t len,
  * `dest`.
  * If `dest` is NULL, results will be stored
  * into `vec` itself.
- * The `opts` argument can be used to change default acceleration used to
- * compute results (see `PSMathOpts`).
+ * For the `acceleration` argument, take a look at `PSAcceleration`.
  * For info about ReLU:
  *   https://en.wikipedia.org/wiki/Rectifier_(neural_networks)
  *
  * The equivalent function to be used with scalars is `PSReluS`.
  * The derivative of this function is `PSReluDerivative`. */
-void PSRelu(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts) {
+void PSRelu(PSFloat *vec, PSFloat *dest, uint64_t len, int acceleration) {
     if (dest == NULL) dest = vec;
-    PSMathOpts mopts = {0};
-    PSInitActivationMathOpts(&mopts, opts);
-    PSVectorThreshold(vec, 0.0, dest, len, &mopts);
+    PSMathOpts opts = {.acceleration = acceleration};
+    PSVectorThreshold(vec, 0.0, dest, len, &opts);
 }
 
 /* GELU (Gaussian Error Linear Units) activation function for vectors.
  * GELU is computed on vector `vec` of length `len` and stored into vector
  * `dest`.
  * If `dest` is NULL, results will be stored into `vec` itself.
- * The `opts` argument can be used to change default acceleration used to
- * compute results (see `PSMathOpts`).
+ * For the `acceleration` argument, take a look at `PSAcceleration`.
  * For info about GeLU:
  *   https://arxiv.org/abs/1606.08415
  * The equivalent function to be used with scalars is `PSGeLUS`.
  * The derivative of this function is `PSGeLUDerivative`. */
-void PSGelu(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts) {
+void PSGelu(PSFloat *vec, PSFloat *dest, uint64_t len, int acceleration) {
     static PSFloat c = 0;
     if (c == 0) c = PSSqrt(2 / M_PI);
     if (dest == NULL) dest = vec;
-    PSMathOpts mopts = {0};
-    PSInitActivationMathOpts(&mopts, opts);
-    if (mopts.acceleration != PSAcceleration_None) {
+    if (acceleration != PSAcceleration_None) {
+        PSMathOpts opts = {.acceleration = acceleration};
         PSFloat *tmpdest = NULL;
         if (dest == vec) {
             tmpdest = calloc(len, sizeof(PSFloat));
@@ -201,19 +187,19 @@ void PSGelu(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts) {
         /* vec ^ 3 */
         for (i = 0; i < 2; i++) {
             PSFloat *a = (i == 0 ? vec : dest);
-            PSMultiplyVectors(a, vec, dest, len, &mopts);
+            PSMultiplyVectors(a, vec, dest, len, &opts);
         }
         /* 0.044715 * dest */
-        PSMultiplyVectorScalar(dest, 0.044715, dest, len, &mopts);
+        PSMultiplyVectorScalar(dest, 0.044715, dest, len, &opts);
         /* val + dest */
-        PSAddVectors(dest, vec, dest, len, &mopts);
+        PSAddVectors(dest, vec, dest, len, &opts);
         /* 1 + tanh(c * dest) */
-        PSMultiplyVectorScalar(dest, c, dest, len, &mopts);
-        PSVectorTanh(dest, dest, len, &mopts);
-        PSAddVectorScalar(dest, 1, dest, len, &mopts);
+        PSMultiplyVectorScalar(dest, c, dest, len, &opts);
+        PSVectorTanh(dest, dest, len, &opts);
+        PSAddVectorScalar(dest, 1, dest, len, &opts);
         /* 0.5 * vec * dest */
-        PSMultiplyVectors(dest, vec, dest, len, &mopts);
-        PSMultiplyVectorScalar(dest, 0.5, dest, len, &mopts);
+        PSMultiplyVectors(dest, vec, dest, len, &opts);
+        PSMultiplyVectorScalar(dest, 0.5, dest, len, &opts);
         if (tmpdest != NULL) {
             dest = vec;
             PSVectorCopy(dest, tmpdest, len);
@@ -229,18 +215,16 @@ void PSGelu(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts) {
  * vectors. The sigmoid derivative is computed on vector `vec` of length `len`
  * and stored into vector `dest`. If `dest` is NULL, results will be stored
  * into `vec` itself.
- * The `opts` argument can be used to change default acceleration used to
- * compute results (see `PSMathOpts`).
+ * For the `acceleration` argument, take a look at `PSAcceleration`.
  * The equivalent function to be used with scalars is `PSSigmoidDerivativeS`.*/
 void PSSigmoidDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
-                         PSMathOpts *opts)
+                         int acceleration)
 {
     if (dest == NULL) dest = vec;
-    PSMathOpts mopts = {0};
-    PSInitActivationMathOpts(&mopts, opts);
-    if (mopts.acceleration != PSAcceleration_None) {
-        PSSubtractScalarVector(1.0, vec, dest, len, &mopts);
-        PSMultiplyVectors(vec, dest, dest, len, &mopts);
+    if (acceleration != PSAcceleration_None) {
+        PSMathOpts opts = {.acceleration = acceleration};
+        PSSubtractScalarVector(1.0, vec, dest, len, &opts);
+        PSMultiplyVectors(vec, dest, dest, len, &opts);
         return;
     }
     uint64_t i;
@@ -251,18 +235,16 @@ void PSSigmoidDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
  * (`PSTanhActivation`) for vectors. The derivative is computed on vector `vec`
  * of length `len` and stored into vector `dest`.
  * If `dest` is NULL, results will be stored into `vec` itself.
- * The `opts` argument can be used to change default acceleration used to
- * compute results (see `PSMathOpts`).
+ * For the `acceleration` argument, take a look at `PSAcceleration`.
  * The equivalent function to be used with scalars is `PSTanhDerivativeS`.*/
 void PSTanhDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
-                      PSMathOpts *opts)
+                      int acceleration)
 {
     if (dest == NULL) dest = vec;
-    PSMathOpts mopts = {0};
-    PSInitActivationMathOpts(&mopts, opts);
-    if (mopts.acceleration != PSAcceleration_None) {
-        PSMultiplyVectors(vec, vec, dest, len, &mopts);
-        PSSubtractScalarVector(1.0, dest, dest, len, &mopts);
+    if (acceleration != PSAcceleration_None) {
+        PSMathOpts opts = {.acceleration = acceleration};
+        PSMultiplyVectors(vec, vec, dest, len, &opts);
+        PSSubtractScalarVector(1.0, dest, dest, len, &opts);
         return;
     }
     uint64_t i;
@@ -273,13 +255,12 @@ void PSTanhDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
  * The derivative is computed on vector `vec` of length `len` and stored into
  * vector `dest`.
  * If `dest` is NULL, results will be stored into `vec` itself.
- * The `opts` argument can be used to change default acceleration used to
- * compute results (see `PSMathOpts`).
+ * For the `acceleration` argument, take a look at `PSAcceleration`.
  * The equivalent function to be used with scalars is `PSReluDerivativeS`.*/
 void PSReluDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
-                      PSMathOpts *opts)
+                      int acceleration)
 {
-    UNUSED(opts);
+    UNUSED(acceleration);
     uint64_t i;
     for (i = 0; i < len; i++) dest[i] = (PSFloat)(vec[i] > 0.0);
 }
@@ -288,16 +269,14 @@ void PSReluDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
  * The derivative is computed on vector `vec` of length `len` and stored into
  * vector `dest`.
  * If `dest` is NULL, results will be stored into `vec` itself.
- * The `opts` argument can be used to change default acceleration used to
- * compute results (see `PSMathOpts`).
+ * For the `acceleration` argument, take a look at `PSAcceleration`.
  * The equivalent function to be used with scalars is `PSGeluDerivativeS`.*/
 void PSGeluDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
-                      PSMathOpts *opts)
+                      int acceleration)
 {
-    PSMathOpts mopts = {0};
-    PSInitActivationMathOpts(&mopts, opts);
     static PSFloat c1 = 0, c2 = 0, c3 = 0;
-    if (mopts.acceleration != PSAcceleration_None) {
+    if (acceleration != PSAcceleration_None) {
+        PSMathOpts opts = {.acceleration = acceleration};
         int i;
         if (c1 == 0) {
             c1 = PSSqrt(2 / M_PI);
@@ -312,34 +291,34 @@ void PSGeluDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
         /* vec ^ 3 */
         for (i = 0; i < 2; i++) {
             PSFloat *a = (i == 0 ? vec : dest);
-            PSMultiplyVectors(a, vec, dest, len, &mopts);
+            PSMultiplyVectors(a, vec, dest, len, &opts);
         }
         /* 0.044715 * dest */
-        PSMultiplyVectorScalar(dest, 0.044715, dest, len, &mopts);
+        PSMultiplyVectorScalar(dest, 0.044715, dest, len, &opts);
         /* val + dest */
-        PSAddVectors(dest, vec, dest, len, &mopts);
+        PSAddVectors(dest, vec, dest, len, &opts);
         /* tanh(c * dest) */
-        PSMultiplyVectorScalar(dest, c1, dest, len, &mopts);
-        PSVectorTanh(dest, dest, len, &mopts);
+        PSMultiplyVectorScalar(dest, c1, dest, len, &opts);
+        PSVectorTanh(dest, dest, len, &opts);
 
         /* erf_prime = x / c2 */
-        PSDivideVectorScalar(vec, c2, erf_prime, len, &mopts);
+        PSDivideVectorScalar(vec, c2, erf_prime, len, &opts);
         /* erf_prime = exp(-erf_prime ^ 2) */
-        PSMultiplyVectors(erf_prime, erf_prime, erf_prime, len, &mopts);
-        PSVectorNeg(erf_prime, erf_prime, len, &mopts);
-        PSVectorExp(erf_prime, erf_prime, len, &mopts);
+        PSMultiplyVectors(erf_prime, erf_prime, erf_prime, len, &opts);
+        PSVectorNeg(erf_prime, erf_prime, len, &opts);
+        PSVectorExp(erf_prime, erf_prime, len, &opts);
         /* erf_prime = (2 / sqrt(PI)) * erf_prime */
-        PSMultiplyVectorScalar(erf_prime, c3, erf_prime, len, &mopts);
+        PSMultiplyVectorScalar(erf_prime, c3, erf_prime, len, &opts);
 
         /* 0.5 * vec * erf_prime / sqrt(2) */
-        PSMultiplyVectors(vec, erf_prime, erf_prime, len, &mopts);
-        PSMultiplyVectorScalar(erf_prime, 0.5, erf_prime, len, &mopts);
-        PSDivideVectorScalar(erf_prime, c2, erf_prime, len, &mopts);
+        PSMultiplyVectors(vec, erf_prime, erf_prime, len, &opts);
+        PSMultiplyVectorScalar(erf_prime, 0.5, erf_prime, len, &opts);
+        PSDivideVectorScalar(erf_prime, c2, erf_prime, len, &opts);
 
         /* 0.5 + (0.5 * dest) + erf_prime */
-        PSMultiplyVectorScalar(dest, 0.5, dest, len, &mopts);
-        PSAddVectors(dest, erf_prime, dest, len, &mopts);
-        PSAddVectorScalar(dest, 0.5, dest, len, &mopts);
+        PSMultiplyVectorScalar(dest, 0.5, dest, len, &opts);
+        PSAddVectors(dest, erf_prime, dest, len, &opts);
+        PSAddVectorScalar(dest, 0.5, dest, len, &opts);
 
         free(erf_prime);
         return;
@@ -351,23 +330,21 @@ void PSGeluDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
 /* Computes Softmax function on vector `vec` of length `len`. Result is stored
  * into vector `dest`. If `dest` is NULL, result will be stored into `vec`
  * itself.
- * The `opts` argument can be used to change default acceleration used to
- * compute results (see `PSMathOpts`).
+ * For the `acceleration` argument, take a look at `PSAcceleration`.
  * The Softmax function can be used to get the probability distribution from
  * a series of numbers.
  * For more info about Softmax:
  *     https://en.wikipedia.org/wiki/Softmax_function */
-void PSSoftmax(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts) {
+void PSSoftmax(PSFloat *vec, PSFloat *dest, uint64_t len, int acceleration) {
     if (dest == NULL) dest = vec;
     PSFloat max = PSFLOAT_MIN, esum = 0.0;
-    PSMathOpts mopts = {0};
-    PSInitActivationMathOpts(&mopts, opts);
-    if (PSAccelerateEnabled(mopts.acceleration)) {
-        max = PSVectorMax(vec, NULL, len, &mopts);
-        PSSubtractVectorScalar(vec, max, dest, len, &mopts);
-        PSVectorExp(dest, dest, len, &mopts);
-        esum = PSVectorReduceSum(dest, len, &mopts);
-        PSDivideVectorScalar(dest, esum, dest, len, &mopts);
+    if (acceleration != PSAcceleration_None) {
+        PSMathOpts opts = {.acceleration = acceleration};
+        max = PSVectorMax(vec, NULL, len, &opts);
+        PSSubtractVectorScalar(vec, max, dest, len, &opts);
+        PSVectorExp(dest, dest, len, &opts);
+        esum = PSVectorReduceSum(dest, len, &opts);
+        PSDivideVectorScalar(dest, esum, dest, len, &opts);
         return;
     }
     uint64_t i;

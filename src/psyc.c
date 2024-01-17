@@ -719,7 +719,8 @@ int PSOnehotInputsForward(PSLayer *layer, int weights_index,
         PSVectorCopy(out, states, layer->size);
         if (use_bias)
             PSAddVectors(out, layer->biases, out, layer->size, &opts);
-        if (do_activate) layer->activate(out, NULL, layer->size, &opts);
+        if (do_activate)
+            layer->activate(out, NULL, layer->size, opts.acceleration);
     }
     return 1;
 no_transposition:
@@ -745,7 +746,7 @@ no_transposition:
             if (use_bias) outputs[i] += layer->biases[i];
         }
         if (do_activate)
-            layer->activate(outputs, NULL, layer->size, &opts);
+            layer->activate(outputs, NULL, layer->size, opts.acceleration);
     }
     return 1;
 }
@@ -786,7 +787,8 @@ int PSFullForward(PSLayer *layer, ...) {
         if (!ok) return 0;
         if (use_bias)
             PSAddVectors(outputs, layer->biases, outputs, layer->size, &opts);
-        if (layer->activate) layer->activate(outputs, NULL, layer->size, &opts);
+        if (layer->activate)
+            layer->activate(outputs, NULL, layer->size, opts.acceleration);
     } else {
         opts.transpose = 2;
         if (use_bias) {
@@ -801,8 +803,11 @@ int PSFullForward(PSLayer *layer, ...) {
         if (!ok) return 0;
         opts.transpose = 0;
         opts.store_mode = PS_STORE_MODE_SET;
-        if (layer->activate)
-            layer->activate(layer->states, NULL, seqlen * layer->size, &opts);
+        if (layer->activate) {
+            layer->activate(
+                layer->states, NULL, seqlen * layer->size, opts.acceleration
+            );
+        }
     }
 final:
     return 1;
@@ -827,7 +832,7 @@ static int softmaxForward(PSLayer *layer, ...) {
             PSErr(NULL, "Layer[%d]: missing outputs[%d]", layer->index, i + t);
             return 0;
         }
-        PSSoftmax(outputs, outputs, layer->size, &opts);
+        PSSoftmax(outputs, outputs, layer->size, opts.acceleration);
     }
     return 1;
 }
@@ -4936,8 +4941,9 @@ int PSApplyDerivative(PSActivationFunction derivative, PSFloat *delta,
         return 0;
     }
     PSMathOpts mopts = {.acceleration = PSGlobalAcceleration};
-    if (opts != NULL) mopts.acceleration = opts->acceleration;
-    derivative(outputs, deriv, size, &mopts);
+    int acceleration = PSGlobalAcceleration;
+    if (opts != NULL) acceleration = opts->acceleration;
+    derivative(outputs, deriv, size, acceleration);
     PSMultiplyVectors(delta, deriv, delta, size, &mopts);
     free(deriv);
     return 1;

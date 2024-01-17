@@ -45,6 +45,23 @@
 #define PSGlobalDisableAcceleration(acceleration) PSDisableAcceleration(\
     &PSGlobalAcceleration, acceleration)
 
+/* Different hardware/software options for computation acceleration. The
+ * acceleration options can be used like flags, so more options can be enabled
+ * at the same time by using the boolean `|` bitwise operator.
+ * NOTE: acceleration options avilability depends on the hardware/software
+ * PsyC is running on. When not available, enabling one of the options below
+ * does not take any effect. Acceleration availability can be tested by using
+ * the `PSIsAccelerationAvailable` function.
+ * Acceleration options:
+ *  - PSAcceleration_None: non acceleration at all.
+ *  - PSAcceleration_AVX: use Intel® AVX if available.
+ *  - PSAcceleration_Accelerate: Use Apple® Accelerate Framework if available.
+ *  - PSAcceleration_BLAS: enable BLAS (Basic Linear Algebra Subprograms)
+ *    for matrix-related computations. BLAS can be provided by several
+ *    libraries. PsyC currently supports Apple® Accelerate Framework BLAS and
+ *    GNU GSL Library BLAS libraries.
+ *  - PSAcceleration_Auto: by enabling this option, PsyC will automatically
+ *    enable/disable acceleration depending on the specific algorithm. */
 typedef enum PSAcceleration {
     PSAcceleration_None = 0,
     PSAcceleration_AVX  = (1 << 0),

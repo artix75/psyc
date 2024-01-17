@@ -192,7 +192,7 @@ final:
     if (use_bias)
         PSAddVectors(outputs, layer->biases, outputs, layer->size, &dpopt);
     if (layer->activate != NULL)
-        layer->activate(outputs, NULL, layer->size, &dpopt);
+        layer->activate(outputs, NULL, layer->size, dpopt.acceleration);
     return 1;
 }
 

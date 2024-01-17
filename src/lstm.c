@@ -627,10 +627,10 @@ final:
                      layer->size, &mopts);
     }
     /* Activate candidates, input, output and forget gates. */
-    PSTanhActivation(candidates, NULL, layer->size, &mopts);
-    PSSigmoid(input_gates, NULL, layer->size, &mopts);
-    PSSigmoid(output_gates, NULL, layer->size, &mopts);
-    PSSigmoid(forget_gates, NULL, layer->size, &mopts);
+    PSTanhActivation(candidates, NULL, layer->size, mopts.acceleration);
+    PSSigmoid(input_gates, NULL, layer->size, mopts.acceleration);
+    PSSigmoid(output_gates, NULL, layer->size, mopts.acceleration);
+    PSSigmoid(forget_gates, NULL, layer->size, mopts.acceleration);
     /* Produce raw states and outputs. */
     PSMultiplyVectors(candidates, input_gates, raw_states, lsize, &mopts);
     if (prev_z != NULL) {
@@ -639,7 +639,7 @@ final:
     }
     mopts.store_mode = PS_STORE_MODE_SET;
     if (layer->activate != NULL) {
-        layer->activate(raw_states, outputs, lsize, &mopts);
+        layer->activate(raw_states, outputs, lsize, mopts.acceleration);
         PSMultiplyVectors(outputs, output_gates, outputs, lsize, &mopts);
     } else PSMultiplyVectors(raw_states,output_gates,outputs,lsize, &mopts);
     return success;
@@ -723,8 +723,8 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previous_layer,
             }
         }
         mopts.store_mode = PS_STORE_MODE_SET;
-        layer->activate(raw_states, actv_z, layer->size, &mopts);
-        layer->derivative(actv_z, dz, layer->size, &mopts);
+        layer->activate(raw_states, actv_z, layer->size, mopts.acceleration);
+        layer->derivative(actv_z, dz, layer->size, mopts.acceleration);
     } else {
         PSVectorCopy(actv_z, raw_states, layer->size);
         PSVectorCopy(dz, raw_states, layer->size);
@@ -734,23 +734,25 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previous_layer,
     PSAddVectors(dz, delta_z, dz, layer->size, &mopts);
 
     /* Update output gates delta (delta_o) */
-    PSSigmoidDerivative(output_gates, delta_o, layer->size, &mopts);
+    PSSigmoidDerivative(output_gates, delta_o, layer->size,mopts.acceleration);
     PSMultiplyVectors(delta_o, actv_z, delta_o, layer->size, &mopts);
     PSMultiplyVectors(delta_o, delta, delta_o, layer->size, &mopts);
 
     /* Update input gates delta (delta_i) */
-    PSSigmoidDerivative(input_gates, delta_i, layer->size, &mopts);
+    PSSigmoidDerivative(input_gates, delta_i, layer->size, mopts.acceleration);
     PSMultiplyVectors(delta_i, candidates, delta_i, layer->size, &mopts);
     PSMultiplyVectors(delta_i, dz, delta_i, layer->size, &mopts);
 
     /* Update candidates delta (delta_c) */
-    PSTanhDerivative(candidates, delta_c, layer->size, &mopts);
+    PSTanhDerivative(candidates, delta_c, layer->size, mopts.acceleration);
     PSMultiplyVectors(delta_c, input_gates, delta_c, layer->size, &mopts);
     PSMultiplyVectors(delta_c, dz, delta_c, layer->size, &mopts);
 
     if (prev_raw_states != NULL) {
         /* Update forget gates delta (delta_f) */
-        PSSigmoidDerivative(forget_gates, delta_f, layer->size, &mopts);
+        PSSigmoidDerivative(
+            forget_gates, delta_f, layer->size, mopts.acceleration
+        );
         PSMultiplyVectors(delta_f, prev_raw_states, delta_f,layer->size,&mopts);
         PSMultiplyVectors(delta_f, dz, delta_f, layer->size, &mopts);
     }

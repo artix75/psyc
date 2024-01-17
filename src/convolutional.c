@@ -815,7 +815,7 @@ int PSConvolutionalForward(PSLayer *layer, ...) {
             }
         }
         if (layer->activate != NULL)
-            layer->activate(outputs, outputs, layer->size, &mopts);
+            layer->activate(outputs, outputs, layer->size, mopts.acceleration);
         return 1;
     }
     PSScalarActivationFunction activate = NULL;

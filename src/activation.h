@@ -28,7 +28,7 @@
 #endif
 
 typedef void     (*PSActivationFunction) (PSFloat *vec, PSFloat *dest,
-                                          uint64_t len, PSMathOpts *opts);
+                                          uint64_t len, int acceleration);
 typedef PSFloat  (*PSScalarActivationFunction) (PSFloat);
 
 PSFloat PSSigmoidS(PSFloat val);
@@ -39,19 +39,19 @@ PSFloat PSReluDerivativeS(PSFloat val);
 PSFloat PSGeluDerivativeS(PSFloat val);
 PSFloat PSTanhDerivativeS(PSFloat val);
 
-void PSSigmoid(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts);
+void PSSigmoid(PSFloat *vec, PSFloat *dest, uint64_t len, int acceleration);
 void PSTanhActivation(PSFloat *vec, PSFloat *dest, uint64_t len,
-                      PSMathOpts *opts);
-void PSRelu(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts);
-void PSGelu(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts);
+                      int acceleration);
+void PSRelu(PSFloat *vec, PSFloat *dest, uint64_t len, int acceleration);
+void PSGelu(PSFloat *vec, PSFloat *dest, uint64_t len, int acceleration);
 void PSSigmoidDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
-                         PSMathOpts *opts);
+                         int acceleration);
 void PSTanhDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
-                      PSMathOpts *opts);
+                      int acceleration);
 void PSReluDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
-                      PSMathOpts *opts);
+                      int acceleration);
 void PSGeluDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
-                      PSMathOpts *opts);
-void PSSoftmax(PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts);
+                      int acceleration);
+void PSSoftmax(PSFloat *vec, PSFloat *dest, uint64_t len, int acceleration);
 
 #endif /* __ACTIVATION_H__ */

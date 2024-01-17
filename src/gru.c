@@ -553,7 +553,7 @@ forward_previous_step:
         );
     }
     /*  reset_gates = sigmoid(reset_gates) */
-    PSSigmoid(reset_gates, NULL, layer->size, &mopts);
+    PSSigmoid(reset_gates, NULL, layer->size, mopts.acceleration);
     reset_gates_complete = 1;
     /* candidates += dot(candidate_hidden_weights,(reset_gates * prev_states))*/
     PSMultiplyVectors(reset_gates, prev_states, cache, layer->size, &mopts);
@@ -582,10 +582,10 @@ make_outputs:
         }
     }
     /* candidates = tanh(candidates), update_gates = sigmoid(update_gates) */
-    PSTanhActivation(candidates, NULL, layer->size, &mopts);
-    PSSigmoid(update_gates, NULL, layer->size, &mopts);
+    PSTanhActivation(candidates, NULL, layer->size, mopts.acceleration);
+    PSSigmoid(update_gates, NULL, layer->size, mopts.acceleration);
     if (!reset_gates_complete)
-        PSSigmoid(reset_gates, NULL, layer->size, &mopts);
+        PSSigmoid(reset_gates, NULL, layer->size, mopts.acceleration);
     /* Produce outputs */
     mopts.store_mode = PS_STORE_MODE_SET;
     if (feed_previous_step) {
@@ -667,7 +667,7 @@ int PSGRUBackprop(PSLayer *layer, PSLayer *previous_layer,
     /* Build delta_c */
     PSSubtractScalarVector(1, update_gates, delta_c, lsize, &mopts);
     PSMultiplyVectors(delta_c, delta, delta_c, lsize, &mopts);
-    PSTanhDerivative(candidates, cache, lsize, &mopts);
+    PSTanhDerivative(candidates, cache, lsize, mopts.acceleration);
     PSMultiplyVectors(delta_c, cache, delta_c, lsize, &mopts);
 
     /* Build delta_rc and delta_r */
@@ -679,7 +679,7 @@ int PSGRUBackprop(PSLayer *layer, PSLayer *previous_layer,
     if (has_prev_states) {
         mopts.store_mode = PS_STORE_MODE_SET;
         PSMultiplyVectors(delta_rc, prev_states, delta_r, lsize, &mopts);
-        PSSigmoidDerivative(reset_gates, cache, lsize, &mopts);
+        PSSigmoidDerivative(reset_gates, cache, lsize, mopts.acceleration);
         PSMultiplyVectors(delta_r, cache, delta_r, lsize, &mopts);
     }
 
@@ -688,7 +688,7 @@ int PSGRUBackprop(PSLayer *layer, PSLayer *previous_layer,
         PSSubtractVectors(prev_states, candidates, delta_u, lsize, &mopts);
     else PSSubtractScalarVector(0, candidates, delta_u, lsize, &mopts);
     PSMultiplyVectors(delta_u, delta, delta_u, lsize, &mopts);
-    PSSigmoidDerivative(update_gates, cache, lsize, &mopts);
+    PSSigmoidDerivative(update_gates, cache, lsize, mopts.acceleration);
     PSMultiplyVectors(delta_u, cache, delta_u, lsize, &mopts);
 
     /* Update gradient biases */

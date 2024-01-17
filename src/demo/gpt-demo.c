@@ -1330,7 +1330,7 @@ static int getNextIndex(PSModel *gpt2_model, PSFloat temperature) {
         PSFloat temp = 1 - temperature;
         if (temp <= 0) temp = 1e-7;
         PSMultiplyVectorScalar(logits, temp, probs, outlayer->size, &opts);
-        PSSoftmax(probs, probs, outlayer->size, &opts);
+        PSSoftmax(probs, probs, outlayer->size, opts.acceleration);
         int err = 0;
         next_id = PSRandomInt(outlayer->size, probs, &err, &opts);
         free(probs);

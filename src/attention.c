@@ -724,7 +724,7 @@ static int attentionFeedforward(PSMatrix x, PSMatrix weights, PSFloat *biases,
         success = PSDotMV(weights, (PSFloat *)x, dest, &opts);
         if (!success) return 0;
         if (biases != NULL) PSAddVectors(dest, biases, dest, input_size, &opts);
-        if (activate) activate(dest, dest, input_size, &opts);
+        if (activate) activate(dest, dest, input_size, acceleration);
     } else {
         opts.transpose = 2;
         success = PSDot(x, weights, dest, &opts);
@@ -739,7 +739,7 @@ static int attentionFeedforward(PSMatrix x, PSMatrix weights, PSFloat *biases,
                 if (biases != NULL)
                     PSAddVectors(row, biases, row, input_size, &opts);
                 if (activate)
-                    activate(row, row, input_size, &opts);
+                    activate(row, row, input_size, acceleration);
                 row += input_size;
             }
         }
@@ -1206,7 +1206,7 @@ PSMatrix PSGetAdditiveScores(PSLayer *layer, PSFloat *query, PSMatrix keys,
             PSFloat *key = keys + offset;
             PSFloat *qry = query + qry_offset;
             PSAddVectors(key, qry, dest, size, &opts);
-            PSTanhActivation(dest, dest, size, &opts);
+            PSTanhActivation(dest, dest, size, opts.acceleration);
             if (!trainable)
                 scores[k] = PSVectorReduceSum(dest, size, &opts);
         }
@@ -1359,14 +1359,15 @@ PSMatrix PSAttention(PSLayer *layer, PSFloat *query, PSMatrix keys,
         }
     }
     /* Compute attention weights */
-    if (!whole_seq) PSSoftmax(scores, attention_weights, score_size, &opts);
+    if (!whole_seq)
+        PSSoftmax(scores, attention_weights, score_size, opts.acceleration);
     else {
         int nscores = score_shape[0], i;
         for (i = 0; i < nscores; i++) {
             int offset = (i * score_size);
             PSFloat *scores_i = scores + offset;
             PSFloat *weights_i = attention_weights + offset;
-            PSSoftmax(scores_i, weights_i, score_size, &opts);
+            PSSoftmax(scores_i, weights_i, score_size, opts.acceleration);
         }
     }
     /* Compute attention results */
@@ -1569,7 +1570,7 @@ int PSAdditiveAttentionBackward(PSLayer *layer, PSMatrix *dscores,
             delta_p += size;
         }
     }
-    PSTanhDerivative(score_inputs, score_deriv, klen, &opts);
+    PSTanhDerivative(score_inputs, score_deriv, klen, opts.acceleration);
     PSMultiplyVectors(delta, score_deriv, delta, klen, &opts);
     if (*dquery == NULL) *dquery = delta;
     else {
