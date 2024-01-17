@@ -27,11 +27,11 @@
 
 #define UNUSED(V) ((void) V)
 
-int PSDefaultOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
-                          PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp,
-                          PSFloat *xtmp, PSFloat rate, PSFloat momentum,
-                          uint64_t len, int acceleration, int iteration,
-                          PSTrainingOptions *options)
+int PSSGDOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
+                      PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp,
+                      PSFloat *xtmp, PSFloat rate, PSFloat momentum,
+                      uint64_t len, int acceleration, int iteration,
+                      PSTrainingOptions *options)
 {
     UNUSED(xgrads);
     UNUSED(tmp);

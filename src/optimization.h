@@ -21,6 +21,8 @@
 #include "types.h"
 struct PSTrainingOptions;
 
+#define PSDefaultOptimization PSSGDOptimization
+
 typedef int (*PSOptimization) (PSFloat *params, PSFloat *grads,
                                PSFloat *mgrads, PSFloat *xgrads,
                                PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp,
@@ -28,11 +30,11 @@ typedef int (*PSOptimization) (PSFloat *params, PSFloat *grads,
                                uint64_t len, int acceleration, int iteration,
                                struct PSTrainingOptions *options);
 
-int PSDefaultOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
-                          PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp,
-                          PSFloat *xtmp, PSFloat rate, PSFloat momentum,
-                          uint64_t len, int acceleration, int iteration,
-                          struct PSTrainingOptions *options);
+int PSSGDOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
+                      PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp,
+                      PSFloat *xtmp, PSFloat rate, PSFloat momentum,
+                      uint64_t len, int acceleration, int iteration,
+                      struct PSTrainingOptions *options);
 
 int PSNesterovOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
                            PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp,

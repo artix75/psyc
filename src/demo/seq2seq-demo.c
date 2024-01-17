@@ -214,13 +214,13 @@ void parseOptions(int argc, char **argv) {
                 optimization = PSNesterovOptimization;
             else if (strcmp("rmsprop", optname) == 0)
                 optimization = PSRMSPropOptimization;
-            else if (strcmp("none", optname) == 0)
-                optimization = PSDefaultOptimization;
+            else if (strcmp("sgd", optname) == 0)
+                optimization = PSSGDOptimization;
             else {
                 fprintf(stderr, "Invalid optimization `%s`\n", optname);
                 fprintf(
                     stderr, "Valid values: adam, adagrad, adadelta, "
-                    "windowgrad, nesterov\n"
+                    "windowgrad, nesterov, rmsprop, sgd\n"
                 );
                 exit(1);
             }

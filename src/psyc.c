@@ -1239,7 +1239,7 @@ char *getModelStatusLabel(PSModel *model) {
 }
 
 char *getOptimizationName(PSOptimization optimization) {
-    if (optimization == PSDefaultOptimization) return "Default";
+    if (optimization == PSSGDOptimization) return "SGD";
     else if (optimization == PSAdamOptimization) return "Adam";
     else if (optimization == PSAdaGradOptimization) return "AdaGrad";
     else if (optimization == PSAdaDeltaOptimization) return "AdaDelta";
@@ -4845,12 +4845,12 @@ int PSGetTrainingMemoryGradients(PSModel *model,
 int getRequiredMemoryGradientsCount(PSTrainingOptions *opts) {
     int required_memory_gradients = 0;
     PSFloat momentum = 0.0;
-    PSOptimization optimization = PSDefaultOptimization;
+    PSOptimization optimization = PSSGDOptimization;
     if (opts != NULL) {
         momentum = opts->momentum;
         optimization = opts->optimization;
     }
-    if (momentum > 0.0 || optimization != PSDefaultOptimization) {
+    if (momentum > 0.0 || optimization != PSSGDOptimization) {
         required_memory_gradients++;
         if (optimization == PSAdaDeltaOptimization ||
             optimization == PSAdamOptimization) required_memory_gradients++;
@@ -5565,7 +5565,7 @@ int applyGradientsOnParameters(
 )
 {
     if (params == NULL || grads == NULL) return 0;
-    PSOptimization optimization = PSDefaultOptimization;
+    PSOptimization optimization = PSSGDOptimization;
     PSFloat momentum = 0;
     PSTrainingOptions default_opts = {0};
     if (options == NULL) {
@@ -5573,7 +5573,7 @@ int applyGradientsOnParameters(
         options = &default_opts;
     }
     optimization = options->optimization;
-    if (optimization == NULL) optimization = PSDefaultOptimization;
+    if (optimization == NULL) optimization = PSSGDOptimization;
     PSFloat *gptr = NULL, *mptr = NULL, *xptr= NULL;
     if (param_type == PS_PARAM_BIAS) {
         gptr = grads->biases;
@@ -5882,12 +5882,12 @@ PSFloat updateModelParameters(PSModel *model,
             output_is_seq = PSHandleSequenceAtOnce(output_layer);
     }
     UNUSED(num_examples); /* TODO: remove num_examples arg if not needed */
-    PSOptimization optimization = PSDefaultOptimization;
+    PSOptimization optimization = PSSGDOptimization;
     int use_weight_decay = 0, divide_grads_by_batches = 0, training_flags = 0;
     if (opts != NULL) {
         training_flags = opts->flags;
         optimization = opts->optimization;
-        if (optimization == NULL) optimization = PSDefaultOptimization;
+        if (optimization == NULL) optimization = PSSGDOptimization;
         divide_grads_by_batches =  (
             optimization == PSAdaDeltaOptimization ||
             optimization == PSWindowGradOptimization ||
@@ -6478,8 +6478,8 @@ err:
 
 static void checkTrainingOptions(PSTrainingOptions *options) {
     if (options->optimization == NULL)
-        options->optimization = PSDefaultOptimization;
-    if (options->optimization != PSDefaultOptimization) {
+        options->optimization = PSSGDOptimization;
+    if (options->optimization != PSSGDOptimization) {
         if (options->eps == 0) options->eps = PS_DEFAULT_EPS;
         if (options->rho == 0) options->rho = PS_DEFAULT_RHO;
         if (options->beta1 == 0) options->beta1 = PS_DEFAULT_BETA1;
@@ -6495,7 +6495,7 @@ void PSSetDefaultTrainingOptions(PSTrainingOptions *options) {
     options->beta1 = PS_DEFAULT_BETA1;
     options->beta2 = PS_DEFAULT_BETA2;
     options->bptt_truncate = BPTT_TRUNCATE;
-    options->optimization = PSDefaultOptimization;
+    options->optimization = PSSGDOptimization;
     if (options->epochs <= 0) options->epochs = 1;
     if (options->batch_size <= 0) options->batch_size = 1;
     if (options->printProgress == NULL)

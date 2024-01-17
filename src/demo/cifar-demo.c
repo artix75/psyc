@@ -114,7 +114,7 @@ void print_help(char *progname) {
            "                                  "
            "(adagrad,adadelta,adam,windowgrad,\n"
            "                                  "
-           "nesterov,rmsprop).\n"
+           "nesterov,rmsprop,sgd).\n"
            "                                  "
            "(def. %s).\n", getOptimizationName(OPTIMIZATION));
     printf("  --padding PADDING               Padding (def. %d).\n"
@@ -460,6 +460,8 @@ int main(int argc, char** argv) {
                 optimization = PSNesterovOptimization;
             else if (strcmp("rmsprop", optname) == 0)
                 optimization = PSRMSPropOptimization;
+            else if (strcmp("sgd", optname) == 0)
+                optimization = PSSGDOptimization;
             else {
                 PSErr(NULL, "Invalid optmization `%s`\n", optname);
                 fprintf(
@@ -729,7 +731,7 @@ int main(int argc, char** argv) {
             .debug_dump_to = debug_dump_to,
             .metrics = metrics,
         };
-        if (optimization != PSDefaultOptimization)
+        if (optimization != PSSGDOptimization)
             train_opts.optimization = optimization;
         if (progbar) train_opts.printProgress = PSTrainingProgressBar;
         PSTrain(model, training_data, datalen, validation_data, valdlen,

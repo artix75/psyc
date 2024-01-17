@@ -2009,7 +2009,7 @@ int optimDefaultBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     if (auto_accel) acceleration |= PSAcceleration_Auto;
     PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
     PSBenchmarkMeasure(res, (
-        ok = PSDefaultOptimization(
+        ok = PSSGDOptimization(
             x, y, mem, NULL, tmp, NULL, NULL, rate, momentum,
             size, acceleration, 0, NULL
         )
@@ -2023,7 +2023,7 @@ int optimDefaultBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     if (auto_accel) acceleration |= PSAcceleration_Auto;
     PS_INIT_BENCHMARK(cfg, num_results, res, "AVX");
     PSBenchmarkMeasure(res, (
-        ok = PSDefaultOptimization(
+        ok = PSSGDOptimization(
             x, y, mem, NULL, tmp, NULL, NULL, rate, momentum,
             size, acceleration, 0, NULL
         )
@@ -2035,7 +2035,7 @@ int optimDefaultBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     acceleration = PSAcceleration_None;
     PS_INIT_BENCHMARK(cfg, num_results, res, "No Acceleration");
     PSBenchmarkMeasure(res, (
-        ok = PSDefaultOptimization(
+        ok = PSSGDOptimization(
             x, y, mem, NULL, tmp, NULL, NULL, rate, momentum,
             size, acceleration, 0, NULL
         )
@@ -3136,24 +3136,24 @@ PSBenchmarkConfig bechmarks[] = {
 
     /********************** Optimization **********************/
 
-    /* PSDefaultOptimization */
-    {"PSDefaultOptimization (10000)", &optimization_tag, 0, 10,
+    /* PSSGDOptimization */
+    {"PSSGDOptimization (10000)", &optimization_tag, 0, 10,
      optimDefaultBenchmark, 1, INTARGS(10000)},
-    {"PSDefaultOptimization (100000)", &optimization_tag, 0, 10,
+    {"PSSGDOptimization (100000)", &optimization_tag, 0, 10,
      optimDefaultBenchmark, 1, INTARGS(100000)},
-    {"PSDefaultOptimization (1000000)", &optimization_tag, 0, 10,
+    {"PSSGDOptimization (1000000)", &optimization_tag, 0, 10,
      optimDefaultBenchmark, 1, INTARGS(1000000)},
-    {"PSDefaultOptimization (%d)", &optimization_tag, 0, 10,
+    {"PSSGDOptimization (%d)", &optimization_tag, 0, 10,
      optimDefaultBenchmark, 1, int_argv},
 
-    /* PSDefaultOptimization (with momentum)*/
-    {"PSDefaultOptimization (mom.) (10000)", &optimization_tag, 0, 10,
+    /* PSSGDOptimization (with momentum)*/
+    {"PSSGDOptimization (mom.) (10000)", &optimization_tag, 0, 10,
      optimDefaultBenchmark, 2, INTARGS(10000,1), 1},
-    {"PSDefaultOptimization (mom.) (100000)", &optimization_tag, 0, 10,
+    {"PSSGDOptimization (mom.) (100000)", &optimization_tag, 0, 10,
      optimDefaultBenchmark, 2, INTARGS(100000,1), 1},
-    {"PSDefaultOptimization (mom.) (1000000)", &optimization_tag, 0, 10,
+    {"PSSGDOptimization (mom.) (1000000)", &optimization_tag, 0, 10,
      optimDefaultBenchmark, 2, INTARGS(1000000,1), 1},
-    {"PSDefaultOptimization (mom.) (%d)", &optimization_tag, 0, 10,
+    {"PSSGDOptimization (mom.) (%d)", &optimization_tag, 0, 10,
      optimDefaultBenchmark, 2, int_argv, 1},
 
     /* PSNesterovOptimization */

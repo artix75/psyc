@@ -257,7 +257,7 @@ void printHelp(char *executable) {
            "                                    "
            "(adagrad,adadelta,adam,windowgrad,\n"
            "                                    "
-           "nesterov,rmsprop,none)\n"
+           "nesterov,rmsprop,sgd)\n"
            "                                    "
            "Default: %s\n", optimization_name
     );
@@ -313,13 +313,13 @@ void parseOptions(int argc, char **argv) {
                 optimization = PSNesterovOptimization;
             else if (strcmp("rmsprop", optname) == 0)
                 optimization = PSRMSPropOptimization;
-            else if (strcmp("none", optname) == 0)
-                optimization = PSDefaultOptimization;
+            else if (strcmp("sgd", optname) == 0)
+                optimization = PSSGDOptimization;
             else {
                 fprintf(stderr, "Invalid optmization `%s`\n", optname);
                 fprintf(
                     stderr, "Valid values: adam, adagrad, adadelta, "
-                    "windowgrad, nesterov\n"
+                    "windowgrad, nesterov,sgd\n"
                 );
                 exit(1);
             }

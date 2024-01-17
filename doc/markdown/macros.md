@@ -1974,6 +1974,17 @@ In: normalization.h, line: 23
 
 
 
+### PSDefaultOptimization
+
+In: optimization.h, line: 24
+
+```c
+#define PSDefaultOptimization PSSGDOptimization
+```
+
+
+
+
 ### PSDICT_HT_SIZE
 
 In: utils.h, line: 33

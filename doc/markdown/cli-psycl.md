@@ -147,8 +147,8 @@ output layer).
 **--optimization**     NAME  
 Training optimization, NAME can be:  
 
-(adagrad | adadelta | adam | rmsprop |
-windowgrad | nesterov | default).  
+(adagrad | adadelta | adam | nesterov |
+sgd | windowgrad).  
 
 
 **--pidfile**     PATH  

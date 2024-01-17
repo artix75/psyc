@@ -67,7 +67,7 @@
 #define UNUSED(V) ((void) V)
 
 PSOptimization optimizationsByIndex[] = {
-    PSDefaultOptimization,
+    PSSGDOptimization,
     PSAdamOptimization,
     PSAdaGradOptimization,
     PSAdaDeltaOptimization,

@@ -33,7 +33,7 @@
 #define EPOCHS 30
 #define HIDDEN_SIZE 30
 #define LEARNING_RATE 3.0
-#define OPTIMIZATION PSDefaultOptimization
+#define OPTIMIZATION PSSGDOptimization
 
 char *getOptimizationName(PSOptimization optimization);
 
@@ -172,7 +172,7 @@ void printHelp(char *executable) {
            "                                        "
            "(adagrad,adadelta,adam,windowgrad,\n"
            "                                        "
-           "nesterov, rmsprop, none)\n"
+           "nesterov, rmsprop, sgd)\n"
            "                                        "
            "Default: %s\n", optimization_name
     );
@@ -201,8 +201,8 @@ int parseOptions(int argc, char **argv) {
                 optimization = PSNesterovOptimization;
             else if (strcmp("rmsprop", optname) == 0)
                 optimization = PSRMSPropOptimization;
-            else if (strcmp("none", optname) == 0)
-                optimization = PSDefaultOptimization;
+            else if (strcmp("sgd", optname) == 0)
+                optimization = PSSGDOptimization;
             else {
                 fprintf(stderr, "Invalid optimization `%s`\n", optname);
                 fprintf(

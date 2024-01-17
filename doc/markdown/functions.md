@@ -14,7 +14,7 @@ void PSAbortTraining (PSModel *model)
 
 ### PSAdaDeltaOptimization
 
-In: optimization.h, line: 43
+In: optimization.h, line: 45
 
 ```c
 int PSAdaDeltaOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, uint64_t len, int acceleration, int iteration, struct PSTrainingOptions *options)
@@ -25,7 +25,7 @@ int PSAdaDeltaOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PS
 
 ### PSAdaGradOptimization
 
-In: optimization.h, line: 55
+In: optimization.h, line: 57
 
 ```c
 int PSAdaGradOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, uint64_t len, int acceleration, int iteration, struct PSTrainingOptions *options)
@@ -36,7 +36,7 @@ int PSAdaGradOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSF
 
 ### PSAdamOptimization
 
-In: optimization.h, line: 67
+In: optimization.h, line: 69
 
 ```c
 int PSAdamOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, uint64_t len, int acceleration, int iteration, struct PSTrainingOptions *options)
@@ -549,17 +549,6 @@ In: log.h, line: 128
 
 ```c
 void PSDebug (const char *format, ...)
-```
-
-
-
-
-### PSDefaultOptimization
-
-In: optimization.h, line: 31
-
-```c
-int PSDefaultOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, uint64_t len, int acceleration, int iteration, struct PSTrainingOptions *options)
 ```
 
 
@@ -2281,7 +2270,7 @@ const char  * PSLogLevelName (int level)
 
 ### PSLRegularization
 
-In: optimization.h, line: 73
+In: optimization.h, line: 75
 
 ```c
 int PSLRegularization (PSFloat l1, PSFloat l2, PSFloat *weights, PSFloat *wgradients, PSFloat *tmp, uint64_t len, PSFloat *l1_loss, PSFloat *l2_loss, int batches, int weight_decay, int acceleration)
@@ -3687,7 +3676,7 @@ The function returns **NULL** if **dest** is **NULL** but the destination vector
 
 ### PSNesterovOptimization
 
-In: optimization.h, line: 37
+In: optimization.h, line: 39
 
 ```c
 int PSNesterovOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, uint64_t len, int acceleration, int iteration, struct PSTrainingOptions *options)
@@ -3990,7 +3979,7 @@ void PSResetTransposedWeights (PSModel *model)
 
 ### PSRMSPropOptimization
 
-In: optimization.h, line: 61
+In: optimization.h, line: 63
 
 ```c
 int PSRMSPropOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, uint64_t len, int acceleration, int iteration, struct PSTrainingOptions *options)
@@ -4084,6 +4073,17 @@ In: psyc.h, line: 430
 
 ```c
 int PSSetState (PSLayer *layer, PSFloat state, int index, ...)
+```
+
+
+
+
+### PSSGDOptimization
+
+In: optimization.h, line: 33
+
+```c
+int PSSGDOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, uint64_t len, int acceleration, int iteration, struct PSTrainingOptions *options)
 ```
 
 
@@ -5269,7 +5269,7 @@ void PSWarn (const char *format, ...)
 
 ### PSWindowGradOptimization
 
-In: optimization.h, line: 49
+In: optimization.h, line: 51
 
 ```c
 int PSWindowGradOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, uint64_t len, int acceleration, int iteration, struct PSTrainingOptions *options)

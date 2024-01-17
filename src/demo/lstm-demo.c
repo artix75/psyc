@@ -89,7 +89,7 @@ void print_help(char *progname) {
            "                                        "
            "(adagrad,adadelta,adam,windowgrad,\n"
            "                                         "
-           "nesterov,rmsprop)\n");
+           "nesterov,rmsprop,sgd)\n");
     printf("  --print-sample                        Print sample\n");
     printf("  -s, --save TRAINED_DT_FILE            Save trained model\n"
            "                                        "
@@ -207,7 +207,7 @@ int main(int argc, char** argv) {
     int batch_size = BATCHES;
     int disable_avx = 0;
     int shuffle = 0;
-    PSOptimization optimization = PSDefaultOptimization;
+    PSOptimization optimization = PSSGDOptimization;
     PSFloat learning_rate = LEARNING_RATE;
     PSFloat embedding_learning_rate = 0;
     PSFloat momentum = MOMENTUM;
@@ -323,6 +323,8 @@ int main(int argc, char** argv) {
                 optimization = PSNesterovOptimization;
             else if (strcmp("rmsprop", optname) == 0)
                 optimization = PSRMSPropOptimization;
+            else if (strcmp("sgd", optname) == 0)
+                optimization = PSSGDOptimization;
             else {
                 fprintf(stderr, "Invalid optmization `%s`\n", optname);
                 fprintf(

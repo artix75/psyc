@@ -781,7 +781,7 @@ int main(int argc, char** argv) {
 
     if (optimization_tests) {
         optimizationTests = createTest("Optimization");
-        addTest(optimizationTests, "Default", NULL, testDefaultOptimization);
+        addTest(optimizationTests, "SGD", NULL, testDefaultOptimization);
         addTest(optimizationTests, "Momentum", NULL, testMomentumOptimization);
         addTest(optimizationTests, "Nesterov", NULL, testNesterovOptimization);
         addTest(optimizationTests, "AdaDelta", NULL, testAdaDeltaOptimization);
@@ -6937,7 +6937,7 @@ int testDefaultOptimization(TestCase *tc, Test *test) {
     memcpy(params, orig_params, len * sizeof(PSFloat));
     PSFloat rate = 0.1;
     int acceleration = PSAcceleration_None;
-    int ok = PSDefaultOptimization(
+    int ok = PSSGDOptimization(
         params, gradients, NULL, NULL, NULL, NULL, NULL, rate, 0.0, len,
         acceleration, 0, NULL
     );
@@ -6947,7 +6947,7 @@ int testDefaultOptimization(TestCase *tc, Test *test) {
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     acceleration = PSAcceleration_Accelerate;
     memcpy(params, orig_params, len * sizeof(PSFloat));
-    ok = PSDefaultOptimization(
+    ok = PSSGDOptimization(
         params, gradients, NULL, NULL, NULL, NULL, NULL, rate, 0.0, len,
         acceleration, 0, NULL
     );
@@ -6958,7 +6958,7 @@ int testDefaultOptimization(TestCase *tc, Test *test) {
 #ifdef USE_AVX
     acceleration = PSAcceleration_AVX;
     memcpy(params, orig_params, len * sizeof(PSFloat));
-    ok = PSDefaultOptimization(
+    ok = PSSGDOptimization(
         params, gradients, NULL, NULL, NULL, NULL, NULL, rate, 0.0, len,
         acceleration, 0, NULL
     );
@@ -6991,7 +6991,7 @@ int testMomentumOptimization(TestCase *tc, Test *test) {
     int iterations = 2, ok, i;
     int acceleration = PSAcceleration_None;
     for (i = 0; i < iterations; i++) {
-        ok = PSDefaultOptimization(
+        ok = PSSGDOptimization(
             params, gradients, mem, NULL, NULL, NULL, NULL, rate, momentum,
             len, acceleration, i, NULL
         );
@@ -7004,7 +7004,7 @@ int testMomentumOptimization(TestCase *tc, Test *test) {
     memcpy(params, orig_params, len * sizeof(PSFloat));
     memset(mem, 0, len * sizeof(PSFloat));
     for (i = 0; i < iterations; i++) {
-        ok = PSDefaultOptimization(
+        ok = PSSGDOptimization(
             params, gradients, mem, NULL, NULL, NULL, NULL, rate, momentum,
             len, acceleration, i, NULL
         );
@@ -7018,7 +7018,7 @@ int testMomentumOptimization(TestCase *tc, Test *test) {
     memcpy(params, orig_params, len * sizeof(PSFloat));
     memset(mem, 0, len * sizeof(PSFloat));
     for (i = 0; i < iterations; i++) {
-        ok = PSDefaultOptimization(
+        ok = PSSGDOptimization(
             params, gradients, mem, NULL, NULL, NULL, NULL, rate, momentum,
             len, acceleration, i, NULL
         );

@@ -129,7 +129,7 @@ PSFloat learning_rate = LEARNING_RATE;
 PSFloat l1_decay = 0.0;
 PSFloat l2_decay = 0.0;
 PSFloat momentum = 0.0;
-PSOptimization optimization = PSDefaultOptimization;
+PSOptimization optimization = PSSGDOptimization;
 int training_metrics = 0;
 int batch_size = BATCH_SIZE;
 char outputFile[PATH_MAX];
@@ -1450,15 +1450,17 @@ void parseOptions(int argc, char **argv) {
                 optimization = PSWindowGradOptimization;
             else if (strcmp("nesterov", optname) == 0)
                 optimization = PSNesterovOptimization;
+            else if (strcmp("sgd", optname) == 0)
+                optimization = PSSGDOptimization;
             else if (strcmp("default", optname) == 0)
-                optimization = PSDefaultOptimization;
+                optimization = PSSGDOptimization;
             else if (strcmp("none", optname) == 0)
-                optimization = PSDefaultOptimization;
+                optimization = PSSGDOptimization;
             else {
                 fprintf(stderr, "Invalid optmization `%s`\n", optname);
                 fprintf(
                     stderr, "Valid values: adam, adagrad, adadelta, "
-                    "windowgrad, nesterov, default\n"
+                    "nesterov, rmsprop, sgd, windowgrad\n"
                 );
                 goto err;
             }
@@ -2066,8 +2068,8 @@ void printHelp(const char* program_path) {
     printf("  --optimization NAME          Training optimization, NAME can "
            "be:\n"
            "                               (adagrad | adadelta | adam | "
-           "rmsprop |\n"
-           "                               windowgrad | nesterov | default)"
+           "nesterov |\n"
+           "                               sgd | windowgrad)"
            ".\n");
     printf("  --pidfile PATH               Save process PID to PATH.\n");
     printf("  --quiet                      Quiet output (loglevel ERROR)."

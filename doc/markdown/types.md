@@ -800,7 +800,7 @@ typedef enum {
 
 ### PSOptimization
 
-In: optimization.h, line: 24
+In: optimization.h, line: 26
 
 ```c
 typedef int (* PSOptimization) (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, uint64_t len, int acceleration, int iteration, struct PSTrainingOptions *options)
