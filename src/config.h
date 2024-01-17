@@ -45,7 +45,7 @@
 #define PSGlobalDisableAcceleration(acceleration) PSDisableAcceleration(\
     &PSGlobalAcceleration, acceleration)
 
-/* Different hardware/software options for computation acceleration. The
+/* Different hardware/software options for accelerated computation. The
  * acceleration options can be used like flags, so more options can be enabled
  * at the same time by using the boolean `|` bitwise operator.
  * NOTE: acceleration options avilability depends on the hardware/software
@@ -53,7 +53,7 @@
  * does not take any effect. Acceleration availability can be tested by using
  * the `PSIsAccelerationAvailable` function.
  * Acceleration options:
- *  - PSAcceleration_None: non acceleration at all.
+ *  - PSAcceleration_None: no acceleration at all.
  *  - PSAcceleration_AVX: use Intel® AVX if available.
  *  - PSAcceleration_Accelerate: Use Apple® Accelerate Framework if available.
  *  - PSAcceleration_BLAS: enable BLAS (Basic Linear Algebra Subprograms)

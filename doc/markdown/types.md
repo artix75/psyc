@@ -3,7 +3,7 @@
 
 ### PSAcceleration
 
-In: config.h, line: 48
+In: config.h, line: 65
 
 ```c
 typedef enum {  
@@ -16,7 +16,18 @@ typedef enum {
 } PSAcceleration  
 ```
 
+Different hardware/software options for accelerated computation. The acceleration options can be used like flags, so more options can be enabled at the same time by using the boolean `|` bitwise operator.  
 
+
+**NOTE**:  acceleration options avilability depends on the hardware/software PsyC is running on. When not available, enabling one of the options below does not take any effect. Acceleration availability can be tested by using the [PSIsAccelerationAvailable](functions.md#psisaccelerationavailable) function.  
+
+Acceleration options:  
+
+ - PSAcceleration_None: no acceleration at all.
+ - PSAcceleration_AVX: use [Intel® AVX](https://www.intel.com/content/www/us/en/support/articles/000005779/processors.html) if available.
+ - PSAcceleration_Accelerate: Use [Apple® Accelerate Framework](https://developer.apple.com/documentation/accelerate) if available.
+ - PSAcceleration_BLAS: enable [BLAS (Basic Linear Algebra Subprograms)](https://www.netlib.org/blas/) for matrix-related computations. BLAS can be provided by several libraries. PsyC currently supports [Apple® Accelerate Framework](https://developer.apple.com/documentation/accelerate) BLAS and [GNU GSL Library](https://www.gnu.org/software/gsl/) BLAS libraries.
+ - PSAcceleration_Auto: by enabling this option, PsyC will automatically enable/disable acceleration depending on the specific algorithm.
 
 
 ### PSActivationFunction
@@ -24,7 +35,7 @@ typedef enum {
 In: activation.h, line: 30
 
 ```c
-typedef void (* PSActivationFunction) (PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts)
+typedef void (* PSActivationFunction) (PSFloat *vec, PSFloat *dest, uint64_t len, int acceleration)
 ```
 
 
@@ -83,7 +94,7 @@ typedef int (* PSBeforeForwardCallback) (struct PSModel *model, PSFloat *inputs,
 
 ### PSBitmap
 
-In: utils.h, line: 112
+In: utils.h, line: 113
 
 ```c
 typedef uint64_t * PSBitmap
@@ -231,7 +242,7 @@ typedef struct {
 
 ### PSDict
 
-In: utils.h, line: 84
+In: utils.h, line: 85
 
 ```c
 typedef struct {  
@@ -247,7 +258,7 @@ typedef struct {
 
 ### PSDictItem
 
-In: utils.h, line: 75
+In: utils.h, line: 76
 
 ```c
 typedef struct {  
@@ -265,7 +276,7 @@ typedef struct {
 
 ### PSDictIterator
 
-In: utils.h, line: 91
+In: utils.h, line: 92
 
 ```c
 typedef struct {  
@@ -279,7 +290,7 @@ typedef struct {
 
 ### PSDictValue
 
-In: utils.h, line: 69
+In: utils.h, line: 70
 
 ```c
 typedef union {  
@@ -443,7 +454,7 @@ typedef int (* PSInitStatesFunc) (struct PSLayer *layer, uint32_t steps, int ret
 
 ### PSLayer
 
-In: psyc.h, line: 314
+In: psyc.h, line: 316
 
 ```c
 typedef struct {  
@@ -674,7 +685,7 @@ typedef PSFloat (* PSMatrixInitializer) (void)
 
 ### PSModel
 
-In: psyc.h, line: 354
+In: psyc.h, line: 356
 
 ```c
 typedef struct {  
@@ -707,7 +718,7 @@ typedef struct {
 
 ### PSModelLink
 
-In: psyc.h, line: 349
+In: psyc.h, line: 351
 
 ```c
 typedef struct {  
@@ -721,7 +732,7 @@ typedef struct {
 
 ### PSNeuralNetwork
 
-In: psyc.h, line: 490
+In: psyc.h, line: 492
 
 ```c
 typedef PSModel PSNeuralNetwork
@@ -732,7 +743,7 @@ Kept type name used in older version since I still love it :) (and it also sound
 
 ### PSNeuron
 
-In: psyc.h, line: 306
+In: psyc.h, line: 308
 
 ```c
 typedef struct {  
@@ -762,7 +773,7 @@ typedef struct {
 
 ### PSOnDictItemRelease
 
-In: utils.h, line: 67
+In: utils.h, line: 68
 
 ```c
 typedef void (* PSOnDictItemRelease) (struct PSDictItem *)
@@ -952,18 +963,21 @@ typedef void (* PSTrainCallback) (struct PSModel *model, int epoch, int epochs, 
 
 ### PSTrainingInfo
 
-In: psyc.h, line: 291
+In: psyc.h, line: 290
 
 ```c
 typedef struct {  
     int current_epoch;  
     int current_batch;  
     int current_example;  
+    int num_examples;  
     int batch_size;  
     int data_size;  
     int current_test;  
     int test_size;  
     int num_tests;  
+    int correct_results;  
+    int tot_results;  
     time_t started_at;  
     time_t ended_at;  
     int requested_action;  
@@ -995,7 +1009,6 @@ typedef struct {
     PSOptimization optimization;  
     int bptt_truncate;  
     int metrics;  
-    float accuracy_dataset_percent;  
     PSTrainingProgressFunc printProgress;  
     FILE * debug_dump_to;  
 } PSTrainingOptions  

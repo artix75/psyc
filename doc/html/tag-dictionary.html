@@ -79,7 +79,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
            <section id="doc">
 <div class="details struct" id="struct-psdict">
 <h3 class="name">PSDict</h3>
-<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">84</span></div>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">85</span></div>
 <div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag dictionary" data-href="tag-dictionary.html">DICTIONARY</span></div><div class="code">
 <code class="definition">
 <span class="keyword">typedef struct</span> {<br><span class="member"><span class="type">int64_t</span> <span class="identifier">length</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">flags</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#struct-psdictitem">PSDictItem</a> *</span> <span class="identifier">table[PSDICT_HT_SIZE]</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#function_pointer-psondictitemrelease">PSOnDictItemRelease</a></span> <span class="identifier">onItemRelease</span></span>;<br>} <span class="identifier">PSDict</span><br></code>
@@ -89,7 +89,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details function" id="function-psdictclear">
 <h3 class="name">PSDictClear</h3>
-<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">97</span></div>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">98</span></div>
 <div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag dictionary" data-href="tag-dictionary.html">DICTIONARY</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">void</span> <span class="identifier name">PSDictClear</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psdict">PSDict</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdictclear-dict>dict</span></span></span>)</code>
@@ -101,7 +101,7 @@ Delete all items from dictionary <span class="identifier-ref" data-identifier-id
 
 <div class="details function" id="function-psdictcreate">
 <h3 class="name">PSDictCreate</h3>
-<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">96</span></div>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">97</span></div>
 <div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag dictionary" data-href="tag-dictionary.html">DICTIONARY</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#struct-psdict">PSDict</a> *</span><span class="identifier name">PSDictCreate</span> (<span class="arguments"><span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psdictcreate-flags>flags</span></span></span>)</code>
@@ -113,7 +113,7 @@ Create a new PSDict dictionary.
 
 <div class="details function" id="function-psdictfree">
 <h3 class="name">PSDictFree</h3>
-<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">108</span></div>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">109</span></div>
 <div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag dictionary" data-href="tag-dictionary.html">DICTIONARY</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">void</span> <span class="identifier name">PSDictFree</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psdict">PSDict</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdictfree-dict>dict</span></span></span>)</code>
@@ -125,7 +125,7 @@ Delete the dictionary and free it&#39;s allocated memory.
 
 <div class="details function" id="function-psdictget">
 <h3 class="name">PSDictGet</h3>
-<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">98</span></div>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">99</span></div>
 <div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag dictionary" data-href="tag-dictionary.html">DICTIONARY</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#struct-psdictitem">PSDictItem</a> *</span><span class="identifier name">PSDictGet</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psdict">PSDict</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdictget-dict>dict</span></span>, <span class="argument"><span class="type">const char *</span><span class="identifier pointer-name" data-identifier-id=function-psdictget-key>key</span></span></span>)</code>
@@ -139,7 +139,7 @@ The item (PSDictItem) or <span class="identifier-ref">NULL</span>.
 
 <div class="details function" id="function-psdictgetitems">
 <h3 class="name">PSDictGetItems</h3>
-<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">105</span></div>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">106</span></div>
 <div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag dictionary" data-href="tag-dictionary.html">DICTIONARY</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#struct-psdictitem">PSDictItem</a> **</span> <span class="identifier name">PSDictGetItems</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psdict">PSDict</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdictgetitems-dict>dict</span></span></span>)</code>
@@ -153,7 +153,7 @@ An array of <a class="psyc-type" href="types.html#struct-psdictitem">PSDictItem<
 
 <div class="details function" id="function-psdictgetkeys">
 <h3 class="name">PSDictGetKeys</h3>
-<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">104</span></div>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">105</span></div>
 <div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag dictionary" data-href="tag-dictionary.html">DICTIONARY</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">const char **</span> <span class="identifier name">PSDictGetKeys</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psdict">PSDict</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdictgetkeys-dict>dict</span></span></span>)</code>
@@ -167,7 +167,7 @@ An array of strings containing all the keys or <span class="identifier-ref">NULL
 
 <div class="details function" id="function-psdictgetorset">
 <h3 class="name">PSDictGetOrSet</h3>
-<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">102</span></div>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">103</span></div>
 <div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag dictionary" data-href="tag-dictionary.html">DICTIONARY</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#struct-psdictitem">PSDictItem</a> *</span><span class="identifier name">PSDictGetOrSet</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psdict">PSDict</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdictgetorset-dict>dict</span></span>, <span class="argument"><span class="type">const char *</span><span class="identifier pointer-name" data-identifier-id=function-psdictgetorset-key>key</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#union-psdictvalue">PSDictValue</a></span> <span class="identifier" data-identifier-id=function-psdictgetorset-val>val</span></span></span>)</code>
@@ -181,7 +181,7 @@ The value associated with <span class="identifier-ref" data-identifier-id="funct
 
 <div class="details function" id="function-psdictgetpointer">
 <h3 class="name">PSDictGetPointer</h3>
-<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">99</span></div>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">100</span></div>
 <div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag dictionary" data-href="tag-dictionary.html">DICTIONARY</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">void *</span><span class="identifier name">PSDictGetPointer</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psdict">PSDict</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdictgetpointer-dict>dict</span></span>, <span class="argument"><span class="type">const char *</span><span class="identifier pointer-name" data-identifier-id=function-psdictgetpointer-key>key</span></span></span>)</code>
@@ -213,7 +213,7 @@ The item as a pointer or <span class="identifier-ref">NULL</span>.
 
 <div class="details function" id="function-psdicthaskey">
 <h3 class="name">PSDictHasKey</h3>
-<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">100</span></div>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">101</span></div>
 <div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag dictionary" data-href="tag-dictionary.html">DICTIONARY</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSDictHasKey</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psdict">PSDict</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdicthaskey-dict>dict</span></span>, <span class="argument"><span class="type">const char *</span><span class="identifier pointer-name" data-identifier-id=function-psdicthaskey-key>key</span></span></span>)</code>
@@ -227,7 +227,7 @@ Check whether <span class="identifier-ref" data-identifier-id="function-psdictha
 
 <div class="details struct" id="struct-psdictitem">
 <h3 class="name">PSDictItem</h3>
-<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">75</span></div>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">76</span></div>
 <div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag dictionary" data-href="tag-dictionary.html">DICTIONARY</span></div><div class="code">
 <code class="definition">
 <span class="keyword">typedef struct</span> {<br><span class="member"><span class="type">const char *</span> <span class="identifier">key</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#union-psdictvalue">PSDictValue</a></span> <span class="identifier">value</span></span>;<br><span class="member"><span class="type">struct <a class="psyc-type" href="types.html#struct-psdictitem">PSDictItem</a> *</span> <span class="identifier">prev</span></span>;<br><span class="member"><span class="type">struct <a class="psyc-type" href="types.html#struct-psdictitem">PSDictItem</a> *</span> <span class="identifier">next</span></span>;<br><span class="member"><span class="type">struct <a class="psyc-type" href="types.html#struct-psdict">PSDict</a> *</span> <span class="identifier">dict</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">slot</span></span>;<br>} <span class="identifier">PSDictItem</span><br></code>
@@ -274,7 +274,7 @@ Check whether <span class="identifier-ref" data-identifier-id="function-psdictha
 
 <div class="details struct" id="struct-psdictiterator">
 <h3 class="name">PSDictIterator</h3>
-<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">91</span></div>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">92</span></div>
 <div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag dictionary" data-href="tag-dictionary.html">DICTIONARY</span></div><div class="code">
 <code class="definition">
 <span class="keyword">typedef struct</span> {<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#struct-psdict">PSDict</a> *</span> <span class="identifier">dict</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#struct-psdictitem">PSDictItem</a> *</span> <span class="identifier">current</span></span>;<br>} <span class="identifier">PSDictIterator</span><br></code>
@@ -283,7 +283,7 @@ Check whether <span class="identifier-ref" data-identifier-id="function-psdictha
 
 <div class="details function" id="function-psdictiteratorcreate">
 <h3 class="name">PSDictIteratorCreate</h3>
-<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">106</span></div>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">107</span></div>
 <div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag dictionary" data-href="tag-dictionary.html">DICTIONARY</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">struct <a class="psyc-type" href="types.html#struct-psdictiterator">PSDictIterator</a> *</span><span class="identifier name">PSDictIteratorCreate</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psdict">PSDict</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdictiteratorcreate-dict>dict</span></span></span>)</code>
@@ -297,7 +297,7 @@ The iterator or <span class="identifier-ref">NULL</span> if something goes wrong
 
 <div class="details function" id="function-psdictnext">
 <h3 class="name">PSDictNext</h3>
-<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">107</span></div>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">108</span></div>
 <div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag dictionary" data-href="tag-dictionary.html">DICTIONARY</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#struct-psdictitem">PSDictItem</a> *</span><span class="identifier name">PSDictNext</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psdictiterator">PSDictIterator</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdictnext-iterator>iterator</span></span></span>)</code>
@@ -311,7 +311,7 @@ The next item (<a class="psyc-type" href="types.html#struct-psdictitem">PSDictIt
 
 <div class="details function" id="function-psdictremove">
 <h3 class="name">PSDictRemove</h3>
-<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">103</span></div>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">104</span></div>
 <div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag dictionary" data-href="tag-dictionary.html">DICTIONARY</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">void</span> <span class="identifier name">PSDictRemove</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psdict">PSDict</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdictremove-dict>dict</span></span>, <span class="argument"><span class="type">const char *</span><span class="identifier pointer-name" data-identifier-id=function-psdictremove-key>key</span></span></span>)</code>
@@ -323,7 +323,7 @@ Remove item associated to <span class="identifier-ref" data-identifier-id="funct
 
 <div class="details function" id="function-psdictset">
 <h3 class="name">PSDictSet</h3>
-<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">101</span></div>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">102</span></div>
 <div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag dictionary" data-href="tag-dictionary.html">DICTIONARY</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#struct-psdictitem">PSDictItem</a> *</span><span class="identifier name">PSDictSet</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psdict">PSDict</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psdictset-dict>dict</span></span>, <span class="argument"><span class="type">const char *</span><span class="identifier pointer-name" data-identifier-id=function-psdictset-key>key</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#union-psdictvalue">PSDictValue</a></span> <span class="identifier" data-identifier-id=function-psdictset-val>val</span></span></span>)</code>
@@ -346,7 +346,7 @@ The item (<a class="psyc-type" href="types.html#struct-psdictitem">PSDictItem</a
 
 <div class="details union" id="union-psdictvalue">
 <h3 class="name">PSDictValue</h3>
-<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">69</span></div>
+<div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">70</span></div>
 <div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag dictionary" data-href="tag-dictionary.html">DICTIONARY</span></div><div class="code">
 <code class="definition">
 <span class="keyword">typedef union</span> {<br><span class="member"><span class="type">int64_t</span> <span class="identifier">as_int</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span> <span class="identifier">as_float</span></span>;<br><span class="member"><span class="type">void *</span> <span class="identifier">as_ptr</span></span>;<br>} <span class="identifier">PSDictValue</span><br></code>

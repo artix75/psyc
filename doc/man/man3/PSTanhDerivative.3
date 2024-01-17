@@ -13,7 +13,7 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSTanhDerivative 3 2024-01-03 "PsyC 0.9.4" "PsyC Library Functions Manual"
+.TH PSTanhDerivative 3 2024-01-17 "PsyC 0.9.4" "PsyC Library Functions Manual"
 
 .SH NAME
 \fBPSTanhDerivative\fR
@@ -29,13 +29,13 @@ PsyC (-lpsyc)
 .I
 void  
 .br
-\fBPSTanhDerivative\fR(\fIPSFloat *vec\fR, \fIPSFloat *dest\fR, \fIuint64_t len\fR, \fIPSMathOpts *opts\fR)
+\fBPSTanhDerivative\fR(\fIPSFloat *vec\fR, \fIPSFloat *dest\fR, \fIuint64_t len\fR, \fIint acceleration\fR)
 .SH DESCRIPTION
 Computes the derivative of tanh (hyperbolic tangent) activation function (\fIPSTanhActivation\fR) for vectors. The derivative is computed on vector \fIvec\fR of length \fIlen\fR and stored into vector \fIdest\fR.
 .br
 If \fIdest\fR is \fINULL\fR, results will be stored into \fIvec\fR itself.
 .br
-The \fIopts\fR argument can be used to change default acceleration used to compute results (see \fIPSMathOpts\fR).
+For the \fIacceleration\fR argument, take a look at \fIPSAcceleration\fR.
 .br
 The equivalent function to be used with scalars is \fIPSTanhDerivativeS\fR.
 

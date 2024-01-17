@@ -69,7 +69,7 @@ In: psyc.h, line: 63
 
 ### PS_BITMAP_OP_AND
 
-In: utils.h, line: 55
+In: utils.h, line: 56
 
 ```c
 #define PS_BITMAP_OP_AND 1
@@ -80,7 +80,7 @@ In: utils.h, line: 55
 
 ### PS_BITMAP_OP_OR
 
-In: utils.h, line: 56
+In: utils.h, line: 57
 
 ```c
 #define PS_BITMAP_OP_OR 2
@@ -91,7 +91,7 @@ In: utils.h, line: 56
 
 ### PS_BITMAP_OP_XOR
 
-In: utils.h, line: 57
+In: utils.h, line: 58
 
 ```c
 #define PS_BITMAP_OP_XOR 3
@@ -851,6 +851,17 @@ In: utils.h, line: 51
 
 ```c
 #define PS_OPT_TIME_LONG (1 << 0)
+```
+
+
+
+
+### PS_OPT_TIME_ROUND_SEC
+
+In: utils.h, line: 54
+
+```c
+#define PS_OPT_TIME_ROUND_SEC (1 << 3)
 ```
 
 
@@ -1653,7 +1664,7 @@ In: config.h, line: 34
 
 ### PSBitmapAnd
 
-In: utils.h, line: 59
+In: utils.h, line: 60
 
 ```c
 #define PSBitmapAnd(a, b, dest) PSBitmapOp(a, b, dest, PS_BITMAP_OP_AND)
@@ -1664,7 +1675,7 @@ In: utils.h, line: 59
 
 ### PSBitmapOr
 
-In: utils.h, line: 60
+In: utils.h, line: 61
 
 ```c
 #define PSBitmapOr(a, b, dest) PSBitmapOp(a, b, dest, PS_BITMAP_OP_OR)

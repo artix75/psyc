@@ -175,11 +175,6 @@ Train model with TRAIN_DATASET.
 (see [TRAIN|TEST OPTIONS](#section-train-test-options) section).  
 
 
-**--training-accuracy-percent**  
-Percentage of training dataset to be used for
-training accuracy metrics (0.0-1.0 | 'auto').  
-
-
 **--training-adjust-rate**  
 Auto-adjust learn rate.  
 

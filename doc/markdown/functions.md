@@ -3,7 +3,7 @@
 
 ### PSAbortTraining
 
-In: psyc.h, line: 459
+In: psyc.h, line: 461
 
 ```c
 void PSAbortTraining (PSModel *model)
@@ -58,7 +58,7 @@ PSLayer  * PSAddCIFARInputLayer (PSModel *model)
 
 ### PSAddConvolutionalLayer
 
-In: psyc.h, line: 409
+In: psyc.h, line: 411
 
 ```c
 PSLayer  * PSAddConvolutionalLayer (PSModel *model, PSLayerDef *ldef)
@@ -90,7 +90,7 @@ void PSAddDebugInfo (PSModel *model, char *file, const char *func, int line, PSL
 
 ### PSAddInputLayer
 
-In: psyc.h, line: 408
+In: psyc.h, line: 410
 
 ```c
 PSLayer  * PSAddInputLayer (PSModel *model, int size, PSLayerDef *ldef)
@@ -113,7 +113,7 @@ The added layer or **NULL** if:
 
 ### PSAddLayer
 
-In: psyc.h, line: 406
+In: psyc.h, line: 408
 
 ```c
 PSLayer  * PSAddLayer (PSModel *model, PSLayerType type, int size, PSLayerDef *layer_def)
@@ -150,7 +150,7 @@ Possible failure reasons:
 
 ### PSAddModel
 
-In: psyc.h, line: 401
+In: psyc.h, line: 403
 
 ```c
 int PSAddModel (PSModel *parent, PSModel *model, PSModelLink *link)
@@ -187,7 +187,7 @@ Possible failure reasons:
 
 ### PSAddPoolingLayer
 
-In: psyc.h, line: 410
+In: psyc.h, line: 412
 
 ```c
 PSLayer  * PSAddPoolingLayer (PSModel *model, PSLayerDef *ldef)
@@ -262,7 +262,7 @@ The function returns **NULL** if **dest** is **NULL** but the destination vector
 
 ### PSAutoregression
 
-In: psyc.h, line: 442
+In: psyc.h, line: 444
 
 ```c
 int PSAutoregression (PSModel *model, PSFloat *inputs, int randomized, PSSequenceSettings *sequence_settings)
@@ -307,7 +307,7 @@ void PSAxpy (int n, PSFloat alpha, PSFloat *x, int incx, PSFloat *y, int incy)
 
 ### PSBitmapClear
 
-In: utils.h, line: 120
+In: utils.h, line: 121
 
 ```c
 void PSBitmapClear (PSBitmap bitmap)
@@ -318,7 +318,7 @@ void PSBitmapClear (PSBitmap bitmap)
 
 ### PSBitmapCopy
 
-In: utils.h, line: 114
+In: utils.h, line: 115
 
 ```c
 int PSBitmapCopy (PSBitmap dst, PSBitmap src)
@@ -329,7 +329,7 @@ int PSBitmapCopy (PSBitmap dst, PSBitmap src)
 
 ### PSBitmapCreate
 
-In: utils.h, line: 113
+In: utils.h, line: 114
 
 ```c
 PSBitmap PSBitmapCreate (size_t size)
@@ -340,7 +340,7 @@ PSBitmap PSBitmapCreate (size_t size)
 
 ### PSBitmapDup
 
-In: utils.h, line: 115
+In: utils.h, line: 116
 
 ```c
 PSBitmap PSBitmapDup (PSBitmap src)
@@ -351,7 +351,7 @@ PSBitmap PSBitmapDup (PSBitmap src)
 
 ### PSBitmapGetBit
 
-In: utils.h, line: 118
+In: utils.h, line: 119
 
 ```c
 int PSBitmapGetBit (PSBitmap bitmap, uint64_t index)
@@ -362,7 +362,7 @@ int PSBitmapGetBit (PSBitmap bitmap, uint64_t index)
 
 ### PSBitmapOp
 
-In: utils.h, line: 121
+In: utils.h, line: 122
 
 ```c
 PSBitmap PSBitmapOp (PSBitmap a, PSBitmap b, PSBitmap dest, int op)
@@ -373,7 +373,7 @@ PSBitmap PSBitmapOp (PSBitmap a, PSBitmap b, PSBitmap dest, int op)
 
 ### PSBitmapRelease
 
-In: utils.h, line: 116
+In: utils.h, line: 117
 
 ```c
 void PSBitmapRelease (PSBitmap bitmap)
@@ -384,7 +384,7 @@ void PSBitmapRelease (PSBitmap bitmap)
 
 ### PSBitmapSetBit
 
-In: utils.h, line: 119
+In: utils.h, line: 120
 
 ```c
 int PSBitmapSetBit (PSBitmap bitmap, uint64_t index, int val)
@@ -395,7 +395,7 @@ int PSBitmapSetBit (PSBitmap bitmap, uint64_t index, int val)
 
 ### PSBitmapSize
 
-In: utils.h, line: 117
+In: utils.h, line: 118
 
 ```c
 size_t PSBitmapSize (PSBitmap bitmap)
@@ -406,7 +406,7 @@ size_t PSBitmapSize (PSBitmap bitmap)
 
 ### PSCalcIntStringLength
 
-In: utils.h, line: 134
+In: utils.h, line: 135
 
 ```c
 unsigned int PSCalcIntStringLength (long long num)
@@ -428,7 +428,7 @@ int PSCatchFloatingPointExceptions (int except)
 
 ### PSClassify
 
-In: psyc.h, line: 444
+In: psyc.h, line: 446
 
 ```c
 int PSClassify (PSModel *model, PSFloat *inputs)
@@ -482,7 +482,7 @@ PSFloat  * PSCreateWord2VecTrainingData (PSFloat *tokens, size_t token_count, in
 
 ### PSCrossEntropyLoss
 
-In: psyc.h, line: 473
+In: psyc.h, line: 475
 
 ```c
 PSFloat PSCrossEntropyLoss (PSFloat *x, PSFloat *y, int size, int onehot_size)
@@ -567,7 +567,7 @@ int PSDefaultOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSF
 
 ### PSDeleteGradient
 
-In: psyc.h, line: 447
+In: psyc.h, line: 449
 
 ```c
 void PSDeleteGradient (PSGradient *gradient)
@@ -578,7 +578,7 @@ void PSDeleteGradient (PSGradient *gradient)
 
 ### PSDeleteGradientsChain
 
-In: psyc.h, line: 449
+In: psyc.h, line: 451
 
 ```c
 void PSDeleteGradientsChain (PSGradient *** gradients, PSModel *model)
@@ -589,7 +589,7 @@ void PSDeleteGradientsChain (PSGradient *** gradients, PSModel *model)
 
 ### PSDeleteModelGradients
 
-In: psyc.h, line: 448
+In: psyc.h, line: 450
 
 ```c
 void PSDeleteModelGradients (PSGradient ** gradients, PSModel *net)
@@ -600,7 +600,7 @@ void PSDeleteModelGradients (PSGradient ** gradients, PSModel *net)
 
 ### PSDeleteNeuron
 
-In: psyc.h, line: 438
+In: psyc.h, line: 440
 
 ```c
 void PSDeleteNeuron (PSNeuron *neuron)
@@ -701,7 +701,7 @@ The matrix of **NULL** if:
 
 ### PSDictClear
 
-In: utils.h, line: 97
+In: utils.h, line: 98
 
 ```c
 void PSDictClear (PSDict *dict)
@@ -712,7 +712,7 @@ Delete all items from dictionary [dict](types.md#psdictiterator).
 
 ### PSDictCreate
 
-In: utils.h, line: 96
+In: utils.h, line: 97
 
 ```c
 PSDict  * PSDictCreate (int flags)
@@ -723,7 +723,7 @@ Create a new PSDict dictionary.
 
 ### PSDictFree
 
-In: utils.h, line: 108
+In: utils.h, line: 109
 
 ```c
 void PSDictFree (PSDict *dict)
@@ -734,7 +734,7 @@ Delete the dictionary and free it's allocated memory.
 
 ### PSDictGet
 
-In: utils.h, line: 98
+In: utils.h, line: 99
 
 ```c
 PSDictItem  * PSDictGet (PSDict *dict, const char *key)
@@ -750,7 +750,7 @@ The item (PSDictItem) or **NULL**.
 
 ### PSDictGetItems
 
-In: utils.h, line: 105
+In: utils.h, line: 106
 
 ```c
 PSDictItem  ** PSDictGetItems (PSDict *dict)
@@ -767,7 +767,7 @@ An array of [PSDictItem](types.md#psdictitem) containing all the values or **NUL
 
 ### PSDictGetKeys
 
-In: utils.h, line: 104
+In: utils.h, line: 105
 
 ```c
 const char  ** PSDictGetKeys (PSDict *dict)
@@ -784,7 +784,7 @@ An array of strings containing all the keys or **NULL** if                 somet
 
 ### PSDictGetOrSet
 
-In: utils.h, line: 102
+In: utils.h, line: 103
 
 ```c
 PSDictItem  * PSDictGetOrSet (PSDict *dict, const char *key, PSDictValue val)
@@ -800,7 +800,7 @@ The value associated with [key](types.md#psdictitem).
 
 ### PSDictGetPointer
 
-In: utils.h, line: 99
+In: utils.h, line: 100
 
 ```c
 void  * PSDictGetPointer (PSDict *dict, const char *key)
@@ -816,7 +816,7 @@ The item as a pointer or **NULL**.
 
 ### PSDictHasKey
 
-In: utils.h, line: 100
+In: utils.h, line: 101
 
 ```c
 int PSDictHasKey (PSDict *dict, const char *key)
@@ -832,7 +832,7 @@ Check whether [dict](types.md#psdictiterator) has the key [key](types.md#psdicti
 
 ### PSDictIteratorCreate
 
-In: utils.h, line: 106
+In: utils.h, line: 107
 
 ```c
 struct PSDictIterator  * PSDictIteratorCreate (PSDict *dict)
@@ -848,7 +848,7 @@ The iterator or **NULL** if something goes wrong.
 
 ### PSDictNext
 
-In: utils.h, line: 107
+In: utils.h, line: 108
 
 ```c
 PSDictItem  * PSDictNext (PSDictIterator *iterator)
@@ -864,7 +864,7 @@ The next item ([PSDictItem](types.md#psdictitem)) or **NULL** if there are no mo
 
 ### PSDictRemove
 
-In: utils.h, line: 103
+In: utils.h, line: 104
 
 ```c
 void PSDictRemove (PSDict *dict, const char *key)
@@ -875,7 +875,7 @@ Remove item associated to [key](types.md#psdictitem) from dictionary [dict](type
 
 ### PSDictSet
 
-In: utils.h, line: 101
+In: utils.h, line: 102
 
 ```c
 PSDictItem  * PSDictSet (PSDict *dict, const char *key, PSDictValue val)
@@ -891,7 +891,7 @@ The item ([PSDictItem](types.md#psdictitem)) associated to the [key](types.md#ps
 
 ### PSDisableAcceleration
 
-In: config.h, line: 60
+In: config.h, line: 77
 
 ```c
 void PSDisableAcceleration (uint16_t *config, PSAcceleration acceleration)
@@ -1081,7 +1081,7 @@ See [PSDot](functions.md#psdot).
 
 ### PSDownloadFile
 
-In: utils.h, line: 137
+In: utils.h, line: 138
 
 ```c
 int PSDownloadFile (const char *url, const char *dest_dir)
@@ -1099,7 +1099,7 @@ If those utilities are not found, download will fail.
 
 ### PSEnableAcceleration
 
-In: config.h, line: 59
+In: config.h, line: 76
 
 ```c
 int PSEnableAcceleration (uint16_t *config, PSAcceleration acceleration)
@@ -1132,7 +1132,7 @@ void PSErrNN (const char *tag, PSModel *model, PSLayer *layer, const char *forma
 
 ### PSFillWithBlank
 
-In: utils.h, line: 142
+In: utils.h, line: 143
 
 ```c
 void PSFillWithBlank (int line_length)
@@ -1143,7 +1143,7 @@ void PSFillWithBlank (int line_length)
 
 ### PSFindLayerMaxState
 
-In: psyc.h, line: 430
+In: psyc.h, line: 432
 
 ```c
 int PSFindLayerMaxState (PSLayer *layer, PSFloat *max_p, int *index_p, ...)
@@ -1181,7 +1181,7 @@ By setting **precision** to zero, the two numbers must be perfectly equal (no pr
 
 ### PSForward
 
-In: psyc.h, line: 441
+In: psyc.h, line: 443
 
 ```c
 int PSForward (PSModel *model, PSFloat *inputs)
@@ -1228,13 +1228,13 @@ The random float number.
 In: activation.h, line: 46
 
 ```c
-void PSGelu (PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts)
+void PSGelu (PSFloat *vec, PSFloat *dest, uint64_t len, int acceleration)
 ```
 
 GELU (Gaussian Error Linear Units) activation function for vectors.  
 GELU is computed on vector **vec** of length **len** and stored into vector **dest**.  
 If **dest** is **NULL**, results will be stored into **vec** itself.  
-The **opts** argument can be used to change default acceleration used to compute results (see [PSMathOpts](types.md#psmathopts)).  
+For the [acceleration](types.md#psmathopts) argument, take a look at [PSAcceleration](types.md#psacceleration).  
 For info about GeLU:  
   [https://arxiv.org/abs/1606.08415](https://arxiv.org/abs/1606.08415)  
 The equivalent function to be used with scalars is **PSGeLUS**.  
@@ -1246,13 +1246,13 @@ The derivative of this function is **PSGeLUDerivative**.
 In: activation.h, line: 53
 
 ```c
-void PSGeluDerivative (PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts)
+void PSGeluDerivative (PSFloat *vec, PSFloat *dest, uint64_t len, int acceleration)
 ```
 
 Computes the derivative of GELU activation function ([PSGelu](functions.md#psgelu)) for vectors.  
 The derivative is computed on vector **vec** of length **len** and stored into vector **dest**.  
 If **dest** is **NULL**, results will be stored into **vec** itself.  
-The **opts** argument can be used to change default acceleration used to compute results (see [PSMathOpts](types.md#psmathopts)).  
+For the [acceleration](types.md#psmathopts) argument, take a look at [PSAcceleration](types.md#psacceleration).  
 The equivalent function to be used with scalars is [PSGeluDerivativeS](functions.md#psgeluderivatives).
 
 
@@ -1318,7 +1318,7 @@ void PSGemv (PSBLASOrder order, char trans, int m, int n, PSFloat alpha, PSFloat
 
 ### PSGetAccelerationName
 
-In: config.h, line: 61
+In: config.h, line: 78
 
 ```c
 const char  * PSGetAccelerationName (PSAcceleration acceleration)
@@ -1395,7 +1395,7 @@ const char  * PSGetAttentionTypeLabel (PSAttentionType type)
 
 ### PSGetCodeOptimizationLevel
 
-In: config.h, line: 62
+In: config.h, line: 79
 
 ```c
 int PSGetCodeOptimizationLevel (void)
@@ -1429,7 +1429,7 @@ PSLayer  * PSGetDropoutLayer (PSLayer *parent_layer)
 
 ### PSGetElapsedTimeString
 
-In: utils.h, line: 143
+In: utils.h, line: 144
 
 ```c
 char  * PSGetElapsedTimeString (time_t elapsed_us, int long_format)
@@ -1451,7 +1451,7 @@ int PSGetEmbeddingVocabularySize (PSLayer *layer)
 
 ### PSGetFirstRecurrentLayer
 
-In: psyc.h, line: 467
+In: psyc.h, line: 469
 
 ```c
 PSLayer  * PSGetFirstRecurrentLayer (PSModel *model)
@@ -1473,7 +1473,7 @@ PSGRUCell  * PSGetGRUCell (PSLayer *layer)
 
 ### PSGetHomeDirectory
 
-In: utils.h, line: 125
+In: utils.h, line: 126
 
 ```c
 const char  * PSGetHomeDirectory (void)
@@ -1484,7 +1484,7 @@ Returns user HOME directory.
 
 ### PSGetLabelForType
 
-In: psyc.h, line: 463
+In: psyc.h, line: 465
 
 ```c
 char  * PSGetLabelForType (PSLayerType type)
@@ -1495,7 +1495,7 @@ char  * PSGetLabelForType (PSLayerType type)
 
 ### PSGetLastRecurrentLayer
 
-In: psyc.h, line: 468
+In: psyc.h, line: 470
 
 ```c
 PSLayer  * PSGetLastRecurrentLayer (PSModel *model)
@@ -1506,7 +1506,7 @@ PSLayer  * PSGetLastRecurrentLayer (PSModel *model)
 
 ### PSGetLayerByIndex
 
-In: psyc.h, line: 416
+In: psyc.h, line: 418
 
 ```c
 PSLayer  * PSGetLayerByIndex (PSModel *model, int layer_index, int model_index)
@@ -1529,7 +1529,7 @@ The layer at specified index/indices or **NULL** if:
 
 ### PSGetLayerInputSize
 
-In: psyc.h, line: 417
+In: psyc.h, line: 419
 
 ```c
 int PSGetLayerInputSize (PSLayer *layer)
@@ -1549,7 +1549,7 @@ The input size of [layer](types.md#psmodellink) or zero if:
 
 ### PSGetLayerInputWeightsCount
 
-In: psyc.h, line: 418
+In: psyc.h, line: 420
 
 ```c
 uint64_t PSGetLayerInputWeightsCount (PSLayer *layer, int per_neuron)
@@ -1560,7 +1560,7 @@ uint64_t PSGetLayerInputWeightsCount (PSLayer *layer, int per_neuron)
 
 ### PSGetLayerParametersCount
 
-In: psyc.h, line: 412
+In: psyc.h, line: 414
 
 ```c
 uint64_t PSGetLayerParametersCount (PSLayer *layer, int param_type)
@@ -1571,7 +1571,7 @@ uint64_t PSGetLayerParametersCount (PSLayer *layer, int param_type)
 
 ### PSGetLayerTypeLabel
 
-In: psyc.h, line: 464
+In: psyc.h, line: 466
 
 ```c
 char  * PSGetLayerTypeLabel (PSLayer *layer)
@@ -1604,7 +1604,7 @@ int PSGetMaxLogLevel (void)
 
 ### PSGetModelAtIndex
 
-In: psyc.h, line: 392
+In: psyc.h, line: 394
 
 ```c
 PSModel  * PSGetModelAtIndex (PSModel *entrypoint, int index)
@@ -1629,7 +1629,7 @@ The model or **NULL** if:
 
 ### PSGetNeuron
 
-In: psyc.h, line: 434
+In: psyc.h, line: 436
 
 ```c
 PSNeuron  * PSGetNeuron (PSLayer *layer, int index, PSNeuron *neuron)
@@ -1651,7 +1651,7 @@ char  * PSGetNeuronDebugID (PSNeuron *neuron, PSLayer *layer)
 
 ### PSGetNeuronInputWeights
 
-In: psyc.h, line: 435
+In: psyc.h, line: 437
 
 ```c
 PSFloat  * PSGetNeuronInputWeights (PSNeuron *neuron)
@@ -1662,7 +1662,7 @@ PSFloat  * PSGetNeuronInputWeights (PSNeuron *neuron)
 
 ### PSGetNeuronState
 
-In: psyc.h, line: 436
+In: psyc.h, line: 438
 
 ```c
 PSFloat PSGetNeuronState (PSNeuron *neuron, ...)
@@ -1673,7 +1673,7 @@ PSFloat PSGetNeuronState (PSNeuron *neuron, ...)
 
 ### PSGetNextLayer
 
-In: psyc.h, line: 414
+In: psyc.h, line: 416
 
 ```c
 PSLayer  * PSGetNextLayer (PSLayer *layer)
@@ -1684,7 +1684,7 @@ PSLayer  * PSGetNextLayer (PSLayer *layer)
 
 ### PSGetOneHotLayerVectorSize
 
-In: psyc.h, line: 411
+In: psyc.h, line: 413
 
 ```c
 int PSGetOneHotLayerVectorSize (PSLayer *layer)
@@ -1728,7 +1728,7 @@ const char  * PSGetOperatorLayerTypeLabel (PSOperatorType operator)
 
 ### PSGetOutputLayer
 
-In: psyc.h, line: 415
+In: psyc.h, line: 417
 
 ```c
 PSLayer  * PSGetOutputLayer (PSModel *model)
@@ -1780,7 +1780,7 @@ int PSGetPositionalEncodingLength (PSLayer *layer)
 
 ### PSGetPreviousLayer
 
-In: psyc.h, line: 413
+In: psyc.h, line: 415
 
 ```c
 PSLayer  * PSGetPreviousLayer (PSLayer *layer)
@@ -1813,7 +1813,7 @@ PSFloat  * PSGetRecurrentNeuronHiddenWeights (PSNeuron *neuron)
 
 ### PSGetState
 
-In: psyc.h, line: 424
+In: psyc.h, line: 426
 
 ```c
 PSFloat PSGetState (PSLayer *layer, int index, ...)
@@ -1824,7 +1824,7 @@ PSFloat PSGetState (PSLayer *layer, int index, ...)
 
 ### PSGetTerminalColumns
 
-In: utils.h, line: 141
+In: utils.h, line: 142
 
 ```c
 int PSGetTerminalColumns (void)
@@ -1835,7 +1835,7 @@ int PSGetTerminalColumns (void)
 
 ### PSHandleSignals
 
-In: psyc.h, line: 483
+In: psyc.h, line: 485
 
 ```c
 void PSHandleSignals (PSSignalHandler shutdown_handler)
@@ -1857,7 +1857,7 @@ void PSInfo (const char *format, ...)
 
 ### PSIsAccelerationAvailable
 
-In: config.h, line: 57
+In: config.h, line: 74
 
 ```c
 int PSIsAccelerationAvailable (PSAcceleration acceleration)
@@ -1868,7 +1868,7 @@ int PSIsAccelerationAvailable (PSAcceleration acceleration)
 
 ### PSIsAccelerationEnabled
 
-In: config.h, line: 58
+In: config.h, line: 75
 
 ```c
 int PSIsAccelerationEnabled (uint16_t config, PSAcceleration acceleration)
@@ -1890,7 +1890,7 @@ int PSIsCausalAttention (PSLayer *layer)
 
 ### PSIsDirectory
 
-In: utils.h, line: 124
+In: utils.h, line: 125
 
 ```c
 int PSIsDirectory (const char *path)
@@ -1923,7 +1923,7 @@ int PSIsXTermColor256 (int always_check)
 
 ### PSIterateLossFunctions
 
-In: psyc.h, line: 484
+In: psyc.h, line: 486
 
 ```c
 size_t PSIterateLossFunctions ( *callback)
@@ -1934,7 +1934,7 @@ size_t PSIterateLossFunctions ( *callback)
 
 ### PSLayerFree
 
-In: psyc.h, line: 431
+In: psyc.h, line: 433
 
 ```c
 void PSLayerFree (PSLayer *layer)
@@ -1948,7 +1948,7 @@ Free memory allocated for [layer](types.md#psmodellink) and all of its objects (
 
 ### PSLayerLoad
 
-In: psyc.h, line: 404
+In: psyc.h, line: 406
 
 ```c
 int PSLayerLoad (PSLayer *layer, const char *filepath)
@@ -1959,7 +1959,7 @@ int PSLayerLoad (PSLayer *layer, const char *filepath)
 
 ### PSLayerOutputs
 
-In: psyc.h, line: 426
+In: psyc.h, line: 428
 
 ```c
 PSFloat  * PSLayerOutputs (PSLayer *layer)
@@ -1978,7 +1978,7 @@ The output values of [layer](types.md#psmodellink) or **NULL** if:
 
 ### PSLayerSave
 
-In: psyc.h, line: 405
+In: psyc.h, line: 407
 
 ```c
 int PSLayerSave (PSLayer *layer, const char *filepath, int opts)
@@ -2003,7 +2003,7 @@ Possible failure reasons:
 
 ### PSLayerStates
 
-In: psyc.h, line: 425
+In: psyc.h, line: 427
 
 ```c
 PSFloat  * PSLayerStates (PSLayer *layer, ...)
@@ -2229,7 +2229,7 @@ Possibile errors:
 
 ### PSLoadModel
 
-In: psyc.h, line: 400
+In: psyc.h, line: 402
 
 ```c
 PSModel  * PSLoadModel (const char* filename)
@@ -2292,7 +2292,7 @@ int PSLRegularization (PSFloat l1, PSFloat l2, PSFloat *weights, PSFloat *wgradi
 
 ### PSMakeDir
 
-In: utils.h, line: 126
+In: utils.h, line: 127
 
 ```c
 int PSMakeDir (const char *path, int recursive)
@@ -3222,7 +3222,7 @@ The mean value of vector **a** values or zero if **a** is **NULL**.
 
 ### PSModelBuild
 
-In: psyc.h, line: 387
+In: psyc.h, line: 389
 
 ```c
 int PSModelBuild (PSModel *model)
@@ -3263,7 +3263,7 @@ The function will check the model's architecture and it will perfrom various act
 
 ### PSModelChainContains
 
-In: psyc.h, line: 395
+In: psyc.h, line: 397
 
 ```c
 int PSModelChainContains (PSModel *chain, PSModel *model)
@@ -3285,7 +3285,7 @@ Check whether [model](types.md#pslayer) is contained by the multi-model chain **
 
 ### PSModelChainHead
 
-In: psyc.h, line: 393
+In: psyc.h, line: 395
 
 ```c
 PSModel  * PSModelChainHead (PSModel *model)
@@ -3310,7 +3310,7 @@ The first model of the chain or **NULL** if:
 
 ### PSModelChainLength
 
-In: psyc.h, line: 391
+In: psyc.h, line: 393
 
 ```c
 int PSModelChainLength (PSModel *model)
@@ -3334,7 +3334,7 @@ The number of models or:
 
 ### PSModelChainTail
 
-In: psyc.h, line: 394
+In: psyc.h, line: 396
 
 ```c
 PSModel  * PSModelChainTail (PSModel *model)
@@ -3359,7 +3359,7 @@ The last model of the chain or **NULL** if:
 
 ### PSModelCheck
 
-In: psyc.h, line: 389
+In: psyc.h, line: 391
 
 ```c
 int PSModelCheck (PSModel *model)
@@ -3370,7 +3370,7 @@ int PSModelCheck (PSModel *model)
 
 ### PSModelClone
 
-In: psyc.h, line: 380
+In: psyc.h, line: 382
 
 ```c
 PSModel  * PSModelClone (PSModel *model, int layout_only)
@@ -3381,7 +3381,7 @@ PSModel  * PSModelClone (PSModel *model, int layout_only)
 
 ### PSModelCreate
 
-In: psyc.h, line: 379
+In: psyc.h, line: 381
 
 ```c
 PSModel  * PSModelCreate (const char* name)
@@ -3399,7 +3399,7 @@ Pointer to the created model or **NULL** if memory could not be allocated for it
 
 ### PSModelDumpDeltas
 
-In: psyc.h, line: 397
+In: psyc.h, line: 399
 
 ```c
 int PSModelDumpDeltas (PSModel *model, const char* filename)
@@ -3410,7 +3410,7 @@ int PSModelDumpDeltas (PSModel *model, const char* filename)
 
 ### PSModelDumpStates
 
-In: psyc.h, line: 396
+In: psyc.h, line: 398
 
 ```c
 int PSModelDumpStates (PSModel *model, const char* filename)
@@ -3421,7 +3421,7 @@ int PSModelDumpStates (PSModel *model, const char* filename)
 
 ### PSModelFree
 
-In: psyc.h, line: 398
+In: psyc.h, line: 400
 
 ```c
 void PSModelFree (PSModel *model)
@@ -3433,7 +3433,7 @@ The functions safely checks whether [model](types.md#pslayer) is **NULL** and it
 
 ### PSModelGetStatus
 
-In: psyc.h, line: 384
+In: psyc.h, line: 386
 
 ```c
 int PSModelGetStatus (PSModel *model)
@@ -3462,7 +3462,7 @@ The status of [model](types.md#pslayer) or 0 if [model](types.md#pslayer) is **N
 
 ### PSModelIsBuilt
 
-In: psyc.h, line: 386
+In: psyc.h, line: 388
 
 ```c
 int PSModelIsBuilt (PSModel *model)
@@ -3483,7 +3483,7 @@ Check whether [model](types.md#pslayer) is built (see: [PSModelBuild](functions.
 
 ### PSModelLoad
 
-In: psyc.h, line: 381
+In: psyc.h, line: 383
 
 ```c
 int PSModelLoad (PSModel *model, const char* filepath)
@@ -3515,7 +3515,7 @@ If the file defines a multi-model chain, the whole chain will be loaded ( in thi
 
 ### PSModelOutputs
 
-In: psyc.h, line: 427
+In: psyc.h, line: 429
 
 ```c
 PSFloat  * PSModelOutputs (PSModel *model)
@@ -3526,7 +3526,7 @@ Get the output values of the output (last) layer of [model](types.md#pslayer). T
 
 ### PSModelPrintInfo
 
-In: psyc.h, line: 390
+In: psyc.h, line: 392
 
 ```c
 void PSModelPrintInfo (PSModel *model)
@@ -3537,7 +3537,7 @@ void PSModelPrintInfo (PSModel *model)
 
 ### PSModelRebuild
 
-In: psyc.h, line: 388
+In: psyc.h, line: 390
 
 ```c
 int PSModelRebuild (PSModel *model)
@@ -3558,7 +3558,7 @@ See [PSModelBuild](functions.md#psmodelbuild).
 
 ### PSModelSave
 
-In: psyc.h, line: 382
+In: psyc.h, line: 384
 
 ```c
 int PSModelSave (PSModel *model, const char* filepath)
@@ -3585,7 +3585,7 @@ If [model](types.md#pslayer) is part of a multi-model chain, the whole chain wil
 
 ### PSModelSetName
 
-In: psyc.h, line: 383
+In: psyc.h, line: 385
 
 ```c
 int PSModelSetName (PSModel *model, char *name)
@@ -3607,7 +3607,7 @@ If [name](types.md#psmodel) is **NULL** and [model](types.md#pslayer) already ha
 
 ### PSModelSetStatus
 
-In: psyc.h, line: 385
+In: psyc.h, line: 387
 
 ```c
 void PSModelSetStatus (PSModel *model, int status, int *old)
@@ -3736,7 +3736,7 @@ void PSNotice (const char *format, ...)
 
 ### PSOneHotVector
 
-In: utils.h, line: 144
+In: utils.h, line: 145
 
 ```c
 PSFloat  * PSOneHotVector (uint64_t index, uint64_t len)
@@ -3770,7 +3770,7 @@ Aside from acceleration, **opts** can also be used to set the result storage mod
 
 ### PSPathJoin
 
-In: utils.h, line: 128
+In: utils.h, line: 129
 
 ```c
 char  * PSPathJoin (int count, ...)
@@ -3788,7 +3788,7 @@ String containing the joined path or **NULL** if something goes               wr
 
 ### PSPauseTraining
 
-In: psyc.h, line: 458
+In: psyc.h, line: 460
 
 ```c
 void PSPauseTraining (PSModel *model)
@@ -3810,7 +3810,7 @@ void PSPrint (int level, const char *format, ...)
 
 ### PSPrintableLength
 
-In: utils.h, line: 133
+In: utils.h, line: 134
 
 ```c
 int PSPrintableLength (const char *s)
@@ -3843,7 +3843,7 @@ int PSProgressBar (int num, int tot, int style, int color, int flags, int maxlen
 
 ### PSQuadraticLoss
 
-In: psyc.h, line: 472
+In: psyc.h, line: 474
 
 ```c
 PSFloat PSQuadraticLoss (PSFloat *x, PSFloat *y, int size, int onehot_size)
@@ -3877,13 +3877,13 @@ The random unsigned integer number.
 In: activation.h, line: 45
 
 ```c
-void PSRelu (PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts)
+void PSRelu (PSFloat *vec, PSFloat *dest, uint64_t len, int acceleration)
 ```
 
 ReLU (Rectified Linear Unit) activation function for vectors.  
 ReLU is computed on vector **vec** of length **len** and stored into vector **dest**.  
 If **dest** is **NULL**, results will be stored into **vec** itself.  
-The **opts** argument can be used to change default acceleration used to compute results (see [PSMathOpts](types.md#psmathopts)).  
+For the [acceleration](types.md#psmathopts) argument, take a look at [PSAcceleration](types.md#psacceleration).  
 For info about ReLU:  
   [https://en.wikipedia.org/wiki/Rectifier_(neural_networks](https://en.wikipedia.org/wiki/Rectifier_(neural_networks))  
   
@@ -3896,13 +3896,13 @@ The derivative of this function is [PSReluDerivative](functions.md#psreluderivat
 In: activation.h, line: 51
 
 ```c
-void PSReluDerivative (PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts)
+void PSReluDerivative (PSFloat *vec, PSFloat *dest, uint64_t len, int acceleration)
 ```
 
 Computes the derivative of ReLU activation function ([PSRelu](functions.md#psrelu)) for vectors.  
 The derivative is computed on vector **vec** of length **len** and stored into vector **dest**.  
 If **dest** is **NULL**, results will be stored into **vec** itself.  
-The **opts** argument can be used to change default acceleration used to compute results (see [PSMathOpts](types.md#psmathopts)).  
+For the [acceleration](types.md#psmathopts) argument, take a look at [PSAcceleration](types.md#psacceleration).  
 The equivalent function to be used with scalars is [PSReluDerivativeS](functions.md#psreluderivatives).
 
 
@@ -3957,7 +3957,7 @@ void PSResetDebugInfo (void)
 
 ### PSResetLayerStateSequence
 
-In: psyc.h, line: 420
+In: psyc.h, line: 422
 
 ```c
 int PSResetLayerStateSequence (PSLayer *layer, uint32_t steps, int retain_previous)
@@ -3968,7 +3968,7 @@ int PSResetLayerStateSequence (PSLayer *layer, uint32_t steps, int retain_previo
 
 ### PSResetModelStateSequences
 
-In: psyc.h, line: 422
+In: psyc.h, line: 424
 
 ```c
 int PSResetModelStateSequences (PSModel *model, uint32_t steps, int retain_previous)
@@ -3979,7 +3979,7 @@ int PSResetModelStateSequences (PSModel *model, uint32_t steps, int retain_previ
 
 ### PSResetTransposedWeights
 
-In: psyc.h, line: 399
+In: psyc.h, line: 401
 
 ```c
 void PSResetTransposedWeights (PSModel *model)
@@ -4036,7 +4036,7 @@ int PSSetAttentionQueryProvider (PSLayer *layer, PSLayer *provider)
 
 ### PSSetDefaultTrainingOptions
 
-In: psyc.h, line: 465
+In: psyc.h, line: 467
 
 ```c
 void PSSetDefaultTrainingOptions (PSTrainingOptions *options)
@@ -4058,7 +4058,7 @@ void PSSetDropout (PSLayer *dropout_layer, PSFloat dropout)
 
 ### PSSetNeuronState
 
-In: psyc.h, line: 437
+In: psyc.h, line: 439
 
 ```c
 int PSSetNeuronState (PSNeuron *neuron, double state, ...)
@@ -4069,7 +4069,7 @@ int PSSetNeuronState (PSNeuron *neuron, double state, ...)
 
 ### PSSetRecurrentNetworkMode
 
-In: psyc.h, line: 466
+In: psyc.h, line: 468
 
 ```c
 int PSSetRecurrentNetworkMode (PSModel *model, PSRecurrentNetworkMode mode)
@@ -4080,7 +4080,7 @@ int PSSetRecurrentNetworkMode (PSModel *model, PSRecurrentNetworkMode mode)
 
 ### PSSetState
 
-In: psyc.h, line: 428
+In: psyc.h, line: 430
 
 ```c
 int PSSetState (PSLayer *layer, PSFloat state, int index, ...)
@@ -4094,11 +4094,11 @@ int PSSetState (PSLayer *layer, PSFloat state, int index, ...)
 In: activation.h, line: 42
 
 ```c
-void PSSigmoid (PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts)
+void PSSigmoid (PSFloat *vec, PSFloat *dest, uint64_t len, int acceleration)
 ```
 
 Sigmoid activation function for vectors. Sigmoid is computed on vector **vec** of length **len** and stored into vector **dest**. If **dest** is **NULL**, results will be stored into **vec** itself.  
-The **opts** argument can be used to change default acceleration used to compute results (see [PSMathOpts](types.md#psmathopts)).  
+For the [acceleration](types.md#psmathopts) argument, take a look at [PSAcceleration](types.md#psacceleration).  
 For info about sigmoid:  
   [https://en.wikipedia.org/wiki/Sigmoid_function](https://en.wikipedia.org/wiki/Sigmoid_function)  
 The equivalent function to be used with scalars is [PSSigmoidS](functions.md#pssigmoids).  
@@ -4110,11 +4110,11 @@ The derivative of this function is [PSSigmoidDerivative](functions.md#pssigmoidd
 In: activation.h, line: 47
 
 ```c
-void PSSigmoidDerivative (PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts)
+void PSSigmoidDerivative (PSFloat *vec, PSFloat *dest, uint64_t len, int acceleration)
 ```
 
 Computes the derivative of sigmoid activation function ([PSSigmoid](functions.md#pssigmoid)) for vectors. The sigmoid derivative is computed on vector **vec** of length **len** and stored into vector **dest**. If **dest** is **NULL**, results will be stored into **vec** itself.  
-The **opts** argument can be used to change default acceleration used to compute results (see [PSMathOpts](types.md#psmathopts)).  
+For the [acceleration](types.md#psmathopts) argument, take a look at [PSAcceleration](types.md#psacceleration).  
 The equivalent function to be used with scalars is [PSSigmoidDerivativeS](functions.md#pssigmoidderivatives).
 
 
@@ -4161,11 +4161,11 @@ Sigmoid scalar result.
 In: activation.h, line: 55
 
 ```c
-void PSSoftmax (PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts)
+void PSSoftmax (PSFloat *vec, PSFloat *dest, uint64_t len, int acceleration)
 ```
 
 Computes Softmax function on vector **vec** of length **len**. Result is stored into vector **dest**. If **dest** is **NULL**, result will be stored into **vec** itself.  
-The **opts** argument can be used to change default acceleration used to compute results (see [PSMathOpts](types.md#psmathopts)).  
+For the [acceleration](types.md#psmathopts) argument, take a look at [PSAcceleration](types.md#psacceleration).  
 The Softmax function can be used to get the probability distribution from a series of numbers.  
 For more info about Softmax:  
     [https://en.wikipedia.org/wiki/Softmax_function](https://en.wikipedia.org/wiki/Softmax_function)
@@ -4173,7 +4173,7 @@ For more info about Softmax:
 
 ### PSStateSequenceLength
 
-In: psyc.h, line: 429
+In: psyc.h, line: 431
 
 ```c
 int PSStateSequenceLength (PSLayer *layer)
@@ -4202,7 +4202,7 @@ The variance of vector **a** values or zero if **a** is **NULL**.
 
 ### PSStringJoin
 
-In: utils.h, line: 132
+In: utils.h, line: 133
 
 ```c
 char  * PSStringJoin (char ** strings, char *sep, int len)
@@ -4297,12 +4297,12 @@ The function returns **NULL** if **dest** is **NULL** but the destination vector
 In: activation.h, line: 43
 
 ```c
-void PSTanhActivation (PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts)
+void PSTanhActivation (PSFloat *vec, PSFloat *dest, uint64_t len, int acceleration)
 ```
 
 Tanh (hyperbolic tangent) activation function for vectors. Hyperbolic tangent is computed on vector **vec** of length **len** and stored into vector **dest**.  
 If **dest** is **NULL**, results will be stored into **vec** itself.  
-The **opts** argument can be used to change default acceleration used to compute results (see [PSMathOpts](types.md#psmathopts)).  
+For the [acceleration](types.md#psmathopts) argument, take a look at [PSAcceleration](types.md#psacceleration).  
 The derivative of this function is [PSTanhDerivative](functions.md#pstanhderivative).
 
 
@@ -4311,12 +4311,12 @@ The derivative of this function is [PSTanhDerivative](functions.md#pstanhderivat
 In: activation.h, line: 49
 
 ```c
-void PSTanhDerivative (PSFloat *vec, PSFloat *dest, uint64_t len, PSMathOpts *opts)
+void PSTanhDerivative (PSFloat *vec, PSFloat *dest, uint64_t len, int acceleration)
 ```
 
 Computes the derivative of tanh (hyperbolic tangent) activation function ([PSTanhActivation](functions.md#pstanhactivation)) for vectors. The derivative is computed on vector **vec** of length **len** and stored into vector **dest**.  
 If **dest** is **NULL**, results will be stored into **vec** itself.  
-The **opts** argument can be used to change default acceleration used to compute results (see [PSMathOpts](types.md#psmathopts)).  
+For the [acceleration](types.md#psmathopts) argument, take a look at [PSAcceleration](types.md#psacceleration).  
 The equivalent function to be used with scalars is [PSTanhDerivativeS](functions.md#pstanhderivatives).
 
 
@@ -4333,7 +4333,7 @@ PSFloat PSTanhDerivativeS (PSFloat val)
 
 ### PSTest
 
-In: psyc.h, line: 460
+In: psyc.h, line: 462
 
 ```c
 float PSTest (PSModel *model, PSFloat *test_data, int data_size, PSFloat *loss, PSTrainingOptions *options)
@@ -4355,7 +4355,7 @@ The accuracy of the predictions, where 1.0 means that all predictions were corre
 
 ### PSTrain
 
-In: psyc.h, line: 452
+In: psyc.h, line: 454
 
 ```c
 void PSTrain (PSModel *model, PSFloat *training_data, int data_size, PSFloat *test_data, int test_size, PSTrainingOptions *options)
@@ -4435,7 +4435,7 @@ void PSTrainingDebugDumpStep (PSDebugStepInfo *info, char *format, ...)
 
 ### PSTrainingProgressBar
 
-In: psyc.h, line: 476
+In: psyc.h, line: 478
 
 ```c
 void PSTrainingProgressBar (PSModel *model, int status, int epochs, int batches, PSFloat *loss, float *accuracy, PSFloat *test_loss, float *test_accuracy, time_t *elapsed)
@@ -5280,7 +5280,7 @@ int PSWindowGradOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, 
 
 ### PSWorkingDirectory
 
-In: utils.h, line: 127
+In: utils.h, line: 128
 
 ```c
 const char  * PSWorkingDirectory (void)
