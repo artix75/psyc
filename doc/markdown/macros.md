@@ -102,7 +102,7 @@ In: utils.h, line: 58
 
 ### PS_CIFAR_IMAGE_SIZE
 
-In: dataset.h, line: 255
+In: dataset.h, line: 252
 
 ```c
 #define PS_CIFAR_IMAGE_SIZE (32 * 32 * 3)
@@ -803,7 +803,7 @@ In: psyc.h, line: 50
 
 ### PS_MNIST_INPUT_SIZE
 
-In: dataset.h, line: 249
+In: dataset.h, line: 246
 
 ```c
 #define PS_MNIST_INPUT_SIZE (28 * 28)
@@ -990,7 +990,7 @@ In: dataset.h, line: 91
 #define PS_PARSER_FLAG_MAKE_TARGETS (1 << 6)
 ```
 
-Let text parsing functions (ie. PSLoadDataFromString) also generate the target sequence for every input sequence.
+Let text parsing functions (ie. PSDataFromText) also generate the target sequence for every input sequence.
 
 
 ### PS_PARSER_FLAG_NO_NORMALIZATION

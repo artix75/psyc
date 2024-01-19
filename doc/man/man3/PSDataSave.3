@@ -13,10 +13,10 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSSaveDataToFile 3 2024-01-03 "PsyC 0.9.4" "PsyC Library Functions Manual"
+.TH PSDataSave 3 2024-01-19 "PsyC 0.9.4" "PsyC Library Functions Manual"
 
 .SH NAME
-\fBPSSaveDataToFile\fR \- Save dataset to file
+\fBPSDataSave\fR
 
 .SH LIBRARY
 PsyC (-lpsyc)
@@ -29,7 +29,7 @@ PsyC (-lpsyc)
 .I
 int  
 .br
-\fBPSSaveDataToFile\fR(\fIconst char *path\fR, \fIPSFloat *data\fR, \fIuint64_t len\fR, \fIint opts\fR)
+\fBPSDataSave\fR(\fIconst char *path\fR, \fIPSFloat *data\fR, \fIuint64_t len\fR, \fIint opts\fR)
 .SH DESCRIPTION
 Save dataset \fIdata\fR to the file located at \fIpath\fR. The dataset must be an array of PSFloat elements whose length (number of elements) defined by argument \fIlen\fR.
 .br

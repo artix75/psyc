@@ -924,7 +924,7 @@ Options for text parsing:
  - [max_vocabulary_size](types.md#pstextparseroptions): maximum number of tokens that can be added to the vocabulary, except for the <unknown> token. Every new parsed token will be automatically converted to the <unknown> token (see the [unknown_token](types.md#pstextparseroptions) option). If the value of this option is zero, the default value will be [PS_DEFAULT_MAX_VOCAB_SIZE](macros.md#ps-default-max-vocab-size).
  - [separator](types.md#pstextparseroptions): a set of characters that should be used as separators to split string into individual tokens (ie: ".," would split by using both '.' and ',' as separators).
  - [unknown_token](types.md#pstextparseroptions): string to be used for unmatched tokens.
- - [capacity](types.md#psvocabulary): initial capacity of vocabularies allocated by parsing functions (ie. [PSLoadDataFromString](functions.md#psloaddatafromstring)).
+ - [capacity](types.md#psvocabulary): initial capacity of vocabularies allocated by parsing functions (ie. [PSDataFromText](functions.md#psdatafromtext)).
  - [buffer_size](types.md#pstextparseroptions): parsing buffer size.
  - [normalizer](types.md#pstextparseroptions): pointer to function to be used to normalize tokens (see **PSTokenNormalizer**)
  - [match_token](types.md#pstextparseroptions): pointer to function to be used to match individual tokens (it usually overrides the usage of [separator](types.md#pstextparseroptions) to split string).
