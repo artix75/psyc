@@ -86,7 +86,7 @@
  *    member of `PSTextParserOptions`, by default `PS_DEFAULT_END_TOKEN` is
  *    used. */
 #define PS_PARSER_FLAG_END_TOKEN        (1 << 5)
-/* Let text parsing functions (ie. PSLoadDataFromString) also generate the
+/* Let text parsing functions (ie. PSDataFromText) also generate the
  * target sequence for every input sequence. */
 #define PS_PARSER_FLAG_MAKE_TARGETS     (1 << 6)
 /* When the dataset has target sequences whose length can differ from the
@@ -107,7 +107,7 @@
 typedef char *(*PSTokenNormalizer) (char *token, int len);
 
 /* Pointer to a function that can be used by parsing functions (ie.
- * `PSLoadDataFromString`) to match the token `token`.
+ * `PSDataFromText`) to match the token `token`.
  * The length of the matched token must be stored into address pointed by
  * `len`.
  * Return value: 1 if token has been matched, 0 if no token has been matched.
@@ -147,7 +147,7 @@ struct PSVocabulary;
  *                 by using both '.' and ',' as separators).
  *  - `unknown_token`: string to be used for unmatched tokens.
  *  - `capacity`: initial capacity of vocabularies allocated by parsing
- *                functions (ie. `PSLoadDataFromString`).
+ *                functions (ie. `PSDataFromText`).
  *  - `buffer_size`: parsing buffer size.
  *  - `normalizer`: pointer to function to be used to normalize tokens
  *                  (see `PSTokenNormalizer`)
@@ -226,19 +226,16 @@ const char *PSVocabularyErrorString(int err);
 void PSVocabularyFree(PSVocabulary *vocabulary);
 
 char *PSNormalizeToken(char *token, int len);
-PSFloat *PSLoadDataFromString(char *str, PSTextParserOptions *opts,
-                              int64_t *datalen,
-                              PSVocabulary **vocabulary);
-PSFloat *PSLoadDataFromTextFile(const char *filepath,
-                                PSTextParserOptions *opts,
-                                int64_t *datalen,
-                                PSVocabulary **vocabulary);
+PSFloat *PSDataFromText(char *str, PSTextParserOptions *opts, int64_t *datalen,
+                        PSVocabulary **vocabulary);
+PSFloat *PSDataFromTextFile(const char *filepath, PSTextParserOptions *opts,
+                            int64_t *datalen, PSVocabulary **vocabulary);
 
 /* Generic datasets */
 
 
-PSFloat *PSLoadDataFromFile(const char *filepath, uint64_t *datalen);
-int PSSaveDataToFile(const char *path, PSFloat *data, uint64_t len, int opts);
+PSFloat *PSDataLoad(const char *filepath, uint64_t *datalen);
+int PSDataSave(const char *path, PSFloat *data, uint64_t len, int opts);
 int PSDataSplit(PSFloat *data, uint64_t datalen, float percentage,
                 int input_size, int target_size,
                 PSFloat **left, PSFloat **right,

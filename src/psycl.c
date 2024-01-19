@@ -709,7 +709,7 @@ static int loadData(int data_type, int argc, char **argv, int *arg_idx) {
         }
         uint64_t dlen = 0;
         printf("Loading %s dataset from file: '%s'\n", descr, argv[i]);
-        *data = PSLoadDataFromFile(argv[i], &dlen);
+        *data = PSDataLoad(argv[i], &dlen);
         *len = (int) dlen;
         if (*data == NULL || datalen == 0) {
             PSErr(NULL, "could not load dataset at '%s'", argv[i]);

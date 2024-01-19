@@ -1304,9 +1304,8 @@ final:
  *     flag is set into `opts`.
  * Return value: the dataset (`PSFloat` array) or NULL is something goes
  * wrong. */
-PSFloat *PSLoadDataFromString(char *str, PSTextParserOptions *opts,
-                              int64_t *datalen,
-                              PSVocabulary **vocabulary)
+PSFloat *PSDataFromText(char *str, PSTextParserOptions *opts, int64_t *datalen,
+                        PSVocabulary **vocabulary)
 {
     PSDataSequenceState state = {0};
     PSFloat *data = loadDatasetFromString(
@@ -1322,13 +1321,11 @@ PSFloat *PSLoadDataFromString(char *str, PSTextParserOptions *opts,
 
 /* Load a dataset (an array of PSFloat numbers) from the text file found at
  * `filepath`.
- * For parsing options and other arguments, see `PSLoadDataFromString`.
+ * For parsing options and other arguments, see `PSDataFromText`.
  * Return value: the dataset (`PSFloat` array) or NULL is something goes
  * wrong. */
-PSFloat *PSLoadDataFromTextFile(const char *filepath,
-                                PSTextParserOptions *opts,
-                                int64_t *datalen,
-                                PSVocabulary **vocabulary)
+PSFloat *PSDataFromTextFile(const char *filepath, PSTextParserOptions *opts,
+                            int64_t *datalen, PSVocabulary **vocabulary)
 {
     static PSTextParserOptions default_opts = {0};
     FILE *file = NULL;
@@ -1472,7 +1469,7 @@ fail:
  *  - File is not found at `filepath`.
  *  - File at `filepath` cannot be opened or read.
  *  - Dataset cannot be allocated into memory. */
-PSFloat *PSLoadDataFromFile(const char *filepath, uint64_t *datalen) {
+PSFloat *PSDataLoad(const char *filepath, uint64_t *datalen) {
     FILE *file = NULL;
     PSFloat *data = NULL;
     if (filepath == NULL) {
@@ -1544,7 +1541,7 @@ fail:
  *  - Mandatory arguments `path` or `data` are NULL.
  *  - File at `path` cannot be opened for writing.
  *  - Some error occurs while writing to the file.  */
-int PSSaveDataToFile(const char *path, PSFloat *data, uint64_t len, int opts) {
+int PSDataSave(const char *path, PSFloat *data, uint64_t len, int opts) {
     FILE *file = NULL;
     int success = (path != NULL);
     if (!success) {

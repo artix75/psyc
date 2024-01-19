@@ -63,6 +63,12 @@
 #define PSGetStates(layer, ...)             PSLayerStates(layer, __VA_ARGS__)
 #define PSGetOutputs(layer)                 PSLayerOutputs(layer)
 #define PSACFEnabled(acceleration)          PSACFEnabled(acceleration)
+#define PSLoadDataFromString(s,opts,len,vocab) \
+    PSDataFromText(s,opts,len,vocab)
+#define PSLoadDataFromTextFile(f,opts,len,vocab) \
+    PSDataFromTextFile(f,opts,len,vocab)
+#define PSLoadDataFromFile(filepath,len)    PSDataLoad(filepath,len)
+#define PSSaveDataToFile(path,data,len,opts) PSDataSave(path,data,len,opts)
 
 #define FLAG_LOG_COLORS                     PS_FLAG_LOG_COLORS
 #define DATA_TYPE_TRAINING                  PS_DATA_TYPE_TRAINING

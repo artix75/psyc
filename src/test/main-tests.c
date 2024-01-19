@@ -7656,7 +7656,7 @@ int testDatasetLoad(TestCase *tc, Test *test) {
     testAssert(PSFileExists(path), test);
     uint64_t datalen = 0,
              expected_len = (sizeof(expected_loaded_dataset)/sizeof(PSFloat));
-    PSFloat *data = PSLoadDataFromFile(path, &datalen);
+    PSFloat *data = PSDataLoad(path, &datalen);
     int success = (data != NULL);
     testAssertWithMessageOrGoto(
         success, final, test, "failed to load dataset", ""
@@ -7679,13 +7679,13 @@ int testDatasetSave(TestCase *tc, Test *test) {
     char tmpfile[PATH_MAX];
     getTmpFileName("tests-save-dataset", ".psdata", tmpfile);
     uint64_t len = (sizeof(expected_loaded_dataset)/sizeof(PSFloat));
-    int success = PSSaveDataToFile(tmpfile, expected_loaded_dataset, len, 0);
+    int success = PSDataSave(tmpfile, expected_loaded_dataset, len, 0);
     testAssertWithMessage(success, test, "could not save dataset", "");
     testAssertWithMessage(
         PSFileExists(tmpfile), test, "saved file not found", ""
     );
     uint64_t datalen = 0;
-    PSFloat *data = PSLoadDataFromFile(tmpfile, &datalen);
+    PSFloat *data = PSDataLoad(tmpfile, &datalen);
     success = (data != NULL);
     testAssertWithMessageOrGoto(
         success, final, test, "failed to load dataset", ""
@@ -7708,7 +7708,7 @@ int testDatasetSaveBinary(TestCase *tc, Test *test) {
     char tmpfile[PATH_MAX];
     getTmpFileName("tests-save-dataset-bin", ".psdata", tmpfile);
     uint64_t len = (sizeof(expected_loaded_dataset)/sizeof(PSFloat));
-    int success = PSSaveDataToFile(
+    int success = PSDataSave(
         tmpfile, expected_loaded_dataset, len, PS_IO_BINARY_MODE
     );
     testAssertWithMessage(success, test, "could not save binary dataset", "");
@@ -7716,7 +7716,7 @@ int testDatasetSaveBinary(TestCase *tc, Test *test) {
         PSFileExists(tmpfile), test, "saved file not found", ""
     );
     uint64_t datalen = 0;
-    PSFloat *data = PSLoadDataFromFile(tmpfile, &datalen);
+    PSFloat *data = PSDataLoad(tmpfile, &datalen);
     success = (data != NULL);
     testAssertWithMessageOrGoto(
         success, final, test, "failed to load binary dataset", ""
