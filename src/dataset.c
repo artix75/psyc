@@ -934,14 +934,15 @@ char *PSNormalizeToken(char *token, int len) {
  * The addresses of the resulting datasets will be stored into the `left`
  * and `right` arguments and their lengths (number of their respective elements)
  * will be stored into the `left_length` and `right_length` arguments.
- * NOTE: if `data` has no sequences and neither `PS_DATA_SHUFFLE` nor
- * `PS_DATA_EVENLY_SPREAD` flags is set, the function won't allocate the
- * resulting datasets, so `left` will contain the pointer to the original
- * address of `data` and `right` will contain the pointer to the first element
- * of `data` that will belong to the right dataset. This means that the right
- * dataset should **never be freed** by its own. In all the other cases,
- * memory for both the left and the right dataset will be allocated and must
- * be freed when not used anymore.
+ * NOTE: if `data` has no sequences and none of `PS_DATA_ALWAYS_ALLOC`,
+ * `PS_DATA_SHUFFLE` and `PS_DATA_EVENLY_SPREAD` flags are set, the function
+ * won't allocate the resulting datasets, unless `PS_DATA_ALWAYS_ALLOC`. In
+ * this case, `left` will contain the pointer to the original address of `data`
+ * and `right` will contain the pointer to the first element of `data` that
+ * will belong to the right dataset. This means that the right dataset should
+ * **never be freed** by its own. In all the other cases, memory for both the
+ * left and the right dataset will be allocated and must be freed when not
+ * used anymore.
  * Return value: 1 in case of success, 0 in case of failure.
  * Possible failure reasons:
  *  - at least one of `data`, `left`, `right`, `left_length` or `right_length`
@@ -1040,8 +1041,13 @@ int PSDataSplit(PSFloat *data, uint64_t datalen, float percentage,
             /* Trivial situation. */
             *left_length = llen_alloc;
             *right_length = rlen_alloc;
-            *left = data;
-            *right = data + llen_alloc;
+            if (opts & PS_DATA_ALWAYS_ALLOC) {
+                *left = PSVectorDup(data, llen_alloc);
+                *right = PSVectorDup(data + llen_alloc, rlen_alloc);
+            } else {
+                *left = data;
+                *right = data + llen_alloc;
+            }
             return 1;
         }
     } else {

@@ -31,6 +31,7 @@
 #define PS_DATA_EVENLY_SPREAD   (1 << 1)
 #define PS_DATA_SEQUENCES       PS_FLAG_USE_SEQUENCES
 #define PS_DATA_SEQ2SEQ         PS_TRAINING_FLAG_SEQ2SEQ
+#define PS_DATA_ALWAYS_ALLOC    (1 << 16)
 
 /*** Text processing ***/
 
