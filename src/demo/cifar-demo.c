@@ -44,13 +44,11 @@
 #define FILTER_SIZE 3
 #define PADDING 1
 #define POOL_SIZE 2
-#define TRAIN_DATASET_LEN 40000
-#define EVAL_DATASET_LEN 10000
+#define TRAIN_DATASET_EXAMPLES 50000
 #define RELU_ENABLED 1
 #define LEARNING_RATE 0.1
 #define MOMENTUM 0.9
 #define ADDITIONAL_LAYERS 2
-#define FC_PREOUTPUT_SIZE 20
 #define SOFTMAX_OUTPUT 1
 #define OPTIMIZATION PSAdaDeltaOptimization
 #define L1  0.0
@@ -274,7 +272,7 @@ int main(int argc, char** argv) {
     int vgg_blocks = VGG_BLOCKS;
     int testlen = 0;
     int datalen = 0;
-    int valdlen = 0;
+    int validlen = 0;
     int epochs = EPOCHS;
     int classes = 10, i;
     int use_relu = RELU_ENABLED;
@@ -282,8 +280,6 @@ int main(int argc, char** argv) {
     int additional_layers = ADDITIONAL_LAYERS;
     int batch_size = BATCH_SIZE;
     int filter_width = FILTER_SIZE;
-    int add_fully_connected = 0;
-    int fc_preoutput_size = FC_PREOUTPUT_SIZE;
     int softmax_output = SOFTMAX_OUTPUT;
     int disable_avx = 0;
     int disable_acf = 0;
@@ -408,18 +404,6 @@ int main(int argc, char** argv) {
             if (max_images < 0)  max_images = 0;
         } else if (strcmp("--training-accuracy", arg) == 0) {
             metrics |= PS_TRAINING_METRICS_ACCURACY;
-        } else if (strcmp("--add-fully-connected", arg) == 0) {
-            add_fully_connected = 1;
-            if ((i + 1) < argc && argv[i + 1][0] != '-') {
-                fc_preoutput_size = atoi(argv[++i]);
-                if (fc_preoutput_size < 10) {
-                    fprintf(
-                        stderr,
-                        "Last fully connected layer's size must be >= 10"
-                    );
-                    return 1;
-                }
-            }
         } else if (strcmp("--debug-dump-to", arg) == 0 && (i + 1) < argc) {
             debug_output_str = argv[++i];
             continue;
@@ -510,12 +494,8 @@ int main(int argc, char** argv) {
         }
     }
 
-    int train_dataset_len = TRAIN_DATASET_LEN;
-    int eval_dataset_len = EVAL_DATASET_LEN;
-    if (max_images) {
-        train_dataset_len = max_images;
-        eval_dataset_len = 0;
-    }
+    int train_num_examples = TRAIN_DATASET_EXAMPLES;
+    if (max_images) train_num_examples = max_images;
 
     if (dataset_path != NULL) {
         datalen = PSLoadCIFARData(PS_DATA_TYPE_TRAINING, classes, dataset_path,
@@ -667,38 +647,17 @@ int main(int argc, char** argv) {
                model->input_size, model->output_size);
         int num_examples = datalen / example_size;
         printf("Training examples (initial): %d\n", num_examples);
-        if (num_examples < train_dataset_len) {
+        if (num_examples < train_num_examples) {
             printf("Loaded dataset examples %d < %d\n", num_examples,
-                   TRAIN_DATASET_LEN);
+                   TRAIN_DATASET_EXAMPLES);
             if (training_data != NULL) free(training_data);
             if (test_data != NULL) free(test_data);
             PSModelFree(model);
             return 1;
-        } else {
-            int remaining = num_examples - train_dataset_len;
-            if (remaining < eval_dataset_len && eval_dataset_len > 0) {
-                printf("WARNING: eval. dataset cannot be > %d!\n", remaining);
-                eval_dataset_len = remaining;
-            }
-            if (remaining == 0) {
-                printf("WARNING: no dataset remained for evaluation!\n");
-                eval_dataset_len = remaining;
-            }
-            printf("Evaluation dataset length: %d\n", eval_dataset_len);
-            datalen = train_dataset_len * example_size;
-            if (eval_dataset_len == 0) validation_data = NULL;
-            else {
-                validation_data = training_data + datalen;
-                valdlen = eval_dataset_len * example_size;
-                int validation_example_count = valdlen / example_size;
-                num_examples = datalen / example_size;
-                printf("Evaluation examples: %d\n", validation_example_count);
-                printf("Training examples: %d\n", num_examples);
-            }
-            if (testlen > 0 && test_data != NULL) {
-                int test_example_count = testlen / example_size;
-                printf("Test examples: %d\n", test_example_count);
-            }
+        }
+        if (testlen > 0 && test_data != NULL) {
+            int test_example_count = testlen / example_size;
+            printf("Test examples: %d\n", test_example_count);
         }
     } else {
         int loaded = PSModelLoad(model, pretrained_file);
@@ -728,13 +687,18 @@ int main(int argc, char** argv) {
             .l1_decay = l1_decay,
             .l2_decay = l2_decay,
             .momentum = momentum,
+            .clip = clip,
             .debug_dump_to = debug_dump_to,
             .metrics = metrics,
         };
         if (optimization != PSSGDOptimization)
             train_opts.optimization = optimization;
         if (progbar) train_opts.printProgress = PSTrainingProgressBar;
-        PSTrain(model, training_data, datalen, validation_data, valdlen,
+        if (validation_data == NULL) {
+            validation_data = test_data;
+            validlen = testlen;
+        }
+        PSTrain(model, training_data, datalen, validation_data, validlen,
                 &train_opts);
     }
     if (model->status == PS_STATUS_ERROR) {
