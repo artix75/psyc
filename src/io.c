@@ -859,7 +859,7 @@ PSFloat *loadBinaryVector(const char *filepath, FILE *f, uint64_t *len) {
         );
         return 0;
     }
-    PSFloat *data = malloc((size_t) len * sizeof(PSFloat));
+    PSFloat *data = malloc((size_t) *len * sizeof(PSFloat));
     if (data == NULL) {
         PSPrintMemoryErrorMsg();
         return 0;
