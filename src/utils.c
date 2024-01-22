@@ -512,7 +512,6 @@ const char *PSWorkingDirectory(void) {
 #endif
     static char static_dir[PATH_MAX] = {0};
     static const char *dir = NULL;
-    static int no_home_dir = 0;
     if (dir == NULL) {
         dir = getenv("PS_WORKING_DIR");
         if (dir == NULL) dir = default_working_dir;
@@ -533,7 +532,6 @@ const char *PSWorkingDirectory(void) {
     }
     return dir;
 no_home:
-    no_home_dir = 1;
     PSErr(__func__, "could not determine home directory, please explicitely "
           "set PS_WORKING_DIR env variable");
     return NULL;

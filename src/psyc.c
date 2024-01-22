@@ -342,8 +342,8 @@ void PSTrainingProgressBar(PSModel *model, int status, int epochs,
             has_tests = (model->training->test_size > 0);
         char sfx_sample[50] = {0};
         int sfxlen;
-        if (!has_tests) sfxlen = sprintf(sfx_sample, " | loss: 99.99");
-        else sfxlen = sprintf(sfx_sample, " | loss=99.99");
+        if (!has_tests) sfxlen = snprintf(sfx_sample, 50, " | loss: 99.99");
+        else sfxlen = snprintf(sfx_sample, 50, " | loss=99.99");
         char *sfx_p = sfx_sample + sfxlen;
         if (metrics & PS_TRAINING_METRICS_ACCURACY) {
             if (!has_tests)
@@ -385,31 +385,29 @@ void PSTrainingProgressBar(PSModel *model, int status, int epochs,
     char *elapsed_str = NULL;
     char sfx[35] = {0};
     int epoch_ended = 0;
-    int sfxlen = 0;
-    if (status == PS_STATUS_VALIDATING) {
-        sfxlen += snprintf(sfx, 35, " | validating...");
-    } else if (status == PS_STATUS_TRAINING) {
+    if (status == PS_STATUS_VALIDATING) snprintf(sfx, 35, " | validating...");
+    else if (status == PS_STATUS_TRAINING) {
         if (elapsed != NULL) elapsed_str = PSGetElapsedTimeString(*elapsed, 0);
         if (batch_num < batches) {
             if (accuracy != NULL) {
-                sfxlen += snprintf(
+                snprintf(
                     sfx, 35, " | loss: %5.2lf | acc: %.2lf | %s",
                     *loss, *accuracy, elapsed_str
                 );
             } else {
-                sfxlen += snprintf(
+                snprintf(
                     sfx, 35, " | loss: %5.2lf | %s", *loss, elapsed_str
                 );
             }
         } else {
             if (loss != NULL) {
                 if (accuracy != NULL) {
-                    sfxlen += snprintf(
+                    snprintf(
                         sfx, 35, " | loss: %5.2lf | acc: %.2f | %s",
                         *loss, *accuracy, elapsed_str
                     );
                 } else {
-                    sfxlen += snprintf(
+                    snprintf(
                         sfx, 35, " | loss: %5.2lf | %s", *loss, elapsed_str
                     );
                 }
@@ -3567,7 +3565,6 @@ int initGenericLayer(PSLayer *layer, int size, int previous_size,
     }
     layer->states = PSMatrixZeros(2, 1, size);
     if (layer->states == NULL) goto memerr;
-    PSMatrix weights = NULL;
     if (layer->index > 0 && previous_size > 0) {
         layer->weights = calloc(1, sizeof(PSMatrix));
         if (layer->weights == NULL) goto memerr;
@@ -3578,7 +3575,6 @@ int initGenericLayer(PSLayer *layer, int size, int previous_size,
         layer->weight_types = 1;
         layer->biases = malloc(size * sizeof(PSFloat));
         if (layer->biases == NULL) goto memerr;
-        weights = layer->weights[0];
     }
     int i;
     for (i = 0; i < size; i++) {
@@ -5833,7 +5829,7 @@ PSFloat updateModelParameters(PSModel *model,
     if (batch_size <= 0) batch_size = 1;
     PSFloat *x = NULL; /* Inputs */
     PSFloat *y = NULL; /* Tragets */
-    PSFloat l1 = 0.0, l2 = 0.0, l1_loss = 0.0, l2_loss = 0.0, momentum = 0.0,
+    PSFloat l1 = 0.0, l2 = 0.0, l1_loss = 0.0, l2_loss = 0.0,
             clip_max = 0.0, clip_min = 0.0;
     PSModel *output_model = model;
     int num_models = PSModelChainLength(model);
@@ -5865,7 +5861,7 @@ PSFloat updateModelParameters(PSModel *model,
     }
     PSGradient ***bp_gradients = NULL;
     PSFloat **sequences = NULL;
-    int is_recurrent = PSIsRecurrent(model), output_is_seq = 0;
+    int is_recurrent = PSIsRecurrent(model);
     if (is_recurrent || PSUseSequences(model)) {
         va_list args;
         va_start(args, opts);
@@ -5876,10 +5872,6 @@ PSFloat updateModelParameters(PSModel *model,
             PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
             goto final;
         }
-        if (is_recurrent)
-            output_is_seq = PSIsRecurrent(output_layer);
-        else
-            output_is_seq = PSHandleSequenceAtOnce(output_layer);
     }
     UNUSED(num_examples); /* TODO: remove num_examples arg if not needed */
     PSOptimization optimization = PSSGDOptimization;
@@ -5897,7 +5889,6 @@ PSFloat updateModelParameters(PSModel *model,
         use_weight_decay = (opts->flags & PS_TRAINING_WEIGHT_DECAY);
         l1 = opts->l1_decay;
         l2 = opts->l2_decay;
-        momentum = opts->momentum;
         if ((apply_clip = (opts->clip != 0.0))) {
             clip_max = PSAbs(opts->clip);
             clip_min = clip_max * -1;
@@ -6265,7 +6256,7 @@ float validate(PSModel *model, PSFloat *test_data, int data_size,
     int y_size = (onehot ? 1 : output_size);
     int example_size = input_size + output_size;
     int num_examples;
-    int reads_input_sequence = 0, emits_output_sequence = 0;
+    int emits_output_sequence = 0;
     int flags = (opts != NULL ? opts->flags : 0);
     int teacher_forcing = 0;
     int steps_to_check = 0, max_seqlen = 0;
@@ -6283,7 +6274,6 @@ float validate(PSModel *model, PSFloat *test_data, int data_size,
         /*  the number fo sequences in the dataset itself. */
         num_examples = (int) *(test_data++);
         data_size--;
-        reads_input_sequence = PSUseSequences(model->layers[0]);
         emits_output_sequence = PSUseSequences(output_layer);
         sequences = getDatasetSequences(
             model, test_data, num_examples, flags
@@ -6929,7 +6919,6 @@ int PSModelCheck(PSModel *model) {
         return 0;
     }
     int is_recurrent = PSIsRecurrent(model);
-    PSLayer *previous = NULL;
     int onehot_input = 0;
     int recurrent_type_layers = 0, recurrent_layers = 0,
         recurrent_input = 0, recurrent_output = 0;
@@ -7032,7 +7021,6 @@ int PSModelCheck(PSModel *model) {
                 return 0;
             }
         }
-        previous = layer;
     }
     if (is_recurrent) {
         PSRecurrentNetworkMode rnn_mode = model->rnn_mode;

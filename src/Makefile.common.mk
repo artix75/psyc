@@ -31,7 +31,7 @@ NOBUILD_GOALS := clean rebuildclean distclean uninstall
 OPTIMIZATION?=-O2
 OPT=$(OPTIMIZATION)
 CSTD=gnu99 -pedantic
-CFLAGS=-std=$(CSTD) -Wall -W -Wno-missing-field-initializers -Wno-unknown-pragmas -Wno-unused-label -Wno-unused-but-set-variable
+CFLAGS=-std=$(CSTD) -Wall -W -Wno-missing-field-initializers -Wno-unknown-pragmas -Wno-unused-label
 ifeq (yes, $(IS_CLANG))
         CFLAGS+=-Wno-string-compare
         CFLAGS+=-Wno-unused-command-line-argument

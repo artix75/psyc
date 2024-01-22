@@ -263,7 +263,7 @@ static void printLayerTypeHelp(PSLayerType type) {
     assert(lbl != NULL);
     char optnames[512] = {0};
     char descr[512] = {0};
-    int nameslen = 0, descrlen = 0;
+    int nameslen = 0;
     if (type_info->names != NULL) {
         char **name = type_info->names;
         int idx = 0, remaining = 512;
@@ -296,9 +296,9 @@ static void printLayerTypeHelp(PSLayerType type) {
         }
     }
     if (type_info->descr != NULL)
-        descrlen = snprintf(descr, 512, "%s", type_info->descr);
+        snprintf(descr, 512, "%s", type_info->descr);
     else
-        descrlen = snprintf(descr, 512, "%s Layer", lbl);
+        snprintf(descr, 512, "%s Layer", lbl);
     char *sep = "  ", *descrindent = "";
     if ((2 + nameslen) > (40 - 2)) {
         sep = "\n" ;

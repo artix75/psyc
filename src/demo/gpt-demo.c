@@ -166,9 +166,8 @@ static int isNewToken(char *str, int *len) {
         else if (PSUTF8IsDigit(uc)) type = 'N';
         else if (isspace(c) || PSUTF8IsSpace(uc)) type = 's';
         else type = '\0';
-        int matched = 0, is_real_space = 0, is_space = 0;
+        int matched = 0, is_real_space = 0;
         if (type == 's') {
-            is_space = 1;
             space_count++;
             if ((is_real_space = (c == ' '))) type = ' ';
             if (is_first) {
@@ -479,7 +478,7 @@ char **getBytePairEncodings(PSDict *bpe, char *token, int *count) {
         uint64_t min_rank = INT32_MAX;
         int first_idx = -1, bpe_found = 0, i;
         char **pair = NULL;
-        PSDictItem *pair_item = NULL, *selected_item = NULL;
+        PSDictItem *pair_item = NULL;
         while ((pair_item = PSDictNext(pair_iter))) {
             PSDictItem *bpeitem = PSDictGet(bpe, pair_item->key);
             char **item_pair = pair_item->value.as_ptr;
@@ -491,7 +490,6 @@ char **getBytePairEncodings(PSDict *bpe, char *token, int *count) {
                 pair = item_pair;
                 bpe_found = found;
                 min_rank = rank;
-                selected_item = pair_item;
             }
         }
         if (!bpe_found || pair == NULL) break;
@@ -965,7 +963,7 @@ int PSAddGPT2TransformerBlock(PSModel *model, int index,
     ok = (l != NULL);
     if (!ok) goto final;
     if (use_binary_files && !has_bin) saveBinaryParamsFor(l, params_path);
-    print_progress = printProgressBar(model);
+    if (print_progress) print_progress = printProgressBar(model);
     int base_index = l->index;
     base_layer = l;
 
@@ -989,7 +987,7 @@ int PSAddGPT2TransformerBlock(PSModel *model, int index,
     ok = (l != NULL);
     if (!ok) goto final;
     if (use_binary_files && !has_bin) saveBinaryParamsFor(l, params_path);
-    print_progress = printProgressBar(model);
+    if (print_progress) print_progress = printProgressBar(model);
     attn_layer = l;
 
     /* "Add" Layer 1 */
@@ -1003,7 +1001,7 @@ int PSAddGPT2TransformerBlock(PSModel *model, int index,
     ));
     ok = (l != NULL);
     if (!ok) goto final;
-    print_progress = printProgressBar(model);
+    if (print_progress) print_progress = printProgressBar(model);
     add_layer_1 = l;
 
     /* Normalization Layer 2 */
@@ -1019,7 +1017,7 @@ int PSAddGPT2TransformerBlock(PSModel *model, int index,
     ok = (l != NULL);
     if (!ok) goto final;
     if (use_binary_files && !has_bin) saveBinaryParamsFor(l, params_path);
-    print_progress = printProgressBar(model);
+    if (print_progress) print_progress = printProgressBar(model);
 
     /* Fully-Connected GeLU Layer (size: n_embd * 4) */
     snprintf(fname, 255, "h%d.mlp.c_fc", index);
@@ -1036,7 +1034,7 @@ int PSAddGPT2TransformerBlock(PSModel *model, int index,
     ok = (l != NULL);
     if (!ok) goto final;
     if (use_binary_files && !has_bin) saveBinaryParamsFor(l, params_path);
-    print_progress = printProgressBar(model);
+    if (print_progress) print_progress = printProgressBar(model);
 
     /* Projection Linear Layer */
     snprintf(fname, 255, "h%d.mlp.c_proj", index);
@@ -1051,7 +1049,7 @@ int PSAddGPT2TransformerBlock(PSModel *model, int index,
     ok = (l != NULL);
     if (!ok) goto final;
     if (use_binary_files && !has_bin) saveBinaryParamsFor(l, params_path);
-    print_progress = printProgressBar(model);
+    if (print_progress) print_progress = printProgressBar(model);
     ln_layer = l;
 
     /* Add Layer 2*/
@@ -1065,7 +1063,7 @@ int PSAddGPT2TransformerBlock(PSModel *model, int index,
     ));
     ok = (l != NULL);
     if (!ok) goto final;
-    print_progress = printProgressBar(model);
+    if (print_progress) print_progress = printProgressBar(model);
 final:
     free(params_path);
     return ok;
@@ -1497,6 +1495,7 @@ next:
         prompt[0] = '\0';
         printf("%s> ", (answered ? "\n" : ""));
 #else
+        UNUSED(answered);
         add_history(prompt);
         free(prompt);
 #endif
