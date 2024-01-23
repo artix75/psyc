@@ -205,7 +205,6 @@ static int isNewToken(char *str, int *len) {
             is_new = !is_real_space;
             head_type = type;
         } else is_new = 1;
-next:
         prev_type = type;
         p += clen;
     }
@@ -532,7 +531,6 @@ char **getBytePairEncodings(PSDict *bpe, char *token, int *count) {
         free(encodings);
         encodings = new;
         enc_count = newlen;
-next:
         free(pair_iter);
         if (!pair_used) free(pair_s);
         else last_pair_s = pair_s;
@@ -1722,8 +1720,6 @@ int main(int argc, char **argv) {
     if (prompt == NULL) interactive = 1;
     if (verbose || (prompt == NULL && !interactive))
         PSModelPrintInfo(gpt2_model);
-
-make_input:
     vocabulary = loadVocabulary(model_dir, hparams.n_vocab);
     ok = (vocabulary != NULL);
     if (!ok) {

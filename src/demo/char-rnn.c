@@ -463,7 +463,6 @@ int main(int argc, char **argv) {
     PSTrain(model, training_data, TRAIN_DATA_LEN, test_data, test_data_len,
             &opts);
     if (output_path != NULL) PSModelSave(model, output_path);
-final:
     PSModelFree(model);
     return (ok ? 0 : 1);
 }

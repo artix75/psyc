@@ -1104,7 +1104,6 @@ PSFloat *readSerializedFloatArray(FILE *in, char *sep, uint64_t *length,
     if (arraylen > *length) {
         memset(array + *length, 0, (arraylen - *length) * sizeof(PSFloat));
     }
-final:
     return array;
 }
 

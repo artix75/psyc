@@ -317,7 +317,6 @@ int PSNormalize(PSFloat *inputs, PSFloat *outputs, PSFloat *normalized,
     return 1;
 memerr:
     PSPrintMemoryErrorMsg();
-fail:
     free(meandiff);
     free(tmp);
     return 0;

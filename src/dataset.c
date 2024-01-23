@@ -1421,7 +1421,6 @@ PSFloat *PSDataFromTextFile(const char *filepath, PSTextParserOptions *opts,
               filepath, err, strerror(err));
         goto fail;
     }
-final:
     fclose(file);
     int encode_only = (opts->flags & PS_PARSER_FLAG_ENCODE_ONLY);
     if (!encode_only && PS_IS_MULTISEQ(opts)) {

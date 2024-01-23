@@ -3548,7 +3548,6 @@ int testEncodedDecoderClone(TestCase *test_case, Test *test) {
     PSModel *clone = PSModelClone(model, 0);
     testAssertNotNull(clone, test);
     int ok = compareModelChain(model, clone, test);
-final:
     if (clone != NULL) PSModelFree(clone);
     return ok;
 }
@@ -4743,7 +4742,6 @@ int testMathsDot(TestCase *tc, Test *test) {
         failed++;
         appendTestErrorMessage(test, "\n%*s", 4, "");
     }
-final:
     if (matrix) PSMatrixFree(matrix);
     return (failed == 0);
 }
