@@ -2051,17 +2051,19 @@ int testRNNLoad(TestCase *test_case, Test *test) {
             }
         } else {
             testAssertNotNull(layer->weights[0], test);
-            input_weight_count = PSMatrixLength(layer->weights[0]);
+            input_weight_count = PSMatrixLength(layer->weights[0]) /
+                                 layer->size;
             testAssertWithMessage(
-                (input_weight_count = (uint64_t) rnn_size), test,
-                "Expected Output Layer input weight count is %llu, got %llu",
-                (uint64_t) rnn_size, input_weight_count
+                (input_weight_count == (uint64_t) rnn_size), test,
+                "Expected Output Layer[%d] input weight count is %llu, "
+                "got %llu",
+                i, (uint64_t) rnn_size, input_weight_count
             );
             for (j = 0; j < layer->size; j++) {
                 PSFloat *weights = layer->weights[0] + (j * rnn_size);
                 for (w = 0; w < rnn_size; w++) {
                     testAssertWithMessage(
-                        (weights[w] = rnn_outer_weights[j][w]), test,
+                        (weights[w] == rnn_outer_weights[j][w]), test,
                         "Output Layer[%d] weights[%d][%d] %g != %g",
                         i, j, w, weights[w], rnn_outer_weights[j][w]
                     );
