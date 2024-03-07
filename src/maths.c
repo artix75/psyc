@@ -1506,6 +1506,7 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
         if (scalar_a && scalar_b) *out = *a * *b;
         else if (scalar_b) PSMultiplyVectorScalar(a, *b, out, len, opts);
         else PSMultiplyVectorScalar(b, *a, out, PSMatrixLength(b), opts);
+        return 1;
     } else if (nd==1 && dimensions[0]==1  && PSMatrixLength(b)==(uint64_t)len) {
         *out = PSDotProduct(a, b, len, opts);
         return 1;
