@@ -13,7 +13,7 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSVectorFill 3 2024-01-03 "PsyC 0.9.4" "PsyC Library Functions Manual"
+.TH PSVectorFill 3 2024-03-09 "PsyC 0.9.5" "PsyC Library Functions Manual"
 
 .SH NAME
 \fBPSVectorFill\fR \- Fill vector with value
@@ -29,7 +29,7 @@ PsyC (-lpsyc)
 .I
 void  
 .br
-\fBPSVectorFill\fR(\fIPSFloat *vec\fR, \fIPSFloat val\fR, \fIuint64_t len\fR, \fIPSMathOpts *opts\fR)
+\fBPSVectorFill\fR(\fIPSFloat *vec\fR, \fIPSFloat val\fR, \fIlong len\fR, \fIPSMathOpts *opts\fR)
 .SH DESCRIPTION
 Fill vector \fIvec\fR having length defined by \fIlen\fR with \fIvalue\fR. The function will immediately return if \fIvec\fR is \fINULL\fR or \fIlen\fR is zero.
 .br

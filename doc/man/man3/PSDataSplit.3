@@ -13,7 +13,7 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSDataSplit 3 2024-01-10 "PsyC 0.9.4" "PsyC Library Functions Manual"
+.TH PSDataSplit 3 2024-03-09 "PsyC 0.9.5" "PsyC Library Functions Manual"
 
 .SH NAME
 \fBPSDataSplit\fR
@@ -29,7 +29,7 @@ PsyC (-lpsyc)
 .I
 int  
 .br
-\fBPSDataSplit\fR(\fIPSFloat *data\fR, \fIuint64_t datalen\fR, \fIfloat percentage\fR, \fIint input_size\fR, \fIint target_size\fR, \fIPSFloat ** left\fR, \fIPSFloat ** right\fR, \fIuint64_t *left_length\fR, \fIuint64_t *right_length\fR, \fIint opts\fR)
+\fBPSDataSplit\fR(\fIPSFloat *data\fR, \fIlong datalen\fR, \fIfloat percentage\fR, \fIlong input_size\fR, \fIlong target_size\fR, \fIPSFloat ** left\fR, \fIPSFloat ** right\fR, \fIlong *left_length\fR, \fIlong *right_length\fR, \fIint opts\fR)
 .SH DESCRIPTION
 Split \fIdata\fR into two separated datasets. This function can useful to separate validation data used for testing models from data used for training them.
 .br
@@ -49,7 +49,7 @@ The addresses of the resulting datasets will be stored into the \fIleft\fR and \
 .br
 
 .br
-\fBNOTE\fR:  if \fIdata\fR has no sequences and neither \fIPS_DATA_SHUFFLE\fR nor \fIPS_DATA_EVENLY_SPREAD\fR flags is set, the function won't allocate the resulting datasets, so \fIleft\fR will contain the pointer to the original address of \fIdata\fR and \fIright\fR will contain the pointer to the first element of \fIdata\fR that will belong to the right dataset. This means that the right dataset should **never be freed** by its own. In all the other cases, memory for both the left and the right dataset will be allocated and must be freed when not used anymore.
+\fBNOTE\fR:  if \fIdata\fR has no sequences and none of \fIPS_DATA_ALWAYS_ALLOC\fR, \fIPS_DATA_SHUFFLE\fR and \fIPS_DATA_EVENLY_SPREAD\fR flags are set, the function won't allocate the resulting datasets, unless \fIPS_DATA_ALWAYS_ALLOC\fR. In this case, \fIleft\fR will contain the pointer to the original address of \fIdata\fR and \fIright\fR will contain the pointer to the first element of \fIdata\fR that will belong to the right dataset. This means that the right dataset should **never be freed** by its own. In all the other cases, memory for both the left and the right dataset will be allocated and must be freed when not used anymore.
 .br
 
 .SH RETURN VALUES

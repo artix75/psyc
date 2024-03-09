@@ -13,7 +13,7 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSVectorConvertToMatrix 3 2024-01-03 "PsyC 0.9.4" "PsyC Library Functions Manual"
+.TH PSVectorConvertToMatrix 3 2024-03-09 "PsyC 0.9.5" "PsyC Library Functions Manual"
 
 .SH NAME
 \fBPSVectorConvertToMatrix\fR \- Convert vector to matrix
@@ -29,7 +29,7 @@ PsyC (-lpsyc)
 .I
 PSMatrix  
 .br
-\fBPSVectorConvertToMatrix\fR(\fIPSFloat *vec\fR, \fIuint64_t len\fR, \fIint ndims\fR, \fIint *shape\fR)
+\fBPSVectorConvertToMatrix\fR(\fIPSFloat *vec\fR, \fIlong len\fR, \fIint ndims\fR, \fIlong *shape\fR)
 .SH DESCRIPTION
 Convert the vector \fIvec\fR of length \fIlen\fR to a \fIPSMatrix\fR. This function differs from \fIPSMatrixFromArray\fR since it reallocates the vector in order to make room for the matrix header that will contain matrix's properties.
 .br

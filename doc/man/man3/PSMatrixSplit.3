@@ -13,7 +13,7 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSMatrixSplit 3 2024-01-03 "PsyC 0.9.4" "PsyC Library Functions Manual"
+.TH PSMatrixSplit 3 2024-03-09 "PsyC 0.9.5" "PsyC Library Functions Manual"
 
 .SH NAME
 \fBPSMatrixSplit\fR \- Split matrix into smaller matrices
@@ -29,7 +29,7 @@ PsyC (-lpsyc)
 .I
 PSMatrix  *
 .br
-\fBPSMatrixSplit\fR(\fIPSMatrix matrix\fR, \fIint num_slices\fR, \fIint axis\fR, \fIPSMathOpts *opts\fR)
+\fBPSMatrixSplit\fR(\fIPSMatrix matrix\fR, \fIlong num_slices\fR, \fIint axis\fR, \fIPSMathOpts *opts\fR)
 .SH DESCRIPTION
 Split \fImatrix\fR into smaller matrices whose number is defined by \fInum_slices\fR. The matrix will be split on the axis (dimension) defined by the \fIaxis\fR argument.
 .br

@@ -13,7 +13,7 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSVectorClip 3 2024-01-03 "PsyC 0.9.4" "PsyC Library Functions Manual"
+.TH PSVectorClip 3 2024-03-09 "PsyC 0.9.5" "PsyC Library Functions Manual"
 
 .SH NAME
 \fBPSVectorClip\fR \- Clip values of vector
@@ -29,7 +29,7 @@ PsyC (-lpsyc)
 .I
 PSFloat  *
 .br
-\fBPSVectorClip\fR(\fIPSFloat *a\fR, \fIPSFloat min\fR, \fIPSFloat max\fR, \fIPSFloat *dest\fR, \fIuint64_t length\fR, \fIPSMathOpts *opts\fR)
+\fBPSVectorClip\fR(\fIPSFloat *a\fR, \fIPSFloat min\fR, \fIPSFloat max\fR, \fIPSFloat *dest\fR, \fIlong length\fR, \fIPSMathOpts *opts\fR)
 .SH DESCRIPTION
 Clip values of vector \fIa\fR having length defined by \fIlength\fR to minimum value defined by \fImin\fR and maximum value defined by \fImax\fR (`dest[i] = (a[i] < min ? min : (a[i] > max ? max : a[i]))`).
 .br

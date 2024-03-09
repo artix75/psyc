@@ -13,7 +13,7 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSVectorEquals 3 2024-01-03 "PsyC 0.9.4" "PsyC Library Functions Manual"
+.TH PSVectorEquals 3 2024-03-09 "PsyC 0.9.5" "PsyC Library Functions Manual"
 
 .SH NAME
 \fBPSVectorEquals\fR \- Compare two vectors
@@ -29,7 +29,7 @@ PsyC (-lpsyc)
 .I
 int  
 .br
-\fBPSVectorEquals\fR(\fIPSFloat *a\fR, \fIPSFloat *b\fR, \fIuint64_t length\fR, \fIint precision\fR, \fIuint64_t *index\fR)
+\fBPSVectorEquals\fR(\fIPSFloat *a\fR, \fIPSFloat *b\fR, \fIlong length\fR, \fIint precision\fR, \fIlong *index\fR)
 .SH DESCRIPTION
 Compare two vectors \fIa\fR and \fIb\fR having \fIlength\fR length. Use \fIprecision\fR to set precision tolerance. Lower precision leads to higher tolerance.
 .br

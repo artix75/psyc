@@ -23,7 +23,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
    </head>
    <body class="psyc-doc psyc-tag">
        <header>
-           <h1>PsyC Documentation <span class="version">0.9.4</span></h1>
+           <h1>PsyC Documentation <span class="version">0.9.5</span></h1>
            <h2>API Reference - DATASET</h2>
            <nav id="top-menu">
                <ul>
@@ -67,10 +67,10 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
            <section id="doc">
 <div class="details function" id="function-psdataload">
 <h3 class="name">PSDataLoad</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">237</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">238</span></div>
 <div class="tags"><span class="tag dataset" data-href="tag-dataset.html">DATASET</span></div><div class="code">
 <code class="definition">
-<span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSDataLoad</span> (<span class="arguments"><span class="argument"><span class="type">const char *</span><span class="identifier pointer-name" data-identifier-id=function-psdataload-filepath>filepath</span></span>, <span class="argument"><span class="type">uint64_t *</span><span class="identifier pointer-name" data-identifier-id=function-psdataload-datalen>datalen</span></span></span>)</code>
+<span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> *</span><span class="identifier name">PSDataLoad</span> (<span class="arguments"><span class="argument"><span class="type">const char *</span><span class="identifier pointer-name" data-identifier-id=function-psdataload-filepath>filepath</span></span>, <span class="argument"><span class="type">long *</span><span class="identifier pointer-name" data-identifier-id=function-psdataload-datalen>datalen</span></span></span>)</code>
 </div>
 <div class="description">
 Load dataset from file located at <span class="identifier-ref" data-identifier-id="function-psdataload-filepath" data-parent-id="function-psdataload">filepath</span>. Dataset is returned as an array of PSFloat elements whose length (number of elements) is stored into mandatory argument <span class="identifier-ref" data-identifier-id="function-psdataload-datalen" data-parent-id="function-psdataload">datalen</span>.<br/>The file must be an ASCII file where every number of the dataset is written as a string representation of floating point numbers and separated by a comma character.<br/>Optionally, the whole dataset can be prefixed with its length written as a string representation of a decimal number followed by a colon separator caharcter (&#39;:&#39;).<br/>Example: 3:1.25,2,-0.15 (dataset of three elements 1.25, 2.0 and -0.15) Return value: the loaded dataset or <span class="identifier-ref">NULL</span> is somethign goes wrong.<br/>Possible failure reasons:<br/>
@@ -93,7 +93,7 @@ Load dataset from file located at <span class="identifier-ref" data-identifier-i
 
 <div class="details function" id="function-psloadcifardata">
 <h3 class="name">PSLoadCIFARData</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">254</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">255</span></div>
 <div class="tags"><span class="tag dataset" data-href="tag-dataset.html">DATASET</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSLoadCIFARData</span> (<span class="arguments"><span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psloadcifardata-type>type</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psloadcifardata-classes>classes</span></span>, <span class="argument"><span class="type">const char *</span><span class="identifier pointer-name" data-identifier-id=function-psloadcifardata-dataset-path>dataset_path</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> **</span><span class="identifier pointer-name" data-identifier-id=function-psloadcifardata-data>data</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psloadcifardata-max-files>max_files</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psloadcifardata-max-examples>max_examples</span></span></span>)</code>
@@ -135,7 +135,7 @@ Possibile errors:<br/>
 
 <div class="details function" id="function-psloadmnistdata">
 <h3 class="name">PSLoadMNISTData</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">248</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">249</span></div>
 <div class="tags"><span class="tag dataset" data-href="tag-dataset.html">DATASET</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSLoadMNISTData</span> (<span class="arguments"><span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psloadmnistdata-type>type</span></span>, <span class="argument"><span class="type">const char *</span><span class="identifier pointer-name" data-identifier-id=function-psloadmnistdata-images-file>images_file</span></span>, <span class="argument"><span class="type">const char *</span><span class="identifier pointer-name" data-identifier-id=function-psloadmnistdata-labels-file>labels_file</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> **</span><span class="identifier pointer-name" data-identifier-id=function-psloadmnistdata-data>data</span></span></span>)</code>
@@ -166,19 +166,19 @@ Possibile errors:<br/>
 
 <div class="details struct" id="struct-psvocabulary">
 <h3 class="name">PSVocabulary</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">211</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">212</span></div>
 <div class="tags"><span class="tag dataset" data-href="tag-dataset.html">DATASET</span></div><div class="code">
 <code class="definition">
-<span class="keyword">typedef struct</span> {<br><span class="member"><span class="type">int64_t</span> <span class="identifier">size</span></span>;<br><span class="member"><span class="type">int64_t</span> <span class="identifier">capacity</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#struct-psdict">PSDict</a> *</span> <span class="identifier">token_map</span></span>;<br><span class="member"><span class="type">const char **</span> <span class="identifier">tokens</span></span>;<br>} <span class="identifier">PSVocabulary</span><br></code>
+<span class="keyword">typedef struct</span> {<br><span class="member"><span class="type">long</span> <span class="identifier">size</span></span>;<br><span class="member"><span class="type">long</span> <span class="identifier">capacity</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#struct-psdict">PSDict</a> *</span> <span class="identifier">token_map</span></span>;<br><span class="member"><span class="type">const char **</span> <span class="identifier">tokens</span></span>;<br>} <span class="identifier">PSVocabulary</span><br></code>
 </div>
 </div>
 
 <div class="details function" id="function-psvocabularyadd">
 <h3 class="name">PSVocabularyAdd</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">220</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">221</span></div>
 <div class="tags"><span class="tag dataset" data-href="tag-dataset.html">DATASET</span></div><div class="code">
 <code class="definition">
-<span class="type return-type">int64_t</span> <span class="identifier name">PSVocabularyAdd</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psvocabulary">PSVocabulary</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvocabularyadd-vocabulary>vocabulary</span></span>, <span class="argument"><span class="type">char *</span><span class="identifier pointer-name" data-identifier-id=function-psvocabularyadd-token>token</span></span></span>)</code>
+<span class="type return-type">long</span> <span class="identifier name">PSVocabularyAdd</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psvocabulary">PSVocabulary</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvocabularyadd-vocabulary>vocabulary</span></span>, <span class="argument"><span class="type">char *</span><span class="identifier pointer-name" data-identifier-id=function-psvocabularyadd-token>token</span></span></span>)</code>
 </div>
 <div class="description">
 Add token <span class="identifier-ref" data-identifier-id="function-psvocabularyadd-token" data-parent-id="function-psvocabularyadd">token</span> to <span class="identifier-ref" data-identifier-id="function-psvocabularyadd-vocabulary" data-parent-id="function-psvocabularyadd">vocabulary</span>. The token is added to the internal dictionary of <span class="identifier-ref" data-identifier-id="function-psvocabularyadd-vocabulary" data-parent-id="function-psvocabularyadd">vocabulary</span> and a numeric index (ID) is assigned to it.<br/>The index is a progressive number. If the token already exists, the internal dictionary won&#39;t be updated and the token&#39;s numeric value (id) is immediately returned.  
@@ -189,10 +189,10 @@ The numeric index (ID) of the token. If token could not be added to the dictiona
 
 <div class="details function" id="function-psvocabularycreate">
 <h3 class="name">PSVocabularyCreate</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">219</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">220</span></div>
 <div class="tags"><span class="tag dataset" data-href="tag-dataset.html">DATASET</span></div><div class="code">
 <code class="definition">
-<span class="type return-type"><a class="psyc-type" href="types.html#struct-psvocabulary">PSVocabulary</a> *</span><span class="identifier name">PSVocabularyCreate</span> (<span class="arguments"><span class="argument"><span class="type">int64_t</span> <span class="identifier" data-identifier-id=function-psvocabularycreate-initial-capacity>initial_capacity</span></span></span>)</code>
+<span class="type return-type"><a class="psyc-type" href="types.html#struct-psvocabulary">PSVocabulary</a> *</span><span class="identifier name">PSVocabularyCreate</span> (<span class="arguments"><span class="argument"><span class="type">long</span> <span class="identifier" data-identifier-id=function-psvocabularycreate-initial-capacity>initial_capacity</span></span></span>)</code>
 </div>
 <div class="description">
 Create a <a class="psyc-type" href="types.html#struct-psvocabulary">PSVocabulary</a> with initial capacity of <span class="identifier-ref" data-identifier-id="function-psvocabularycreate-initial-capacity" data-parent-id="function-psvocabularycreate">initial_capacity</span>.  
@@ -203,16 +203,16 @@ The vocabulary or <span class="identifier-ref">NULL</span> if memory cannot be a
 
 <div class="details function" id="function-psvocabularyerrorstring">
 <h3 class="name">PSVocabularyErrorString</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">225</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">226</span></div>
 <div class="tags"><span class="tag dataset" data-href="tag-dataset.html">DATASET</span></div><div class="code">
 <code class="definition">
-<span class="type return-type">const char *</span><span class="identifier name">PSVocabularyErrorString</span> (<span class="arguments"><span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psvocabularyerrorstring-err>err</span></span></span>)</code>
+<span class="type return-type">const char *</span><span class="identifier name">PSVocabularyErrorString</span> (<span class="arguments"><span class="argument"><span class="type">long</span> <span class="identifier" data-identifier-id=function-psvocabularyerrorstring-err>err</span></span></span>)</code>
 </div>
 </div>
 
 <div class="details function" id="function-psvocabularyfree">
 <h3 class="name">PSVocabularyFree</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">226</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">227</span></div>
 <div class="tags"><span class="tag dataset" data-href="tag-dataset.html">DATASET</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">void</span> <span class="identifier name">PSVocabularyFree</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psvocabulary">PSVocabulary</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvocabularyfree-vocabulary>vocabulary</span></span></span>)</code>
@@ -221,10 +221,10 @@ The vocabulary or <span class="identifier-ref">NULL</span> if memory cannot be a
 
 <div class="details function" id="function-psvocabularygettokenbyid">
 <h3 class="name">PSVocabularyGetTokenByID</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">222</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">223</span></div>
 <div class="tags"><span class="tag dataset" data-href="tag-dataset.html">DATASET</span></div><div class="code">
 <code class="definition">
-<span class="type return-type">const char *</span><span class="identifier name">PSVocabularyGetTokenByID</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psvocabulary">PSVocabulary</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvocabularygettokenbyid-vocabulary>vocabulary</span></span>, <span class="argument"><span class="type">int64_t</span> <span class="identifier" data-identifier-id=function-psvocabularygettokenbyid-id>id</span></span></span>)</code>
+<span class="type return-type">const char *</span><span class="identifier name">PSVocabularyGetTokenByID</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psvocabulary">PSVocabulary</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvocabularygettokenbyid-vocabulary>vocabulary</span></span>, <span class="argument"><span class="type">long</span> <span class="identifier" data-identifier-id=function-psvocabularygettokenbyid-id>id</span></span></span>)</code>
 </div>
 <div class="description">
 Get the token associated with <span class="identifier-ref" data-identifier-id="function-psvocabularygettokenbyid-id" data-parent-id="function-psvocabularygettokenbyid">id</span> from <span class="identifier-ref" data-identifier-id="function-psvocabularygettokenbyid-vocabulary" data-parent-id="function-psvocabularygettokenbyid">vocabulary</span>.  
@@ -235,10 +235,10 @@ The token associated with <span class="identifier-ref" data-identifier-id="funct
 
 <div class="details function" id="function-psvocabularygettokenid">
 <h3 class="name">PSVocabularyGetTokenID</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">221</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">222</span></div>
 <div class="tags"><span class="tag dataset" data-href="tag-dataset.html">DATASET</span></div><div class="code">
 <code class="definition">
-<span class="type return-type">int64_t</span> <span class="identifier name">PSVocabularyGetTokenID</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psvocabulary">PSVocabulary</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvocabularygettokenid-vocabulary>vocabulary</span></span>, <span class="argument"><span class="type">char *</span><span class="identifier pointer-name" data-identifier-id=function-psvocabularygettokenid-token>token</span></span></span>)</code>
+<span class="type return-type">long</span> <span class="identifier name">PSVocabularyGetTokenID</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psvocabulary">PSVocabulary</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvocabularygettokenid-vocabulary>vocabulary</span></span>, <span class="argument"><span class="type">char *</span><span class="identifier pointer-name" data-identifier-id=function-psvocabularygettokenid-token>token</span></span></span>)</code>
 </div>
 <div class="description">
 Get the ID of the token <span class="identifier-ref" data-identifier-id="function-psvocabularygettokenid-token" data-parent-id="function-psvocabularygettokenid">token</span> from vocabulary <span class="identifier-ref" data-identifier-id="function-psvocabularygettokenid-vocabulary" data-parent-id="function-psvocabularygettokenid">vocabulary</span>.  
@@ -250,7 +250,7 @@ If <span class="identifier-ref" data-identifier-id="function-psvocabularygettoke
 
 <div class="details function" id="function-psvocabularyload">
 <h3 class="name">PSVocabularyLoad</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">223</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">224</span></div>
 <div class="tags"><span class="tag dataset" data-href="tag-dataset.html">DATASET</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#struct-psvocabulary">PSVocabulary</a> *</span><span class="identifier name">PSVocabularyLoad</span> (<span class="arguments"><span class="argument"><span class="type">const char *</span><span class="identifier pointer-name" data-identifier-id=function-psvocabularyload-path>path</span></span></span>)</code>
@@ -286,7 +286,7 @@ The pointer to vocabulary or <span class="identifier-ref">NULL</span> if:
 
 <div class="details function" id="function-psvocabularysave">
 <h3 class="name">PSVocabularySave</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">224</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">225</span></div>
 <div class="tags"><span class="tag dataset" data-href="tag-dataset.html">DATASET</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSVocabularySave</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psvocabulary">PSVocabulary</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psvocabularysave-vocabulary>vocabulary</span></span>, <span class="argument"><span class="type">const char *</span><span class="identifier pointer-name" data-identifier-id=function-psvocabularysave-path>path</span></span></span>)</code>

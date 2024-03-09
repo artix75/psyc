@@ -13,7 +13,7 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSVectorPower 3 2024-01-03 "PsyC 0.9.4" "PsyC Library Functions Manual"
+.TH PSVectorPower 3 2024-03-09 "PsyC 0.9.5" "PsyC Library Functions Manual"
 
 .SH NAME
 \fBPSVectorPower\fR
@@ -29,7 +29,7 @@ PsyC (-lpsyc)
 .I
 PSFloat  *
 .br
-\fBPSVectorPower\fR(\fIPSFloat *a\fR, \fIPSFloat exp\fR, \fIPSFloat *dest\fR, \fIuint64_t length\fR, \fIPSMathOpts *opts\fR)
+\fBPSVectorPower\fR(\fIPSFloat *a\fR, \fIPSFloat exp\fR, \fIPSFloat *dest\fR, \fIlong length\fR, \fIPSMathOpts *opts\fR)
 .SH DESCRIPTION
 Raise each value of vector \fIa\fR having length \fIlength\fR to power of \fIexp\fR.
 .br

@@ -13,7 +13,7 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSCumulativeSum 3 2024-01-03 "PsyC 0.9.4" "PsyC Library Functions Manual"
+.TH PSCumulativeSum 3 2024-03-09 "PsyC 0.9.5" "PsyC Library Functions Manual"
 
 .SH NAME
 \fBPSCumulativeSum\fR \- Compute cumulative sum on vector 
@@ -27,9 +27,9 @@ PsyC (-lpsyc)
 #include <psyc/maths.h>
 
 .I
-int  
+long  
 .br
-\fBPSCumulativeSum\fR(\fIPSFloat *a\fR, \fIPSFloat *dest\fR, \fIuint64_t length\fR)
+\fBPSCumulativeSum\fR(\fIPSFloat *a\fR, \fIPSFloat *dest\fR, \fIlong length\fR)
 .SH DESCRIPTION
 Compute the cumulative sum on elements of vector \fIa\fR having length defined by \fIlength\fR. The results will be stored into the vector \fIdest\fR that must have at least the same length of \fIa\fR. The value of each element of the resulting vector will be the sum of the values of \fIa\fR up to the index of the current resulting vector element (ie. `dest[2] = a[0] + a[1] + a[2]`).  
 
@@ -38,6 +38,9 @@ Compute the cumulative sum on elements of vector \fIa\fR having length defined b
 
 .RS 4
 \[bu] \fIa\fR is \fINULL\fR or \fIdest\fR is \fINULL\fR.
+.br
+
+\[bu] \fIlength\fR is zero or negative.
 .br
 .RE
 

@@ -13,7 +13,7 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSVectorMapWithLimit 3 2024-01-03 "PsyC 0.9.4" "PsyC Library Functions Manual"
+.TH PSVectorMapWithLimit 3 2024-03-09 "PsyC 0.9.5" "PsyC Library Functions Manual"
 
 .SH NAME
 \fBPSVectorMapWithLimit\fR
@@ -29,7 +29,7 @@ PsyC (-lpsyc)
 .I
 PSFloat  *
 .br
-\fBPSVectorMapWithLimit\fR(\fIPSFloat *a\fR, \fIPSFloat limit\fR, \fIPSFloat mapper\fR, \fIPSFloat *dest\fR, \fIuint64_t length\fR, \fIPSMathOpts *opts\fR)
+\fBPSVectorMapWithLimit\fR(\fIPSFloat *a\fR, \fIPSFloat limit\fR, \fIPSFloat mapper\fR, \fIPSFloat *dest\fR, \fIlong length\fR, \fIPSMathOpts *opts\fR)
 .SH DESCRIPTION
 Map values of vector \fIa\fR having length defined by \fIlength\fR with the value defined by \fImapper\fR: values greater than \fIlimit\fR will be represented with the value of \fImapper\fR, while values equal or less than \fIlimit\fR will be represented with negative value of \fImapper\fR (`-(mapper)`); Results are stored into the optional \fIdest\fR arguments. If \fIdest\fR is \fINULL\fR, a new vector will be allocated and its address will be  returned by the function itself.
 .br

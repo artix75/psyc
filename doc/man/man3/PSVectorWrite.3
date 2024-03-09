@@ -13,7 +13,7 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSVectorWrite 3 2024-01-03 "PsyC 0.9.4" "PsyC Library Functions Manual"
+.TH PSVectorWrite 3 2024-03-09 "PsyC 0.9.5" "PsyC Library Functions Manual"
 
 .SH NAME
 \fBPSVectorWrite\fR \- Write vector as string to file
@@ -29,7 +29,7 @@ PsyC (-lpsyc)
 .I
 void  
 .br
-\fBPSVectorWrite\fR(\fIPSFloat *vec\fR, \fIuint64_t len\fR, \fIchar* sep\fR, \fIFILE *f\fR)
+\fBPSVectorWrite\fR(\fIPSFloat *vec\fR, \fIlong len\fR, \fIchar* sep\fR, \fIFILE *f\fR)
 .SH DESCRIPTION
 Write a string representation of vector \fIvec\fR having length of \fIlen\fR to the file stream \fIf\fR.
 .br

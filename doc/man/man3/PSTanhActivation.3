@@ -13,7 +13,7 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSTanhActivation 3 2024-01-17 "PsyC 0.9.4" "PsyC Library Functions Manual"
+.TH PSTanhActivation 3 2024-03-09 "PsyC 0.9.5" "PsyC Library Functions Manual"
 
 .SH NAME
 \fBPSTanhActivation\fR \- Tanh (hyperbolic tangent) activation function
@@ -29,7 +29,7 @@ PsyC (-lpsyc)
 .I
 void  
 .br
-\fBPSTanhActivation\fR(\fIPSFloat *vec\fR, \fIPSFloat *dest\fR, \fIuint64_t len\fR, \fIint acceleration\fR)
+\fBPSTanhActivation\fR(\fIPSFloat *vec\fR, \fIPSFloat *dest\fR, \fIlong len\fR, \fIint acceleration\fR)
 .SH DESCRIPTION
 Tanh (hyperbolic tangent) activation function for vectors. Hyperbolic tangent is computed on vector \fIvec\fR of length \fIlen\fR and stored into vector \fIdest\fR.
 .br

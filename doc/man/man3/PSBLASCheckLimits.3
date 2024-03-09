@@ -1,0 +1,122 @@
+.\" Copyright (C) 2016-2024 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that the above copyright notice and this paragraph are
+.\" duplicated in all such forms and that any documentation,
+.\" advertising materials, and other materials related to such
+.\" distribution and use acknowledge that the software was developed
+.\" by the copyright holder. The name of the
+.\" copyright holder may not be used to endorse or promote products derived
+.\" from this software without specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+.TH PSBLASCheckLimits 3 2024-03-09 "PsyC 0.9.5" "PsyC Library Functions Manual"
+
+.SH NAME
+\fBPSBLASCheckLimits\fR
+
+.SH LIBRARY
+PsyC (-lpsyc)
+
+.SH SYNOPSIS
+
+.B
+#include <psyc/blas.h>
+
+.I
+int  
+.br
+\fBPSBLASCheckLimits\fR(\fIPSBLASErr *err\fR, \fIconst char *argformat\fR, \fI...\fR)
+.SH DESCRIPTION
+Check variadic arguments integer values against ensuring that they're not greater than PSBLAS_MAX.
+.br
+Checked values can be either \fIlong\fR scalars or \fIlong\fR arrays.
+.br
+The mandatory \fIargformat\fR argument is a string used to specify how variadic arguments must be intepreted.
+.br
+The format string for every variadic argument is:
+.br
+
+.RS 4
+\[bu] zero or more of the following flag characters:
+.br
+
+.RS 4
+\[bu] '@': indicates that the next variadic argument is an array of \fIlong\fR
+.br
+
+\[bu] '$': indicates that the next variadic argument(s) are precedeed          by their names. Names are strings passed as variadic arguments just before the scalar and/or vector argument.
+.br
+
+.RE
+\[bu] The number of the next variadic argument (scalar) or the length of the next array argument (if '@' was set):
+.br
+
+.RS 4
+\[bu] As a fixed number string representation (between 1 and 9).
+.br
+
+\[bu] '*': indicates that argument count/array length must be read from         the next variadic argument (casted to \fIint\fR).
+.RE
+.RE
+
+The optional \fIerr\fR argument can be used to retrieve more info about the value that exceeds PSBLAS_MAX:
+.br
+
+.RS 4
+.TP
+.B param
+string is automatically set if argument names is provided via the '$' flag.
+.br
+
+.TP
+.B param_pos
+indicates the (1-based) position of the invalid argument.
+.br
+
+.TP
+.B param_value
+contains the value of the invalid argument that exceeded     PSBLAS_MAX.
+.RE
+.RE
+
+.br
+\fBWARN\fR:  the count/length argument (if '*' is used in the format string) must always preceed the argument name (if '$' flag has also used in the format string).
+.br
+
+.br
+Examples:
+.br
+
+
+PSBLASErr err = {0};
+.br
+long a = 10, b = 1000;
+.br
+long nums[3] = {10, 100, 1000};
+.br
+int valid = PSBLASCheckLimits(&err, "2", a, b);
+.br
+valid = PSBLASCheckLimits(&err, "@3", nums);
+.br
+valid = PSBLASCheckLimits(&err, "2@3", a, b, nums);
+.br
+valid = PSBLASCheckLimits(&err, "*@*", 2, a, b, 3, nums);
+.br
+valid = PSBLASCheckLimits(&err, "$*$@*", 2, "a", a, "b", b, 3,
+.br
+                          "numbers", nums);
+.br
+
+
+
+  
+
+.SH RETURN VALUES
+1 if all arguments are less or equal than PSBLAS_MAX, zero if one of the arguments exceeded PSBLAS_MAX.
+
+.SH SEE ALSO
+psyc(1)

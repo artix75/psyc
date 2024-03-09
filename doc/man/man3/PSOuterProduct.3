@@ -13,7 +13,7 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSOuterProduct 3 2024-01-03 "PsyC 0.9.4" "PsyC Library Functions Manual"
+.TH PSOuterProduct 3 2024-03-09 "PsyC 0.9.5" "PsyC Library Functions Manual"
 
 .SH NAME
 \fBPSOuterProduct\fR
@@ -29,7 +29,7 @@ PsyC (-lpsyc)
 .I
 int  
 .br
-\fBPSOuterProduct\fR(\fIPSFloat *a\fR, \fIPSFloat *b\fR, \fIPSFloat *dest\fR, \fIuint64_t alen\fR, \fIuint64_t blen\fR, \fIPSMathOpts *opts\fR)
+\fBPSOuterProduct\fR(\fIPSFloat *a\fR, \fIPSFloat *b\fR, \fIPSFloat *dest\fR, \fIlong alen\fR, \fIlong blen\fR, \fIPSMathOpts *opts\fR)
 .SH DESCRIPTION
 Multiply every element of vector \fIa\fR (having \fIalen\fR length) by every element of vector \fIb\fR (having \fIblen\fR length) and store results into vector \fIdest\fR (whose length must be the product of \fIalen\fR by \fIblen\fR).
 .br

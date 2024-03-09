@@ -13,7 +13,7 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSDataLoad 3 2024-01-19 "PsyC 0.9.4" "PsyC Library Functions Manual"
+.TH PSDataLoad 3 2024-03-09 "PsyC 0.9.5" "PsyC Library Functions Manual"
 
 .SH NAME
 \fBPSDataLoad\fR
@@ -29,7 +29,7 @@ PsyC (-lpsyc)
 .I
 PSFloat  *
 .br
-\fBPSDataLoad\fR(\fIconst char *filepath\fR, \fIuint64_t *datalen\fR)
+\fBPSDataLoad\fR(\fIconst char *filepath\fR, \fIlong *datalen\fR)
 .SH DESCRIPTION
 Load dataset from file located at \fIfilepath\fR. Dataset is returned as an array of PSFloat elements whose length (number of elements) is stored into mandatory argument \fIdatalen\fR.
 .br

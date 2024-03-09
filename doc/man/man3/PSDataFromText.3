@@ -13,7 +13,7 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSDataFromText 3 2024-01-19 "PsyC 0.9.4" "PsyC Library Functions Manual"
+.TH PSDataFromText 3 2024-03-09 "PsyC 0.9.5" "PsyC Library Functions Manual"
 
 .SH NAME
 \fBPSDataFromText\fR
@@ -29,7 +29,7 @@ PsyC (-lpsyc)
 .I
 PSFloat  *
 .br
-\fBPSDataFromText\fR(\fIchar *str\fR, \fIPSTextParserOptions *opts\fR, \fIint64_t *datalen\fR, \fIPSVocabulary ** vocabulary\fR)
+\fBPSDataFromText\fR(\fIchar *str\fR, \fIPSTextParserOptions *opts\fR, \fIlong *datalen\fR, \fIPSVocabulary ** vocabulary\fR)
 .SH DESCRIPTION
 Load a dataset (an array of \fIPSFloat\fR numbers) from a string. Depending on the parsing mode, each token or character found in the string will be converted to a numeric representation of itself. The dataset can be used to train a model (\fIPSModel\fR) or it can provide inputs to the model.
 .br

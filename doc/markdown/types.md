@@ -1,4 +1,4 @@
-# PsyC Documentation - 0.9.4
+# PsyC Documentation - 0.9.5
 ## Types
 
 ### PSAcceleration
@@ -35,7 +35,7 @@ Acceleration options:
 In: activation.h, line: 30
 
 ```c
-typedef void (* PSActivationFunction) (PSFloat *vec, PSFloat *dest, uint64_t len, int acceleration)
+typedef void (* PSActivationFunction) (PSFloat *vec, PSFloat *dest, long len, int acceleration)
 ```
 
 
@@ -86,7 +86,7 @@ typedef int (* PSBeforeBackpropCallback) (struct PSModel *model, PSFloat *y, str
 In: psyc.h, line: 161
 
 ```c
-typedef int (* PSBeforeForwardCallback) (struct PSModel *model, PSFloat *inputs, int seqlen, int backprop, void *opts)
+typedef int (* PSBeforeForwardCallback) (struct PSModel *model, PSFloat *inputs, long seqlen, int backprop, void *opts)
 ```
 
 
@@ -103,28 +103,35 @@ typedef uint64_t * PSBitmap
 
 
 
-### PSBLASErr
+### PSBLAS_int
 
-In: blas.h, line: 28
+In: blas.h, line: 26
 
 ```c
-typedef struct {  
-    const char * func;  
-    const char * param;  
-    int param_pos;  
-    int param_value;  
-} PSBLASErr  
+#if PSBLAS_INT_SIZE == 8
+typedef int64_t PSBLAS_int
+#else
+typedef int32_t PSBLAS_int
+#else
+typedef int32_t PSBLAS_int
+#endif
 ```
 
 
 
 
-### PSBlasErr
+### PSBLASErr
 
-In: blas.h, line: 28
+In: blas.h, line: 42
 
 ```c
-typedef struct PSBlasErr
+typedef struct {  
+    const char * func;  
+    const char * param;  
+    long param_pos;  
+    long param_value;  
+    long array_index;  
+} PSBLASErr  
 ```
 
 
@@ -132,7 +139,7 @@ typedef struct PSBlasErr
 
 ### PSBLASOrder
 
-In: blas.h, line: 23
+In: blas.h, line: 37
 
 ```c
 typedef enum {  
@@ -163,12 +170,12 @@ In: convolutional.h, line: 39
 typedef struct {  
     int stride;  
     int padding;  
-    int filter_width;  
-    int filter_height;  
-    int filter_depth;  
-    int input_width;  
-    int input_height;  
-    int input_depth;  
+    long filter_width;  
+    long filter_height;  
+    long filter_depth;  
+    long input_width;  
+    long input_height;  
+    long input_depth;  
 } PSConvolutionalSettings  
 ```
 
@@ -199,11 +206,11 @@ typedef struct {
     int current_epoch;  
     int current_batch;  
     int current_example;  
-    int layer_index;  
-    int layer_type;  
-    int neuron_index;  
-    int neuron2_index;  
-    int layer2_index;  
+    long layer_index;  
+    long layer_type;  
+    long neuron_index;  
+    long neuron2_index;  
+    long layer2_index;  
     int convolutional_feature;  
     int timestep;  
     PSFloat activation;  
@@ -246,7 +253,7 @@ In: utils.h, line: 85
 
 ```c
 typedef struct {  
-    int64_t length;  
+    unsigned long length;  
     int flags;  
     PSDictItem * table[PSDICT_HT_SIZE];  
     PSOnDictItemRelease onItemRelease;  
@@ -394,7 +401,7 @@ typedef void (* PSGenericLayerCallback) (struct PSLayer *layer)
 In: psyc.h, line: 144
 
 ```c
-typedef uint64_t (* PSGetParamCountFunction) (struct PSLayer *layer, int type)
+typedef long (* PSGetParamCountFunction) (struct PSLayer *layer, int type)
 ```
 
 
@@ -406,8 +413,8 @@ In: psyc.h, line: 227
 
 ```c
 typedef struct {  
-    uint64_t bias_count;  
-    uint64_t weight_count;  
+    long bias_count;  
+    long weight_count;  
     PSFloat * biases;  
     PSFloat * weights;  
     PSFloat * tmp;  
@@ -446,7 +453,7 @@ typedef struct {
 In: psyc.h, line: 145
 
 ```c
-typedef int (* PSInitStatesFunc) (struct PSLayer *layer, uint32_t steps, int retain_previous)
+typedef int (* PSInitStatesFunc) (struct PSLayer *layer, long steps, int retain_previous)
 ```
 
 
@@ -460,7 +467,7 @@ In: psyc.h, line: 316
 typedef struct {  
     PSLayerType type;  
     int index;  
-    int size;  
+    long size;  
     int weight_types;  
     PSMatrix * weights;  
     PSFloat * biases;  
@@ -468,10 +475,10 @@ typedef struct {
     PSMatrix delta;  
     PSFloat * initial_states;  
     uint32_t flags;  
-    int onehot_vector_size;  
-    int output_depth;  
-    int output_columns;  
-    int output_rows;  
+    long onehot_vector_size;  
+    long output_depth;  
+    long output_columns;  
+    long output_rows;  
     int pretrained;  
     void * extra;  
     void * private;  
@@ -509,13 +516,13 @@ typedef struct {
     PSFloat init_range;  
     PSFloat init_scale;  
     PSFloat init_value;  
-    int output_depth;  
-    int output_columns;  
-    int output_rows;  
+    long output_depth;  
+    long output_columns;  
+    long output_rows;  
     int stride;  
     int padding;  
-    int filter_width;  
-    int filter_height;  
+    long filter_width;  
+    long filter_height;  
     int embedding_type;  
     PSFloat dropout;  
     PSFloat epsilon;  
@@ -523,7 +530,7 @@ typedef struct {
     const char * load_from;  
     const char * save_pretrained_to;  
     PSFloat * training_data;  
-    int training_data_size;  
+    long training_data_size;  
     struct PSTrainingOptions * pretraining_options;  
     int attention_type;  
     struct PSLayer * query_provider;  
@@ -537,7 +544,7 @@ typedef struct {
     int operator;  
     int providers_count;  
     struct PSLayer ** providers;  
-    int positional_initial_capacity;  
+    long positional_initial_capacity;  
     int positional_base;  
 } PSLayerDef  
 ```
@@ -587,7 +594,7 @@ typedef int (* PSLinkDataRetriever) (struct PSLayer *layer)
 In: psyc.h, line: 149
 
 ```c
-typedef PSFloat (* PSLossFunction) (PSFloat* x, PSFloat* y, int size, int onehot_size)
+typedef PSFloat (* PSLossFunction) (PSFloat* x, PSFloat* y, long size, long onehot_size)
 ```
 
 
@@ -633,7 +640,7 @@ typedef struct {
     int store_mode;  
     int transpose;  
     char argtype[3];  
-    int vector_len;  
+    long vector_len;  
     PSFloat * tmpdest;  
     PSDotProductDebug debugStep;  
     void * data;  
@@ -659,7 +666,7 @@ Properties:
 
 ### PSMatrix
 
-In: maths.h, line: 148
+In: maths.h, line: 147
 
 ```c
 typedef PSFloat * PSMatrix
@@ -674,7 +681,7 @@ Therefore, by using the PSMatrix-related functions provided by PsyC's API, it's 
 
 ### PSMatrixInitializer
 
-In: maths.h, line: 149
+In: maths.h, line: 148
 
 ```c
 typedef PSFloat (* PSMatrixInitializer) (void)
@@ -697,8 +704,8 @@ typedef struct {
     uint32_t flags;  
     uint16_t acceleration;  
     uint8_t status;  
-    uint32_t input_size;  
-    uint32_t output_size;  
+    long input_size;  
+    long output_size;  
     struct PSModel * previous;  
     struct PSModel * next;  
     PSModelLink * previous_model_link;  
@@ -747,7 +754,7 @@ In: psyc.h, line: 308
 
 ```c
 typedef struct {  
-    int index;  
+    long index;  
     PSFloat * bias;  
     PSFloat * weights;  
     void * extra;  
@@ -803,7 +810,7 @@ typedef enum {
 In: optimization.h, line: 26
 
 ```c
-typedef int (* PSOptimization) (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, uint64_t len, int acceleration, int iteration, struct PSTrainingOptions *options)
+typedef int (* PSOptimization) (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, long len, int acceleration, long iteration, struct PSTrainingOptions *options)
 ```
 
 
@@ -814,7 +821,7 @@ typedef int (* PSOptimization) (PSFloat *params, PSFloat *grads, PSFloat *mgrads
 In: psyc.h, line: 141
 
 ```c
-typedef int (* PSPretrainLayerFunction) (struct PSLayer *, PSFloat *training_data, int data_size)
+typedef int (* PSPretrainLayerFunction) (struct PSLayer *, PSFloat *training_data, long data_size)
 ```
 
 
@@ -841,7 +848,7 @@ typedef enum {
 In: psyc.h, line: 147
 
 ```c
-typedef int (* PSResizeStatesFunc) (struct PSLayer *layer, uint32_t steps, uint32_t previous_steps)
+typedef int (* PSResizeStatesFunc) (struct PSLayer *layer, long steps, long previous_steps)
 ```
 
 
@@ -864,9 +871,9 @@ In: psyc.h, line: 259
 
 ```c
 typedef struct {  
-    int max_length;  
+    long max_length;  
     PSFloat * start;  
-    int end;  
+    long end;  
 } PSSequenceSettings  
 ```
 
@@ -886,13 +893,13 @@ typedef void (* PSSignalHandler) (int)
 
 ### PSTextParserOptions
 
-In: dataset.h, line: 190
+In: dataset.h, line: 191
 
 ```c
 typedef struct {  
     int mode;  
     int flags;  
-    int64_t max_vocabulary_size;  
+    long max_vocabulary_size;  
     const char * separator;  
     const char * unknown_token;  
     int capacity;  
@@ -902,11 +909,11 @@ typedef struct {
     int sequence_length;  
     PSTokenMatch match_sequence_end;  
     const char * sequence_separator;  
-    int64_t max_sequences;  
+    long max_sequences;  
     const char * start_token;  
     const char * end_token;  
     PSFloat * target_dataset;  
-    int64_t target_datalen;  
+    long target_datalen;  
     struct PSVocabulary * target_vocabulary;  
 } PSTextParserOptions  
 ```
@@ -941,10 +948,10 @@ Options for text parsing:
 
 ### PSTokenMatch
 
-In: dataset.h, line: 115
+In: dataset.h, line: 116
 
 ```c
-typedef int (* PSTokenMatch) (char *str, int *len)
+typedef int (* PSTokenMatch) (char *str, size_t *len)
 ```
 
 
@@ -968,16 +975,16 @@ In: psyc.h, line: 290
 ```c
 typedef struct {  
     int current_epoch;  
-    int current_batch;  
-    int current_example;  
-    int num_examples;  
-    int batch_size;  
-    int data_size;  
-    int current_test;  
-    int test_size;  
-    int num_tests;  
-    int correct_results;  
-    int tot_results;  
+    long current_batch;  
+    long current_example;  
+    long num_examples;  
+    long batch_size;  
+    long data_size;  
+    long current_test;  
+    long test_size;  
+    long num_tests;  
+    long correct_results;  
+    long tot_results;  
     time_t started_at;  
     time_t ended_at;  
     int requested_action;  
@@ -996,7 +1003,7 @@ In: psyc.h, line: 270
 typedef struct {  
     int epochs;  
     PSFloat learning_rate;  
-    int batch_size;  
+    long batch_size;  
     int flags;  
     PSFloat l1_decay;  
     PSFloat l2_decay;  
@@ -1022,7 +1029,7 @@ typedef struct {
 In: psyc.h, line: 169
 
 ```c
-typedef void (* PSTrainingProgressFunc) (struct PSModel *model, int status, int epochs, int batches, PSFloat *loss, float *accuracy, PSFloat *validation_loss, float *validation_accuracy, time_t *elapsed)
+typedef void (* PSTrainingProgressFunc) (struct PSModel *model, int status, int epochs, long batches, PSFloat *loss, float *accuracy, PSFloat *validation_loss, float *validation_accuracy, time_t *elapsed)
 ```
 
 
@@ -1041,12 +1048,12 @@ typedef uint32_t PSUTF8Char
 
 ### PSVocabulary
 
-In: dataset.h, line: 211
+In: dataset.h, line: 212
 
 ```c
 typedef struct {  
-    int64_t size;  
-    int64_t capacity;  
+    long size;  
+    long capacity;  
     PSDict * token_map;  
     const char ** tokens;  
 } PSVocabulary  

@@ -13,7 +13,7 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSMatrixShape 3 2024-01-03 "PsyC 0.9.4" "PsyC Library Functions Manual"
+.TH PSMatrixShape 3 2024-03-09 "PsyC 0.9.5" "PsyC Library Functions Manual"
 
 .SH NAME
 \fBPSMatrixShape\fR \- Get the shape of matrix
@@ -29,7 +29,7 @@ PsyC (-lpsyc)
 .I
 int  
 .br
-\fBPSMatrixShape\fR(\fIPSMatrix matrix\fR, \fIint *shape\fR)
+\fBPSMatrixShape\fR(\fIPSMatrix matrix\fR, \fIlong *shape\fR)
 .SH DESCRIPTION
 Get the shape of \fImatrix\fR and store it into \fIshape\fR array. The \fIshape\fR array must be big enough to hold at least \fIPS_MATRIX_MAX_DIMENSIONS\fR elements.
 .br

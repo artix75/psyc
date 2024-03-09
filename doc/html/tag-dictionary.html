@@ -23,7 +23,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
    </head>
    <body class="psyc-doc psyc-tag">
        <header>
-           <h1>PsyC Documentation <span class="version">0.9.4</span></h1>
+           <h1>PsyC Documentation <span class="version">0.9.5</span></h1>
            <h2>API Reference - DICTIONARY</h2>
            <nav id="top-menu">
                <ul>
@@ -82,7 +82,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 <div class="location">In: <span class="filename">utils.h</span> - Line: <span class="line">85</span></div>
 <div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag dictionary" data-href="tag-dictionary.html">DICTIONARY</span></div><div class="code">
 <code class="definition">
-<span class="keyword">typedef struct</span> {<br><span class="member"><span class="type">int64_t</span> <span class="identifier">length</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">flags</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#struct-psdictitem">PSDictItem</a> *</span> <span class="identifier">table[PSDICT_HT_SIZE]</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#function_pointer-psondictitemrelease">PSOnDictItemRelease</a></span> <span class="identifier">onItemRelease</span></span>;<br>} <span class="identifier">PSDict</span><br></code>
+<span class="keyword">typedef struct</span> {<br><span class="member"><span class="type">unsigned long</span> <span class="identifier">length</span></span>;<br><span class="member"><span class="type">int</span> <span class="identifier">flags</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#struct-psdictitem">PSDictItem</a> *</span> <span class="identifier">table[PSDICT_HT_SIZE]</span></span>;<br><span class="member"><span class="type"><a class="psyc-type" href="types.html#function_pointer-psondictitemrelease">PSOnDictItemRelease</a></span> <span class="identifier">onItemRelease</span></span>;<br>} <span class="identifier">PSDict</span><br></code>
 </div>
 </div>
 

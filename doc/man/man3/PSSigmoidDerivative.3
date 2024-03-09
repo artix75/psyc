@@ -13,7 +13,7 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSSigmoidDerivative 3 2024-01-17 "PsyC 0.9.4" "PsyC Library Functions Manual"
+.TH PSSigmoidDerivative 3 2024-03-09 "PsyC 0.9.5" "PsyC Library Functions Manual"
 
 .SH NAME
 \fBPSSigmoidDerivative\fR \- Derivative of the Sigmoid activation function
@@ -29,7 +29,7 @@ PsyC (-lpsyc)
 .I
 void  
 .br
-\fBPSSigmoidDerivative\fR(\fIPSFloat *vec\fR, \fIPSFloat *dest\fR, \fIuint64_t len\fR, \fIint acceleration\fR)
+\fBPSSigmoidDerivative\fR(\fIPSFloat *vec\fR, \fIPSFloat *dest\fR, \fIlong len\fR, \fIint acceleration\fR)
 .SH DESCRIPTION
 Computes the derivative of sigmoid activation function (\fIPSSigmoid\fR) for vectors. The sigmoid derivative is computed on vector \fIvec\fR of length \fIlen\fR and stored into vector \fIdest\fR. If \fIdest\fR is \fINULL\fR, results will be stored into \fIvec\fR itself.
 .br

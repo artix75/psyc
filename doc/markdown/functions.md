@@ -1,4 +1,4 @@
-# PsyC Documentation - 0.9.4
+# PsyC Documentation - 0.9.5
 ## Functions
 
 ### PSAbortTraining
@@ -17,7 +17,7 @@ void PSAbortTraining (PSModel *model)
 In: optimization.h, line: 45
 
 ```c
-int PSAdaDeltaOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, uint64_t len, int acceleration, int iteration, struct PSTrainingOptions *options)
+int PSAdaDeltaOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, long len, int acceleration, long iteration, struct PSTrainingOptions *options)
 ```
 
 
@@ -28,7 +28,7 @@ int PSAdaDeltaOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PS
 In: optimization.h, line: 57
 
 ```c
-int PSAdaGradOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, uint64_t len, int acceleration, int iteration, struct PSTrainingOptions *options)
+int PSAdaGradOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, long len, int acceleration, long iteration, struct PSTrainingOptions *options)
 ```
 
 
@@ -39,7 +39,7 @@ int PSAdaGradOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSF
 In: optimization.h, line: 69
 
 ```c
-int PSAdamOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, uint64_t len, int acceleration, int iteration, struct PSTrainingOptions *options)
+int PSAdamOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, long len, int acceleration, long iteration, struct PSTrainingOptions *options)
 ```
 
 
@@ -47,7 +47,7 @@ int PSAdamOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloa
 
 ### PSAddCIFARInputLayer
 
-In: dataset.h, line: 256
+In: dataset.h, line: 257
 
 ```c
 PSLayer  * PSAddCIFARInputLayer (PSModel *model)
@@ -93,7 +93,7 @@ void PSAddDebugInfo (PSModel *model, char *file, const char *func, int line, PSL
 In: psyc.h, line: 410
 
 ```c
-PSLayer  * PSAddInputLayer (PSModel *model, int size, PSLayerDef *ldef)
+PSLayer  * PSAddInputLayer (PSModel *model, long size, PSLayerDef *ldef)
 ```
 
 Add input layer of size [size](types.md#psvocabulary) to [model](types.md#pslayer). The layer type will be set to the default [FullyConnected](types.md#pslayertype) type.  
@@ -116,7 +116,7 @@ The added layer or **NULL** if:
 In: psyc.h, line: 408
 
 ```c
-PSLayer  * PSAddLayer (PSModel *model, PSLayerType type, int size, PSLayerDef *layer_def)
+PSLayer  * PSAddLayer (PSModel *model, PSLayerType type, long size, PSLayerDef *layer_def)
 ```
 
 Add a new layer (instance of [PSLayer](types.md#pslayer)) of type [type](types.md#pslayer) and size [size](types.md#psvocabulary) to [model](types.md#pslayer). Special layer properties can be defined by the optional argument **layer_def**.  
@@ -208,10 +208,10 @@ See [PSAddLayer](functions.md#psaddlayer).
 
 ### PSAddVectors
 
-In: maths.h, line: 197
+In: maths.h, line: 196
 
 ```c
-PSFloat  * PSAddVectors (PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+PSFloat  * PSAddVectors (PSFloat *a, PSFloat *b, PSFloat *dest, long length, PSMathOpts *opts)
 ```
 
 Add vector **b** to vector **a**. The argument [length](types.md#psdict) defines the length of **a** and **b**, so both **a** and **b** must contain at least [length](types.md#psdict) elements.  
@@ -235,10 +235,10 @@ The function returns **NULL** if **dest** is **NULL** but the destination vector
 
 ### PSAddVectorScalar
 
-In: maths.h, line: 207
+In: maths.h, line: 206
 
 ```c
-PSFloat  * PSAddVectorScalar (PSFloat *a, PSFloat b, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+PSFloat  * PSAddVectorScalar (PSFloat *a, PSFloat b, PSFloat *dest, long length, PSMathOpts *opts)
 ```
 
 Add scalar **b** to vector **a**. The argument [length](types.md#psdict) defines the length of **a**.  
@@ -296,10 +296,10 @@ The iteration keeps forwarding outputs as the next inputs until one of the follo
 
 ### PSAxpy
 
-In: blas.h, line: 36
+In: blas.h, line: 53
 
 ```c
-void PSAxpy (int n, PSFloat alpha, PSFloat *x, int incx, PSFloat *y, int incy)
+void PSAxpy (PSBLAS_int n, PSFloat alpha, PSFloat *x, PSBLAS_int incx, PSFloat *y, PSBLAS_int incy)
 ```
 
 
@@ -404,12 +404,82 @@ size_t PSBitmapSize (PSBitmap bitmap)
 
 
 
+### PSBLASCheckLimits
+
+In: blas.h, line: 52
+
+```c
+int PSBLASCheckLimits (PSBLASErr *err, const char *argformat, ...)
+```
+
+Check variadic arguments integer values against ensuring that they're not greater than PSBLAS_MAX.  
+Checked values can be either **long** scalars or **long** arrays.  
+The mandatory **argformat** argument is a string used to specify how variadic arguments must be intepreted.  
+The format string for every variadic argument is:  
+
+ - zero or more of the following flag characters:
+   - '@': indicates that the next variadic argument is an array of **long**
+   - '$': indicates that the next variadic argument(s) are precedeed          by their names. Names are strings passed as variadic arguments just before the scalar and/or vector argument.
+ - The number of the next variadic argument (scalar) or the length of the next array argument (if '@' was set):
+   - As a fixed number string representation (between 1 and 9).
+   - '*': indicates that argument count/array length must be read from         the next variadic argument (casted to **int**).
+
+The optional **err** argument can be used to retrieve more info about the value that exceeds PSBLAS_MAX:  
+
+  - [param](types.md#psblaserr) string is automatically set if argument names is provided via the '$' flag.
+  - [param_pos](types.md#psblaserr) indicates the (1-based) position of the invalid argument.
+  - [param_value](types.md#psblaserr) contains the value of the invalid argument that exceeded     PSBLAS_MAX.
+
+
+**WARN**:  the count/length argument (if '*' is used in the format string) must always preceed the argument name (if '$' flag has also used in the format string).  
+
+  
+Examples:  
+
+```c
+PSBLASErr err = {0};
+long a = 10, b = 1000;
+long nums[3] = {10, 100, 1000};
+int valid = PSBLASCheckLimits(&err, "2", a, b);
+valid = PSBLASCheckLimits(&err, "@3", nums);
+valid = PSBLASCheckLimits(&err, "2@3", a, b, nums);
+valid = PSBLASCheckLimits(&err, "*@*", 2, a, b, 3, nums);
+valid = PSBLASCheckLimits(&err, "$*$@*", 2, "a", a, "b", b, 3,
+                          "numbers", nums);
+
+```
+
+
+  
+**RETURN VALUES**
+
+1 if all arguments are less or equal than PSBLAS_MAX, zero if one of the arguments exceeded PSBLAS_MAX.
+
+
+### PSBLASErrorStr
+
+In: blas.h, line: 51
+
+```c
+const char  * PSBLASErrorStr (PSBLASErr *err, const char ** param_names)
+```
+
+Get a string representing the BLAS error **err**. If `err->param` is **NULL**, the optional **param_names** argument can be used to pass the names of the parameters (determined by 1-based err->param_pos value).  
+
+
+**NOTE**:  the returned string is a **static** string: it should never be freed and it's always overwritten by subsequent calls.  
+
+**RETURN VALUES**
+
+The error string of **NULL** if **err** is **NULL**.
+
+
 ### PSCalcIntStringLength
 
 In: utils.h, line: 135
 
 ```c
-unsigned int PSCalcIntStringLength (long long num)
+size_t PSCalcIntStringLength (long long num)
 ```
 
 
@@ -431,7 +501,7 @@ int PSCatchFloatingPointExceptions (int except)
 In: psyc.h, line: 446
 
 ```c
-int PSClassify (PSModel *model, PSFloat *inputs)
+long PSClassify (PSModel *model, PSFloat *inputs)
 ```
 
 Forward **inputs** to [model](types.md#pslayer) and get the index of the maximum state from the output layer.  
@@ -474,7 +544,7 @@ int PSClassifyImage (PSModel *model, char *filename, int grayscale, int invert, 
 In: embedding.h, line: 32
 
 ```c
-PSFloat  * PSCreateWord2VecTrainingData (PSFloat *tokens, size_t token_count, int window_size, int vocabulary_size, int onehot, int *num_examples_ptr)
+PSFloat  * PSCreateWord2VecTrainingData (PSFloat *tokens, long token_count, long window_size, long vocabulary_size, int onehot, long *num_examples_ptr)
 ```
 
 
@@ -485,7 +555,7 @@ PSFloat  * PSCreateWord2VecTrainingData (PSFloat *tokens, size_t token_count, in
 In: psyc.h, line: 475
 
 ```c
-PSFloat PSCrossEntropyLoss (PSFloat *x, PSFloat *y, int size, int onehot_size)
+PSFloat PSCrossEntropyLoss (PSFloat *x, PSFloat *y, long size, long onehot_size)
 ```
 
 
@@ -493,10 +563,10 @@ PSFloat PSCrossEntropyLoss (PSFloat *x, PSFloat *y, int size, int onehot_size)
 
 ### PSCumulativeSum
 
-In: maths.h, line: 238
+In: maths.h, line: 231
 
 ```c
-int PSCumulativeSum (PSFloat *a, PSFloat *dest, uint64_t length)
+long PSCumulativeSum (PSFloat *a, PSFloat *dest, long length)
 ```
 
 Compute the cumulative sum on elements of vector **a** having length defined by [length](types.md#psdict). The results will be stored into the vector **dest** that must have at least the same length of **a**. The value of each element of the resulting vector will be the sum of the values of **a** up to the index of the current resulting vector element (ie. `dest[2] = a[0] + a[1] + a[2]`).  
@@ -507,14 +577,15 @@ Compute the cumulative sum on elements of vector **a** having length defined by 
 1 if the function is successfully executed or 0 if:  
 
  - **a** is **NULL** or **dest** is **NULL**.
+ - [length](types.md#psdict) is zero or negative.
 
 
 ### PSDataFromText
 
-In: dataset.h, line: 229
+In: dataset.h, line: 230
 
 ```c
-PSFloat  * PSDataFromText (char *str, PSTextParserOptions *opts, int64_t *datalen, PSVocabulary ** vocabulary)
+PSFloat  * PSDataFromText (char *str, PSTextParserOptions *opts, long *datalen, PSVocabulary ** vocabulary)
 ```
 
 Load a dataset (an array of [PSFloat](types.md#psfloat) numbers) from a string. Depending on the parsing mode, each token or character found in the string will be converted to a numeric representation of itself. The dataset can be used to train a model ([PSModel](types.md#psmodel)) or it can provide inputs to the model.  
@@ -565,10 +636,10 @@ The dataset ([PSFloat](types.md#psfloat) array) or **NULL** is something goes wr
 
 ### PSDataFromTextFile
 
-In: dataset.h, line: 231
+In: dataset.h, line: 232
 
 ```c
-PSFloat  * PSDataFromTextFile (const char *filepath, PSTextParserOptions *opts, int64_t *datalen, PSVocabulary ** vocabulary)
+PSFloat  * PSDataFromTextFile (const char *filepath, PSTextParserOptions *opts, long *datalen, PSVocabulary ** vocabulary)
 ```
 
 Load a dataset (an array of PSFloat numbers) from the text file found at **filepath**.  
@@ -582,10 +653,10 @@ The dataset ([PSFloat](types.md#psfloat) array) or **NULL** is something goes wr
 
 ### PSDataLoad
 
-In: dataset.h, line: 237
+In: dataset.h, line: 238
 
 ```c
-PSFloat  * PSDataLoad (const char *filepath, uint64_t *datalen)
+PSFloat  * PSDataLoad (const char *filepath, long *datalen)
 ```
 
 Load dataset from file located at **filepath**. Dataset is returned as an array of PSFloat elements whose length (number of elements) is stored into mandatory argument **datalen**.  
@@ -602,10 +673,10 @@ Possible failure reasons:
 
 ### PSDataSave
 
-In: dataset.h, line: 238
+In: dataset.h, line: 239
 
 ```c
-int PSDataSave (const char *path, PSFloat *data, uint64_t len, int opts)
+int PSDataSave (const char *path, PSFloat *data, long len, int opts)
 ```
 
 Save dataset [data](types.md#psmathopts) to the file located at **path**. The dataset must be an array of PSFloat elements whose length (number of elements) defined by argument **len**.  
@@ -626,10 +697,10 @@ Possible failure reasons:
 
 ### PSDataSplit
 
-In: dataset.h, line: 239
+In: dataset.h, line: 240
 
 ```c
-int PSDataSplit (PSFloat *data, uint64_t datalen, float percentage, int input_size, int target_size, PSFloat ** left, PSFloat ** right, uint64_t *left_length, uint64_t *right_length, int opts)
+int PSDataSplit (PSFloat *data, long datalen, float percentage, long input_size, long target_size, PSFloat ** left, PSFloat ** right, long *left_length, long *right_length, int opts)
 ```
 
 Split [data](types.md#psmathopts) into two separated datasets. This function can useful to separate validation data used for testing models from data used for training them.  
@@ -642,7 +713,7 @@ If [data](types.md#psmathopts) is made up of sequences, the [PS_DATA_SEQUENCES](
 The addresses of the resulting datasets will be stored into the **left** and **right** arguments and their lengths (number of their respective elements) will be stored into the **left_length** and **right_length** arguments.  
 
 
-**NOTE**:  if [data](types.md#psmathopts) has no sequences and neither [PS_DATA_SHUFFLE](macros.md#ps-data-shuffle) nor [PS_DATA_EVENLY_SPREAD](macros.md#ps-data-evenly-spread) flags is set, the function won't allocate the resulting datasets, so **left** will contain the pointer to the original address of [data](types.md#psmathopts) and **right** will contain the pointer to the first element of [data](types.md#psmathopts) that will belong to the right dataset. This means that the right dataset should **never be freed** by its own. In all the other cases, memory for both the left and the right dataset will be allocated and must be freed when not used anymore.  
+**NOTE**:  if [data](types.md#psmathopts) has no sequences and none of [PS_DATA_ALWAYS_ALLOC](macros.md#ps-data-always-alloc), [PS_DATA_SHUFFLE](macros.md#ps-data-shuffle) and [PS_DATA_EVENLY_SPREAD](macros.md#ps-data-evenly-spread) flags are set, the function won't allocate the resulting datasets, unless [PS_DATA_ALWAYS_ALLOC](macros.md#ps-data-always-alloc). In this case, **left** will contain the pointer to the original address of [data](types.md#psmathopts) and **right** will contain the pointer to the first element of [data](types.md#psmathopts) that will belong to the right dataset. This means that the right dataset should **never be freed** by its own. In all the other cases, memory for both the left and the right dataset will be allocated and must be freed when not used anymore.  
 
 **RETURN VALUES**
 
@@ -715,7 +786,7 @@ void PSDeleteNeuron (PSNeuron *neuron)
 
 ### PSDiagonalFlatten
 
-In: maths.h, line: 257
+In: maths.h, line: 250
 
 ```c
 PSMatrix PSDiagonalFlatten (PSMatrix matrix)
@@ -747,10 +818,10 @@ The matrix or **NULL** if:
 
 ### PSDiagonalFlattenVector
 
-In: maths.h, line: 258
+In: maths.h, line: 251
 
 ```c
-PSMatrix PSDiagonalFlattenVector (PSFloat *vec, uint64_t len)
+PSMatrix PSDiagonalFlattenVector (PSFloat *vec, long len)
 ```
 
 Create a matrix of shape **len**, **len** where values of vector **vec** having length defined by **len** are distributed over a diagonal line starting from top-left side and ending to bottom-right side.  
@@ -777,10 +848,10 @@ The matrix or **NULL** if:
 
 ### PSDiagonalMask
 
-In: maths.h, line: 256
+In: maths.h, line: 249
 
 ```c
-PSMatrix PSDiagonalMask (int size)
+PSMatrix PSDiagonalMask (long size)
 ```
 
 Create a matrix with shape [size](types.md#psvocabulary), [size](types.md#psvocabulary) diagonally filled with 1.0 from the top-left side to the bottom-right side, example:  
@@ -1006,10 +1077,10 @@ void PSDisableAcceleration (uint16_t *config, PSAcceleration acceleration)
 
 ### PSDivideScalarVector
 
-In: maths.h, line: 215
+In: maths.h, line: 214
 
 ```c
-PSFloat  * PSDivideScalarVector (PSFloat b, PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+PSFloat  * PSDivideScalarVector (PSFloat b, PSFloat *a, PSFloat *dest, long length, PSMathOpts *opts)
 ```
 
 Divide scalar **b** by vector **a**. The argument [length](types.md#psdict) defines the length of **a**.  
@@ -1033,10 +1104,10 @@ The function returns **NULL** if **dest** is **NULL** but the destination vector
 
 ### PSDivideVectors
 
-In: maths.h, line: 203
+In: maths.h, line: 202
 
 ```c
-PSFloat  * PSDivideVectors (PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+PSFloat  * PSDivideVectors (PSFloat *a, PSFloat *b, PSFloat *dest, long length, PSMathOpts *opts)
 ```
 
 Divide vector **a** by vector **b**. The argument [length](types.md#psdict) defines the length of **a** and **b**, so both **a** and **b** must contain at least [length](types.md#psdict) elements.  
@@ -1060,10 +1131,10 @@ The function returns **NULL** if **dest** is **NULL** but the destination vector
 
 ### PSDivideVectorScalar
 
-In: maths.h, line: 213
+In: maths.h, line: 212
 
 ```c
-PSFloat  * PSDivideVectorScalar (PSFloat *a, PSFloat b, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+PSFloat  * PSDivideVectorScalar (PSFloat *a, PSFloat b, PSFloat *dest, long length, PSMathOpts *opts)
 ```
 
 Divide vector **a** by scalar **b**. The argument [length](types.md#psdict) defines the length of **a**.  
@@ -1087,7 +1158,7 @@ The function returns **NULL** if **dest** is **NULL** but the destination vector
 
 ### PSDot
 
-In: maths.h, line: 251
+In: maths.h, line: 244
 
 ```c
 int PSDot (PSMatrix a, PSMatrix b, PSFloat *dest, PSMathOpts *opts)
@@ -1118,7 +1189,7 @@ Possible failure reasons:
 
 ### PSDotMV
 
-In: maths.h, line: 252
+In: maths.h, line: 245
 
 ```c
 int PSDotMV (PSMatrix a, PSFloat *b, PSFloat *dest, PSMathOpts *opts)
@@ -1137,10 +1208,10 @@ See [PSDot](functions.md#psdot).
 
 ### PSDotProduct
 
-In: maths.h, line: 242
+In: maths.h, line: 235
 
 ```c
-PSFloat PSDotProduct (PSFloat *a, PSFloat *b, uint64_t length, PSMathOpts *opts)
+PSFloat PSDotProduct (PSFloat *a, PSFloat *b, long length, PSMathOpts *opts)
 ```
 
 Compute the dot product of vector **a** and vector **b**, both having length defined by [length](types.md#psdict).  
@@ -1155,10 +1226,10 @@ The resulting dot product (scalar) or zero if **a** is **NULL** or **b** is **NU
 
 ### PSDotSquare
 
-In: maths.h, line: 243
+In: maths.h, line: 236
 
 ```c
-PSFloat PSDotSquare (PSFloat *a, uint64_t length, PSMathOpts *opts)
+PSFloat PSDotSquare (PSFloat *a, long length, PSMathOpts *opts)
 ```
 
 
@@ -1166,7 +1237,7 @@ PSFloat PSDotSquare (PSFloat *a, uint64_t length, PSMathOpts *opts)
 
 ### PSDotVM
 
-In: maths.h, line: 253
+In: maths.h, line: 246
 
 ```c
 int PSDotVM (PSFloat *a, PSMatrix b, PSMatrix dest, PSMathOpts *opts)
@@ -1250,7 +1321,7 @@ void PSFillWithBlank (int line_length)
 In: psyc.h, line: 432
 
 ```c
-int PSFindLayerMaxState (PSLayer *layer, PSFloat *max_p, int *index_p, ...)
+int PSFindLayerMaxState (PSLayer *layer, PSFloat *max_p, long *index_p, ...)
 ```
 
 Find max state value and the relative neuron index for layer [layer](types.md#psmodellink), and store them into **max_p** pointer (max state) and **index_p** pointer (index of neuron having maximum state value).  
@@ -1267,7 +1338,7 @@ Timestep must be always in range of processed timesteps (hidden states), otherwi
 
 ### PSFloatEquals
 
-In: maths.h, line: 262
+In: maths.h, line: 255
 
 ```c
 int PSFloatEquals (PSFloat a, PSFloat b, int precision)
@@ -1329,10 +1400,10 @@ The random float number.
 
 ### PSGelu
 
-In: activation.h, line: 46
+In: activation.h, line: 45
 
 ```c
-void PSGelu (PSFloat *vec, PSFloat *dest, uint64_t len, int acceleration)
+void PSGelu (PSFloat *vec, PSFloat *dest, long len, int acceleration)
 ```
 
 GELU (Gaussian Error Linear Units) activation function for vectors.  
@@ -1347,10 +1418,10 @@ The derivative of this function is **PSGeLUDerivative**.
 
 ### PSGeluDerivative
 
-In: activation.h, line: 53
+In: activation.h, line: 50
 
 ```c
-void PSGeluDerivative (PSFloat *vec, PSFloat *dest, uint64_t len, int acceleration)
+void PSGeluDerivative (PSFloat *vec, PSFloat *dest, long len, int acceleration)
 ```
 
 Computes the derivative of GELU activation function ([PSGelu](functions.md#psgelu)) for vectors.  
@@ -1400,10 +1471,10 @@ GELU scalar result.
 
 ### PSGemm
 
-In: blas.h, line: 40
+In: blas.h, line: 58
 
 ```c
-void PSGemm (PSBLASOrder order, char trans_a, char trans_b, int m, int n, int k, PSFloat alpha, PSFloat *a, int lda, PSFloat *b, int ldb, PSFloat beta, PSFloat *c, int ldc)
+void PSGemm (PSBLASOrder order, char trans_a, char trans_b, PSBLAS_int m, PSBLAS_int n, PSBLAS_int k, PSFloat alpha, PSFloat *a, PSBLAS_int lda, PSFloat *b, PSBLAS_int ldb, PSFloat beta, PSFloat *c, PSBLAS_int ldc)
 ```
 
 
@@ -1411,10 +1482,10 @@ void PSGemm (PSBLASOrder order, char trans_a, char trans_b, int m, int n, int k,
 
 ### PSGemv
 
-In: blas.h, line: 37
+In: blas.h, line: 55
 
 ```c
-void PSGemv (PSBLASOrder order, char trans, int m, int n, PSFloat alpha, PSFloat *a, int lda, PSFloat *x, PSFloat incx, PSFloat beta, PSFloat *y, int incy)
+void PSGemv (PSBLASOrder order, char trans, PSBLAS_int m, PSBLAS_int n, PSFloat alpha, PSFloat *a, PSBLAS_int lda, PSFloat *x, PSFloat incx, PSFloat beta, PSFloat *y, PSBLAS_int incy)
 ```
 
 
@@ -1547,7 +1618,7 @@ char  * PSGetElapsedTimeString (time_t elapsed_us, int long_format)
 In: embedding.h, line: 31
 
 ```c
-int PSGetEmbeddingVocabularySize (PSLayer *layer)
+long PSGetEmbeddingVocabularySize (PSLayer *layer)
 ```
 
 
@@ -1636,7 +1707,7 @@ The layer at specified index/indices or **NULL** if:
 In: psyc.h, line: 419
 
 ```c
-int PSGetLayerInputSize (PSLayer *layer)
+long PSGetLayerInputSize (PSLayer *layer)
 ```
 
 Determine the input size of [layer](types.md#psmodellink), depending on the size of its previous layer, if any.  
@@ -1656,7 +1727,7 @@ The input size of [layer](types.md#psmodellink) or zero if:
 In: psyc.h, line: 420
 
 ```c
-uint64_t PSGetLayerInputWeightsCount (PSLayer *layer, int per_neuron)
+long PSGetLayerInputWeightsCount (PSLayer *layer, int per_neuron)
 ```
 
 
@@ -1667,7 +1738,7 @@ uint64_t PSGetLayerInputWeightsCount (PSLayer *layer, int per_neuron)
 In: psyc.h, line: 414
 
 ```c
-uint64_t PSGetLayerParametersCount (PSLayer *layer, int param_type)
+long PSGetLayerParametersCount (PSLayer *layer, int param_type)
 ```
 
 
@@ -1736,7 +1807,7 @@ The model or **NULL** if:
 In: psyc.h, line: 436
 
 ```c
-PSNeuron  * PSGetNeuron (PSLayer *layer, int index, PSNeuron *neuron)
+PSNeuron  * PSGetNeuron (PSLayer *layer, long index, PSNeuron *neuron)
 ```
 
 
@@ -1791,7 +1862,7 @@ PSLayer  * PSGetNextLayer (PSLayer *layer)
 In: psyc.h, line: 413
 
 ```c
-int PSGetOneHotLayerVectorSize (PSLayer *layer)
+long PSGetOneHotLayerVectorSize (PSLayer *layer)
 ```
 
 Get the onehot vector size of [layer](types.md#psmodellink). If the flag [PS_FLAG_ONEHOT](macros.md#ps-flag-onehot) is not set into layer's flags, just return the layer size.
@@ -1854,7 +1925,7 @@ The output layer or **NULL** if:
 In: positional-encoding.h, line: 24
 
 ```c
-PSMatrix PSGetPositionalEncoding (int seqlen, int size, int base)
+PSMatrix PSGetPositionalEncoding (long seqlen, long size, int base)
 ```
 
 
@@ -1876,7 +1947,7 @@ int PSGetPositionalEncodingBase (PSLayer *layer)
 In: positional-encoding.h, line: 25
 
 ```c
-int PSGetPositionalEncodingLength (PSLayer *layer)
+long PSGetPositionalEncodingLength (PSLayer *layer)
 ```
 
 
@@ -1920,7 +1991,7 @@ PSFloat  * PSGetRecurrentNeuronHiddenWeights (PSNeuron *neuron)
 In: psyc.h, line: 426
 
 ```c
-PSFloat PSGetState (PSLayer *layer, int index, ...)
+PSFloat PSGetState (PSLayer *layer, long index, ...)
 ```
 
 
@@ -1931,7 +2002,7 @@ PSFloat PSGetState (PSLayer *layer, int index, ...)
 In: utils.h, line: 142
 
 ```c
-int PSGetTerminalColumns (void)
+unsigned int PSGetTerminalColumns (void)
 ```
 
 
@@ -2184,7 +2255,7 @@ int PSLineStart (int opts, char *format, ...)
 
 ### PSLoadCIFARData
 
-In: dataset.h, line: 254
+In: dataset.h, line: 255
 
 ```c
 int PSLoadCIFARData (int type, int classes, const char *dataset_path, PSFloat ** data, int max_files, int max_examples)
@@ -2216,7 +2287,7 @@ Possibile errors:
 
 ### PSLoadMNISTData
 
-In: dataset.h, line: 248
+In: dataset.h, line: 249
 
 ```c
 int PSLoadMNISTData (int type, const char *images_file, const char *labels_file, PSFloat ** data)
@@ -2297,7 +2368,7 @@ const char  * PSLogLevelName (int level)
 In: optimization.h, line: 75
 
 ```c
-int PSLRegularization (PSFloat l1, PSFloat l2, PSFloat *weights, PSFloat *wgradients, PSFloat *tmp, uint64_t len, PSFloat *l1_loss, PSFloat *l2_loss, int batches, int weight_decay, int acceleration)
+int PSLRegularization (PSFloat l1, PSFloat l2, PSFloat *weights, PSFloat *wgradients, PSFloat *tmp, long len, PSFloat *l1_loss, PSFloat *l2_loss, int batches, int weight_decay, int acceleration)
 ```
 
 
@@ -2317,10 +2388,10 @@ Return vale: 1 in case of success, elseway 0.
 
 ### PSMatMul
 
-In: maths.h, line: 249
+In: maths.h, line: 242
 
 ```c
-int PSMatMul (PSFloat *a, PSFloat *b, PSFloat *dest, int m, int n, int k, PSMathOpts *opts)
+int PSMatMul (PSFloat *a, PSFloat *b, PSFloat *dest, long m, long n, long k, PSMathOpts *opts)
 ```
 
 Perform matrix multiplication between vectors (PSFloat arrays) **a** and **b**.  
@@ -2347,7 +2418,7 @@ Other arguments:
 
 ### PSMatrixAdd
 
-In: maths.h, line: 177
+In: maths.h, line: 176
 
 ```c
 int PSMatrixAdd (PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt)
@@ -2385,7 +2456,7 @@ Possible failure reasons:
 
 ### PSMatrixClear
 
-In: maths.h, line: 192
+In: maths.h, line: 191
 
 ```c
 void PSMatrixClear (PSMatrix matrix)
@@ -2396,7 +2467,7 @@ Set all values of **matrix** to zero. If **matrix** is **NULL**, the function do
 
 ### PSMatrixCopy
 
-In: maths.h, line: 190
+In: maths.h, line: 189
 
 ```c
 int PSMatrixCopy (PSMatrix src, PSMatrix dst)
@@ -2417,7 +2488,7 @@ Copy values of matrix **src** to matrix **dst**. Both **src** and **dst** must h
 
 ### PSMatrixCreate
 
-In: maths.h, line: 150
+In: maths.h, line: 149
 
 ```c
 PSMatrix PSMatrixCreate (PSFloat init_value, PSMatrixInitializer initializer, int ndims, ...)
@@ -2441,10 +2512,10 @@ The allocated matrix or **NULL** if:
 
 ### PSMatrixCreateWithShape
 
-In: maths.h, line: 152
+In: maths.h, line: 151
 
 ```c
-PSMatrix PSMatrixCreateWithShape (PSFloat init_value, PSMatrixInitializer initializer, int ndims, int *shape)
+PSMatrix PSMatrixCreateWithShape (PSFloat init_value, PSMatrixInitializer initializer, int ndims, long *shape)
 ```
 
 Create a new matrix having number of dimensions defined by **ndims** and shape defined by **shape**. The argument [init_value](types.md#pslayerdef) can be used to define the initial value of the matrix numbers or, optionally, the **initializer** callback can be used to initialize the matrix values.  
@@ -2464,10 +2535,10 @@ The allocated matrix or **NULL** if:
 
 ### PSMatrixDim
 
-In: maths.h, line: 161
+In: maths.h, line: 160
 
 ```c
-int PSMatrixDim (PSMatrix matrix, int dim)
+long PSMatrixDim (PSMatrix matrix, int dim)
 ```
 
 Return the size of the dimension **dim** of **matrix**. If **dim** is out of bounds or if **matrix** is **NULL**, the function will return zero.
@@ -2475,7 +2546,7 @@ Return the size of the dimension **dim** of **matrix**. If **dim** is out of bou
 
 ### PSMatrixDivide
 
-In: maths.h, line: 180
+In: maths.h, line: 179
 
 ```c
 int PSMatrixDivide (PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt)
@@ -2513,7 +2584,7 @@ Possible failure reasons:
 
 ### PSMatrixDup
 
-In: maths.h, line: 188
+In: maths.h, line: 187
 
 ```c
 PSMatrix PSMatrixDup (PSMatrix matrix)
@@ -2535,7 +2606,7 @@ The new matrix or **NULL** if:
 
 ### PSMatrixDupShape
 
-In: maths.h, line: 189
+In: maths.h, line: 188
 
 ```c
 PSMatrix PSMatrixDupShape (PSMatrix matrix)
@@ -2557,7 +2628,7 @@ The new matrix or **NULL** if:
 
 ### PSMatrixEquals
 
-In: maths.h, line: 191
+In: maths.h, line: 190
 
 ```c
 int PSMatrixEquals (PSMatrix a, PSMatrix b, int precision, int ignore_shape)
@@ -2574,10 +2645,10 @@ By setting **precision** to zero, the two vectors must be perfectly equal (no pr
 
 ### PSMatrixExpand
 
-In: maths.h, line: 159
+In: maths.h, line: 158
 
 ```c
-PSMatrix PSMatrixExpand (PSMatrix src, int add, int keep_src)
+PSMatrix PSMatrixExpand (PSMatrix src, long add, int keep_src)
 ```
 
 Create a new matrix having the shape of **src** but with the first dimension increased by the value of **add**. The original values **src** will be copied to the new matrix, and all the new values belonging to thecexpanded dimension will be initialized to zero.  
@@ -2595,7 +2666,7 @@ The new expanded matrix or:
 
 ### PSMatrixFlatten
 
-In: maths.h, line: 182
+In: maths.h, line: 181
 
 ```c
 PSMatrix PSMatrixFlatten (PSMatrix matrix)
@@ -2615,7 +2686,7 @@ The new flatten matrix or **NULL** if:
 
 ### PSMatrixFree
 
-In: maths.h, line: 193
+In: maths.h, line: 192
 
 ```c
 void PSMatrixFree (PSMatrix matrix)
@@ -2635,7 +2706,7 @@ If **matrix** is **NULL**, the function will directly return.
 
 ### PSMatrixFromArray
 
-In: maths.h, line: 158
+In: maths.h, line: 157
 
 ```c
 PSMatrix PSMatrixFromArray (PSFloat *array, int ndims, ...)
@@ -2662,10 +2733,10 @@ The allocated matrix or **NULL** if:
 
 ### PSMatrixGet
 
-In: maths.h, line: 171
+In: maths.h, line: 170
 
 ```c
-PSFloat  * PSMatrixGet (PSMatrix matrix, int ndims, uint32_t *len, ...)
+PSFloat  * PSMatrixGet (PSMatrix matrix, int ndims, long *len, ...)
 ```
 
 
@@ -2673,10 +2744,10 @@ PSFloat  * PSMatrixGet (PSMatrix matrix, int ndims, uint32_t *len, ...)
 
 ### PSMatrixLength
 
-In: maths.h, line: 163
+In: maths.h, line: 162
 
 ```c
-uint64_t PSMatrixLength (PSMatrix matrix)
+long PSMatrixLength (PSMatrix matrix)
 ```
 
 Get the total number of values belonging to **matrix** (ie. a matrix with shape (2,3) will return 6).  
@@ -2689,7 +2760,7 @@ The total number of values belonging to **matrix** or zero if **matrix** is **NU
 
 ### PSMatrixMultiply
 
-In: maths.h, line: 178
+In: maths.h, line: 177
 
 ```c
 int PSMatrixMultiply (PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt)
@@ -2727,7 +2798,7 @@ Possible failure reasons:
 
 ### PSMatrixNumDims
 
-In: maths.h, line: 160
+In: maths.h, line: 159
 
 ```c
 int PSMatrixNumDims (PSMatrix matrix)
@@ -2738,7 +2809,7 @@ Return the number of dimensions of **matrix**. If **matrix** is **NULL**, the fu
 
 ### PSMatrixPrint
 
-In: maths.h, line: 170
+In: maths.h, line: 169
 
 ```c
 void PSMatrixPrint (PSMatrix matrix, const char *sep, int print_shape)
@@ -2753,7 +2824,7 @@ If **matrix** is **NULL**, the function will immediately return.
 
 ### PSMatrixPrintInfo
 
-In: maths.h, line: 166
+In: maths.h, line: 165
 
 ```c
 void PSMatrixPrintInfo (PSMatrix matrix, const char *name, int newline)
@@ -2764,7 +2835,7 @@ void PSMatrixPrintInfo (PSMatrix matrix, const char *name, int newline)
 
 ### PSMatrixPrintShape
 
-In: maths.h, line: 167
+In: maths.h, line: 166
 
 ```c
 void PSMatrixPrintShape (PSMatrix matrix, int newline)
@@ -2775,7 +2846,7 @@ void PSMatrixPrintShape (PSMatrix matrix, int newline)
 
 ### PSMatrixProduct
 
-In: maths.h, line: 172
+In: maths.h, line: 171
 
 ```c
 int PSMatrixProduct (PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt)
@@ -2815,10 +2886,10 @@ Possible failure reasons:
 
 ### PSMatrixProductMV
 
-In: maths.h, line: 173
+In: maths.h, line: 172
 
 ```c
-int PSMatrixProductMV (PSMatrix a, PSFloat *b, int len, PSFloat ** result, PSMathOpts *opts)
+int PSMatrixProductMV (PSMatrix a, PSFloat *b, long len, PSFloat ** result, PSMathOpts *opts)
 ```
 
 Performs matrix-vector multiplication between matrix **a** and vector **b**.  
@@ -2855,10 +2926,10 @@ Possible failure reasons:
 
 ### PSMatrixProductVM
 
-In: maths.h, line: 175
+In: maths.h, line: 174
 
 ```c
-int PSMatrixProductVM (PSFloat *a, PSMatrix b, int len, PSMatrix *result, PSMathOpts *opts)
+int PSMatrixProductVM (PSFloat *a, PSMatrix b, long len, PSMatrix *result, PSMathOpts *opts)
 ```
 
 Performs vector-matrix multiplication between vector **a** and matrix **b**.  
@@ -2893,7 +2964,7 @@ Possible failure reasons:
 
 ### PSMatrixRandom
 
-In: maths.h, line: 156
+In: maths.h, line: 155
 
 ```c
 PSMatrix PSMatrixRandom (int ndims, ...)
@@ -2917,7 +2988,7 @@ The allocated matrix or **NULL** if:
 
 ### PSMatrixResetTransposed
 
-In: maths.h, line: 187
+In: maths.h, line: 186
 
 ```c
 void PSMatrixResetTransposed (PSMatrix matrix)
@@ -2928,7 +2999,7 @@ Invalidate and free the cached transposed version of **matrix**, if any (see [PS
 
 ### PSMatrixReshape
 
-In: maths.h, line: 181
+In: maths.h, line: 180
 
 ```c
 PSMatrix PSMatrixReshape (PSMatrix matrix, int num_dims, ...)
@@ -2947,10 +3018,10 @@ Result value: the new reshaped matrix or **NULL** if:
 
 ### PSMatrixShape
 
-In: maths.h, line: 162
+In: maths.h, line: 161
 
 ```c
-int PSMatrixShape (PSMatrix matrix, int *shape)
+int PSMatrixShape (PSMatrix matrix, long *shape)
 ```
 
 Get the shape of **matrix** and store it into **shape** array. The **shape** array must be big enough to hold at least [PS_MATRIX_MAX_DIMENSIONS](macros.md#ps-matrix-max-dimensions) elements.  
@@ -2964,7 +3035,7 @@ The number of dimensions of **matrix** or zero if **matrix** is **NULL**.
 
 ### PSMatrixShapeType
 
-In: maths.h, line: 165
+In: maths.h, line: 164
 
 ```c
 int PSMatrixShapeType (PSMatrix matrix)
@@ -2994,10 +3065,10 @@ The shape type:
 
 ### PSMatrixSplit
 
-In: maths.h, line: 183
+In: maths.h, line: 182
 
 ```c
-PSMatrix  * PSMatrixSplit (PSMatrix matrix, int num_slices, int axis, PSMathOpts *opts)
+PSMatrix  * PSMatrixSplit (PSMatrix matrix, long num_slices, int axis, PSMathOpts *opts)
 ```
 
 Split **matrix** into smaller matrices whose number is defined by **num_slices**. The matrix will be split on the axis (dimension) defined by the **axis** argument.  
@@ -3024,10 +3095,10 @@ An array of **num_slices** sub-matrices whose length is or **NULL** if:
 
 ### PSMatrixStride
 
-In: maths.h, line: 164
+In: maths.h, line: 163
 
 ```c
-int PSMatrixStride (PSMatrix matrix, int dim)
+long PSMatrixStride (PSMatrix matrix, int dim)
 ```
 
 Get the stride of the dimension **dim** of **matrix**. For example, a matrix with shape (2,3) has a stride of 3 for dimension 0 while a matrix with shape (2,3,3) has a stride of 9 for dimension 0, 3 for dimension 1 and 1 for dimension 2.  
@@ -3040,7 +3111,7 @@ The stride of dimension **dim** or zero if **matrix** is **NULL**.
 
 ### PSMatrixSubtract
 
-In: maths.h, line: 179
+In: maths.h, line: 178
 
 ```c
 int PSMatrixSubtract (PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt)
@@ -3078,7 +3149,7 @@ Possible failure reasons:
 
 ### PSMatrixSwapAxes
 
-In: maths.h, line: 186
+In: maths.h, line: 185
 
 ```c
 PSMatrix PSMatrixSwapAxes (PSMatrix matrix, int axis1, int axis2)
@@ -3107,7 +3178,7 @@ The new swapped matrix or **NULL** if:
 
 ### PSMatrixTranspose
 
-In: maths.h, line: 185
+In: maths.h, line: 184
 
 ```c
 PSMatrix PSMatrixTranspose (PSMatrix matrix, int rebuild, PSMathOpts *opts)
@@ -3142,7 +3213,7 @@ The transposed matrix or **NULL** if:
 
 ### PSMatrixWithGaussianRandom
 
-In: maths.h, line: 157
+In: maths.h, line: 156
 
 ```c
 PSMatrix PSMatrixWithGaussianRandom (PSFloat stddev, int ndims, ...)
@@ -3166,10 +3237,10 @@ The allocated matrix or **NULL** if:
 
 ### PSMatrixWrite
 
-In: maths.h, line: 168
+In: maths.h, line: 167
 
 ```c
-int PSMatrixWrite (PSMatrix matrix, const char *sep, char bracket, int indent, FILE *out)
+size_t PSMatrixWrite (PSMatrix matrix, const char *sep, char bracket, int indent, FILE *out)
 ```
 
 Write the string representation of **matrix** to file file stream **out**.  
@@ -3195,7 +3266,7 @@ The total number of bytes written or 0 if:
 
 ### PSMatrixZeros
 
-In: maths.h, line: 155
+In: maths.h, line: 154
 
 ```c
 PSMatrix PSMatrixZeros (int ndims, ...)
@@ -3218,10 +3289,10 @@ The allocated matrix or **NULL** if:
 
 ### PSMean
 
-In: maths.h, line: 239
+In: maths.h, line: 232
 
 ```c
-PSFloat PSMean (PSFloat *a, uint64_t length, PSMathOpts *opts)
+PSFloat PSMean (PSFloat *a, long length, PSMathOpts *opts)
 ```
 
 Compute the mean value of the elements of vector **a** having length defined by [length](types.md#psdict).  
@@ -3646,10 +3717,10 @@ Common used status values are:
 
 ### PSMultiplyVectors
 
-In: maths.h, line: 201
+In: maths.h, line: 200
 
 ```c
-PSFloat  * PSMultiplyVectors (PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+PSFloat  * PSMultiplyVectors (PSFloat *a, PSFloat *b, PSFloat *dest, long length, PSMathOpts *opts)
 ```
 
 Multiply vector **a** by vector **b**. The argument [length](types.md#psdict) defines the length of **a** and **b**, so both **a** and **b** must contain at least [length](types.md#psdict) elements.  
@@ -3673,10 +3744,10 @@ The function returns **NULL** if **dest** is **NULL** but the destination vector
 
 ### PSMultiplyVectorScalar
 
-In: maths.h, line: 205
+In: maths.h, line: 204
 
 ```c
-PSFloat  * PSMultiplyVectorScalar (PSFloat *a, PSFloat b, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+PSFloat  * PSMultiplyVectorScalar (PSFloat *a, PSFloat b, PSFloat *dest, long length, PSMathOpts *opts)
 ```
 
 Multiply vector **a** by scalar **b**. The argument [length](types.md#psdict) defines the length of **a**.  
@@ -3703,7 +3774,7 @@ The function returns **NULL** if **dest** is **NULL** but the destination vector
 In: optimization.h, line: 39
 
 ```c
-int PSNesterovOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, uint64_t len, int acceleration, int iteration, struct PSTrainingOptions *options)
+int PSNesterovOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, long len, int acceleration, long iteration, struct PSTrainingOptions *options)
 ```
 
 
@@ -3727,10 +3798,10 @@ The random float number.
 
 ### PSNormalizeToken
 
-In: dataset.h, line: 228
+In: dataset.h, line: 229
 
 ```c
-char  * PSNormalizeToken (char *token, int len)
+char  * PSNormalizeToken (char *token, size_t len)
 ```
 
 
@@ -3752,7 +3823,7 @@ void PSNotice (const char *format, ...)
 In: utils.h, line: 145
 
 ```c
-PSFloat  * PSOneHotVector (uint64_t index, uint64_t len)
+PSFloat  * PSOneHotVector (long index, long len)
 ```
 
 Create a vector of length **len** where value at [index](types.md#psmodel) is one while all the other values contain zero.
@@ -3760,10 +3831,10 @@ Create a vector of length **len** where value at [index](types.md#psmodel) is on
 
 ### PSOuterProduct
 
-In: maths.h, line: 254
+In: maths.h, line: 247
 
 ```c
-int PSOuterProduct (PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t alen, uint64_t blen, PSMathOpts *opts)
+int PSOuterProduct (PSFloat *a, PSFloat *b, PSFloat *dest, long alen, long blen, PSMathOpts *opts)
 ```
 
 Multiply every element of vector **a** (having **alen** length) by every element of vector **b** (having **blen** length) and store results into vector **dest** (whose length must be the product of **alen** by **blen**).  
@@ -3848,7 +3919,7 @@ void PSPrintSameLine (char *format, ...)
 In: log.h, line: 143
 
 ```c
-int PSProgressBar (int num, int tot, int style, int color, int flags, int maxlen, char *label)
+int PSProgressBar (long num, long tot, int style, int color, int flags, int maxlen, char *label)
 ```
 
 
@@ -3859,7 +3930,7 @@ int PSProgressBar (int num, int tot, int style, int color, int flags, int maxlen
 In: psyc.h, line: 474
 
 ```c
-PSFloat PSQuadraticLoss (PSFloat *x, PSFloat *y, int size, int onehot_size)
+PSFloat PSQuadraticLoss (PSFloat *x, PSFloat *y, long size, long onehot_size)
 ```
 
 
@@ -3870,27 +3941,26 @@ PSFloat PSQuadraticLoss (PSFloat *x, PSFloat *y, int size, int onehot_size)
 In: maths.h, line: 126
 
 ```c
-unsigned int PSRandomInt (unsigned int range, PSFloat *weights, int *err, PSMathOpts *opts)
+long PSRandomInt (long range, PSFloat *weights, PSMathOpts *opts)
 ```
 
 Generate a random unsigned integer number within a range defined by argument **range** (between zero and **range** - 1).  
 If the optional [weights](types.md#pslayer) argument is not **NULL**, it can be used as a probability distribution the affects the randomness of the result.  
 In this case, [weights](types.md#pslayer) must be an array of [PSFloat](types.md#psfloat) whose length must be equal to **range**: each element of [weights](types.md#pslayer) represents the probability (weight) of its index to be generated (for example, the weights `{0.1, 0.7, 0.2}` with a range of 3 give a probability of 70% to number 1 to be generated).  
-The optional **err** pointer can be used, if not **NULL**, to know if some error occurred and, in case of error,  the address pointed by **err** will contain 1.  
 The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in **PSGlobalAcceleration** are used, if any. However, the used accelerations methods can be changed via the [acceleration](types.md#psmathopts) member of the optional argument **opts**.  
 
 
 **RETURN VALUES**
 
-The random unsigned integer number.
+The random integer number or -1 in case of error.
 
 
 ### PSRelu
 
-In: activation.h, line: 45
+In: activation.h, line: 44
 
 ```c
-void PSRelu (PSFloat *vec, PSFloat *dest, uint64_t len, int acceleration)
+void PSRelu (PSFloat *vec, PSFloat *dest, long len, int acceleration)
 ```
 
 ReLU (Rectified Linear Unit) activation function for vectors.  
@@ -3906,10 +3976,10 @@ The derivative of this function is [PSReluDerivative](functions.md#psreluderivat
 
 ### PSReluDerivative
 
-In: activation.h, line: 51
+In: activation.h, line: 49
 
 ```c
-void PSReluDerivative (PSFloat *vec, PSFloat *dest, uint64_t len, int acceleration)
+void PSReluDerivative (PSFloat *vec, PSFloat *dest, long len, int acceleration)
 ```
 
 Computes the derivative of ReLU activation function ([PSRelu](functions.md#psrelu)) for vectors.  
@@ -3973,7 +4043,7 @@ void PSResetDebugInfo (void)
 In: psyc.h, line: 422
 
 ```c
-int PSResetLayerStateSequence (PSLayer *layer, uint32_t steps, int retain_previous)
+int PSResetLayerStateSequence (PSLayer *layer, long steps, int retain_previous)
 ```
 
 
@@ -3984,7 +4054,7 @@ int PSResetLayerStateSequence (PSLayer *layer, uint32_t steps, int retain_previo
 In: psyc.h, line: 424
 
 ```c
-int PSResetModelStateSequences (PSModel *model, uint32_t steps, int retain_previous)
+int PSResetModelStateSequences (PSModel *model, long steps, int retain_previous)
 ```
 
 
@@ -4006,7 +4076,7 @@ void PSResetTransposedWeights (PSModel *model)
 In: optimization.h, line: 63
 
 ```c
-int PSRMSPropOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, uint64_t len, int acceleration, int iteration, struct PSTrainingOptions *options)
+int PSRMSPropOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, long len, int acceleration, long iteration, struct PSTrainingOptions *options)
 ```
 
 
@@ -4072,7 +4142,7 @@ int PSSetRecurrentNetworkMode (PSModel *model, PSRecurrentNetworkMode mode)
 In: psyc.h, line: 430
 
 ```c
-int PSSetState (PSLayer *layer, PSFloat state, int index, ...)
+int PSSetState (PSLayer *layer, PSFloat state, long index, ...)
 ```
 
 
@@ -4083,7 +4153,7 @@ int PSSetState (PSLayer *layer, PSFloat state, int index, ...)
 In: optimization.h, line: 33
 
 ```c
-int PSSGDOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, uint64_t len, int acceleration, int iteration, struct PSTrainingOptions *options)
+int PSSGDOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, long len, int acceleration, long iteration, struct PSTrainingOptions *options)
 ```
 
 
@@ -4094,7 +4164,7 @@ int PSSGDOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat
 In: activation.h, line: 42
 
 ```c
-void PSSigmoid (PSFloat *vec, PSFloat *dest, uint64_t len, int acceleration)
+void PSSigmoid (PSFloat *vec, PSFloat *dest, long len, int acceleration)
 ```
 
 Sigmoid activation function for vectors. Sigmoid is computed on vector **vec** of length **len** and stored into vector **dest**. If **dest** is **NULL**, results will be stored into **vec** itself.  
@@ -4107,10 +4177,10 @@ The derivative of this function is [PSSigmoidDerivative](functions.md#pssigmoidd
 
 ### PSSigmoidDerivative
 
-In: activation.h, line: 47
+In: activation.h, line: 46
 
 ```c
-void PSSigmoidDerivative (PSFloat *vec, PSFloat *dest, uint64_t len, int acceleration)
+void PSSigmoidDerivative (PSFloat *vec, PSFloat *dest, long len, int acceleration)
 ```
 
 Computes the derivative of sigmoid activation function ([PSSigmoid](functions.md#pssigmoid)) for vectors. The sigmoid derivative is computed on vector **vec** of length **len** and stored into vector **dest**. If **dest** is **NULL**, results will be stored into **vec** itself.  
@@ -4158,10 +4228,10 @@ Sigmoid scalar result.
 
 ### PSSoftmax
 
-In: activation.h, line: 55
+In: activation.h, line: 51
 
 ```c
-void PSSoftmax (PSFloat *vec, PSFloat *dest, uint64_t len, int acceleration)
+void PSSoftmax (PSFloat *vec, PSFloat *dest, long len, int acceleration)
 ```
 
 Computes Softmax function on vector **vec** of length **len**. Result is stored into vector **dest**. If **dest** is **NULL**, result will be stored into **vec** itself.  
@@ -4176,7 +4246,7 @@ For more info about Softmax:
 In: psyc.h, line: 431
 
 ```c
-int PSStateSequenceLength (PSLayer *layer)
+long PSStateSequenceLength (PSLayer *layer)
 ```
 
 
@@ -4184,10 +4254,10 @@ int PSStateSequenceLength (PSLayer *layer)
 
 ### PSStdDev
 
-In: maths.h, line: 241
+In: maths.h, line: 234
 
 ```c
-PSFloat PSStdDev (PSFloat *a, uint64_t len, PSMathOpts *opts)
+PSFloat PSStdDev (PSFloat *a, long len, PSMathOpts *opts)
 ```
 
 Compute the standard deviation of the elements of vector **a** having length defined by [length](types.md#psdict).  
@@ -4213,10 +4283,10 @@ char  * PSStringJoin (char ** strings, char *sep, int len)
 
 ### PSSubtractScalarVector
 
-In: maths.h, line: 211
+In: maths.h, line: 210
 
 ```c
-PSFloat  * PSSubtractScalarVector (PSFloat b, PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+PSFloat  * PSSubtractScalarVector (PSFloat b, PSFloat *a, PSFloat *dest, long length, PSMathOpts *opts)
 ```
 
 Subtract vector **a** from scalar **b**. The argument [length](types.md#psdict) defines the length of **a**.  
@@ -4240,10 +4310,10 @@ The function returns **NULL** if **dest** is **NULL** but the destination vector
 
 ### PSSubtractVectors
 
-In: maths.h, line: 199
+In: maths.h, line: 198
 
 ```c
-PSFloat  * PSSubtractVectors (PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+PSFloat  * PSSubtractVectors (PSFloat *a, PSFloat *b, PSFloat *dest, long length, PSMathOpts *opts)
 ```
 
 Subtract vector **b** from vector **a**. The argument [length](types.md#psdict) defines the length of **a** and **b**, so both **a** and **b** must contain at least [length](types.md#psdict) elements.  
@@ -4267,10 +4337,10 @@ The function returns **NULL** if **dest** is **NULL** but the destination vector
 
 ### PSSubtractVectorScalar
 
-In: maths.h, line: 209
+In: maths.h, line: 208
 
 ```c
-PSFloat  * PSSubtractVectorScalar (PSFloat *a, PSFloat b, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+PSFloat  * PSSubtractVectorScalar (PSFloat *a, PSFloat b, PSFloat *dest, long length, PSMathOpts *opts)
 ```
 
 Subtract scalar **b** from vector **a**. The argument [length](types.md#psdict) defines the length of **a**.  
@@ -4297,7 +4367,7 @@ The function returns **NULL** if **dest** is **NULL** but the destination vector
 In: activation.h, line: 43
 
 ```c
-void PSTanhActivation (PSFloat *vec, PSFloat *dest, uint64_t len, int acceleration)
+void PSTanhActivation (PSFloat *vec, PSFloat *dest, long len, int acceleration)
 ```
 
 Tanh (hyperbolic tangent) activation function for vectors. Hyperbolic tangent is computed on vector **vec** of length **len** and stored into vector **dest**.  
@@ -4308,10 +4378,10 @@ The derivative of this function is [PSTanhDerivative](functions.md#pstanhderivat
 
 ### PSTanhDerivative
 
-In: activation.h, line: 49
+In: activation.h, line: 48
 
 ```c
-void PSTanhDerivative (PSFloat *vec, PSFloat *dest, uint64_t len, int acceleration)
+void PSTanhDerivative (PSFloat *vec, PSFloat *dest, long len, int acceleration)
 ```
 
 Computes the derivative of tanh (hyperbolic tangent) activation function ([PSTanhActivation](functions.md#pstanhactivation)) for vectors. The derivative is computed on vector **vec** of length **len** and stored into vector **dest**.  
@@ -4336,7 +4406,7 @@ PSFloat PSTanhDerivativeS (PSFloat val)
 In: psyc.h, line: 462
 
 ```c
-float PSTest (PSModel *model, PSFloat *test_data, int data_size, PSFloat *loss, PSTrainingOptions *options)
+float PSTest (PSModel *model, PSFloat *test_data, long data_size, PSFloat *loss, PSTrainingOptions *options)
 ```
 
 Test [model](types.md#pslayer) the against **test_data** dataset having length defined by the [data_size](types.md#pstraininginfo) argument.  
@@ -4358,7 +4428,7 @@ The accuracy of the predictions, where 1.0 means that all predictions were corre
 In: psyc.h, line: 454
 
 ```c
-void PSTrain (PSModel *model, PSFloat *training_data, int data_size, PSFloat *test_data, int test_size, PSTrainingOptions *options)
+void PSTrain (PSModel *model, PSFloat *training_data, long data_size, PSFloat *test_data, long test_size, PSTrainingOptions *options)
 ```
 
 Train [model](types.md#pslayer) over [training_data](types.md#pslayerdef). Training epochs, batch size, optimization, and other optimizer settings are defined into optional **options** argument.  
@@ -4416,7 +4486,7 @@ void PSTrainingDebugDumpGradient (PSModel *model, int phase, const char *func, P
 In: debug.h, line: 87
 
 ```c
-void PSTrainingDebugDumpHeader (PSModel *model, int data_size, int test_size, int epochs, PSFloat learning_rate, int batch_size)
+void PSTrainingDebugDumpHeader (PSModel *model, long data_size, long test_size, int epochs, PSFloat learning_rate, long batch_size)
 ```
 
 
@@ -4438,7 +4508,7 @@ void PSTrainingDebugDumpStep (PSDebugStepInfo *info, char *format, ...)
 In: psyc.h, line: 478
 
 ```c
-void PSTrainingProgressBar (PSModel *model, int status, int epochs, int batches, PSFloat *loss, float *accuracy, PSFloat *test_loss, float *test_accuracy, time_t *elapsed)
+void PSTrainingProgressBar (PSModel *model, int status, int epochs, long batches, PSFloat *loss, float *accuracy, PSFloat *test_loss, float *test_accuracy, time_t *elapsed)
 ```
 
 
@@ -4622,10 +4692,10 @@ PSUTF8Char PSUTF8ToUpper (PSUTF8Char uc)
 
 ### PSVariance
 
-In: maths.h, line: 240
+In: maths.h, line: 233
 
 ```c
-PSFloat PSVariance (PSFloat *a, uint64_t len, PSMathOpts *opts)
+PSFloat PSVariance (PSFloat *a, long len, PSMathOpts *opts)
 ```
 
 Compute the statistical variance of the elements of vector **a** having length defined by [length](types.md#psdict).  
@@ -4640,10 +4710,10 @@ The variance of vector **a** values or zero if **a** is **NULL**.
 
 ### PSVectorAbs
 
-In: maths.h, line: 225
+In: maths.h, line: 220
 
 ```c
-PSFloat  * PSVectorAbs (PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+PSFloat  * PSVectorAbs (PSFloat *a, PSFloat *dest, long length, PSMathOpts *opts)
 ```
 
 Compute the absolute value of every element of vector **a** having length defined by [length](types.md#psdict) (`dest[i] = abs(a[i])`).  
@@ -4666,10 +4736,10 @@ The function returns **NULL** if **dest** is **NULL** but the destination vector
 
 ### PSVectorClip
 
-In: maths.h, line: 227
+In: maths.h, line: 221
 
 ```c
-PSFloat  * PSVectorClip (PSFloat *a, PSFloat min, PSFloat max, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+PSFloat  * PSVectorClip (PSFloat *a, PSFloat min, PSFloat max, PSFloat *dest, long length, PSMathOpts *opts)
 ```
 
 Clip values of vector **a** having length defined by [length](types.md#psdict) to minimum value defined by **min** and maximum value defined by **max** (`dest[i] = (a[i] < min ? min : (a[i] > max ? max : a[i]))`).  
@@ -4692,10 +4762,10 @@ The function returns **NULL** if **dest** is **NULL** but the destination vector
 
 ### PSVectorConvertToMatrix
 
-In: maths.h, line: 265
+In: maths.h, line: 258
 
 ```c
-PSMatrix PSVectorConvertToMatrix (PSFloat *vec, uint64_t len, int ndims, int *shape)
+PSMatrix PSVectorConvertToMatrix (PSFloat *vec, long len, int ndims, long *shape)
 ```
 
 Convert the vector **vec** of length **len** to a [PSMatrix](types.md#psmatrix). This function differs from [PSMatrixFromArray](functions.md#psmatrixfromarray) since it reallocates the vector in order to make room for the matrix header that will contain matrix's properties.  
@@ -4735,10 +4805,10 @@ Possible failure reasons:
 
 ### PSVectorDup
 
-In: maths.h, line: 260
+In: maths.h, line: 253
 
 ```c
-PSFloat  * PSVectorDup (PSFloat *src, size_t length)
+PSFloat  * PSVectorDup (PSFloat *src, long length)
 ```
 
 Duplicate vector **vec** having length defined by [length](types.md#psdict).  
@@ -4751,10 +4821,10 @@ The duplicated vector or **NULL** is memory cannot be allocated.
 
 ### PSVectorEquals
 
-In: maths.h, line: 263
+In: maths.h, line: 256
 
 ```c
-int PSVectorEquals (PSFloat *a, PSFloat *b, uint64_t length, int precision, uint64_t *index)
+int PSVectorEquals (PSFloat *a, PSFloat *b, long length, int precision, long *index)
 ```
 
 Compare two vectors **a** and **b** having [length](types.md#psdict) length. Use **precision** to set precision tolerance. Lower precision leads to higher tolerance.  
@@ -4769,10 +4839,10 @@ Use [index](types.md#psmodel) pointer if you need to know the index of the first
 
 ### PSVectorExp
 
-In: maths.h, line: 221
+In: maths.h, line: 218
 
 ```c
-PSFloat  * PSVectorExp (PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+PSFloat  * PSVectorExp (PSFloat *a, PSFloat *dest, long length, PSMathOpts *opts)
 ```
 
 Compute base-e (Euler's number) exponential  on every element of vector **a** having length defined by [length](types.md#psdict).  
@@ -4795,10 +4865,10 @@ The function returns **NULL** if **dest** is **NULL** but the destination vector
 
 ### PSVectorFill
 
-In: maths.h, line: 244
+In: maths.h, line: 237
 
 ```c
-void PSVectorFill (PSFloat *vec, PSFloat val, uint64_t len, PSMathOpts *opts)
+void PSVectorFill (PSFloat *vec, PSFloat val, long len, PSMathOpts *opts)
 ```
 
 Fill vector **vec** having length defined by **len** with [value](types.md#psdictitem). The function will immediately return if **vec** is **NULL** or **len** is zero.  
@@ -4807,10 +4877,10 @@ The function can take advantage of the available accelerations (both hardwware a
 
 ### PSVectorMapWithLimit
 
-In: maths.h, line: 231
+In: maths.h, line: 225
 
 ```c
-PSFloat  * PSVectorMapWithLimit (PSFloat *a, PSFloat limit, PSFloat mapper, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+PSFloat  * PSVectorMapWithLimit (PSFloat *a, PSFloat limit, PSFloat mapper, PSFloat *dest, long length, PSMathOpts *opts)
 ```
 
 Map values of vector **a** having length defined by [length](types.md#psdict) with the value defined by **mapper**: values greater than **limit** will be represented with the value of **mapper**, while values equal or less than **limit** will be represented with negative value of **mapper** (`-(mapper)`); Results are stored into the optional **dest** arguments. If **dest** is **NULL**, a new vector will be allocated and its address will be  returned by the function itself.  
@@ -4826,10 +4896,10 @@ The function returns **NULL** if **dest** is **NULL** but the destination vector
 
 ### PSVectorMax
 
-In: maths.h, line: 235
+In: maths.h, line: 229
 
 ```c
-PSFloat PSVectorMax (PSFloat *a, uint64_t *index, uint64_t length, PSMathOpts *opts)
+PSFloat PSVectorMax (PSFloat *a, long *index, long length, PSMathOpts *opts)
 ```
 
 Compute the maximum value among values of vector **a** having length defined by [length](types.md#psdict).  
@@ -4844,10 +4914,10 @@ The maxium value in the vector **a**.
 
 ### PSVectorNeg
 
-In: maths.h, line: 223
+In: maths.h, line: 219
 
 ```c
-PSFloat  * PSVectorNeg (PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+PSFloat  * PSVectorNeg (PSFloat *a, PSFloat *dest, long length, PSMathOpts *opts)
 ```
 
 Compute the negative value of every element of vector **a** having length defined by [length](types.md#psdict) (`dest[i] = -a[i]`).  
@@ -4870,10 +4940,10 @@ The function returns **NULL** if **dest** is **NULL** but the destination vector
 
 ### PSVectorPower
 
-In: maths.h, line: 233
+In: maths.h, line: 227
 
 ```c
-PSFloat  * PSVectorPower (PSFloat *a, PSFloat exp, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+PSFloat  * PSVectorPower (PSFloat *a, PSFloat exp, PSFloat *dest, long length, PSMathOpts *opts)
 ```
 
 Raise each value of vector **a** having length [length](types.md#psdict) to power of **exp**.  
@@ -4897,10 +4967,10 @@ The function returns **NULL** if **dest** is **NULL** but the destination vector
 
 ### PSVectorPrint
 
-In: maths.h, line: 246
+In: maths.h, line: 239
 
 ```c
-void PSVectorPrint (PSFloat *vec, uint64_t len, char* sep)
+void PSVectorPrint (PSFloat *vec, long len, char* sep)
 ```
 
 Print a string representation of vector **vec** having length of **len** to the standard output.  
@@ -4910,10 +4980,10 @@ If **vec** is **NULL** the function will immediately return.
 
 ### PSVectorRandom
 
-In: maths.h, line: 261
+In: maths.h, line: 254
 
 ```c
-PSFloat  * PSVectorRandom (size_t len)
+PSFloat  * PSVectorRandom (long len)
 ```
 
 Allocate a new vector having length defined by **len** and fill it with random values within a range of 0.0 and 1.0.  
@@ -4926,10 +4996,10 @@ The allocated vector or **NULL** if memory cannot be allocated.
 
 ### PSVectorReduceSum
 
-In: maths.h, line: 237
+In: maths.h, line: 230
 
 ```c
-PSFloat PSVectorReduceSum (PSFloat *a, uint64_t length, PSMathOpts *opts)
+PSFloat PSVectorReduceSum (PSFloat *a, long length, PSMathOpts *opts)
 ```
 
 Compute the sum of all the elements of vector **a** having length defined by [length](types.md#psdict).  
@@ -4943,10 +5013,10 @@ The sum of all the elements in the vector **a** or zero if **a** is **NULL**.
 
 ### PSVectorSplit
 
-In: maths.h, line: 259
+In: maths.h, line: 252
 
 ```c
-PSFloat  ** PSVectorSplit (PSFloat *vec, int len, int num_slices)
+PSFloat  ** PSVectorSplit (PSFloat *vec, long len, long num_slices)
 ```
 
 Split vector **vec** having length defined by **len** into **num_slices** vectors.  
@@ -4966,10 +5036,10 @@ An array of **num_slices** vectors (PSFloat *) or **NULL** if:
 
 ### PSVectorSqrt
 
-In: maths.h, line: 219
+In: maths.h, line: 217
 
 ```c
-PSFloat  * PSVectorSqrt (PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+PSFloat  * PSVectorSqrt (PSFloat *a, PSFloat *dest, long length, PSMathOpts *opts)
 ```
 
 Compute square root on every element of vector **a** having length defined by [length](types.md#psdict).  
@@ -4992,10 +5062,10 @@ The function returns **NULL** if **dest** is **NULL** but the destination vector
 
 ### PSVectorTanh
 
-In: maths.h, line: 217
+In: maths.h, line: 216
 
 ```c
-PSFloat  * PSVectorTanh (PSFloat *a, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+PSFloat  * PSVectorTanh (PSFloat *a, PSFloat *dest, long length, PSMathOpts *opts)
 ```
 
 Compute hyperbolic tangent (tanh) on every element of vector **a** having length defined by [length](types.md#psdict).  
@@ -5018,10 +5088,10 @@ The function returns **NULL** if **dest** is **NULL** but the destination vector
 
 ### PSVectorThreshold
 
-In: maths.h, line: 229
+In: maths.h, line: 223
 
 ```c
-PSFloat  * PSVectorThreshold (PSFloat *a, PSFloat min, PSFloat *dest, uint64_t length, PSMathOpts *opts)
+PSFloat  * PSVectorThreshold (PSFloat *a, PSFloat min, PSFloat *dest, long length, PSMathOpts *opts)
 ```
 
 Clip values of vector **a** having length defined by [length](types.md#psdict) to minimum value defined by **min** and maximum value of PSFloat ([PSFLOAT_MAX](macros.md#psfloat-max)).  
@@ -5045,7 +5115,7 @@ The function returns **NULL** if **dest** is **NULL** but the destination vector
 
 ### PSVectorTranspose
 
-In: maths.h, line: 247
+In: maths.h, line: 240
 
 ```c
 PSFloat  * PSVectorTranspose (PSFloat *vec, PSFloat *dest, int acceleration, int ndims, ...)
@@ -5078,10 +5148,10 @@ Possible failure reasons:
 
 ### PSVectorWrite
 
-In: maths.h, line: 245
+In: maths.h, line: 238
 
 ```c
-void PSVectorWrite (PSFloat *vec, uint64_t len, char* sep, FILE *f)
+void PSVectorWrite (PSFloat *vec, long len, char* sep, FILE *f)
 ```
 
 Write a string representation of vector **vec** having length of **len** to the file stream **f**.  
@@ -5102,10 +5172,10 @@ int PSVLineAppend (int opts, char *format, va_list args)
 
 ### PSVocabularyAdd
 
-In: dataset.h, line: 220
+In: dataset.h, line: 221
 
 ```c
-int64_t PSVocabularyAdd (PSVocabulary *vocabulary, char *token)
+long PSVocabularyAdd (PSVocabulary *vocabulary, char *token)
 ```
 
 Add token **token** to **vocabulary**. The token is added to the internal dictionary of **vocabulary** and a numeric index (ID) is assigned to it.  
@@ -5119,10 +5189,10 @@ The numeric index (ID) of the token. If token could not be added to the dictiona
 
 ### PSVocabularyCreate
 
-In: dataset.h, line: 219
+In: dataset.h, line: 220
 
 ```c
-PSVocabulary  * PSVocabularyCreate (int64_t initial_capacity)
+PSVocabulary  * PSVocabularyCreate (long initial_capacity)
 ```
 
 Create a [PSVocabulary](types.md#psvocabulary) with initial capacity of **initial_capacity**.  
@@ -5135,10 +5205,10 @@ The vocabulary or **NULL** if memory cannot be allocated.
 
 ### PSVocabularyErrorString
 
-In: dataset.h, line: 225
+In: dataset.h, line: 226
 
 ```c
-const char  * PSVocabularyErrorString (int err)
+const char  * PSVocabularyErrorString (long err)
 ```
 
 
@@ -5146,7 +5216,7 @@ const char  * PSVocabularyErrorString (int err)
 
 ### PSVocabularyFree
 
-In: dataset.h, line: 226
+In: dataset.h, line: 227
 
 ```c
 void PSVocabularyFree (PSVocabulary *vocabulary)
@@ -5157,10 +5227,10 @@ void PSVocabularyFree (PSVocabulary *vocabulary)
 
 ### PSVocabularyGetTokenByID
 
-In: dataset.h, line: 222
+In: dataset.h, line: 223
 
 ```c
-const char  * PSVocabularyGetTokenByID (PSVocabulary *vocabulary, int64_t id)
+const char  * PSVocabularyGetTokenByID (PSVocabulary *vocabulary, long id)
 ```
 
 Get the token associated with **id** from **vocabulary**.  
@@ -5173,10 +5243,10 @@ The token associated with **id** or **NULL** if no **token** is found with **id*
 
 ### PSVocabularyGetTokenID
 
-In: dataset.h, line: 221
+In: dataset.h, line: 222
 
 ```c
-int64_t PSVocabularyGetTokenID (PSVocabulary *vocabulary, char *token)
+long PSVocabularyGetTokenID (PSVocabulary *vocabulary, char *token)
 ```
 
 Get the ID of the token **token** from vocabulary **vocabulary**.  
@@ -5190,7 +5260,7 @@ If **vocabulary** is **NULL** or **token** is **NULL**, the function will return
 
 ### PSVocabularyLoad
 
-In: dataset.h, line: 223
+In: dataset.h, line: 224
 
 ```c
 PSVocabulary  * PSVocabularyLoad (const char *path)
@@ -5215,7 +5285,7 @@ The pointer to vocabulary or **NULL** if:
 
 ### PSVocabularySave
 
-In: dataset.h, line: 224
+In: dataset.h, line: 225
 
 ```c
 int PSVocabularySave (PSVocabulary *vocabulary, const char *path)
@@ -5272,7 +5342,7 @@ void PSWarn (const char *format, ...)
 In: optimization.h, line: 51
 
 ```c
-int PSWindowGradOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, uint64_t len, int acceleration, int iteration, struct PSTrainingOptions *options)
+int PSWindowGradOptimization (PSFloat *params, PSFloat *grads, PSFloat *mgrads, PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp, PSFloat rate, PSFloat momentum, long len, int acceleration, long iteration, struct PSTrainingOptions *options)
 ```
 
 

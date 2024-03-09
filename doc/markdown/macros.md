@@ -1,4 +1,4 @@
-# PsyC Documentation - 0.9.4
+# PsyC Documentation - 0.9.5
 ## Macros
 
 ### DBL_DECIMAL_DIG
@@ -102,10 +102,21 @@ In: utils.h, line: 58
 
 ### PS_CIFAR_IMAGE_SIZE
 
-In: dataset.h, line: 252
+In: dataset.h, line: 253
 
 ```c
 #define PS_CIFAR_IMAGE_SIZE (32 * 32 * 3)
+```
+
+
+
+
+### PS_DATA_ALWAYS_ALLOC
+
+In: dataset.h, line: 34
+
+```c
+#define PS_DATA_ALWAYS_ALLOC (1 << 16)
 ```
 
 
@@ -223,7 +234,7 @@ In: psyc.h, line: 39
 
 ### PS_DEFAULT_END_TOKEN
 
-In: dataset.h, line: 102
+In: dataset.h, line: 103
 
 ```c
 #define PS_DEFAULT_END_TOKEN "<end>"
@@ -260,7 +271,7 @@ In: psyc.h, line: 42
 
 ### PS_DEFAULT_MAX_VOCAB_SIZE
 
-In: dataset.h, line: 99
+In: dataset.h, line: 100
 
 ```c
 #define PS_DEFAULT_MAX_VOCAB_SIZE 15000
@@ -271,7 +282,7 @@ In: dataset.h, line: 99
 
 ### PS_DEFAULT_PARSER_CAPACITY
 
-In: dataset.h, line: 98
+In: dataset.h, line: 99
 
 ```c
 #define PS_DEFAULT_PARSER_CAPACITY 50
@@ -304,7 +315,7 @@ In: psyc.h, line: 37
 
 ### PS_DEFAULT_START_TOKEN
 
-In: dataset.h, line: 101
+In: dataset.h, line: 102
 
 ```c
 #define PS_DEFAULT_START_TOKEN "<start>"
@@ -315,7 +326,7 @@ In: dataset.h, line: 101
 
 ### PS_DEFAULT_TOKEN_SEPARATOR
 
-In: dataset.h, line: 37
+In: dataset.h, line: 38
 
 ```c
 #define PS_DEFAULT_TOKEN_SEPARATOR " ,.:
@@ -326,7 +337,7 @@ In: dataset.h, line: 37
 
 ### PS_DEFAULT_UNKNOWN_TOKEN
 
-In: dataset.h, line: 100
+In: dataset.h, line: 101
 
 ```c
 #define PS_DEFAULT_UNKNOWN_TOKEN "<unknown>"
@@ -550,7 +561,7 @@ In: psyc.h, line: 71
 
 ### PS_INVALID_TOKEN_ID
 
-In: dataset.h, line: 39
+In: dataset.h, line: 40
 
 ```c
 #define PS_INVALID_TOKEN_ID -1
@@ -572,7 +583,7 @@ In: psyc.h, line: 114
 
 ### PS_IO_MAX_TOKEN_SIZE
 
-In: dataset.h, line: 42
+In: dataset.h, line: 43
 
 ```c
 #define PS_IO_MAX_TOKEN_SIZE 1024
@@ -803,7 +814,7 @@ In: psyc.h, line: 50
 
 ### PS_MNIST_INPUT_SIZE
 
-In: dataset.h, line: 246
+In: dataset.h, line: 247
 
 ```c
 #define PS_MNIST_INPUT_SIZE (28 * 28)
@@ -946,7 +957,7 @@ In: psyc.h, line: 67
 
 ### PS_PARSER_FLAG_ENCODE_ONLY
 
-In: dataset.h, line: 58
+In: dataset.h, line: 59
 
 ```c
 #define PS_PARSER_FLAG_ENCODE_ONLY (1 << 3)
@@ -957,7 +968,7 @@ Just generate a dataset that only consist of parsed tokens, with no metadata, no
 
 ### PS_PARSER_FLAG_END_TOKEN
 
-In: dataset.h, line: 88
+In: dataset.h, line: 89
 
 ```c
 #define PS_PARSER_FLAG_END_TOKEN (1 << 5)
@@ -973,7 +984,7 @@ Add an 'ending' token to the dataset:
 
 ### PS_PARSER_FLAG_EXACT_INPUTS
 
-In: dataset.h, line: 96
+In: dataset.h, line: 97
 
 ```c
 #define PS_PARSER_FLAG_EXACT_INPUTS (1 << 7)
@@ -984,7 +995,7 @@ When the dataset has target sequences whose length can differ from the  related 
 
 ### PS_PARSER_FLAG_MAKE_TARGETS
 
-In: dataset.h, line: 91
+In: dataset.h, line: 92
 
 ```c
 #define PS_PARSER_FLAG_MAKE_TARGETS (1 << 6)
@@ -995,7 +1006,7 @@ Let text parsing functions (ie. PSDataFromText) also generate the target sequenc
 
 ### PS_PARSER_FLAG_NO_NORMALIZATION
 
-In: dataset.h, line: 50
+In: dataset.h, line: 51
 
 ```c
 #define PS_PARSER_FLAG_NO_NORMALIZATION (1 << 0)
@@ -1006,7 +1017,7 @@ In: dataset.h, line: 50
 
 ### PS_PARSER_FLAG_PRESERVE_STRING
 
-In: dataset.h, line: 52
+In: dataset.h, line: 53
 
 ```c
 #define PS_PARSER_FLAG_PRESERVE_STRING (1 << 1)
@@ -1017,7 +1028,7 @@ In: dataset.h, line: 52
 
 ### PS_PARSER_FLAG_READONLY_VOCAB
 
-In: dataset.h, line: 55
+In: dataset.h, line: 56
 
 ```c
 #define PS_PARSER_FLAG_READONLY_VOCAB (1 << 2)
@@ -1028,7 +1039,7 @@ Prevent adding new tokens to vocabulary used for generating a dataset from a par
 
 ### PS_PARSER_FLAG_START_TOKEN
 
-In: dataset.h, line: 73
+In: dataset.h, line: 74
 
 ```c
 #define PS_PARSER_FLAG_START_TOKEN (1 << 4)
@@ -1044,7 +1055,7 @@ Add a 'starting' token to the dataset:
 
 ### PS_PARSER_MODE_CHARS
 
-In: dataset.h, line: 47
+In: dataset.h, line: 48
 
 ```c
 #define PS_PARSER_MODE_CHARS 1
@@ -1055,7 +1066,7 @@ In: dataset.h, line: 47
 
 ### PS_PARSER_MODE_TOKENS
 
-In: dataset.h, line: 45
+In: dataset.h, line: 46
 
 ```c
 #define PS_PARSER_MODE_TOKENS 0
@@ -1429,7 +1440,7 @@ In: maths.h, line: 63
 
 ### PS_TOKEN_NOT_FOUND
 
-In: dataset.h, line: 40
+In: dataset.h, line: 41
 
 ```c
 #define PS_TOKEN_NOT_FOUND -2
@@ -1679,6 +1690,23 @@ In: utils.h, line: 61
 
 ```c
 #define PSBitmapOr(a, b, dest) PSBitmapOp(a, b, dest, PS_BITMAP_OP_OR)
+```
+
+
+
+
+### PSBLAS_MAX
+
+In: blas.h, line: 27
+
+```c
+#if PSBLAS_INT_SIZE == 8
+#define PSBLAS_MAX INT64_MAX
+#else
+#define PSBLAS_MAX (long) INT32_MAX
+#else
+#define PSBLAS_MAX (long) INT32_MAX
+#endif
 ```
 
 
@@ -2518,7 +2546,7 @@ In: log.h, line: 28
 
 ### PSMatrixDataSize
 
-In: maths.h, line: 131
+In: maths.h, line: 130
 
 ```c
 #define PSMatrixDataSize(matrix) (PSMatrixLength(matrix) * sizeof(PSFloat))
@@ -2540,7 +2568,7 @@ In: maths.h, line: 59
 
 ### PSMatrixStrideBytes
 
-In: maths.h, line: 132
+In: maths.h, line: 131
 
 ```c
 #define PSMatrixStrideBytes(matrix,i) (PSMatrixStride(matrix,i) * sizeof(PSFloat))
@@ -3161,7 +3189,7 @@ In: psyc.h, line: 32
 In: psyc.h, line: 30
 
 ```c
-#define PSYC_VERSION "0.9.4"
+#define PSYC_VERSION "0.9.5"
 ```
 
 

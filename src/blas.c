@@ -130,7 +130,7 @@ const char *PSBLASErrorStr(PSBLASErr *err, const char **param_names) {
  * The mandatory `argformat` argument is a string used to specify how variadic
  * arguments must be intepreted.
  * The format string for every variadic argument is:
- *  - 0 or more of the following flag characters:
+ *  - zero or more of the following flag characters:
  *    - '@': indicates that the next variadic argument is an array of `long`
  *    - '$': indicates that the next variadic argument(s) are precedeed
  *           by their names. Names are strings passed as variadic arguments
@@ -139,7 +139,7 @@ const char *PSBLASErrorStr(PSBLASErr *err, const char **param_names) {
  *    next array argument (if '@' was set):
  *    - As a fixed number string representation (between 1 and 9).
  *    - '*': indicates that argument count/array length must be read from
- *           the next variadic argument (casted to `int`).
+ *          the next variadic argument (casted to `int`).
  * The optional `err` argument can be used to retrieve more info about the
  * value that exceeds PSBLAS_MAX:
  *   - `param` string is automatically set if argument names is provided via
@@ -148,8 +148,22 @@ const char *PSBLASErrorStr(PSBLASErr *err, const char **param_names) {
  *   - `param_value` contains the value of the invalid argument that exceeded
  *      PSBLAS_MAX.
  * WARN: the count/length argument (if '*' is used in the format string) must
- * **always** preceed the argument name (if '$' flag has also used in the
+ * always preceed the argument name (if '$' flag has also used in the
  * format string).
+ *
+ * Examples:
+ * ```
+ * PSBLASErr err = {0};
+ * long a = 10, b = 1000;
+ * long nums[3] = {10, 100, 1000};
+ * int valid = PSBLASCheckLimits(&err, "2", a, b);
+ * valid = PSBLASCheckLimits(&err, "@3", nums);
+ * valid = PSBLASCheckLimits(&err, "2@3", a, b, nums);
+ * valid = PSBLASCheckLimits(&err, "*@*", 2, a, b, 3, nums);
+ * valid = PSBLASCheckLimits(&err, "$*$@*", 2, "a", a, "b", b, 3,
+ *                           "numbers", nums);
+ * ```
+ *
  * Return value: 1 if all arguments are less or equal than PSBLAS_MAX,
  * zero if one of the arguments exceeded PSBLAS_MAX.
  */

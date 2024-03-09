@@ -13,7 +13,7 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSAddInputLayer 3 2024-01-03 "PsyC 0.9.4" "PsyC Library Functions Manual"
+.TH PSAddInputLayer 3 2024-03-09 "PsyC 0.9.5" "PsyC Library Functions Manual"
 
 .SH NAME
 \fBPSAddInputLayer\fR \- Add input layer to model
@@ -29,7 +29,7 @@ PsyC (-lpsyc)
 .I
 PSLayer  *
 .br
-\fBPSAddInputLayer\fR(\fIPSModel *model\fR, \fIint size\fR, \fIPSLayerDef *ldef\fR)
+\fBPSAddInputLayer\fR(\fIPSModel *model\fR, \fIlong size\fR, \fIPSLayerDef *ldef\fR)
 .SH DESCRIPTION
 Add input layer of size \fIsize\fR to \fImodel\fR. The layer type will be set to the default \fIFullyConnected\fR type.
 .br

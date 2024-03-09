@@ -13,7 +13,7 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSRandomInt 3 2024-01-03 "PsyC 0.9.4" "PsyC Library Functions Manual"
+.TH PSRandomInt 3 2024-03-09 "PsyC 0.9.5" "PsyC Library Functions Manual"
 
 .SH NAME
 \fBPSRandomInt\fR \- Generate a random integer
@@ -27,9 +27,9 @@ PsyC (-lpsyc)
 #include <psyc/maths.h>
 
 .I
-unsigned int  
+long  
 .br
-\fBPSRandomInt\fR(\fIunsigned int range\fR, \fIPSFloat *weights\fR, \fIint *err\fR, \fIPSMathOpts *opts\fR)
+\fBPSRandomInt\fR(\fIlong range\fR, \fIPSFloat *weights\fR, \fIPSMathOpts *opts\fR)
 .SH DESCRIPTION
 Generate a random unsigned integer number within a range defined by argument \fIrange\fR (between zero and \fIrange\fR - 1).
 .br
@@ -37,12 +37,10 @@ If the optional \fIweights\fR argument is not \fINULL\fR, it can be used as a pr
 .br
 In this case, \fIweights\fR must be an array of \fIPSFloat\fR whose length must be equal to \fIrange\fR: each element of \fIweights\fR represents the probability (weight) of its index to be generated (for example, the weights `{0.1, 0.7, 0.2}` with a range of 3 give a probability of 70% to number 1 to be generated).
 .br
-The optional \fIerr\fR pointer can be used, if not \fINULL\fR, to know if some error occurred and, in case of error,  the address pointed by \fIerr\fR will contain 1.
-.br
 The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in \fIPSGlobalAcceleration\fR are used, if any. However, the used accelerations methods can be changed via the \fIacceleration\fR member of the optional argument \fIopts\fR.  
 
 .SH RETURN VALUES
-The random unsigned integer number.
+The random integer number or -1 in case of error.
 
 .SH SEE ALSO
 psyc(1)

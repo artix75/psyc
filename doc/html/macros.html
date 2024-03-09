@@ -23,7 +23,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
    </head>
    <body class="psyc-doc psyc-macros">
        <header>
-           <h1>PsyC Documentation <span class="version">0.9.4</span></h1>
+           <h1>PsyC Documentation <span class="version">0.9.5</span></h1>
            <h2>API Reference - Macros</h2>
            <nav id="top-menu">
                <ul>
@@ -60,6 +60,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 <li><a href="#macro-ps-bitmap-op-or">PS_BITMAP_OP_OR</a></li>
 <li><a href="#macro-ps-bitmap-op-xor">PS_BITMAP_OP_XOR</a></li>
 <li><a href="#macro-ps-cifar-image-size">PS_CIFAR_IMAGE_SIZE</a></li>
+<li><a href="#macro-ps-data-always-alloc">PS_DATA_ALWAYS_ALLOC</a></li>
 <li><a href="#macro-ps-data-evenly-spread">PS_DATA_EVENLY_SPREAD</a></li>
 <li><a href="#macro-ps-data-seq2seq">PS_DATA_SEQ2SEQ</a></li>
 <li><a href="#macro-ps-data-sequences">PS_DATA_SEQUENCES</a></li>
@@ -201,6 +202,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 <li><a href="#macro-psavxenabled">PSAVXEnabled</a></li>
 <li><a href="#macro-psbitmapand">PSBitmapAnd</a></li>
 <li><a href="#macro-psbitmapor">PSBitmapOr</a></li>
+<li><a href="#macro-psblas-max">PSBLAS_MAX</a></li>
 <li><a href="#macro-psblasenabled">PSBLASEnabled</a></li>
 <li><a href="#macro-psclearscreen">PSClearScreen</a></li>
 <li><a href="#macro-psclipvalue">PSClipValue</a></li>
@@ -417,10 +419,19 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details macro" id="macro-ps-cifar-image-size">
 <h3 class="name">PS_CIFAR_IMAGE_SIZE</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">252</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">253</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_CIFAR_IMAGE_SIZE</span> <span class="value">(32 * 32 * 3)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-ps-data-always-alloc">
+<h3 class="name">PS_DATA_ALWAYS_ALLOC</h3>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">34</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#define </span><span class="identifier">PS_DATA_ALWAYS_ALLOC</span> <span class="value">(1 &lt;&lt; 16)</span></code>
 </div>
 </div>
 
@@ -516,7 +527,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details macro" id="macro-ps-default-end-token">
 <h3 class="name">PS_DEFAULT_END_TOKEN</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">102</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">103</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_DEFAULT_END_TOKEN</span> <span class="value">&quot;&lt;end&gt;&quot;</span></code>
@@ -552,7 +563,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details macro" id="macro-ps-default-max-vocab-size">
 <h3 class="name">PS_DEFAULT_MAX_VOCAB_SIZE</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">99</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">100</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_DEFAULT_MAX_VOCAB_SIZE</span> <span class="value">15000</span></code>
@@ -561,7 +572,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details macro" id="macro-ps-default-parser-capacity">
 <h3 class="name">PS_DEFAULT_PARSER_CAPACITY</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">98</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">99</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_DEFAULT_PARSER_CAPACITY</span> <span class="value">50</span></code>
@@ -588,7 +599,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details macro" id="macro-ps-default-start-token">
 <h3 class="name">PS_DEFAULT_START_TOKEN</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">101</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">102</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_DEFAULT_START_TOKEN</span> <span class="value">&quot;&lt;start&gt;&quot;</span></code>
@@ -597,7 +608,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details macro" id="macro-ps-default-token-separator">
 <h3 class="name">PS_DEFAULT_TOKEN_SEPARATOR</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">37</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">38</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_DEFAULT_TOKEN_SEPARATOR</span> <span class="value">&quot; ,.:</span></code>
@@ -606,7 +617,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details macro" id="macro-ps-default-unknown-token">
 <h3 class="name">PS_DEFAULT_UNKNOWN_TOKEN</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">100</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">101</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_DEFAULT_UNKNOWN_TOKEN</span> <span class="value">&quot;&lt;unknown&gt;&quot;</span></code>
@@ -795,7 +806,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details macro" id="macro-ps-invalid-token-id">
 <h3 class="name">PS_INVALID_TOKEN_ID</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">39</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">40</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_INVALID_TOKEN_ID</span> <span class="value">-1</span></code>
@@ -813,7 +824,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details macro" id="macro-ps-io-max-token-size">
 <h3 class="name">PS_IO_MAX_TOKEN_SIZE</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">42</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">43</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_IO_MAX_TOKEN_SIZE</span> <span class="value">1024</span></code>
@@ -1002,7 +1013,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 <div class="details macro" id="macro-ps-mnist-input-size">
 <h3 class="name">PS_MNIST_INPUT_SIZE</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">246</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">247</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_MNIST_INPUT_SIZE</span> <span class="value">(28 * 28)</span></code>
@@ -1125,7 +1136,7 @@ Automatically determine padding in order to make the output size the same as the
 
 <div class="details macro" id="macro-ps-parser-flag-encode-only">
 <h3 class="name">PS_PARSER_FLAG_ENCODE_ONLY</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">58</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">59</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_PARSER_FLAG_ENCODE_ONLY</span> <span class="value">(1 &lt;&lt; 3)</span></code>
@@ -1137,7 +1148,7 @@ Just generate a dataset that only consist of parsed tokens, with no metadata, no
 
 <div class="details macro" id="macro-ps-parser-flag-end-token">
 <h3 class="name">PS_PARSER_FLAG_END_TOKEN</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">88</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">89</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_PARSER_FLAG_END_TOKEN</span> <span class="value">(1 &lt;&lt; 5)</span></code>
@@ -1163,7 +1174,7 @@ Add an &#39;ending&#39; token to the dataset:<br/>
 
 <div class="details macro" id="macro-ps-parser-flag-exact-inputs">
 <h3 class="name">PS_PARSER_FLAG_EXACT_INPUTS</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">96</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">97</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_PARSER_FLAG_EXACT_INPUTS</span> <span class="value">(1 &lt;&lt; 7)</span></code>
@@ -1175,7 +1186,7 @@ When the dataset has target sequences whose length can differ from the  related 
 
 <div class="details macro" id="macro-ps-parser-flag-make-targets">
 <h3 class="name">PS_PARSER_FLAG_MAKE_TARGETS</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">91</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">92</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_PARSER_FLAG_MAKE_TARGETS</span> <span class="value">(1 &lt;&lt; 6)</span></code>
@@ -1187,7 +1198,7 @@ Let text parsing functions (ie. PSDataFromText) also generate the target sequenc
 
 <div class="details macro" id="macro-ps-parser-flag-no-normalization">
 <h3 class="name">PS_PARSER_FLAG_NO_NORMALIZATION</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">50</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">51</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_PARSER_FLAG_NO_NORMALIZATION</span> <span class="value">(1 &lt;&lt; 0)</span></code>
@@ -1196,7 +1207,7 @@ Let text parsing functions (ie. PSDataFromText) also generate the target sequenc
 
 <div class="details macro" id="macro-ps-parser-flag-preserve-string">
 <h3 class="name">PS_PARSER_FLAG_PRESERVE_STRING</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">52</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">53</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_PARSER_FLAG_PRESERVE_STRING</span> <span class="value">(1 &lt;&lt; 1)</span></code>
@@ -1205,7 +1216,7 @@ Let text parsing functions (ie. PSDataFromText) also generate the target sequenc
 
 <div class="details macro" id="macro-ps-parser-flag-readonly-vocab">
 <h3 class="name">PS_PARSER_FLAG_READONLY_VOCAB</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">55</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">56</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_PARSER_FLAG_READONLY_VOCAB</span> <span class="value">(1 &lt;&lt; 2)</span></code>
@@ -1217,7 +1228,7 @@ Prevent adding new tokens to vocabulary used for generating a dataset from a par
 
 <div class="details macro" id="macro-ps-parser-flag-start-token">
 <h3 class="name">PS_PARSER_FLAG_START_TOKEN</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">73</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">74</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_PARSER_FLAG_START_TOKEN</span> <span class="value">(1 &lt;&lt; 4)</span></code>
@@ -1243,7 +1254,7 @@ Add a &#39;starting&#39; token to the dataset:<br/>
 
 <div class="details macro" id="macro-ps-parser-mode-chars">
 <h3 class="name">PS_PARSER_MODE_CHARS</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">47</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">48</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_PARSER_MODE_CHARS</span> <span class="value">1</span></code>
@@ -1252,7 +1263,7 @@ Add a &#39;starting&#39; token to the dataset:<br/>
 
 <div class="details macro" id="macro-ps-parser-mode-tokens">
 <h3 class="name">PS_PARSER_MODE_TOKENS</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">45</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">46</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_PARSER_MODE_TOKENS</span> <span class="value">0</span></code>
@@ -1558,7 +1569,7 @@ Add a &#39;starting&#39; token to the dataset:<br/>
 
 <div class="details macro" id="macro-ps-token-not-found">
 <h3 class="name">PS_TOKEN_NOT_FOUND</h3>
-<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">40</span></div>
+<div class="location">In: <span class="filename">dataset.h</span> - Line: <span class="line">41</span></div>
 <div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PS_TOKEN_NOT_FOUND</span> <span class="value">-2</span></code>
@@ -1769,6 +1780,28 @@ Add a &#39;starting&#39; token to the dataset:<br/>
 <div class="tags"><span class="tag data-structure" data-href="tag-data-structure.html">DATA STRUCTURE</span><span class="tag bitmap" data-href="tag-bitmap.html">BITMAP</span></div><div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PSBitmapOr</span><span class="arguments">(a, b, dest)</span> <span class="macro-expansion">PSBitmapOp(a, b, dest, PS_BITMAP_OP_OR)</span></code>
+</div>
+</div>
+
+<div class="details macro" id="macro-psblas-max">
+<h3 class="name">PSBLAS_MAX</h3>
+<div class="location">In: <span class="filename">blas.h</span> - Line: <span class="line">27</span></div>
+<div class="code">
+<code class="definition">
+<span class="preproc">#if PSBLAS_INT_SIZE == 8</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSBLAS_MAX</span> <span class="value">INT64_MAX</span>
+<br>
+<span class="preproc">#else</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSBLAS_MAX</span> <span class="value">(long) INT32_MAX</span>
+<br>
+<span class="preproc">#else</span>
+<br>
+<span class="preproc">#define </span><span class="identifier">PSBLAS_MAX</span> <span class="value">(long) INT32_MAX</span>
+<br>
+<span class="preproc">#endif</span>
+</code>
 </div>
 </div>
 
@@ -2512,7 +2545,7 @@ Add a &#39;starting&#39; token to the dataset:<br/>
 
 <div class="details macro" id="macro-psmatrixdatasize">
 <h3 class="name">PSMatrixDataSize</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">131</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">130</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PSMatrixDataSize</span><span class="arguments">(matrix)</span> <span class="macro-expansion">(PSMatrixLength(matrix) * sizeof(PSFloat))</span></code>
@@ -2530,7 +2563,7 @@ Add a &#39;starting&#39; token to the dataset:<br/>
 
 <div class="details macro" id="macro-psmatrixstridebytes">
 <h3 class="name">PSMatrixStrideBytes</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">132</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">131</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="preproc">#define </span><span class="identifier">PSMatrixStrideBytes</span><span class="arguments">(matrix,i)</span> <span class="macro-expansion">(PSMatrixStride(matrix,i) * sizeof(PSFloat))</span></code>
@@ -3073,7 +3106,7 @@ Add a &#39;starting&#39; token to the dataset:<br/>
 <div class="location">In: <span class="filename">psyc.h</span> - Line: <span class="line">30</span></div>
 <div class="code">
 <code class="definition">
-<span class="preproc">#define </span><span class="identifier">PSYC_VERSION</span> <span class="value">&quot;0.9.4&quot;</span></code>
+<span class="preproc">#define </span><span class="identifier">PSYC_VERSION</span> <span class="value">&quot;0.9.5&quot;</span></code>
 </div>
 </div>
 

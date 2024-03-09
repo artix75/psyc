@@ -13,7 +13,7 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSVectorSplit 3 2024-01-03 "PsyC 0.9.4" "PsyC Library Functions Manual"
+.TH PSVectorSplit 3 2024-03-09 "PsyC 0.9.5" "PsyC Library Functions Manual"
 
 .SH NAME
 \fBPSVectorSplit\fR \- Split vector into smaller vectors
@@ -29,7 +29,7 @@ PsyC (-lpsyc)
 .I
 PSFloat  **
 .br
-\fBPSVectorSplit\fR(\fIPSFloat *vec\fR, \fIint len\fR, \fIint num_slices\fR)
+\fBPSVectorSplit\fR(\fIPSFloat *vec\fR, \fIlong len\fR, \fIlong num_slices\fR)
 .SH DESCRIPTION
 Split vector \fIvec\fR having length defined by \fIlen\fR into \fInum_slices\fR vectors.
 .br

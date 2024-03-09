@@ -13,7 +13,7 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSMatrixCreateWithShape 3 2024-01-03 "PsyC 0.9.4" "PsyC Library Functions Manual"
+.TH PSMatrixCreateWithShape 3 2024-03-09 "PsyC 0.9.5" "PsyC Library Functions Manual"
 
 .SH NAME
 \fBPSMatrixCreateWithShape\fR
@@ -29,7 +29,7 @@ PsyC (-lpsyc)
 .I
 PSMatrix  
 .br
-\fBPSMatrixCreateWithShape\fR(\fIPSFloat init_value\fR, \fIPSMatrixInitializer initializer\fR, \fIint ndims\fR, \fIint *shape\fR)
+\fBPSMatrixCreateWithShape\fR(\fIPSFloat init_value\fR, \fIPSMatrixInitializer initializer\fR, \fIint ndims\fR, \fIlong *shape\fR)
 .SH DESCRIPTION
 Create a new matrix having number of dimensions defined by \fIndims\fR and shape defined by \fIshape\fR. The argument \fIinit_value\fR can be used to define the initial value of the matrix numbers or, optionally, the \fIinitializer\fR callback can be used to initialize the matrix values.
 .br

@@ -13,7 +13,7 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSTrain 3 2024-01-03 "PsyC 0.9.4" "PsyC Library Functions Manual"
+.TH PSTrain 3 2024-03-09 "PsyC 0.9.5" "PsyC Library Functions Manual"
 
 .SH NAME
 \fBPSTrain\fR \- Train model over training data
@@ -29,7 +29,7 @@ PsyC (-lpsyc)
 .I
 void  
 .br
-\fBPSTrain\fR(\fIPSModel *model\fR, \fIPSFloat *training_data\fR, \fIint data_size\fR, \fIPSFloat *test_data\fR, \fIint test_size\fR, \fIPSTrainingOptions *options\fR)
+\fBPSTrain\fR(\fIPSModel *model\fR, \fIPSFloat *training_data\fR, \fIlong data_size\fR, \fIPSFloat *test_data\fR, \fIlong test_size\fR, \fIPSTrainingOptions *options\fR)
 .SH DESCRIPTION
 Train \fImodel\fR over \fItraining_data\fR. Training epochs, batch size, optimization, and other optimizer settings are defined into optional \fIoptions\fR argument.
 .br

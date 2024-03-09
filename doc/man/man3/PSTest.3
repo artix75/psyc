@@ -13,7 +13,7 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSTest 3 2024-01-03 "PsyC 0.9.4" "PsyC Library Functions Manual"
+.TH PSTest 3 2024-03-09 "PsyC 0.9.5" "PsyC Library Functions Manual"
 
 .SH NAME
 \fBPSTest\fR
@@ -29,7 +29,7 @@ PsyC (-lpsyc)
 .I
 float  
 .br
-\fBPSTest\fR(\fIPSModel *model\fR, \fIPSFloat *test_data\fR, \fIint data_size\fR, \fIPSFloat *loss\fR, \fIPSTrainingOptions *options\fR)
+\fBPSTest\fR(\fIPSModel *model\fR, \fIPSFloat *test_data\fR, \fIlong data_size\fR, \fIPSFloat *loss\fR, \fIPSTrainingOptions *options\fR)
 .SH DESCRIPTION
 Test \fImodel\fR the against \fItest_data\fR dataset having length defined by the \fIdata_size\fR argument.
 .br

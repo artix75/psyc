@@ -13,7 +13,7 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSMatrixExpand 3 2024-01-03 "PsyC 0.9.4" "PsyC Library Functions Manual"
+.TH PSMatrixExpand 3 2024-03-09 "PsyC 0.9.5" "PsyC Library Functions Manual"
 
 .SH NAME
 \fBPSMatrixExpand\fR
@@ -29,7 +29,7 @@ PsyC (-lpsyc)
 .I
 PSMatrix  
 .br
-\fBPSMatrixExpand\fR(\fIPSMatrix src\fR, \fIint add\fR, \fIint keep_src\fR)
+\fBPSMatrixExpand\fR(\fIPSMatrix src\fR, \fIlong add\fR, \fIint keep_src\fR)
 .SH DESCRIPTION
 Create a new matrix having the shape of \fIsrc\fR but with the first dimension increased by the value of \fIadd\fR. The original values \fIsrc\fR will be copied to the new matrix, and all the new values belonging to thecexpanded dimension will be initialized to zero.
 .br
