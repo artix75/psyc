@@ -12,7 +12,12 @@ fi
 
 printErr() {
     err=$1
-    echo "ERROR[$SCRIPT_NAME]: $err" 2>&1
+    echo -e "\x1b[31m!!! ERROR[$SCRIPT_NAME]: $err\x1b[0m" 2>&1
+}
+
+printWarn() {
+    warn=$1
+    echo -e "\x1b[33m*** WARN[$SCRIPT_NAME]: $warn\x1b[0m"
 }
 
 hasFramework() {
@@ -29,8 +34,68 @@ hasFramework() {
     return $res
 }
 
+genBLASIntSizeTestCode() {
+    blas_lib=$1
+    src=$2
+    int_type=$3
+    echo '/* Test BLAS int size */' > "$src"
+    if [ "$blas_lib" = "Accelerate" ]; then
+        echo '#include <AvailabilityMacros.h>' >> "$src"
+        echo '#define ACCELERATE_NEW_LAPACK' >> "$src"
+        echo '#define ACCELERATE_LAPACK_ILP64' >> "$src"
+        echo '#include <Accelerate/Accelerate.h>' >> "$src"
+    fi
+    echo '#include <stdio.h>' >> "$src"
+    echo 'int main(int argc, char **argv) {' >> "$src"
+    echo "  printf(\"%zu\", sizeof($int_type));" >> "$src"
+    echo "  return 0;'" >> "$src"
+    echo '}' >> "$src"
+    return 0
+}
+
+getBLASIntSize() {
+    BLAS_INT_SIZE=4
+    blas_lib=$1
+    src="$TMPDIR/psyc-testblas-$RANDOM.c"
+    out="$src.o"
+    res=1
+    if [ "$blas_lib" = "Accelerate" ]; then
+        genBLASIntSizeTestCode "$blas_lib" "$src" '__LAPACK_int'
+        if ! [ -e "$src" ]; then
+            echo "ERROR: failed to generate BLAS int size test source" 1>&2
+            return 1
+        fi
+        size=''
+        if gcc -o "$out" -framework Accelerate "$src" 2>/dev/null; then
+            size=`$out`
+        fi
+        if [ -z "$size" ]; then
+            rm -f $out
+            genBLASIntSizeTestCode "$blas_lib" "$src" '__CLPK_integer'
+            if ! [ -e "$src" ]; then
+                echo "ERROR: failed to generate BLAS int size test source" 1>&2
+                return 1
+            fi
+            if gcc -o "$out" -framework Accelerate "$src" 2>/dev/null; then
+                size=`$out`
+            fi
+        fi
+        if ! [ -z "$size" ]; then
+            BLAS_INT_SIZE="$size"
+        fi
+    #elif [ "$blas_lib" = "GSL" ]; then
+    else
+        echo "$BLAS_INT_SIZE"
+        return $res
+    fi
+    rm -rf "$src"
+    rm -rf "$out"
+    echo "$BLAS_INT_SIZE"
+    return $res
+}
+
 if [ -z "$CC" ]; then
-    printErr "gcc was not found on your system" 
+    printErr "gcc was not found on your system"
     exit 1
 fi
 
@@ -43,7 +108,7 @@ fi
 
 C_HEADERS=''
 if ! [ -f "$C_HEADERS_PATH" ]; then
-    echo  "WARN[$SCRIPT_NAME]: failed to generate $C_HEADERS_PATH"
+    printWarn "failed to generate $C_HEADERS_PATH"
     #exit 1
 else
     C_HEADERS=$(cat "$C_HEADERS_PATH")
@@ -89,7 +154,7 @@ if [ "$OS" = "Darwin" ]; then
                 VECLIB_LIB=$(find "$FRAMEWORKS_LIB" -type lf -name 'vecLib' | head -n 1)
             fi
             if [ -z "$VECLIB_LIB" ]; then
-                echo "$SCRIPT_NAME: WARN: Could not find vecLib"
+                printWarn "Could not find vecLib"
                 VECLIB_H_DIR=''
             else
                 BLAS_CFLAGS="-I${VECLIB_H_DIR}"
@@ -97,18 +162,35 @@ if [ "$OS" = "Darwin" ]; then
                 BLAS_LDFLAGS="-L${VECLIB_LD_DIR} $LDFLAGS"
                 CBLAS_H="$VECLIB_H_DIR/cblas.h"
                 if ! [ -e "$CBLAS_H" ]; then
-                    echo "$SCRIPT_PATH: WARN: cblas.h not found"
+                    printWarn "cblas.h not found"
                     CBLAS_H=''
                 else
                     CBLAS_LIB="$VECLIB_LD_DIR/libBLAS.dylib"
                     if ! [ -e "$CBLAS_LIB" ] && ! [ -L "$CBLAS_LIB" ]; then
-                        echo "$SCRIPT_NAME: WARN: $CBLAS_LIB not found!"
+                        printWarn "$CBLAS_LIB not found!"
                         CBLAS_H=''
                     else
                         BLAS_LDFLAGS="-lBLAS $BLAS_LDFLAGS"
                     fi
                 fi
             fi
+        fi
+    fi
+    if [ "$TEST_NO_ACCELERATE" = "1" ]; then
+        echo "Testing with no Accelerate Framework"
+        HAS_ACCELERATE_FRAMEWORK=''
+    fi
+    if ! [ "$HAS_ACCELERATE_FRAMEWORK" = "true" ]; then
+        printWarn "could not find Apple Accelerate Framework on this system"
+        xcode_select=$(which xcode-select)
+        if [ "$TEST_NO_ACCELERATE"="1" ]; then
+            xcode_select=''
+        fi
+        if [ -z "$xcode_select" ]; then
+            echo "Probabily you need to install XCode and its command line developer tools"
+            echo "Download and install XCode from: https://developer.apple.com/xcode/"
+            echo 'Then install command line tools with: `xcode-select --install`'
+            echo 'and rebuild PsyC'
         fi
     fi
 fi
@@ -149,6 +231,7 @@ if [ -z "$CBLAS_H" ]; then
     fi
 fi
 
+BLAS_INT_SIZE=''
 VARS=''
 NL='\n'
 if ! [ -z "$CBLAS_H" ]; then
@@ -169,13 +252,18 @@ if [ "$HAS_BLAS" = 'true' ]; then
     fi
     if [ "$HAS_GSL_CBLAS" = 'true' ]; then
         VARS="HAS_GSL_CBLAS=true$NL$VARS"
+        BLAS_INT_SIZE=$(getBLASIntSize GSL)
     fi
 fi
 if [ "$HAS_ACCELERATE_FRAMEWORK" = 'true' ]; then
     VARS="HAS_ACCELERATE_FRAMEWORK=true$NL$VARS"
     if [ "$BLAS_NEEDS_ACCELERATE" = 'true' ]; then
         VARS="BLAS_NEEDS_ACCELERATE=true$NL$VARS"
+        BLAS_INT_SIZE=$(getBLASIntSize Accelerate)
     fi
+fi
+if ! [ -z "$BLAS_INT_SIZE" ]; then
+    VARS="BLAS_INT_SIZE=$BLAS_INT_SIZE$NL$VARS"
 fi
 
 MKFILE="$SCRIPT_DIR/src/config.mk"

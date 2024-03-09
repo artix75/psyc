@@ -105,7 +105,7 @@
 /* Pointer to a function that can be used to normalize tokens. It takes the
  * input `token` of length `len` and returns the normalized token.
  * Return value: the normalized token. */
-typedef char *(*PSTokenNormalizer) (char *token, int len);
+typedef char *(*PSTokenNormalizer) (char *token, size_t len);
 
 /* Pointer to a function that can be used by parsing functions (ie.
  * `PSDataFromText`) to match the token `token`.
@@ -113,7 +113,7 @@ typedef char *(*PSTokenNormalizer) (char *token, int len);
  * `len`.
  * Return value: 1 if token has been matched, 0 if no token has been matched.
  */
-typedef int   (*PSTokenMatch) (char *str, int *len);
+typedef int   (*PSTokenMatch) (char *str, size_t *len);
 
 struct PSVocabulary;
 
@@ -191,7 +191,7 @@ struct PSVocabulary;
 typedef struct {
     int mode;
     int flags;
-    int64_t max_vocabulary_size; /* Except <unknown> token */
+    long max_vocabulary_size; /* Except <unknown> token */
     const char *separator;
     const char *unknown_token;
     int capacity;
@@ -201,46 +201,46 @@ typedef struct {
     int sequence_length;
     PSTokenMatch match_sequence_end;
     const char *sequence_separator;
-    int64_t max_sequences;
+    long max_sequences;
     const char *start_token;
     const char *end_token;
     PSFloat *target_dataset;
-    int64_t target_datalen;
+    long target_datalen;
     struct PSVocabulary *target_vocabulary;
 } PSTextParserOptions;
 
 typedef struct PSVocabulary {
-    int64_t         size;
-    int64_t         capacity;
+    long            size;
+    long            capacity;
     PSDict          *token_map;
     const char      **tokens;
 } PSVocabulary;
 
 /* Text datasets */
-PSVocabulary *PSVocabularyCreate(int64_t initial_capacity);
-int64_t PSVocabularyAdd(PSVocabulary *vocabulary, char *token);
-int64_t PSVocabularyGetTokenID(PSVocabulary *vocabulary, char *token);
-const char *PSVocabularyGetTokenByID(PSVocabulary *vocabulary, int64_t id);
+PSVocabulary *PSVocabularyCreate(long initial_capacity);
+long PSVocabularyAdd(PSVocabulary *vocabulary, char *token);
+long PSVocabularyGetTokenID(PSVocabulary *vocabulary, char *token);
+const char *PSVocabularyGetTokenByID(PSVocabulary *vocabulary, long id);
 PSVocabulary *PSVocabularyLoad(const char *path);
 int PSVocabularySave(PSVocabulary *vocabulary, const char *path);
-const char *PSVocabularyErrorString(int err);
+const char *PSVocabularyErrorString(long err);
 void PSVocabularyFree(PSVocabulary *vocabulary);
 
-char *PSNormalizeToken(char *token, int len);
-PSFloat *PSDataFromText(char *str, PSTextParserOptions *opts, int64_t *datalen,
+char *PSNormalizeToken(char *token, size_t len);
+PSFloat *PSDataFromText(char *str, PSTextParserOptions *opts, long *datalen,
                         PSVocabulary **vocabulary);
 PSFloat *PSDataFromTextFile(const char *filepath, PSTextParserOptions *opts,
-                            int64_t *datalen, PSVocabulary **vocabulary);
+                            long *datalen, PSVocabulary **vocabulary);
 
 /* Generic datasets */
 
 
-PSFloat *PSDataLoad(const char *filepath, uint64_t *datalen);
-int PSDataSave(const char *path, PSFloat *data, uint64_t len, int opts);
-int PSDataSplit(PSFloat *data, uint64_t datalen, float percentage,
-                int input_size, int target_size,
+PSFloat *PSDataLoad(const char *filepath, long *datalen);
+int PSDataSave(const char *path, PSFloat *data, long len, int opts);
+int PSDataSplit(PSFloat *data, long datalen, float percentage,
+                long input_size, long target_size,
                 PSFloat **left, PSFloat **right,
-                uint64_t *left_length, uint64_t *right_length,
+                long *left_length, long *right_length,
                 int opts);
 
 /* MNIST Dataset */

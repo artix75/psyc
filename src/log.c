@@ -272,7 +272,7 @@ void PSPrintSameLine(char *format, ...) {
     va_end(args);
 }
 
-int PSProgressBar(int num, int tot, int style, int color, int flags,
+int PSProgressBar(long num, long tot, int style, int color, int flags,
                   int maxlen, char *label)
 {
     if (tot == 0) goto end_bar;
@@ -318,9 +318,9 @@ int PSProgressBar(int num, int tot, int style, int color, int flags,
         if (!just_percent) {
             int pad = PSCalcIntStringLength(tot);
             if (!(flags & PS_PROGRESS_FLAG_NO_TOTAL))
-                nwritten = snprintf(p, maxwrite, "%*d/%d ", pad, num, tot);
+                nwritten = snprintf(p, maxwrite, "%*ld/%ld ", pad, num, tot);
             else
-                nwritten = snprintf(p, maxwrite, "%*d ", pad, num);
+                nwritten = snprintf(p, maxwrite, "%*ld ", pad, num);
             p += nwritten;
             available -= nwritten;
             maxwrite -= nwritten;

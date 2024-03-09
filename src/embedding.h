@@ -28,9 +28,9 @@ typedef enum PSEmbeddingType {
     PSWord2Vec
 } PSEmbeddingType;
 
-int PSGetEmbeddingVocabularySize(PSLayer *layer);
-PSFloat *PSCreateWord2VecTrainingData(PSFloat *tokens, size_t token_count,
-                                      int window_size, int vocabulary_size,
-                                      int onehot, int *num_examples_ptr);
+long PSGetEmbeddingVocabularySize(PSLayer *layer);
+PSFloat *PSCreateWord2VecTrainingData(PSFloat *tokens, long token_count,
+                                      long window_size, long vocabulary_size,
+                                      int onehot, long *num_examples_ptr);
 
 #endif /*  __PS_EMBEDDING_H */

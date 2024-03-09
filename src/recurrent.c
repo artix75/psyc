@@ -34,26 +34,26 @@
 
 /* Forward declaration. */
 
-int PSResizeRecurrentHiddenStates(PSLayer *layer, uint32_t steps);
+int PSResizeRecurrentHiddenStates(PSLayer *layer, long steps);
 int PSRecurrentBackprop(PSLayer *layer, PSLayer *previous_layer,
                         PSGradient *lgradients, ...);
 int PSRecurrentForward(PSLayer *layer, ...);
-int PSBeforeSequenceForward(PSLayer *layer, int seqlen, int t);
+int PSBeforeSequenceForward(PSLayer *layer, long seqlen, long t);
 
 /* External functions */
 
 int checkLayerForForward(PSLayer *layer);
 int PSOnehotInputsForward(PSLayer *layer, int weights_index,
-                              PSFloat *outputs, int t, int apply_biases,
+                              PSFloat *outputs, long t, int apply_biases,
                               int do_activate);
-PSMatrix PSInitWeights(PSLayer *layer, int rows, int columns,
+PSMatrix PSInitWeights(PSLayer *layer, long rows, long columns,
                        PSLayerDef *ldef, PSFloat range, PSFloat scale);
 PSFloat PSInitParam(int param_type, PSLayerDef *ldef, PSFloat range,
                     PSFloat scale);
 void handleLayerForwardDebug(PSLayer *layer, const char *func,
                              PSMathOpts *opts);
 int PSApplyDerivative(PSActivationFunction derivative, PSFloat *delta,
-                      PSFloat *outputs, int size, PSMathOpts *opts);
+                      PSFloat *outputs, long size, PSMathOpts *opts);
 /* Recurrent network functions */
 
 PSMatrix PSGetRecurrentHiddenWeights(PSLayer *layer) {
@@ -67,9 +67,9 @@ void PSDeleteRNNLayer(PSLayer *layer) {
 }
 
 int PSInitRecurrentLayer(PSModel *model, PSLayer *layer,
-                         int size, int ws, PSLayerDef *ldef)
+                         long size, long ws, PSLayerDef *ldef)
 {
-    int i;
+    long i;
     layer->onDelete = PSDeleteRNNLayer;
     layer->states = PSMatrixZeros(2, 1, size);
     if (layer->states == NULL) goto memerr;
@@ -116,7 +116,7 @@ PSFloat *PSGetRecurrentNeuronHiddenWeights(PSNeuron *neuron) {
     if (neuron->layer->type != RNNLayer) return NULL;
     if (neuron->layer->weights == NULL || neuron->layer->weights[1] == NULL)
         return NULL;
-    uint64_t widx = neuron->index * neuron->layer->size;
+    long widx = neuron->index * neuron->layer->size;
     if (widx >= PSMatrixLength(neuron->layer->weights[1])) {
         PSErr(__func__, "Layer[%d] Neuron[%d] index is out of bounds",
               neuron->layer->index, neuron->index);
@@ -135,8 +135,8 @@ int PSRecurrentForward(PSLayer *layer, ...) {
     PSLayer *previous = model->layers[layer->index - 1];
     va_list args;
     va_start(args, layer);
-    int steps = va_arg(args, int);
-    int t = va_arg(args, int);
+    long steps = va_arg(args, long);
+    long t = va_arg(args, long);
     va_end(args);
     /* Checks */
     if (!PSBeforeSequenceForward(layer, steps, t)) return 0;
@@ -150,7 +150,7 @@ int PSRecurrentForward(PSLayer *layer, ...) {
      * are fed just in the very first step. */
     if (!PSIsRecurrent(previous) && layer == first_recurrent)
         ignore_inputs = (t > 0);
-    int prev_t = t - 1;
+    long prev_t = t - 1;
     PSFloat *inputs = NULL;
     PSFloat *prev_states = NULL;
     PSFloat *outputs = PSLayerStates(layer, t);
@@ -203,28 +203,29 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previous_layer,
 {
     va_list args;
     va_start(args, gradients);
-    int t = va_arg(args, int);
-    int lowest_t = va_arg(args, int);
+    long t = va_arg(args, long);
+    long lowest_t = va_arg(args, long);
     va_end(args);
     int use_bias = !(layer->flags & PS_FLAG_NO_BIAS);
-    int lsize = layer->size, i, w, tt;
+    long lsize = layer->size, i, w, tt;
     PSMatrix prev_layer_delta = previous_layer->delta;
     int do_truncate = (t - lowest_t) > 0;
     int has_initial_states = (layer->initial_states != NULL);
     int onehot = (previous_layer->flags & PS_FLAG_ONEHOT);
-    int onehot_vector_size = 0, onehot_idx;
+    long onehot_vector_size = 0, onehot_idx;
     if (onehot) {
         onehot_vector_size = PSGetOneHotLayerVectorSize(previous_layer);
         if (onehot_vector_size == 0) return 0;
     }
-    uint64_t input_weight_size = PSMatrixLength(layer->weights[0]);
+    long input_weight_size = PSMatrixLength(layer->weights[0]);
     PSMathOpts mopts = {.acceleration = layer->model->acceleration};
     PSMatrix hidden_weights = layer->weights[1];
     PSFloat *gradient_hidden_weights = gradients->weights + input_weight_size;
     /* Cycle over previous time steps until lowest step (`lowest_t`) defined
      * by the window of BPTT_TRUNCATE. */
     for (tt = t; tt >= lowest_t; tt--) {
-        int prev_t = (tt - 1), is_first_t = (tt == 0),
+        long prev_t = (tt - 1);
+        int is_first_t = (tt == 0),
             update_delta = !is_first_t;
         PSMatrix delta = layer->delta;
         PSMatrix new_delta = NULL;
@@ -243,7 +244,7 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previous_layer,
                 layer->size, previous_layer->size, &mopts
             );
         } else {
-            onehot_idx = (int) PSGetState(previous_layer, 0, tt);
+            onehot_idx = PSGetState(previous_layer, 0, tt);
             assert(onehot_idx < onehot_vector_size);
             for (i = 0; i < lsize; i++) {
                 PSFloat dv = delta[i];

@@ -27,7 +27,7 @@
 #include "activation.h"
 #include "optimization.h"
 
-#define PSYC_VERSION                "0.9.4"
+#define PSYC_VERSION                "0.9.5"
 #define PSYC_NAME                   "PsyC"
 #define PSYC_SITE                   "https://github.com/artix75/psyc"
 #define PSYC_CONTACT                PSYC_SITE "/issues"
@@ -140,14 +140,14 @@ typedef int      (*PSBooleanLayerCallback) (struct PSLayer *layer);
 typedef int      (*PSCopyLayerCallback) (struct PSLayer *, struct PSLayer *);
 typedef int      (*PSPretrainLayerFunction) (struct PSLayer *,
                                              PSFloat *training_data,
-                                             int data_size);
-typedef uint64_t (*PSGetParamCountFunction) (struct PSLayer *layer, int type);
-typedef int      (*PSInitStatesFunc) (struct PSLayer *layer, uint32_t steps,
+                                             long data_size);
+typedef long     (*PSGetParamCountFunction) (struct PSLayer *layer, int type);
+typedef int      (*PSInitStatesFunc) (struct PSLayer *layer, long steps,
                                       int retain_previous);
-typedef int      (*PSResizeStatesFunc) (struct PSLayer *layer, uint32_t steps,
-                                        uint32_t previous_steps);
-typedef PSFloat  (*PSLossFunction) (PSFloat* x, PSFloat* y, int size,
-                                    int onehot_size);
+typedef int      (*PSResizeStatesFunc) (struct PSLayer *layer, long steps,
+                                        long previous_steps);
+typedef PSFloat  (*PSLossFunction) (PSFloat* x, PSFloat* y, long size,
+                                    long onehot_size);
 typedef void     (*PSTrainCallback) (struct PSModel *model,
                                      int epoch, int epochs,
                                      PSFloat average_loss,
@@ -160,7 +160,7 @@ typedef void     (*PSTrainCallback) (struct PSModel *model,
 typedef int      (*PSLinkDataRetriever) (struct PSLayer *layer);
 typedef int      (*PSBeforeForwardCallback) (struct PSModel *model,
                                              PSFloat *inputs,
-                                             int seqlen, int backprop,
+                                             long seqlen, int backprop,
                                              void *opts);
 typedef int      (*PSBeforeBackpropCallback) (struct PSModel *model,
                                               PSFloat *y,
@@ -168,7 +168,7 @@ typedef int      (*PSBeforeBackpropCallback) (struct PSModel *model,
                                               struct PSGradient **gradients);
 typedef void     (*PSTrainingProgressFunc) (struct PSModel *model,
                                             int status, int epochs,
-                                            int batches,
+                                            long batches,
                                             PSFloat *loss,
                                             float *accuracy,
                                             PSFloat *validation_loss,
@@ -184,14 +184,14 @@ typedef struct PSLayerDef {
     PSFloat init_range;
     PSFloat init_scale;
     PSFloat init_value;
-    int output_depth;
     /* Convolutional and Pooling layers hyperparamaters */
-    int output_columns;
-    int output_rows;
+    long output_depth;
+    long output_columns;
+    long output_rows;
     int stride;         /* Used by Convolutional and Pooling layers */
     int padding;        /* Used by Convolutional layers */
-    int filter_width;   /* Used by Convolutional layers */
-    int filter_height;  /* Used by Convolutional layers */
+    long filter_width;   /* Used by Convolutional layers */
+    long filter_height;  /* Used by Convolutional layers */
     /* Embedding layers options */
     int embedding_type;
     /* Dropout layers hyperparamaters */
@@ -203,7 +203,7 @@ typedef struct PSLayerDef {
     const char *load_from;
     const char *save_pretrained_to;
     PSFloat *training_data;
-    int training_data_size;
+    long training_data_size;
     struct PSTrainingOptions *pretraining_options;
     /* Attention Layer */
     int attention_type;
@@ -220,13 +220,13 @@ typedef struct PSLayerDef {
     int providers_count;
     struct PSLayer **providers;
     /* PositionalEncoding */
-    int positional_initial_capacity;
+    long positional_initial_capacity;
     int positional_base;
 } PSLayerDef;
 
 typedef struct PSGradient {
-    uint64_t bias_count;
-    uint64_t weight_count;
+    long bias_count;
+    long weight_count;
     PSFloat *biases;
     PSFloat *weights;
     PSFloat *tmp;
@@ -257,9 +257,9 @@ typedef enum {
 } PSRecurrentNetworkMode;
 
 typedef struct PSSequenceSettings {
-    int         max_length;
+    long        max_length;
     PSFloat     *start;
-    int         end;
+    long        end;
 } PSSequenceSettings;
 
 typedef struct PSForwardOptions {
@@ -270,7 +270,7 @@ typedef struct PSForwardOptions {
 typedef struct PSTrainingOptions {
     int                         epochs;
     PSFloat                     learning_rate;
-    int                         batch_size;
+    long                        batch_size;
     int                         flags;
     PSFloat                     l1_decay;
     PSFloat                     l2_decay;
@@ -289,16 +289,16 @@ typedef struct PSTrainingOptions {
 
 typedef struct {
     int         current_epoch;
-    int         current_batch;
-    int         current_example;
-    int         num_examples;
-    int         batch_size;
-    int         data_size;
-    int         current_test;
-    int         test_size;
-    int         num_tests;
-    int         correct_results;
-    int         tot_results;
+    long        current_batch;
+    long        current_example;
+    long        num_examples;
+    long        batch_size;
+    long        data_size;
+    long        current_test;
+    long        test_size;
+    long        num_tests;
+    long        correct_results;
+    long        tot_results;
     time_t      started_at;
     time_t      ended_at;
     int         requested_action;
@@ -306,7 +306,7 @@ typedef struct {
 } PSTrainingInfo;
 
 typedef struct PSNeuron {
-    int             index;
+    long            index;
     PSFloat         *bias;
     PSFloat         *weights;
     void            *extra;
@@ -316,7 +316,7 @@ typedef struct PSNeuron {
 typedef struct PSLayer {
     PSLayerType                 type;
     int                         index;
-    int                         size;
+    long                        size;
     int                         weight_types;
     PSMatrix                    *weights;
     PSFloat                     *biases;
@@ -324,10 +324,10 @@ typedef struct PSLayer {
     PSMatrix                    delta;
     PSFloat                     *initial_states;
     uint32_t                    flags;
-    int                         onehot_vector_size;
-    int                         output_depth;
-    int                         output_columns;
-    int                         output_rows;
+    long                        onehot_vector_size;
+    long                        output_depth;
+    long                        output_columns;
+    long                        output_rows;
     int                         pretrained;
     void                        *extra;
     void                        *private;
@@ -362,8 +362,8 @@ typedef struct PSModel {
     uint32_t                    flags;
     uint16_t                    acceleration;
     uint8_t                     status;
-    uint32_t                    input_size;
-    uint32_t                    output_size;
+    long                        input_size;
+    long                        output_size;
     struct PSModel              *previous;
     struct PSModel              *next;
     PSModelLink                 *previous_model_link;
@@ -405,35 +405,35 @@ int PSAddModel(PSModel *parent, PSModel *model, PSModelLink *link);
 /* PSLayer functions */
 int PSLayerLoad(PSLayer *layer, const char *filepath);
 int PSLayerSave(PSLayer *layer, const char *filepath, int opts);
-PSLayer *PSAddLayer(PSModel *model, PSLayerType type, int size,
+PSLayer *PSAddLayer(PSModel *model, PSLayerType type, long size,
                     PSLayerDef *layer_def);
-PSLayer *PSAddInputLayer(PSModel *model, int size, PSLayerDef *ldef);
+PSLayer *PSAddInputLayer(PSModel *model, long size, PSLayerDef *ldef);
 PSLayer *PSAddConvolutionalLayer(PSModel *model, PSLayerDef *ldef);
 PSLayer *PSAddPoolingLayer(PSModel *model, PSLayerDef *ldef);
-int PSGetOneHotLayerVectorSize(PSLayer *layer);
-uint64_t PSGetLayerParametersCount(PSLayer *layer, int param_type);
+long PSGetOneHotLayerVectorSize(PSLayer *layer);
+long PSGetLayerParametersCount(PSLayer *layer, int param_type);
 PSLayer *PSGetPreviousLayer(PSLayer *layer);
 PSLayer *PSGetNextLayer(PSLayer *layer);
 PSLayer *PSGetOutputLayer(PSModel *model);
 PSLayer *PSGetLayerByIndex(PSModel *model, int layer_index, int model_index);
-int PSGetLayerInputSize(PSLayer *layer);
-uint64_t PSGetLayerInputWeightsCount(PSLayer *layer, int per_neuron);
+long PSGetLayerInputSize(PSLayer *layer);
+long PSGetLayerInputWeightsCount(PSLayer *layer, int per_neuron);
 
-int PSResetLayerStateSequence(PSLayer *layer, uint32_t steps,
+int PSResetLayerStateSequence(PSLayer *layer, long steps,
                               int retain_previous);
-int PSResetModelStateSequences(PSModel *model, uint32_t steps,
+int PSResetModelStateSequences(PSModel *model, long steps,
                                int retain_previous);
-PSFloat PSGetState(PSLayer *layer, int index, ...);
+PSFloat PSGetState(PSLayer *layer, long index, ...);
 PSFloat *PSLayerStates(PSLayer *layer, ...);
 PSFloat *PSLayerOutputs(PSLayer *layer);
 PSFloat *PSModelOutputs(PSModel *model);
-int PSSetState(PSLayer *layer, PSFloat state, int index, ...);
-int PSStateSequenceLength(PSLayer *layer);
-int PSFindLayerMaxState(PSLayer *layer, PSFloat *max_p, int *index_p,...);
+int PSSetState(PSLayer *layer, PSFloat state, long index, ...);
+long PSStateSequenceLength(PSLayer *layer);
+int PSFindLayerMaxState(PSLayer *layer, PSFloat *max_p, long *index_p,...);
 void PSLayerFree(PSLayer *layer);
 
 /* PSNeuron functions */
-PSNeuron *PSGetNeuron(PSLayer *layer, int index, PSNeuron *neuron);
+PSNeuron *PSGetNeuron(PSLayer *layer, long index, PSNeuron *neuron);
 PSFloat *PSGetNeuronInputWeights(PSNeuron *neuron);
 PSFloat PSGetNeuronState(PSNeuron *neuron, ...);
 int PSSetNeuronState(PSNeuron *neuron, double state, ...);
@@ -443,7 +443,7 @@ void PSDeleteNeuron(PSNeuron *neuron);
 int PSForward(PSModel *model, PSFloat *inputs);
 int PSAutoregression(PSModel *model, PSFloat *inputs,
                      int randomized, PSSequenceSettings *sequence_settings);
-int PSClassify(PSModel *model, PSFloat *inputs);
+long PSClassify(PSModel *model, PSFloat *inputs);
 
 /* PSGradient functions */
 void PSDeleteGradient(PSGradient *gradient);
@@ -453,13 +453,13 @@ void PSDeleteGradientsChain(PSGradient ***gradients, PSModel *model);
 /* Training functions */
 void PSTrain(PSModel *model,
              PSFloat *training_data,
-             int data_size,
+             long data_size,
              PSFloat *test_data,
-             int test_size,
+             long test_size,
              PSTrainingOptions *options);
 void PSPauseTraining(PSModel *model);
 void PSAbortTraining(PSModel *model);
-float PSTest(PSModel *model, PSFloat *test_data, int data_size, PSFloat *loss,
+float PSTest(PSModel *model, PSFloat *test_data, long data_size, PSFloat *loss,
              PSTrainingOptions *options);
 /* int arrayMaxIndex(PSFloat *array, int len); */
 char *PSGetLabelForType(PSLayerType type);
@@ -471,12 +471,12 @@ PSLayer *PSGetLastRecurrentLayer(PSModel *model);
 
 /*  Loss functions */
 
-PSFloat PSQuadraticLoss(PSFloat *x, PSFloat *y, int size, int onehot_size);
-PSFloat PSCrossEntropyLoss(PSFloat *x, PSFloat *y, int size, int onehot_size);
+PSFloat PSQuadraticLoss(PSFloat *x, PSFloat *y, long size, long onehot_size);
+PSFloat PSCrossEntropyLoss(PSFloat *x, PSFloat *y, long size, long onehot_size);
 
 /* Training progress logging functions */
 void PSTrainingProgressBar(PSModel *model, int status, int epochs,
-                           int batches, PSFloat *loss, float *accuracy,
+                           long batches, PSFloat *loss, float *accuracy,
                            PSFloat *test_loss,  float *test_accuracy,
                            time_t *elapsed);
 

@@ -83,7 +83,7 @@ typedef struct PSDictItem {
 } PSDictItem;
 
 typedef struct PSDict {
-    int64_t             length;
+    unsigned long       length;
     int                 flags;
     PSDictItem          *table[PSDICT_HT_SIZE];
     PSOnDictItemRelease onItemRelease;
@@ -132,16 +132,16 @@ char *PSPathJoin(int count, ...);
 
 char *PSStringJoin(char **strings, char *sep, int len);
 int PSPrintableLength(const char *s);
-unsigned int PSCalcIntStringLength(long long num);
+size_t PSCalcIntStringLength(long long num);
 
 /* Networking functions. */
 int PSDownloadFile(const char *url, const char *dest_dir);
 
 /* Misc */
 
-int PSGetTerminalColumns();
+unsigned int PSGetTerminalColumns();
 void PSFillWithBlank(int line_length);
 char *PSGetElapsedTimeString(time_t elapsed_us, int long_format);
-PSFloat *PSOneHotVector(uint64_t index, uint64_t len);
+PSFloat *PSOneHotVector(long index, long len);
 
 #endif /* __PS_UTILS_H */

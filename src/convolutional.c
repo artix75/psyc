@@ -79,7 +79,7 @@ typedef struct {
     PSFloat *im2col;
     PSFloat *w2col;
     PSFloat *bias_mul; /* Used by BLAS backpropagation, always set to 1 */
-    int im2col_size;
+    long im2col_size;
 } PSPrivateConvData;
 
 /* Forward declarations */
@@ -97,10 +97,11 @@ PSGradient *createLayerGradients(PSLayer *layer);
 
 /* Helper functions */
 
-static PSFloat *im2col(PSFloat *inputs, int input_size, int channels,
-                       int width, int height, int kernel_width,
-                       int kernel_height, int padding, int stride, int dilation,
-                       int *output_size, int *output_columns, int *output_rows)
+static PSFloat *im2col(PSFloat *inputs, long input_size, long channels,
+                       long width, long height, long kernel_width,
+                       long kernel_height, int padding, int stride,
+                       int dilation, long *output_size, long *output_columns,
+                       long *output_rows)
 {
     if (output_size != NULL) *output_size = 0;
     if (inputs == NULL || input_size <= 0) return NULL;
@@ -109,17 +110,19 @@ static PSFloat *im2col(PSFloat *inputs, int input_size, int channels,
     if (padding < 0) padding = 0;
     if (height <= 0) height = width;
     if (kernel_height <= 0) kernel_height = kernel_width;
-    int output_w = (width + 2 * padding - (dilation * (kernel_width - 1) + 1)) /
-                   stride + 1;
-    int output_h = (height + 2 * padding -  (dilation * (kernel_height - 1)+1))/
-                   stride + 1;
-    int channel_size = height * width;
+    long output_w, output_h;
+    output_w = (width + 2 * padding - (dilation * (kernel_width - 1) + 1)) /
+               stride + 1;
+    output_h = (height + 2 * padding -  (dilation * (kernel_height - 1)+1)) /
+               stride + 1;
+    long channel_size = height * width;
     if (output_w <= 0 || output_h <= 0 || channel_size <= 0) goto invalid_size;
-    int out_cols = kernel_width * kernel_height * channels;
+    long out_cols = kernel_width * kernel_height * channels;
     if (out_cols <= 0) goto invalid_size;
-    int outsize = channels * output_w * output_h * kernel_width * kernel_height;
+    long outsize = channels * output_w * output_h *
+                   kernel_width * kernel_height;
     if (outsize <= 0) goto invalid_size;
-    int out_rows = outsize / out_cols;
+    long out_rows = outsize / out_cols;
     if (out_rows <= 0) goto invalid_size;
     PSFloat *output = malloc(outsize * sizeof(PSFloat));
     if (output == NULL) {
@@ -131,18 +134,18 @@ static PSFloat *im2col(PSFloat *inputs, int input_size, int channels,
     if (output_rows != NULL) *output_rows = out_rows;
     PSFloat *output_p = output;
     PSFloat *inputs_p = inputs;
-    for (int ch = 0; ch < channels; ch++) {
-        for (int krow = 0; krow < kernel_height; krow++) {
-            for (int kcol = 0; kcol < kernel_width; kcol++) {
-                int input_row = -padding + krow * dilation;
-                int output_rows = output_h;
+    for (long ch = 0; ch < channels; ch++) {
+        for (long krow = 0; krow < kernel_height; krow++) {
+            for (long kcol = 0; kcol < kernel_width; kcol++) {
+                long input_row = -padding + krow * dilation;
+                long output_rows = output_h;
                 while (output_rows-- > 0) {
                     if (input_row < 0 || input_row >= height) {
-                        int output_cols = output_w;
+                        long output_cols = output_w;
                         while (output_cols-- > 0) *(output_p++) = 0.0;
                     } else {
-                        int input_col = -padding + kcol * dilation;
-                        int output_col = output_w;
+                        long input_col = -padding + kcol * dilation;
+                        long output_col = output_w;
                         while (output_col-- > 0) {
                             PSFloat val = 0.0;
                             if (input_col >= 0 && input_col < width)
@@ -163,17 +166,18 @@ invalid_size:
     return NULL;
 }
 
-static PSFloat *col2im(PSFloat *input, int channels, int width, int height,
-                       int kernel_width, int kernel_height, int padding,
-                       int stride, int dilation, PSFloat *dest, int dest_size)
+static PSFloat *col2im(PSFloat *input, long channels, long width, long height,
+                       long kernel_width, long kernel_height, int padding,
+                       int stride, int dilation, PSFloat *dest, long dest_size)
 {
     if (input == NULL) return NULL;
-    int outsize = height * width * channels;
+    long outsize = height * width * channels;
     if (outsize <= 0) goto invalid_size;
-    int output_h = (height + 2 * padding - (dilation * (kernel_height-1)+1)) /
-                   stride + 1;
-    int output_w = (width + 2 * padding - (dilation * (kernel_width-1)+1)) /
-                   stride + 1;
+    long output_h, output_w;
+    output_h = (height + 2 * padding - (dilation * (kernel_height-1)+1)) /
+               stride + 1;
+    output_w = (width + 2 * padding - (dilation * (kernel_width-1)+1)) /
+               stride + 1;
     if (output_h <= 0 || output_w <= 0) goto invalid_size;
     PSFloat *output = dest;
     if (output == NULL) {
@@ -186,23 +190,23 @@ static PSFloat *col2im(PSFloat *input, int channels, int width, int height,
         if (dest_size != outsize) goto invalid_size;
         memset(output, 0, outsize * sizeof(PSFloat));
     }
-    int channel_size = height * width;
+    long channel_size = height * width;
     PSFloat *output_p = output;
     PSFloat *input_p = input;
-    for (int ch = 0; ch < channels; ch++) {
-        for (int krow = 0; krow < kernel_height; krow ++) {
-            for (int kcol = 0; kcol < kernel_width; kcol++) {
-                int input_row = -padding + krow * dilation;
-                int output_rows = output_h;
+    for (long ch = 0; ch < channels; ch++) {
+        for (long krow = 0; krow < kernel_height; krow ++) {
+            for (long kcol = 0; kcol < kernel_width; kcol++) {
+                long input_row = -padding + krow * dilation;
+                long output_rows = output_h;
                 while (output_rows-- > 0) {
                     if (input_row < 0 || input_row >= height)
                         input_p += output_w;
                     else {
-                        int input_col = -padding + kcol * dilation;
-                        int output_col = output_w;
+                        long input_col = -padding + kcol * dilation;
+                        long output_col = output_w;
                         while (output_col-- > 0) {
                             if (input_col >= 0 && input_col < width) {
-                                int oidx = (input_row * width + input_col);
+                                long oidx = (input_row * width + input_col);
                                 output_p[oidx] += *input_p;
                             }
                             input_p++;
@@ -221,20 +225,20 @@ invalid_size:
     return NULL;
 }
 
-static PSFloat *weights2col(PSFloat **lweights, int filter_width,
-                            int filter_height, int filter_depth,
-                            int out_depth, int *output_size,
-                            int *output_columns, int *output_rows,
+static PSFloat *weights2col(PSFloat **lweights, long filter_width,
+                            long filter_height, long filter_depth,
+                            long out_depth, long *output_size,
+                            long *output_columns, long *output_rows,
                             int transpose)
 {
     if (output_size != NULL) *output_size = 0;
     if (lweights == NULL) return NULL;
     if (filter_height <= 0) filter_height = filter_width;
-    int fsize = filter_width * filter_height * filter_depth;
+    long fsize = filter_width * filter_height * filter_depth;
     if (fsize <= 0) goto invalid_size;
-    int rows = fsize;
-    int cols = out_depth;
-    int size = rows * cols;
+    long rows = fsize;
+    long cols = out_depth;
+    long size = rows * cols;
     if (size <= 0) goto invalid_size;
     PSFloat *outputs = malloc(size * sizeof(PSFloat));
     if (outputs == NULL) {
@@ -244,7 +248,7 @@ static PSFloat *weights2col(PSFloat **lweights, int filter_width,
     if (output_size != NULL) *output_size = size;
     if (output_columns != NULL) *output_columns = cols;
     if (output_rows != NULL) *output_rows = rows;
-    for (int col = 0; col < out_depth; col++) {
+    for (long col = 0; col < out_depth; col++) {
         PSFloat *weights = lweights[col];
         if (weights == NULL) {
             PSErr(__func__, "missing weights[%d]", col);
@@ -256,7 +260,7 @@ static PSFloat *weights2col(PSFloat **lweights, int filter_width,
             memcpy(outputs + (col * fsize), weights, fsize * sizeof(PSFloat));
             continue;
         }
-        for (int row = 0; row < fsize; row++)
+        for (long row = 0; row < fsize; row++)
             outputs[(row * cols) + col] = weights[row];
     }
     return outputs;
@@ -267,7 +271,7 @@ invalid_size:
 
 /* Accelerated convolution with BLAS */
 
-static int AcceleratedConvolve(PSLayer *layer, PSFloat *inputs, int input_size,
+static int AcceleratedConvolve(PSLayer *layer, PSFloat *inputs, long input_size,
                                PSFloat *outputs)
 {
     if (inputs == NULL) {
@@ -292,8 +296,9 @@ static int AcceleratedConvolve(PSLayer *layer, PSFloat *inputs, int input_size,
         }
         layer->private = privdata;
     }
-    int i2c_size = 0, i2c_rows = 0, i2c_cols = 0, w2c_size = 0, w2c_cols = 0,
-        w2c_rows = 0, success = 1;
+    long i2c_size = 0, i2c_rows = 0, i2c_cols = 0, w2c_size = 0, w2c_cols = 0,
+         w2c_rows = 0;
+    int success = 1;
     PSFloat *i2c = im2col(inputs, input_size, settings->input_depth,
                           settings->input_width, settings->input_height,
                           settings->filter_width,
@@ -316,10 +321,10 @@ static int AcceleratedConvolve(PSLayer *layer, PSFloat *inputs, int input_size,
         success = 0;
         goto final;
     }
-    int m = layer->output_depth;
-    int n = layer->size / layer->output_depth;
-    int k = settings->filter_width * settings->filter_height *
-            settings->input_depth;
+    long m = layer->output_depth;
+    long n = layer->size / layer->output_depth;
+    long k = settings->filter_width * settings->filter_height *
+             settings->input_depth;
     PSMathOpts opts = {.acceleration = layer->model->acceleration};
     success = PSMatMul(w2c, i2c, outputs, m, n, k, &opts);
 final:
@@ -343,9 +348,9 @@ static int AcceleratyedConvBackprop(PSLayer *layer, PSGradient *gradient) {
     PSMathOpts opts = {.acceleration = layer->model->acceleration};
     PSFloat *delta = layer->delta;
     int use_bias = !(layer->flags & PS_FLAG_NO_BIAS);
-    int feature_size = layer->size / layer->output_depth;
-    int ksize = settings->filter_width * settings->filter_height *
-                settings->input_depth;
+    long feature_size = layer->size / layer->output_depth;
+    long ksize = settings->filter_width * settings->filter_height *
+                 settings->input_depth;
     if (use_bias) {
         /* Update gradient biases */
         if (privdata->bias_mul == NULL) {
@@ -367,7 +372,7 @@ static int AcceleratyedConvBackprop(PSLayer *layer, PSGradient *gradient) {
         );
         if (!success) goto final;
     }
-    int i2c_size = privdata->im2col_size;
+    long i2c_size = privdata->im2col_size;
     PSFloat *i2c = privdata->im2col;
     if (i2c == NULL) {
         PSFloat *inputs = PSLayerStates(previous, 0);
@@ -382,7 +387,7 @@ static int AcceleratyedConvBackprop(PSLayer *layer, PSGradient *gradient) {
         if (!success) goto final;
     }
     /* Update gradient weights */
-    int m = layer->output_depth, n = ksize, k = feature_size;
+    long m = layer->output_depth, n = ksize, k = feature_size;
     PSMathOpts mmopts = {
         .acceleration = layer->model->acceleration,
         .store_mode = PS_STORE_MODE_ADD,
@@ -463,8 +468,9 @@ void PSBeforeConvolutionalBatchTraining(PSLayer *layer) {
 
 /* Init Functions */
 
-static PSMatrix initConvWeights(PSLayer *layer, int depth, int rows, int cols,
-                                PSLayerDef *ldef, PSFloat range, PSFloat scale)
+static PSMatrix initConvWeights(PSLayer *layer, long depth, long rows,
+                                long cols, PSLayerDef *ldef, PSFloat range,
+                                PSFloat scale)
 {
     static PSLayerDef default_def = {0};
     if (ldef == NULL) ldef = &default_def;
@@ -541,11 +547,11 @@ int PSInitConvolutionalLayer(PSModel *model, PSLayer *layer,
     if (layer_def->activation != NULL) layer->activate = layer_def->activation;
     else layer->activate = PSSigmoid;
     layer->derivative = PSGetActivationDerivative(layer->activate);
-    int input_w, input_h, output_w, output_h;
+    long input_w, input_h, output_w, output_h;
     input_w = previous->output_columns;
     input_h = previous->output_rows;
     if (input_w <= 0) {
-        int w = (int) PSRound(PSSqrt(previous->size));
+        long w = (long) PSRound(PSSqrt(previous->size));
         input_w = w; input_h = w;
         previous->output_columns = input_w;
         previous->output_rows = input_h;
@@ -554,13 +560,13 @@ int PSInitConvolutionalLayer(PSModel *model, PSLayer *layer,
         if (input_w == 0) {
             PSFloat featsize = (PSFloat) previous->size /
                                          previous->output_depth;
-            input_w = (int) PSSqrt(featsize);
+            input_w = (long) PSSqrt(featsize);
             input_h = input_w;
         }
-        int prev_area = input_w * input_h * previous->output_depth;
+        long prev_area = input_w * input_h * previous->output_depth;
         if (prev_area != previous->size) {
             PSErr(
-                __func__, "Previous size %d != %d (%dx%dx%d)",
+                __func__, "Previous size %ld != %ld (%ldx%ldx%d)",
                 previous->size, prev_area, input_w, input_h,
                 previous->output_depth
             );
@@ -626,10 +632,10 @@ int PSInitConvolutionalLayer(PSModel *model, PSLayer *layer,
                                             stride, (PSFloat) padding);
     layer->output_columns = output_w;
     layer->output_rows = output_h;
-    int area = (output_w * output_h);
-    int size = area * layer->output_depth;
-    int weights_size = settings->filter_width * settings->filter_height *
-                       settings->filter_depth;;
+    long area = (output_w * output_h);
+    long size = area * layer->output_depth;
+    long weights_size = settings->filter_width * settings->filter_height *
+                        settings->filter_depth;;
     layer->size = size;
     layer->states = PSMatrixZeros(2, 1, size);
     if (layer->states == NULL) goto memerr;
@@ -690,7 +696,7 @@ int PSInitPoolingLayer(PSModel *model, PSLayer *layer, PSLayerDef *layer_def) {
               settings->filter_width);
         return 0;
     }
-    PSFloat input_w, input_h, output_w, output_h;
+    long input_w, input_h, output_w, output_h;
     input_w = previous->output_columns;
     input_h = previous->output_rows;
     if (input_w == 0 || input_h == 0) {
@@ -698,14 +704,14 @@ int PSInitPoolingLayer(PSModel *model, PSLayer *layer, PSLayerDef *layer_def) {
             input_w = previous->size;
             input_h = 1;
         } else if (input_w == 0) {
-            if ((previous->size % (int) input_h) != 0) {
-                PSErr(__func__, "invalid input height %d", input_h);
+            if ((previous->size % input_h) != 0) {
+                PSErr(__func__, "invalid input height %ld", input_h);
                 return 0;
             }
             input_w = previous->size / input_h;
         } else if (input_h == 0) {
-            if ((previous->size % (int) input_w) != 0) {
-                PSErr(__func__, "invalid input width %d", input_w);
+            if ((previous->size % input_w) != 0) {
+                PSErr(__func__, "invalid input width %ld", input_w);
                 return 0;
             }
             input_h = previous->size / input_w;
@@ -717,8 +723,8 @@ int PSInitPoolingLayer(PSModel *model, PSLayer *layer, PSLayerDef *layer_def) {
     output_h = PSCalculatePoolingSide(input_h, settings->filter_width);
     layer->output_columns = output_w;
     layer->output_rows = output_h;
-    int area = (output_w * output_h);
-    int size = area * layer->output_depth;
+    long area = (output_w * output_h);
+    long size = area * layer->output_depth;
     layer->size = size;
     layer->states = PSMatrixZeros(2, 1, size);
     if (layer->states == NULL) goto memerr;
@@ -770,26 +776,27 @@ int PSConvolutionalForward(PSLayer *layer, ...) {
         goto failed;
     }
     if (layer->output_depth == 0) layer->output_depth = 1;
-    int i, j, k, x, y, row, col;
-    int is_recurrent = PSIsRecurrent(layer), times = 0, t = 0;
+    long i, j, k, x, y, row, col;
+    int is_recurrent = PSIsRecurrent(layer);
+    long times = 0, t = 0;
     if (is_recurrent) {
         va_list args;
         va_start(args, layer);
-        times = va_arg(args, int);
-        t = va_arg(args, int);
+        times = va_arg(args, long);
+        t = va_arg(args, long);
         va_end(args);
         UNUSED(times);
     }
-    int stride = settings->stride;
-    int padding = settings->padding;
-    int filter_area = settings->filter_width * settings->filter_height;
-    int feature_size = layer->size / layer->output_depth;
-    int use_bias = !(layer->flags & PS_FLAG_NO_BIAS);
-    int input_w = settings->input_width, input_h = settings->input_height;
     int use_acceleration = (
         model->acceleration != PSAcceleration_None && !is_recurrent
     );
-    int previous_feature_size = 0;
+    int use_bias = !(layer->flags & PS_FLAG_NO_BIAS);
+    int stride = settings->stride;
+    int padding = settings->padding;
+    long filter_area = settings->filter_width * settings->filter_height;
+    long feature_size = layer->size / layer->output_depth;
+    long input_w = settings->input_width, input_h = settings->input_height;
+    long previous_feature_size = 0;
     if (previous->output_depth == 0) previous->output_depth = 1;
     previous_feature_size = previous->size / previous->output_depth;
     if (use_acceleration) {
@@ -827,21 +834,21 @@ int PSConvolutionalForward(PSLayer *layer, ...) {
         PSFloat *weights = layer->weights[i];
         row = 0;
         for (j = 0; j < feature_size; j++) {
-            int idx = (i * feature_size) + j;
+            long idx = (i * feature_size) + j;
             col = idx % layer->output_columns;
             if (col == 0 && j > 0) row++;
-            int r_row = (row * stride) - padding;
-            int r_col = (col * stride) - padding;
-            int max_x = settings->filter_width + r_col;
-            int max_y = settings->filter_height + r_row;
+            long r_row = (row * stride) - padding;
+            long r_col = (col * stride) - padding;
+            long max_x = settings->filter_width + r_col;
+            long max_y = settings->filter_height + r_row;
             PSFloat sum = 0;
             for (k = 0; k < previous->output_depth; k++) {
-                int widx = k * filter_area;
-                int foffset = k * previous_feature_size;
+                long widx = k * filter_area;
+                long foffset = k * previous_feature_size;
                 if (do_dump) PSTrainingDebugDump(
                     model,
-                    "#### Previous Feature[%d], offset=%d, weight_offset="
-                    "%d\n", k, foffset, widx
+                    "#### Previous Feature[%ld], offset=%ld, weight_offset="
+                    "%ld\n", k, foffset, widx
                 );
                 for (y = r_row; y < max_y; y++) {
                     /* If y is outside layer's area (ie. padding area) and
@@ -864,10 +871,10 @@ int PSConvolutionalForward(PSLayer *layer, ...) {
                         widx += (0 - x);
                         x = 0;
                     }
-                    int x2 = max_x;
+                    long x2 = max_x;
                     if (x2 >= settings->input_width) x2 = input_w - 1;
                     for (; x < max_x; x++) {
-                        int nidx = foffset + (y * settings->input_width) + x;
+                        long nidx = foffset + (y * settings->input_width) + x;
                         /* printf("  -> %d,%d [%d]\n", x, y, nidx); */
                         assert(nidx >= 0);
                         if (nidx >= previous->size) break;
@@ -876,7 +883,7 @@ int PSConvolutionalForward(PSLayer *layer, ...) {
                              * and after it (x >= input_w), stop cycling row
                              * and jump to next one, after adding skipped
                              * weights to weight index (widx). */
-                            int skip_w = max_x - settings->input_width;
+                            long skip_w = max_x - settings->input_width;
                             if (skip_w > 0) widx += skip_w;
                             break;
                         }
@@ -888,14 +895,14 @@ int PSConvolutionalForward(PSLayer *layer, ...) {
                         sum += (s * weights[widx++]);
                     }
                 }
-                /* weights += (int) region_area; */
+                /* weights += (long) region_area; */
             }
             PSFloat state = sum + bias;
             if (activate != NULL) state = activate(state);
             int ok = PSSetState(layer, state, idx, t);
             if (!ok) {
                 PSErr(
-                    NULL, "Failed to set state on layer %d, neuron %d",
+                    NULL, "Failed to set state on layer %d, neuron %ld",
                     layer->index, idx
                 );
                 PSModelSetStatus(layer->model, PS_STATUS_ERROR, NULL);
@@ -933,7 +940,7 @@ int PSPool(PSLayer *layer, ...) {
               layer->index);
         return 0;
     }
-    int i, j, x, y, row, col;
+    long i, j, x, y, row, col;
     int do_dump =
         (model->training != NULL && model->training->debug_dump_to != NULL);
     PSDebugStepInfo dbginfo = {
@@ -942,36 +949,37 @@ int PSPool(PSLayer *layer, ...) {
         .func = __func__,
         .training_phase = PS_TRAINING_PHASE_FORWARD
     };
-    int is_recurrent = PSIsRecurrent(layer), times = 0, t = 0;
+    int is_recurrent = PSIsRecurrent(layer);
+    long times = 0, t = 0;
     if (is_recurrent) {
         va_list args;
         va_start(args, layer);
-        times = va_arg(args, int);
-        t = va_arg(args, int);
+        times = va_arg(args, long);
+        t = va_arg(args, long);
         va_end(args);
         UNUSED(times);
     }
-    int input_w = previous->output_columns;
-    int output_w = layer->output_columns;
-    int feature_size = layer->size / layer->output_depth;
-    int prev_size = previous->size / previous->output_depth;
+    long input_w = previous->output_columns;
+    long output_w = layer->output_columns;
+    long feature_size = layer->size / layer->output_depth;
+    long prev_size = previous->size / previous->output_depth;
     if (settings->filter_height == 0)
         settings->filter_height = settings->filter_width;
     for (i = 0; i < layer->output_depth; i++) {
         if (do_dump && i > 1) do_dump = 0;
         row = 0;
         for (j = 0; j < feature_size; j++) {
-            int idx = (i * feature_size) + j;
-            col = idx % (int) output_w;
+            long idx = (i * feature_size) + j;
+            col = idx % output_w;
             if (col == 0 && j > 0) row++;
-            int r_row = row * settings->filter_height;
-            int r_col = col * settings->filter_width;
-            int max_x = settings->filter_width + r_col;
-            int max_y = settings->filter_height + r_row;
+            long r_row = row * settings->filter_height;
+            long r_col = col * settings->filter_width;
+            long max_x = settings->filter_width + r_col;
+            long max_y = settings->filter_height + r_row;
             PSFloat max = 0.0;
             for (y = r_row; y < max_y; y++) {
                 for (x = r_col; x < max_x; x++) {
-                    int nidx = ((y * input_w) + x) + (prev_size * i);
+                    long nidx = ((y * input_w) + x) + (prev_size * i);
                     PSFloat a = PSGetState(previous, nidx, t);
                     if (a > max) max = a;
                     if (do_dump) DumpPoolStep(
@@ -983,7 +991,7 @@ int PSPool(PSLayer *layer, ...) {
             int ok = PSSetState(layer, max, idx, t);
             if (!ok) {
                 PSErr(
-                    NULL, "Failed to set state on layer %d, neuron %d",
+                    NULL, "Failed to set state on layer %d, neuron %ld",
                     layer->index, idx
                 );
                 PSModelSetStatus(layer->model, PS_STATUS_ERROR, NULL);
@@ -1009,11 +1017,11 @@ int PSPoolingBackprop(PSLayer *pooling_layer, PSLayer *convolutional_layer,
     }
     PSFloat *delta = pooling_layer->delta;
     PSFloat *conv_delta = convolutional_layer->delta;
-    int feature_size = pooling_layer->size / pooling_layer->output_depth;
-    int input_w = settings->input_width;
-    int output_w = pooling_layer->output_columns;
-    int prev_feat_size = convolutional_layer->size /
-                         convolutional_layer->output_depth;
+    long feature_size = pooling_layer->size / pooling_layer->output_depth;
+    long input_w = settings->input_width;
+    long output_w = pooling_layer->output_columns;
+    long prev_feat_size = convolutional_layer->size /
+                          convolutional_layer->output_depth;
     if (settings->filter_height <= 0)
         settings->filter_height = settings->filter_width;
     PSModel *model = (PSModel *) pooling_layer->model;
@@ -1029,14 +1037,15 @@ int PSPoolingBackprop(PSLayer *pooling_layer, PSLayer *convolutional_layer,
         .func = __func__,
         .training_phase = PS_TRAINING_PHASE_BACKPROP
     };
-    int is_recurrent = PSIsRecurrent(pooling_layer), t = 0;
+    int is_recurrent = PSIsRecurrent(pooling_layer);
+    long t = 0;
     if (is_recurrent) {
         va_list args;
         va_start(args, layer_gradients);
-        t = va_arg(args, int);
+        t = va_arg(args, long);
         va_end(args);
     }
-    int i, j, row, col, x, y;
+    long i, j, row, col, x, y;
     PSScalarActivationFunction derivative = NULL;
     if (convolutional_layer->derivative != NULL)
         derivative = PSGetScalarActivationFunc(convolutional_layer->derivative);
@@ -1044,19 +1053,19 @@ int PSPoolingBackprop(PSLayer *pooling_layer, PSLayer *convolutional_layer,
         if (do_dump && i > 1) do_dump = 0;
         row = 0;
         for (j = 0; j < feature_size; j++) {
-            int idx = j + (i * feature_size);
+            long idx = j + (i * feature_size);
             PSFloat d = delta[idx];
             PSFloat pool_state = PSGetState(pooling_layer, idx, t);
-            col = idx % (int) output_w;
+            col = idx %  output_w;
             if (col == 0 && j > 0) row++;
-            int r_row = row * settings->filter_height;
-            int r_col = col * settings->filter_width;
-            int max_x = settings->filter_width + r_col;
-            int max_y = settings->filter_height + r_row;
+            long r_row = row * settings->filter_height;
+            long r_col = col * settings->filter_width;
+            long max_x = settings->filter_width + r_col;
+            long max_y = settings->filter_height + r_row;
             /* PSFloat max = 0; */
             for (y = r_row; y < max_y; y++) {
                 for (x = r_col; x < max_x; x++) {
-                    int nidx = ((y * input_w) + x) + (prev_feat_size * i);
+                    long nidx = ((y * input_w) + x) + (prev_feat_size * i);
                     if (do_dump) DumpPoolBackpropStep(
                         col, row, r_col, r_row, max_x, max_y,
                         convolutional_layer, i, nidx, x, y
@@ -1079,7 +1088,8 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
     PSModel *model = (PSModel *) convolutional_layer->model;
     if (model == NULL) return 0;
     if (gradient == NULL) return 0;
-    int is_recurrent = PSIsRecurrent(convolutional_layer), t = 0;
+    int is_recurrent = PSIsRecurrent(convolutional_layer);
+    long t = 0;
     int use_acceleration = (
         model->acceleration != PSAcceleration_None && !is_recurrent
     );
@@ -1105,19 +1115,19 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
               convolutional_layer->index);
         return 0;
     }
-    int filter_area = settings->filter_width * settings->filter_height;
-    int stride = settings->stride;
-    int padding = settings->padding;
-    int input_w = settings->input_width;
-    int input_h = settings->input_height;
-    int output_w = convolutional_layer->output_columns;
-    int feature_size = convolutional_layer->size /
-                       convolutional_layer->output_depth;
-    int previous_feature_size = 0;
-    int prev_depth = prev_layer->output_depth;
+    long filter_area = settings->filter_width * settings->filter_height;
+    long stride = settings->stride;
+    long padding = settings->padding;
+    long input_w = settings->input_width;
+    long input_h = settings->input_height;
+    long output_w = convolutional_layer->output_columns;
+    long feature_size = convolutional_layer->size /
+                        convolutional_layer->output_depth;
+    long previous_feature_size = 0;
+    long prev_depth = prev_layer->output_depth;
     if (prev_depth <= 0) prev_depth = 1;
     previous_feature_size = prev_layer->size / prev_depth;
-    int weight_size = PSMatrixLength(convolutional_layer->weights[0]);
+    long weight_size = PSMatrixLength(convolutional_layer->weights[0]);
     int do_dump = 0;
     if (model != NULL) {
         do_dump = (
@@ -1134,30 +1144,30 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
     if (is_recurrent) {
         va_list args;
         va_start(args, gradient);
-        t = va_arg(args, int);
+        t = va_arg(args, long);
         va_end(args);
     }
-    int i, j, k, row, col, x, y;
+    long i, j, k, row, col, x, y;
     for (i = 0; i < convolutional_layer->output_depth; i++) {
         if (do_dump && i > 1) do_dump = 0;
-        int weight_offset = (weight_size * i);
+        long weight_offset = (weight_size * i);
         row = 0;
         for (j = 0; j < feature_size; j++) {
-            int idx = j + (i * feature_size);
+            long idx = j + (i * feature_size);
             PSFloat d = delta[idx];
             if (use_bias) gradient->biases[i] += d;
-            col = idx % (int) output_w;
+            col = idx % output_w;
             if (col == 0 && j > 0) row++;
-            int r_row = (row * stride) - padding;
-            int r_col = (col * stride) - padding;
-            int max_x = settings->filter_width + r_col;
-            int max_y = settings->filter_height + r_row;
+            long r_row = (row * stride) - padding;
+            long r_col = (col * stride) - padding;
+            long max_x = settings->filter_width + r_col;
+            long max_y = settings->filter_height + r_row;
             for (k = 0; k < prev_depth; k++) {
-                int feature_offset = k * previous_feature_size;
-                int widx = k * filter_area;
+                long feature_offset = k * previous_feature_size;
+                long widx = k * filter_area;
                 if (do_dump && k <= 1) PSTrainingDebugDump(
                     model,
-                    "#### Previous Feature[%d], offset=%d, weight_offset="
+                    "#### Previous Feature[%ld], offset=%ld, weight_offset="
                     "%d\n", k, feature_offset, widx
                 );
                 for (y = r_row; y < max_y; y++) {
@@ -1170,7 +1180,7 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
                             widx++;
                             continue;
                         }
-                        int nidx = feature_offset + (y * input_w) + x;
+                        long nidx = feature_offset + (y * input_w) + x;
                         /* printf("  -> %d,%d [%d]\n", x, y, nidx); */
                         assert(nidx >= 0);
                         if (nidx >= prev_layer->size) break;
@@ -1178,7 +1188,7 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
                          * exit x cycle and go to next row after adding
                          * skipped padding units to weight index (widx). */
                         if (x >= input_w && max_x > input_w) {
-                            int skip_w = max_x - input_w;
+                            long skip_w = max_x - input_w;
                             if (skip_w > 0) widx += skip_w;
                             break;
                         }
@@ -1188,9 +1198,9 @@ int PSConvolutionalBackprop(PSLayer* convolutional_layer, PSLayer *prev_layer,
                             /* Ensure that weight index (widx) never exceeds
                              * shared weights. */
                             fprintf(stderr,
-                                    "\nwidx=%d, weights_size=%d,"
-                                    "x=%d,y=%d,k=%d,r_col=%d,r_row=%d,"
-                                    "max_x=%d,max_y=%d, layer=%d\n",
+                                    "\nwidx=%ld, weights_size=%ld,"
+                                    "x=%ld,y=%ld,k=%ld,r_col=%ld,r_row=%ld,"
+                                    "max_x=%ld,max_y=%ld,layer=%d\n",
                                     widx, weight_size, x, y, k,
                                     r_col, r_row, max_x, max_y,
                                     convolutional_layer->index);

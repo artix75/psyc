@@ -112,7 +112,7 @@ int getLossFunctionIndex(PSLossFunction function);
 PSLossFunction getLossFunctionAtIndex(int index);
 void PSPrintLayerInfo(PSLayer *layer);
 const char *PSGetActivationName(PSActivationFunction func);
-PSFloat *PSSetSequenceStart(PSModel *model, PSFloat *start, int len);
+PSFloat *PSSetSequenceStart(PSModel *model, PSFloat *start, long len);
 PSLayer *PSMakeLayerPlaceholder(int layer_index, int model_index);
 
 uint16_t swap_uint16(uint16_t val) {
@@ -152,7 +152,7 @@ uint64_t swap_uint64(uint64_t val) {
 uint16_t readUInt16(FILE *f, int swap) {
     if (f == NULL) return 0;
     uint16_t val = 0;
-    int nread = fread(&val, sizeof(val), 1, f);
+    size_t nread = fread(&val, sizeof(val), 1, f);
     if (nread < 1) return 0;
     if (swap) val = swap_uint16(val);
     return val;
@@ -161,7 +161,7 @@ uint16_t readUInt16(FILE *f, int swap) {
 uint16_t readInt16(FILE *f, int swap) {
     if (f == NULL) return 0;
     int16_t val = 0;
-    int nread = fread(&val, sizeof(val), 1, f);
+    size_t nread = fread(&val, sizeof(val), 1, f);
     if (nread < 1) return 0;
     if (swap) val = swap_int16(val);
     return val;
@@ -170,7 +170,7 @@ uint16_t readInt16(FILE *f, int swap) {
 uint32_t readUInt32(FILE *f, int swap) {
     if (f == NULL) return 0;
     uint32_t val = 0;
-    int nread = fread(&val, sizeof(val), 1, f);
+    size_t nread = fread(&val, sizeof(val), 1, f);
     if (nread < 1) return 0;
     if (swap) val = swap_uint32(val);
     return val;
@@ -179,7 +179,7 @@ uint32_t readUInt32(FILE *f, int swap) {
 uint32_t readInt32(FILE *f, int swap) {
     if (f == NULL) return 0;
     int32_t val = 0;
-    int nread = fread(&val, sizeof(val), 1, f);
+    size_t nread = fread(&val, sizeof(val), 1, f);
     if (nread < 1) return 0;
     if (swap) val = swap_int32(val);
     return val;
@@ -188,7 +188,7 @@ uint32_t readInt32(FILE *f, int swap) {
 uint64_t readUInt64(FILE *f, int swap) {
     if (f == NULL) return 0;
     uint64_t val = 0;
-    int nread = fread(&val, sizeof(val), 1, f);
+    size_t nread = fread(&val, sizeof(val), 1, f);
     if (nread < 1) return 0;
     if (swap) val = swap_uint64(val);
     return val;
@@ -197,7 +197,7 @@ uint64_t readUInt64(FILE *f, int swap) {
 uint64_t readInt64(FILE *f, int swap) {
     if (f == NULL) return 0;
     int64_t val = 0;
-    int nread = fread(&val, sizeof(val), 1, f);
+    size_t nread = fread(&val, sizeof(val), 1, f);
     if (nread < 1) return 0;
     if (swap) val = swap_int64(val);
     return val;
@@ -371,13 +371,13 @@ static int scanFileVar(FILE *f, char *fmt, int match, int *matched,
             }
             goto final;
         }
-        int endlen = strlen(endstr);
+        size_t endlen = strlen(endstr);
         if (endlen == 0) goto final;
         long curpos = ftell(f);
         fseek(f, -endlen, SEEK_CUR);
         char buf[endlen + 1];
         buf[endlen] = '\0';
-        int read = fread(buf, sizeof(char), (size_t) endlen, f);
+        size_t read = fread(buf, sizeof(char), endlen, f);
         if (read != endlen) {
             success = 0;
             goto final;
@@ -448,7 +448,7 @@ static int readBinaryFileHeader(FILE *f, PSBinaryFileHeader *hdr) {
     if (ftell(f) != 0) return 0;
     uint32_t filler = 0;
     char hdr_s[5] = {0};
-    int nread = fread(&filler, sizeof(filler), 1, f);
+    size_t nread = fread(&filler, sizeof(filler), 1, f);
     int valid_hdr = (nread == 1 && filler == 0xFFFFFFFF);
     if (!valid_hdr) {
         if (nread < 1 && !feof(f)) valid_hdr = 1;
@@ -464,14 +464,14 @@ static int readBinaryFileHeader(FILE *f, PSBinaryFileHeader *hdr) {
     hdr->type = fgetc(f);
     if (hdr->type == EOF) goto err;
     int verslen = fgetc(f);
-    if (verslen == EOF) goto err;
+    if (verslen == EOF || verslen <= 0) goto err;
     if (verslen > 254) {
         PSErr(NULL, "invalid version string length");
         goto err;
     }
     hdr->version[0] = '\0';
     nread = fread(hdr->version, 1, verslen, f);
-    if (nread < verslen) goto err;
+    if (nread < (size_t) verslen) goto err;
     hdr->float_size = fgetc(f);
     if (hdr->float_size == EOF) goto err;
     int valid_sz = (
@@ -522,7 +522,7 @@ static int writeBinaryFileHeader(FILE *f, int type) {
     static uint32_t hdr_i = 0xFFFFFFFF;
     static char *hdr_s = "PSYC";
     int success = 1;
-    int nwritten = fwrite(&hdr_i, 4, 1, f);
+    size_t nwritten = fwrite(&hdr_i, 4, 1, f);
     success = (nwritten == 1);
     if (!success) return 0;
     nwritten = fwrite(hdr_s, 1, 4, f);
@@ -530,7 +530,7 @@ static int writeBinaryFileHeader(FILE *f, int type) {
     if (!success) return 0;
     success = fputc(type, f) != EOF;
     if (!success) return 0;
-    int verslen = strlen(PSYC_VERSION);
+    size_t verslen = strlen(PSYC_VERSION);
     if (verslen > UINT8_MAX) verslen = UINT8_MAX;
     success = fputc((uint8_t) verslen, f) != EOF;
     if (!success) return 0;
@@ -546,15 +546,17 @@ static int writeBinaryFileHeader(FILE *f, int type) {
     return success;
 }
 
-static int writeBinaryFloats(PSFloat *floats, uint64_t len, FILE *f) {
+static int writeBinaryFloats(PSFloat *floats, size_t len, FILE *f) {
     if (f == NULL || floats == NULL) return 0;
     if (len == 0) return 1;
-    int max_chunk_len = 4096 / sizeof(PSFloat);
-    int nwritten = 0, totwritten = 0, remaining = len;
+    size_t max_chunk_len = 4096 / sizeof(PSFloat);
+    size_t nwritten = 0, totwritten = 0, remaining = len;
     errno = 0;
     PSFloat *floats_p = floats;
-    while ((uint64_t) totwritten < len) {
-        int buflen = (remaining >= max_chunk_len ? max_chunk_len : remaining);
+    while (totwritten < len) {
+        size_t buflen = (
+            remaining >= max_chunk_len ? max_chunk_len : remaining
+        );
         nwritten = fwrite(floats_p, sizeof(PSFloat), buflen, f);
         totwritten += nwritten;
         remaining -= nwritten;
@@ -569,14 +571,16 @@ static int writeBinaryFloats(PSFloat *floats, uint64_t len, FILE *f) {
     return 1;
 }
 
-static int readBinaryFloats(PSFloat *floats, uint64_t len, FILE *f) {
+static int readBinaryFloats(PSFloat *floats, size_t len, FILE *f) {
     if (f == NULL || floats == NULL) return 0;
-    int max_chunk_len = 4096 / sizeof(PSFloat);
-    int nread = 0, totread = 0, remaining = len;
+    size_t max_chunk_len = 4096 / sizeof(PSFloat);
+    size_t nread = 0, totread = 0, remaining = len;
     errno = 0;
     PSFloat *floats_p = floats;
-    while ((uint64_t) totread < len) {
-        int buflen = (remaining >= max_chunk_len ? max_chunk_len : remaining);
+    while (totread < len) {
+        size_t buflen = (
+            remaining >= max_chunk_len ? max_chunk_len : remaining
+        );
         nread = fread(floats_p, sizeof(PSFloat), buflen, f);
         totread += nread;
         remaining -= nread;
@@ -592,21 +596,28 @@ static int readBinaryFloats(PSFloat *floats, uint64_t len, FILE *f) {
 }
 
 /* Format: LEN[8] + VECTOR[LEN * sizef(PSFloat)] */
-static int writeBinaryFloatArray(PSFloat *floats, uint64_t len, FILE *f) {
+static int writeBinaryFloatArray(PSFloat *floats, size_t len, FILE *f) {
     if (f == NULL) return 0;
     if (floats == NULL) len = 0;
-    int nwritten = fwrite(&len, sizeof(len), 1, f);
+    uint64_t veclen = (uint64_t) len;
+    size_t nwritten = fwrite(&veclen, sizeof(veclen), 1, f);
     if (nwritten < 1) return 0;
     if (floats == NULL) return 1;
     return writeBinaryFloats(floats, len, f);
 }
 
-PSFloat *readBinaryFloatArray(PSFloat *floats, uint64_t *len, FILE *f) {
+PSFloat *readBinaryFloatArray(PSFloat *floats, size_t *len, FILE *f) {
     assert(len != NULL);
     if (f == NULL) return NULL;
     *len = 0;
-    int nread = fread(&len, sizeof(len), 1, f);
+    uint64_t veclen = 0;
+    size_t nread = fread(&veclen, sizeof(veclen), 1, f);
     if (nread < 1) return NULL;
+    if (veclen > LONG_MAX || veclen > SIZE_MAX) {
+        PSErr(__func__, "binary array size exceeds limits.");
+        return NULL;
+    }
+    *len = veclen;
     PSFloat *allocd = NULL;
     if (floats == NULL) {
         allocd = calloc(*len, sizeof(PSFloat));
@@ -629,16 +640,18 @@ static int writeBinaryMatrixAsVector(PSMatrix matrix, FILE *f) {
 }
 
 /* Format:
-    SHAPELEN[1] + SHAPE[SHAPELEN] + LEN[8] + MATRIX[LEN * sizef(PSFloat)]
+    SHAPELEN[1] + SHAPE[SHAPELEN * 8] + LEN[8] + MATRIX[LEN * sizef(PSFloat)]
 */
 int writeBinaryMatrix(PSMatrix matrix, FILE *f) {
     if (f == NULL) return 0;
     if (matrix == NULL) return fputc(0, f) != EOF;
-    int shape[3];
+    long shape[3];
     int shape_len = PSMatrixShape(matrix, shape), i;
     if (fputc((uint8_t) shape_len, f) == EOF) return 0;
     for (i = 0; i < shape_len; i++) {
-        if (fputc((uint8_t) shape[i], f) == EOF) return 0;
+        uint64_t dim = (uint64_t) shape[i];
+        size_t nwritten = fwrite(&dim, 8, 1, f);
+        if (nwritten == 0) return 0;
     }
     return writeBinaryMatrixAsVector(matrix, f);
 }
@@ -659,7 +672,7 @@ static int writeBinaryLayerParameters(PSLayer *layer, int opts, FILE *f,
              weights_count = PSGetLayerParametersCount(layer,PS_PARAM_WEIGHT);
     int i = layer->index, j;
     if (!writeBinaryFileHeader(f, PS_BINARY_FTYPE_LAYER)) return 0;
-    int nwritten = fwrite(&layer->index, sizeof(layer->index), 1, f);
+    size_t nwritten = fwrite(&layer->index, sizeof(layer->index), 1, f);
     if (nwritten < 1) return 0;
     nwritten = fwrite(&bias_count, sizeof(bias_count), 1, f);
     if (nwritten < 1) return 0;
@@ -692,12 +705,12 @@ static int writeBinaryLayerParameters(PSLayer *layer, int opts, FILE *f,
             uint64_t len = 0;
             if (weights == NULL) {
                 nwritten = fwrite(&len, sizeof(len), 1, f);
-                if (nwritten < 0) return 0;
+                if (nwritten == 0) return 0;
                 continue;
             }
             len = PSMatrixLength(weights);
             nwritten = fwrite(&len, sizeof(len), 1, f);
-            if (nwritten < 0) return 0;
+            if (nwritten == 0) return 0;
             if (!writeBinaryFloats(weights, len, f)) {
                 PSErrNN(func, NULL, layer, "could not write binary "
                         "weights[%d]", j);
@@ -805,7 +818,7 @@ static int loadBinaryLayerParameters(PSLayer *layer, const char *filepath,
             return 0;
         }
         if (wlen == 0 && weights == NULL) continue;
-        ok = (wlen == PSMatrixLength(weights));
+        ok = (wlen == (uint64_t) PSMatrixLength(weights));
         if (!ok) {
             loadErr(filepath, NULL, "Layer[%u]: weights[%d] size expected to "
                     "be %llu, but files states %llu", i, j,
@@ -832,33 +845,30 @@ read_err:
     return 0;
 }
 
-PSFloat *loadBinaryVector(const char *filepath, FILE *f, uint64_t *len) {
+PSFloat *loadBinaryVector(const char *filepath, FILE *f, size_t *len) {
     assert(len != NULL);
     errno = 0;
     PSBinaryFileHeader hdr = {0};
     if (!readBinaryFileHeader(f, &hdr)) {
         loadErr(filepath, f, "file is not a valid psyc binary file");
-        return 0;
+        return NULL;
     }
     if (!checkBinaryFile(&hdr, filepath)) return 0;
     if (hdr.type != PS_BINARY_FTYPE_VECTOR) {
         PSErr(NULL, "file '%s' is not a vector binary file");
-        return 0;
+        return NULL;
     }
     int do_swap = (
         (hdr.big_endian && !PS_IS_BIG_ENDIAN) ||
         (!hdr.big_endian && PS_IS_BIG_ENDIAN)
     );
-    *len = readUInt64(f, do_swap);
-    if (*len == 0) return NULL;
-    uint64_t maxsize = SIZE_MAX;
-    if (*len > maxsize) {
-        PSErr(
-            NULL, "vector size from file '%s' exceeds maximum size",
-            filepath
-        );
-        return 0;
+    uint64_t veclen = readUInt64(f, do_swap);
+    if (veclen > LONG_MAX || veclen > SIZE_MAX) {
+        PSErr(NULL, "vector size from file '%s'  exceeds limits.", filepath);
+        return NULL;
     }
+    *len = (size_t) veclen;
+    if (*len == 0) return NULL;
     PSFloat *data = malloc((size_t) *len * sizeof(PSFloat));
     if (data == NULL) {
         PSPrintMemoryErrorMsg();
@@ -872,7 +882,7 @@ PSFloat *loadBinaryVector(const char *filepath, FILE *f, uint64_t *len) {
     return data;
 }
 
-int saveBinaryVector(FILE *f, PSFloat *vec, uint64_t len) {
+int saveBinaryVector(FILE *f, PSFloat *vec, size_t len) {
     assert(f != NULL);
     if (!writeBinaryFileHeader(f, PS_BINARY_FTYPE_VECTOR)) return 0;
     if (!writeBinaryFloatArray(vec, len, f)) return 0;
@@ -1057,8 +1067,8 @@ int writeSerializedFloatArray(FILE *out, uint64_t count, char *sep, int opts,
     return len;
 }
 
-PSFloat *readSerializedFloatArray(FILE *in, char *sep, uint64_t *length,
-                                  uint64_t maxlen, uint64_t capacity)
+PSFloat *readSerializedFloatArray(FILE *in, char *sep, long *length,
+                                  long maxlen, long capacity)
 {
     PSFloat *array = NULL;
     if (length == NULL) {
@@ -1068,12 +1078,12 @@ PSFloat *readSerializedFloatArray(FILE *in, char *sep, uint64_t *length,
     *length = 0;
     if (capacity == 0) capacity = 1;
     if (sep == NULL) sep = ",";
-    int seplen = strlen(sep);
+    size_t seplen = strlen(sep);
     if (seplen == 0) {
         PSErr(__func__, "`sep` is empty");
         return NULL;
     }
-    uint64_t arraylen = capacity;
+    long arraylen = capacity;
     array = calloc(arraylen, sizeof(PSFloat));
     if (array == NULL) {
         PSPrintMemoryErrorMsg();
@@ -1081,11 +1091,11 @@ PSFloat *readSerializedFloatArray(FILE *in, char *sep, uint64_t *length,
     }
     char fmt[256];
     char matched_sep[512] = {0};
-    snprintf(fmt, 255, "%s%%%d[%s]", PSFLOAT_FORMAT, 511, sep);
+    snprintf(fmt, 255, "%s%%%d[%s]", PSFLOAT_FORMAT, 512, sep);
     int matched = 0;
     PSFloat val = 0;
     while ((matched = fscanf(in, fmt, &val, matched_sep))) {
-        uint64_t idx = *length;
+        long idx = *length;
         if (idx >= arraylen) {
             arraylen += capacity;
             PSFloat *new_array = realloc(array, arraylen * sizeof(PSFloat));
@@ -1098,6 +1108,12 @@ PSFloat *readSerializedFloatArray(FILE *in, char *sep, uint64_t *length,
         }
         array[idx] = val;
         *length += 1;
+        if (*length < 0) {
+            PSErr(__func__, "serialized array length exceeds limits.");
+            *length = 0;
+            free(array);
+            return NULL;
+        }
         if (matched < 2) break;
         if (maxlen > 0 && *length >= maxlen) break;
     }
@@ -1124,7 +1140,7 @@ int writeGradients(PSModel *model, PSGradient **gradients,
         }
         fprintf(
             f, "--- Gradient[%d] Biases: %" PRIu64 " ---\n", i - 1,
-            gradient->bias_count
+            (uint64_t) gradient->bias_count
         );
         if (gradient->bias_count > 0) {
             writeSerializedFloatArray(
@@ -1134,7 +1150,7 @@ int writeGradients(PSModel *model, PSGradient **gradients,
         }
         fprintf(
             f, "--- Gradient[%d] Weights: %" PRIu64 " ---\n", i - 1,
-            gradient->weight_count
+            (uint64_t) gradient->weight_count
         );
         if (gradient->weight_count > 0) {
             writeSerializedFloatArray(
@@ -1150,16 +1166,17 @@ int writeLayerDefinition(PSLayer *layer, FILE *f) {
     char *activation = (char *) PSGetActivationName(layer->activate);
     if (activation == NULL) activation = "null";
     fprintf(
-        f, "layer[%d]:%d,%d,%d,activation=%s,"
-        "output_depth=%d,output_cols=%d,output_rows=%d",
+        f, "layer[%d]:%d,%ld,%d,activation=%s,"
+        "output_depth=%ld,output_cols=%ld,output_rows=%ld",
         layer->index, (int) layer->type, layer->size,
         layer->flags, activation, layer->output_depth,
         layer->output_columns, layer->output_rows
     );
     if (layer->flags & PS_FLAG_ONEHOT && layer->index == 0)
-        fprintf(f, ",onehot_size=%d", layer->onehot_vector_size);
+        fprintf(f, ",onehot_size=%ld", layer->onehot_vector_size);
     if (Convolutional == layer->type || Pooling == layer->type) {
-        int stride = 0, padding = 0, filter_w = 0, filter_h = 0;
+        int stride = 0, padding = 0;
+        long filter_w = 0, filter_h = 0;
         PSConvolutionalSettings *csettings = PSGetConvolutionalSettings(layer);
         if (csettings != NULL) {
             stride = csettings->stride;
@@ -1167,7 +1184,7 @@ int writeLayerDefinition(PSLayer *layer, FILE *f) {
             filter_w = csettings->filter_width;
             filter_h = csettings->filter_height;
         }
-        fprintf(f, ",stride=%d,padding=%d,filter_width=%d,filter_height=%d",
+        fprintf(f, ",stride=%d,padding=%d,filter_width=%ld,filter_height=%ld",
                 stride, padding, filter_w, filter_h);
     } else if (Dropout == layer->type) {
         PSFloat dropout = PSGetDropout(layer);
@@ -1230,10 +1247,11 @@ int writeLayerDefinition(PSLayer *layer, FILE *f) {
 int writeLayerParameters(PSLayer *layer, int opts, FILE *f, const char *func) {
     PSLayerType ltype = layer->type;
     if (Pooling == ltype || layer->type == Dropout) return 0;
-    int bias_count = PSGetLayerParametersCount(layer, PS_PARAM_BIAS),
-        weights_count = PSGetLayerParametersCount(layer, PS_PARAM_WEIGHT);
-    int i = layer->index, k, j;
-    fprintf(f, "--- Layer[%d] Biases: %d ---\n", i, bias_count);
+    long bias_count = PSGetLayerParametersCount(layer, PS_PARAM_BIAS),
+         weights_count = PSGetLayerParametersCount(layer, PS_PARAM_WEIGHT),
+         k, j;
+    int i = layer->index;
+    fprintf(f, "--- Layer[%d] Biases: %ld ---\n", i, bias_count);
     if (bias_count > 0) {
         if (layer->biases == NULL) {
             PSErr(func, "Layer[%d]: biases are NULL", i);
@@ -1247,7 +1265,7 @@ int writeLayerParameters(PSLayer *layer, int opts, FILE *f, const char *func) {
         fprintf(f, "\n");
     }
     int partial_trainable_parameters = (layer->type == Attention);
-    fprintf(f, "--- Layer[%d] Weights: %d,%d ---\n",
+    fprintf(f, "--- Layer[%d] Weights: %d,%ld ---\n",
             i, layer->weight_types, weights_count);
     if (layer->weight_types > 0) {
         if (layer->weights == NULL) {
@@ -1267,7 +1285,7 @@ int writeLayerParameters(PSLayer *layer, int opts, FILE *f, const char *func) {
                 fclose(f);
                 return 0;
             }
-            int ws = PSMatrixLength(weights);
+            long ws = PSMatrixLength(weights);
             for (k = 0; k < ws; k++) {
                 if (k > 0) fprintf(f, ",");
                 writeSerializedFloat(f, weights[k], opts);
@@ -1858,8 +1876,8 @@ static int loadLegacyLayersParameters(PSModel *model,
         }
         int is_lstm = (LSTM == layer->type);
         int llen = 0, ok;
-        uint64_t wsize = PSGetLayerInputWeightsCount(layer, 1);
-        int input_size = wsize, widx;
+        long wsize = PSGetLayerInputWeightsCount(layer, 1);
+        long input_size = wsize, widx;
         if (RNNLayer == layer->type) wsize += layer->size;
         for (int j = 0; j < lsize; j++) {
             PSFloat bias = 0;
@@ -1919,7 +1937,7 @@ static int loadLegacyLayersParameters(PSModel *model,
                 wsize = (input_size + layer->size) * 4;
             }
             /* if (Convolutional == layer->type) weights = layer->weights[j];*/
-            for (uint64_t k = 0; k < wsize; k++) {
+            for (long k = 0; k < wsize; k++) {
                 if (Convolutional == layer->type) widx = k;
                 else widx = k + (j * input_size);
                 PSFloat w = 0;
@@ -1933,7 +1951,7 @@ static int loadLegacyLayersParameters(PSModel *model,
                     return 0;
                 }
                 if (RNNLayer == layer->type) {
-                    if (k >= (uint64_t) input_size) {
+                    if (k >= input_size) {
                         weights = layer->weights[1];
                         widx = (j * layer->size) + (k - input_size);
                     } else weights = layer->weights[0];
@@ -1984,10 +2002,12 @@ static int loadLayerParameters(PSLayer *layer, const char *filepath, FILE *f,
 {
 
     if (layer->type == Pooling || layer->type == Dropout) return 0;
-    int bias_count = 0, lidx = -1, wtype_count = 0, wcount = 0, ok = 1,
-        i = layer->index;
+    int lidx = -1, wtype_count = 0, ok = 1, i = layer->index;
+    long wcount = 0, bias_count = 0;
+    uint64_t nweights = 0, nbiases = 0;
     ok = scanFile(
-        f, "--- Layer[%d] Biases: %d ---\n", 2, NULL, &lidx, &bias_count
+        f, "--- Layer[%d] Biases: %" SCNu64 " ---\n", 2, NULL,
+        &lidx, &nbiases
     );
     if (!ok) {
         loadErr(filepath, f, "Missing layer %d biases header", i);
@@ -2000,28 +2020,37 @@ static int loadLayerParameters(PSLayer *layer, const char *filepath, FILE *f,
         );
         return 0;
     }
-    int expected_bias_count = PSGetLayerParametersCount(
+    long expected_bias_count = PSGetLayerParametersCount(
         layer, PS_PARAM_BIAS
     );
-    int expected_weights_count = PSGetLayerParametersCount(
+    long expected_weights_count = PSGetLayerParametersCount(
         layer, PS_PARAM_WEIGHT
     );
+    ok = (nbiases <= LONG_MAX);
+    if (!ok) {
+        loadErr(
+            filepath, f, "Layer[%d]: bias count %" SCNu64
+            "exceeds limits (%ld)", i, nbiases, LONG_MAX
+        );
+        return 0;
+    }
+    bias_count = (long) nbiases;
     ok = (bias_count == expected_bias_count);
     if (!ok) {
         loadErr(
-            filepath, f, "Layer[%d]: found %d biases, expected: %d",
+            filepath, f, "Layer[%d]: found %ld biases, expected: %ld",
             i, bias_count, expected_bias_count
         );
         return 0;
     }
     if (layer->biases == NULL && bias_count > 0) {
         loadErr(
-            filepath, f, "Layer[%d]: found %d biases, but "
+            filepath, f, "Layer[%d]: found %ld biases, but "
             "layer->biases is NULL", i, bias_count
         );
         return 0;
     }
-    for (int j = 0; j < bias_count; j++) {
+    for (long j = 0; j < bias_count; j++) {
         char *fmt = PSFLOAT_FORMAT ",";
         if (j == (bias_count - 1)) fmt = PSFLOAT_FORMAT "\n";
         PSFloat bias = 0;
@@ -2035,7 +2064,7 @@ static int loadLayerParameters(PSLayer *layer, const char *filepath, FILE *f,
         layer->biases[j] = bias;
     }
     ok = scanFile(f, "--- Layer[%d] Weights: %d,%d ---\n", 3, NULL,
-                  &lidx, &wtype_count, &wcount);
+                  &lidx, &wtype_count, &nweights);
     if (!ok) {
         loadErr(filepath, f, "Missing layer %d weights header", i);
         return 0;
@@ -2047,6 +2076,15 @@ static int loadLayerParameters(PSLayer *layer, const char *filepath, FILE *f,
         );
         return 0;
     }
+    ok = (nweights <= LONG_MAX);
+    if (!ok) {
+        loadErr(
+            filepath, f, "Layer[%d]: weights count %" SCNu64
+            "exceeds limits (%ld)", i, nweights, LONG_MAX
+        );
+        return 0;
+    }
+    wcount = (long) nweights;
     ok = (wtype_count == layer->weight_types);
     if (!ok) {
         loadErr(
@@ -2083,7 +2121,7 @@ static int loadLayerParameters(PSLayer *layer, const char *filepath, FILE *f,
             ok = 0;
             return 0;
         } else if (weights == NULL) continue;
-        uint64_t wlen = PSMatrixLength(weights), widx;
+        long wlen = PSMatrixLength(weights), widx;
         for (widx = 0; widx < wlen; widx++) {
             char *fmt = PSFLOAT_FORMAT ",";
             if (widx == (wlen - 1))
@@ -2092,7 +2130,7 @@ static int loadLayerParameters(PSLayer *layer, const char *filepath, FILE *f,
             ok = scanFile(f, fmt, 1, NULL, &w);
             if (!ok) {
                 loadErr(
-                    filepath, f, "Layer[%d]: invalid weight[%d][%d]",
+                    filepath, f, "Layer[%d]: invalid weight[%d][%ld]",
                     layer->index, j, widx
                 );
                 return 0;
@@ -2207,7 +2245,7 @@ static int loadLegacyGradients(PSModel *model, const char *filepath,
                               (wtype_idx *k * lsize) + w;
                     }
                 } else idx = (k * wsize) + w;
-                assert((uint64_t) idx < lgradients->weight_count);
+                assert((long) idx < lgradients->weight_count);
                 lgradients->weights[idx] = gw;
             }
         }
@@ -2681,11 +2719,11 @@ int readModel(PSModel *model, FILE *f, const char* filepath,
         }
     }
     if (scanFileNoMatch(f, "sequence_start:")) {
-        uint64_t seqstartlen = 0;
+        long seqstartlen = 0;
         PSFloat *seqstart = readSerializedFloatArray(
             f, ",\n", &seqstartlen, 0, model->input_size
         );
-        ok = seqstart != NULL && seqstartlen == (uint64_t) model->input_size;
+        ok = seqstart != NULL && seqstartlen == model->input_size;
         if (!ok) {
             free(seqstart);
             loadErr(filepath, f, "Invalid sequence_start");
@@ -2849,8 +2887,9 @@ PSModel *PSLoadModel(const char* filepath) {
 
 static int writeModel(PSModel *model, FILE *f) {
     int ok = 1, opts = 0, i;
-    int current_epoch = 0, current_batch = 0, current_example = 0,
-        batch_size = 0;
+    int current_epoch = 0;
+    long current_batch = 0, current_example = 0,
+         batch_size = 0;
     if (model->training != NULL) {
         current_epoch = model->training->current_epoch;
         current_batch = model->training->current_batch;
@@ -2858,16 +2897,16 @@ static int writeModel(PSModel *model, FILE *f) {
         batch_size = model->training->batch_size;
     }
     PSRecurrentNetworkMode rnn_mode = model->rnn_mode;
-    int max_steps = model->sequence_settings.max_length;
-    int eos = model->sequence_settings.end;
     int loss_function = getLossFunctionIndex(model->loss);
-    fprintf(f, "model:%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n", model->flags,
+    long eos = model->sequence_settings.end;
+    long max_steps = model->sequence_settings.max_length;
+    fprintf(f, "model:%d,%d,%d,%ld,%d,%ld,%ld,%d,%ld,%ld,%d\n", model->flags,
             loss_function, current_epoch, current_batch, model->status,
             current_example, batch_size, (int) rnn_mode,
             max_steps, eos, PSModelIsBuilt(model));
     if (model->name != NULL) {
-        int namelen = strlen(model->name);
-        fprintf(f, "name(%d):%s\n", namelen, model->name);
+        size_t namelen = strlen(model->name);
+        fprintf(f, "name(%zu):%s\n", namelen, model->name);
     }
     fprintf(f, "layers:%d\n", model->size);
     for (i = 0; i < model->size; i++) {

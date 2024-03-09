@@ -21,8 +21,8 @@
 #include "psyc.h"
 #include "maths.h"
 
-PSMatrix PSGetPositionalEncoding(int seqlen, int size, int base);
-int PSGetPositionalEncodingLength(PSLayer *layer);
+PSMatrix PSGetPositionalEncoding(long seqlen, long size, int base);
+long PSGetPositionalEncodingLength(PSLayer *layer);
 int PSGetPositionalEncodingBase(PSLayer *layer);
 
 #endif /*  __PS_POSITIONAL_ENCODING_H */

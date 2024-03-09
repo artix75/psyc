@@ -32,6 +32,13 @@ OPTIMIZATION?=-O2
 OPT=$(OPTIMIZATION)
 CSTD=gnu99 -pedantic
 CFLAGS=-std=$(CSTD) -Wall -W -Wno-missing-field-initializers -Wno-unknown-pragmas -Wno-unused-label
+ifeq (yes, $(FULL_TYPE_CHECK))
+        CFLAGS+=-Wconversion -Wsign-conversion
+else
+ifeq (yes, $(PRECISION_TYPE_CHECK))
+        CFLAGS+=-Wshorten-64-to-32
+endif
+endif
 ifeq (yes, $(IS_CLANG))
         CFLAGS+=-Wno-string-compare
         CFLAGS+=-Wno-unused-command-line-argument
@@ -87,6 +94,10 @@ ifneq (off,$(BLAS))
 
 ifeq (on, $(USE_PSYC_BLAS))
 	CFLAGS+=-DUSE_PSYC_BLAS
+else
+ifdef BLAS_INT_SIZE
+	CFLAGS+=-DPSBLAS_INT_SIZE=$(BLAS_INT_SIZE)
+endif
 endif
 
 endif

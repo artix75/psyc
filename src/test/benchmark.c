@@ -497,8 +497,8 @@ int mathsDotProductBenchmark(PSBenchmarkConfig *cfg, int *num_results,
         ok = 0;
         goto final;
     }
-    assert(PSMatrixLength(x) == (size_t) size);
-    assert(PSMatrixLength(y) == (size_t) size);
+    assert(PSMatrixLength(x) == (long) size);
+    assert(PSMatrixLength(y) == (long) size);
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
@@ -650,8 +650,8 @@ int mathsSumVBenchmark(PSBenchmarkConfig *cfg, int *num_results,
         ok = 0;
         goto final;
     }
-    assert(PSMatrixLength(x) == (size_t) size);
-    assert(PSMatrixLength(y) == (size_t) size);
+    assert(PSMatrixLength(x) == (long) size);
+    assert(PSMatrixLength(y) == (long) size);
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
@@ -695,8 +695,8 @@ int mathsSubVBenchmark(PSBenchmarkConfig *cfg, int *num_results,
         ok = 0;
         goto final;
     }
-    assert(PSMatrixLength(x) == (size_t) size);
-    assert(PSMatrixLength(y) == (size_t) size);
+    assert(PSMatrixLength(x) == (long) size);
+    assert(PSMatrixLength(y) == (long) size);
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
@@ -740,8 +740,8 @@ int mathsMulVBenchmark(PSBenchmarkConfig *cfg, int *num_results,
         ok = 0;
         goto final;
     }
-    assert(PSMatrixLength(x) == (size_t) size);
-    assert(PSMatrixLength(y) == (size_t) size);
+    assert(PSMatrixLength(x) == (long) size);
+    assert(PSMatrixLength(y) == (long) size);
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
@@ -787,8 +787,8 @@ int mathsAddVSBenchmark(PSBenchmarkConfig *cfg, int *num_results,
         ok = 0;
         goto final;
     }
-    assert(PSMatrixLength(x) == (size_t) size);
-    assert(PSMatrixLength(dest) == (size_t) size);
+    assert(PSMatrixLength(x) == (long) size);
+    assert(PSMatrixLength(dest) == (long) size);
     if (mode != PS_STORE_MODE_SET && cache_enabled)
         tmpdest = PSMatrixDupShape(dest);
     PSBenchmarkResults *res = results;
@@ -836,8 +836,8 @@ int mathsMulVSBenchmark(PSBenchmarkConfig *cfg, int *num_results,
         ok = 0;
         goto final;
     }
-    assert(PSMatrixLength(x) == (size_t) size);
-    assert(PSMatrixLength(dest) == (size_t) size);
+    assert(PSMatrixLength(x) == (long) size);
+    assert(PSMatrixLength(dest) == (long) size);
     if (mode != PS_STORE_MODE_SET && cache_enabled)
         tmpdest = PSMatrixDupShape(dest);
     PSBenchmarkResults *res = results;
@@ -883,8 +883,8 @@ int mathsDivVBenchmark(PSBenchmarkConfig *cfg, int *num_results,
         ok = 0;
         goto final;
     }
-    assert(PSMatrixLength(x) == (size_t) size);
-    assert(PSMatrixLength(y) == (size_t) size);
+    assert(PSMatrixLength(x) == (long) size);
+    assert(PSMatrixLength(y) == (long) size);
     PSMathOpts opts = {.acceleration = PSGlobalAcceleration};
     /* Avoid division by zero */
     PSAddVectorScalar(y, PSFLOAT_EPS, y, size, &opts);
@@ -933,8 +933,8 @@ int mathsDivVSBenchmark(PSBenchmarkConfig *cfg, int *num_results,
         ok = 0;
         goto final;
     }
-    assert(PSMatrixLength(x) == (size_t) size);
-    assert(PSMatrixLength(dest) == (size_t) size);
+    assert(PSMatrixLength(x) == (long) size);
+    assert(PSMatrixLength(dest) == (long) size);
     if (mode != PS_STORE_MODE_SET && cache_enabled)
         tmpdest = PSMatrixDupShape(dest);
     PSBenchmarkResults *res = results;
@@ -984,8 +984,8 @@ int mathsDivSVBenchmark(PSBenchmarkConfig *cfg, int *num_results,
         ok = 0;
         goto final;
     }
-    assert(PSMatrixLength(x) == (size_t) size);
-    assert(PSMatrixLength(dest) == (size_t) size);
+    assert(PSMatrixLength(x) == (long) size);
+    assert(PSMatrixLength(dest) == (long) size);
     if (mode != PS_STORE_MODE_SET && cache_enabled)
         tmpdest = PSMatrixDupShape(dest);
     PSBenchmarkResults *res = results;
@@ -1034,8 +1034,8 @@ int mathsSubVSBenchmark(PSBenchmarkConfig *cfg, int *num_results,
         ok = 0;
         goto final;
     }
-    assert(PSMatrixLength(x) == (size_t) size);
-    assert(PSMatrixLength(dest) == (size_t) size);
+    assert(PSMatrixLength(x) == (long) size);
+    assert(PSMatrixLength(dest) == (long) size);
     if (mode != PS_STORE_MODE_SET && cache_enabled)
         tmpdest = PSMatrixDupShape(dest);
     PSBenchmarkResults *res = results;
@@ -1085,8 +1085,8 @@ int mathsSubSVBenchmark(PSBenchmarkConfig *cfg, int *num_results,
         ok = 0;
         goto final;
     }
-    assert(PSMatrixLength(x) == (size_t) size);
-    assert(PSMatrixLength(dest) == (size_t) size);
+    assert(PSMatrixLength(x) == (long) size);
+    assert(PSMatrixLength(dest) == (long) size);
     if (mode != PS_STORE_MODE_SET && cache_enabled)
         tmpdest = PSMatrixDupShape(dest);
     PSBenchmarkResults *res = results;
@@ -1131,7 +1131,7 @@ int mathsReduceBenchmark(PSBenchmarkConfig *cfg, int *num_results,
         ok = 0;
         goto final;
     }
-    assert(PSMatrixLength(x) == (size_t) size);
+    assert(PSMatrixLength(x) == (long) size);
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
@@ -1172,7 +1172,7 @@ int mathsMeanBenchmark(PSBenchmarkConfig *cfg, int *num_results,
         ok = 0;
         goto final;
     }
-    assert(PSMatrixLength(x) == (size_t) size);
+    assert(PSMatrixLength(x) == (long) size);
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
@@ -1213,7 +1213,7 @@ int mathsVarianceBenchmark(PSBenchmarkConfig *cfg, int *num_results,
         ok = 0;
         goto final;
     }
-    assert(PSMatrixLength(x) == (size_t) size);
+    assert(PSMatrixLength(x) == (long) size);
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
@@ -1254,7 +1254,7 @@ int mathsStdDevBenchmark(PSBenchmarkConfig *cfg, int *num_results,
         ok = 0;
         goto final;
     }
-    assert(PSMatrixLength(x) == (size_t) size);
+    assert(PSMatrixLength(x) == (long) size);
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
@@ -1295,8 +1295,8 @@ int mathsSqrtBenchmark(PSBenchmarkConfig *cfg, int *num_results,
         ok = 0;
         goto final;
     }
-    assert(PSMatrixLength(x) == (size_t) size);
-    assert(PSMatrixLength(y) == (size_t) size);
+    assert(PSMatrixLength(x) == (long) size);
+    assert(PSMatrixLength(y) == (long) size);
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
@@ -1338,8 +1338,8 @@ int mathsTanhBenchmark(PSBenchmarkConfig *cfg, int *num_results,
         ok = 0;
         goto final;
     }
-    assert(PSMatrixLength(x) == (size_t) size);
-    assert(PSMatrixLength(y) == (size_t) size);
+    assert(PSMatrixLength(x) == (long) size);
+    assert(PSMatrixLength(y) == (long) size);
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
@@ -1381,8 +1381,8 @@ int mathsExpBenchmark(PSBenchmarkConfig *cfg, int *num_results,
         ok = 0;
         goto final;
     }
-    assert(PSMatrixLength(x) == (size_t) size);
-    assert(PSMatrixLength(y) == (size_t) size);
+    assert(PSMatrixLength(x) == (long) size);
+    assert(PSMatrixLength(y) == (long) size);
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
@@ -1424,8 +1424,8 @@ int mathsNegBenchmark(PSBenchmarkConfig *cfg, int *num_results,
         ok = 0;
         goto final;
     }
-    assert(PSMatrixLength(x) == (size_t) size);
-    assert(PSMatrixLength(y) == (size_t) size);
+    assert(PSMatrixLength(x) == (long) size);
+    assert(PSMatrixLength(y) == (long) size);
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
@@ -1467,8 +1467,8 @@ int mathsAbsBenchmark(PSBenchmarkConfig *cfg, int *num_results,
         ok = 0;
         goto final;
     }
-    assert(PSMatrixLength(x) == (size_t) size);
-    assert(PSMatrixLength(y) == (size_t) size);
+    assert(PSMatrixLength(x) == (long) size);
+    assert(PSMatrixLength(y) == (long) size);
     PSBenchmarkResults *res = results;
     PSMathOpts opts = {0};
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
@@ -1512,8 +1512,8 @@ int mathsVecPowBenchmark(PSBenchmarkConfig *cfg, int *num_results,
         ok = 0;
         goto final;
     }
-    assert(PSMatrixLength(x) == (size_t) size);
-    assert(PSMatrixLength(dest) == (size_t) size);
+    assert(PSMatrixLength(x) == (long) size);
+    assert(PSMatrixLength(dest) == (long) size);
     if (mode != PS_STORE_MODE_SET && cache_enabled)
         tmpdest = PSMatrixDupShape(dest);
     PSBenchmarkResults *res = results;
@@ -1618,7 +1618,7 @@ int actSigmoidBenchmark(PSBenchmarkConfig *cfg, int *num_results,
         ok = 0;
         goto final;
     }
-    assert(PSMatrixLength(x) == (size_t) size);
+    assert(PSMatrixLength(x) == (long) size);
     PSBenchmarkResults *res = results;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
@@ -1658,7 +1658,7 @@ int actSigmoidDerivBenchmark(PSBenchmarkConfig *cfg, int *num_results,
         ok = 0;
         goto final;
     }
-    assert(PSMatrixLength(x) == (size_t) size);
+    assert(PSMatrixLength(x) == (long) size);
     PSBenchmarkResults *res = results;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
@@ -1702,7 +1702,7 @@ int actTanhBenchmark(PSBenchmarkConfig *cfg, int *num_results,
         ok = 0;
         goto final;
     }
-    assert(PSMatrixLength(x) == (size_t) size);
+    assert(PSMatrixLength(x) == (long) size);
     PSBenchmarkResults *res = results;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
@@ -1746,7 +1746,7 @@ int actTanhDerivBenchmark(PSBenchmarkConfig *cfg, int *num_results,
         ok = 0;
         goto final;
     }
-    assert(PSMatrixLength(x) == (size_t) size);
+    assert(PSMatrixLength(x) == (long) size);
     PSBenchmarkResults *res = results;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
@@ -1790,7 +1790,7 @@ int actReluBenchmark(PSBenchmarkConfig *cfg, int *num_results,
         ok = 0;
         goto final;
     }
-    assert(PSMatrixLength(x) == (size_t) size);
+    assert(PSMatrixLength(x) == (long) size);
     PSBenchmarkResults *res = results;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
@@ -1828,7 +1828,7 @@ int actGeluBenchmark(PSBenchmarkConfig *cfg, int *num_results,
         ok = 0;
         goto final;
     }
-    assert(PSMatrixLength(x) == (size_t) size);
+    assert(PSMatrixLength(x) == (long) size);
     PSBenchmarkResults *res = results;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
@@ -1866,7 +1866,7 @@ int actReluDerivBenchmark(PSBenchmarkConfig *cfg, int *num_results,
         ok = 0;
         goto final;
     }
-    assert(PSMatrixLength(x) == (size_t) size);
+    assert(PSMatrixLength(x) == (long) size);
     PSBenchmarkResults *res = results;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
@@ -1910,7 +1910,7 @@ int actGeluDerivBenchmark(PSBenchmarkConfig *cfg, int *num_results,
         ok = 0;
         goto final;
     }
-    assert(PSMatrixLength(x) == (size_t) size);
+    assert(PSMatrixLength(x) == (long) size);
     PSBenchmarkResults *res = results;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
@@ -1954,7 +1954,7 @@ int actSoftmaxBenchmark(PSBenchmarkConfig *cfg, int *num_results,
         ok = 0;
         goto final;
     }
-    assert(PSMatrixLength(x) == (size_t) size);
+    assert(PSMatrixLength(x) == (long) size);
     PSBenchmarkResults *res = results;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     PS_INIT_BENCHMARK(cfg, num_results, res, "Accelerate Framework");
@@ -1998,7 +1998,7 @@ int optimDefaultBenchmark(PSBenchmarkConfig *cfg, int *num_results,
         ok = 0;
         goto final;
     }
-    assert(PSMatrixLength(x) == (size_t) size);
+    assert(PSMatrixLength(x) == (long) size);
     if (cache_enabled) tmp = PSVectorCreate(size);
     PSFloat rate = 0.1, momentum = 0.0;
     if (use_momentum) momentum = 0.9;
@@ -2067,7 +2067,7 @@ int optimNesterovBenchmark(PSBenchmarkConfig *cfg, int *num_results,
         ok = 0;
         goto final;
     }
-    assert(PSMatrixLength(x) == (size_t) size);
+    assert(PSMatrixLength(x) == (long) size);
     if (cache_enabled) tmp = PSVectorCreate(size);
     PSFloat rate = 0.1, momentum = 0.9;
     PSBenchmarkResults *res = results;
@@ -2134,7 +2134,7 @@ int optimWindowGradBenchmark(PSBenchmarkConfig *cfg, int *num_results,
         ok = 0;
         goto final;
     }
-    assert(PSMatrixLength(x) == (size_t) size);
+    assert(PSMatrixLength(x) == (long) size);
     PSFloat rate = 0.1, momentum = 0.0;
     PSBenchmarkResults *res = results;
     int acceleration = 0;
@@ -2201,7 +2201,7 @@ int optimAdaGradBenchmark(PSBenchmarkConfig *cfg, int *num_results,
         ok = 0;
         goto final;
     }
-    assert(PSMatrixLength(x) == (size_t) size);
+    assert(PSMatrixLength(x) == (long) size);
     PSFloat rate = 0.1, momentum = 0.0;
     if (use_momentum) momentum = 0.9;
     PSBenchmarkResults *res = results;
@@ -2269,7 +2269,7 @@ int optimRMSPropBenchmark(PSBenchmarkConfig *cfg, int *num_results,
         ok = 0;
         goto final;
     }
-    assert(PSMatrixLength(x) == (size_t) size);
+    assert(PSMatrixLength(x) == (long) size);
     PSFloat rate = 0.1, momentum = 0.0;
     if (use_momentum) momentum = 0.9;
     PSBenchmarkResults *res = results;
@@ -2339,7 +2339,7 @@ int optimAdaDeltaBenchmark(PSBenchmarkConfig *cfg, int *num_results,
         ok = 0;
         goto final;
     }
-    assert(PSMatrixLength(x) == (size_t) size);
+    assert(PSMatrixLength(x) == (long) size);
     PSFloat rate = 0.1, momentum = 0.0;
     if (use_momentum) momentum = 0.9;
     PSBenchmarkResults *res = results;
@@ -2411,7 +2411,7 @@ int optimAdamBenchmark(PSBenchmarkConfig *cfg, int *num_results,
         ok = 0;
         goto final;
     }
-    assert(PSMatrixLength(x) == (size_t) size);
+    assert(PSMatrixLength(x) == (long) size);
     if (cache_enabled) {
         tmp1 = PSVectorCreate(size);
         tmp2 = PSVectorCreate(size);
@@ -2491,7 +2491,7 @@ int LRegularizationBenchmark(PSBenchmarkConfig *cfg, int *num_results,
         ok = 0;
         goto final;
     }
-    assert(PSMatrixLength(x) == (size_t) size);
+    assert(PSMatrixLength(x) == (long) size);
     if (cache_enabled) {
         tmp = PSVectorCreate(size);
     }

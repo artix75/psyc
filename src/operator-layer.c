@@ -39,7 +39,7 @@ typedef struct {
 
 /* Forward declarations */
 int checkLayerForForward(PSLayer *layer);
-int PSBeforeSequenceForward(PSLayer *layer, int seqlen, int t);
+int PSBeforeSequenceForward(PSLayer *layer, long seqlen, long t);
 PSLayer *PSResolveLayerPlaceholder(PSLayer *placeholder, PSModel *model);
 int PSIsLayerPlaceholder(PSLayer *layer);
 PSLayer *PSMakeLayerPlaceholder(int layer_index, int model_index);
@@ -200,7 +200,7 @@ static int buildOperatorLayer(PSLayer *layer) {
     return 1;
 }
 
-static PSFloat *getInputsFromProvider(PSLayer *layer, PSLayer *provider, int t)
+static PSFloat *getInputsFromProvider(PSLayer *layer, PSLayer *provider, long t)
 {
     if (layer == NULL || provider == NULL) return NULL;
     if (PSIsLayerPlaceholder(provider)) {
@@ -218,7 +218,7 @@ static PSFloat *getInputsFromProvider(PSLayer *layer, PSLayer *provider, int t)
     return PSLayerStates(provider, t);
 }
 
-int PSConcatenateForward(PSLayer *layer, int seqlen, int t) {
+int PSConcatenateForward(PSLayer *layer, long seqlen, long t) {
     int success = 1;
     if (layer == NULL) return 0;
     PSOperatorLayerSettings *settings = PSGetOperatorLayerSettings(layer);
@@ -247,13 +247,14 @@ int PSConcatenateForward(PSLayer *layer, int seqlen, int t) {
     return success;
 }
 
-int PSOperationForward(PSLayer *layer, int seqlen, int t) {
+int PSOperationForward(PSLayer *layer, long seqlen, long t) {
     int success = 1;
     if (layer == NULL) return 0;
     PSOperatorLayerSettings *settings = PSGetOperatorLayerSettings(layer);
     if (settings == NULL) return 0;
     int providers_count = settings->providers_count, i;
-    int whole_seq = PSHandleSequenceAtOnce(layer), len = layer->size;
+    int whole_seq = PSHandleSequenceAtOnce(layer);
+    long len = layer->size;
     if (whole_seq) {
         t = 0;
         len *= seqlen;
@@ -277,7 +278,7 @@ int PSOperationForward(PSLayer *layer, int seqlen, int t) {
     return success;
 }
 
-int PSConcatenateBackward(PSLayer *layer, int seqlen, int t) {
+int PSConcatenateBackward(PSLayer *layer, long seqlen, long t) {
     int success = 1;
     if (layer == NULL) return 0;
     PSOperatorLayerSettings *settings = PSGetOperatorLayerSettings(layer);
@@ -314,7 +315,7 @@ next:
     return success;
 }
 
-int PSOperationBackward(PSLayer *layer, int seqlen, int t) {
+int PSOperationBackward(PSLayer *layer, long seqlen, long t) {
     UNUSED(seqlen);
     int success = 1;
     if (layer == NULL) return 0;
@@ -525,13 +526,14 @@ int PSOperatorForward(PSLayer *layer, ...) {
         PSErrNN(NULL, NULL, layer, "invalid operator");
         return 0;
     }
-    int t = 0, seqlen = 1, is_recurrent = PSIsRecurrent(layer),
+    long t = 0, seqlen = 1;
+    int is_recurrent = PSIsRecurrent(layer),
         sequence_at_once = PSHandleSequenceAtOnce(layer);
     if (is_recurrent || sequence_at_once) {
         va_list args;
         va_start(args, layer);
-        seqlen = va_arg(args, int);
-        if (is_recurrent) t = va_arg(args, int);
+        seqlen = va_arg(args, long);
+        if (is_recurrent) t = va_arg(args, long);
         va_end(args);
         if (!PSBeforeSequenceForward(layer, seqlen, t)) return 0;
     }
@@ -553,14 +555,16 @@ int PSOperatorBackprop(PSLayer *layer, PSLayer *previous,
         PSErrNN(NULL, NULL, layer, "invalid operator");
         return 0;
     }
-    int is_recurrent = PSIsRecurrent(layer), t = 0, seqlen = 1, success = 1,
-        whole_seq = PSHandleSequenceAtOnce(layer);
-    int trainable = !(layer->flags & PS_FLAG_NON_TRAINABLE);
+    int is_recurrent = PSIsRecurrent(layer),
+        whole_seq = PSHandleSequenceAtOnce(layer),
+        success = 1,
+        trainable = !(layer->flags & PS_FLAG_NON_TRAINABLE);
+    long t = 0, seqlen = 1;
     if (trainable && gradient == NULL) return 0;
     if (is_recurrent) {
         va_list args;
         va_start(args, gradient);
-        t = va_arg(args, int);
+        t = va_arg(args, long);
         va_end(args);
     } else if (whole_seq) seqlen = PSStateSequenceLength(layer);
     if (op == PSConcatenateOperator)

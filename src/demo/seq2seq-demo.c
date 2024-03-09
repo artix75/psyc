@@ -441,7 +441,7 @@ int main(int argc, char **argv) {
     PSFloat y_table[4] = {3, 0, 0, 0};
     PSFloat *x = NULL, *y = NULL;
     if (train_mul_table && table != NULL) {
-        int row = PSRandomInt(10, NULL, NULL, NULL);
+        long row = PSRandomInt(10, NULL, NULL);
         if (row >= 10) row = 9;
         PSFloat *xrow = table + (10 * row);
         if (PSNormalizedRandom() > 0.5) xrow += 3;
@@ -464,19 +464,19 @@ int main(int argc, char **argv) {
         goto final;
     }
     PSLayer *output_layer = decoder->layers[decoder->size - 1];
-    int seqlen = PSStateSequenceLength(output_layer);
-    printf("Produced %d output(s)\n", seqlen);
-    for (int t = 0; t < seqlen; t++) {
-        int max_idx = -1;
+    long seqlen = PSStateSequenceLength(output_layer);
+    printf("Produced %ld output(s)\n", seqlen);
+    for (long t = 0; t < seqlen; t++) {
+        long max_idx = -1;
         if (!PSFindLayerMaxState(output_layer, NULL, &max_idx, t)) {
-            PSErr(NULL, "PSFindLayerMaxState failed at t=%d", t);
+            PSErr(NULL, "PSFindLayerMaxState failed at t=%ld", t);
             success = 0;
             goto final;
         }
-        printf("Prediction[%d] = ", t);
+        printf("Prediction[%ld] = ", t);
         if (y != NULL && (PSFloat) max_idx == *(y + 1 + t))
             printf(PSCOLOR_GREEN);
-        printf("%d\n", max_idx);
+        printf("%ld\n", max_idx);
         printf(PSCOLOR_RESET);
     }
     if (output_path != NULL && do_train) PSModelSave(encoder, output_path);

@@ -27,53 +27,53 @@ typedef int (*PSOptimization) (PSFloat *params, PSFloat *grads,
                                PSFloat *mgrads, PSFloat *xgrads,
                                PSFloat *tmp, PSFloat *mtmp, PSFloat *xtmp,
                                PSFloat rate, PSFloat momentum,
-                               uint64_t len, int acceleration, int iteration,
+                               long len, int acceleration, long iteration,
                                struct PSTrainingOptions *options);
 
 int PSSGDOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
                       PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp,
                       PSFloat *xtmp, PSFloat rate, PSFloat momentum,
-                      uint64_t len, int acceleration, int iteration,
+                      long len, int acceleration, long iteration,
                       struct PSTrainingOptions *options);
 
 int PSNesterovOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
                            PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp,
                            PSFloat *xtmp, PSFloat rate, PSFloat momentum,
-                           uint64_t len, int acceleration, int iteration,
+                           long len, int acceleration, long iteration,
                            struct PSTrainingOptions *options);
 
 int PSAdaDeltaOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
                            PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp,
                            PSFloat *xtmp, PSFloat rate, PSFloat momentum,
-                           uint64_t len, int acceleration, int iteration,
+                           long len, int acceleration, long iteration,
                            struct PSTrainingOptions *options);
 
 int PSWindowGradOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
                              PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp,
                              PSFloat *xtmp, PSFloat rate, PSFloat momentum,
-                             uint64_t len, int acceleration, int iteration,
+                             long len, int acceleration, long iteration,
                              struct PSTrainingOptions *options);
 
 int PSAdaGradOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
                           PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp,
                           PSFloat *xtmp, PSFloat rate, PSFloat momentum,
-                          uint64_t len, int acceleration, int iteration,
+                          long len, int acceleration, long iteration,
                           struct PSTrainingOptions *options);
 
 int PSRMSPropOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
                           PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp,
                           PSFloat *xtmp, PSFloat rate, PSFloat momentum,
-                          uint64_t len, int acceleration, int iteration,
+                          long len, int acceleration, long iteration,
                           struct PSTrainingOptions *options);
 
 int PSAdamOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
                        PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp,
                        PSFloat *xtmp, PSFloat rate, PSFloat momentum,
-                       uint64_t len, int acceleration, int iteration,
+                       long len, int acceleration, long iteration,
                        struct PSTrainingOptions *options);
 
 int PSLRegularization(PSFloat l1, PSFloat l2, PSFloat *weights,
-                      PSFloat *wgradients, PSFloat *tmp, uint64_t len,
+                      PSFloat *wgradients, PSFloat *tmp, long len,
                       PSFloat *l1_loss, PSFloat *l2_loss,
                       int batches, int weight_decay, int acceleration);
 

@@ -29,23 +29,23 @@
 
 typedef struct {
     PSEmbeddingType embedding_type;
-    int vocabulary_size;
-    int window_size;
+    long vocabulary_size;
+    long window_size;
     PSTrainingOptions training_options;
     PSFloat *training_data;
-    int training_data_size;
+    long training_data_size;
     const char *save_pretrained_to;
 } PSEmbeddingSettings;
 
 typedef PSFloat *(*PSEmbeddingDataGenerator) (PSFloat *tokens,
-                                              size_t token_count,
-                                              int window_size,
-                                              int vocabulary_size,
+                                              long token_count,
+                                              long window_size,
+                                              long vocabulary_size,
                                               int onehot,
-                                              int *n_examples);
+                                              long *n_examples);
 
 /* Forward declarations */
-PSMatrix PSInitWeights(PSLayer *layer, int rows, int columns,
+PSMatrix PSInitWeights(PSLayer *layer, long rows, long columns,
                        PSLayerDef *ldef, PSFloat range, PSFloat scale);
 PSFloat PSInitParam(int param_type, PSLayerDef *ldef, PSFloat range,
                     PSFloat scale);
@@ -53,31 +53,31 @@ PSActivationFunction PSGetActivationDerivative(PSActivationFunction func);
 int PSFullBackprop(PSLayer *layer, PSLayer *previous_layer,
                  PSGradient *gradient, ...);
 int PSFullForward(PSLayer *layer, ...);
-PSFloat *PSGetInputsFromTrainingData(PSFloat *training_data, int data_size,
-                                     int num_examples, int input_size,
-                                     int label_size, int recurrent_input,
+PSFloat *PSGetInputsFromTrainingData(PSFloat *training_data, long data_size,
+                                     long num_examples, long input_size,
+                                     long label_size, int recurrent_input,
                                      int recurrent_output,
-                                     int *count, size_t *result_size);
+                                     long *count, size_t *result_size);
 
 /* Helpers */
 
-static int getWord2VecTrainingDataLength(int tokens_count, int window_size,
-                                         int onehot, int vocabulary_size)
+static long getWord2VecTrainingDataLength(long tokens_count, long window_size,
+                                          int onehot, long vocabulary_size)
 {
-    int n_examples = Word2VecTraingDataExamples(tokens_count, window_size);
+    long n_examples = Word2VecTraingDataExamples(tokens_count, window_size);
     if (n_examples <= 0) return 0;
     n_examples *= 2; /* Include both inputs and labels */
     if (onehot && vocabulary_size > 0) n_examples *= vocabulary_size;
     return n_examples;
 }
 
-PSFloat *PSCreateWord2VecTrainingData(PSFloat *tokens, size_t token_count,
-                                      int window_size, int vocabulary_size,
-                                      int onehot, int *num_examples_p)
+PSFloat *PSCreateWord2VecTrainingData(PSFloat *tokens, long token_count,
+                                      long window_size, long vocabulary_size,
+                                      int onehot, long *num_examples_p)
 {
     if (token_count == 0) return NULL;
     PSFloat *training_data = NULL;
-    int n_examples = getWord2VecTrainingDataLength(
+    long n_examples = getWord2VecTrainingDataLength(
         token_count, window_size, onehot, vocabulary_size
     );
     if (n_examples <= 0) {
@@ -91,11 +91,11 @@ PSFloat *PSCreateWord2VecTrainingData(PSFloat *tokens, size_t token_count,
         PSPrintMemoryErrorMsg();
         return NULL;
     }
-    int last_idx = (int) token_count - 1, i, j;
+    long last_idx = token_count - 1, i, j;
     PSFloat *data_p = training_data + 1;
-    for (i = 0; i < (int) token_count; i++) {
-        int min_idx = (int) i - window_size;
-        int max_idx = (int) i + window_size;
+    for (i = 0; i < token_count; i++) {
+        long min_idx = i - window_size;
+        long max_idx = i + window_size;
         if (min_idx < 0) min_idx = 0;
         if (min_idx >= last_idx) max_idx = last_idx;
         for (j = min_idx; j < max_idx; j++) {
@@ -143,7 +143,7 @@ PSModel *PSCreateEmbeddingTrainer(PSLayer *layer) {
     if (layer->model != NULL && layer->model->flags & PS_FLAG_PRETRAINER)
         return NULL;
     PSEmbeddingSettings *settings = GetEmbeddingSettings(layer);
-    int vocabulary_size = 0;
+    long vocabulary_size = 0;
     if (settings != NULL) vocabulary_size = settings->vocabulary_size;
     PSLayer *previous = PSGetPreviousLayer(layer);
     if (vocabulary_size <= 0) {
@@ -185,7 +185,7 @@ fail:
 }
 
 int PSPretrainEmbeddingLayer(PSLayer *layer, PSFloat *training_data,
-                             int data_size)
+                             long data_size)
 {
     if (layer == NULL) return 0;
     PSModel *model = layer->model;
@@ -222,7 +222,7 @@ int PSPretrainEmbeddingLayer(PSLayer *layer, PSFloat *training_data,
         success = 0;
         goto final;
     }
-    int num_tokens = 0;
+    long num_tokens = 0;
     PSLayer *output_layer = model->layers[model->size - 1];
     if (output_layer == NULL) {
         PSErr(__func__, "Model '%d' has no output layer",
@@ -230,7 +230,9 @@ int PSPretrainEmbeddingLayer(PSLayer *layer, PSFloat *training_data,
         success = 0;
         goto final;
     }
-    int ysize = (output_layer->flags & PS_FLAG_ONEHOT ? 1 : output_layer->size);
+    long ysize = (
+        output_layer->flags & PS_FLAG_ONEHOT ? 1 : output_layer->size
+    );
     int recurrent_input = PSIsRecurrent(model->layers[0]),
         recurrent_output = PSIsRecurrent(output_layer);
     tokens = PSGetInputsFromTrainingData(
@@ -243,17 +245,17 @@ int PSPretrainEmbeddingLayer(PSLayer *layer, PSFloat *training_data,
         success = 0;
         goto final;
     }
-    int window_size = settings->window_size;
+    long window_size = settings->window_size;
     if (window_size <= 0) window_size = 2;
-    int vocabulary_size = settings->vocabulary_size;
+    long vocabulary_size = settings->vocabulary_size;
     if (vocabulary_size <= 0) {
         PSErr(__func__, "Layer[%d]: invalid vocabulary_size", layer->index);
         success = 0;
         goto final;
     }
     int onehot = previous->flags & PS_FLAG_ONEHOT;
-    int pretraining_num_examples = 0;
-    pretrain_data = make_data(tokens, (size_t) num_tokens, window_size,
+    long pretraining_num_examples = 0;
+    pretrain_data = make_data(tokens, num_tokens, window_size,
                               vocabulary_size, onehot,
                               &pretraining_num_examples);
     if (pretrain_data == NULL) {
@@ -286,7 +288,7 @@ int PSPretrainEmbeddingLayer(PSLayer *layer, PSFloat *training_data,
     }
     layer->pretrained = 1;
     PSLayer *pretrained_layer = pretrainer->layers[1];
-    uint64_t wlen = PSMatrixLength(pretrained_layer->weights[0]);
+    long wlen = PSMatrixLength(pretrained_layer->weights[0]);
     memcpy(layer->weights[0], pretrained_layer->weights[0], wlen);
     PSInfo("Successfully pretrained embedding layer %d", layer->index);
     if (settings->save_pretrained_to != NULL)
@@ -299,7 +301,7 @@ final:
 
 /* Embedding laer functions */
 
-int PSGetEmbeddingVocabularySize(PSLayer *layer) {
+long PSGetEmbeddingVocabularySize(PSLayer *layer) {
     if (layer == NULL) return 0;
     PSEmbeddingSettings *settings = GetEmbeddingSettings(layer);
     if (settings == NULL) return 0;
@@ -354,7 +356,7 @@ int PSEmbeddingLayerCopy(PSLayer *layer, PSLayer *src) {
 }
 
 /* Initialization */
-int PSInitEmbeddingLayer(PSLayer *layer, int size, PSLayerDef *ldef) {
+int PSInitEmbeddingLayer(PSLayer *layer, long size, PSLayerDef *ldef) {
     static PSLayerDef default_def = {.embedding_type = PSWord2Vec};
     if (layer->index == 0) {
         PSErr(NULL, "Embedding layer cannot be the first layer");
@@ -363,7 +365,7 @@ int PSInitEmbeddingLayer(PSLayer *layer, int size, PSLayerDef *ldef) {
     layer->onDelete = PSDeleteEmbeddingLayer;
     layer->onCopy = PSEmbeddingLayerCopy;
     layer->size = size;
-    int vocabulary_size, i;
+    long vocabulary_size, i;
     PSLayer *previous = PSGetPreviousLayer(layer);
     if (previous == NULL) {
         PSErr(NULL, "Embedding layer has no previous layer");

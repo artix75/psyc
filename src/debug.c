@@ -64,6 +64,7 @@
 #include "log.h"
 #include "utils.h"
 #include "dataset.h"
+#include "blas.h"
 #define UNUSED(V) ((void) V)
 
 #ifdef BACKTRACE_AVAILABLE
@@ -270,9 +271,15 @@ void segvHandler(int sig, siginfo_t *info, void *secret) {
 #else
     printf("no\n");
 #endif
-    printf("Apple(r) Accelerate:    ");
+    printf("Apple(R) Accelerate:    ");
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     printf("yes\n");
+    printf("LAPACK ILP64:           ");
+#ifdef ACCELERATE_LAPACK_ILP64
+    printf("yes\n");
+#else
+    printf("no\n");
+#endif
 #else
     printf("no\n");
 #endif
@@ -304,6 +311,16 @@ void segvHandler(int sig, siginfo_t *info, void *secret) {
 #ifdef PS_OPTIMIZATION
     printf("Optimization:           %s\n", PS_OPTIMIZATION);
 #endif
+    printf("Big Endian:             %s\n", (
+        PS_IS_BIG_ENDIAN ? "yes" : "no"
+    ));
+    printf("Float IEEE 754:         ");
+    switch (PS_IEC_559) {
+        case 0: printf("no\n"); break;
+        case 1: printf("yes\n"); break;
+        case 2: printf("maybe\n"); break;
+        default: printf("unknown\n"); break;
+    }
     printf("Global Flags:           %d\n", PSGlobalFlags);
     printf("Unixtime:               %lu\n", time(NULL));
     if (last_debug_info.has_info) printLastDebugInfo();
@@ -323,7 +340,8 @@ void segvHandler(int sig, siginfo_t *info, void *secret) {
     printf("PSDictItem:        %d\n", (int) sizeof(PSDictItem));
     printf("PSVocabulary:      %d\n", (int) sizeof(PSVocabulary));
     printf("\n\n---- SIZEOF TYPES ----\n");
-    printf("PSFloat: %d\n", (int) sizeof(PSFloat));
+    printf("PSFloat:           %zu\n", sizeof(PSFloat));
+    printf("PSBLAS_int:        %zu\n", sizeof(PSBLAS_int));
 #if USE_AVX
     printf("\n\n---- AVX ----\n");
     printf("AVX_VECTOR_SIZE:        %d\n", AVX_VECTOR_SIZE);
@@ -560,11 +578,11 @@ void PSTrainingDebugDumpGradient(PSModel *model,
 }
 
 void PSTrainingDebugDumpHeader(PSModel *model,
-                              int data_size,
-                              int test_size,
-                              int epochs,
-                              PSFloat learning_rate,
-                              int batch_size)
+                               long data_size,
+                               long test_size,
+                               int epochs,
+                               PSFloat learning_rate,
+                               long batch_size)
 {
     if (model->training == NULL) return;
     if (model->training->debug_dump_to == NULL) return;
@@ -640,9 +658,9 @@ static int dumpModelGradients(PSModel *model,
                                 PSGradient **gradients,
                                 FILE *f, PSTrainingOptions *opts)
 {
-    int success = 1;
+    int success = 1, apply_clip = 0;
     PSFloat clip_h = 0.0, clip_l = 0.0;
-    int i, j, apply_clip = 0;
+    long i, j;
     if (opts != NULL) {
         if ((apply_clip = (opts->clip != 0.0))) {
             clip_h = PSAbs(opts->clip);
@@ -667,7 +685,7 @@ static int dumpModelGradients(PSModel *model,
             goto final;
         }
         fprintf(f, ",weight_gradients=(");
-        for(j = 0; (uint64_t) j < lgradients->weight_count; j++) {
+        for(j = 0; j < lgradients->weight_count; j++) {
             PSFloat wg = lgradients->weights[j];
             if (apply_clip) wg = PSClipValue(wg, clip_l, clip_h);
             if (j > 0) fprintf(f, ",");
@@ -679,7 +697,7 @@ static int dumpModelGradients(PSModel *model,
             goto final;
         }
         fprintf(f, "),bias_gradients=(");
-        for(j = 0; (uint64_t) j < lgradients->bias_count; j++) {
+        for(j = 0; j < lgradients->bias_count; j++) {
             if (j > 0) fprintf(f, ",");
             PSFloat bg = lgradients->biases[j];
             if (apply_clip) bg = PSClipValue(bg, clip_l, clip_h);
@@ -879,7 +897,7 @@ static void printLastDebugInfo(void) {
     if (last_debug_info.file != NULL || last_debug_info.func != NULL)
         printf("Line: %d\n", last_debug_info.line);
     if (last_debug_info.layer_index >= 0) {
-        printf("Layer: %d\n", last_debug_info.layer_index);
+        printf("Layer: %ld\n", last_debug_info.layer_index);
         if (last_debug_info.layer_type >= 0) {
             printf(
                 "Layer type: %s\n",
@@ -888,7 +906,7 @@ static void printLastDebugInfo(void) {
         }
     }
     if (last_debug_info.neuron_index >= 0) {
-        printf("Neuron: %d\n", last_debug_info.neuron_index);
+        printf("Neuron: %ld\n", last_debug_info.neuron_index);
         printf(" -> Activation: %g\n", last_debug_info.activation);
         printf(" -> Delta: %g\n", last_debug_info.delta);
         printf(" -> Bias: %g\n", last_debug_info.bias);
@@ -900,7 +918,7 @@ static void printLastDebugInfo(void) {
         if (l2idx == (lidx - 1)) rankstr = "Previous";
         else if (l2idx == (lidx + 1)) rankstr = "Next";
         if (rankstr != NULL) {
-            printf("%s Neuron: %d\n", rankstr, last_debug_info.neuron2_index);
+            printf("%s Neuron: %ld\n", rankstr, last_debug_info.neuron2_index);
             printf(" -> Activation: %g\n", last_debug_info.activation2);
             printf(" -> Delta: %g\n", last_debug_info.delta2);
             if (last_debug_info.weight > -99999)

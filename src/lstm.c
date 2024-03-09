@@ -74,22 +74,22 @@ PSLSTMCell *PSCreateLSTMCell(PSLayer *layer);
 void PSDeleteLSTMCell(PSLSTMCell *cell);
 PSFloat applyGradientOnParameter(
     int param_type, PSTrainingOptions *options, PSFloat grad, PSFloat param,
-    PSGradient *mg, PSGradient *xg, PSFloat rate, int iteration,
-    int param_index
+    PSGradient *mg, PSGradient *xg, PSFloat rate, long iteration,
+    long param_index
 );
-PSFloat *initLayerStates(PSLayer *layer, uint32_t steps,
+PSFloat *initLayerStates(PSLayer *layer, long steps,
                          int retain_previous, PSFloat *current,
                          PSFloat **previous);
-PSFloat *resizeLayerStates(PSLayer *layer, uint32_t steps,
+PSFloat *resizeLayerStates(PSLayer *layer, long steps,
                            PSFloat *current, PSFloat **previous);
-int PSResizeLayerStates(PSLayer *layer, uint32_t steps);
-PSMatrix PSInitWeights(PSLayer *layer, int rows, int columns,
+int PSResizeLayerStates(PSLayer *layer, long steps);
+PSMatrix PSInitWeights(PSLayer *layer, long rows, long columns,
                        PSLayerDef *ldef, PSFloat range, PSFloat scale);
 PSFloat PSInitParam(int param_type, PSLayerDef *ldef, PSFloat range,
                     PSFloat scale);
-int PSBeforeSequenceForward(PSLayer *layer, int seqlen, int t);
+int PSBeforeSequenceForward(PSLayer *layer, long seqlen, long t);
 int PSOnehotInputsForward(PSLayer *layer, int weights_index,
-                          PSFloat *outputs, int t, int apply_biases,
+                          PSFloat *outputs, long t, int apply_biases,
                           int do_activate);
 
 /* LSTM functions */
@@ -101,7 +101,7 @@ PSLSTMCell *PSGetLSTMCell(PSLayer *layer) {
     return cell;
 }
 
-PSFloat *PSGetLSTMStates(PSLayer *layer, int t, int type) {
+PSFloat *PSGetLSTMStates(PSLayer *layer, long t, int type) {
     if (layer == NULL) return NULL;
     PSLSTMCell *cell = PSGetLSTMCell(layer);
     if (cell == NULL) {
@@ -114,7 +114,7 @@ PSFloat *PSGetLSTMStates(PSLayer *layer, int t, int type) {
     if (t < 0) return previous_ptr;
     else {
         if (state_ptr == NULL) return NULL;
-        if (t >= (int) PSStateSequenceLength(layer)) {
+        if (t >= PSStateSequenceLength(layer)) {
             PSErr(
                 NULL, "LSTM %s at step %d is out-of-range: layer %d only "
                 "has %d recurrent hidden states",
@@ -128,7 +128,7 @@ PSFloat *PSGetLSTMStates(PSLayer *layer, int t, int type) {
     return states;
 }
 
-int PSInitLSTMStates(PSLayer *layer, uint32_t steps, int retain_previous) {
+int PSInitLSTMStates(PSLayer *layer, long steps, int retain_previous) {
     if (layer == NULL) return 0;
     PSLSTMCell *cell = PSGetLSTMCell(layer);
     if (cell == NULL) {
@@ -196,7 +196,7 @@ int PSInitLSTMStates(PSLayer *layer, uint32_t steps, int retain_previous) {
     return 1;
 }
 
-int PSResizeLSTMStates(PSLayer *layer, uint32_t steps, uint32_t prev_steps) {
+int PSResizeLSTMStates(PSLayer *layer, long steps, long prev_steps) {
     UNUSED(prev_steps);
     PSLSTMCell *cell = PSGetLSTMCell(layer);
     if (cell == NULL) {
@@ -293,7 +293,7 @@ static int getLSTMStatePointers(PSLSTMCell *cell, int type,
     return 1;
 }
 
-PSFloat getLSTMState(PSLayer *layer, int index, int t, int type) {
+PSFloat getLSTMState(PSLayer *layer, long index, long t, int type) {
     PSLSTMCell *cell = PSGetLSTMCell(layer);
     if (cell == NULL) return 0.0;
     PSFloat *state_ptr = NULL, *previous_ptr = NULL;
@@ -313,7 +313,7 @@ PSFloat getLSTMState(PSLayer *layer, int index, int t, int type) {
         if (previous_ptr == NULL) return 0.0;
         else return previous_ptr[index];
     } else {
-        if (t >= (int) PSStateSequenceLength(layer)) {
+        if (t >= PSStateSequenceLength(layer)) {
             PSErr(
                 NULL, "LSTM %s %d is out-of-range: layer %d only "
                 "has %d recurrent hidden cell",
@@ -327,7 +327,7 @@ PSFloat getLSTMState(PSLayer *layer, int index, int t, int type) {
     return state_ptr[index];
 }
 
-int setLSTMState(PSLayer *layer, int index, PSFloat state, int t, int type) {
+int setLSTMState(PSLayer *layer, long index, PSFloat state, long t, int type) {
     if (index >= layer->size) {
         PSErr(
             NULL, "Neuron index %d is out-of-range for layer %d "
@@ -341,7 +341,7 @@ int setLSTMState(PSLayer *layer, int index, PSFloat state, int t, int type) {
         return 0;
     }
     PSFloat *state_ptr = NULL, *previous_ptr = NULL;
-    if (t >= (int) PSStateSequenceLength(layer)) {
+    if (t >= PSStateSequenceLength(layer)) {
         if (!PSResizeLayerStates(layer, t + 1)) {
             if (layer->model)
                 PSModelSetStatus(layer->model, PS_STATUS_ERROR, NULL);
@@ -439,7 +439,7 @@ int PSLSTMLayerCopy(PSLayer *layer, PSLayer *src) {
     PSLSTMCell *cell = (PSLSTMCell *) layer->extra;
     PSLSTMCell *srccell = (PSLSTMCell *) src->extra;
     if (cell == NULL || srccell == NULL) return 0;
-    int c = PSStateSequenceLength(src);
+    long c = PSStateSequenceLength(src);
     if (srccell->candidates != NULL && c > 0) {
         if (srccell->input_gates == NULL || srccell->output_gates == NULL ||
             srccell->forget_gates == NULL || srccell->raw_states == NULL)
@@ -473,9 +473,9 @@ memerr:
 /* Init Functions */
 
 int PSInitLSTMLayer(PSModel *model, PSLayer *layer,
-                    int size, int ws, PSLayerDef *ldef)
+                    long size, long ws, PSLayerDef *ldef)
 {
-    int i, bias_count = size * 4;
+    long i, bias_count = size * 4;
     layer->onDelete = PSDeleteLSTMLayer;
     layer->onCopy = PSLSTMLayerCopy;
     layer->onStatesInit = PSInitLSTMStates;
@@ -492,7 +492,7 @@ int PSInitLSTMLayer(PSModel *model, PSLayer *layer,
     layer->weight_types = 0;
     for (i = 0; i < LSTM_WEIGHT_TYPES; i++) {
         int hidden = (i >= 4);
-        int wsize = (hidden ? size : ws);
+        long wsize = (hidden ? size : ws);
         layer->weights[i] = PSInitWeights(layer, size, wsize, ldef, 1, 0);
         if (layer->weights[i] == NULL) goto memerr;
         layer->weight_types++;
@@ -530,8 +530,8 @@ int PSLSTMForward(PSLayer *layer, ...) {
     PSModel *model = layer->model;
     va_list args;
     va_start(args, layer);
-    int steps = va_arg(args, int);
-    int t = va_arg(args, int);
+    long steps = va_arg(args, long);
+    long t = va_arg(args, long);
     va_end(args);
     if (!PSBeforeSequenceForward(layer, steps, t)) return 0;
     PSLayer *previous = model->layers[layer->index - 1];
@@ -539,11 +539,11 @@ int PSLSTMForward(PSLayer *layer, ...) {
     PSLSTMCell *cell = PSGetLSTMCell(layer);
     if (cell == NULL) return 0;
     int onehot = previous->flags & PS_FLAG_ONEHOT;
-    int lsize = layer->size;
     int ignore_inputs = 0;
-    int prev_t = t - 1;
     int use_bias = !(layer->flags & PS_FLAG_NO_BIAS);
     int success = 1;
+    long lsize = layer->size;
+    long prev_t = t - 1;
     PSMathOpts mopts = {.acceleration = model->acceleration};
     PSFloat *prev_states = NULL, *prev_z = NULL;
     PSFloat *candidates = getCandidates(layer, t);
@@ -657,13 +657,13 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previous_layer,
     }
     va_list args;
     va_start(args, lgradients);
-    int t = va_arg(args, int);
+    long t = va_arg(args, long);
     va_end(args);
     PSMathOpts mopts = {.acceleration = layer->model->acceleration};
-    int onehot = previous_layer->flags & PS_FLAG_ONEHOT;
-    int lsize = layer->size, prev_t = t - 1, success = 1;
-    int input_size = previous_layer->size;
+    int onehot = previous_layer->flags & PS_FLAG_ONEHOT, success = 1;
     int use_bias = !(layer->flags & PS_FLAG_NO_BIAS);
+    long lsize = layer->size, prev_t = t - 1;
+    long input_size = previous_layer->size;
     if (onehot) {
         input_size = PSGetOneHotLayerVectorSize(previous_layer);
         if (input_size <= 0) return 0;
@@ -680,8 +680,8 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previous_layer,
         goto final;
     }
 
-    int input_weight_size = input_size * lsize;
-    int hidden_weight_size = lsize * lsize;
+    long input_weight_size = input_size * lsize;
+    long hidden_weight_size = lsize * lsize;
     PSFloat *delta = layer->delta;
     PSFloat *delta_z = delta + lsize;
     PSFloat *gradient_biases_c = lgradients->biases;
@@ -782,9 +782,9 @@ int PSLSTMBackprop(PSLayer *layer, PSLayer *previous_layer,
             success = 0;
             goto final;
         }
-        int onehot_idx = (int) input;
-        for (int i = 0; i < layer->size; i++) {
-            int widx = (i * input_size) + onehot_idx;
+        long onehot_idx = (long) input;
+        for (long i = 0; i < layer->size; i++) {
+            long widx = (i * input_size) + onehot_idx;
             gradient_weights_c[widx] += delta_c[i];
             gradient_weights_i[widx] += delta_i[i];
             gradient_weights_o[widx] += delta_o[i];

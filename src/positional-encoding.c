@@ -33,12 +33,12 @@ typedef struct PSPositionalSettings {
 
 /* Forward declarations. */
 int checkLayerForForward(PSLayer *layer);
-int PSBeforeSequenceForward(PSLayer *layer, int seqlen, int t);
+int PSBeforeSequenceForward(PSLayer *layer, long seqlen, long t);
 int PSPositionalForward(PSLayer *layer, ...);
 int PSPositionalBackprop(PSLayer *layer, PSLayer *previous_layer,
                       PSGradient *gradients, ...);
 
-int PSGetPositionalEncodingLength(PSLayer *layer) {
+long PSGetPositionalEncodingLength(PSLayer *layer) {
     if (layer == NULL || layer->weights == NULL || layer->weights[0] == NULL)
         return 0;
     return PSMatrixDim(layer->weights[0], 0);
@@ -75,8 +75,8 @@ static int copyPositionalLayer(PSLayer *layer, PSLayer *src) {
     return 1;
 }
 
-static int initOrResizePositionalEncodings(PSLayer *layer, uint32_t seqlen) {
-    uint32_t capacity = (uint32_t) PSGetPositionalEncodingLength(layer);
+static int initOrResizePositionalEncodings(PSLayer *layer, long seqlen) {
+    long capacity = PSGetPositionalEncodingLength(layer);
     if (seqlen > capacity) {
         PSPositionalSettings *settings = PSGetPositionalSettings(layer);
         if (settings == NULL || layer->weights == NULL) return 0;
@@ -90,17 +90,17 @@ static int initOrResizePositionalEncodings(PSLayer *layer, uint32_t seqlen) {
     return 1;
 }
 
-int PSInitPositionalStates(PSLayer *layer, uint32_t seqlen, int retain_prev) {
+int PSInitPositionalStates(PSLayer *layer, long seqlen, int retain_prev) {
     UNUSED(retain_prev);
     return initOrResizePositionalEncodings(layer, seqlen);
 }
 
-int PSResizePositionalStates(PSLayer *layer, uint32_t seqlen, uint32_t prevl) {
+int PSResizePositionalStates(PSLayer *layer, long seqlen, long prevl) {
     UNUSED(prevl);
     return initOrResizePositionalEncodings(layer, seqlen);
 }
 
-PSMatrix PSGetPositionalEncoding(int seqlen, int size, int base) {
+PSMatrix PSGetPositionalEncoding(long seqlen, long size, int base) {
     if (base <= 0) base = DEFAULT_POSITIONAL_BASE;
     if (seqlen <= 0) seqlen = DEFAULT_POSITIONAL_SEQLEN;
     if (size <= 0) {
@@ -113,13 +113,13 @@ PSMatrix PSGetPositionalEncoding(int seqlen, int size, int base) {
               seqlen, size);
         return NULL;
     }
-    int steps = size / 2, i, k;
+    long steps = size / 2, i, k;
     PSFloat *enc_p = encodings;
     for (k = 0; k < seqlen; k++) {
         for (i = 0; i < steps; i++) {
             PSFloat denominator = PSPow(base, 2 * (i / (PSFloat) size));
             PSFloat n = (PSFloat) k / denominator;
-            int idx = i * 2;
+            long idx = i * 2;
             enc_p[idx] = PSSin(n);
             enc_p[idx + 1] = PSCos(n);
         }
@@ -160,7 +160,7 @@ int PSInitPositionalLayer(PSLayer *layer, PSLayerDef *layer_def) {
         previous->flags & PS_FLAG_ONEHOT ||
         ((model->flags & PS_FLAG_ONEHOT) && previous->size == 1)
     );
-    int min_capacity = 0;
+    long min_capacity = 0;
     if (onehot_input) {
         if (layer->size <= 0) {
             PSErr(NULL, "layer size must be defined in PositionalEncoding "
@@ -174,7 +174,8 @@ int PSInitPositionalLayer(PSLayer *layer, PSLayerDef *layer_def) {
     layer->states = PSMatrixZeros(2, 1, layer->size);
     if (layer->states == NULL) goto memerr;
     int success = 1;
-    int capacity = min_capacity, base = 0;
+    long capacity = min_capacity;
+    int base = 0;
     if (layer_def != NULL) {
         capacity = layer_def->positional_initial_capacity;
         if (capacity < min_capacity) capacity = min_capacity;
@@ -206,14 +207,15 @@ memerr:
 
 int PSPositionalForward(PSLayer *layer, ...) {
     if (!checkLayerForForward(layer)) return 0;
-    int success = 1, t = 0, seqlen = 1, i;
+    int success = 1, i;
+    long t = 0, seqlen = 1;
     PSLayer *previous = PSGetPreviousLayer(layer);
     va_list args;
     va_start(args, layer);
-    seqlen = va_arg(args, int);
+    seqlen = va_arg(args, long);
     va_end(args);
     if (!PSBeforeSequenceForward(layer, seqlen, t)) return 0;
-    int capacity = PSGetPositionalEncodingLength(layer);
+    long capacity = PSGetPositionalEncodingLength(layer);
     if (seqlen > capacity) {
         if (!initOrResizePositionalEncodings(layer,  seqlen)) {
             PSErrNN(__func__, NULL, layer,
@@ -299,7 +301,7 @@ int PSPositionalBackprop(PSLayer *layer, PSLayer *previous_layer,
     if (previous_layer == NULL) return 0;
     PSMatrix prev_delta = previous_layer->delta;
     if (delta == NULL || prev_delta == NULL) return 0;
-    uint64_t len = PSMatrixLength(delta);
+    long len = PSMatrixLength(delta);
     if (PSMatrixLength(prev_delta) != len) {
         PSErrNN(__func__, NULL, layer, "previous delta size mismatch");
         return 0;

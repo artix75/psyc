@@ -117,10 +117,10 @@ void onBatchTrained(PSModel *model, int epoch, int epochs,
     UNUSED(validation_accuracy);
     last_batch_loss = current_loss;
     if (log_sequences) {
-        int seqlen = (int) training_data[0], i;
+        long seqlen = (long) training_data[0], i;
         PSFloat *seq = training_data + 1,
                 *y = seq + seqlen;
-        printf("\nBatch[%d] Seq(len = %d):\n         \"",
+        printf("\nBatch[%ld] Seq(len = %ld):\n         \"",
             model->training->current_batch, seqlen);
         for (i = 0; i < seqlen; i++) {
             char c = characters[(int) seq[i]];
@@ -128,7 +128,7 @@ void onBatchTrained(PSModel *model, int epoch, int epochs,
             printf("%c", c);
         }
         printf("\"\n");
-        printf("\n         Y(len = %d):\n         \"", seqlen);
+        printf("\n         Y(len = %ld):\n         \"", seqlen);
         for (i = 0; i < seqlen; i++) {
             char c = characters[(int) y[i]];
             if (c == '\n') c = '-';
@@ -154,13 +154,12 @@ void onEpochTrained(PSModel *model, int epoch, int epochs,
     UNUSED(validation_loss);
     UNUSED(validation_accuracy);
     if (sample_every > 0 && (epoch % sample_every) != 0) return;
-    int iteration =
-        (epoch * num_examples) + model->training->current_example;
+    long iteration = (epoch * num_examples) + model->training->current_example;
     printSample(model, 0, SAMPLE_LEN);
     if (last_batch_loss != 0) {
         PSFloat curloss = last_batch_loss * 25;
         smooth_loss = smooth_loss * 0.999 + curloss * 0.001;
-        printf("** Smooth loss: %g, Curr. Loss = %g, Iteration = %d\n",
+        printf("** Smooth loss: %g, Curr. Loss = %g, Iteration = %ld\n",
                smooth_loss, curloss, iteration);
     }
     fflush(stdout);
@@ -200,8 +199,8 @@ void printSample(PSModel *model, int input_idx, int len) {
             );
             return;
         }
-        int max_idx = 0;
-        int t = ((unsigned int) data[0]) - 1;
+        long max_idx = 0;
+        long t = ((long) data[0]) - 1;
         if (!use_random_choice) {
             if (!PSFindLayerMaxState(out, NULL, &max_idx, t)) {
                 model->status = oldstatus;

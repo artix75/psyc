@@ -114,7 +114,7 @@ PSFloat PSTanhDerivativeS(PSFloat val) {
  *   https://en.wikipedia.org/wiki/Sigmoid_function
  * The equivalent function to be used with scalars is `PSSigmoidS`.
  * The derivative of this function is `PSSigmoidDerivative`. */
-void PSSigmoid(PSFloat *vec, PSFloat *dest, uint64_t len, int acceleration) {
+void PSSigmoid(PSFloat *vec, PSFloat *dest, long len, int acceleration) {
     if (dest == NULL) dest = vec;
     if (acceleration != PSAcceleration_None) {
         PSMathOpts opts = {.acceleration = acceleration};
@@ -124,7 +124,7 @@ void PSSigmoid(PSFloat *vec, PSFloat *dest, uint64_t len, int acceleration) {
         PSDivideScalarVector(1.0, dest, dest, len, &opts);
         return;
     }
-    uint64_t i;
+    long i;
     for (i = 0; i < len; i++) dest[i] = PSSigmoidS(vec[i]);
 }
 
@@ -134,9 +134,7 @@ void PSSigmoid(PSFloat *vec, PSFloat *dest, uint64_t len, int acceleration) {
  * If `dest` is NULL, results will be stored into `vec` itself.
  * For the `acceleration` argument, take a look at `PSAcceleration`.
  * The derivative of this function is `PSTanhDerivative`. */
-void PSTanhActivation(PSFloat *vec, PSFloat *dest, uint64_t len,
-                      int acceleration)
-{
+void PSTanhActivation(PSFloat *vec, PSFloat *dest, long len, int acceleration) {
     if (dest == NULL) dest = vec;
     PSMathOpts opts = {.acceleration = acceleration};
     PSVectorTanh(vec, dest, len, &opts);
@@ -153,7 +151,7 @@ void PSTanhActivation(PSFloat *vec, PSFloat *dest, uint64_t len,
  *
  * The equivalent function to be used with scalars is `PSReluS`.
  * The derivative of this function is `PSReluDerivative`. */
-void PSRelu(PSFloat *vec, PSFloat *dest, uint64_t len, int acceleration) {
+void PSRelu(PSFloat *vec, PSFloat *dest, long len, int acceleration) {
     if (dest == NULL) dest = vec;
     PSMathOpts opts = {.acceleration = acceleration};
     PSVectorThreshold(vec, 0.0, dest, len, &opts);
@@ -168,7 +166,7 @@ void PSRelu(PSFloat *vec, PSFloat *dest, uint64_t len, int acceleration) {
  *   https://arxiv.org/abs/1606.08415
  * The equivalent function to be used with scalars is `PSGeLUS`.
  * The derivative of this function is `PSGeLUDerivative`. */
-void PSGelu(PSFloat *vec, PSFloat *dest, uint64_t len, int acceleration) {
+void PSGelu(PSFloat *vec, PSFloat *dest, long len, int acceleration) {
     static PSFloat c = 0;
     if (c == 0) c = PSSqrt(2 / M_PI);
     if (dest == NULL) dest = vec;
@@ -207,7 +205,7 @@ void PSGelu(PSFloat *vec, PSFloat *dest, uint64_t len, int acceleration) {
         }
         return;
     }
-    uint64_t i;
+    long i;
     for (i = 0; i < len; i++) dest[i] = PSGeluS(vec[i]);
 }
 
@@ -217,7 +215,7 @@ void PSGelu(PSFloat *vec, PSFloat *dest, uint64_t len, int acceleration) {
  * into `vec` itself.
  * For the `acceleration` argument, take a look at `PSAcceleration`.
  * The equivalent function to be used with scalars is `PSSigmoidDerivativeS`.*/
-void PSSigmoidDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
+void PSSigmoidDerivative(PSFloat *vec, PSFloat *dest, long len,
                          int acceleration)
 {
     if (dest == NULL) dest = vec;
@@ -227,7 +225,7 @@ void PSSigmoidDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
         PSMultiplyVectors(vec, dest, dest, len, &opts);
         return;
     }
-    uint64_t i;
+    long i;
     for (i = 0; i < len; i++) dest[i] = PSSigmoidDerivativeS(vec[i]);
 }
 
@@ -237,9 +235,7 @@ void PSSigmoidDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
  * If `dest` is NULL, results will be stored into `vec` itself.
  * For the `acceleration` argument, take a look at `PSAcceleration`.
  * The equivalent function to be used with scalars is `PSTanhDerivativeS`.*/
-void PSTanhDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
-                      int acceleration)
-{
+void PSTanhDerivative(PSFloat *vec, PSFloat *dest, long len, int acceleration) {
     if (dest == NULL) dest = vec;
     if (acceleration != PSAcceleration_None) {
         PSMathOpts opts = {.acceleration = acceleration};
@@ -247,7 +243,7 @@ void PSTanhDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
         PSSubtractScalarVector(1.0, dest, dest, len, &opts);
         return;
     }
-    uint64_t i;
+    long i;
     for (i = 0; i < len; i++) dest[i] = PSTanhDerivativeS(vec[i]);
 }
 
@@ -257,11 +253,9 @@ void PSTanhDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
  * If `dest` is NULL, results will be stored into `vec` itself.
  * For the `acceleration` argument, take a look at `PSAcceleration`.
  * The equivalent function to be used with scalars is `PSReluDerivativeS`.*/
-void PSReluDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
-                      int acceleration)
-{
+void PSReluDerivative(PSFloat *vec, PSFloat *dest, long len, int acceleration) {
     UNUSED(acceleration);
-    uint64_t i;
+    long i;
     for (i = 0; i < len; i++) dest[i] = (PSFloat)(vec[i] > 0.0);
 }
 
@@ -271,9 +265,7 @@ void PSReluDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
  * If `dest` is NULL, results will be stored into `vec` itself.
  * For the `acceleration` argument, take a look at `PSAcceleration`.
  * The equivalent function to be used with scalars is `PSGeluDerivativeS`.*/
-void PSGeluDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
-                      int acceleration)
-{
+void PSGeluDerivative(PSFloat *vec, PSFloat *dest, long len, int acceleration) {
     static PSFloat c1 = 0, c2 = 0, c3 = 0;
     if (acceleration != PSAcceleration_None) {
         PSMathOpts opts = {.acceleration = acceleration};
@@ -323,7 +315,7 @@ void PSGeluDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
         free(erf_prime);
         return;
     }
-    uint64_t i;
+    long i;
     for (i = 0; i < len; i++) dest[i] = PSGeluDerivativeS(vec[i]);
 }
 
@@ -335,7 +327,7 @@ void PSGeluDerivative(PSFloat *vec, PSFloat *dest, uint64_t len,
  * a series of numbers.
  * For more info about Softmax:
  *     https://en.wikipedia.org/wiki/Softmax_function */
-void PSSoftmax(PSFloat *vec, PSFloat *dest, uint64_t len, int acceleration) {
+void PSSoftmax(PSFloat *vec, PSFloat *dest, long len, int acceleration) {
     if (dest == NULL) dest = vec;
     PSFloat max = PSFLOAT_MIN, esum = 0.0;
     if (acceleration != PSAcceleration_None) {
@@ -347,7 +339,7 @@ void PSSoftmax(PSFloat *vec, PSFloat *dest, uint64_t len, int acceleration) {
         PSDivideVectorScalar(dest, esum, dest, len, &opts);
         return;
     }
-    uint64_t i;
+    long i;
     for (i = 0; i < len; i++) {
         PSFloat n = vec[i];
         if (i == 0 || n > max) max = n;

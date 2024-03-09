@@ -35,7 +35,7 @@ int PSDropoutForward(PSLayer *layer, ...);
 int PSDropoutBackprop(PSLayer *layer, PSLayer *previous_layer,
                       PSGradient *gradients, ...);
 int checkLayerForForward(PSLayer *layer);
-int PSBeforeSequenceForward(PSLayer *layer, int seqlen, int t);
+int PSBeforeSequenceForward(PSLayer *layer, long seqlen, long t);
 
 /* Dropout Layer functions */
 
@@ -65,7 +65,7 @@ void PSSetDropout(PSLayer *dropout_layer, PSFloat dropout) {
     data->dropout = dropout;
 }
 
-int PSInitDropoutMask(PSLayer *layer, uint32_t seqlen, int retain_previous) {
+int PSInitDropoutMask(PSLayer *layer, long seqlen, int retain_previous) {
     UNUSED(retain_previous);
     if (layer == NULL) return 0;
     PSDropoutData *data = PSGetDropoutData(layer);
@@ -87,7 +87,7 @@ int PSInitDropoutMask(PSLayer *layer, uint32_t seqlen, int retain_previous) {
     return 1;
 }
 
-int PSResizeDropoutMask(PSLayer *layer, uint32_t seqlen, uint32_t prevlen) {
+int PSResizeDropoutMask(PSLayer *layer, long seqlen, long prevlen) {
     if (layer == NULL) return 0;
     PSDropoutData *data = PSGetDropoutData(layer);
     if (data == NULL) {
@@ -103,7 +103,7 @@ int PSResizeDropoutMask(PSLayer *layer, uint32_t seqlen, uint32_t prevlen) {
         PSModelSetStatus(layer->model, PS_STATUS_ERROR, NULL);
         return 0;
     }
-    int diff = seqlen - prevlen;
+    long diff = seqlen - prevlen;
     if (diff > 0) {
         PSFloat *new_segment = dropout_mask + (prevlen * layer->size);
         memset(new_segment, 0, (size_t) diff * layer->size * sizeof(PSFloat));
@@ -112,14 +112,14 @@ int PSResizeDropoutMask(PSLayer *layer, uint32_t seqlen, uint32_t prevlen) {
     return 1;
 }
 
-PSFloat *PSGetDropoutMask(PSLayer *layer, int t) {
+PSFloat *PSGetDropoutMask(PSLayer *layer, long t) {
     if (layer == NULL) return NULL;
     PSDropoutData *data = PSGetDropoutData(layer);
     if (data == NULL) return NULL;
     PSFloat *mask = data->dropout_mask;
     if (PSUseSequences(layer)) {
         if (t < 0) return NULL;
-        int cur_seqlen = PSStateSequenceLength(layer);
+        long cur_seqlen = PSStateSequenceLength(layer);
         if (t >= cur_seqlen) {
             if (!PSResizeDropoutMask(layer, t + 1, cur_seqlen)) return NULL;
             mask = data->dropout_mask;
@@ -164,7 +164,7 @@ int PSDropoutLayerCopy(PSLayer *layer, PSLayer *src) {
         return 1;
     }
     dstdata->dropout = srcdata->dropout;
-    int seqlen = 1;
+    long seqlen = 1;
     if (PSUseSequences(src)) seqlen = PSStateSequenceLength(layer);
     if (seqlen > 0 && srcdata->dropout_mask != NULL) {
         size_t size = src->size * seqlen * sizeof(PSFloat);
@@ -264,14 +264,15 @@ int PSInitDropoutLayer(PSModel *model, PSLayer *layer,
 int PSDropoutForward(PSLayer *layer, ...) {
     if (!checkLayerForForward(layer)) return 0;
     PSModel *model = layer->model;
-    int success = 1, t = 0, seqlen = 1, is_recurrent = PSIsRecurrent(layer),
+    int success = 1, is_recurrent = PSIsRecurrent(layer),
         handles_seq = PSHandleSequenceAtOnce(layer);
+    long t = 0, seqlen = 1;
     PSLayer *previous = PSGetPreviousLayer(layer);
     if (is_recurrent || handles_seq) {
         va_list args;
         va_start(args, layer);
-        seqlen = va_arg(args, int);
-        if (is_recurrent) t = va_arg(args, int);
+        seqlen = va_arg(args, long);
+        if (is_recurrent) t = va_arg(args, long);
         va_end(args);
         if (!PSBeforeSequenceForward(layer, seqlen, t)) return 0;
     }
@@ -287,7 +288,7 @@ int PSDropoutForward(PSLayer *layer, ...) {
     }
     PSFloat dropout = PSGetDropout(layer);
     PSMathOpts mopts = {.acceleration = layer->model->acceleration};
-    uint64_t len = layer->size;
+    long len = layer->size;
     if (handles_seq && seqlen > 1) len *= seqlen;
     if (PSModelGetStatus(model) != PS_STATUS_TRAINING) {
         PSVectorCopy(outputs, inputs, len);
@@ -299,7 +300,7 @@ int PSDropoutForward(PSLayer *layer, ...) {
         PSErr(NULL, "Layer[%d]: Dropout layer has no dropout mask");
         return 0;
     }
-    for (uint64_t i = 0; i < len; i++) {
+    for (long i = 0; i < len; i++) {
         PSFloat r = PSNormalizedRandom();
         PSFloat input = inputs[i];
         int dropped = (r < dropout);
@@ -319,12 +320,14 @@ int PSDropoutBackprop(PSLayer *layer, PSLayer *previous_layer,
     if (previous_layer == NULL) return 0;
     if (previous_layer->delta == NULL) return 1;
     if (layer->delta == NULL) return 0;
-    int is_recurrent = PSIsRecurrent(layer), t = 0, seqlen = 1, success = 1;
-    int handles_seq = PSHandleSequenceAtOnce(layer);
+    int is_recurrent = PSIsRecurrent(layer),
+        handles_seq = PSHandleSequenceAtOnce(layer),
+        success = 1;
+    long t = 0, seqlen = 1;
     if (is_recurrent) {
         va_list args;
         va_start(args, gradients);
-        t = va_arg(args, int);
+        t = va_arg(args, long);
         va_end(args);
     } else if (handles_seq) seqlen = PSStateSequenceLength(layer);
     PSFloat *dropout_mask = PSGetDropoutMask(layer, t);
@@ -333,7 +336,7 @@ int PSDropoutBackprop(PSLayer *layer, PSLayer *previous_layer,
         return 0;
     }
     if (seqlen < 1) seqlen = 1;
-    uint64_t len = layer->size;
+    long len = layer->size;
     if (handles_seq && seqlen > 1) len *= seqlen;
     PSMathOpts mopts = {
         .acceleration = layer->model->acceleration,

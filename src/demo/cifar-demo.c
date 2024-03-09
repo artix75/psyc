@@ -173,7 +173,7 @@ void onBatchTrained(PSModel *model, int epoch, int epochs,
     if (dump_activations_str == NULL && max_batches <= 0) return;
     if (model == NULL) return;
     if (model->training == NULL) return;
-    int batch = model->training->current_batch;
+    long batch = model->training->current_batch;
     if (max_batches > 0 && batch >= max_batches) {
         raise(SIGINT);
         raise(SIGINT);
@@ -181,14 +181,14 @@ void onBatchTrained(PSModel *model, int epoch, int epochs,
     } else if (max_batches > 0 && dump_activations_str == NULL) return;
     if ((batch % dump_activations_every) != 0) return;
     char fname[1024];
-    snprintf(fname, 1023, "%s/psyc-activations-batch-%d.dump",
+    snprintf(fname, 1024, "%s/psyc-activations-batch-%ld.dump",
              dump_activations_str, batch);
     PSModelDumpStates(model, fname);
-    snprintf(fname, 1023, "%s/psyc-deltas-batch-%d.dump",
+    snprintf(fname, 1024, "%s/psyc-deltas-batch-%ld.dump",
              dump_activations_str, batch);
     PSModelDumpDeltas(model, fname);
     PSFloat *labels = training_data + PS_CIFAR_IMAGE_SIZE;
-    snprintf(fname, 1023, "%s/psyc-labels-batch-%d.dump",
+    snprintf(fname, 1024, "%s/psyc-labels-batch-%ld.dump",
              dump_activations_str, batch);
     FILE *lblfile = fopen(fname, "w");
     if (lblfile == NULL)
@@ -494,7 +494,7 @@ int main(int argc, char** argv) {
         }
     }
 
-    int train_num_examples = TRAIN_DATASET_EXAMPLES;
+    long train_num_examples = TRAIN_DATASET_EXAMPLES;
     if (max_images) train_num_examples = max_images;
 
     if (dataset_path != NULL) {
@@ -642,13 +642,13 @@ int main(int argc, char** argv) {
             return 1;
         }
 
-        int example_size = model->input_size + model->output_size;
-        printf("Example Size = %d (%d + %d)\n", example_size,
+        long example_size = model->input_size + model->output_size;
+        printf("Example Size = %ld (%ld + %ld)\n", example_size,
                model->input_size, model->output_size);
-        int num_examples = datalen / example_size;
-        printf("Training examples (initial): %d\n", num_examples);
+        long num_examples = datalen / example_size;
+        printf("Training examples (initial): %ld\n", num_examples);
         if (num_examples < train_num_examples) {
-            printf("Loaded dataset examples %d < %d\n", num_examples,
+            printf("Loaded dataset examples %ld < %d\n", num_examples,
                    TRAIN_DATASET_EXAMPLES);
             if (training_data != NULL) free(training_data);
             if (test_data != NULL) free(test_data);
@@ -656,8 +656,8 @@ int main(int argc, char** argv) {
             return 1;
         }
         if (testlen > 0 && test_data != NULL) {
-            int test_example_count = testlen / example_size;
-            printf("Test examples: %d\n", test_example_count);
+            long test_example_count = testlen / example_size;
+            printf("Test examples: %ld\n", test_example_count);
         }
     } else {
         int loaded = PSModelLoad(model, pretrained_file);

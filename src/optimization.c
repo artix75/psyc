@@ -30,7 +30,7 @@
 int PSSGDOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
                       PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp,
                       PSFloat *xtmp, PSFloat rate, PSFloat momentum,
-                      uint64_t len, int acceleration, int iteration,
+                      long len, int acceleration, long iteration,
                       PSTrainingOptions *options)
 {
     UNUSED(xgrads);
@@ -52,12 +52,12 @@ int PSSGDOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
     }
     if (acceleration == PSAcceleration_None) {
         if (has_momentum) {
-            for (uint64_t i = 0; i < len; i++) {
+            for (long i = 0; i < len; i++) {
                 mgrads[i] = momentum * mgrads[i] - rate * grads[i];
                 params[i] += mgrads[i];
             }
         } else {
-            for (uint64_t i = 0; i < len; i++) params[i] += -(rate * grads[i]);
+            for (long i = 0; i < len; i++) params[i] += -(rate * grads[i]);
         }
     } else {
         PSMathOpts mopts = {.acceleration = acceleration};
@@ -80,7 +80,7 @@ int PSSGDOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
 int PSNesterovOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
                            PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp,
                            PSFloat *xtmp, PSFloat rate, PSFloat momentum,
-                           uint64_t len, int acceleration, int iteration,
+                           long len, int acceleration, long iteration,
                            PSTrainingOptions *options)
 {
     UNUSED(xgrads);
@@ -100,7 +100,7 @@ int PSNesterovOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
             acceleration = PSAcceleration_None;
     }
     if (acceleration == PSAcceleration_None) {
-        for (uint64_t i = 0; i < len; i++) {
+        for (long i = 0; i < len; i++) {
             PSFloat dx = mgrads[i];
             mgrads[i] = mgrads[i] * momentum + rate * grads[i];
             dx = momentum * dx - (1.0 + momentum) * mgrads[i];
@@ -135,7 +135,7 @@ int PSNesterovOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
 int PSAdaDeltaOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
                            PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp,
                            PSFloat *xtmp, PSFloat rate, PSFloat momentum,
-                           uint64_t len, int acceleration, int iteration,
+                           long len, int acceleration, long iteration,
                            PSTrainingOptions *options)
 {
     UNUSED(rate);
@@ -165,7 +165,7 @@ int PSAdaDeltaOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
     }
     int success = 1;
     if (acceleration == PSAcceleration_None) {
-        for (uint64_t i = 0; i < len; i++) {
+        for (long i = 0; i < len; i++) {
             mgrads[i] = rho * mgrads[i] + (1 - rho) * grads[i] * grads[i];
             PSFloat dx = - (
                 PSSqrt((xgrads[i] + eps) / (mgrads[i] + eps)) * grads[i]
@@ -241,7 +241,7 @@ final:
 int PSWindowGradOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
                              PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp,
                              PSFloat *xtmp, PSFloat rate, PSFloat momentum,
-                             uint64_t len, int acceleration, int iteration,
+                             long len, int acceleration, long iteration,
                              PSTrainingOptions *options)
 {
     UNUSED(xgrads);
@@ -268,7 +268,7 @@ int PSWindowGradOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
     }
     PSFloat *tmpalloc = NULL;
     if (acceleration == PSAcceleration_None) {
-        for (uint64_t i = 0; i < len; i++) {
+        for (long i = 0; i < len; i++) {
             mgrads[i] = rho * mgrads[i] + (1 - rho) * grads[i] * grads[i];
             PSFloat dx = - rate / PSSqrt(mgrads[i] + eps) * grads[i];
             params[i] += dx;
@@ -305,7 +305,7 @@ int PSWindowGradOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
 int PSAdaGradOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
                           PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp,
                           PSFloat *xtmp, PSFloat rate, PSFloat momentum,
-                          uint64_t len, int acceleration, int iteration,
+                          long len, int acceleration, long iteration,
                           PSTrainingOptions *options)
 {
     UNUSED(xgrads);
@@ -331,7 +331,7 @@ int PSAdaGradOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
     }
     PSFloat *tmpalloc = NULL;
     if (acceleration == PSAcceleration_None) {
-        for (uint64_t i = 0; i < len; i++) {
+        for (long i = 0; i < len; i++) {
             mgrads[i] += grads[i] * grads[i];
             PSFloat dx = - rate / PSSqrt(mgrads[i] + eps) * grads[i];
             params[i] += dx;
@@ -366,7 +366,7 @@ int PSAdaGradOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
 int PSRMSPropOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
                           PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp,
                           PSFloat *xtmp, PSFloat rate, PSFloat momentum,
-                          uint64_t len, int acceleration, int iteration,
+                          long len, int acceleration, long iteration,
                           PSTrainingOptions *options)
 {
     UNUSED(xgrads);
@@ -397,7 +397,7 @@ int PSRMSPropOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
     PSFloat *tmpalloc = NULL;
     int success = 1;
     if (acceleration == PSAcceleration_None) {
-        for (uint64_t i = 0; i < len; i++) {
+        for (long i = 0; i < len; i++) {
             mgrads[i] = decay * mgrads[i] + (1 - decay) * (grads[i] * grads[i]);
             PSFloat dx = - rate / PSSqrt(mgrads[i] + eps) * grads[i];
             params[i] += dx;
@@ -436,7 +436,7 @@ final:
 int PSAdamOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
                        PSFloat *xgrads, PSFloat *tmp, PSFloat *mtmp,
                        PSFloat *xtmp, PSFloat rate, PSFloat momentum,
-                       uint64_t len, int acceleration, int iteration,
+                       long len, int acceleration, long iteration,
                        PSTrainingOptions *options)
 {
     UNUSED(momentum);
@@ -474,7 +474,7 @@ int PSAdamOptimization(PSFloat *params, PSFloat *grads, PSFloat *mgrads,
     iteration = iteration + 1;
     int success = 1;
     if (acceleration == PSAcceleration_None) {
-        for (uint64_t i = 0; i < len; i++) {
+        for (long i = 0; i < len; i++) {
             PSFloat correct1, correct2, dx;
             mgrads[i] = mgrads[i] * beta1 + (1 - beta1) * grads[i];
             xgrads[i] = xgrads[i] * beta2 + (1 - beta2) * grads[i] * grads[i];
@@ -550,7 +550,7 @@ final:
 }
 
 int PSLRegularization(PSFloat l1, PSFloat l2, PSFloat *weights,
-                      PSFloat *wgradients, PSFloat *tmp, uint64_t len,
+                      PSFloat *wgradients, PSFloat *tmp, long len,
                       PSFloat *l1_loss, PSFloat *l2_loss,
                       int batches, int weight_decay, int acceleration)
 {
@@ -560,7 +560,7 @@ int PSLRegularization(PSFloat l1, PSFloat l2, PSFloat *weights,
     if (!PSIsAccelerationAvailable(acceleration))
         acceleration = PSAcceleration_None;
     if (acceleration == PSAcceleration_None) {
-        for (uint64_t i = 0; i < len; i++) {
+        for (long i = 0; i < len; i++) {
             PSFloat l1_grad = 0.0, l2_grad = 0.0, w = weights[i];
             if (l1 != 0.0) {
                 if (weight_decay) weights[i] *= l1;

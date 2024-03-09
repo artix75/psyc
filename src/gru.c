@@ -59,23 +59,23 @@ PSGRUCell *PSCreateGRUCell(PSLayer *layer);
 void PSDeleteGRUCell(PSGRUCell *cell);
 static int getGRUStatePointers(PSGRUCell *cell, int type,
                                PSFloat **state_ptr, PSFloat **previous_ptr);
-PSFloat *initLayerStates(PSLayer *layer, uint32_t steps,
+PSFloat *initLayerStates(PSLayer *layer, long steps,
                              int retain_previous, PSFloat *current,
                              PSFloat **previous);
-PSFloat *resizeLayerStates(PSLayer *layer, uint32_t steps,
+PSFloat *resizeLayerStates(PSLayer *layer, long steps,
                                PSFloat *current, PSFloat **previous);
-int PSResizeLayerStates(PSLayer *layer, uint32_t steps);
+int PSResizeLayerStates(PSLayer *layer, long steps);
 PSActivationFunction PSGetActivationDerivative(PSActivationFunction func);
-PSMatrix PSInitWeights(PSLayer *layer, int rows, int columns,
+PSMatrix PSInitWeights(PSLayer *layer, long rows, long columns,
                        PSLayerDef *ldef, PSFloat range, PSFloat scale);
 PSFloat PSInitParam(int param_type, PSLayerDef *ldef, PSFloat range,
                     PSFloat scale);
 int PSGRUForward(PSLayer *layer, ...);
 int PSGRUBackprop(PSLayer *layer, PSLayer *previous_layer,
                    PSGradient *lgradients, ...);
-int PSBeforeSequenceForward(PSLayer *layer, int seqlen, int t);
+int PSBeforeSequenceForward(PSLayer *layer, long seqlen, long t);
 int PSOnehotInputsForward(PSLayer *layer, int weights_index,
-                              PSFloat *outputs, int t, int apply_biases,
+                              PSFloat *outputs, long t, int apply_biases,
                               int do_activate);
 
 /* GRU functions */
@@ -87,7 +87,7 @@ PSGRUCell *PSGetGRUCell(PSLayer *layer) {
     return cell;
 }
 
-PSFloat *PSGetGRUStates(PSLayer *layer, int t, int type) {
+PSFloat *PSGetGRUStates(PSLayer *layer, long t, int type) {
     if (layer == NULL) return NULL;
     PSGRUCell *cell = PSGetGRUCell(layer);
     if (cell == NULL) {
@@ -100,11 +100,11 @@ PSFloat *PSGetGRUStates(PSLayer *layer, int t, int type) {
     if (t < 0) return previous_ptr;
     else {
         if (state_ptr == NULL) return NULL;
-        int states_count = PSStateSequenceLength(layer);
+        long states_count = PSStateSequenceLength(layer);
         if (t >= states_count) {
             PSErr(
-                NULL, "GRU %s at step %d is out-of-range: layer %d only "
-                "has %d recurrent hidden states",
+                NULL, "GRU %s at step %ld is out-of-range: layer %d only "
+                "has %ld recurrent hidden states",
                 GRUStateNames[type], t, layer->index, states_count
             );
             return NULL;
@@ -114,7 +114,7 @@ PSFloat *PSGetGRUStates(PSLayer *layer, int t, int type) {
     return states;
 }
 
-int PSInitGRUStates(PSLayer *layer, uint32_t steps, int retain_previous) {
+int PSInitGRUStates(PSLayer *layer, long steps, int retain_previous) {
     UNUSED(retain_previous);
     if (layer == NULL) return 0;
     PSGRUCell *cell = PSGetGRUCell(layer);
@@ -161,7 +161,7 @@ int PSInitGRUStates(PSLayer *layer, uint32_t steps, int retain_previous) {
     return 1;
 }
 
-int PSResizeGRUStates(PSLayer *layer, uint32_t steps, uint32_t prev_steps) {
+int PSResizeGRUStates(PSLayer *layer, long steps, long prev_steps) {
     UNUSED(prev_steps);
     PSGRUCell *cell = PSGetGRUCell(layer);
     if (cell == NULL) {
@@ -230,7 +230,7 @@ static int getGRUStatePointers(PSGRUCell *cell, int type,
     return 1;
 }
 
-PSFloat getGRUState(PSLayer *layer, int index, int t, int type) {
+PSFloat getGRUState(PSLayer *layer, long index, long t, int type) {
     PSGRUCell *cell = PSGetGRUCell(layer);
     if (cell == NULL) return 0.0;
     PSFloat *state_ptr = NULL, *previous_ptr = NULL;
@@ -250,11 +250,11 @@ PSFloat getGRUState(PSLayer *layer, int index, int t, int type) {
         if (previous_ptr == NULL) return 0.0;
         else return previous_ptr[index];
     } else {
-        if (t >= (int) PSStateSequenceLength(layer)) {
+        if (t >= (long) PSStateSequenceLength(layer)) {
             PSErr(
-                NULL, "GRU %s %d is out-of-range: layer %d only "
-                "has %d recurrent hidden cell",
-                "of size %d", GRUStateNames[type], t, layer->index,
+                NULL, "GRU %s %ld is out-of-range: layer %ld only "
+                "has %ld recurrent hidden cell",
+                "of size %ld", GRUStateNames[type], t, layer->index,
                 PSStateSequenceLength(layer)
             );
             return 0.0;
@@ -264,7 +264,7 @@ PSFloat getGRUState(PSLayer *layer, int index, int t, int type) {
     return state_ptr[index];
 }
 
-int setGRUState(PSLayer *layer, int index, PSFloat state, int t, int type) {
+int setGRUState(PSLayer *layer, long index, PSFloat state, long t, int type) {
     if (index >= layer->size) {
         PSErr(
             NULL, "Neuron index %d is out-of-range for layer %d "
@@ -278,7 +278,7 @@ int setGRUState(PSLayer *layer, int index, PSFloat state, int t, int type) {
         return 0;
     }
     PSFloat *state_ptr = NULL, *previous_ptr = NULL;
-    if (t >= (int) PSStateSequenceLength(layer)) {
+    if (t >= PSStateSequenceLength(layer)) {
         if (!PSResizeLayerStates(layer, t + 1)) {
             if (layer->model)
                 PSModelSetStatus(layer->model, PS_STATUS_ERROR, NULL);
@@ -371,7 +371,7 @@ int PSGRULayerCopy(PSLayer *layer, PSLayer *src) {
     PSGRUCell *cell = (PSGRUCell *) layer->extra;
     PSGRUCell *srccell = (PSGRUCell *) src->extra;
     if (cell == NULL || srccell == NULL) return 0;
-    int c = PSStateSequenceLength(src);
+    long c = PSStateSequenceLength(src);
     if (srccell->candidates != NULL && c > 0) {
         if (srccell->update_gates == NULL || srccell->reset_gates == NULL) {
             PSErr(NULL, "Layer[%d]: incomplete states", src->index);
@@ -396,10 +396,11 @@ memerr:
 
 /* Init Functions */
 
-int PSInitGRULayer(PSModel *model, PSLayer *layer, int size, int ws,
+int PSInitGRULayer(PSModel *model, PSLayer *layer, long size, long ws,
                    PSLayerDef *ldef)
 {
-    int i, bias_count = size * 3;
+    long bias_count = size * 3;
+    int i;
     layer->onDelete = PSDeleteGRULayer;
     layer->onCopy = PSGRULayerCopy;
     layer->onStatesInit = PSInitGRUStates;
@@ -416,7 +417,7 @@ int PSInitGRULayer(PSModel *model, PSLayer *layer, int size, int ws,
     layer->weight_types = 0;
     for (i = 0; i < GRU_WEIGHT_TYPES; i++) {
         int hidden = (i >= 3);
-        int wsize = (hidden ? size : ws);
+        long wsize = (hidden ? size : ws);
         layer->weights[i] = PSInitWeights(layer, size, wsize, ldef, 1, 0);
         if (layer->weights[i] == NULL) goto memerr;
         layer->weight_types++;
@@ -456,8 +457,8 @@ int PSGRUForward(PSLayer *layer, ...) {
     PSFloat *cache = NULL;
     va_list args;
     va_start(args, layer);
-    int steps = va_arg(args, int);
-    int t = va_arg(args, int);
+    long steps = va_arg(args, long);
+    long t = va_arg(args, long);
     va_end(args);
     if (!PSBeforeSequenceForward(layer, steps, t)) return 0;
     PSLayer *previous = PSGetPreviousLayer(layer);
@@ -466,8 +467,8 @@ int PSGRUForward(PSLayer *layer, ...) {
     if (cell == NULL) return 0;
     int onehot = previous->flags & PS_FLAG_ONEHOT;
     int ignore_inputs = 0;
-    int prev_t = t - 1;
     int use_bias = !(layer->flags & PS_FLAG_NO_BIAS);
+    long prev_t = t - 1;
     PSMathOpts mopts = {.acceleration = model->acceleration};
     PSFloat *prev_states = NULL;
     PSFloat *candidates = getCandidates(layer, t);
@@ -615,12 +616,12 @@ int PSGRUBackprop(PSLayer *layer, PSLayer *previous_layer,
     }
     va_list args;
     va_start(args, lgradients);
-    int t = va_arg(args, int);
+    long t = va_arg(args, long);
     va_end(args);
     PSMathOpts mopts = {.acceleration = layer->model->acceleration};
-    int onehot = previous_layer->flags & PS_FLAG_ONEHOT;
-    int lsize = layer->size, prev_t = t - 1, success = 1;
-    int input_size = previous_layer->size;
+    int onehot = previous_layer->flags & PS_FLAG_ONEHOT, success = 1;
+    long lsize = layer->size, prev_t = t - 1;
+    long input_size = previous_layer->size;
     int use_bias = !(layer->flags & PS_FLAG_NO_BIAS);
     if (onehot) {
         input_size = PSGetOneHotLayerVectorSize(previous_layer);
@@ -637,8 +638,8 @@ int PSGRUBackprop(PSLayer *layer, PSLayer *previous_layer,
         goto final;
     }
 
-    int input_weight_size = input_size * lsize;
-    int hidden_weight_size = lsize * lsize;
+    long input_weight_size = input_size * lsize;
+    long hidden_weight_size = lsize * lsize;
     PSFloat *delta = layer->delta;
     PSFloat *gradient_biases_c = lgradients->biases;
     PSFloat *gradient_biases_u = lgradients->biases + layer->size;
@@ -711,9 +712,9 @@ int PSGRUBackprop(PSLayer *layer, PSLayer *previous_layer,
             success = 0;
             goto final;
         }
-        int onehot_idx = (int) input;
-        for (int i = 0; i < layer->size; i++) {
-            int widx = (i * input_size) + onehot_idx;
+        long onehot_idx = (long) input;
+        for (long i = 0; i < layer->size; i++) {
+            long widx = (i * input_size) + onehot_idx;
             gradient_weights_c[widx] += delta_c[i];
             gradient_weights_u[widx] += delta_u[i];
             if (!has_prev_states) continue;

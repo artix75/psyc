@@ -116,6 +116,10 @@
 
 #define UNUSED(V) ((void) V)
 #define MATHS_OPERATION_PREAMBLE() \
+    if (length <= 0) {\
+        PSErr(__func__, "argument `length` must be > 0");\
+        return NULL;\
+    }\
     if (dest == NULL) {\
         dest = PSVectorCreate(length);\
         if (dest == NULL) {\
@@ -124,7 +128,7 @@
         }\
     }\
     PSDotProductDebug debugStep = NULL;\
-    uint64_t i = 0;\
+    long i = 0;\
     int acceleration = PSGlobalAcceleration, mode = PS_STORE_MODE_SET;\
     if (opts != NULL) {\
         acceleration = opts->acceleration;\
@@ -134,16 +138,16 @@
     }\
     UNUSED(debugStep);
 
-typedef PSFloat * (*PSOpVV) (PSFloat *a, PSFloat *b,PSFloat *res, uint64_t len,
+typedef PSFloat * (*PSOpVV) (PSFloat *a, PSFloat *b,PSFloat *res, long len,
                              PSMathOpts *opts);
-typedef PSFloat * (*PSOpVS) (PSFloat *a, PSFloat b, PSFloat *res, uint64_t len,
+typedef PSFloat * (*PSOpVS) (PSFloat *a, PSFloat b, PSFloat *res, long len,
                              PSMathOpts *opts);
-typedef PSFloat * (*PSOpSV) (PSFloat a, PSFloat *b, PSFloat *res, uint64_t len,
+typedef PSFloat * (*PSOpSV) (PSFloat a, PSFloat *b, PSFloat *res, long len,
                              PSMathOpts *opts);
 
 /* Forward declarations and external functions */
 
-int writeSerializedFloatArray(FILE *out, int count, char *sep, int opts,
+int writeSerializedFloatArray(FILE *out, long count, char *sep, int opts,
                               PSFloat *array);
 
 /**** Utils ****/
@@ -189,32 +193,23 @@ PSFloat PSGaussianRandom(PSFloat mean, PSFloat stddev) {
  * (weight) of its index to be generated (for example, the weights
  * `{0.1, 0.7, 0.2}` with a range of 3 give a probability of 70% to number 1
  * to be generated).
- * The optional `err` pointer can be used, if not NULL, to know if some error
- * occurred and, in case of error,  the address pointed by `err` will
- * contain 1.
  * The function can take advantage of the available accelerations (both
  * hardwware and software). By default, accelerations set in
  * `PSGlobalAcceleration` are used, if any. However, the used accelerations
  * methods can be changed via the `acceleration` member of the optional
  * argument `opts`.
- * Return value: the random unsigned integer number. */
-unsigned int PSRandomInt(unsigned int range, PSFloat *weights, int *err,
-                         PSMathOpts *opts)
-{
+ * Return value: the random integer number or -1 in case of error. */
+long PSRandomInt(long range, PSFloat *weights, PSMathOpts *opts) {
     randomSeed();
-    if (err != NULL) *err = 0;
     if (range == 0) return 0;
     if (weights == NULL) {
         if (range > RAND_MAX) {
             PSFloat r = PSNormalizedRandom() * (PSFloat) range;
-            return (int) r;
+            return (long) r;
         } else return rand() % range;
     } else {
         PSFloat cumulated_weights[range];
-        if (!PSCumulativeSum(weights, cumulated_weights, range)) {
-            if (err != NULL) *err = 1;
-            return 0;
-        }
+        if (!PSCumulativeSum(weights, cumulated_weights, range)) return - 1;
         PSFloat last = cumulated_weights[range - 1];
         PSMathOpts mopts = {.acceleration = PSGlobalAcceleration};
         if (opts != NULL) mopts.acceleration = opts->acceleration;
@@ -222,7 +217,7 @@ unsigned int PSRandomInt(unsigned int range, PSFloat *weights, int *err,
             cumulated_weights, last, cumulated_weights, range, &mopts
         );
         PSFloat r = PSNormalizedRandom();
-        unsigned int idx = 0;
+        long idx = 0;
         for (; idx < range; idx++) {
             if (cumulated_weights[idx] <= r) continue;
             break;
@@ -239,10 +234,10 @@ unsigned int PSRandomInt(unsigned int range, PSFloat *weights, int *err,
 
 typedef struct PSMatrixHeader {
     int ndims;
-    int shape[PS_MATRIX_MAX_DIMENSIONS];
+    long shape[PS_MATRIX_MAX_DIMENSIONS];
     PSMatrix transposed;
     PSMatrix transposed_from;
-    uint64_t length;
+    long length;
 } PSMatrixHeader;
 
 static const size_t PSMatrixHeaderSize = sizeof(PSMatrixHeader);
@@ -251,7 +246,7 @@ static char *getMatrixHeadPointer(PSMatrix matrix) {
     return ((char *) matrix) - PSMatrixHeaderSize;
 }
 
-static PSFloat matrixGaussianRandomInitializer(PSMatrix matrix, int idx,
+static PSFloat matrixGaussianRandomInitializer(PSMatrix matrix, long idx,
                                                PSFloat stddev)
 {
     UNUSED(matrix);
@@ -260,14 +255,14 @@ static PSFloat matrixGaussianRandomInitializer(PSMatrix matrix, int idx,
     return PSGaussianRandom(0, stddev);
 }
 
-static PSFloat matrixRandomInitializer(PSMatrix matrix, int idx, PSFloat val) {
+static PSFloat matrixRandomInitializer(PSMatrix matrix, long idx, PSFloat val) {
     UNUSED(matrix);
     UNUSED(idx);
     UNUSED(val);
     return PSNormalizedRandom();
 }
 
-static const char *matrixDimensionsToString(int ndims, int *dims) {
+static const char *matrixDimensionsToString(int ndims, long *dims) {
     static char dimstr[256] = {0};
     if (dims == NULL || ndims < 0 || ndims > PS_MATRIX_MAX_DIMENSIONS) {
         dimstr[0] = '\0';
@@ -278,24 +273,24 @@ static const char *matrixDimensionsToString(int ndims, int *dims) {
     for (int i = 0; i < ndims; i++) {
         if (avail <= 0) break;
         char *sep = (i > 0 ? "," : "");
-        int written = snprintf(s, avail, "%s%d", sep, dims[i]);
+        int written = snprintf(s, avail, "%s%ld", sep, dims[i]);
         s += written;
         avail -= written;
     }
     return dimstr;
 }
 
-static int getShapeType(int nd, int *dims) {
+static int getShapeType(int nd, long *shape) {
     if (nd <= 0) return PS_SHAPE_TYPE_NONE;
     else if (nd == 1) {
-        if (dims[0] > 1) return PS_SHAPE_TYPE_COL;
+        if (shape[0] > 1) return PS_SHAPE_TYPE_COL;
         return PS_SHAPE_TYPE_SCALAR;
     } else if (nd == 2) {
-        if (dims[0] > 1) {
-            if (dims[1] == 1) return PS_SHAPE_TYPE_COL;
+        if (shape[0] > 1) {
+            if (shape[1] == 1) return PS_SHAPE_TYPE_COL;
             else return PS_SHAPE_TYPE_MATRIX;
         }
-        if (dims[1] == 1) return PS_SHAPE_TYPE_SCALAR;
+        if (shape[1] == 1) return PS_SHAPE_TYPE_SCALAR;
         return PS_SHAPE_TYPE_ROW;
     }
     return PS_SHAPE_TYPE_MATRIX;
@@ -314,16 +309,17 @@ static int getShapeType(int nd, int *dims) {
  * directly. The specific function `PSMatrixFree` should be used instead. */
 PSMatrix PSMatrixCreateWithShape(PSFloat init_value,
                                  PSMatrixInitializer initializer,
-                                 int ndims, int *shape)
+                                 int ndims, long *shape)
 {
     if (ndims < 1 || ndims > PS_MATRIX_MAX_DIMENSIONS) {
         PSErr(__func__, "ndims must be between 1 and %d",
               PS_MATRIX_MAX_DIMENSIONS);
         return NULL;
     }
-    int len = 1, i;
+    long len = 1;
+    int i;
     for (i = 0; i < ndims; i++) {
-        int d = shape[i];
+        long d = shape[i];
         if (d <= 0) {
             if (d == 0) {
                 PSWarn("%s: invalid dimension[%d] = %d", __func__, i, d);
@@ -338,7 +334,7 @@ PSMatrix PSMatrixCreateWithShape(PSFloat init_value,
         len *= d;
         shape[i] = d;
     }
-    if (len == 0) {
+    if (len <= 0) {
         PSErr(__func__, "Invalid dimensions: %s",
               matrixDimensionsToString(ndims, shape));
         return NULL;
@@ -380,12 +376,12 @@ PSMatrix PSMatrixCreateV(PSFloat init_value, PSMatrixInitializer initializer,
               PS_MATRIX_MAX_DIMENSIONS);
         return NULL;
     }
-    int dims[PS_MATRIX_MAX_DIMENSIONS];
+    long shape[PS_MATRIX_MAX_DIMENSIONS];
     for (int i = 0; i < ndims; i++) {
-        int d = va_arg(args, int);
-        dims[i] = d;
+        long d = va_arg(args, long);
+        shape[i] = d;
     }
-    return PSMatrixCreateWithShape(init_value, initializer, ndims, dims);
+    return PSMatrixCreateWithShape(init_value, initializer, ndims, shape);
 }
 
 /* Create a new matrix having number of dimensions defined by `ndims`. The
@@ -509,7 +505,7 @@ PSMatrix PSMatrixFromArray(PSFloat *array, int ndims, ...) {
  * directly. The specific function `PSMatrixFree` should be used instead. */
 PSMatrix PSMatrixDup(PSMatrix matrix) {
     if (matrix == NULL) return NULL;
-    uint64_t len = PSMatrixLength(matrix);
+    long len = PSMatrixLength(matrix);
     size_t datasize = ((size_t) len * sizeof(PSFloat));
     size_t size = PSMatrixHeaderSize + datasize;
     PSMatrixHeader *dst_hdr = malloc(size);
@@ -534,7 +530,7 @@ PSMatrix PSMatrixDup(PSMatrix matrix) {
  * directly. The specific function `PSMatrixFree` should be used instead. */
 PSMatrix PSMatrixDupShape(PSMatrix matrix) {
     if (matrix == NULL) return NULL;
-    uint64_t len = PSMatrixLength(matrix);
+    long len = PSMatrixLength(matrix);
     size_t datasize = ((size_t) len * sizeof(PSFloat));
     size_t size = PSMatrixHeaderSize + datasize;
     PSMatrixHeader *dst_hdr = malloc(size);
@@ -569,21 +565,21 @@ int PSMatrixCopy(PSMatrix src, PSMatrix dst) {
         PSErr(__func__, "`dst` matrix is NULL");
         return 0;
     }
-    int src_dims[PS_MATRIX_MAX_DIMENSIONS];
-    int dst_dims[PS_MATRIX_MAX_DIMENSIONS];
-    int src_ndims = PSMatrixShape(src, src_dims),
-        dst_ndims = PSMatrixShape(dst, dst_dims),
-        src_len = PSMatrixLength(src), i;
+    long src_shape[PS_MATRIX_MAX_DIMENSIONS];
+    long dst_shape[PS_MATRIX_MAX_DIMENSIONS];
+    int src_ndims = PSMatrixShape(src, src_shape),
+        dst_ndims = PSMatrixShape(dst, dst_shape);
+    long src_len = PSMatrixLength(src), i;
     if (src_ndims != dst_ndims) {
         PSErr(__func__, "`src` dimensions != `dst` dimensions: %d != %d",
               src_ndims, dst_ndims);
         return 0;
     }
     for (i = 0; i < src_ndims; i++) {
-        if (src_dims[i] != dst_dims[i]) {
+        if (src_shape[i] != dst_shape[i]) {
             PSErr(
-                __func__, "`src` dimension[%d] != `dst`: %d != %d",
-                i, src_dims[i], dst_dims[i]
+                __func__, "`src` shape[%d] != `dst`: %d != %d",
+                i, src_shape[i], dst_shape[i]
             );
             return 0;
         }
@@ -619,7 +615,7 @@ void PSMatrixClear(PSMatrix matrix) {
  *  - NULL if `src` is NULL.
  *  - NULL if memory cannot be allocated.
  */
-PSMatrix PSMatrixExpand(PSMatrix src, int add, int keep_src) {
+PSMatrix PSMatrixExpand(PSMatrix src, long add, int keep_src) {
     if (src == NULL) return NULL;
     if (add <= 0) return src;
     PSMatrix matrix = NULL;
@@ -630,9 +626,9 @@ PSMatrix PSMatrixExpand(PSMatrix src, int add, int keep_src) {
         PSMathOpts opts = {.acceleration = PSGlobalAcceleration};
         return PSMatrixTranspose(matrix, 1, &opts);
     }
-    int new_dims[PS_MATRIX_MAX_DIMENSIONS] = {0};
+    long new_dims[PS_MATRIX_MAX_DIMENSIONS] = {0};
     int ndims = PSMatrixShape(src, new_dims);
-    int curlen = PSMatrixLength(src);
+    long curlen = PSMatrixLength(src);
     new_dims[0] += add;
     matrix = PSMatrixCreateWithShape(0.0, NULL, ndims, new_dims);
     if (matrix == NULL) {
@@ -654,7 +650,7 @@ int PSMatrixNumDims(PSMatrix matrix) {
 
 /* Return the size of the dimension `dim` of `matrix`. If `dim` is out of
  * bounds or if `matrix` is NULL, the function will return zero. */
-int PSMatrixDim(PSMatrix matrix, int dim) {
+long PSMatrixDim(PSMatrix matrix, int dim) {
     if (matrix == NULL) return 0;
     PSMatrixHeader *hdr = PSMatrixGetHeader(matrix);
     if (dim >= hdr->ndims) return 0;
@@ -668,12 +664,12 @@ int PSMatrixDim(PSMatrix matrix, int dim) {
  * (so, the length of the shape array of `matrix`).
  * Return value: the number of dimensions of `matrix` or zero if `matrix` is
  * NULL. */
-int PSMatrixShape(PSMatrix matrix, int *shape) {
+int PSMatrixShape(PSMatrix matrix, long *shape) {
     if (matrix == NULL) return 0;
     int ndims = PSMatrixNumDims(matrix);
     if (shape == NULL) return ndims;
     PSMatrixHeader *hdr = PSMatrixGetHeader(matrix);
-    memcpy(shape, hdr->shape, (PS_MATRIX_MAX_DIMENSIONS * sizeof(int)));
+    memcpy(shape, hdr->shape, (PS_MATRIX_MAX_DIMENSIONS * sizeof(long)));
     return ndims;
 }
 
@@ -681,7 +677,7 @@ int PSMatrixShape(PSMatrix matrix, int *shape) {
  * shape (2,3) will return 6).
  * Return value: the total number of values belonging to `matrix` or zero if
  * `matrix` is NULL. */
-uint64_t PSMatrixLength(PSMatrix matrix) {
+long PSMatrixLength(PSMatrix matrix) {
     if (matrix == NULL) return 0;
     PSMatrixHeader *hdr = PSMatrixGetHeader(matrix);
     return hdr->length;
@@ -692,12 +688,12 @@ uint64_t PSMatrixLength(PSMatrix matrix) {
  * (2,3,3) has a stride of 9 for dimension 0, 3 for dimension 1 and 1 for
  * dimension 2.
  * Return value: the stride of dimension `dim` or zero if `matrix` is NULL. */
-int PSMatrixStride(PSMatrix matrix, int dim) {
+long PSMatrixStride(PSMatrix matrix, int dim) {
     if (matrix == NULL) return 0;
     int refdim = dim + 1;
     PSMatrixHeader *hdr = PSMatrixGetHeader(matrix);
     if (refdim >= PS_MATRIX_MAX_DIMENSIONS || refdim >= hdr->ndims) return 1;
-    int stride = 1;
+    long stride = 1;
     while (refdim < hdr->ndims) stride *= hdr->shape[refdim++];
     return stride;
 }
@@ -721,7 +717,7 @@ int PSMatrixStride(PSMatrix matrix, int dim) {
  *    - All other cases. */
 int PSMatrixShapeType(PSMatrix matrix) {
     if (matrix == NULL) return PS_SHAPE_TYPE_NONE;
-    int dims[PS_MATRIX_MAX_DIMENSIONS];
+    long dims[PS_MATRIX_MAX_DIMENSIONS];
     int ndims = PSMatrixShape(matrix, dims);
     return getShapeType(ndims, dims);
 }
@@ -735,7 +731,7 @@ void PSMatrixPrintInfo(PSMatrix matrix, const char *name, int newline) {
         printf("Matrix %s = (null)%s", name, nl);
         return;
     }
-    int dims[PS_MATRIX_MAX_DIMENSIONS] = {0};
+    long dims[PS_MATRIX_MAX_DIMENSIONS] = {0};
     int ndims = PSMatrixShape(matrix, dims);
     printf(
         "Matrix %s dimensions = %d, shape = (%s)%s",
@@ -745,13 +741,13 @@ void PSMatrixPrintInfo(PSMatrix matrix, const char *name, int newline) {
 
 void PSMatrixPrintShape(PSMatrix matrix, int newline) {
     if (matrix == NULL) return;
-    int shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
+    long shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
     int nd = PSMatrixShape(matrix, shape), i;
     if (nd > PS_MATRIX_MAX_DIMENSIONS) {
         PSWarn("%s: invalid matrix", __func__);
         return;
     }
-    for (i = 0; i < nd; i++) printf("%s%d", (i > 0 ? "," : ""), shape[i]);
+    for (i = 0; i < nd; i++) printf("%s%ld", (i > 0 ? "," : ""), shape[i]);
     if (newline) printf("\n");
 }
 
@@ -774,8 +770,8 @@ void PSMatrixPrintShape(PSMatrix matrix, int newline) {
  * Return value: the total number of bytes written or 0 if:
  *  - `matrix` is NULL.
  *  - Invalid value for `bracket` (see above). */
-int PSMatrixWrite(PSMatrix matrix, const char *sep, char bracket,
-                  int indent, FILE *out)
+size_t PSMatrixWrite(PSMatrix matrix, const char *sep, char bracket,
+                     int indent, FILE *out)
 {
     if (matrix == NULL) return 0;
     if (sep == NULL) sep = ",";
@@ -789,18 +785,18 @@ int PSMatrixWrite(PSMatrix matrix, const char *sep, char bracket,
         PSErr(__func__, "invalid bracket '%c'", bracket);
         return 0;
     }
-    int shape[PS_MATRIX_MAX_DIMENSIONS];
+    long shape[PS_MATRIX_MAX_DIMENSIONS];
     int ndims = PSMatrixShape(matrix, shape), i, j, k;
     int last_dim = ndims - 1;
-    int index[PS_MATRIX_MAX_DIMENSIONS] = {0};
-    int prev_index[PS_MATRIX_MAX_DIMENSIONS];
+    long index[PS_MATRIX_MAX_DIMENSIONS] = {0};
+    long prev_index[PS_MATRIX_MAX_DIMENSIONS];
     for (j = 0; j < ndims; j++) prev_index[j] = -1;
-    int strides[PS_MATRIX_MAX_DIMENSIONS] = {0};
+    long strides[PS_MATRIX_MAX_DIMENSIONS] = {0};
     for (j = 0; j < ndims; j++) {
         strides[j] = 1;
         for (k = j + 1; k < ndims; k++) strides[j] *= shape[k];
     }
-    int len = PSMatrixLength(matrix), nwritten = 0;
+    long len = PSMatrixLength(matrix), nwritten = 0;
     char *nl = (indent > 0 ? "\n" : "");
     for (i = 0; i < len; i++) {
         PSFloat val = matrix[i];
@@ -820,12 +816,12 @@ int PSMatrixWrite(PSMatrix matrix, const char *sep, char bracket,
         if (index[last_dim] == shape[last_dim] - 1) {
             const char *row_sep = sep;
             if (last_dim > 0) {
-                int last_row_idx = shape[last_dim - 1] - 1;
+                long last_row_idx = shape[last_dim - 1] - 1;
                 if (index[last_dim - 1] == last_row_idx) row_sep = "";
             } else if (ndims == 1) row_sep = "";
             nwritten += fprintf(out, "%c%s%s", end_bracket, row_sep, nl);
             for (j = last_dim - 1; j >= 0; j--) {
-                int last_idx = shape[j] - 1;
+                long last_idx = shape[j] - 1;
                 row_sep = (i == len - 1 ? "" : sep);
                 if (index[j] == last_idx) {
                     nwritten += fprintf(
@@ -835,7 +831,7 @@ int PSMatrixWrite(PSMatrix matrix, const char *sep, char bracket,
                 } else break;
             }
         }
-        memcpy(prev_index, index, PS_MATRIX_MAX_DIMENSIONS * sizeof(int));
+        memcpy(prev_index, index, PS_MATRIX_MAX_DIMENSIONS * sizeof(long));
     }
     if (indent > 0) printf("\n");
     return nwritten;
@@ -851,18 +847,18 @@ int PSMatrixWrite(PSMatrix matrix, const char *sep, char bracket,
 void PSMatrixPrint(PSMatrix matrix, const char *sep, int print_shape) {
     if (matrix == NULL) return;
     if (print_shape) {
-        int shape[PS_MATRIX_MAX_DIMENSIONS];
+        long shape[PS_MATRIX_MAX_DIMENSIONS];
         int ndims = PSMatrixShape(matrix, shape);
         printf("Matrix (shape = %s):\n",matrixDimensionsToString(ndims,shape));
     }
     PSMatrixWrite(matrix, sep, '[', 2, stdout);
 }
 
-PSFloat *PSMatrixGet(PSMatrix matrix, int ndims, uint32_t *len, ...) {
+PSFloat *PSMatrixGet(PSMatrix matrix, int ndims, long *len, ...) {
     if (matrix == NULL) return NULL;
     PSMatrixHeader *hdr = PSMatrixGetHeader(matrix);
     PSFloat *values = matrix;
-    int stride = 1;
+    long stride = 1;
     if (ndims > hdr->ndims) ndims = hdr->ndims;
     va_list args;
     va_start(args, len);
@@ -870,9 +866,9 @@ PSFloat *PSMatrixGet(PSMatrix matrix, int ndims, uint32_t *len, ...) {
         int refdim = i + 1;
         if (refdim >= hdr->ndims) stride = 1;
         else stride = PSMatrixStride(matrix, i);
-        int idx = va_arg(args, int);
+        long idx = va_arg(args, long);
         if (idx >= hdr->shape[i]) {
-            PSWarn("%s: index %d is out of bounds for axis[%d] (%d)",
+            PSWarn("%s: index %ld is out of bounds for axis[%d] (%ld)",
                    __func__, idx, i, hdr->shape[i]);
             values = NULL;
             stride = 0;
@@ -911,11 +907,11 @@ static int genericMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *out,
         b = PSMatrixTranspose(b, 0, opts);
         if (a == NULL) return 0;
     }
-    int shape_a[PS_MATRIX_MAX_DIMENSIONS] = {0};
-    int shape_b[PS_MATRIX_MAX_DIMENSIONS] = {0};
+    long shape_a[PS_MATRIX_MAX_DIMENSIONS] = {0};
+    long shape_b[PS_MATRIX_MAX_DIMENSIONS] = {0};
+    long len = 0;
     int ndims_a = PSMatrixShape(a, shape_a);
     int ndims_b = PSMatrixShape(b, shape_b);
-    uint64_t len = 0;
     if (ndims_a == 0 || ndims_b == 0) {
         /* `a` or `b` is scalar */
         PSMatrix ma, mb;
@@ -928,7 +924,7 @@ static int genericMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *out,
         }
         len = PSMatrixLength(ma);
         if (*out != NULL) {
-            uint64_t reslen = PSMatrixLength(*out);
+            long reslen = PSMatrixLength(*out);
             if (reslen != len) {
                 PSErr(__func__, "`out` length != expected: %llu != %llu",
                       reslen, len);
@@ -941,7 +937,8 @@ static int genericMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *out,
         PSMultiplyVectorScalar(ma, mb[0], *out, len, opts);
         return 1;
     }
-    int l = shape_a[ndims_a - 1], refdim;
+    long l = shape_a[ndims_a - 1];
+    int refdim;
     if (ndims_b > 1) refdim = ndims_b - 2;
     else refdim = 0;
     if (shape_b[refdim] != l) {
@@ -961,8 +958,9 @@ static int genericMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *out,
               nd, PS_MATRIX_MAX_DIMENSIONS);
         return 0;
     }
-    int i, j = 0, niter_a = 1, niter_b = 1;
-    int dimensions[PS_MATRIX_MAX_DIMENSIONS * 3] = {0};
+    int i, j = 0;
+    long niter_a = 1, niter_b = 1;
+    long dimensions[PS_MATRIX_MAX_DIMENSIONS * 3] = {0};
     for (i = 0; i < (ndims_a - 1); i++) {
         if (i < (ndims_a - 1)) niter_a *= shape_a[i];
         dimensions[j++] = shape_a[i];
@@ -971,7 +969,7 @@ static int genericMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *out,
     if (ndims_b > 1) dimensions[j++] = shape_b[ndims_b - 1];
     niter_b = PSMatrixLength(b) / l;
     if (*out != NULL) {
-        int out_shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
+        long out_shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
         int out_ndims = PSMatrixShape(*out, out_shape);
         if (out_ndims != nd) {
             PSErr(
@@ -981,11 +979,11 @@ static int genericMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *out,
             return 0;
         }
         for (i = 0; i < nd; i++) {
-            int odim = out_shape[i];
+            long odim = out_shape[i];
             if (odim != dimensions[i]) {
                 PSErr(
-                    __func__, "`out` matrix dimension [%d] is %d, "
-                    "but it should be %d\nResult shape: %d,%d",
+                    __func__, "`out` matrix dimension [%d] is %ld, "
+                    "but it should be %ld\nResult shape: %ld,%ld",
                     i, odim, dimensions[i]
                 );
                 return 0;
@@ -995,13 +993,13 @@ static int genericMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *out,
         *out = PSMatrixCreateWithShape(0, NULL, nd, dimensions);
         if (*out == NULL) return 0;
     }
-    uint64_t outlen = PSMatrixLength(*out);
+    long outlen = PSMatrixLength(*out);
     PSFloat *out_p = *out, *ap = a, *bp = NULL;
     PSMatrix swap_b = NULL;
     if (ndims_b > 1) {
         b = PSMatrixTranspose(b, 0, opts);
         if (b == NULL) return 0;
-        int blen = PSMatrixDim(b, 0);
+        long blen = PSMatrixDim(b, 0);
         if (ndims_b > 2) {
             if ((ndims_b - 1) > 2) {
                 PSErr(NULL, "unsupported dimensions for matrix `b`");
@@ -1009,11 +1007,11 @@ static int genericMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *out,
             }
             swap_b = PSMatrixDupShape(b);
             if (swap_b == NULL) return 0;
-            int bs = PSMatrixStride(swap_b, 0);
-            int tshape_b[PS_MATRIX_MAX_DIMENSIONS] = {0};
+            long bs = PSMatrixStride(swap_b, 0);
+            long tshape_b[PS_MATRIX_MAX_DIMENSIONS] = {0};
             PSMatrixShape(b, tshape_b);
             for (i = 0; i < blen; i++) {
-                int offset = i * bs;
+                long offset = i * bs;
                 PSFloat *src = b + offset, *dst = swap_b + offset;
                 dst = PSVectorTranspose(
                     src, dst, opts->acceleration, 2,
@@ -1024,21 +1022,21 @@ static int genericMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *out,
             }
             b = swap_b;
             PSMatrixShape(b, tshape_b);
-            int last_db = tshape_b[ndims_b - 1];
+            long last_db = tshape_b[ndims_b - 1];
             tshape_b[ndims_b - 1] = tshape_b[ndims_b - 2];
             tshape_b[ndims_b - 2] = last_db;
             PSMatrixHeader *hdr = PSMatrixGetHeader(b);
             memcpy(
-                hdr->shape, tshape_b, PS_MATRIX_MAX_DIMENSIONS * sizeof(int)
+                hdr->shape, tshape_b, PS_MATRIX_MAX_DIMENSIONS * sizeof(long)
             );
             l = tshape_b[ndims_b - 1];
-            int as = PSMatrixStride(a, 0), k;
+            long as = PSMatrixStride(a, 0), k;
             for (i = 0; i < niter_a; i++) {
                 bp = b;
                 for (k = 0; k < tshape_b[ndims_b - 2]; k++) {
                     for (j = 0; j < blen; j++) {
                         bp = (b + (j * bs)) + (l * k);
-                        assert((uint64_t)(out_p - *out) <= outlen);
+                        assert((long)(out_p - *out) <= outlen);
                         *(out_p++) = PSDotProduct(ap, bp, l, opts);
                     }
                 }
@@ -1090,8 +1088,8 @@ static int genericMatrixOperation(PSMatrix a, PSMatrix b, PSMatrix *result,
         if (b == NULL) return 0;
     }
     /* Original matrix dimensions */
-    int dims_a[PS_MATRIX_MAX_DIMENSIONS];
-    int dims_b[PS_MATRIX_MAX_DIMENSIONS];
+    long dims_a[PS_MATRIX_MAX_DIMENSIONS];
+    long dims_b[PS_MATRIX_MAX_DIMENSIONS];
     /* Number of dimensions */
     int ndims_a = PSMatrixShape(a, dims_a);
     int ndims_b = PSMatrixShape(b, dims_b);
@@ -1103,8 +1101,9 @@ static int genericMatrixOperation(PSMatrix a, PSMatrix b, PSMatrix *result,
         PSErr(func, "Invalid matrix `b`");
         return 0;
     }
-    int *shape_a = dims_a, *shape_b = dims_b, *deepest_shape = NULL;
-    int deepest_nd, deepest_len;
+    long *shape_a = dims_a, *shape_b = dims_b, *deepest_shape = NULL;
+    int deepest_nd;
+    long deepest_len;
     PSMatrix deepest_matrix = NULL;
     int commutative = (svop == NULL);
     if (ndims_b > ndims_a && commutative) {
@@ -1131,7 +1130,8 @@ static int genericMatrixOperation(PSMatrix a, PSMatrix b, PSMatrix *result,
             deepest_matrix = a;
         }
     }
-    int len_a = PSMatrixLength(a), len_b = PSMatrixLength(b), same_shape = 0, i;
+    long len_a = PSMatrixLength(a), len_b = PSMatrixLength(b);
+    int same_shape = 0, i;
     deepest_len = PSMatrixLength(deepest_matrix);
     if (len_a == len_b && ndims_a == ndims_b) {
         same_shape = 1;
@@ -1167,7 +1167,7 @@ static int genericMatrixOperation(PSMatrix a, PSMatrix b, PSMatrix *result,
         if (out == NULL) return 0;
         *result = out;
     } else {
-        int shape_o[PS_MATRIX_MAX_DIMENSIONS] = {0};
+        long shape_o[PS_MATRIX_MAX_DIMENSIONS] = {0};
         int ndims_o = PSMatrixShape(out, shape_o);
         int same_out_shape = (ndims_o == deepest_nd);
         if (same_out_shape) {
@@ -1187,7 +1187,7 @@ static int genericMatrixOperation(PSMatrix a, PSMatrix b, PSMatrix *result,
     else if (a_scalar && !commutative) svop(*a, b, out, deepest_len, opt);
     else {
         PSFloat *ap = a, *op = out;
-        int count = len_a / len_b;
+        long count = len_a / len_b;
         for (i = 0; i < count; i++) {
             vvop(ap, b, op, len_b, opt);
             ap += len_b;
@@ -1225,7 +1225,7 @@ static int genericMatrixOperation(PSMatrix a, PSMatrix b, PSMatrix *result,
  *  - Matrix pointed by `result` is not NULL and its shape differs
  *    from resulting output shape.
  *  - Memory allocation failure. */
-int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
+int PSMatrixProductMV(PSMatrix a, PSFloat *b, long len, PSFloat **result,
                       PSMathOpts *opts)
 {
     if (result == NULL) {
@@ -1254,7 +1254,8 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
     UNUSED(acceleration);
     UNUSED(use_acf);
 #endif
-    int dims_a[PS_MATRIX_MAX_DIMENSIONS];
+    PSBLASErr blas_err = {.func = __func__};
+    long dims_a[PS_MATRIX_MAX_DIMENSIONS];
     int ndims = PSMatrixShape(a, dims_a);
     if (ndims == 0) {
         PSErr(__func__, "Invalid matrix");
@@ -1266,7 +1267,7 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
         PSMatrix res = NULL;
         int success = genericMatrixProduct(a, mb, &res, opts);
         if (success && res != NULL) {
-            int reslen = PSMatrixLength(res);
+            long reslen = PSMatrixLength(res);
             if (*result == NULL) *result = calloc(reslen, sizeof(PSFloat));
             if (*result != NULL) PSVectorCopy(*result, res, reslen);
             else success = 0;
@@ -1278,14 +1279,15 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
     int scalar_a = (getShapeType(ndims, dims_a) == PS_SHAPE_TYPE_SCALAR);
     int scalar_b = len == 1;
     int use_scalar = (scalar_a || scalar_b);
-    int l = (transpose & 1 ? dims_a[0] : dims_a[ndims - 1]);
+    long l = (transpose & 1 ? dims_a[0] : dims_a[ndims - 1]);
     if (len != l && !use_scalar) {
         PSErr(__func__, "Aligment error: vector len != a dim[%d] -> "
-              "%d != %d (transpose: %d)", (ndims - 1), l, len, transpose);
+              "%ld != %ld (transpose: %d)", (ndims - 1), l, len, transpose);
         PSMatrixPrintInfo(a, "a", 1);
         return 0;
     }
-    int nd, ld, outlen;
+    int nd;
+    long ld, outlen, len_a = PSMatrixLength(a);
     if (use_scalar) {
         if (scalar_a && scalar_b) nd = 0;
         else {
@@ -1313,15 +1315,32 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
         if (!scalar_a && transpose & 1) a = PSMatrixTranspose(a, 0, opts);
         if (scalar_a && scalar_b) *out = *a * *b;
         else if (scalar_a) PSMultiplyVectorScalar(b, *a, out, len, opts);
-        else PSMultiplyVectorScalar(a, *b, out, PSMatrixLength(a), opts);
+        else PSMultiplyVectorScalar(a, *b, out, len_a, opts);
         return 1;
     }
     if (ndims == 1) {
         out[0] = PSDotProduct(a, b, len, opts);
         return 1;
     }
-    int lda = (dims_a[1] > 1 ? dims_a[1] : 1);
-    int m = dims_a[0], n = dims_a[1];
+    if (use_blas) {
+        /* Check whether matrix shape, vector length or resulting matrix
+         * length would exceed current BLAS limits, since Psyc used `long`
+         * for indices, but the used BLAS library could a used smaller type. */
+        int valid = PSBLASCheckLimits(
+            &blas_err, "$3", "matrix length", len_a, "vector length", len,
+            "result length", outlen
+        );
+        if (!valid) {
+            use_blas = 0;
+            PSWarn("%s", PSBLASErrorStr(&blas_err, NULL));
+            PSWarn(
+                "%s: BLAS has been disabled since some dimensions exceeds "
+                "PSBLAS_MAX (%ld)", __func__, PSBLAS_MAX
+            );
+        }
+    }
+    long lda = (dims_a[1] > 1 ? dims_a[1] : 1);
+    long m = dims_a[0], n = dims_a[1];
     if (!use_blas) {
         int do_add = (beta == 1.0);
         if (transpose & 1) {
@@ -1354,7 +1373,7 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
         }
 #endif
         PSMathOpts mopts = {.acceleration = acceleration};
-        for (int i = 0; i < m; i++) {
+        for (long i = 0; i < m; i++) {
             PSFloat *row = a + (i * n);
             if (!do_add) out[i] = PSDotProduct(row, b, n, &mopts);
             else out[i] += PSDotProduct(row, b, n, &mopts);
@@ -1393,7 +1412,7 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
  *  - Matrix pointed by `result` is not NULL and its shape differs
  *    from resulting output shape.
  *  - Memory allocation failure. */
-int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
+int PSMatrixProductVM(PSFloat *a, PSMatrix b, long len, PSMatrix *result,
                       PSMathOpts *opts)
 {
     if (result == NULL) {
@@ -1401,9 +1420,9 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
         return 0;
     }
     PSBLASOrder order = PSBLASRowMajor;
-    int mdims_b[PS_MATRIX_MAX_DIMENSIONS];
-    int tdims_b[PS_MATRIX_MAX_DIMENSIONS];
-    int *dims_b = mdims_b;
+    long mdims_b[PS_MATRIX_MAX_DIMENSIONS];
+    long tdims_b[PS_MATRIX_MAX_DIMENSIONS];
+    long *dims_b = mdims_b;
     int ndims = PSMatrixShape(b, dims_b);
     if (ndims == 0) {
         PSErr(__func__, "Invalid matrix");
@@ -1417,7 +1436,7 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
         return success;
     }
     int last_dim = ndims - 1;
-    int dimensions[PS_MATRIX_MAX_DIMENSIONS] = {0};
+    long dimensions[PS_MATRIX_MAX_DIMENSIONS] = {0};
     int transpose = 0;
     int acceleration = PSGlobalAcceleration;
     PSFloat beta = 0.0;
@@ -1444,15 +1463,17 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
     UNUSED(acceleration);
     UNUSED(use_acf);
 #endif
+    PSBLASErr blas_err = {.func = __func__};
     int scalar_a = len == 1;
     int scalar_b = (getShapeType(ndims, dims_b) == PS_SHAPE_TYPE_SCALAR);
     int use_scalar = (scalar_a || scalar_b);
-    int l = dims_b[0];
+    long l = dims_b[0];
     if (l != len && !use_scalar) {
         PSErr(__func__, "Aligment error: b dim[0] != vector length -> "
-              "%d != %d (transpose: %d)", dims_b[0], len, transpose);
+              "%ld != %ld (transpose: %d)", dims_b[0], len, transpose);
         return 0;
     }
+    long len_b = PSMatrixLength(b);
     int nd;
     if (!use_scalar) {
         nd = 1 + ndims - 2;
@@ -1469,10 +1490,10 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
         }
     } else {
         nd = 1;
-        dimensions[0] = (scalar_a ? (int) PSMatrixLength(b) : len);
+        dimensions[0] = (scalar_a ? len_b : len);
     }
     PSMatrix out = *result;
-    int outlen = 0;
+    long outlen = 0;
     if (out != NULL && (opts == NULL || opts->argtype[1] != 'V')) {
         PSMatrixHeader *hdr = PSMatrixGetHeader(out);
         if (hdr->ndims != nd) {
@@ -1483,7 +1504,7 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
             return 0;
         }
         for (int i = 0; i < nd; i++) {
-            int odim = PSMatrixDim(out, i);
+            long odim = PSMatrixDim(out, i);
             if (odim != dimensions[i]) {
                 PSErr(__func__, "`result` matrix dimension [%d] is %d, "
                       "but it should be %d", i, odim, dimensions[i]);
@@ -1505,19 +1526,36 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
         if (!scalar_b && transpose & 2) b = PSMatrixTranspose(b, 0, opts);
         if (scalar_a && scalar_b) *out = *a * *b;
         else if (scalar_b) PSMultiplyVectorScalar(a, *b, out, len, opts);
-        else PSMultiplyVectorScalar(b, *a, out, PSMatrixLength(b), opts);
+        else PSMultiplyVectorScalar(b, *a, out, len_b, opts);
         return 1;
-    } else if (nd==1 && dimensions[0]==1  && PSMatrixLength(b)==(uint64_t)len) {
+    } else if (nd == 1 && dimensions[0] == 1  && len_b == len) {
         *out = PSDotProduct(a, b, len, opts);
         return 1;
     }
-    int lda = (mdims_b[1] > 1 ? mdims_b[1] : 1);
-    int m = mdims_b[0], n = mdims_b[1];
+    if (use_blas) {
+        /* Check whether matrix shape, vector length or resulting matrix
+         * length would exceed current BLAS limits, since Psyc used `long`
+         * for indices, but the used BLAS library could a used smaller type. */
+        int valid = PSBLASCheckLimits(
+            &blas_err, "$3", "matrix length", len_b, "vector length", len,
+            "result length", outlen
+        );
+        if (!valid) {
+            use_blas = 0;
+            PSWarn("%s", PSBLASErrorStr(&blas_err, NULL));
+            PSWarn(
+                "%s: BLAS has been disabled since some dimensions exceeds "
+                "PSBLAS_MAX (%ld)", __func__, PSBLAS_MAX
+            );
+        }
+    }
+    long lda = (mdims_b[1] > 1 ? mdims_b[1] : 1);
+    long m = mdims_b[0], n = mdims_b[1];
     if (!use_blas) {
         int do_add = (beta == 1.0);
         if (!(transpose & 2)) b = PSMatrixTranspose(b, 0, opts);
         else {
-            int tmpm = m;
+            long tmpm = m;
             m = n;
             n = tmpm;
         }
@@ -1545,7 +1583,7 @@ int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
         }
 #endif
         PSMathOpts mopts = {.acceleration = acceleration};
-        for (int i = 0; i < n; i++) {
+        for (long i = 0; i < n; i++) {
             PSFloat *row = b + (i * m);
             if (!do_add) out[i] = PSDotProduct(row, a, m, &mopts);
             else out[i] += PSDotProduct(row, a, m, &mopts);
@@ -1593,11 +1631,11 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
         return 0;
     }
     /* Original matrix dimensions */
-    int mdims_a[PS_MATRIX_MAX_DIMENSIONS];
-    int mdims_b[PS_MATRIX_MAX_DIMENSIONS];
+    long mdims_a[PS_MATRIX_MAX_DIMENSIONS];
+    long mdims_b[PS_MATRIX_MAX_DIMENSIONS];
     /* Eventually transposed matrix dimensions */
-    int tdims_a[PS_MATRIX_MAX_DIMENSIONS];
-    int tdims_b[PS_MATRIX_MAX_DIMENSIONS];
+    long tdims_a[PS_MATRIX_MAX_DIMENSIONS];
+    long tdims_b[PS_MATRIX_MAX_DIMENSIONS];
     /* Number of dimensions */
     int ndims_a = PSMatrixShape(a, mdims_a);
     int ndims_b = PSMatrixShape(b, mdims_b);
@@ -1611,10 +1649,10 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
     }
     if (ndims_a > 2 || ndims_b > 2)
         return genericMatrixProduct(a, b, result, opt);
-    int last_dim_a = ndims_a - 1, last_dim_b = ndims_b - 1;
-    int *dims_a = mdims_a, *dims_b = mdims_b;
-    int lda = 0, ldb = 0, l = 0, i;
-    int dimensions[PS_MATRIX_MAX_DIMENSIONS] = {0};
+    int last_dim_a = ndims_a - 1, last_dim_b = ndims_b - 1, i;
+    long *dims_a = mdims_a, *dims_b = mdims_b;
+    long lda = 0, ldb = 0, l = 0;
+    long dimensions[PS_MATRIX_MAX_DIMENSIONS] = {0};
     char trans_a = 'N', trans_b = 'N';
     int transpose = 0;
     int acceleration = PSGlobalAcceleration;
@@ -1637,6 +1675,24 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
     UNUSED(use_acf);
     UNUSED(acceleration);
 #endif
+    PSBLASErr blas_err = {.func = __func__};
+    if (use_blas) {
+        /* Check whether matrix shape, vector length or resulting matrix
+         * length would exceed current BLAS limits, since Psyc used `long`
+         * for indices, but the used BLAS library could a used smaller type. */
+        int valid = PSBLASCheckLimits(
+            &blas_err, "$2", "`a` length", PSMatrixLength(a),
+            "`b` length", PSMatrixLength(b)
+        );
+        if (!valid) {
+            use_blas = 0;
+            PSWarn("%s", PSBLASErrorStr(&blas_err, NULL));
+            PSWarn(
+                "%s: BLAS has been disabled since some dimensions exceeds "
+                "PSBLAS_MAX (%ld)", __func__, PSBLAS_MAX
+            );
+        }
+    }
     int shape_a = getShapeType(ndims_a, mdims_a);
     int shape_b = getShapeType(ndims_b, mdims_b);
     PSMatrix orig_a = a, orig_b = b;
@@ -1649,7 +1705,7 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
             reverse_args = 1;
             PSMatrix tmp_a = a;
             int tmp_nda = ndims_a;
-            int tmp_shape_a[PS_MATRIX_MAX_DIMENSIONS] = {0};
+            long tmp_shape_a[PS_MATRIX_MAX_DIMENSIONS] = {0};
             a = b;
             b = tmp_a;
             shape_a = shape_b;
@@ -1660,9 +1716,9 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
             if (transpose & 2) tr |= 1;
             if (transpose & 1) tr |= 2;
             transpose = tr;
-            memcpy(tmp_shape_a, mdims_a, PS_MATRIX_MAX_DIMENSIONS*sizeof(int));
-            memcpy(mdims_a, mdims_b, PS_MATRIX_MAX_DIMENSIONS * sizeof(int));
-            memcpy(mdims_b, tmp_shape_a, PS_MATRIX_MAX_DIMENSIONS*sizeof(int));
+            memcpy(tmp_shape_a, mdims_a, PS_MATRIX_MAX_DIMENSIONS*sizeof(long));
+            memcpy(mdims_a, mdims_b, PS_MATRIX_MAX_DIMENSIONS * sizeof(long));
+            memcpy(mdims_b, tmp_shape_a, PS_MATRIX_MAX_DIMENSIONS*sizeof(long));
             last_dim_a = ndims_a - 1;
             last_dim_b = ndims_b - 1;
         }
@@ -1720,8 +1776,8 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
             return 0;
         }
     } else {
-        int odims_a[PS_MATRIX_MAX_DIMENSIONS] = {0};
-        int odims_b[PS_MATRIX_MAX_DIMENSIONS] = {0};
+        long odims_a[PS_MATRIX_MAX_DIMENSIONS] = {0};
+        long odims_b[PS_MATRIX_MAX_DIMENSIONS] = {0};
         int o_ndims_a = PSMatrixShape(orig_a, odims_a),
             o_ndims_b = PSMatrixShape(orig_b, odims_b);
         if (transpose) {
@@ -1732,12 +1788,12 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
                 if (transpose & 1) orig_transp |= 2;
             }
             if (o_ndims_a > 1 && orig_transp & 1) {
-                int tmp = odims_a[0];
+                long tmp = odims_a[0];
                 odims_a[0] = odims_a[o_ndims_a - 1];
                 odims_a[o_ndims_a - 1] = tmp;
             }
             if (o_ndims_b > 1 && orig_transp & 2) {
-                int tmp = odims_b[0];
+                long tmp = odims_b[0];
                 odims_b[0] = odims_b[o_ndims_b - 1];
                 odims_b[o_ndims_b - 1] = tmp;
             }
@@ -1759,7 +1815,7 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
         }
         if (odims_a[o_ndims_a - 1] == 0) l = 0;
     }
-    int outlen = 0;
+    long outlen = 0;
     PSMatrix out = *result;
     if (out != NULL && (opt == NULL || opt->argtype[2] != 'V')) {
         PSMatrixHeader *hdr = PSMatrixGetHeader(out);
@@ -1771,11 +1827,11 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
             return 0;
         }
         for (i = 0; i < nd; i++) {
-            int odim = PSMatrixDim(out, i);
+            long odim = PSMatrixDim(out, i);
             if (odim != dimensions[i]) {
                 PSErr(
-                    __func__, "`result` matrix dimension [%d] is %d, "
-                    "but it should be %d\nResult shape: %d,%d",
+                    __func__, "`result` matrix dimension [%d] is %ld, "
+                    "but it should be %ld\nResult shape: %ld,%ld",
                     i, odim, dimensions[i]
                 );
                 return 0;
@@ -1798,13 +1854,18 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
         *out = PSDotProduct(a, b, PSMatrixLength(a), opt);
         return 1;
     }
+    if (use_blas && outlen > PSBLAS_MAX) {
+        PSErr(__func__, "result matrix length (%ld) would exceed PSBLAS_MAX "
+              "(%ld)", outlen, PSBLAS_MAX);
+        return 0;
+    }
     PSBLASOrder order;
     if (shape_b == PS_SHAPE_TYPE_SCALAR) {
         if (l == 1) {
             *out = *b * *a;
             return 1;
         } else {
-            int a_stride;
+            long a_stride;
             if (shape_a == PS_SHAPE_TYPE_ROW) a_stride = PSMatrixStride(a, 1);
             else a_stride = PSMatrixStride(a, 0);
             if (shape_a != PS_SHAPE_TYPE_MATRIX)
@@ -1815,8 +1876,8 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
                 l = dims_a[max_dim_idx];
                 PSFloat val = *((PSFloat *) b);
                 a_stride = PSMatrixStride(a, max_dim_idx);
-                int o_stride = PSMatrixStride(out, max_dim_idx);
-                int o_dim = dims_a[o_dim_idx];
+                long o_stride = PSMatrixStride(out, max_dim_idx);
+                long o_dim = dims_a[o_dim_idx];
                 PSFloat *aptr = a, *optr = out;
                 for (i = 0; i < o_dim; i++) {
                     PSAxpy(l, val, aptr, a_stride, optr, o_stride);
@@ -1832,12 +1893,12 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
         dims_b = mdims_b;
         order = PSBLASRowMajor;
         lda = (dims_a[last_dim_a] > 1 ? dims_a[1] : 1);
-        int bs = PSMatrixStride(b, (transpose_b ? ndims_b - 1 : 0));
-        int m = dims_a[0], n = dims_a[1];
+        long bs = PSMatrixStride(b, (transpose_b ? ndims_b - 1 : 0));
+        long m = dims_a[0], n = dims_a[1];
         if (!use_blas) {
             int do_add = (beta == 1.0);
             if (transpose_a) {
-                int tmpm = m;
+                long tmpm = m;
                 m = n;
                 n = tmpm;
             }
@@ -1867,7 +1928,7 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
             UNUSED(outlen);
 #endif
             PSMathOpts mopts = {.acceleration = acceleration};
-            for (int i = 0; i < m; i++) {
+            for (long i = 0; i < m; i++) {
                 PSFloat *row = a + (i * n);
                 if (!do_add) out[i] = PSDotProduct(row, b, n, &mopts);
                 else out[i] += PSDotProduct(row, b, n, &mopts);
@@ -1882,7 +1943,7 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
         dims_b = mdims_b;
         order = PSBLASRowMajor;
         lda = (dims_b[1] > 1 ? dims_b[1] : 1);
-        int m = dims_b[0], n = dims_b[1];
+        long m = dims_b[0], n = dims_b[1];
         if (!use_blas) {
             int do_add = (beta == 1.0);
             /* Transposition here needs to work in reveres way: if b should be
@@ -1895,7 +1956,7 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
              *  - otherwise, transpose it. */
             b = PSMatrixTranspose(b, 0, opt);
             if (transpose_b) {
-                int tmpm = m;
+                long tmpm = m;
                 m = n;
                 n = tmpm;
             }
@@ -1923,7 +1984,7 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
             }
 #endif
             if (opt) opt->store_mode = PS_STORE_MODE_SET;
-            for (int i = 0; i < n; i++) {
+            for (long i = 0; i < n; i++) {
                 PSFloat *row = b + (i * m);
                 if (!do_add) out[i] = PSDotProduct(row, a, m, opt);
                 else out[i] += PSDotProduct(row, a, n, opt);
@@ -1935,9 +1996,9 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
     } else {
         /* Matrix matrix multiplication -- Level 3 BLAS */
         order = PSBLASRowMajor;
-        int m = dims_a[0];
-        int n = dims_b[1];
-        int k = dims_a[1];
+        long m = dims_a[0];
+        long n = dims_b[1];
+        long k = dims_a[1];
         if (!use_blas) {
             int do_add = (beta == 1.0);
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
@@ -1969,9 +2030,9 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
             l = PSMatrixDim(b, 0);
             k = PSMatrixDim(b, 1);
             if (opt) opt->store_mode = PS_STORE_MODE_SET;
-            for (int i = 0; i < dimensions[0]; i++) {
-                for (int j = 0; j < dimensions[1]; j++) {
-                    int oidx = (i * dimensions[1]) + j;
+            for (long i = 0; i < dimensions[0]; i++) {
+                for (long j = 0; j < dimensions[1]; j++) {
+                    long oidx = (i * dimensions[1]) + j;
                     PSFloat *arow = a + (n * i);
                     PSFloat *brow = b + (k * j);
                     if (!do_add) out[oidx] = PSDotProduct(arow, brow, k, opt);
@@ -1996,13 +2057,13 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
             PSErr(__func__, "Unsupported BLAS Syrc");
             return 0;
         } else {
-            int odim1 = PSMatrixDim(out, 1);
-            int ldc = ((odim1 > 1) ? odim1 : 1);
+            long odim1 = PSMatrixDim(out, 1);
+            long ldc = ((odim1 > 1) ? odim1 : 1);
             PSGemm(order, trans_a, trans_b, m, n, k, 1.0, a, lda, b, ldb, beta,
                    out, ldc);
         }*/
-        int odim1 = PSMatrixDim(out, 1);
-        int ldc = ((odim1 > 1) ? odim1 : 1);
+        long odim1 = PSMatrixDim(out, 1);
+        long ldc = ((odim1 > 1) ? odim1 : 1);
         PSGemm(order, trans_a, trans_b, m, n, k, 1.0, a, lda, b, ldb, beta,
                out, ldc);
     }
@@ -2011,10 +2072,10 @@ int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt) {
 align_err:
     if (reverse_args) {
         /* `a` and `b` were reversed */
-        int tmp_shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
-        memcpy(tmp_shape, dims_a, PS_MATRIX_MAX_DIMENSIONS * sizeof(int));
-        memcpy(dims_a, dims_b, PS_MATRIX_MAX_DIMENSIONS * sizeof(int));
-        memcpy(dims_b, dims_a, PS_MATRIX_MAX_DIMENSIONS * sizeof(int));
+        long tmp_shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
+        memcpy(tmp_shape, dims_a, PS_MATRIX_MAX_DIMENSIONS * sizeof(long));
+        memcpy(dims_a, dims_b, PS_MATRIX_MAX_DIMENSIONS * sizeof(long));
+        memcpy(dims_b, dims_a, PS_MATRIX_MAX_DIMENSIONS * sizeof(long));
         int tr_a = transpose_a, last_d_a = last_dim_a;
         transpose_a = transpose_b;
         transpose_b = tr_a;
@@ -2256,7 +2317,7 @@ int PSMatrixSubtract(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt)
 int PSMatrixDivide(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt)
 {
     if (b != NULL) {
-        int shape_b[PS_MATRIX_MAX_DIMENSIONS] = {0};
+        long shape_b[PS_MATRIX_MAX_DIMENSIONS] = {0};
         int nd_b = PSMatrixShape(b, shape_b);
         if (getShapeType(nd_b, shape_b) == PS_SHAPE_TYPE_SCALAR && *b == 0) {
             PSErr(__func__, "division by zero");
@@ -2293,14 +2354,14 @@ PSMatrix PSMatrixReshape(PSMatrix matrix, int num_dims, ...) {
         PSErr(__func__, "max shape dimensions: %d", PS_MATRIX_MAX_DIMENSIONS);
         return NULL;
     }
-    uint64_t new_len = 1;
-    int new_shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
+    long new_len = 1;
+    long new_shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
     PSMatrixHeader *hdr = PSMatrixGetHeader(matrix);
     va_list args;
     va_start(args, num_dims);
     for (int i = 0; i < num_dims; i++) {
-        new_shape[i] = va_arg(args, int);
-        new_len *= (uint64_t) new_shape[i];
+        new_shape[i] = va_arg(args, long);
+        new_len *= new_shape[i];
     }
     va_end(args);
     if (new_len != hdr->length) {
@@ -2351,13 +2412,13 @@ PSMatrix PSMatrixFlatten(PSMatrix matrix) {
  * NOTE: it's up to the developer using this function to free both the
  * sub-matrices (by using `PSMatrixFlatten`) and the returned array containing
  * them. */
-PSMatrix *PSMatrixSplit(PSMatrix matrix, int num_slices, int axis,
+PSMatrix *PSMatrixSplit(PSMatrix matrix, long num_slices, int axis,
                         PSMathOpts *opts)
 {
     if (matrix == NULL) return NULL;
-    int shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
+    long shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
     int ndims = PSMatrixShape(matrix, shape);
-    uint64_t len = PSMatrixLength(matrix);
+    long len = PSMatrixLength(matrix);
     if (len == 0 || ndims <= 0) {
         PSErr(__func__, "cannot split an empty matrix");
         return NULL;
@@ -2374,8 +2435,8 @@ PSMatrix *PSMatrixSplit(PSMatrix matrix, int num_slices, int axis,
               "axes and axis different than first and last");
         return NULL;
     }
-    int dimsize = shape[axis];
-    int mod = dimsize % num_slices;
+    long dimsize = shape[axis];
+    long mod = dimsize % num_slices;
     if (mod != 0) {
         PSErr(__func__, "matrix split does not result in equal division");
         return NULL;
@@ -2386,15 +2447,15 @@ PSMatrix *PSMatrixSplit(PSMatrix matrix, int num_slices, int axis,
         return NULL;
     };
     int success = 1;
-    int split_dimsize = dimsize / num_slices, i;
-    int num_sizes = 1 + mod + (num_slices - mod);
-    int sizes[num_sizes];
+    long split_dimsize = dimsize / num_slices, i;
+    long num_sizes = 1 + mod + (num_slices - mod);
+    long sizes[num_sizes];
     sizes[0] = 0;
-    int *size_p = ((int *)sizes) + 1;
+    long *size_p = ((long *)sizes) + 1;
     for (i = 0; i < mod; i++) *(size_p++) = split_dimsize + 1;
     for (i = 0; i < (num_slices - mod); i++) *(size_p++) = split_dimsize;
-    int points[num_sizes];
-    int cumsum = 0;
+    long points[num_sizes];
+    long cumsum = 0;
     for (i = 0; i < num_sizes; i++) {
         cumsum += sizes[i];
         points[i] = cumsum;
@@ -2406,13 +2467,13 @@ PSMatrix *PSMatrixSplit(PSMatrix matrix, int num_slices, int axis,
         if (!success) goto final;
         PSMatrixShape(matrix, shape);
     }
-    int elem_size = 1;
+    long elem_size = 1;
     for (i = 1; i < ndims; i++) elem_size *= shape[i];
     for (i = 0; i < num_slices; i++) {
-        int from = points[i], to = points[i + 1], len = to - from;
-        int size = len * elem_size;
+        long from = points[i], to = points[i + 1], len = to - from;
+        long size = len * elem_size;
         PSFloat *data = matrix + (from * elem_size);
-        int slice_shape[PS_MATRIX_MAX_DIMENSIONS] = {len};
+        long slice_shape[PS_MATRIX_MAX_DIMENSIONS] = {len};
         for (int j = 1; j < ndims; j++) slice_shape[j] = shape[j];
         PSMatrix subm = PSMatrixCreateWithShape(0, NULL, ndims, slice_shape);
         success = (subm != NULL);
@@ -2478,9 +2539,9 @@ PSMatrix PSMatrixTranspose(PSMatrix matrix, int rebuild, PSMathOpts *opts) {
         hdr->transposed = NULL;
     } else if (hdr->transposed_from != NULL) return hdr->transposed_from;
     int ndims = hdr->ndims;
-    int *dims = hdr->shape;
-    int ncols = 0, nrows = 0, dlen = 0, t_ncols = 0, t_dlen = 0;
-    uint64_t x, y, z, idx, i;
+    long *dims = hdr->shape;
+    long ncols = 0, nrows = 0, dlen = 0, t_ncols = 0, t_dlen = 0;
+    long x, y, z, idx, i;
     PSMatrix transposed = NULL;
     if (ndims == 3) {
         transposed = PSMatrixZeros(3, dims[2], dims[1], dims[0]);
@@ -2570,7 +2631,7 @@ PSMatrix PSMatrixSwapAxes(PSMatrix matrix, int axis1, int axis2) {
         (axis1 == last_axis && axis2 == 0)
     );
     if (do_transp) return PSMatrixDup(PSMatrixTranspose(matrix, 0, NULL));
-    int shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
+    long shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
     for (i = 0; i < hdr->ndims; i++) {
         int idx = i;
         if (axis1 == i) idx = axis2;
@@ -2586,8 +2647,8 @@ PSMatrix PSMatrixSwapAxes(PSMatrix matrix, int axis1, int axis2) {
     if ((axis1 == last_axis - 1 && axis2 == last_axis) ||
         (axis1 == last_axis && axis2 == last_axis - 1))
     {
-        int stride = PSMatrixStride(swapped, 0);
-        int rows = hdr->shape[last_axis - 1], cols = hdr->shape[last_axis];
+        long stride = PSMatrixStride(swapped, 0);
+        long rows = hdr->shape[last_axis - 1], cols = hdr->shape[last_axis];
         for (i = 0; i < shape[0]; i++) {
             PSFloat *transposed = PSVectorTranspose(
                 src_p, dst_p, PSGlobalAcceleration, 2, rows, cols
@@ -2601,7 +2662,7 @@ PSMatrix PSMatrixSwapAxes(PSMatrix matrix, int axis1, int axis2) {
             dst_p += stride;
         }
     } else if ((axis1 == 0 && axis2 == 1) || (axis1 == 1 && axis2 == 0)) {
-        int dst_stride = PSMatrixStride(swapped, 0),
+        long dst_stride = PSMatrixStride(swapped, 0),
             src_stride0 = PSMatrixStride(matrix, 0),
             src_stride1 = PSMatrixStride(matrix, 1);
         for (i = 0; i < shape[0]; i++) {
@@ -2627,10 +2688,10 @@ PSMatrix PSMatrixSwapAxes(PSMatrix matrix, int axis1, int axis2) {
  * Returns: 1 if `a` and `b` equal, 0 if they differ at some point. */
 int PSMatrixEquals(PSMatrix a, PSMatrix b, int precision, int ignore_shape) {
     if (a == NULL || b == NULL) return 0;
-    int alen = PSMatrixLength(a), blen = 0;
+    long alen = PSMatrixLength(a), blen = 0;
     if (!ignore_shape) {
-        int shape_a[PS_MATRIX_MAX_DIMENSIONS] = {0};
-        int shape_b[PS_MATRIX_MAX_DIMENSIONS] = {0};
+        long shape_a[PS_MATRIX_MAX_DIMENSIONS] = {0};
+        long shape_b[PS_MATRIX_MAX_DIMENSIONS] = {0};
         int ndims_a = PSMatrixShape(a, shape_a),
             ndims_b = PSMatrixShape(b, shape_b), i;
         if (ndims_a != ndims_b) return 0;
@@ -2696,7 +2757,7 @@ void PSMatrixFree(PSMatrix matrix) {
  * is NULL, the return value is the address of the newly allocated vector.
  * The function returns NULL if `dest` is NULL but the destination vector
  * cannot be allocated in memory. */
-PSFloat *PSAddVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
+PSFloat *PSAddVectors(PSFloat *a, PSFloat *b, PSFloat *dest, long length,
                       PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE()
@@ -2756,7 +2817,7 @@ PSFloat *PSAddVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
  * The function returns NULL if `dest` is NULL but the destination vector
  * cannot be allocated in memory. */
 PSFloat *PSSubtractVectors(PSFloat *a, PSFloat *b, PSFloat *dest,
-                           uint64_t length, PSMathOpts *opts)
+                           long length, PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE()
 #ifdef HAS_ACCELERATE_FRAMEWORK
@@ -2813,7 +2874,7 @@ PSFloat *PSSubtractVectors(PSFloat *a, PSFloat *b, PSFloat *dest,
  * The function returns NULL if `dest` is NULL but the destination vector
  * cannot be allocated in memory. */
 PSFloat *PSMultiplyVectors(PSFloat *a, PSFloat *b, PSFloat *dest,
-                           uint64_t length, PSMathOpts *opts)
+                           long length, PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
@@ -2827,14 +2888,14 @@ PSFloat *PSMultiplyVectors(PSFloat *a, PSFloat *b, PSFloat *dest,
 #endif
 #if defined(USE_AVX)
     if (PSAVXEnabled(acceleration)) {
-        uint64_t avx_step_len = AVXGetStepLen(length);
-        uint64_t avx_steps = (
+        long avx_step_len = AVXGetStepLen(length);
+        long avx_steps = (
             avx_step_len > 0 ? length / avx_step_len : 0
         ), avx_step;
         for (avx_step = 0; avx_step < avx_steps; avx_step++) {
             PSFloat *x = a + i, *y = b + i, *d = dest + i;
             int c = AVXMultiply(x, y, length, d, mode);
-            assert((uint64_t) c == avx_step_len);
+            assert((long) c == avx_step_len);
             i += avx_step_len;
         }
     }
@@ -2882,7 +2943,7 @@ PSFloat *PSMultiplyVectors(PSFloat *a, PSFloat *b, PSFloat *dest,
  * is NULL, the return value is the address of the newly allocated vector.
  * The function returns NULL if `dest` is NULL but the destination vector
  * cannot be allocated in memory. */
-PSFloat *PSDivideVectors(PSFloat *a, PSFloat *b, PSFloat *dest,uint64_t length,
+PSFloat *PSDivideVectors(PSFloat *a, PSFloat *b, PSFloat *dest, long length,
                          PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE();
@@ -2894,14 +2955,14 @@ PSFloat *PSDivideVectors(PSFloat *a, PSFloat *b, PSFloat *dest,uint64_t length,
 #endif
 #if defined(USE_AVX)
     if (PSAVXEnabled(acceleration)) {
-        uint64_t avx_step_len = AVXGetStepLen(length);
-        uint64_t avx_steps = (
+        long avx_step_len = AVXGetStepLen(length);
+        long avx_steps = (
             avx_step_len > 0 ? length / avx_step_len : 0
         ), avx_step;
         for (avx_step = 0; avx_step < avx_steps; avx_step++) {
             PSFloat *x = a + i, *y = b + i, *d = dest + i;
             int c = AVXDivide(x, y, length, d, mode);
-            assert((uint64_t) c == avx_step_len);
+            assert((long) c == avx_step_len);
             i += avx_step_len;
         }
     }
@@ -2949,7 +3010,7 @@ PSFloat *PSDivideVectors(PSFloat *a, PSFloat *b, PSFloat *dest,uint64_t length,
  * The function returns NULL if `dest` is NULL but the destination vector
  * cannot be allocated in memory. */
 PSFloat *PSMultiplyVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
-                                uint64_t length, PSMathOpts *opts)
+                                long length, PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
@@ -3006,7 +3067,7 @@ PSFloat *PSMultiplyVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
  * The function returns NULL if `dest` is NULL but the destination vector
  * cannot be allocated in memory. */
 PSFloat *PSAddVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
-                           uint64_t length, PSMathOpts *opts)
+                           long length, PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
@@ -3063,7 +3124,7 @@ PSFloat *PSAddVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
  * The function returns NULL if `dest` is NULL but the destination vector
  * cannot be allocated in memory. */
 PSFloat *PSSubtractVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
-                                uint64_t length, PSMathOpts *opts)
+                                long length, PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
@@ -3119,7 +3180,7 @@ PSFloat *PSSubtractVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
  * The function returns NULL if `dest` is NULL but the destination vector
  * cannot be allocated in memory. */
 PSFloat *PSSubtractScalarVector(PSFloat b, PSFloat *a, PSFloat *dest,
-                                uint64_t length, PSMathOpts *opts)
+                                long length, PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
@@ -3176,7 +3237,7 @@ PSFloat *PSSubtractScalarVector(PSFloat b, PSFloat *a, PSFloat *dest,
  * The function returns NULL if `dest` is NULL but the destination vector
  * cannot be allocated in memory. */
 PSFloat *PSDivideVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
-                              uint64_t length, PSMathOpts *opts)
+                              long length, PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
@@ -3233,7 +3294,7 @@ PSFloat *PSDivideVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
  * The function returns NULL if `dest` is NULL but the destination vector
  * cannot be allocated in memory. */
 PSFloat *PSDivideScalarVector(PSFloat b, PSFloat *a, PSFloat *dest,
-                              uint64_t length, PSMathOpts *opts)
+                              long length, PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK) && defined(__arm64__)
@@ -3286,12 +3347,22 @@ PSFloat *PSDivideScalarVector(PSFloat b, PSFloat *a, PSFloat *dest,
  * is NULL, the return value is the address of the newly allocated vector.
  * The function returns NULL if `dest` is NULL but the destination vector
  * cannot be allocated in memory. */
-PSFloat *PSVectorTanh(PSFloat *a, PSFloat *dest, uint64_t length,
-                      PSMathOpts *opts)
+PSFloat *PSVectorTanh(PSFloat *a, PSFloat *dest, long length, PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
     if (PSAccelerateEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
+        int maxlen = INT_MAX;
+        while (length > maxlen) {
+            /* Apple vForce functions use int for index/length, but PsyC
+             * uses long. In such cases, apply vForce function to multiple
+             * segments of the vector(s). */
+            VVTanh(a, dest, maxlen);
+            length -= maxlen;
+            if (length <= 0) return dest;
+            a += maxlen;
+            dest += maxlen;
+        }
         VVTanh(a, dest, length);
         return dest;
     }
@@ -3334,12 +3405,21 @@ PSFloat *PSVectorTanh(PSFloat *a, PSFloat *dest, uint64_t length,
  * is NULL, the return value is the address of the newly allocated vector.
  * The function returns NULL if `dest` is NULL but the destination vector
  * cannot be allocated in memory. */
-PSFloat *PSVectorExp(PSFloat *a, PSFloat *dest, uint64_t length,
-                     PSMathOpts *opts)
-{
+PSFloat *PSVectorExp(PSFloat *a, PSFloat *dest, long length, PSMathOpts *opts) {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
     if (PSAccelerateEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
+        int maxlen = INT_MAX;
+        while (length > maxlen) {
+            /* Apple vForce functions use int for index/length, but PsyC
+             * uses long. In such cases, apply vForce function to multiple
+             * segments of the vector(s). */
+            VVExp(a, dest, maxlen);
+            length -= maxlen;
+            if (length <= 0) return dest;
+            a += maxlen;
+            dest += maxlen;
+        }
         VVExp(a, dest, length);
         return dest;
     }
@@ -3382,12 +3462,22 @@ PSFloat *PSVectorExp(PSFloat *a, PSFloat *dest, uint64_t length,
  * is NULL, the return value is the address of the newly allocated vector.
  * The function returns NULL if `dest` is NULL but the destination vector
  * cannot be allocated in memory. */
-PSFloat *PSVectorSqrt(PSFloat *a, PSFloat *dest, uint64_t length,
-                      PSMathOpts *opts)
+PSFloat *PSVectorSqrt(PSFloat *a, PSFloat *dest, long length, PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
     if (PSAccelerateEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
+        int maxlen = INT_MAX;
+        while (length > maxlen) {
+            /* Apple vForce functions use int for index/length, but PsyC
+             * uses long. In such cases, apply vForce function to multiple
+             * segments of the vector(s). */
+            VVSqrt(a, dest, maxlen);
+            length -= maxlen;
+            if (length <= 0) return dest;
+            a += maxlen;
+            dest += maxlen;
+        }
         VVSqrt(a, dest, length);
         return dest;
     }
@@ -3430,9 +3520,7 @@ PSFloat *PSVectorSqrt(PSFloat *a, PSFloat *dest, uint64_t length,
  * is NULL, the return value is the address of the newly allocated vector.
  * The function returns NULL if `dest` is NULL but the destination vector
  * cannot be allocated in memory. */
-PSFloat *PSVectorNeg(PSFloat *a, PSFloat *dest, uint64_t length,
-                     PSMathOpts *opts)
-{
+PSFloat *PSVectorNeg(PSFloat *a, PSFloat *dest, long length, PSMathOpts *opts) {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
     if (PSAccelerateEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
@@ -3483,9 +3571,7 @@ PSFloat *PSVectorNeg(PSFloat *a, PSFloat *dest, uint64_t length,
  * is NULL, the return value is the address of the newly allocated vector.
  * The function returns NULL if `dest` is NULL but the destination vector
  * cannot be allocated in memory. */
-PSFloat *PSVectorAbs(PSFloat *a, PSFloat *dest, uint64_t length,
-                     PSMathOpts *opts)
-{
+PSFloat *PSVectorAbs(PSFloat *a, PSFloat *dest, long length, PSMathOpts *opts) {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
     if (PSAccelerateEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
@@ -3533,7 +3619,7 @@ PSFloat *PSVectorAbs(PSFloat *a, PSFloat *dest, uint64_t length,
  * The function returns NULL if `dest` is NULL but the destination vector
  * cannot be allocated in memory. */
 PSFloat *PSVectorClip(PSFloat *a, PSFloat min, PSFloat max, PSFloat *dest,
-                      uint64_t length, PSMathOpts *opts)
+                      long length, PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
@@ -3587,7 +3673,7 @@ PSFloat *PSVectorClip(PSFloat *a, PSFloat min, PSFloat max, PSFloat *dest,
  * The function returns NULL if `dest` is NULL but the destination vector
  * cannot be allocated in memory. */
 PSFloat *PSVectorThreshold(PSFloat *a, PSFloat min, PSFloat *dest,
-                           uint64_t length, PSMathOpts *opts)
+                           long length, PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
@@ -3636,7 +3722,7 @@ PSFloat *PSVectorThreshold(PSFloat *a, PSFloat min, PSFloat *dest,
  * The function returns NULL if `dest` is NULL but the destination vector
  * cannot be allocated in memory. */
 PSFloat *PSVectorMapWithLimit(PSFloat *a, PSFloat limit, PSFloat mapper,
-                              PSFloat *dest, uint64_t length, PSMathOpts *opts)
+                              PSFloat *dest, long length, PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE();
 #if defined(HAS_ACCELERATE_FRAMEWORK)
@@ -3665,7 +3751,7 @@ PSFloat *PSVectorMapWithLimit(PSFloat *a, PSFloat limit, PSFloat mapper,
  * methods can be changed via the `acceleration` member of the optional
  * argument `opts`.
  * Return value: the maxium value in the vector `a`. */
-PSFloat PSVectorMax(PSFloat *a, uint64_t *index, uint64_t length,
+PSFloat PSVectorMax(PSFloat *a, long *index, long length,
                     PSMathOpts *opts)
 {
     PSFloat max = PSFLOAT_MIN;
@@ -3684,7 +3770,7 @@ PSFloat PSVectorMax(PSFloat *a, uint64_t *index, uint64_t length,
 #else
     UNUSED(acceleration);
 #endif
-    uint64_t i;
+    long i;
     if (index != NULL) *index = 0;
     for (i = 0; i < length; i++) {
         PSFloat n = a[i];
@@ -3705,7 +3791,7 @@ PSFloat PSVectorMax(PSFloat *a, uint64_t *index, uint64_t length,
  * argument `opts`.
  * Return value: the sum of all the elements in the vector `a` or zero if
  * `a` is NULL. */
-PSFloat PSVectorReduceSum(PSFloat *a, uint64_t length, PSMathOpts *opts) {
+PSFloat PSVectorReduceSum(PSFloat *a, long length, PSMathOpts *opts) {
     if (a == NULL) return 0.0;
     PSFloat sum = 0.0;
     int acceleration = PSGlobalAcceleration;
@@ -3718,7 +3804,7 @@ PSFloat PSVectorReduceSum(PSFloat *a, uint64_t length, PSMathOpts *opts) {
 #else
     UNUSED(acceleration);
 #endif
-    uint64_t i;
+    long i;
     for (i = 0; i < length; i++) sum += a[i];
     return sum;
 }
@@ -3745,7 +3831,7 @@ PSFloat PSVectorReduceSum(PSFloat *a, uint64_t length, PSMathOpts *opts) {
  * is NULL, the return value is the address of the newly allocated vector.
  * The function returns NULL if `dest` is NULL but the destination vector
  * cannot be allocated in memory. */
-PSFloat *PSVectorPower(PSFloat *a, PSFloat exp, PSFloat *dest, uint64_t length,
+PSFloat *PSVectorPower(PSFloat *a, PSFloat exp, PSFloat *dest, long length,
                        PSMathOpts *opts)
 {
     MATHS_OPERATION_PREAMBLE();
@@ -3758,8 +3844,21 @@ PSFloat *PSVectorPower(PSFloat *a, PSFloat exp, PSFloat *dest, uint64_t length,
     } else if (exp == 2) return PSMultiplyVectors(a, a, dest, length, opts);
 #if defined(HAS_ACCELERATE_FRAMEWORK)
     if (PSAccelerateEnabled(acceleration) && mode == PS_STORE_MODE_SET) {
-        PSFloat exps[length];
+        PSFloat exps_vec[length];
+        PSFloat *exps = exps_vec;
         VDSPFill(exp, exps, length);
+        int maxlen = INT_MAX;
+        while (length > maxlen) {
+            /* Apple vForce functions use int for index/length, but PsyC
+             * uses long. In such cases, apply vForce function to multiple
+             * segments of the vector(s). */
+            VVPow(a, exps, dest, length);
+            length -= maxlen;
+            if (length <= 0) return dest;
+            a += maxlen;
+            dest += maxlen;
+            exps += maxlen;
+        }
         VVPow(a, exps, dest, length);
         return dest;
     }
@@ -3787,14 +3886,19 @@ PSFloat *PSVectorPower(PSFloat *a, PSFloat exp, PSFloat *dest, uint64_t length,
  * vector will be the sum of the values of `a` up to the index of the current
  * resulting vector element (ie. `dest[2] = a[0] + a[1] + a[2]`).
  * Return value: 1 if the function is successfully executed or 0 if:
- *  - `a` is NULL or `dest` is NULL. */
-int PSCumulativeSum(PSFloat *a, PSFloat *dest, uint64_t length) {
+ *  - `a` is NULL or `dest` is NULL.
+ *  - `length` is zero or negative. */
+long PSCumulativeSum(PSFloat *a, PSFloat *dest, long length) {
     if (a == NULL || dest == NULL) {
         PSErr(__func__, "`a` and `dest` cannot be null");
         return 0;
     }
+    if (length <= 0) {
+        PSErr(__func__, "`length` must be > 0");
+        return 0;
+    }
     PSFloat sum = 0.0;
-    for (uint64_t i = 0; i < length; i++) {
+    for (long i = 0; i < length; i++) {
         sum += a[i];
         dest[i] = sum;
     }
@@ -3809,9 +3913,9 @@ int PSCumulativeSum(PSFloat *a, PSFloat *dest, uint64_t length) {
  * methods can be changed via the `acceleration` member of the optional
  * argument `opts`.
  * Return value: the mean value of vector `a` values or zero if `a` is NULL. */
-PSFloat PSMean(PSFloat *a, uint64_t length, PSMathOpts *opts) {
+PSFloat PSMean(PSFloat *a, long length, PSMathOpts *opts) {
     PSFloat mean = 0.0;
-    if (a == NULL) return mean;
+    if (a == NULL || length <= 0) return mean;
     int acceleration = PSGlobalAcceleration;
     if (opts != NULL) acceleration = opts->acceleration;
 #if defined(HAS_ACCELERATE_FRAMEWORK)
@@ -3822,7 +3926,7 @@ PSFloat PSMean(PSFloat *a, uint64_t length, PSMathOpts *opts) {
 #else
     UNUSED(acceleration);
 #endif
-    uint64_t i;
+    long i;
     for (i = 0; i < length; i++) mean += a[i];
     mean = mean / (PSFloat) length;
     return mean;
@@ -3838,8 +3942,8 @@ PSFloat PSMean(PSFloat *a, uint64_t length, PSMathOpts *opts) {
  * methods can be changed via the `acceleration` member of the optional
  * argument `opts`.
  * Return value: the variance of vector `a` values or zero if `a` is NULL. */
-PSFloat PSVariance(PSFloat *a, uint64_t len, PSMathOpts *opts) {
-    if (len == 0 || a == NULL) return 0;
+PSFloat PSVariance(PSFloat *a, long len, PSMathOpts *opts) {
+    if (len <= 0 || a == NULL) return 0;
     PSFloat var = 0.0;
     PSFloat *cache = NULL;
     PSFloat mean = PSMean(a, len, opts);
@@ -3863,7 +3967,7 @@ PSFloat PSVariance(PSFloat *a, uint64_t len, PSMathOpts *opts) {
     UNUSED(acceleration);
 #endif
     PSFloat sum = 0.0;
-    for (uint64_t i = 0; i < len; i++) {
+    for (long i = 0; i < len; i++) {
         PSFloat d = (a[i] - mean);
         sum += (d * d);
     }
@@ -3883,7 +3987,7 @@ final:
  * methods can be changed via the `acceleration` member of the optional
  * argument `opts`.
  * Return value: the variance of vector `a` values or zero if `a` is NULL. */
-PSFloat PSStdDev(PSFloat *a, uint64_t len, PSMathOpts *opts) {
+PSFloat PSStdDev(PSFloat *a, long len, PSMathOpts *opts) {
     PSFloat variance = PSVariance(a, len, opts);
     return PSSqrt(variance);
 }
@@ -3900,11 +4004,11 @@ PSFloat PSStdDev(PSFloat *a, uint64_t len, PSMathOpts *opts) {
  * argument `opts`.
  * Return value: the resulting dot product (scalar) or zero if `a` is NULL
  * or `b` is NULL.*/
-PSFloat PSDotProduct(PSFloat *a, PSFloat *b, uint64_t length, PSMathOpts *opts)
+PSFloat PSDotProduct(PSFloat *a, PSFloat *b, long length, PSMathOpts *opts)
 {
     if (a == NULL || b == NULL) return 0;
     PSDotProductDebug debugStep = NULL;
-    uint64_t i = 0;
+    long i = 0;
     PSFloat result = 0.0;
     int acceleration = PSGlobalAcceleration;
     if (opts != NULL) {
@@ -3934,9 +4038,9 @@ PSFloat PSDotProduct(PSFloat *a, PSFloat *b, uint64_t length, PSMathOpts *opts)
     return result;
 }
 
-PSFloat PSDotSquare(PSFloat *a, uint64_t length, PSMathOpts *opts) {
+PSFloat PSDotSquare(PSFloat *a, long length, PSMathOpts *opts) {
     PSDotProductDebug debugStep = NULL;
-    uint64_t i = 0;
+    long i = 0;
     PSFloat result = 0.0;
     int acceleration = PSGlobalAcceleration;
     if (opts != NULL) {
@@ -3999,8 +4103,8 @@ int PSDot(PSMatrix a, PSMatrix b, PSMatrix dest, PSMathOpts *opts) {
         return 0;
     }
     int store_mode = PS_STORE_MODE_SET;
-    int dims_a[PS_MATRIX_MAX_DIMENSIONS] = {0};
-    int dims_b[PS_MATRIX_MAX_DIMENSIONS] = {0};
+    long dims_a[PS_MATRIX_MAX_DIMENSIONS] = {0};
+    long dims_b[PS_MATRIX_MAX_DIMENSIONS] = {0};
     char df_argtype[] = {'M', 'M', 'M'};
     char *argtype = df_argtype;
     int transpose = 0;
@@ -4036,7 +4140,7 @@ int PSDot(PSMatrix a, PSMatrix b, PSMatrix dest, PSMathOpts *opts) {
     } else if (!a_is_vec && b_is_vec) {
         /* matrix-vector multiplication */
         int ndims = PSMatrixShape(a, dims_a);
-        int len = (transpose & 1 ? dims_a[0] : dims_a[ndims - 1]);
+        long len = (transpose & 1 ? dims_a[0] : dims_a[ndims - 1]);
         int do_free_tmpdest = 0;
         if (len <= 0) {
             PSErr(__func__, "Could not perform matrix-vector multiplication, "
@@ -4069,7 +4173,7 @@ int PSDot(PSMatrix a, PSMatrix b, PSMatrix dest, PSMathOpts *opts) {
     } else if (a_is_vec && !b_is_vec) {
         /* vector-matrix multiplication */
         PSMatrixShape(b, dims_b);
-        int len = dims_b[1];
+        long len = dims_b[1];
         int do_free_tmpdest = 0;
         if (len <= 0) {
             PSErr(__func__, "Could not perform vector-matrix multiplication, "
@@ -4100,7 +4204,7 @@ int PSDot(PSMatrix a, PSMatrix b, PSMatrix dest, PSMathOpts *opts) {
         }
         return 1;
     } else {
-        int len = 0;
+        long len = 0;
         if (opts != NULL) len = opts->vector_len;
         if (len <= 0) {
             PSErr(
@@ -4162,7 +4266,7 @@ int PSDotVM(PSFloat *a, PSMatrix b, PSMatrix dest, PSMathOpts *opts) {
  *  - `a` is NULL or `b` is NULL or `dest` is NULL.
  *  - BLAS computation error if BLAS acceleration is used. */
 int PSOuterProduct(PSFloat *a, PSFloat *b, PSFloat *dest,
-                   uint64_t alen, uint64_t blen, PSMathOpts *opts)
+                   long alen, long blen, PSMathOpts *opts)
 {
     if (a == NULL || b == NULL || dest == NULL) {
         PSErr(__func__, "`a`, `vector` and `dest` cannot be null");
@@ -4171,19 +4275,27 @@ int PSOuterProduct(PSFloat *a, PSFloat *b, PSFloat *dest,
     PSFloat *tmpdest = NULL;
     int store_mode = PS_STORE_MODE_SET;
     int acceleration = PSGlobalAcceleration;
-    uint64_t i, j;
+    long i, j;
     if (opts != NULL) {
         acceleration = opts->acceleration;
         store_mode = opts->store_mode;
         tmpdest = opts->tmpdest;
     }
-    uint64_t dstlen = alen * blen;
+    long dstlen = alen * blen;
     int postprocess = store_mode != PS_STORE_MODE_SET;
 #if defined(HAS_BLAS) || defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     PSFloat *vpdest = dest;
     int blas_enabled = PSBLASEnabled(acceleration),
         acf_enabled = PSAccelerateEnabled(acceleration),
-        do_free_vpdest = 0, use_acceleration = (blas_enabled || acf_enabled);
+        do_free_vpdest = 0;
+    if (blas_enabled && dstlen > PSBLAS_MAX) {
+        blas_enabled = 0;
+        PSWarn(
+            "%s: BLAS has been disabled since some dimensions exceeds "
+            "PSBLAS_MAX (%ld)", __func__, PSBLAS_MAX
+        );
+    }
+    int use_acceleration = (blas_enabled || acf_enabled);
     if (!use_acceleration) goto no_acceleration;
     if (store_mode && (store_mode == PS_STORE_MODE_SUB || !blas_enabled)) {
         vpdest = tmpdest;
@@ -4199,7 +4311,7 @@ int PSOuterProduct(PSFloat *a, PSFloat *b, PSFloat *dest,
         postprocess = (store_mode == PS_STORE_MODE_SUB);
         PSBLASOrder order = PSBLASRowMajor;
         char trans1 = 'N', trans2 = 'N';
-        int m = 1, lda = 1, ldb = blen, ldc = blen;
+        long m = 1, lda = 1, ldb = blen, ldc = blen;
         PSFloat beta = 0.0;
         if (store_mode == PS_STORE_MODE_ADD) {
             beta = 1.0;
@@ -4236,7 +4348,7 @@ no_acceleration:
     if (!postprocess) postprocess = store_mode != PS_STORE_MODE_SET;
     for (i = 0; i < alen; i++) {
         for (j = 0; j < blen; j++) {
-            uint64_t idx = (blen * i) + j;
+            long idx = (blen * i) + j;
             PSFloat product = (a[i] * b[j]);
             if (!store_mode) dest[idx] = product;
             if (!postprocess) continue;
@@ -4254,8 +4366,8 @@ no_acceleration:
  * `PSGlobalAcceleration` are used, if any. However, the used accelerations
  * methods can be changed via the `acceleration` member of the optional
  * argument `opts`. */
-void PSVectorFill(PSFloat *vec, PSFloat val, uint64_t len, PSMathOpts *opts) {
-    if (len == 0 || vec == NULL) return;
+void PSVectorFill(PSFloat *vec, PSFloat val, long len, PSMathOpts *opts) {
+    if (len <= 0 || vec == NULL) return;
     int acceleration = PSGlobalAcceleration;
     if (opts != NULL) acceleration = opts->acceleration;
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
@@ -4270,7 +4382,7 @@ void PSVectorFill(PSFloat *vec, PSFloat val, uint64_t len, PSMathOpts *opts) {
         PSVectorClear(vec, len);
         return;
     }
-    for (uint64_t i = 0; i < len; i++) vec[i] = val;
+    for (long i = 0; i < len; i++) vec[i] = val;
 }
 
 /* Write a string representation of vector `vec` having length of `len`
@@ -4278,7 +4390,7 @@ void PSVectorFill(PSFloat *vec, PSFloat val, uint64_t len, PSMathOpts *opts) {
  * The optional `sep` argument can be used to specify a separator string for
  * vector's values (if `sep` is null, by default "," is used as separator).
  * If `vec` is null or `f` is null, the function will immediately return. */
-void PSVectorWrite(PSFloat *vec, uint64_t len, char* sep, FILE *f) {
+void PSVectorWrite(PSFloat *vec, long len, char* sep, FILE *f) {
     if (vec == NULL || f == NULL) return;
     if (sep == NULL) sep = ",";
     writeSerializedFloatArray(f, len, sep, 0, vec);
@@ -4289,7 +4401,7 @@ void PSVectorWrite(PSFloat *vec, uint64_t len, char* sep, FILE *f) {
  * The optional `sep` argument can be used to specify a separator string for
  * vector's values (if `sep` is null, by default "," is used as separator).
  * If `vec` is NULL the function will immediately return. */
-void PSVectorPrint(PSFloat *vec, uint64_t len, char* sep) {
+void PSVectorPrint(PSFloat *vec, long len, char* sep) {
     PSVectorWrite(vec, len, sep, stdout);
     printf("\n");
 }
@@ -4336,13 +4448,13 @@ PSFloat *PSVectorTranspose(PSFloat *vec, PSFloat *dest, int acceleration,
         PSErr(__func__, "`ndims` must be > 0");
         return NULL;
     }
-    int dims[PS_MATRIX_MAX_DIMENSIONS] = {0};
-    uint64_t x, y, z, idx, i, veclen = 1;
+    long shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
+    long x, y, z, idx, i, veclen = 1;
     va_list args;
     va_start(args, ndims);
-    for (i = 0; i < (uint64_t) ndims; i++) {
-        dims[i] = va_arg(args, int);
-        veclen *= dims[i];
+    for (i = 0; i < (long) ndims; i++) {
+        shape[i] = va_arg(args, int);
+        veclen *= shape[i];
     }
     va_end(args);
     if (veclen <= 0) {
@@ -4355,12 +4467,12 @@ PSFloat *PSVectorTranspose(PSFloat *vec, PSFloat *dest, int acceleration,
         PSPrintMemoryErrorMsg();
         return NULL;
     }
-    int ncols = 0, nrows = 0, dlen = 0, t_ncols = 0, t_dlen = 0;
+    long ncols = 0, nrows = 0, dlen = 0, t_ncols = 0, t_dlen = 0;
     if (ndims == 3) {
-        nrows = dims[1];
-        ncols = dims[2];
-        t_ncols = dims[0];
-        t_dlen = dims[0] * dims[1];
+        nrows = shape[1];
+        ncols = shape[2];
+        t_ncols = shape[0];
+        t_dlen = shape[0] * shape[1];
         dlen = nrows * ncols;
         for (i = 0; i < veclen; i++) {
             z = i % dlen % ncols;
@@ -4373,14 +4485,14 @@ PSFloat *PSVectorTranspose(PSFloat *vec, PSFloat *dest, int acceleration,
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
         if (PSAccelerateEnabled(acceleration)) {
             /* Use Apple(R) Accelerate Framework */
-            VDSPMTransp(vec, transposed, dims[1], dims[0]);
+            VDSPMTransp(vec, transposed, shape[1], shape[0]);
             goto final;
         }
 #else
         UNUSED(acceleration);
 #endif
-        ncols = dims[1];
-        t_ncols = dims[0];
+        ncols = shape[1];
+        t_ncols = shape[0];
         for (i = 0; i < veclen; i++) {
             y = i % ncols;
             x = i / ncols;
@@ -4411,7 +4523,7 @@ final:
  * NOTE: if you set transposition for `a` or `b`, `m`,`n` and `k` will
  * refer to rows and columns of the transposed matrix.
  * Return value: 1 in case of success, 0 in case of failure. */
-int PSMatMul(PSFloat *a, PSFloat *b, PSFloat *dest, int m, int n, int k,
+int PSMatMul(PSFloat *a, PSFloat *b, PSFloat *dest, long m, long n, long k,
              PSMathOpts *opts)
 {
     if (a == NULL || b == NULL || dest == NULL) {
@@ -4434,9 +4546,16 @@ int PSMatMul(PSFloat *a, PSFloat *b, PSFloat *dest, int m, int n, int k,
     int use_blas = 0;
     UNUSED(acceleration);
 #endif
+    if (use_blas && (m * n * k) > PSBLAS_MAX) {
+        use_blas = 0;
+        PSWarn(
+            "%s: BLAS has been disabled since some dimensions exceeds "
+            "PSBLAS_MAX (%ld)", __func__, PSBLAS_MAX
+        );
+    }
     if (use_blas) {
         char trans_a = 'N', trans_b = 'N';
-        int lda = k, ldb = n, ldc = n;
+        long lda = k, ldb = n, ldc = n;
         if (transpose_a) {
             trans_a = 'T';
             lda = m;
@@ -4465,7 +4584,7 @@ int PSMatMul(PSFloat *a, PSFloat *b, PSFloat *dest, int m, int n, int k,
     }
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     if (PSAccelerateEnabled(acceleration)) {
-        int outlen = m * n;
+        long outlen = m * n;
         if (outlen == 0) return 0;
         PSFloat *out = dest, *tmpdest = (opts ? opts->tmpdest : NULL);
         if (do_add) {
@@ -4486,7 +4605,7 @@ int PSMatMul(PSFloat *a, PSFloat *b, PSFloat *dest, int m, int n, int k,
         goto final;
     }
 #endif
-    int a_rows = m, a_cols = k, b_rows = k, b_cols = n, out_rows, out_cols;
+    long a_rows = m, a_cols = k, b_rows = k, b_cols = n, out_rows, out_cols;
     if (transpose_b) b = orig_b;
     else {
         transposed_b = PSVectorTranspose(b, NULL, acceleration, 2, k, n);
@@ -4499,9 +4618,9 @@ int PSMatMul(PSFloat *a, PSFloat *b, PSFloat *dest, int m, int n, int k,
               a_cols, b_rows);
     }
     k = b_rows;
-    for (int i = 0; i < out_rows; i++) {
-        for (int j = 0; j < out_cols; j++) {
-            int oidx = (i * out_cols) + j;
+    for (long i = 0; i < out_rows; i++) {
+        for (long j = 0; j < out_cols; j++) {
+            long oidx = (i * out_cols) + j;
             PSFloat *arow = a + (a_cols * i);
             PSFloat *brow = b + (k * j);
             if (!do_add) dest[oidx] = PSDotProduct(arow, brow, k, &mopts);
@@ -4526,15 +4645,15 @@ final:
  * Return value: the matrix of NULL if:
  *  - `size` is less than 1
  *  - The matrix cannot be allocated in memory. */
-PSMatrix PSDiagonalMask(int size) {
+PSMatrix PSDiagonalMask(long size) {
     if (size <= 0) {
         PSErr(__func__, "invalid size: %d", size);
         return NULL;
     }
     PSMatrix mask = PSMatrixZeros(2, size, size);
     if (mask == NULL) return NULL;
-    for (int r = 0; r < size; r++) {
-        for (int c = 0; c < size; c++) {
+    for (long r = 0; r < size; r++) {
+        for (long c = 0; c < size; c++) {
             if (c <= r) {
                 mask[(r * size) + c] = 1.0;
             }
@@ -4558,7 +4677,7 @@ PSMatrix PSDiagonalMask(int size) {
  * Return value: the matrix or NULL if:
  *  - `vec` is NULL or `len` is zero.
  *  - The matrix cannot be allocated in memory. */
-PSMatrix PSDiagonalFlattenVector(PSFloat *vec, uint64_t len) {
+PSMatrix PSDiagonalFlattenVector(PSFloat *vec, long len) {
     if (vec == NULL || len == 0) return NULL;
     PSMatrix result = PSMatrixZeros(2, len, len);
     if (result == NULL) {
@@ -4566,7 +4685,7 @@ PSMatrix PSDiagonalFlattenVector(PSFloat *vec, uint64_t len) {
         return NULL;
     }
     PSFloat *res_p = result;
-    for (uint64_t i = 0; i < len; i++) {
+    for (long i = 0; i < len; i++) {
         res_p[i] = vec[i];
         res_p += len;
     }
@@ -4592,7 +4711,7 @@ PSMatrix PSDiagonalFlattenVector(PSFloat *vec, uint64_t len) {
  *  - The matrix cannot be allocated in memory. */
 PSMatrix PSDiagonalFlatten(PSMatrix matrix) {
     if (matrix == NULL) return NULL;
-    uint64_t len = PSMatrixLength(matrix);
+    long len = PSMatrixLength(matrix);
     if (len == 0) return NULL;
     return PSDiagonalFlattenVector(matrix, len);
 }
@@ -4606,7 +4725,7 @@ PSMatrix PSDiagonalFlatten(PSMatrix matrix) {
  *  - `num_slices` is zero or negative.
  *  - `len` / `num_slices` does not result in equal division.
  *  - Memory allocation issues. */
-PSFloat **PSVectorSplit(PSFloat *vec, int len, int num_slices) {
+PSFloat **PSVectorSplit(PSFloat *vec, long len, long num_slices) {
     if (vec == NULL) return NULL;
     if (len <= 0) {
         PSErr(__func__, "`len` must be > 0");
@@ -4620,7 +4739,7 @@ PSFloat **PSVectorSplit(PSFloat *vec, int len, int num_slices) {
         PSErr(__func__, "vector split does not result in equal division");
         return NULL;
     }
-    int slice_size = len / num_slices;
+    long slice_size = len / num_slices;
     PSFloat **vectors = calloc(num_slices, sizeof(PSFloat *));
     if (vectors == NULL) {
         PSPrintMemoryErrorMsg();
@@ -4650,8 +4769,8 @@ fail:
 
 /* Duplicate vector `vec` having length defined by `length`.
  * Return value: the duplicated vector or NULL is memory cannot be allocated.*/
-PSFloat *PSVectorDup(PSFloat *src, size_t length) {
-    size_t size = length * sizeof(PSFloat);
+PSFloat *PSVectorDup(PSFloat *src, long length) {
+    size_t size = (size_t) length * sizeof(PSFloat);
     PSFloat *dup = malloc(size);
     if (dup == NULL) {
         PSPrintMemoryErrorMsg();
@@ -4664,16 +4783,14 @@ PSFloat *PSVectorDup(PSFloat *src, size_t length) {
 /* Allocate a new vector having length defined by `len` and fill it with random
  * values within a range of 0.0 and 1.0.
  * Return value: the allocated vector or NULL if memory cannot be allocated. */
-PSFloat *PSVectorRandom(size_t len) {
-    PSFloat *vec = malloc(len * sizeof(PSFloat));
+PSFloat *PSVectorRandom(long len) {
+    PSFloat *vec = malloc((size_t) len * sizeof(PSFloat));
     if (vec == NULL) {
         PSPrintMemoryErrorMsg();
         return NULL;
     }
-    size_t i;
-    for (i = 0; i < len; i++) {
-        vec[i] = PSNormalizedRandom();
-    }
+    long i;
+    for (i = 0; i < len; i++) vec[i] = PSNormalizedRandom();
     return vec;
 }
 
@@ -4704,10 +4821,10 @@ int PSFloatEquals(PSFloat a, PSFloat b, int precision) {
  * Use `index` pointer if you need to know the index of the first
  * non-equal elements.
  * Returns: 1 if `a` and `b` equal, 0 if they differ at some point. */
-int PSVectorEquals(PSFloat *a, PSFloat *b, uint64_t length, int precision,
-                   uint64_t *index)
+int PSVectorEquals(PSFloat *a, PSFloat *b, long length, int precision,
+                   long *index)
 {
-    uint64_t i;
+    long i;
     for (i = 0; i < length; i++) {
         if (!PSFloatEquals(a[i], b[i], precision)) {
             if (index != NULL) *index = i;
@@ -4744,8 +4861,8 @@ int PSVectorEquals(PSFloat *a, PSFloat *b, uint64_t length, int precision,
  *  - `shape` is NULL but `ndims` is greater than 2.
  *  - `len` mismatches `shape` (`len` must equals the product of shape axes).
  *  - Memory allocation failure */
-PSMatrix PSVectorConvertToMatrix(PSFloat *vec, uint64_t len, int ndims,
-                                 int *shape)
+PSMatrix PSVectorConvertToMatrix(PSFloat *vec, long len, int ndims,
+                                 long *shape)
 {
     if (vec == NULL) {
         PSErr(__func__, "argument`vec` cannot be null");
@@ -4760,7 +4877,7 @@ PSMatrix PSVectorConvertToMatrix(PSFloat *vec, uint64_t len, int ndims,
               PS_MATRIX_MAX_DIMENSIONS);
         return NULL;
     }
-    int dfshape[PS_MATRIX_MAX_DIMENSIONS] = {0};
+    long dfshape[PS_MATRIX_MAX_DIMENSIONS] = {0};
     int i;
     if (shape == NULL) {
         if (ndims > 2) {
@@ -4774,7 +4891,7 @@ PSMatrix PSVectorConvertToMatrix(PSFloat *vec, uint64_t len, int ndims,
         ndims = 1;
     }
     if (shape == dfshape) {
-        if (len > INT_MAX) {
+        if (len > LONG_MAX) {
             PSErr(NULL, "vector length exceeds shape dimensions");
             return NULL;
         }
@@ -4784,7 +4901,7 @@ PSMatrix PSVectorConvertToMatrix(PSFloat *vec, uint64_t len, int ndims,
             shape[1] = len;
         }
     } else {
-        uint64_t shape_len = 1;
+        long shape_len = 1;
         for (i = 0; i < ndims; i++) shape_len *= shape[i];
         if (shape_len != len) {
             PSErr(NULL, "invalid shape for length %" PRIu64, len);

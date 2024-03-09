@@ -39,12 +39,12 @@
 typedef struct PSConvolutionalSettings {
     int stride;
     int padding;
-    int filter_width;
-    int filter_height;
-    int filter_depth;
-    int input_width;
-    int input_height;
-    int input_depth;
+    long filter_width;
+    long filter_height;
+    long filter_depth;
+    long input_width;
+    long input_height;
+    long input_depth;
 } PSConvolutionalSettings;
 
 #endif /* __PS_CONVOLUTIONAL_H */

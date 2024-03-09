@@ -317,7 +317,7 @@ void PSAbortLayer(PSModel *model, PSLayer *layer) {
 
 /**** Misc ****/
 
-int PSGetTerminalColumns() {
+unsigned int PSGetTerminalColumns() {
     static int __term_columns = -1;
     if (__term_columns < 0) {
 #if IS_UNIX
@@ -411,7 +411,11 @@ char *PSGetElapsedTimeString(time_t elapsed_us, int opts) {
 
 /* Create a vector of length `len` where value at `index` is one while all the
  * other values contain zero. */
-PSFloat *PSOneHotVector(uint64_t index, uint64_t len) {
+PSFloat *PSOneHotVector(long index, long len) {
+    if (len <= 0) {
+        PSErr(__func__, "argument `len` mast be > 0");
+        return NULL;
+    }
     if (index >= len) {
         PSErr(__func__, "index is out-of-bounds");
         return NULL;
@@ -662,11 +666,12 @@ char *PSStringJoin(char **strings, char *sep, int len) {
     if (len < 2) return NULL;
     char *joined = NULL;
     if (sep == NULL) sep = "";
-    int seplen = strlen(sep), totlen = 1, i;
-    for (i = 0; i < len; i++) {
+    size_t seplen = strlen(sep), totlen = 1;
+    for (int i = 0; i < len; i++) {
         char *str = strings[i];
         if (str == NULL) str = "";
-        int slen = strlen(str), prepend_sep = (i > 0);
+        size_t slen = strlen(str);
+        int prepend_sep = (i > 0);
         if (prepend_sep) slen += seplen;
         totlen += slen;
         char *new = realloc(joined, totlen);
@@ -706,9 +711,9 @@ next:
     return len;
 }
 
-unsigned int PSCalcIntStringLength(long long num) {
+size_t PSCalcIntStringLength(long long num) {
     if (num == 0) return 1;
-    int len = 1;
+    size_t len = 1;
     if (num < 0) {
         num *= -1;
         len++;
@@ -723,8 +728,8 @@ size_t PSGetBitmapArrayLength(size_t size) {
     return 1 + (size / (64 * 8));
 }
 
-int PSBitmapIndexFor(uint64_t index) {
-    return (int) (index / (64 * 8));
+size_t PSBitmapIndexFor(uint64_t index) {
+    return (size_t) (index / (64 * 8));
 }
 
 PSBitmap PSBitmapCreate(size_t size) {
@@ -754,16 +759,16 @@ size_t PSBitmapSize(PSBitmap bitmap) {
 int PSBitmapGetBit(PSBitmap bitmap, uint64_t index) {
     if (bitmap == NULL) return 0;
     if (index >= PSBitmapSize(bitmap)) return 0;
-    int idx = PSBitmapIndexFor(index),
-        bitidx = (int) (index % (64 * 8));
+    size_t idx = PSBitmapIndexFor(index),
+           bitidx = (size_t) (index % (64 * 8));
     return (bitmap[idx] & (1 << bitidx) ? 1 : 0);
 }
 
 int PSBitmapSetBit(PSBitmap bitmap, uint64_t index, int val) {
     if (bitmap == NULL) return 0;
     if (index >= PSBitmapSize(bitmap)) return 0;
-    int idx = PSBitmapIndexFor(index),
-        bitidx = (int) (index % (64 * 8));
+    size_t idx = PSBitmapIndexFor(index),
+           bitidx = (size_t) (index % (64 * 8));
     int old = (bitmap[idx] & (1 << bitidx) ? 1 : 0);
     if (val) bitmap[idx] |= (1 << bitidx);
     else bitmap[idx] &= ~((unsigned) (1 << bitidx));

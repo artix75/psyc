@@ -29,6 +29,7 @@
 #include <sys/utsname.h>
 #include <signal.h>
 
+#include "platform.h"
 #include "psyc.h"
 #include "config.h"
 #include "utils.h"
@@ -42,6 +43,7 @@
 #include "log.h"
 #include "debug.h"
 #include "buildinfo.h"
+#include "blas.h"
 
 #ifdef HAS_MAGICK
 #include "image-data.h"
@@ -119,11 +121,11 @@ static PsyclCmdLayerType CmdLayerTypes[] = {
 PSFloat *training_data = NULL;
 PSFloat *test_data = NULL;
 PSFloat *validation_data = NULL;
-int testlen = 0;
-int datalen = 0;
-int valdlen = 0;
-int train_dataset_len = 0;
-int eval_dataset_len = 0;
+long testlen = 0;
+long datalen = 0;
+long valdlen = 0;
+long train_dataset_len = 0;
+long eval_dataset_len = 0;
 int epochs = EPOCHS;
 PSFloat learning_rate = LEARNING_RATE;
 PSFloat l1_decay = 0.0;
@@ -456,8 +458,9 @@ static void getTempFileName(const char *prefix, char *buffer) {
 }
 
 static int loadMNISTData(int data_type, int argc, char **argv, int *arg_idx) {
-    int i = *arg_idx, ok = 1, image_data_index, label_data_index;
-    int *len = NULL;
+    int i = *arg_idx, ok = 1;
+    long image_data_index, label_data_index;
+    long *len = NULL;
     PSFloat **data = NULL;
     char *descr = NULL;
     assert(
@@ -584,7 +587,7 @@ static int loadCIFARData(int data_type, int classes, int argc, char **argv,
         data_type == PS_DATA_TYPE_TRAINING || data_type == PS_DATA_TYPE_TEST
     );
     int i = *arg_idx;
-    int *len = NULL, *dataset_len = NULL;
+    long *len = NULL, *dataset_len = NULL;
     PSFloat **data = NULL;
     if (data_type == PS_DATA_TYPE_TRAINING) {
         len = &datalen;
@@ -691,7 +694,7 @@ static int loadData(int data_type, int argc, char **argv, int *arg_idx) {
             fprintf(stderr, "ERROR: invalid argument '%s'", argv[i]);
             return 0;
         }
-        int *len = NULL;
+        long *len = NULL;
         PSFloat **data = NULL;
         char *descr = NULL;
         assert(
@@ -707,10 +710,10 @@ static int loadData(int data_type, int argc, char **argv, int *arg_idx) {
             data = &test_data;
             descr = "test";
         }
-        uint64_t dlen = 0;
+        long dlen = 0;
         printf("Loading %s dataset from file: '%s'\n", descr, argv[i]);
         *data = PSDataLoad(argv[i], &dlen);
-        *len = (int) dlen;
+        *len = dlen;
         if (*data == NULL || datalen == 0) {
             PSErr(NULL, "could not load dataset at '%s'", argv[i]);
             free(*data);
@@ -724,7 +727,7 @@ static int loadData(int data_type, int argc, char **argv, int *arg_idx) {
             free(*data);
             return 0;
         }
-        printf("Loaded %s dataset of length: %d\n", descr, *len);
+        printf("Loaded %s dataset of length: %ld\n", descr, *len);
         return 1;
     } else {
         if (data_type == PS_DATA_TYPE_TRAINING) {
@@ -805,16 +808,59 @@ static void printInfo(void) {
     printf("Git Dirty:              %s\n", PSYC_GIT_DIRTY);
     printf("Git Branch:             %s\n", PSYC_GIT_BRANCH);
     printf("Arch.:                  %dbit\n", (sizeof(long) == 8 ? 64 : 32));
+    printf("Big Endian:             %s\n", (
+        PS_IS_BIG_ENDIAN ? "yes" : "no"
+    ));
+    printf("Float IEEE 754:         ");
+    switch (PS_IEC_559) {
+        case 0: printf("no\n"); break;
+        case 1: printf("yes\n"); break;
+        case 2: printf("maybe\n"); break;
+        default: printf("unknown\n"); break;
+    }
+#ifdef __GNUC__
+    printf("GCC:                    %d.%d.%d\n",
+           __GNUC__,__GNUC_MINOR__,__GNUC_PATCHLEVEL__);
+#endif
+#ifdef __clang__
+#ifdef __clang_version__
+    printf("Clang:                  %s\n", __clang_version__);
+#else
+    printf("Clang:                  yes\n");
+#endif
+#endif
+    printf("Code Optimization:      %d\n", PSGetCodeOptimizationLevel());
     printf("Double Precision:       %s\n",
             (sizeof(PSFloat) > sizeof(float) ? "yes" : "no"));
-    printf("Code Optimization:      %d\n", PSGetCodeOptimizationLevel());
     printf("Available Acceleration(s):\n");
+    int blas_available = PSIsAccelerationAvailable(PSAcceleration_BLAS);
     if (PSIsAccelerationAvailable(PSAcceleration_Accelerate))
         printf("    Accelerate Framework\n");
-    if (PSIsAccelerationAvailable(PSAcceleration_BLAS))
+    if (blas_available)
         printf("    BLAS\n");
     if (PSIsAccelerationAvailable(PSAcceleration_AVX))
         printf("    AVX\n");
+    if (blas_available) {
+        printf("BLAS/LAPACK Interface:\n");
+#if defined(USE_PSYC_BLAS)
+        printf("    Provider:          Native (%s)\n", PSYC_NAME);
+#else
+#if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
+        printf("    Provider:          Apple (r) Accelerate Framework\n");
+#ifdef ACCELERATE_NEW_LAPACK
+        printf("                       ACCELERATE_NEW_LAPACK=1\n");
+#endif
+#ifdef ACCELERATE_LAPACK_ILP64
+        printf("                       ACCELERATE_LAPACK_ILP64=1\n");
+#endif
+#elif HAS_GSL_CBLAS
+        printf("    Provider:          GSL (GNU Scientific Library)\n");
+#elif defined(HAS_CBLAS)
+        printf("    Provider:          CBLAS (cblas.h)\n");
+#endif
+#endif
+        printf("    BLAS Int:          %zubit\n", sizeof(PSBLAS_int) * 8);
+    }
 }
 
 static int parseParamInitMode(int param_type, char *arg, PSLayerDef *ldef,
@@ -1048,7 +1094,7 @@ void parseOptions(int argc, char **argv) {
                 } else if (strcmp("--output-width", carg) == 0 && ++j < argc) {
                     char *szstr = argv[j];
                     int matched = sscanf(
-                        szstr, "%d", &(ldef.output_columns)
+                        szstr, "%ld", &(ldef.output_columns)
                     );
                     if (!matched) {
                         fprintf(
@@ -1060,7 +1106,7 @@ void parseOptions(int argc, char **argv) {
                 } else if (strcmp("--output-height", carg) == 0 && ++j < argc) {
                     char *szstr = argv[j];
                     int matched = sscanf(
-                        szstr, "%d", &(ldef.output_rows)
+                        szstr, "%ld", &(ldef.output_rows)
                     );
                     if (!matched) {
                         fprintf(
@@ -1380,15 +1426,15 @@ void parseOptions(int argc, char **argv) {
 #endif
         else if (strcmp("--training-datalen", arg) == 0 && ++i < argc) {
             char *len_s = argv[i];
-            int matched = sscanf(len_s, "%d", &train_dataset_len);
-            if (!matched) {
+            int matched = sscanf(len_s, "%ld", &train_dataset_len);
+            if (!matched || train_dataset_len < 0) {
                 fprintf(stderr, "Invalid train. data len. %s\n", len_s);
                 goto err;
             }
         } else if (strcmp("--validation-datalen", arg) == 0 && ++i < argc) {
             char *len_s = argv[i];
-            int matched = sscanf(len_s, "%d", &eval_dataset_len);
-            if (!matched) {
+            int matched = sscanf(len_s, "%ld", &eval_dataset_len);
+            if (!matched || eval_dataset_len < 0) {
                 fprintf(stderr, "Invalid valid. data len. %s\n", len_s);
                 goto err;
             }
@@ -1612,6 +1658,8 @@ void parseOptions(int argc, char **argv) {
             exit(ok ? 0 : 1);
         } else if (strcmp("--pidfile", arg) == 0 && !is_last) {
             pidfile = strdup(argv[++i]);
+        } else if (strcmp("--debug-segfault", arg) == 0) {
+            *((char*)-1) = 'x';
         } else if (strcmp("-h", arg) == 0 || strcmp("--help", arg) == 0) {
             printHelp(argv[0]);
             cleanup();
@@ -1798,7 +1846,7 @@ void onTrainEvent(int event_type, PSModel *model, int epoch, int epochs,
     if (info != NULL) {
         written += snprintf(
             cmd_p, CMD_MAX_LEN - written,
-            " --batch %d --example %d",
+            " --batch %ld --example %ld",
             info->current_batch, info->current_example
         );
         if (written >= CMD_MAX_LEN) goto cmd_overflow;

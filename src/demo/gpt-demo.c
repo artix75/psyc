@@ -138,7 +138,7 @@ static void initBytesToUnicode(void) {
     initalized = 1;
 }
 
-static int isNewToken(char *str, int *len) {
+static int isNewToken(char *str, size_t *len) {
     static const char *smatches[] = {
         "'s", "'t", "'re", "'ve", "'m", "'ll", "'d"
     };
@@ -221,7 +221,7 @@ char **getTokens(char *str, int *count) {
     int ok = 1, n_tokens = 0, i;
     while (*p) {
         char *tok = NULL;
-        int len = 0;
+        size_t len = 0;
         if (isNewToken(p, &len) && len > 0) {
             tok = malloc(len + 1);
             ok = tok != NULL;
@@ -261,10 +261,11 @@ char *encodeToken(char *token) {
     if (token == NULL) return NULL;
     char *p = token, *new = NULL;
     uint8_t c;
-    int newlen = 0;
+    size_t newlen = 0;
     while ((c = *p)) {
         uint32_t cp = BytesToUnicode[c];
-        int clen = PSUTF8CodepointSize(cp), preceding_len = 0;
+        int clen = PSUTF8CodepointSize(cp);
+        size_t preceding_len = 0;
         /* Skip character until it does not require encoding. If the original
          * token doesn't contain characteres that must be encoded, the original
          * token will be returned untouched. */
@@ -312,7 +313,7 @@ char *decodeToken(char *token) {
     if (token == NULL) return NULL;
     char *p = token, *new = NULL;
     uint8_t c;
-    int newlen = 0;
+    size_t newlen = 0;
     while ((c = *p)) {
         PSUTF8Char uc = 0;
         int clen = PSUTF8CharSize(p);
@@ -474,8 +475,8 @@ char **getBytePairEncodings(PSDict *bpe, char *token, int *count) {
         ok = (pair_iter != NULL);
         if (!ok) goto final;
         /* Get the pair with lower ranking */
-        uint64_t min_rank = INT32_MAX;
-        int first_idx = -1, bpe_found = 0, i;
+        long min_rank = INT32_MAX;
+        long first_idx = -1, bpe_found = 0, i;
         char **pair = NULL;
         PSDictItem *pair_item = NULL;
         while ((pair_item = PSDictNext(pair_iter))) {
@@ -483,9 +484,9 @@ char **getBytePairEncodings(PSDict *bpe, char *token, int *count) {
             char **item_pair = pair_item->value.as_ptr;
             assert(item_pair != NULL);
             assert(item_pair[0] != NULL && item_pair[1] != NULL);
-            int rank = INT32_MAX, found = (bpeitem != NULL);
+            long rank = INT32_MAX, found = (bpeitem != NULL);
             if (found) rank = bpeitem->value.as_int;
-            if (pair == NULL || (uint64_t) rank < min_rank) {
+            if (pair == NULL || rank < min_rank) {
                 pair = item_pair;
                 bpe_found = found;
                 min_rank = rank;
@@ -594,7 +595,7 @@ PSFloat *encodePrompt(char *prompt, PSVocabulary *vocabulary, PSDict *bpe) {
         PSFloat *dest = inputs + index;
         for (j = 0; j < bpe_count; j++) {
             char *bpe_token = bpe_encodings[j];
-            int id = PSVocabularyGetTokenID(vocabulary, bpe_token);
+            long id = PSVocabularyGetTokenID(vocabulary, bpe_token);
             ok = (id != PS_TOKEN_NOT_FOUND);
             if (!ok) {
                 PSErr(__func__, "could not find encoded ID for token '%s'",
@@ -626,7 +627,7 @@ static char *getExecutablePath(char *executable) {
     if (realpath(executable, _realpath) != NULL) {
         char *dir = dirname(_realpath);
         if (dir == NULL) return NULL;
-        int len = strlen((const char*) dir);
+        long len = strlen((const char*) dir);
         if (len >= PATH_MAX) {
             fprintf(stderr, "WARN: getPsycPath(): dirname length > %d",
                     PATH_MAX);
@@ -641,7 +642,7 @@ static char *getExecutablePath(char *executable) {
 
 static void binaryFilePath(char *destpath, char *fpath) {
     strncpy(destpath, fpath, PATH_MAX - 1);
-    int available = PATH_MAX - strlen(destpath) - 4;
+    size_t available = PATH_MAX - strlen(destpath) - 4;
     assert(available > 0);
     strncat(destpath, ".bin", available);
 }
@@ -1199,8 +1200,8 @@ static PSVocabulary *loadVocabulary(char *model_dir, uint64_t vocab_size) {
     int lineno = 0;
     char token[1024];
     while (!feof(f)) {
-        uint64_t index = 0;
-        int matched = fscanf(f, "%" SCNu64 ": ", &index);
+        long index = 0;
+        int matched = fscanf(f, "%ld: ", &index);
         if (!matched) {
             ok = 0;
             PSErr(NULL, "invalid index at line %d in file '%s'",
@@ -1213,7 +1214,7 @@ static PSVocabulary *loadVocabulary(char *model_dir, uint64_t vocab_size) {
                   lineno, encoder_path);
             goto final;
         }
-        int len = strlen(token);
+        size_t len = strlen(token);
         ok = (len > 0);
         if (!ok) {
             PSErr(NULL, "invalid empty token at line %d in file '%s'",
@@ -1221,7 +1222,7 @@ static PSVocabulary *loadVocabulary(char *model_dir, uint64_t vocab_size) {
             goto final;
         }
         if (token[len - 1] == '\n') token[len - 1] = '\0';
-        int64_t id = PSVocabularyAdd(vocabulary, token);
+        long id = PSVocabularyAdd(vocabulary, token);
         ok = (id != PS_INVALID_TOKEN_ID);
         if (!ok) {
             PSErr(NULL, "could not add token '%s' to vocabulary", token);
@@ -1261,7 +1262,7 @@ PSDict *loadBPE(char *model_dir) {
     char line[1024];
     errno = 0;
     while (fgets(line, 1024, f) != NULL) {
-        int len = strlen(line);
+        size_t len = strlen(line);
         if (len == 0) continue;
         if (line[0] == '#') continue;
         line[len - 1] = '\0';
@@ -1286,13 +1287,13 @@ final:
     return bpe;
 }
 
-static int readPromptFromStdin(char *prompt, size_t max_size) {
+static size_t readPromptFromStdin(char *prompt, size_t max_size) {
     if (prompt == NULL || max_size == 0) return 0;
     size_t totread = 0;
     int c;
     while ((c = fgetc(stdin)) != EOF) {
         if (++totread >= max_size) break;
-        int i = totread - 1;
+        size_t i = totread - 1;
         if (c == '\n') {
             prompt[i] = '\0';
             break;
@@ -1302,13 +1303,13 @@ static int readPromptFromStdin(char *prompt, size_t max_size) {
     return totread;
 }
 
-static int getNextIndex(PSModel *gpt2_model, PSFloat temperature) {
+static long getNextIndex(PSModel *gpt2_model, PSFloat temperature) {
     if (gpt2_model == NULL) return -1;
     PSLayer *outlayer = PSGetOutputLayer(gpt2_model);
     if (outlayer == NULL) return -1;
     if (temperature < 0) temperature = 0;
-    int seqlen = PSStateSequenceLength(outlayer);
-    int next_id = -1, t = seqlen - 1;
+    long seqlen = PSStateSequenceLength(outlayer);
+    long next_id = -1, t = seqlen - 1;
     if (temperature == 0) {
         if (!PSFindLayerMaxState(outlayer, NULL, &next_id, t)) return -1;
     } else {
@@ -1327,10 +1328,9 @@ static int getNextIndex(PSModel *gpt2_model, PSFloat temperature) {
         if (temp <= 0) temp = 1e-7;
         PSMultiplyVectorScalar(logits, temp, probs, outlayer->size, &opts);
         PSSoftmax(probs, probs, outlayer->size, opts.acceleration);
-        int err = 0;
-        next_id = PSRandomInt(outlayer->size, probs, &err, &opts);
+        next_id = PSRandomInt(outlayer->size, probs, &opts);
         free(probs);
-        if (err) {
+        if (next_id < 0) {
             PSErr(NULL, "could not compute next ID with temperature %g",
                   temperature);
             next_id = -1;
@@ -1368,9 +1368,9 @@ static int generate(PSModel *gpt2_model, char *prompt,
             PSErr(NULL, "forward step failed");
             goto final;
         }
-        int seqlen = PSStateSequenceLength(outlayer);
+        long seqlen = PSStateSequenceLength(outlayer);
         if (seqlen >= hparams->n_ctx) break;
-        int next_id = getNextIndex(gpt2_model, temperature);
+        long next_id = getNextIndex(gpt2_model, temperature);
         if (!ok) goto final;
         size_t new_size = 1 + (size_t) ++n_inputs;
         PSFloat *new = realloc(inputs, new_size * sizeof(PSFloat));
@@ -1383,7 +1383,7 @@ static int generate(PSModel *gpt2_model, char *prompt,
         inputs[0] = n_inputs;
         inputs[n_inputs] = (PSFloat) next_id;
         if (verbose)
-            printf("%s%d", (generated_tokens > 0 ? ", " : ""), next_id);
+            printf("%s%ld", (generated_tokens > 0 ? ", " : ""), next_id);
         char *token = (char *) PSVocabularyGetTokenByID(vocabulary, next_id);
         if (token == NULL) token = "!!UNKNOWN_TOKEN!!!";
         else {

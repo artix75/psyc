@@ -71,7 +71,7 @@
 #define PS_MATRIX_MAX_DIMENSIONS 3
 
 struct PSMathOpts;
-typedef void (*PSDotProductDebug)(int i, PSFloat a, PSFloat b, PSFloat sum,
+typedef void (*PSDotProductDebug)(long i, PSFloat a, PSFloat b, PSFloat sum,
                                   int using_acceleration,
                                   struct PSMathOpts *opts);
 typedef PSFloat (*PSFloatFunc) (PSFloat n);
@@ -113,7 +113,7 @@ typedef struct PSMathOpts {
     int                 store_mode;
     int                 transpose;
     char                argtype[3];
-    int                 vector_len;
+    long                vector_len;
     PSFloat             *tmpdest;
     PSDotProductDebug   debugStep;
     void                *data;
@@ -123,8 +123,7 @@ typedef struct PSMathOpts {
 
 PSFloat PSNormalizedRandom();
 PSFloat PSGaussianRandom(PSFloat mean, PSFloat stddev);
-unsigned int PSRandomInt(unsigned int range, PSFloat *weights, int *err,
-                         PSMathOpts *opts);
+long PSRandomInt(long range, PSFloat *weights, PSMathOpts *opts);
 
 /**** PSMatrix ****/
 
@@ -146,33 +145,33 @@ unsigned int PSRandomInt(unsigned int range, PSFloat *weights, int *err,
  * freed by calling the usual `free` function or similar functions: the
  * dedicated `PSMatrixFree` function should be called instead. */
 typedef PSFloat *PSMatrix;
-typedef PSFloat (*PSMatrixInitializer)(PSMatrix matrix, int idx, PSFloat n);
+typedef PSFloat (*PSMatrixInitializer)(PSMatrix matrix, long idx, PSFloat n);
 PSMatrix PSMatrixCreate(PSFloat init_value, PSMatrixInitializer initializer,
                         int ndims, ...);
 PSMatrix PSMatrixCreateWithShape(PSFloat init_value,
                                  PSMatrixInitializer initializer,
-                                 int ndims, int *shape);
+                                 int ndims, long *shape);
 PSMatrix PSMatrixZeros(int ndims, ...);
 PSMatrix PSMatrixRandom(int ndims, ...);
 PSMatrix PSMatrixWithGaussianRandom(PSFloat stddev, int ndims, ...);
 PSMatrix PSMatrixFromArray(PSFloat *array, int ndims, ...);
-PSMatrix PSMatrixExpand(PSMatrix src, int add, int keep_src);
+PSMatrix PSMatrixExpand(PSMatrix src, long add, int keep_src);
 int PSMatrixNumDims(PSMatrix matrix);
-int PSMatrixDim(PSMatrix matrix, int dim);
-int PSMatrixShape(PSMatrix matrix, int *shape);
-uint64_t PSMatrixLength(PSMatrix matrix);
-int PSMatrixStride(PSMatrix matrix, int dim);
+long PSMatrixDim(PSMatrix matrix, int dim);
+int PSMatrixShape(PSMatrix matrix, long *shape);
+long PSMatrixLength(PSMatrix matrix);
+long PSMatrixStride(PSMatrix matrix, int dim);
 int PSMatrixShapeType(PSMatrix matrix);
 void PSMatrixPrintInfo(PSMatrix matrix, const char *name, int newline);
 void PSMatrixPrintShape(PSMatrix matrix, int newline);
-int PSMatrixWrite(PSMatrix matrix, const char *sep, char bracket,
-                  int indent, FILE *out);
+size_t PSMatrixWrite(PSMatrix matrix, const char *sep, char bracket,
+                     int indent, FILE *out);
 void PSMatrixPrint(PSMatrix matrix, const char *sep, int print_shape);
-PSFloat *PSMatrixGet(PSMatrix matrix, int ndims, uint32_t *len, ...);
+PSFloat *PSMatrixGet(PSMatrix matrix, int ndims, long *len, ...);
 int PSMatrixProduct(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt);
-int PSMatrixProductMV(PSMatrix a, PSFloat *b, int len, PSFloat **result,
+int PSMatrixProductMV(PSMatrix a, PSFloat *b, long len, PSFloat **result,
                       PSMathOpts *opts);
-int PSMatrixProductVM(PSFloat *a, PSMatrix b, int len, PSMatrix *result,
+int PSMatrixProductVM(PSFloat *a, PSMatrix b, long len, PSMatrix *result,
                       PSMathOpts *opts);
 int PSMatrixAdd(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt);
 int PSMatrixMultiply(PSMatrix a, PSMatrix b, PSMatrix *result,PSMathOpts *opt);
@@ -180,7 +179,7 @@ int PSMatrixSubtract(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt);
 int PSMatrixDivide(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt);
 PSMatrix PSMatrixReshape(PSMatrix matrix, int num_dims, ...);
 PSMatrix PSMatrixFlatten(PSMatrix matrix);
-PSMatrix *PSMatrixSplit(PSMatrix matrix, int num_slices, int axis,
+PSMatrix *PSMatrixSplit(PSMatrix matrix, long num_slices, int axis,
                         PSMathOpts *opts);
 PSMatrix PSMatrixTranspose(PSMatrix matrix, int rebuild, PSMathOpts *opts);
 PSMatrix PSMatrixSwapAxes(PSMatrix matrix, int axis1, int axis2);
@@ -194,75 +193,69 @@ void PSMatrixFree(PSMatrix matrix);
 
 /**** Operations ***/
 
-PSFloat *PSAddVectors(PSFloat *a, PSFloat *b, PSFloat *dest, uint64_t length,
+PSFloat *PSAddVectors(PSFloat *a, PSFloat *b, PSFloat *dest, long length,
                       PSMathOpts *opts);
-PSFloat *PSSubtractVectors(PSFloat *a, PSFloat *b, PSFloat *dest,
-                           uint64_t length, PSMathOpts *opts);
-PSFloat *PSMultiplyVectors(PSFloat *a, PSFloat *b, PSFloat *dest,
-                           uint64_t length, PSMathOpts *opts);
-PSFloat *PSDivideVectors(PSFloat *a, PSFloat *b, PSFloat *dest,
-                         uint64_t length, PSMathOpts *opts);
+PSFloat *PSSubtractVectors(PSFloat *a, PSFloat *b, PSFloat *dest, long length,
+                           PSMathOpts *opts);
+PSFloat *PSMultiplyVectors(PSFloat *a, PSFloat *b, PSFloat *dest, long length,
+                           PSMathOpts *opts);
+PSFloat *PSDivideVectors(PSFloat *a, PSFloat *b, PSFloat *dest, long length,
+                         PSMathOpts *opts);
 PSFloat *PSMultiplyVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
-                                uint64_t length, PSMathOpts *opts);
-PSFloat *PSAddVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
-                           uint64_t length, PSMathOpts *opts);
+                                long length, PSMathOpts *opts);
+PSFloat *PSAddVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest, long length,
+                           PSMathOpts *opts);
 PSFloat *PSSubtractVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
-                                uint64_t length, PSMathOpts *opts);
+                                long length, PSMathOpts *opts);
 PSFloat *PSSubtractScalarVector(PSFloat b, PSFloat *a, PSFloat *dest,
-                                uint64_t length, PSMathOpts *opts);
+                                long length, PSMathOpts *opts);
 PSFloat *PSDivideVectorScalar(PSFloat *a, PSFloat b, PSFloat *dest,
-                              uint64_t length, PSMathOpts *opts);
+                              long length, PSMathOpts *opts);
 PSFloat *PSDivideScalarVector(PSFloat b, PSFloat *a, PSFloat *dest,
-                              uint64_t length, PSMathOpts *opts);
-PSFloat *PSVectorTanh(PSFloat *a, PSFloat *dest, uint64_t length,
-                      PSMathOpts *opts);
-PSFloat *PSVectorSqrt(PSFloat *a, PSFloat *dest, uint64_t length,
-                      PSMathOpts *opts);
-PSFloat *PSVectorExp(PSFloat *a, PSFloat *dest, uint64_t length,
-                     PSMathOpts *opts);
-PSFloat *PSVectorNeg(PSFloat *a, PSFloat *dest, uint64_t length,
-                     PSMathOpts *opts);
-PSFloat *PSVectorAbs(PSFloat *a, PSFloat *dest, uint64_t length,
-                     PSMathOpts *opts);
+                              long length, PSMathOpts *opts);
+PSFloat *PSVectorTanh(PSFloat *a, PSFloat *dest, long length, PSMathOpts *opts);
+PSFloat *PSVectorSqrt(PSFloat *a, PSFloat *dest, long length, PSMathOpts *opts);
+PSFloat *PSVectorExp(PSFloat *a, PSFloat *dest, long length, PSMathOpts *opts);
+PSFloat *PSVectorNeg(PSFloat *a, PSFloat *dest, long length, PSMathOpts *opts);
+PSFloat *PSVectorAbs(PSFloat *a, PSFloat *dest, long length, PSMathOpts *opts);
 PSFloat *PSVectorClip(PSFloat *a, PSFloat min, PSFloat max, PSFloat *dest,
-                      uint64_t length, PSMathOpts *opts);
+                      long length, PSMathOpts *opts);
 PSFloat *PSVectorThreshold(PSFloat *a, PSFloat min, PSFloat *dest,
-                           uint64_t length, PSMathOpts *opts);
+                           long length, PSMathOpts *opts);
 PSFloat *PSVectorMapWithLimit(PSFloat *a, PSFloat limit, PSFloat mapper,
-                              PSFloat *dest, uint64_t length, PSMathOpts *opts);
-PSFloat *PSVectorPower(PSFloat *a, PSFloat exp, PSFloat *dest, uint64_t length,
+                              PSFloat *dest, long length, PSMathOpts *opts);
+PSFloat *PSVectorPower(PSFloat *a, PSFloat exp, PSFloat *dest, long length,
                        PSMathOpts *opts);
-PSFloat PSVectorMax(PSFloat *a, uint64_t *index, uint64_t length,
-                    PSMathOpts *opts);
-PSFloat PSVectorReduceSum(PSFloat *a, uint64_t length, PSMathOpts *opts);
-int PSCumulativeSum(PSFloat *a, PSFloat *dest, uint64_t length);
-PSFloat PSMean(PSFloat *a, uint64_t length, PSMathOpts *opts);
-PSFloat PSVariance(PSFloat *a, uint64_t len, PSMathOpts *opts);
-PSFloat PSStdDev(PSFloat *a, uint64_t len, PSMathOpts *opts);
-PSFloat PSDotProduct(PSFloat *a, PSFloat *b, uint64_t length, PSMathOpts *opts);
-PSFloat PSDotSquare(PSFloat *a, uint64_t length, PSMathOpts *opts);
-void PSVectorFill(PSFloat *vec, PSFloat val, uint64_t len, PSMathOpts *opts);
-void PSVectorWrite(PSFloat *vec, uint64_t len, char* sep, FILE *f);
-void PSVectorPrint(PSFloat *vec, uint64_t len, char* sep);
+PSFloat PSVectorMax(PSFloat *a, long *index, long length, PSMathOpts *opts);
+PSFloat PSVectorReduceSum(PSFloat *a, long length, PSMathOpts *opts);
+long PSCumulativeSum(PSFloat *a, PSFloat *dest, long length);
+PSFloat PSMean(PSFloat *a, long length, PSMathOpts *opts);
+PSFloat PSVariance(PSFloat *a, long len, PSMathOpts *opts);
+PSFloat PSStdDev(PSFloat *a, long len, PSMathOpts *opts);
+PSFloat PSDotProduct(PSFloat *a, PSFloat *b, long length, PSMathOpts *opts);
+PSFloat PSDotSquare(PSFloat *a, long length, PSMathOpts *opts);
+void PSVectorFill(PSFloat *vec, PSFloat val, long len, PSMathOpts *opts);
+void PSVectorWrite(PSFloat *vec, long len, char* sep, FILE *f);
+void PSVectorPrint(PSFloat *vec, long len, char* sep);
 PSFloat *PSVectorTranspose(PSFloat *vec, PSFloat *dest, int acceleration,
                            int ndims, ...);
-int PSMatMul(PSFloat *a, PSFloat *b, PSFloat *dest, int m, int n, int k,
+int PSMatMul(PSFloat *a, PSFloat *b, PSFloat *dest, long m, long n, long k,
              PSMathOpts *opts);
 int PSDot(PSMatrix a, PSMatrix b, PSFloat *dest, PSMathOpts *opts);
 int PSDotMV(PSMatrix a, PSFloat *b, PSFloat *dest, PSMathOpts *opts);
 int PSDotVM(PSFloat *a, PSMatrix b, PSMatrix dest, PSMathOpts *opts);
 int PSOuterProduct(PSFloat *a, PSFloat *b, PSFloat *dest,
-                   uint64_t alen, uint64_t blen, PSMathOpts *opts);
-PSMatrix PSDiagonalMask(int size);
+                   long alen, long blen, PSMathOpts *opts);
+PSMatrix PSDiagonalMask(long size);
 PSMatrix PSDiagonalFlatten(PSMatrix matrix);
-PSMatrix PSDiagonalFlattenVector(PSFloat *vec, uint64_t len);
-PSFloat **PSVectorSplit(PSFloat *vec, int len, int num_slices);
-PSFloat *PSVectorDup(PSFloat *src, size_t length);
-PSFloat *PSVectorRandom(size_t len);
+PSMatrix PSDiagonalFlattenVector(PSFloat *vec, long len);
+PSFloat **PSVectorSplit(PSFloat *vec, long len, long num_slices);
+PSFloat *PSVectorDup(PSFloat *src, long length);
+PSFloat *PSVectorRandom(long len);
 int PSFloatEquals(PSFloat a, PSFloat b, int precision);
-int PSVectorEquals(PSFloat *a, PSFloat *b, uint64_t length, int precision,
-                   uint64_t *index);
-PSMatrix PSVectorConvertToMatrix(PSFloat *vec, uint64_t len, int ndims,
-                                 int *shape);
+int PSVectorEquals(PSFloat *a, PSFloat *b, long length, int precision,
+                   long *index);
+PSMatrix PSVectorConvertToMatrix(PSFloat *vec, long len, int ndims,
+                                 long *shape);
 
 #endif /* __PS_MATHS_H__ */

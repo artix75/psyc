@@ -140,7 +140,7 @@ int PSIsXTermColor256(int always_check);
 int PSXTermColor256ToANSI(uint8_t color, int bgcolor);
 void PSVPrintSameLine(char *format, va_list args);
 void PSPrintSameLine(char *format, ...);
-int PSProgressBar(int num, int tot, int style, int color, int flags,
+int PSProgressBar(long num, long tot, int style, int color, int flags,
                   int maxlen, char *label);
 int PSLineStart(int opts, char *format, ...);
 int PSLineAppend(int opts, char *format, ...);

@@ -20,14 +20,17 @@
 
 
 #include <stdint.h>
+#include <limits.h>
 #ifdef __APPLE__
 #include <AvailabilityMacros.h>
 #if defined(HAS_ACCELERATE_FRAMEWORK)
 #ifndef ACCELERATE_NEW_LAPACK
 #define ACCELERATE_NEW_LAPACK
 #endif
+#if LONG_MAX==LLONG_MAX
 #ifndef ACCELERATE_LAPACK_ILP64
 #define ACCELERATE_LAPACK_ILP64
+#endif
 #endif
 #endif
 #endif

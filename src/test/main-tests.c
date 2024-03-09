@@ -292,19 +292,19 @@ PSGradient ***backprop(PSModel *model, PSFloat *x, PSFloat *y,
 
 PSFloat updateModelParameters(PSModel *model,
                               PSFloat *training_data,
-                              int num_examples,
+                              long num_examples,
                               PSFloat rate, PSTrainingOptions* opts, ...);
 
-PSFloat *PSGetDropoutMask(PSLayer *layer, int t);
+PSFloat *PSGetDropoutMask(PSLayer *layer, long t);
 
 static int compareFloats(PSFloat a, PSFloat b, int rounding, int precision);
-static int compareArrays(PSFloat *arr, PSFloat *exp, int len, Test* test,
+static int compareArrays(PSFloat *arr, PSFloat *exp, long len, Test* test,
                          char *descr, int rounding, int precision);
 char *PSGetRecurrentModeLabel(PSRecurrentNetworkMode mode);
 int PSUpdateDelta(PSMatrix destdelta, PSMatrix srcdelta, PSMatrix weights,
-                  int seqlen, int acceleration);
+                  long seqlen, int acceleration);
 
-uint64_t testlen = 0;
+long testlen = 0;
 
 int pretrained_mnist_layers_size[PRETRAINED_MNIST_NLAYERS] = {784,30,10};
 
@@ -511,8 +511,8 @@ int compareModelChain(PSModel *model1, PSModel *model2, Test* test);
 
 static int testRecurrentNetworkMode(PSModel *model,
                                     PSRecurrentNetworkMode mode, Test *test);
-PSFloat *readSerializedFloatArray(FILE *in, char *sep, uint64_t *length,
-                                  uint64_t maxlen, uint64_t capacity);
+PSFloat *readSerializedFloatArray(FILE *in, char *sep, long *length,
+                                  long maxlen, long capacity);
 
 static char *getExecutablePath(char *executable) {
     static char path[PATH_MAX + 1] = {0};
@@ -1083,7 +1083,7 @@ int genericSetup(TestCase *test_case) {
     char dataset_path[PATH_MAX] = {0};
     if (!joinPath(executable_path, MNIST_TEST_SAMPLE_PATH, dataset_path))
         return 0;
-    uint64_t expected_datalen = PS_MNIST_INPUT_SIZE + 10;
+    long expected_datalen = PS_MNIST_INPUT_SIZE + 10;
     testlen = 0;
     FILE *f = fopen(dataset_path, "r");
     if (f == NULL) {
@@ -1096,7 +1096,7 @@ int genericSetup(TestCase *test_case) {
     fclose(f);
     if (testlen != expected_datalen) {
         fprintf(
-            stderr, "\nExpected datalen %" PRIu64" != datalen %" PRIu64 "\n",
+            stderr, "\nExpected datalen %ld != datalen %ld\n",
             expected_datalen, testlen
         );
         free(test_data);
@@ -1150,11 +1150,12 @@ int RNNSetup(TestCase *test_case) {
                 PSErr(NULL, "\nLayer[%d] weights[1] is NULL", i);
                 return 0;
             }
-            uint64_t input_weights_count = PSMatrixLength(layer->weights[0]) /
-                layer->size;
+            long input_weights_count = (
+                PSMatrixLength(layer->weights[0]) / layer->size
+            );
             /*uint64_t hidden_weights_count=PSMatrixLength(layer->weights[0]);*/
             /*uint64_t tot_weights_count = input_weights_count + layer->size;*/
-            if ((uint64_t) RNN_INPUT_SIZE != input_weights_count) {
+            if ((long) RNN_INPUT_SIZE != input_weights_count) {
                 PSErr(
                     NULL, "\nRNN Layer input_weights_count expected to be %d, "
                     "got %llu", RNN_INPUT_SIZE, input_weights_count
@@ -1173,7 +1174,7 @@ int RNNSetup(TestCase *test_case) {
             }
         } else {
             for (j = 0; j < layer->size; j++) {
-                int prev_size = model->layers[i - 1]->size;
+                long prev_size = model->layers[i - 1]->size;
                 PSFloat *input_weights = layer->weights[0] + (j * prev_size);
                 for (w = 0; w < prev_size; w++)
                     input_weights[w] = rnn_inputs_weights[j][w];
@@ -1258,15 +1259,14 @@ int LSTMSetup(TestCase *test_case) {
         PSErr(NULL, "\nLSTM layer has incomplete weights");
         return 0;
     }
-    int i, w;
-    int input_size = (int) PSMatrixLength(cell->candidate_weights) /
-                           layer->size;
+    long i, w;
+    long input_size = PSMatrixLength(cell->candidate_weights) / layer->size;
     for (i = 0; i < layer->size; i++) {
         cell->candidate_biases[i] = bg[i];
         cell->input_biases[i] = bi[i];
         cell->output_biases[i] = bo[i];
         cell->forget_biases[i] = bf[i];
-        int woffs = (i * input_size), woffs_h = (i * layer->size);
+        long woffs = (i * input_size), woffs_h = (i * layer->size);
         for (w = 0; w < input_size; w++) {
             cell->candidate_weights[woffs + w] = wg[i][w];
             cell->input_weights[woffs + w] = wi[i][w];
@@ -1274,7 +1274,7 @@ int LSTMSetup(TestCase *test_case) {
             cell->forget_weights[woffs + w] = wf[i][w];
         }
         for (w = 0; w < layer->size; w++) {
-            int src_idx = input_size + w;
+            long src_idx = input_size + w;
             cell->candidate_hidden_weights[woffs_h + w] = wg[i][src_idx];
             cell->input_hidden_weights[woffs_h + w] = wi[i][src_idx];
             cell->output_hidden_weights[woffs_h + w] = wo[i][src_idx];
@@ -1285,7 +1285,7 @@ int LSTMSetup(TestCase *test_case) {
     for (i = 0; i < out->size; i++) {
         PSNeuron neuron = {0};
         if (!PSGetNeuron(out, i, &neuron)) {
-            fprintf(stderr, "\nCould not get layer[%d] neuron[%d]\n",
+            fprintf(stderr, "\nCould not get layer[%d] neuron[%ld]\n",
                     out->index, i);
             return 0;
         }
@@ -1301,7 +1301,7 @@ int LSTMSetup(TestCase *test_case) {
         return 0;
     }
     test_case->data[0] = model;
-    int train_data_len = 2 + (LSTM_TIMES * 2);
+    long train_data_len = 2 + (LSTM_TIMES * 2);
     PSFloat *training_data = malloc(train_data_len * sizeof(PSFloat));
     if (training_data == NULL) {
         fprintf(stderr, "\nCould not allocate memory!\n");
@@ -1344,21 +1344,20 @@ int GRUSetup(TestCase *test_case) {
         PSErr(NULL, "\nGRU layer has incomplete weights");
         return 0;
     }
-    int i, w;
-    int input_size = (int) PSMatrixLength(cell->candidate_weights) /
-                           layer->size;
+    long i, w;
+    long input_size = PSMatrixLength(cell->candidate_weights) / layer->size;
     for (i = 0; i < layer->size; i++) {
         cell->candidate_biases[i] = bg[i];
         cell->update_biases[i] = bi[i];
         cell->reset_biases[i] = bf[i];
-        int woffs = (i * input_size), woffs_h = (i * layer->size);
+        long woffs = (i * input_size), woffs_h = (i * layer->size);
         for (w = 0; w < input_size; w++) {
             cell->candidate_weights[woffs + w] = wg[i][w];
             cell->update_weights[woffs + w] = wi[i][w];
             cell->reset_weights[woffs + w] = wf[i][w];
         }
         for (w = 0; w < layer->size; w++) {
-            int src_idx = input_size + w;
+            long src_idx = input_size + w;
             cell->candidate_hidden_weights[woffs_h + w] = wg[i][src_idx];
             cell->update_hidden_weights[woffs_h + w] = wi[i][src_idx];
             cell->reset_hidden_weights[woffs_h + w] = wf[i][src_idx];
@@ -1368,7 +1367,7 @@ int GRUSetup(TestCase *test_case) {
     for (i = 0; i < out->size; i++) {
         PSNeuron neuron = {0};
         if (!PSGetNeuron(out, i, &neuron)) {
-            fprintf(stderr, "\nCould not get layer[%d] neuron[%d]\n",
+            fprintf(stderr, "\nCould not get layer[%d] neuron[%ld]\n",
                     out->index, i);
             return 0;
         }
@@ -1397,7 +1396,7 @@ int GRUSetup(TestCase *test_case) {
 
 int ModelBackpropTest(Test *test, char *model_file, char *data_file_prefix,
                       char *training_data_file, char *labels_data_file,
-                      uint64_t training_data_len, uint64_t label_data_len,
+                      long training_data_len, long label_data_len,
                       char *model_name, PSTrainingOptions *topts,
                       int rounding, int precision, int expected_size,
                       int acceleration)
@@ -1453,7 +1452,7 @@ int ModelBackpropTest(Test *test, char *model_file, char *data_file_prefix,
     testAssertWithMessageOrGoto(
         ok, final, test, "Could not open '%s' for reading", path
     );
-    uint64_t image_len = 0, label_len = 0;
+    long image_len = 0, label_len = 0;
     x = readSerializedFloatArray(f, ",", &image_len, training_data_len,
                                  training_data_len);
     fclose(f);
@@ -1506,7 +1505,7 @@ int ModelBackpropTest(Test *test, char *model_file, char *data_file_prefix,
     for (int i = 0; i < model->size; i++) {
         PSLayer *layer = model->layers[i];
         char testlabel[1024];
-        uint64_t lsize = layer->size;
+        long lsize = layer->size;
         char fname[PATH_MAX] = {0};
         if (layer->states != NULL) {
             snprintf(
@@ -1522,7 +1521,7 @@ int ModelBackpropTest(Test *test, char *model_file, char *data_file_prefix,
             testAssertWithMessageOrGoto(
                 ok, final, test, "Could not open '%s'", path
             );
-            uint64_t len = 0;
+            long len = 0;
             free(states);
             states = readSerializedFloatArray(f, ",", &len, lsize, lsize);
             fclose(f);
@@ -1558,7 +1557,7 @@ int ModelBackpropTest(Test *test, char *model_file, char *data_file_prefix,
             testAssertWithMessageOrGoto(
                 ok, final, test, "Could not open '%s'", path
             );
-            uint64_t len = 0, lsize = layer->size;
+            long len = 0, lsize = layer->size;
             free(deltas);
             deltas = readSerializedFloatArray(f, ",", &len, lsize, lsize);
             fclose(f);
@@ -1583,7 +1582,7 @@ int ModelBackpropTest(Test *test, char *model_file, char *data_file_prefix,
             grad = netgradients[i - 1];
         if (grad != NULL) {
             /* Bias gradients */
-            uint64_t len = 0, grad_len = PSGetLayerParametersCount(
+            long len = 0, grad_len = PSGetLayerParametersCount(
                 layer, PS_PARAM_BIAS
             );
             if (grad_len <= 0 || !grad->biases) goto weight_gradients;
@@ -1768,7 +1767,7 @@ int testFullAccuracy(TestCase *test_case, Test *test) {
 int testFullBackprop(TestCase *test_case, Test *test) {
     PSModel *model = getModel(test_case);
     PSFloat *test_data = getTestData(test_case);
-    int input_size = model->layers[0]->size;
+    long input_size = model->layers[0]->size;
     PSFloat *x = test_data;
     PSFloat *y = test_data + input_size;
     PSGradient ***grads = backprop(model, x, y, NULL, NULL);
@@ -1777,11 +1776,11 @@ int testFullBackprop(TestCase *test_case, Test *test) {
     testAssertNotNull(gradients, test);
     int i;
     for (i = 0; i < BP_GRADIENTS_CHECKS; i++) {
-        int lidx = (int) (backpropGradients[i][0]);
-        int nidx = (int) (backpropGradients[i][1]);
+        long lidx = (long) (backpropGradients[i][0]);
+        long nidx = (long) (backpropGradients[i][1]);
         PSFloat bias = backpropGradients[i][2];
-        int widx1 = (int) (backpropGradients[i][3]);
-        int widx2 = (int) (backpropGradients[i][4]);
+        long widx1 = (long) (backpropGradients[i][3]);
+        long widx2 = (long) (backpropGradients[i][4]);
         PSFloat w1 = backpropGradients[i][5];
         PSFloat w2 = backpropGradients[i][6];
 
@@ -1799,22 +1798,22 @@ int testFullBackprop(TestCase *test_case, Test *test) {
             "Gradient[%d][%d] bias %g != from expected (%g)",
             lidx - 1, nidx, val, bias
         );
-        uint64_t wsize = dl->weight_count / layer->size;
-        uint64_t widx1_g = (nidx * wsize) + widx1;
-        uint64_t widx2_g = (nidx * wsize) + widx2;
+        long wsize = dl->weight_count / layer->size;
+        long widx1_g = (nidx * wsize) + widx1;
+        long widx2_g = (nidx * wsize) + widx2;
         testAssertNotNull(dl->weights, test);
         testAssert(widx1_g < dl->weight_count, test);
         testAssert(widx2_g < dl->weight_count, test);
         val = getRoundedFloat(dl->weights[widx1_g]);
         testAssertWithMessageOrGoto(
             (val == w1), on_fail, test,
-            "Gradient[%d][%d] weight[%d] %g != from expected (%g)",
+            "Gradient[%ld][%ld] weight[%ld] %g != from expected (%g)",
             lidx - 1, nidx, widx1, val, w1
         );
         val = getRoundedFloat(dl->weights[widx2_g]);
         testAssertWithMessageOrGoto(
             (val == w2), on_fail, test,
-            "Gradient[%d][%d] weight[%d] %g != from expected (%g)",
+            "Gradient[%ld][%ld] weight[%d] %g != from expected (%g)",
             lidx - 1, nidx, widx2, val, w2
         );
     }
@@ -1874,7 +1873,7 @@ int testConvBackprop(TestCase *test_case, Test *test) {
     PSModel *model = getModel(test_case);
     testAssert(model->acceleration == PSGlobalAcceleration, test);
     PSFloat *test_data = getTestData(test_case);
-    int input_size = model->layers[0]->size;
+    long input_size = model->layers[0]->size;
     PSFloat *x = test_data;
     PSFloat *y = test_data + input_size;
     PSGradient ***grads = backprop(model, x, y, NULL, NULL);
@@ -1882,11 +1881,11 @@ int testConvBackprop(TestCase *test_case, Test *test) {
     PSGradient **gradients = grads[0];
     testAssertNotNull(gradients, test);
     for (int i = 0; i < BP_CONV_GRADIENTS_CHECKS; i++) {
-        int lidx = (int) (backpropConvGradients[i][0]);
-        int nidx = (int) (backpropConvGradients[i][1]);
+        long lidx = (long) (backpropConvGradients[i][0]);
+        long nidx = (long) (backpropConvGradients[i][1]);
         PSFloat bias = backpropConvGradients[i][2];
-        int widx1 = (int) (backpropConvGradients[i][3]);
-        int widx2 = (int) (backpropConvGradients[i][4]);
+        long widx1 = (long) (backpropConvGradients[i][3]);
+        long widx2 = (long) (backpropConvGradients[i][4]);
         PSFloat w1 = backpropConvGradients[i][5];
         PSFloat w2 = backpropConvGradients[i][6];
         PSGradient *dl = gradients[lidx - 1];
@@ -1894,7 +1893,7 @@ int testConvBackprop(TestCase *test_case, Test *test) {
         PSLayer *layer = model->layers[lidx];
         testAssertNotNull(layer->weights, test);
         testAssertNotNull(layer->weights[0], test);
-        int wsize = (int) PSMatrixLength(layer->weights[0]);
+        long wsize = PSMatrixLength(layer->weights[0]);
         if (layer->type != Convolutional) wsize /= layer->size;
 
         PSFloat val = getRoundedFloatDec(dl->biases[nidx], 4);
@@ -1996,11 +1995,12 @@ int testRNNLoad(TestCase *test_case, Test *test) {
     int loaded = PSModelLoad(model, path);
     testAssertWithMessage(loaded, test, "Failed to load %s", path);
     model->acceleration = PSGlobalAcceleration;
-    int i, j, w, rnn_size = 0;
+    int i;
+    long j, w, rnn_size = 0;
     for (i = 1; i < model->size; i++) {
         PSLayer *layer = model->layers[i];
         int exp_weight_types = 1, is_rnn_layer = (i == 1);
-        uint64_t input_weight_count = 0, hidden_weight_count = 0;
+        long input_weight_count = 0, hidden_weight_count = 0;
         if (is_rnn_layer) {
             /* Recurrent Layer */
             rnn_size = layer->size;
@@ -2018,16 +2018,16 @@ int testRNNLoad(TestCase *test_case, Test *test) {
             input_weight_count = PSMatrixLength(layer->weights[0]);
             hidden_weight_count = PSMatrixLength(layer->weights[1]);
             testAssertWithMessage(
-                (input_weight_count == (uint64_t)(RNN_INPUT_SIZE*layer->size)),
+                (input_weight_count == (long)(RNN_INPUT_SIZE*layer->size)),
                 test,
-                "Expected RNN Layer input weight count is %llu, got %llu",
-                (uint64_t) RNN_INPUT_SIZE, input_weight_count
+                "Expected RNN Layer input weight count is %ld, got %ld",
+                (long) RNN_INPUT_SIZE, input_weight_count
             );
             testAssertWithMessage(
-                (hidden_weight_count == (uint64_t)(layer->size * layer->size)),
+                (hidden_weight_count == (long)(layer->size * layer->size)),
                 test,
-                "Expected RNN Layer hidden weight count is %llu, got %llu",
-                (uint64_t) (layer->size * layer->size), hidden_weight_count
+                "Expected RNN Layer hidden weight count is %ld, got %ld",
+                (long) (layer->size * layer->size), hidden_weight_count
             );
             for (j = 0; j < layer->size; j++) {
                 PSFloat *input_weights = layer->weights[0] +
@@ -2054,10 +2054,9 @@ int testRNNLoad(TestCase *test_case, Test *test) {
             input_weight_count = PSMatrixLength(layer->weights[0]) /
                                  layer->size;
             testAssertWithMessage(
-                (input_weight_count == (uint64_t) rnn_size), test,
-                "Expected Output Layer[%d] input weight count is %llu, "
-                "got %llu",
-                i, (uint64_t) rnn_size, input_weight_count
+                (input_weight_count == rnn_size), test,
+                "Expected Output Layer input weight count is %d, got %ld",
+                rnn_size, input_weight_count
             );
             for (j = 0; j < layer->size; j++) {
                 PSFloat *weights = layer->weights[0] + (j * rnn_size);
@@ -2087,7 +2086,7 @@ int testRNNForward(TestCase *test_case, Test *test) {
     if (!testRecurrentNetworkMode(model, ManyToMany, test)) return 0;
 
     PSLayer *output = model->layers[model->size - 1];
-    int i, j, seqlen = PSStateSequenceLength(output);
+    long i, j, seqlen = PSStateSequenceLength(output);
     for (i = 0; i < output->size; i++) {
         for (j = 0; j < seqlen; j++) {
             PSFloat s = PSGetState(output, i, j);
@@ -2095,7 +2094,7 @@ int testRNNForward(TestCase *test_case, Test *test) {
             PSFloat expected = getRoundedFloat(rnn_expected_output[j][i]);
             testAssertWithMessage(
                 (s == expected), test,
-                "Output[%d][%d]: %g != %g", i, j, s, expected
+                "Output[%ld][%ld]: %g != %g", i, j, s, expected
             );
         }
     }
@@ -2126,8 +2125,8 @@ int testRNNBackpropOld(TestCase *test_case, Test *test) {
         PSLayer *l = model->layers[i + 1];
         testAssertNotNull(l->weights, test);
         testAssertNotNull(l->weights[0], test);
-        int input_size = gradient->weight_count;
-        int input_ws = input_size / l->size;
+        long input_size = gradient->weight_count;
+        long input_ws = input_size / l->size;
         if (RNNLayer == l->type) {
             testAssertNotNull(l->weights[1], test);
             //input_size -= l->size;
@@ -2137,24 +2136,24 @@ int testRNNBackpropOld(TestCase *test_case, Test *test) {
             PSFloat *expected = (i == 0 ? rnn_inner_gradients[j] :
                                  rnn_outer_gradients[j]);
             for (w = 0; w < input_ws; w++) {
-                int widx = (j * input_ws) + w;
+                long widx = (j * input_ws) + w;
                 PSFloat dw = getRoundedFloatDec(gradient->weights[widx], 5);
                 PSFloat exp_dw = getRoundedFloatDec(expected[w], 5);
                 testAssertWithMessageOrGoto(
                     (dw == exp_dw), on_fail, test,
-                    "Gradient[%d][%d]->weight[%d]: %g != %g",
+                    "Gradient[%d][%ld]->weight[%ld]: %g != %g",
                     i, j, w, dw, exp_dw
                 );
             }
             if (RNNLayer == l->type) {
                 for (w = 0; w < l->size; w++) {
-                    int widx = (input_ws * l->size) + (j * l->size) + w;
-                    int gwidx = input_ws + w;
+                    long widx = (input_ws * l->size) + (j * l->size) + w;
+                    long gwidx = input_ws + w;
                     PSFloat dw = getRoundedFloat(gradient->weights[widx]);
                     PSFloat exp_dw = getRoundedFloat(expected[gwidx]);
                     testAssertWithMessageOrGoto(
                         (dw == exp_dw), on_fail, test,
-                        "Gradient[%d][%d]->weight[%d]: %g != %g",
+                        "Gradient[%d][%ld]->weight[%ld]: %g != %g",
                         i, j, w, dw, exp_dw
                     );
                 }
@@ -2221,7 +2220,7 @@ int testRNNStep(TestCase *test_case, Test *test) {
     PSResetModelStateSequences(model, 0, 0);
     PSFloat *training_data = getTestData(test_case);
     PSFloat **sequences = &training_data;
-    int num_examples = (int) *training_data;
+    long num_examples = (long) *training_data;
 
     int i, j, w;
     PSTrainingOptions topts = {.batch_size = 1};
@@ -2236,7 +2235,7 @@ int testRNNStep(TestCase *test_case, Test *test) {
     );
     for (i = 1; i < model->size; i++) {
         PSLayer *layer = model->layers[i];
-        int wsize = (int) PSGetLayerInputWeightsCount(layer, 1);
+        long wsize = PSGetLayerInputWeightsCount(layer, 1);
         if (layer->type == RNNLayer) wsize += layer->size;
         for (j = 0; j < layer->size; j++) {
             PSNeuron n = {0};
@@ -2344,18 +2343,18 @@ int testRNNOneHot(TestCase *test_case, Test *test) {
         ok, final, test, "%s model layer[%d] is OneHot!",
         standard_model->name, last_layer
     );
-    int vector_size = onehot_model->layers[0]->onehot_vector_size;
+    long vector_size = onehot_model->layers[0]->onehot_vector_size;
     ok = (vector_size > 0);
     testAssertWithMessageOrGoto(
         vector_size > 0, final, test,
-        "%s model layer[0] vector size is %d", vector_size
+        "%s model layer[0] vector size is %ld", vector_size
     );
     PSLayer *standard_input_layer =
         PSAddLayer(dummy_model, FullyConnected, vector_size, NULL);
     ok = (standard_input_layer != NULL);
     testAssertWithMessageOrGoto(
         standard_input_layer != NULL, final, test,
-        "Failed to create standard input layer with size %d",
+        "Failed to create standard input layer with size %ld",
         vector_size
     );
     PSLayer *curlayer = standard_model->layers[0];
@@ -2369,31 +2368,31 @@ int testRNNOneHot(TestCase *test_case, Test *test) {
     dummy_model->layers[0] = NULL;
     PSModelFree(dummy_model);
     dummy_model = NULL;
-    int onehot_datalen =
-        (int) ((sizeof(rnn_inputs) + sizeof(rnn_labels)) / sizeof(PSFloat));
-    int timesteps = (int) rnn_inputs[0];
+    long onehot_datalen =
+        (long) ((sizeof(rnn_inputs) + sizeof(rnn_labels)) / sizeof(PSFloat));
+    long timesteps = (long) rnn_inputs[0];
     ok = (timesteps > 0);
     testAssertWithMessageOrGoto(
-        ok, final, test, "timesteps should be > 0, got %d", timesteps
+        ok, final, test, "timesteps should be > 0, got %ld", timesteps
     );
-    int standard_datalen = (1 + (timesteps * 2 * vector_size));
+    long standard_datalen = (1 + (timesteps * 2 * vector_size));
     onehot_data = malloc((size_t) (1 + onehot_datalen) * sizeof(PSFloat));
     ok = (onehot_data != NULL);
     testAssertWithMessageOrGoto(
-        ok, final, test, "Failed to allocate onehot data of size %d",
+        ok, final, test, "Failed to allocate onehot data of size %ld",
         onehot_datalen
     );
     standard_data = malloc((size_t) (1 + standard_datalen) * sizeof(PSFloat));
     ok = (standard_data != NULL);
     testAssertWithMessageOrGoto(
-        ok, final, test, "Failed to allocate standard data of size %d",
+        ok, final, test, "Failed to allocate standard data of size %ld",
         standard_datalen
     );
     onehot_data[0] = standard_data[0] = 1.0;
     PSFloat *onehot_p = onehot_data + 1;
     PSFloat *standard_p = standard_data + 1;
-    int inputs_len = (int) (sizeof(rnn_inputs) / sizeof(PSFloat)),
-        labels_len = (int) (sizeof(rnn_labels) / sizeof(PSFloat)), i;
+    long inputs_len = (long) (sizeof(rnn_inputs) / sizeof(PSFloat)),
+         labels_len = (long) (sizeof(rnn_labels) / sizeof(PSFloat)), i;
     memcpy(onehot_p, rnn_inputs, sizeof(rnn_inputs));
     memcpy(
         onehot_p + inputs_len, rnn_labels, sizeof(rnn_labels)
@@ -2401,12 +2400,12 @@ int testRNNOneHot(TestCase *test_case, Test *test) {
     for (i = 0; i < inputs_len; i++) {
         ok = (rnn_inputs[i] == onehot_p[i]);
         testAssertWithMessageOrGoto(
-            ok, final, test, "rnn_inputs[%d] != onehot_data[%d] -> "
+            ok, final, test, "rnn_inputs[%ld] != onehot_data[%ld] -> "
             "%g != %g", i, i, rnn_inputs[i], onehot_p[i]
         );
     }
     for (i = 0; i < labels_len; i++) {
-        int data_idx = inputs_len + i;
+        long data_idx = inputs_len + i;
         ok = (rnn_labels[i] == onehot_p[data_idx]);
         testAssertWithMessageOrGoto(
             ok, final, test, "rnn_labels[%d] != onehot_data[%d] -> "
@@ -2415,27 +2414,27 @@ int testRNNOneHot(TestCase *test_case, Test *test) {
     }
     standard_p[0] = rnn_inputs[0];
     for (i = 1; i < inputs_len; i++) {
-        int vecidx = (int) rnn_inputs[i], input_idx = i - 1, j;
+        long vecidx = rnn_inputs[i], input_idx = i - 1, j;
         for (j = 0; j < vector_size; j++) {
-            int data_idx = 1 + (input_idx * vector_size) + j;
+            long data_idx = 1 + (input_idx * vector_size) + j;
             standard_p[data_idx] = (j == vecidx ? 1.0 : 0.0);
         }
     }
-    int labels_offset = 1 + ((inputs_len - 1) * vector_size);
+    long labels_offset = 1 + ((inputs_len - 1) * vector_size);
     for (i = 0; i < labels_len; i++) {
-        int vecidx = (int) rnn_labels[i], j;
+        long vecidx = (long) rnn_labels[i], j;
         for (j = 0; j < vector_size; j++) {
-            int data_idx = labels_offset + (i * vector_size) + j;
+            long data_idx = labels_offset + (i * vector_size) + j;
             standard_p[data_idx] = (j == vecidx ? 1.0 : 0.0);
         }
     }
     for (i = 1; i < onehot_datalen; i++) {
-        int vecidx = (int) onehot_p[i], onehot_idx = i - 1;
+        long vecidx = (long) onehot_p[i], onehot_idx = i - 1;
         PSFloat *vec = standard_p + (onehot_idx * vector_size) + 1;
-        int idx = arrayMaxIndex(vec, vector_size);
+        long idx = arrayMaxIndex(vec, vector_size);
         ok = (idx == vecidx);
         testAssertWithMessageOrGoto(
-            ok, final, test, "Onehot[%d] index %d != Standard[%d,%d] %d",
+            ok, final, test, "Onehot[%d] index %ld != Standard[%d,%ld] %ld",
             i, vecidx, ((onehot_idx * vector_size) + 1), vector_size, idx
         );
     }
@@ -2506,9 +2505,9 @@ int testLSTMTrain(TestCase *test_case, Test *test) {
     testAssertNotNull(cell->input_hidden_weights, test);
     testAssertNotNull(cell->output_hidden_weights, test);
     testAssertNotNull(cell->forget_hidden_weights, test);
-    int input_size = (int) PSGetLayerInputWeightsCount(layer, 1);
+    long input_size = PSGetLayerInputWeightsCount(layer, 1);
     testAssert(input_size > 0, test);
-    int times = PSStateSequenceLength(layer);
+    long times = PSStateSequenceLength(layer);
     for (i = 0; i < layer->size; i++) {
         for (t = 0; t < times; t++) {
             PSFloat h = PSGetState(layer, i, t);
@@ -2516,7 +2515,7 @@ int testLSTMTrain(TestCase *test_case, Test *test) {
             PSFloat expected = getRoundedFloat(lstm_expected_states[i][t]);
             testAssertWithMessage(
                 (h == expected), test,
-                "Layer[%d] Neuron[%d]->state[%d]: %g != %g",
+                "Layer[%d] Neuron[%ld]->state[%ld]: %g != %g",
                 layer->index, i, t, h, expected
             );
             /*int ok = (h == expected);
@@ -2527,7 +2526,7 @@ int testLSTMTrain(TestCase *test_case, Test *test) {
         PSFloat expected = getRoundedFloatDec(expected_bg[i], precision);
         testAssertWithMessage(
             (bias == expected), test,
-            "Layer[%d] Neuron[%d]->candidate_bias: %g != %g",
+            "Layer[%d] Neuron[%ld]->candidate_bias: %g != %g",
             layer->index, i, bias, expected
         );
         bias = getRoundedFloatDec(cell->input_biases[i], precision);
@@ -2551,23 +2550,23 @@ int testLSTMTrain(TestCase *test_case, Test *test) {
             "Layer[%d] Neuron[%d]->forget_bias: %g != %g",
             layer->index, i, bias, expected
         );
-        int woffs = (i * input_size);
+        long woffs = (i * input_size);
         for (w = 0; w < input_size; w++) {
-            int widx = woffs + w;
+            long widx = woffs + w;
             PSFloat weight = getRoundedFloatDec(
                 cell->candidate_weights[widx], precision
             );
             expected = getRoundedFloatDec(expected_wg[i][w], precision);
             testAssertWithMessage(
                 (weight == expected), test,
-                "Layer[%d] Neuron[%d]->candidate_weights[%d]: %g != %g",
+                "Layer[%d] Neuron[%ld]->candidate_weights[%ld]: %g != %g",
                 layer->index, i, w, weight, expected
             );
             weight = getRoundedFloatDec(cell->input_weights[widx], precision);
             expected = getRoundedFloatDec(expected_wi[i][w], precision);
             testAssertWithMessage(
                 (weight == expected), test,
-                "Layer[%d] Neuron[%d]->input_weights[%d]: %g != %g",
+                "Layer[%d] Neuron[%ld]->input_weights[%ld]: %g != %g",
                 layer->index, i, w, weight, expected
             );
             weight = getRoundedFloatDec(cell->output_weights[widx], precision);
@@ -2587,7 +2586,7 @@ int testLSTMTrain(TestCase *test_case, Test *test) {
         }
         woffs = (i * layer->size);
         for (w = 0; w < layer->size; w++) {
-            int widx = woffs + w, ewidx = input_size + w;
+            long widx = woffs + w, ewidx = input_size + w;
             PSFloat weight = getRoundedFloatDec(
                 cell->candidate_hidden_weights[widx], precision
             );
@@ -2629,7 +2628,7 @@ int testLSTMTrain(TestCase *test_case, Test *test) {
     PSLayer *out = model->layers[model->size - 1];
 
     for (i = 0; i < out->size; i++) {
-        int times = PSStateSequenceLength(out);
+        long times = PSStateSequenceLength(out);
         for (t = 0; t < times; t++) {
             PSFloat h = getRoundedFloat(PSGetState(out, i, t));
             PSFloat e = getRoundedFloat(lstm_expected_outputs[t][i]);
@@ -2716,10 +2715,10 @@ int testGRUTrain(TestCase *test_case, Test *test) {
     testAssertNotNull(cell->candidate_hidden_weights, test);
     testAssertNotNull(cell->update_hidden_weights, test);
     testAssertNotNull(cell->reset_hidden_weights, test);
-    int input_size = (int) PSGetLayerInputWeightsCount(layer, 1);
+    long input_size = PSGetLayerInputWeightsCount(layer, 1);
     testAssert(input_size > 0, test);
     for (i = 0; i < layer->size; i++) {
-        int times = PSStateSequenceLength(layer);
+        long times = PSStateSequenceLength(layer);
         for (t = 0; t < times; t++) {
             PSFloat h = PSGetState(layer, i, t);
             h = getRoundedFloatDec(h, 4);
@@ -3005,12 +3004,12 @@ int testNormalizationBackprop(TestCase *test_case, Test *test) {
     PSGradient *normgrads = gradients[normlayer->index - 1];
     testAssertNotNull(normgrads, test);
     testAssertWithMessageOrGoto(
-        normgrads->weight_count == (uint64_t)normlayer->size, final, test,
+        normgrads->weight_count == normlayer->size, final, test,
         "Normalization gradient weights should match layer size: %d != %d",
         normgrads->weight_count, normlayer->size
     );
     testAssertWithMessageOrGoto(
-        normgrads->bias_count == (uint64_t)normlayer->size, final, test,
+        normgrads->bias_count == normlayer->size, final, test,
         "Normalization gradient biases should match layer size: %d != %d",
         normgrads->bias_count, normlayer->size
     );
@@ -3204,7 +3203,7 @@ int testConcatOperatorBackprop(TestCase *test_case, Test *test) {
             *l2 = model->layers[2];
     PSFloat x[] = {0.932902753, 1.48698103, -0.75523293};
     PSFloat y[model->output_size];
-    for (uint32_t i = 0; i < model->output_size; i++)
+    for (long i = 0; i < model->output_size; i++)
         y[i] = PSGaussianRandom(0, 1);
     PSGradient ***grads = backprop(model, x, y, NULL, NULL);
     testAssertNotNull(grads, test);
@@ -3307,7 +3306,7 @@ int testAddOperatorBackprop(TestCase *test_case, Test *test) {
             *l2 = model->layers[2];
     PSFloat x[] = {0.932902753, 1.48698103, -0.75523293};
     PSFloat y[model->output_size];
-    for (uint32_t i = 0; i < model->output_size; i++)
+    for (long i = 0; i < model->output_size; i++)
         y[i] = PSGaussianRandom(0, 1);
     PSGradient ***grads = backprop(model, x, y, NULL, NULL);
     testAssertNotNull(grads, test);
@@ -3480,7 +3479,7 @@ int testPositionalEmbedForward(TestCase *test_case, Test *test) {
     PSLayer *poslayer = model->layers[model->size - 1];
     PSFloat *states = PSLayerStates(poslayer, 0);
     testAssertNotNull(states, test);
-    uint64_t explen = (uint64_t) (sizeof(expected_y) / sizeof(PSFloat));
+    long explen = (long) (sizeof(expected_y) / sizeof(PSFloat));
     testAssert(PSMatrixLength(states) == explen, test);
     ok = compareArrays(states, expected_y, explen, test,
                        "Positional Layer Outputs:", 0, 4);
@@ -3586,7 +3585,7 @@ int testEncodedDecoderPredict(TestCase *test_case, Test *test) {
 
 Test *encDecBackpropTest = NULL;
 static int beforeDecoderForward(PSModel *decoder,
-                                PSFloat *inputs, int seqlen, int backprop,
+                                PSFloat *inputs, long seqlen, int backprop,
                                 void *opts)
 {
     UNUSED(inputs);
@@ -3706,7 +3705,7 @@ int testGenericAttentionBackprop(PSModel *model, char *file_prefix,
                                  Test *test)
 {
     int ok = 1, i;
-    uint64_t xlen = 0, ylen = 0, olen = 0;
+    long xlen = 0, ylen = 0, olen = 0;
     int old_status = model->status;
     PSGradient ***grads = NULL;
     FILE *f = NULL;
@@ -3786,9 +3785,9 @@ int testGenericAttentionBackprop(PSModel *model, char *file_prefix,
     char suffix[25] = {0};
     for (i = 0; i < attn_layer->weight_types; i++) {
         if (attn_layer->weights[i] == NULL) continue;
-        uint64_t wlen = PSMatrixLength(attn_layer->weights[i]),
-                 blen = (i == PS_SCORES_PROJ_IDX ? 1 : attn_layer->size),
-                 exp_wlen = 0, exp_blen = 0;
+        long wlen = PSMatrixLength(attn_layer->weights[i]),
+             blen = (i == PS_SCORES_PROJ_IDX ? 1 : attn_layer->size),
+             exp_wlen = 0, exp_blen = 0;
         /* Load saved weight gradients */
         sprintf(suffix, "-%d-wgrads", i);
         sprintf(fname, "resources/%s%s.data", file_prefix, suffix);
@@ -4413,14 +4412,14 @@ int compareModels(PSModel *model, PSModel *clone, Test* test) {
                         );
                     }
                 }
-                uint64_t o_wsize = PSMatrixLength(o_weights),
-                         c_wsize = PSMatrixLength(c_weights);
+                long o_wsize = PSMatrixLength(o_weights),
+                     c_wsize = PSMatrixLength(c_weights);
                 testAssertWithMessage(
                     o_wsize == c_wsize, test,
-                    "Layer[%d]: source weights[%d] size %llu != %llu",
+                    "Layer[%d]: source weights[%d] size %ld != %ld",
                     i, k, o_wsize, c_weights
                 );
-                for (uint64_t w = 0; w < o_wsize; w++) {
+                for (long w = 0; w < o_wsize; w++) {
                     PSFloat ow = o_weights[w];
                     PSFloat cw = c_weights[w];
                     int equal_weights = compareFloats(ow, cw, 0, 5);
@@ -4577,16 +4576,16 @@ static int compareFloats(PSFloat a, PSFloat b, int rounding, int precision) {
     return a == b;
 }
 
-static int compareArrays(PSFloat *arr, PSFloat *exp, int len, Test* test,
+static int compareArrays(PSFloat *arr, PSFloat *exp, long len, Test* test,
                          char *descr, int rounding, int precision)
 {
-    for (int i = 0; i < len; i++) {
+    for (long i = 0; i < len; i++) {
         PSFloat value = arr[i];
         PSFloat expected = exp[i];
         if (precision > 0) {
             int ok = compareFloats(value, expected, 0, precision);
             testAssertWithMessage(
-                ok, test, "%s: value[%d] != expected[%d] -> %.*g != %.*g",
+                ok, test, "%s: value[%ld] != expected[%ld] -> %.*g != %.*g",
                 descr, i, i, PSFLOAT_DIG, value, PSFLOAT_DIG, expected
             );
             continue;
@@ -4597,7 +4596,7 @@ static int compareArrays(PSFloat *arr, PSFloat *exp, int len, Test* test,
         }
         testAssertWithMessage(
             (value == expected), test,
-            "%s: value[%d] != expected[%d] -> %.*g != %.*g",
+            "%s: value[%ld] != expected[%ld] -> %.*g != %.*g",
             descr, i, i, PSFLOAT_DIG, value, PSFLOAT_DIG, expected
         );
     }
@@ -4621,19 +4620,19 @@ static int checkMatrixTransposition(PSMatrix m, const PSFloat *tdata,
         "%s: Transposed 2D len %d != %d", descr, tmlen, mlen
     );
     int ndims, tndims;
-    int dims[3] = {0};
-    int tdims[3] = {0};
+    long dims[3] = {0};
+    long tdims[3] = {0};
     ndims = PSMatrixShape(m, dims);
     tndims = PSMatrixShape(tm, tdims);
     testAssertWithMessage(
         (tndims == ndims), test,
-        "%s: Transposed dimension count %d != %d", descr, tndims, ndims
+        "%s: Transposed dimension count %ld != %ld", descr, tndims, ndims
     );
     for (i = 0; i < ndims; i++) {
         int tidx = ndims - 1 - i;
         testAssertWithMessage(
             tdims[tidx] == dims[i], test,
-            "%s: Transposed dim[%d] -> Matrix dim[%d]: %d != %d", descr,
+            "%s: Transposed dim[%d] -> Matrix dim[%d]: %ld != %ld", descr,
             tidx, i, tdims[tidx], dims[i]
         );
     }
@@ -5444,10 +5443,10 @@ int testMathsMatrixCopy(TestCase *tc, Test *test) {
         testAssertNotNull(dst, test);
     }
     testAssertNotNull(dst, test);
-    uint64_t len = PSMatrixLength(src), i;
+    long len = PSMatrixLength(src), i;
     testAssertWithMessage(
         (len == 6), test,
-        "Expected len is 6, got: %d", (int) len
+        "Expected len is 6, got: %ld", len
     );
     res = PSMatrixCopy(src, dst);
     testAssertWithMessageOrGoto(
@@ -5456,8 +5455,8 @@ int testMathsMatrixCopy(TestCase *tc, Test *test) {
     for (i = 0; i < len; i++) {
         PSFloat srci = src[i], dsti = dst[i];
         testAssertWithMessageOrGoto(
-            (srci == dsti), fail, test, "Source[%d] != Dest[%d] -> %g != %g",
-            (int) i, (int) i, srci, dsti
+            (srci == dsti), fail, test, "Source[%ld] != Dest[%ld] -> %g != %g",
+            i, i, srci, dsti
         );
     }
     goto final;
@@ -5479,16 +5478,16 @@ int testMathsMatrixDup(TestCase *tc, Test *test) {
         PSMatrixLength(src);
         testAssertNotNull(dst, test);
     }
-    uint64_t len = PSMatrixLength(src), i;
+    long len = PSMatrixLength(src), i;
     testAssertWithMessageOrGoto(
         (len == 6), fail, test,
-        "Expected len is 6, got: %d", (int) len
+        "Expected len is 6, got: %ld", len
     );
     for (i = 0; i < len; i++) {
         PSFloat srci = src[i], dsti = dst[i];
         testAssertWithMessageOrGoto(
-            (srci == dsti), fail, test, "Source[%d] != Dest[%d] -> %g != %g",
-            (int) i, (int) i, srci, dsti
+            (srci == dsti), fail, test, "Source[%ld] != Dest[%ld] -> %g != %g",
+            i, i, srci, dsti
         );
     }
     goto final;
@@ -5508,9 +5507,10 @@ int testMathsMatrixTranspose(TestCase *tc, Test *test) {
                               14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24};
     const PSFloat data3DT[] = {1, 9, 17, 5, 13, 21, 2, 10, 18, 6, 14, 22,
                                3, 11, 19, 7, 15, 23, 4, 12, 20, 8, 16, 24};
-    int len2d = (int) (sizeof(data2D) / sizeof(PSFloat));
-    int len3d = (int) (sizeof(data3D) / sizeof(PSFloat));
-    int res = 1, i;
+    long len2d = (long) (sizeof(data2D) / sizeof(PSFloat));
+    long len3d = (long) (sizeof(data3D) / sizeof(PSFloat));
+    long i;
+    int res = 1;
     PSMatrix m2d = PSMatrixZeros(2, 2, 3);
     testAssertNotNull(m2d, test);
     PSMatrix m3d = PSMatrixZeros(3, 3, 2, 4);
@@ -5518,15 +5518,15 @@ int testMathsMatrixTranspose(TestCase *tc, Test *test) {
         PSMatrixFree(m3d);
         testAssertNotNull(m3d, test);
     }
-    int m2dlen = (int) PSMatrixLength(m2d),
-        m3dlen = (int) PSMatrixLength(m3d);
+    long m2dlen = PSMatrixLength(m2d),
+         m3dlen = PSMatrixLength(m3d);
     testAssertWithMessageOrGoto(
         (m2dlen == len2d), fail, test,
-        "2D Matrix length should be %d, got: %d", len2d, m2dlen
+        "2D Matrix length should be %ld, got: %ld", len2d, m2dlen
     );
     testAssertWithMessageOrGoto(
         (m3dlen == len3d), fail, test,
-        "3D Matrix length should be %d, got: %d", len3d, m3dlen
+        "3D Matrix length should be %ld, got: %ld", len3d, m3dlen
     );
     memcpy(m2d, data2D, sizeof(data2D));
     memcpy(m3d, data3D, sizeof(data3D));
@@ -5617,13 +5617,13 @@ int testMathsMatrixExpand(TestCase *tc, Test *test) {
     PSMatrix src = PSMatrixRandom(2, 2, 4), expanded = NULL;
     PSFloat *srcvalues = NULL;
     testAssertNotNull(src, test);
-    uint64_t curlen = PSMatrixLength(src);
+    long curlen = PSMatrixLength(src);
     srcvalues = malloc(curlen * sizeof(PSFloat));
     testAssertWithMessageOrGoto(srcvalues != NULL, fail, test, "%s", "");
     memcpy(srcvalues, src, curlen * sizeof(PSFloat));
     testAssertWithMessageOrGoto(
         curlen == (2 * 4), fail, test,
-        "Current length is %lld, expected: %d",
+        "Current length is %ld, expected: %d",
         curlen, (2 * 4)
     );
     expanded = PSMatrixExpand(src, 1, 0);
@@ -5631,24 +5631,24 @@ int testMathsMatrixExpand(TestCase *tc, Test *test) {
         expanded != NULL, fail, test, "PSMatrixExpand returned NULL%s",""
     );
     src = NULL;
-    uint64_t newlen = PSMatrixLength(expanded), expectedlen = (3 * 4), i;
+    long newlen = PSMatrixLength(expanded), expectedlen = (3 * 4), i;
     testAssertWithMessageOrGoto(
         (newlen == expectedlen), fail, test,
-        "Expected len is %lld, got: %lld", (int) expectedlen, (int) newlen
+        "Expected len is %ld, got: %ld", expectedlen, newlen
     );
     for (i = 0; i < curlen; i++) {
         PSFloat srci = srcvalues[i], dsti = expanded[i];
         testAssertWithMessageOrGoto(
             (srci == dsti), fail, test,
             "Source[%d] != Expanded[%d] -> %g != %g",
-            (int) i, (int) i, srci, dsti
+            i, i, srci, dsti
         );
     }
     for (; i < newlen; i++) {
         PSFloat dsti = expanded[i];
         testAssertWithMessageOrGoto(
             (dsti == 0.0), fail, test, "Expanded[%d] != 0.0 -> %g != 0.0",
-            (int) i, dsti
+            i, dsti
         );
     }
     goto final;
@@ -6006,13 +6006,13 @@ int testMathsMatrixProductVM(TestCase *tc, Test *test) {
 }
 
 int testMatrixOp(PSMatrix a, PSMatrix b, testMatrixOpFunc func,
-                 int expected_nd, int *expected_shape, PSFloat *expected,
+                 int expected_nd, long *expected_shape, PSFloat *expected,
                  char *funcname, Test *test)
 {
     int ok = 1, nd, i;
     PSMathOpts opts = {0};
     PSMatrix res = NULL;
-    int shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
+    long shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
     char testdescr[255] = {0};
 #ifdef HAS_BLAS
     snprintf(testdescr, 255, "[BLAS] %s", funcname);
@@ -6141,11 +6141,12 @@ int testMathsMatrixAdd(TestCase *tc, Test *test) {
     };
     PSFloat exp_am_scalar[2 * 3];
     PSVectorCopy(exp_am_scalar, am_values, (2 * 3));
-    int ok = 1, nd = 0, i;
-    int shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
+    int ok = 1, nd = 0;
+    long i;
+    long shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
     PSMatrix am = NULL, bm = NULL, av = NULL, bv = NULL, bv_t = NULL,
              scalar = NULL;
-    for (i = 0; i < (int)(sizeof(exp_am_scalar)/sizeof(PSFloat)); i++)
+    for (i = 0; i < (long)(sizeof(exp_am_scalar)/sizeof(PSFloat)); i++)
         exp_am_scalar[i] += scalar_value;
     am = PSMatrixCreate(0, NULL, 2, 2, 3);
     bm = PSMatrixCreate(0, NULL, 2, 2, 3);
@@ -6240,11 +6241,12 @@ int testMathsMatrixMultiply(TestCase *tc, Test *test) {
     };
     PSFloat exp_am_scalar[2 * 3];
     PSVectorCopy(exp_am_scalar, am_values, (2 * 3));
-    int ok = 1, nd = 0, i;
-    int shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
+    int ok = 1, nd = 0;
+    long i;
+    long shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
     PSMatrix am = NULL, bm = NULL, av = NULL, bv = NULL, bv_t = NULL,
              scalar = NULL;
-    for (i = 0; i < (int)(sizeof(exp_am_scalar)/sizeof(PSFloat)); i++)
+    for (i = 0; i < (long)(sizeof(exp_am_scalar)/sizeof(PSFloat)); i++)
         exp_am_scalar[i] *= scalar_value;
     am = PSMatrixCreate(0, NULL, 2, 2, 3);
     bm = PSMatrixCreate(0, NULL, 2, 2, 3);
@@ -6341,11 +6343,12 @@ int testMathsMatrixSubtract(TestCase *tc, Test *test) {
     PSFloat exp_scalar_am[2 * 3];
     PSVectorCopy(exp_am_scalar, am_values, (2 * 3));
     PSVectorCopy(exp_scalar_am, am_values, (2 * 3));
-    int ok = 1, nd = 0, i;
-    int shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
+    int ok = 1, nd = 0;
+    long i;
+    long shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
     PSMatrix am = NULL, bm = NULL, av = NULL, bv = NULL, bv_t = NULL,
              scalar = NULL;
-    for (i = 0; i < (int)(sizeof(exp_am_scalar)/sizeof(PSFloat)); i++) {
+    for (i = 0; i < (long)(sizeof(exp_am_scalar)/sizeof(PSFloat)); i++) {
         exp_am_scalar[i] -= scalar_value;
         exp_scalar_am[i] = scalar_value - exp_scalar_am[i];
     }
@@ -6444,11 +6447,12 @@ int testMathsMatrixDivide(TestCase *tc, Test *test) {
     PSFloat exp_scalar_am[2 * 3];
     PSVectorCopy(exp_am_scalar, am_values, (2 * 3));
     PSVectorCopy(exp_scalar_am, am_values, (2 * 3));
-    int ok = 1, nd = 0, i;
-    int shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
+    int ok = 1, nd = 0;
+    long i;
+    long shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
     PSMatrix am = NULL, bm = NULL, av = NULL, bv = NULL, bv_t = NULL,
              scalar = NULL;
-    for (i = 0; i < (int)(sizeof(exp_am_scalar)/sizeof(PSFloat)); i++) {
+    for (i = 0; i < (long)(sizeof(exp_am_scalar)/sizeof(PSFloat)); i++) {
         exp_am_scalar[i] /= scalar_value;
         exp_scalar_am[i] = scalar_value / exp_scalar_am[i];
     }
@@ -6665,19 +6669,19 @@ int testMathsMatMul(TestCase *tc, Test *test) {
 
 int testMathsVecToMatrix(TestCase *tc, Test *test) {
     UNUSED(tc);
-    uint64_t veclen = 6, i;
+    long veclen = 6, i;
     PSFloat orig_vec[veclen];
     PSFloat *vec = PSVectorCreate(veclen);
     testAssertNotNull(vec, test);
     for (i = 0; i < veclen; i++) vec[i] = orig_vec[i] = PSGaussianRandom(0, 1);
-    int shape[PS_MAX_SEQUENCE_LENGTH] = {2, 3, 0};
+    long shape[PS_MAX_SEQUENCE_LENGTH] = {2, 3, 0};
     int success = 1;
     PSMatrix matrix = PSVectorConvertToMatrix(vec, veclen, 2, shape);
     testAssertNotNull(matrix, test);
     vec = NULL;
     success = compareArrays(matrix, orig_vec, veclen, test, NULL, 0, 0);
     if (!success) goto final;
-    int mshape[PS_MAX_SEQUENCE_LENGTH] = {0};
+    long mshape[PS_MAX_SEQUENCE_LENGTH] = {0};
     int ndims = 0, d;
     ndims = PSMatrixShape(matrix, mshape);
     for (d = 0; d < ndims; d++) {
@@ -6932,7 +6936,7 @@ int testDefaultOptimization(TestCase *tc, Test *test) {
         0.237288, -0.132154, -19.9703, -0.306606, 0.100178, -0.529931,
         0.000580211, 1.00021
     };
-    uint64_t len = 8;
+    long len = 8;
     PSFloat params[len];
     memcpy(params, orig_params, len * sizeof(PSFloat));
     PSFloat rate = 0.1;
@@ -6982,7 +6986,7 @@ int testMomentumOptimization(TestCase *tc, Test *test) {
         0.237287, -0.132154, -58.3503, -0.306606, 0.100178,
         -0.719931, 0.00168261, 1.00061
     };
-    uint64_t len = 8;
+    long len = 8;
     PSFloat params[len];
     PSFloat mem[len];
     memcpy(params, orig_params, len * sizeof(PSFloat));
@@ -7043,7 +7047,7 @@ int testNesterovOptimization(TestCase *tc, Test *test) {
         0.237287, -0.132154, -92.8923, -0.306606, 0.100178, -0.890931,
         0.00267477, 1.00098
     };
-    uint64_t len = 8;
+    long len = 8;
     PSFloat params[len];
     PSFloat mem[len];
     memcpy(params, orig_params, len * sizeof(PSFloat));
@@ -7104,7 +7108,7 @@ int testAdaDeltaOptimization(TestCase *tc, Test *test) {
         0.237282, -0.132154, 0.226879, -0.306606, 0.100176, -0.432777,
         0.00276497, 1.00236
     };
-    uint64_t len = 8;
+    long len = 8;
     PSFloat params[len];
     PSFloat mem1[len];
     PSFloat mem2[len];
@@ -7169,7 +7173,7 @@ int testWindowGradOptimization(TestCase *tc, Test *test) {
         0.235378, -0.132154, -0.537744, -0.306606, 0.0995521,
         -1.1974, 0.74998, 1.66075
     };
-    uint64_t len = 8;
+    long len = 8;
     PSFloat params[len];
     PSFloat mem[len];
     memcpy(params, orig_params, len * sizeof(PSFloat));
@@ -7230,7 +7234,7 @@ int testAdaGradOptimization(TestCase *tc, Test *test) {
         0.235378, -0.132154, 0.059015, -0.306606, 0.0995521,
         -0.600641, 0.17051, 1.16922
     };
-    uint64_t len = 8;
+    long len = 8;
     PSFloat params[len];
     PSFloat mem[len];
     memcpy(params, orig_params, len * sizeof(PSFloat));
@@ -7291,7 +7295,7 @@ int testRMSPropOptimization(TestCase *tc, Test *test) {
         0.23709731, -0.13215413,  0.17516139, -0.30660592,  0.10011567,
         -0.48449495, 0.05392763,  1.05029508
     };
-    uint64_t len = 8;
+    long len = 8;
     PSFloat params[len];
     PSFloat mem[len];
     memcpy(params, orig_params, len * sizeof(PSFloat));
@@ -7352,7 +7356,7 @@ int testAdamOptimization(TestCase *tc, Test *test) {
         0.0373545, -0.1321541, 0.0297257, -0.3066059, -0.0998215,
         -0.6299306, 0.1999966, 1.1999906
     };
-    uint64_t len = 8;
+    long len = 8;
     PSFloat params[len];
     PSFloat mem1[len];
     PSFloat mem2[len];
@@ -7417,7 +7421,7 @@ int testL1WeightDecay(TestCase *tc, Test *test) {
         0.0237288, -0.0132154, 0.0229726, -0.0306606, 0.0100178,
         -0.0429931, 0, 0.1
     };
-    uint64_t len = 8;
+    long len = 8;
     PSFloat params[len];
     memcpy(params, orig_params, len * sizeof(PSFloat));
     PSFloat l1 = 0.1, l1_loss = 0.0;
@@ -7468,7 +7472,7 @@ int testL2WeightDecay(TestCase *tc, Test *test) {
         0.0237288, -0.0132154, 0.0229726, -0.0306606, 0.0100178,
         -0.0429931, 0, 0.1
     };
-    uint64_t len = 8;
+    long len = 8;
     PSFloat params[len];
     memcpy(params, orig_params, len * sizeof(PSFloat));
     PSFloat l2 = 0.1, l2_loss = 0.0;
@@ -7519,7 +7523,7 @@ int testL1Regularization(TestCase *tc, Test *test) {
         0.100003, -0.1, 202.1, -0.1, 0.100001, 0.9, -0.105802, 0.0978832
     };
     PSFloat expected_l1_loss = getRoundedFloatDec(2.43588, 4);
-    uint64_t len = 8;
+    long len = 8;
     PSFloat gradients[len];
     memcpy(gradients, orig_gradients, len * sizeof(PSFloat));
     PSFloat l1 = 0.1, l1_loss = 0.0;
@@ -7589,7 +7593,7 @@ int testL2Regularization(TestCase *tc, Test *test) {
         -0.00580211, 0.0978832
     };
     PSFloat expected_l2_loss = getRoundedFloatDec(1.41543, 4);
-    uint64_t len = 8;
+    long len = 8;
     PSFloat gradients[len];
     memcpy(gradients, orig_gradients, len * sizeof(PSFloat));
     PSFloat l2 = 0.1, l2_loss = 0.0;
@@ -7654,8 +7658,8 @@ int testDatasetLoad(TestCase *tc, Test *test) {
         joinPath(executable_path, "resources/test-dataset.psdata", path), test
     );
     testAssert(PSFileExists(path), test);
-    uint64_t datalen = 0,
-             expected_len = (sizeof(expected_loaded_dataset)/sizeof(PSFloat));
+    long datalen = 0,
+         expected_len = (sizeof(expected_loaded_dataset)/sizeof(PSFloat));
     PSFloat *data = PSDataLoad(path, &datalen);
     int success = (data != NULL);
     testAssertWithMessageOrGoto(
@@ -7678,13 +7682,13 @@ int testDatasetSave(TestCase *tc, Test *test) {
     UNUSED(tc);
     char tmpfile[PATH_MAX];
     getTmpFileName("tests-save-dataset", ".psdata", tmpfile);
-    uint64_t len = (sizeof(expected_loaded_dataset)/sizeof(PSFloat));
+    long len = (sizeof(expected_loaded_dataset)/sizeof(PSFloat));
     int success = PSDataSave(tmpfile, expected_loaded_dataset, len, 0);
     testAssertWithMessage(success, test, "could not save dataset", "");
     testAssertWithMessage(
         PSFileExists(tmpfile), test, "saved file not found", ""
     );
-    uint64_t datalen = 0;
+    long datalen = 0;
     PSFloat *data = PSDataLoad(tmpfile, &datalen);
     success = (data != NULL);
     testAssertWithMessageOrGoto(
@@ -7707,7 +7711,7 @@ int testDatasetSaveBinary(TestCase *tc, Test *test) {
     UNUSED(tc);
     char tmpfile[PATH_MAX];
     getTmpFileName("tests-save-dataset-bin", ".psdata", tmpfile);
-    uint64_t len = (sizeof(expected_loaded_dataset)/sizeof(PSFloat));
+    long len = (sizeof(expected_loaded_dataset)/sizeof(PSFloat));
     int success = PSDataSave(
         tmpfile, expected_loaded_dataset, len, PS_IO_BINARY_MODE
     );
@@ -7715,7 +7719,7 @@ int testDatasetSaveBinary(TestCase *tc, Test *test) {
     testAssertWithMessage(
         PSFileExists(tmpfile), test, "saved file not found", ""
     );
-    uint64_t datalen = 0;
+    long datalen = 0;
     PSFloat *data = PSDataLoad(tmpfile, &datalen);
     success = (data != NULL);
     testAssertWithMessageOrGoto(
@@ -7724,7 +7728,7 @@ int testDatasetSaveBinary(TestCase *tc, Test *test) {
     success = (datalen == len);
     testAssertWithMessageOrGoto(
         success, final, test,
-        "dataset length differs from expected: %" PRIu64 " != %" PRIu64,
+        "dataset length differs from expected: %ld != %ld",
         datalen, len
     );
     success = compareArrays(data, expected_loaded_dataset, datalen,

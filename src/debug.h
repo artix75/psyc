@@ -49,11 +49,11 @@ typedef struct PSDebugInfo {
     int current_epoch;
     int current_batch;
     int current_example;
-    int layer_index;
-    int layer_type;
-    int neuron_index;
-    int neuron2_index;
-    int layer2_index;
+    long layer_index;
+    long layer_type;
+    long neuron_index;
+    long neuron2_index;
+    long layer2_index;
     int convolutional_feature;
     int timestep;
     PSFloat activation;
@@ -85,11 +85,11 @@ void PSTrainingDebugDump(PSModel *model, char *fmt, ...);
 void PSTrainingDebugDumpStep(PSDebugStepInfo *info, char *format, ...);
 
 void PSTrainingDebugDumpHeader(PSModel *model,
-                              int data_size,
-                              int test_size,
-                              int epochs,
-                              PSFloat learning_rate,
-                              int batch_size);
+                               long data_size,
+                               long test_size,
+                               int epochs,
+                               PSFloat learning_rate,
+                               long batch_size);
 
 void PSTrainingDebugDumpGradient(PSModel *model,
                                  int phase,

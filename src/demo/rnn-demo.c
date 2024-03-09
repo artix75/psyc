@@ -171,8 +171,8 @@ void printSample(PSModel *model, int input_idx, int len) {
             );
             return;
         }
-        int max_idx = 0;
-        int t = ((unsigned int) data[0]) - 1;
+        long max_idx = 0;
+        long t = ((long) data[0]) - 1;
         if (!use_random_choice) {
             if (!PSFindLayerMaxState(out, NULL, &max_idx, t)) {
                 model->status = oldstatus;

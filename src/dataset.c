@@ -46,24 +46,24 @@ typedef struct {
     PSFloat *x;
     PSFloat *y;
     int incomplete_target;
-    int64_t capacity;
+    long capacity;
     size_t target_dataset_offset;
 } PSDataSequenceState;
 
 /* Forward declarations */
 uint32_t swap_uint32(uint32_t val);
-PSFloat *readSerializedFloatArray(FILE *in, char *sep, uint64_t *length,
-                                  uint64_t maxlen, uint64_t capacity);
-int writeSerializedFloatArray(FILE *out, uint64_t count, char *sep, int opts,
-                              PSFloat *array);
-PSFloat *loadBinaryVector(const char *filepath, FILE *f, uint64_t *len);
-int saveBinaryVector(FILE *f, PSFloat *vec, uint64_t len);
+PSFloat *readSerializedFloatArray(FILE *in, char *sep, size_t *length,
+                                  size_t maxlen, size_t capacity);
+int writeSerializedFloatArray(FILE *out, size_t count, char *sep,
+                              int opts, PSFloat *array);
+PSFloat *loadBinaryVector(const char *filepath, FILE *f, size_t *len);
+int saveBinaryVector(FILE *f, PSFloat *vec, size_t len);
 
 /**** PSVocabulary ****/
 
 /* Create a `PSVocabulary` with initial capacity of `initial_capacity`.
  * Return value: the vocabulary or NULL if memory cannot be allocated. */
-PSVocabulary *PSVocabularyCreate(int64_t initial_capacity) {
+PSVocabulary *PSVocabularyCreate(long initial_capacity) {
     PSVocabulary *vocabulary = malloc(sizeof(*vocabulary));
     if (vocabulary == NULL) {
         PSPrintMemoryErrorMsg();
@@ -93,9 +93,9 @@ PSVocabulary *PSVocabularyCreate(int64_t initial_capacity) {
  * Return value: the numeric index (ID) of the token. If token could not be
  * added to the dictionary or `token` is NULL, the function will return
  * `PS_INVALID_TOKEN_ID`. */
-int64_t PSVocabularyAdd(PSVocabulary *vocabulary, char *token) {
+long PSVocabularyAdd(PSVocabulary *vocabulary, char *token) {
     if (token == NULL) return PS_INVALID_TOKEN_ID;
-    int64_t id = vocabulary->token_map->length, size;
+    long id = vocabulary->token_map->length, size;
     PSDict *token_map = vocabulary->token_map;
     /* Set id as value for token into token_map dictionary. Since token_map
      * has flag PSDICT_UPDATE_DISABLED enabled, value won't be updated if it
@@ -112,7 +112,7 @@ int64_t PSVocabularyAdd(PSVocabulary *vocabulary, char *token) {
             PSDictRemove(token_map, token);
             return PS_INVALID_TOKEN_ID;
         }
-        int64_t added_size = size - vocabulary->capacity;
+        long added_size = size - vocabulary->capacity;
         char **added = tokens + vocabulary->capacity;
         memset(added, 0, added_size * sizeof(char *));
         vocabulary->tokens = (const char**) tokens;
@@ -128,7 +128,7 @@ int64_t PSVocabularyAdd(PSVocabulary *vocabulary, char *token) {
  * into `vocabulary`, the function will return `PS_TOKEN_NOT_FOUND`.
  * If `vocabulary` is NULL or `token` is NULL, the function will return
  * `PS_INVALID_TOKEN_ID`. */
-int64_t PSVocabularyGetTokenID(PSVocabulary *vocabulary, char *token) {
+long PSVocabularyGetTokenID(PSVocabulary *vocabulary, char *token) {
     if (vocabulary == NULL || token == NULL || vocabulary->token_map == NULL)
         return PS_INVALID_TOKEN_ID;
     PSDictItem *item = PSDictGet(vocabulary->token_map, token);
@@ -139,7 +139,7 @@ int64_t PSVocabularyGetTokenID(PSVocabulary *vocabulary, char *token) {
 /* Get the token associated with `id` from `vocabulary`.
  * Return value: the token associated with `id` or NULL if no `token` is found
  * with `id`. Also return NULL if `vocabulary` is NULL. */
-const char *PSVocabularyGetTokenByID(PSVocabulary *vocabulary, int64_t id) {
+const char *PSVocabularyGetTokenByID(PSVocabulary *vocabulary, long id) {
     if (vocabulary == NULL) return NULL;
     if (id >= vocabulary->size || vocabulary->tokens == NULL) return NULL;
     return vocabulary->tokens[id];
@@ -166,14 +166,14 @@ int PSVocabularySave(PSVocabulary *vocabulary, const char *path) {
         return 0;
     }
     int success = 1;
-    int64_t i;
+    long i;
     FILE *f = fopen(path, "w");
     if (f == NULL) {
         PSErr(__func__, "could not open '%s' for writing", path);
         return 0;
     }
     errno = 0;
-    int nwritten = fprintf(f, "%" PRIi64 ":", vocabulary->size);
+    int nwritten = fprintf(f, "%ld:", vocabulary->size);
     success = (nwritten >= 0);
     if (!success) {
         PSErr(__func__, "failed to write to file '%s'", path);
@@ -183,7 +183,7 @@ int PSVocabularySave(PSVocabulary *vocabulary, const char *path) {
         const char *token = vocabulary->tokens[i];
         success = (token != NULL);
         if (!success) {
-            PSErr(__func__, "token[%" PRIi64 "] is null", i);
+            PSErr(__func__, "token[%ld] is null", i);
             goto final;
         }
         nwritten = fprintf(f, "%s%c", token, '\0');
@@ -238,11 +238,15 @@ PSVocabulary *PSVocabularyLoad(const char *path) {
         PSErr(__func__, "invalid file '%s'", path);
         goto final;
     }
+    if ((uint64_t) size > LONG_MAX) {
+        PSErr(__func__, "vocabulary size exceeds limits");
+        goto final;
+    }
     if (size <= 0) {
         PSErr(__func__, "empty vocabulary at path '%s'", path);
         goto final;
     }
-    vocabulary = PSVocabularyCreate(size);
+    vocabulary = PSVocabularyCreate((long) size);
     if (vocabulary == NULL) {
         PSErr(__func__, "cannot create vocabulary");
         goto final;
@@ -253,7 +257,7 @@ PSVocabulary *PSVocabularyLoad(const char *path) {
     int toklen = 0;
     while ((c = getc(f)) != EOF) {
         if (++toklen > PS_IO_MAX_TOKEN_SIZE) {
-            PSErr(__func__, "token[%" PRIi64 "] exceeds max. size %d in "
+            PSErr(__func__, "token[%ld] exceeds max. size %d in "
                   "'%s'", vocabulary->size, PS_IO_MAX_TOKEN_SIZE, path);
             PSVocabularyFree(vocabulary);
             vocabulary = NULL;
@@ -261,7 +265,7 @@ PSVocabulary *PSVocabularyLoad(const char *path) {
         }
         *(p++) = c;
         if (c == '\0') {
-            int64_t id = PSVocabularyAdd(vocabulary, token);
+            long id = PSVocabularyAdd(vocabulary, token);
             if (id < 0) {
                 PSErr(__func__, "could not add token from '%s'", path);
                 PSVocabularyFree(vocabulary);
@@ -278,7 +282,7 @@ final:
     return vocabulary;
 }
 
-const char *PSVocabularyErrorString(int err) {
+const char *PSVocabularyErrorString(long err) {
     switch (err) {
         case PS_INVALID_TOKEN_ID: return "generic error";
         case PS_TOKEN_NOT_FOUND: return "token not found";
@@ -295,14 +299,14 @@ void PSVocabularyFree(PSVocabulary *vocabulary) {
 
 /**** Text Datasets ****/
 
-static PSFloat *makeRoomForNewData(PSFloat *data, int64_t *current_capacity,
-                                   int64_t new_length, int64_t capacity_incr,
+static PSFloat *makeRoomForNewData(PSFloat *data, long *current_capacity,
+                                   long new_length, long capacity_incr,
                                    int num_pointers, ...)
 {
     if (new_length > *current_capacity) {
-        int64_t min_capacity = (new_length - *current_capacity);
+        long min_capacity = (new_length - *current_capacity);
         if (capacity_incr < min_capacity) capacity_incr = min_capacity;
-        int64_t new_capacity = *current_capacity + capacity_incr;
+        long new_capacity = *current_capacity + capacity_incr;
         PSFloat *new_data = realloc(data, new_capacity * sizeof(PSFloat));
         if (new_data == NULL) {
             PSPrintMemoryErrorMsg();
@@ -328,9 +332,9 @@ static PSFloat *makeRoomForNewData(PSFloat *data, int64_t *current_capacity,
 }
 
 static PSFloat *handleTruncatedTextSequenceData(PSFloat *data,
-                                                int64_t *datalen,
-                                                int64_t *current_capacity,
-                                                int64_t end_token_id,
+                                                long *datalen,
+                                                long *current_capacity,
+                                                long end_token_id,
                                                 PSTextParserOptions *opts,
                                                 PSDataSequenceState *state)
 {
@@ -343,14 +347,14 @@ static PSFloat *handleTruncatedTextSequenceData(PSFloat *data,
         opts->flags & PS_PARSER_FLAG_MAKE_TARGETS ||
         (opts->target_dataset != NULL && opts->target_datalen > 0)
     );
-    int64_t count = *datalen, cur_capacity = *current_capacity;
+    long count = *datalen, cur_capacity = *current_capacity;
     int xlen = 0;
     if (state->xlen_p) xlen = (int)(*state->xlen_p);
     if (state->incomplete_target) {
         /* Target sequence (y) is not complete. */
         if (end_token_id > 0) {
             /* Try to fill target sequence with the provided end token. */
-            int newlen = ++count;
+            long newlen = ++count;
             PSFloat *new_data = makeRoomForNewData(
                 data, &cur_capacity, newlen, newlen, 3,
                 &(state->nseq_p), &(state->x), &(state->xlen_p)
@@ -369,7 +373,7 @@ static PSFloat *handleTruncatedTextSequenceData(PSFloat *data,
             do_drop = 1;
         } else if (xlen_p != NULL) *xlen_p = *xlen_p + 1; */
         if (state->xlen_p != NULL) {
-            int slen = (data + count - 1) - state->xlen_p;
+            long slen = (data + count - 1) - state->xlen_p;
             assert(slen >= 0); /* TODO: handle? */
             do_drop = (
                 slen == 0 || xlen == 0 || (make_targets && slen == xlen)
@@ -378,7 +382,7 @@ static PSFloat *handleTruncatedTextSequenceData(PSFloat *data,
                 *(state->xlen_p) = slen;
         } else do_drop = 1;
     }
-    int nseq = *(state->nseq_p);
+    long nseq = *(state->nseq_p);
     if (do_drop) {
         /* If it was reading target sequence, decrease sequence count. */
         if (state->incomplete_target && nseq > 0) *(state->nseq_p) = nseq - 1;
@@ -393,7 +397,7 @@ static PSFloat *handleTruncatedTextSequenceData(PSFloat *data,
 }
 
 PSFloat *loadDatasetFromString(char *str, PSTextParserOptions *opts,
-                               int64_t *datalen, PSVocabulary **vocabulary,
+                               long *datalen, PSVocabulary **vocabulary,
                                PSFloat *existing_data,
                                PSDataSequenceState *state, const char *func)
 {
@@ -417,13 +421,13 @@ PSFloat *loadDatasetFromString(char *str, PSTextParserOptions *opts,
         if (existing_data == NULL) *datalen = 0;
         return NULL;
     }
-    int len = strlen(str);
+    size_t len = strlen(str);
     if (len == 0) {
         if (existing_data == NULL) *datalen = 0;
         return NULL;
     }
-    int end_idx = len - 1;
-    int64_t y_nseq = 0;
+    size_t end_idx = len - 1;
+    long y_nseq = 0;
     PSTokenNormalizer normalize = NULL;
     if (opts == NULL) opts = &default_opts;
     int do_normalize = !(opts->flags & PS_PARSER_FLAG_NO_NORMALIZATION),
@@ -434,7 +438,7 @@ PSFloat *loadDatasetFromString(char *str, PSTextParserOptions *opts,
         fixed_seqlen = opts->sequence_length;
     seq_separator = opts->sequence_separator;
     PSFloat *y_dataset = opts->target_dataset;
-    int y_datalen = opts->target_datalen;
+    long y_datalen = opts->target_datalen;
     start_token = opts->start_token;
     end_token = opts->end_token;
     if (!encode_only) {
@@ -447,7 +451,7 @@ PSFloat *loadDatasetFromString(char *str, PSTextParserOptions *opts,
             }
             /* Read target number of sequences from the first element of
              * target dataset. */
-            y_nseq = (int64_t) *(y_dataset++);
+            y_nseq = (long) *(y_dataset++);
             y_datalen--;
             if (y_nseq == 0 || y_datalen == 0) {
                 PSErr(func, "empty `y_dataset`");
@@ -468,15 +472,15 @@ PSFloat *loadDatasetFromString(char *str, PSTextParserOptions *opts,
         }
         str = tmpstr;
     }
-    int64_t max_vocab_size = opts->max_vocabulary_size;
+    long max_vocab_size = opts->max_vocabulary_size;
     if (max_vocab_size <= 0) max_vocab_size = PS_DEFAULT_MAX_VOCAB_SIZE;
     PSTokenMatch match_token = opts->match_token;
     const char *separator = opts->separator;
     if (separator == NULL && !char_mode)
         separator = PS_DEFAULT_TOKEN_SEPARATOR;
-    int64_t count = 0, start_token_id = -1, end_token_id = -1,
-            y_start_token_id = -1, y_end_token_id = -1,
-            current_capacity = 0, capacity_increment = 0;
+    long count = 0, start_token_id = -1, end_token_id = -1,
+         y_start_token_id = -1, y_end_token_id = -1,
+         current_capacity = 0, capacity_increment = 0;
     vocab = *vocabulary;
     if (vocab != NULL) capacity_increment = vocab->capacity;
     else {
@@ -494,8 +498,8 @@ PSFloat *loadDatasetFromString(char *str, PSTextParserOptions *opts,
     const char *initial_tokens_defaults[] = {
         PS_DEFAULT_START_TOKEN, PS_DEFAULT_END_TOKEN
     };
-    int64_t *initial_token_ids[] = {&start_token_id, &end_token_id};
-    int64_t *y_token_ids[] = {&y_start_token_id, &y_end_token_id};
+    long *initial_token_ids[] = {&start_token_id, &end_token_id};
+    long *y_token_ids[] = {&y_start_token_id, &y_end_token_id};
     int initial_token_flags[] = {
         PS_PARSER_FLAG_START_TOKEN, PS_PARSER_FLAG_END_TOKEN
     };
@@ -506,8 +510,7 @@ PSFloat *loadDatasetFromString(char *str, PSTextParserOptions *opts,
             if (opts->flags & flag) tok = initial_tokens_defaults[i];
             else continue;
         }
-        int64_t *tok_id_p = initial_token_ids[i],
-                *y_tok_id_p = y_token_ids[i];
+        long *tok_id_p = initial_token_ids[i], *y_tok_id_p = y_token_ids[i];
         char *toktype = (i == 0 ? "start" : "end");
         if (read_only || (vocab->size >= max_vocab_size)) {
             *tok_id_p = PSVocabularyGetTokenID(vocab, (char *) tok);
@@ -586,7 +589,7 @@ PSFloat *loadDatasetFromString(char *str, PSTextParserOptions *opts,
     }
     if (multi_seq) {
         nseq_p = data;
-        if (opts->max_sequences > 0 && (int64_t)*nseq_p > opts->max_sequences)
+        if (opts->max_sequences > 0 && (long)*nseq_p > opts->max_sequences)
             return data;
     }
     char *token = str, *p = str, *sep_p = NULL;
@@ -607,7 +610,7 @@ PSFloat *loadDatasetFromString(char *str, PSTextParserOptions *opts,
         }
         if (match_token != NULL) {
             /* Use the match_token callback. */
-            int matched = match_token(p, (int *) &wlen);
+            int matched = match_token(p, &wlen);
             if (!matched || wlen <= 0) {
                 p++;
                 continue;
@@ -661,7 +664,7 @@ add_to_vocab:
                 do_free_token = 1;
             }
         }
-        int64_t id = -1;
+        long id = -1;
         /* Get token ID (by adding/reading it to/from vocabulary. */
         if (read_only || (vocab->size >= max_vocab_size)) {
             id = PSVocabularyGetTokenID(vocab, token);
@@ -694,7 +697,7 @@ add_to_vocab:
 
         /* Prepare dataset: increase count, ventually make room for the new
          * data and check for sequence termination. */
-        int64_t newlen = ++count;
+        long newlen = ++count;
         int xlen = 0, ylen = 0;
         if (!encode_only) {
             if (!incomplete_target) {
@@ -793,7 +796,7 @@ add_to_vocab:
                      * of the next input sequence will be added to targets
                      * (by setting `incomplete_target` to true), otherwise
                      * just append the 'end' token. */
-                    int ycount = ylen - 1;
+                    long ycount = ylen - 1;
                     if (ylen > 1)
                         PSVectorCopy((data + count), (x + 1), ycount);
                     if (use_end_token && fixed_seqlen <= 0)
@@ -813,7 +816,7 @@ add_to_vocab:
                         PSErr(func, "`y_dataset` is truncated");
                         goto fail;
                     }
-                    int ylen_add = 0;
+                    long ylen_add = 0;
                     if (use_end_token && !exact_inputs && xlen_p != NULL) {
                         *xlen_p = *xlen_p + 1;
                         data[count++] = (PSFloat) end_token_id;
@@ -840,7 +843,7 @@ add_to_vocab:
             }
             x = NULL;
         }
-        if (opts->max_sequences > 0 && (int64_t)*nseq_p >= opts->max_sequences)
+        if (opts->max_sequences > 0 && (long)*nseq_p >= opts->max_sequences)
             if (multi_seq && !incomplete_target) break;
     }
     if (state != NULL) {
@@ -894,9 +897,9 @@ fail:
     return NULL;
 }
 
-char *PSNormalizeToken(char *token, int len) {
+char *PSNormalizeToken(char *token, size_t len) {
     if (token == NULL) return NULL;
-    for (int i = 0; i < len; i++) token[i] = tolower(token[i]);
+    for (size_t i = 0; i < len; i++) token[i] = tolower(token[i]);
     return token;
 }
 
@@ -956,10 +959,10 @@ char *PSNormalizeToken(char *token, int len) {
  *    but the dataset contains no sequences (the value of the first element
  *    of `data` is less than or equal to zero.
  *  - There's no enough memory to be allocated for left and right datasets. */
-int PSDataSplit(PSFloat *data, uint64_t datalen, float percentage,
-                int input_size, int target_size,
+int PSDataSplit(PSFloat *data, long datalen, float percentage,
+                long input_size, long target_size,
                 PSFloat **left, PSFloat **right,
-                uint64_t *left_length, uint64_t *right_length,
+                long *left_length, long *right_length,
                 int opts)
 {
     PSFloat *left_data = NULL, *right_data = NULL;
@@ -1013,9 +1016,9 @@ int PSDataSplit(PSFloat *data, uint64_t datalen, float percentage,
         PSErr(__func__, "`input_size` must be greater than zero");
         goto final;
     }
-    uint64_t example_size = 0, n_examples = 0;
+    long example_size = 0, n_examples = 0;
     PSFloat *data_p = data;
-    if (has_seqs) n_examples = (uint64_t) *(data_p++);
+    if (has_seqs) n_examples = (long) *(data_p++);
     else {
         example_size = input_size + target_size;
         success = example_size > 0;
@@ -1030,10 +1033,9 @@ int PSDataSplit(PSFloat *data, uint64_t datalen, float percentage,
         PSErr(__func__, "no examples found in dataset");
         goto final;
     }
-    uint64_t left_examples =
-        (uint64_t) lroundf(percentage * (float) n_examples);
-    uint64_t right_examples = n_examples - left_examples;
-    uint64_t llen = 0, rlen = 0, llen_alloc = 0, rlen_alloc = 0;
+    long left_examples = (long) lroundf(percentage * (float) n_examples);
+    long right_examples = n_examples - left_examples;
+    long llen = 0, rlen = 0, llen_alloc = 0, rlen_alloc = 0;
     if (!has_seqs) {
         llen_alloc = left_examples * example_size;
         rlen_alloc = right_examples * example_size;
@@ -1052,8 +1054,8 @@ int PSDataSplit(PSFloat *data, uint64_t datalen, float percentage,
         }
     } else {
         /* Heuristically predict left and right size. */
-        llen_alloc = (uint64_t) (percentage * (float) datalen);
-        rlen_alloc = (uint64_t) ((1 - percentage) * (float) datalen);
+        llen_alloc = (long) (percentage * (float) datalen);
+        rlen_alloc = (long) ((1 - percentage) * (float) datalen);
     }
     left_data = malloc(llen_alloc * sizeof(PSFloat));
     success = (left_data != NULL);
@@ -1068,10 +1070,10 @@ int PSDataSplit(PSFloat *data, uint64_t datalen, float percentage,
         goto final;
     }
     PSFloat **big = NULL, **small = NULL;
-    uint64_t small_examples = 0, big_examples = 0, slice_examples = 0,
-             n_slices = 0, i;
-    uint64_t *small_len = NULL, *big_len = NULL, *small_len_alloc = NULL,
-             *big_len_alloc = NULL;
+    long small_examples = 0, big_examples = 0, slice_examples = 0,
+         n_slices = 0, i;
+    long *small_len = NULL, *big_len = NULL, *small_len_alloc = NULL,
+         *big_len_alloc = NULL;
     if (shuffle || evenly_split) {
         if (percentage >= 0.5) {
             big = &left_data;
@@ -1100,7 +1102,7 @@ int PSDataSplit(PSFloat *data, uint64_t datalen, float percentage,
         left_data[llen++] = 0;
         right_data[rlen++] = 0;
     }
-    int example2pick = -1;
+    long example2pick = -1;
     for (i = 0; i < n_examples; i++) {
         /* Get current example. */
         PSFloat *example = data_p;
@@ -1115,7 +1117,7 @@ int PSDataSplit(PSFloat *data, uint64_t datalen, float percentage,
         } else data_p += example_size;
         /* Determine target (destination) dataset. */
         PSFloat **target_dataset = NULL;
-        uint64_t *target_len = NULL, *target_len_alloc = NULL;
+        long *target_len = NULL, *target_len_alloc = NULL;
         if (!shuffle && !evenly_split) {
             if (i < left_examples) {
                 target_dataset = &left_data;
@@ -1127,19 +1129,19 @@ int PSDataSplit(PSFloat *data, uint64_t datalen, float percentage,
                 target_len_alloc = &rlen_alloc;
             }
         } else {
-            uint64_t slice_idx = i / slice_examples;
-            int slice_example_idx = i % slice_examples;
-            uint64_t remaining_examples = (
+            long slice_idx = i / slice_examples;
+            long slice_example_idx = i % slice_examples;
+            long remaining_examples = (
                 n_examples - (slice_idx * slice_examples)
             );
-            uint64_t slice_len = (
+            long slice_len = (
                 remaining_examples >= slice_examples ? slice_examples :
                                                        remaining_examples
             );
-            uint64_t small_count, big_count;
+            long small_count, big_count;
             if (has_seqs) {
-                small_count = (uint64_t) ((*small)[0]);
-                big_count = (uint64_t) ((*big)[0]);
+                small_count = (long) ((*small)[0]);
+                big_count = (long) ((*big)[0]);
             } else {
                 small_count = *small_len / example_size;
                 big_count = *big_len / example_size;
@@ -1149,7 +1151,7 @@ int PSDataSplit(PSFloat *data, uint64_t datalen, float percentage,
                  * small dataset is not full. */
                  if (small_count < small_examples) {
                     if (shuffle)
-                        example2pick = PSRandomInt(slice_len, NULL, NULL, NULL);
+                        example2pick = PSRandomInt(slice_len, NULL, NULL);
                     else
                         example2pick = (percentage >= 0.5 ? slice_len - 1 : 0);
                  } else example2pick = -1;
@@ -1168,7 +1170,7 @@ int PSDataSplit(PSFloat *data, uint64_t datalen, float percentage,
                 goto final;
             }
         }
-        uint64_t curlen = *target_len;
+        long curlen = *target_len;
         *target_len += example_size;
         if (*target_len > *target_len_alloc) {
             PSFloat *resized = realloc(
@@ -1310,7 +1312,7 @@ final:
  *     flag is set into `opts`.
  * Return value: the dataset (`PSFloat` array) or NULL is something goes
  * wrong. */
-PSFloat *PSDataFromText(char *str, PSTextParserOptions *opts, int64_t *datalen,
+PSFloat *PSDataFromText(char *str, PSTextParserOptions *opts, long *datalen,
                         PSVocabulary **vocabulary)
 {
     PSDataSequenceState state = {0};
@@ -1331,7 +1333,7 @@ PSFloat *PSDataFromText(char *str, PSTextParserOptions *opts, int64_t *datalen,
  * Return value: the dataset (`PSFloat` array) or NULL is something goes
  * wrong. */
 PSFloat *PSDataFromTextFile(const char *filepath, PSTextParserOptions *opts,
-                            int64_t *datalen, PSVocabulary **vocabulary)
+                            long *datalen, PSVocabulary **vocabulary)
 {
     static PSTextParserOptions default_opts = {0};
     FILE *file = NULL;
@@ -1357,7 +1359,7 @@ PSFloat *PSDataFromTextFile(const char *filepath, PSTextParserOptions *opts,
     vocab = *vocabulary;
     const char *separator = opts->separator;
     if (separator == NULL) separator = PS_DEFAULT_TOKEN_SEPARATOR;
-    int64_t capacity = 0;
+    long capacity = 0;
     if (vocab != NULL) capacity = vocab->capacity;
     else {
         new_vocab = 1;
@@ -1403,7 +1405,7 @@ PSFloat *PSDataFromTextFile(const char *filepath, PSTextParserOptions *opts,
                 /* Truncate buffer to index of last separator found and
                  * reset file stream offset to first byte after truncation. */
                 buf[idx] = '\0';
-                int truncated_len = (int) (last_idx - idx);
+                long truncated_len = (long) (last_idx - idx);
                 fseek(file, -truncated_len, SEEK_CUR);
                 last_idx = idx;
             }
@@ -1413,7 +1415,7 @@ PSFloat *PSDataFromTextFile(const char *filepath, PSTextParserOptions *opts,
         );
         if (data == NULL) goto fail;
         if (multi_seq && opts->max_sequences > 0) {
-            if ((int64_t) *data >= opts->max_sequences) break;
+            if ((long) *data >= opts->max_sequences) break;
         }
     }
     if (err != 0) {
@@ -1424,7 +1426,7 @@ PSFloat *PSDataFromTextFile(const char *filepath, PSTextParserOptions *opts,
     fclose(file);
     int encode_only = (opts->flags & PS_PARSER_FLAG_ENCODE_ONLY);
     if (!encode_only && PS_IS_MULTISEQ(opts)) {
-        int64_t end_token_id = -1;
+        long end_token_id = -1;
         if (opts->end_token != NULL || opts->flags & PS_PARSER_FLAG_END_TOKEN)
         {
             PSVocabulary *y_vocab = opts->target_vocabulary;
@@ -1474,7 +1476,7 @@ fail:
  *  - File is not found at `filepath`.
  *  - File at `filepath` cannot be opened or read.
  *  - Dataset cannot be allocated into memory. */
-PSFloat *PSDataLoad(const char *filepath, uint64_t *datalen) {
+PSFloat *PSDataLoad(const char *filepath, long *datalen) {
     FILE *file = NULL;
     PSFloat *data = NULL;
     if (filepath == NULL) {
@@ -1485,7 +1487,7 @@ PSFloat *PSDataLoad(const char *filepath, uint64_t *datalen) {
         PSErr(__func__, "Missing mandatory argument `datalen`");
         goto fail;
     }
-    uint64_t capacity = 0;
+    long capacity = 0;
     file = fopen(filepath, "r");
     if (file == NULL) {
         PSErr(__func__, "Could not open file '%s'", filepath);
@@ -1499,7 +1501,8 @@ PSFloat *PSDataLoad(const char *filepath, uint64_t *datalen) {
     }
     if (first_byte == 0xFF) {
         /* Probabily the dataset file is in binary format. */
-        data = loadBinaryVector(filepath, file, datalen);
+        size_t veclen = 0;
+        data = loadBinaryVector(filepath, file, &veclen);
         if (data == NULL) {
             PSErr(
                 __func__, "could not load dataset from binary file '%s'",
@@ -1507,17 +1510,20 @@ PSFloat *PSDataLoad(const char *filepath, uint64_t *datalen) {
             );
             *datalen = 0;
         }
+        *datalen = (long) veclen;
         fclose(file);
         return data;
     }
     char prfx_sep[2] = {0};
-    int matched = fscanf(file, "%" SCNu64 "%[:]", &capacity, prfx_sep);
+    int matched = fscanf(file, "%ld%[:]", &capacity, prfx_sep);
     if (matched < 2 ||  prfx_sep[0] != ':') {
         capacity = 1024;
         fseek(file, 0, SEEK_SET);
     }
-    data = readSerializedFloatArray(file, ",", datalen, 0, capacity);
-    if (data == NULL || *datalen == 0) goto fail;
+    size_t size = 0;
+    data = readSerializedFloatArray(file, ",", &size, 0, capacity);
+    *datalen = (long) size;
+    if (data == NULL || *datalen <= 0) goto fail;
     if (*datalen < capacity) {
         PSFloat *resized = realloc(data, *datalen * sizeof(PSFloat));
         if (resized != NULL) data = resized;
@@ -1546,7 +1552,7 @@ fail:
  *  - Mandatory arguments `path` or `data` are NULL.
  *  - File at `path` cannot be opened for writing.
  *  - Some error occurs while writing to the file.  */
-int PSDataSave(const char *path, PSFloat *data, uint64_t len, int opts) {
+int PSDataSave(const char *path, PSFloat *data, long len, int opts) {
     FILE *file = NULL;
     int success = (path != NULL);
     if (!success) {
@@ -1570,7 +1576,7 @@ int PSDataSave(const char *path, PSFloat *data, uint64_t len, int opts) {
         success = saveBinaryVector(file, data, len);
         goto final;
     }
-    fprintf(file, "%" PRIu64 ":", len);
+    fprintf(file, "%ld:", len);
     int wlen = writeSerializedFloatArray(file, len, ",", 0, data);
     success = (wlen > 0);
 final:
@@ -1940,7 +1946,7 @@ int PSLoadCIFARData(int type, int classes, const char *dataset_path,
             return 0;
         }
         fseek(f, 0, SEEK_END);
-        int pos = ftell(f);
+        long pos = ftell(f);
         if (pos < expected_fsize) {
             PSErr(
                 __func__, "Invalid file size: %d != %d (expected)", pos,
