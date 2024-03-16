@@ -402,6 +402,9 @@ char *PSGetElapsedTimeString(time_t elapsed_us, int opts) {
                 (long) elapsed, sep, unit, (long) mod, sep, lower_unit
             );
         } else snprintf(elapsed_str, 255, "%ld%s%s", (long)elapsed, sep, unit);
+    } else if (opts & PS_OPT_TIME_ROUND_SEC && i <= 2) {
+        long elapsed_r = (long) PSRound(elapsed);
+        snprintf(elapsed_str, 255, "%ld%s%s", elapsed_r, sep, unit);
     } else snprintf(elapsed_str, 255, "%.*f%s%s", round, elapsed, sep, unit);
     return elapsed_str;
 }

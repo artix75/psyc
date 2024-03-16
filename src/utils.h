@@ -51,6 +51,7 @@
 #define PS_OPT_TIME_LONG        (1 << 0)
 #define PS_OPT_TIME_FULL        (1 << 1)
 #define PS_OPT_TIME_HUMAN       (1 << 2)
+#define PS_OPT_TIME_ROUND_SEC   (1 << 3)
 
 #define PS_BITMAP_OP_AND 1
 #define PS_BITMAP_OP_OR  2

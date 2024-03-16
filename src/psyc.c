@@ -247,7 +247,7 @@ void PSLogTrainingProgress(PSModel *model, int status, int epochs,
         elapsed_str = PSGetElapsedTimeString(*elapsed, 0);
         if (status == PS_STATUS_TRAINING && batch_num < batches) {
             time_t eta = *elapsed * (batches - batch_num);
-            eta_str = PSGetElapsedTimeString(eta, 0);
+            eta_str = PSGetElapsedTimeString(eta, PS_OPT_TIME_ROUND_SEC);
         }
     }
     if (status == PS_STATUS_VALIDATING) {
