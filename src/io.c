@@ -1033,16 +1033,18 @@ fail:
     return 0;
 }
 
-int writeSerializedFloat(FILE *out, PSFloat fnum, int opts) {
+size_t writeSerializedFloat(FILE *out, PSFloat fnum, int opts) {
     if (opts & OPT_FLOAT_FORMAT_DBL)
         return fprintf(out, "%.*g", DBL_DECIMAL_DIG, (double) fnum);
     else if (opts & OPT_FLOAT_FORMAT_HEX) return fprintf(out, "%a", fnum);
     else return fprintf(out, "%.*g", PSFLOAT_DIG, fnum);
 }
 
-int writeSerializedFloats(FILE *out, uint64_t count, char *sep, int opts, ...)
+size_t writeSerializedFloats(FILE *out, uint64_t count, char *sep,
+                             int opts, ...)
 {
-    int has_sep = (sep != NULL), len = 0;
+    int has_sep = (sep != NULL);
+    size_t len = 0;
     uint64_t i;
     va_list args;
     va_start(args, opts);
@@ -1055,10 +1057,11 @@ int writeSerializedFloats(FILE *out, uint64_t count, char *sep, int opts, ...)
     return len;
 }
 
-int writeSerializedFloatArray(FILE *out, uint64_t count, char *sep, int opts,
-                              PSFloat *array)
+size_t writeSerializedFloatArray(FILE *out, uint64_t count, char *sep,
+                                 int opts, PSFloat *array)
 {
-    int has_sep = (sep != NULL), len = 0;
+    int has_sep = (sep != NULL);
+    size_t len = 0;
     uint64_t i;
     for (i = 0; i < count; i++) {
         if (has_sep && i > 0) len += fprintf(out, "%s", sep);
@@ -2429,29 +2432,34 @@ int PSLayerSave(PSLayer *layer, const char *filepath, int opts) {
 }
 
 int loadModelDefinition(PSModel *model, FILE *f, char *vers) {
-    int ok = 1;
-    int idx = 0, val = 0;
-    int epochs = 0, batch_count = 0, examples = 0, status = PS_STATUS_UNTRAINED,
-        batch_size = 0, rnn_mode = NonRecurrent,
-        max_sequence_len = PS_MAX_SEQUENCE_LENGTH,
-        sequence_end = -1, is_built = 0,
-        acceleration = PSGlobalAcceleration;
+    int epochs = 0,
+        status = PS_STATUS_UNTRAINED,
+        acceleration = PSGlobalAcceleration,
+        rnn_mode = NonRecurrent,
+        idx = 0, ok = 1;
+    int64_t batch_size = 0, batch_count = 0, examples = 0,
+            max_sequence_len = PS_MAX_SEQUENCE_LENGTH,
+            sequence_end = -1,
+            sequence_pad = -1,
+            is_built = 0,
+            val = 0;
     char sep[2];
     sep[0] = '\0';
-    while (scanFile(f, "%d%1[,\n]", 2, NULL, &val, sep)) {
+    while (scanFile(f, "%" SCNi64 "%1[,\n]", 2, NULL, &val, sep)) {
         switch (idx++) {
-            case 0:  model->flags |= val; break;
-            case 1:  model->loss = getLossFunctionAtIndex(val); break;
-            case 2:  epochs = val; break;
+            case 0:  model->flags |= (int) val; break;
+            case 1:  model->loss = getLossFunctionAtIndex((int) val); break;
+            case 2:  epochs = (int) val; break;
             case 3:  batch_count = val; break;
-            case 4:  status = val; break;
+            case 4:  status = (int) val; break;
             case 5:  examples = val; break;
             case 6:  batch_size = val; break;
             case 7:  rnn_mode = (PSRecurrentNetworkMode) val; break;
             case 8:  max_sequence_len = val; break;
             case 9:  sequence_end = val; break;
             case 10: is_built = val; break;
-            case 11: acceleration = val; break;
+            case 11: sequence_pad = val; break;
+            case 12: acceleration = (int) val; break;
             default: break;
         }
     }
@@ -2461,6 +2469,7 @@ int loadModelDefinition(PSModel *model, FILE *f, char *vers) {
     if (max_sequence_len > 0 || sequence_end >= 0) {
         model->sequence_settings.max_length = max_sequence_len;
         model->sequence_settings.end = sequence_end;
+        model->sequence_settings.pad = sequence_pad;
     }
     model->status = status;
     if (status != PS_STATUS_UNTRAINED) {
@@ -2899,11 +2908,12 @@ static int writeModel(PSModel *model, FILE *f) {
     PSRecurrentNetworkMode rnn_mode = model->rnn_mode;
     int loss_function = getLossFunctionIndex(model->loss);
     long eos = model->sequence_settings.end;
+    long pad = model->sequence_settings.pad;
     long max_steps = model->sequence_settings.max_length;
-    fprintf(f, "model:%d,%d,%d,%ld,%d,%ld,%ld,%d,%ld,%ld,%d\n", model->flags,
-            loss_function, current_epoch, current_batch, model->status,
-            current_example, batch_size, (int) rnn_mode,
-            max_steps, eos, PSModelIsBuilt(model));
+    fprintf(f, "model:%d,%d,%d,%ld,%d,%ld,%ld,%d,%ld,%ld,%d,%ld\n",
+            model->flags, loss_function, current_epoch, current_batch,
+            model->status, current_example, batch_size, (int) rnn_mode,
+            max_steps, eos, PSModelIsBuilt(model), pad);
     if (model->name != NULL) {
         size_t namelen = strlen(model->name);
         fprintf(f, "name(%zu):%s\n", namelen, model->name);

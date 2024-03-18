@@ -139,7 +139,7 @@ static void deleteTrainingContext(PSTrainingContext *training_ctx,
                                   PSModel *model);
 static void deleteModelContext(PSModelContext *ctx,
                                PSModel *model);
-int writeSerializedFloat(FILE *out, PSFloat fnum, int opts);
+size_t writeSerializedFloat(FILE *out, PSFloat fnum, int opts);
 int PSBeforeSequenceForward(PSLayer *layer, long seqlen, long t);
 char *PSGetRecurrentModeLabel(PSRecurrentNetworkMode mode);
 int updateModelChain(PSModel *head);
@@ -461,24 +461,69 @@ static int sequenceHasStartItem(PSFloat *seq, long itemsize,
     }
 }
 
-static int sequenceHasEndItem(PSFloat *seq, long len, long itemsize,
-                              PSSequenceSettings *sequence_settings,
-                              PSFloat **end_vector, int *err)
+static long sequenceFindLastNonPadItem(PSFloat *seq, long len, long itemsize,
+                                       long pad, PSFloat **pad_vector, int *err)
 {
     if (err != NULL) *err = 0;
+    if (itemsize <= 0 || len <= 0) return -1;
+    long idx = len;
+    PSFloat *padvec = NULL;
+    if (itemsize > 1) {
+        PSFloat *padvec = PSOneHotVector(pad, itemsize);
+        if (padvec == NULL) {
+            if (err != NULL) *err = 1;
+            return -2;
+        }
+        if (pad_vector != NULL) *pad_vector = padvec;
+    }
+    while (--idx > -1) {
+        if (itemsize == 1) {
+            long item = (long) seq[idx];
+            if (item != pad) break;
+        } else {
+            PSFloat *last = seq + ((size_t) itemsize * ((size_t) idx));
+            int is_pad = memcmp(
+                last, padvec, (size_t) itemsize * sizeof(PSFloat)
+            ) == 0;
+            if (!is_pad) break;
+        }
+    }
+    if (pad_vector == NULL) free(padvec);
+    return idx;
+}
+
+static int sequenceHasEndItem(PSFloat *seq, long len, long itemsize,
+                              PSSequenceSettings *sequence_settings,
+                              PSFloat **end_vector, long *pad_idx,
+                              PSFloat **pad_vector, int *err)
+{
+    if (err != NULL) *err = 0;
+    if (pad_idx != NULL) *pad_idx = -1;
     if (itemsize <= 0 || len <= 0) return 0;
     long end = sequence_settings->end;
     if (end < 0) return 0;
-    if (itemsize == 1) {
-        return (long) seq[len - 1] == end;
-    } else {
+    size_t idx = (size_t) len - 1;
+    if (sequence_settings->pad >= 0) {
+        long non_pad_idx = sequenceFindLastNonPadItem(
+            seq, len, itemsize, sequence_settings->pad, pad_vector, err
+        );
+        if (non_pad_idx < 0) return 0;
+        idx = (size_t) non_pad_idx;
+        if (pad_idx != NULL) {
+            long next_idx = non_pad_idx + 1;
+            if (next_idx<len && (long)seq[next_idx] == sequence_settings->pad)
+                *pad_idx = next_idx;
+        }
+    }
+    if (itemsize == 1) return (long) seq[idx] == end;
+    else {
         PSFloat *onehot_vec = PSOneHotVector(end, itemsize);
         if (onehot_vec == NULL) {
             if (err != NULL) *err = 1;
             return 0;
         }
         if (end_vector != NULL) *end_vector = onehot_vec;
-        PSFloat *last = seq + ((size_t) itemsize * ((size_t) len - 1));
+        PSFloat *last = seq + ((size_t) itemsize * idx);
         int is_end = memcmp(
             last, onehot_vec, (size_t) itemsize * sizeof(PSFloat)
         ) == 0;
@@ -495,6 +540,10 @@ static int sequenceHasEndItem(PSFloat *seq, long len, long itemsize,
  * `sequence_settings`.
  * If `SEQ_MODE_PREPEND_SEQLEN` flag is set in `mode`, also prepend prepend
  * the sequence length to the sequence itself.
+ * If the pointer `new_len` is noy NULL, it will be used to store the length
+ * of the resulting sequence, excluding the first element of the resulting
+ * vector if it's used to store the sequence length itself (ie. if
+ * `SEQ_MODE_PREPEND_SEQLEN` has been set).
  * The function allocates a new sequence on success. If something goes wrong,
  * it returns NULL. */
 static PSFloat *prepareSequence(PSFloat *seq, long len, long min_len,
@@ -502,14 +551,15 @@ static PSFloat *prepareSequence(PSFloat *seq, long len, long min_len,
                                 PSSequenceSettings *sequence_settings,
                                 int mode)
 {
-    PSFloat *new_seq = NULL, *end_vec = NULL;
+    PSFloat *new_seq = NULL, *end_vec = NULL, *pad_vec = NULL;
     if (new_len != NULL) *new_len = 0;
-    long final_len = len, datalen = len, pad_len = 0;
+    long final_len = len, datalen = len, pad_len = 0, pad_idx = -1;
     int err = 0;
     if (len <= 0 || itemsize <= 0) goto final;
     int has_start = sequenceHasStartItem(seq, itemsize, sequence_settings);
     int has_end = sequenceHasEndItem(
-        seq, len, itemsize, sequence_settings, &end_vec, &err
+        seq, len, itemsize, sequence_settings, &end_vec, &pad_idx,
+        &pad_vec, &err
     );
     if (datalen <= 0) {
         PSErr(NULL, "invalid sequence");
@@ -520,14 +570,16 @@ static PSFloat *prepareSequence(PSFloat *seq, long len, long min_len,
     int prepend_start = mode & SEQ_MODE_PREPEND_START,
         append_end = mode & SEQ_MODE_APPEND_END,
         prepend_seqlen = mode & SEQ_MODE_PREPEND_SEQLEN;
+    int has_pad = (pad_idx >= 0 && pad_idx < len);
     if (prepend_start && !has_start) final_len++;
     else if (!prepend_start && has_start) {
         final_len--;
         datalen--;
         offset = 1;
     }
-    if (append_end && !has_end) final_len++;
-    else if (!append_end && has_end) {
+    if (append_end && !has_end) {
+        if (!has_pad) final_len++;
+    } else if (!append_end && has_end) {
         final_len--;
         datalen--;
     }
@@ -539,14 +591,15 @@ static PSFloat *prepareSequence(PSFloat *seq, long len, long min_len,
         PSErr(NULL, "invalid sequence");
         goto final;
     }
-    if (prepend_seqlen) final_len++;
-    new_seq = malloc((size_t) itemsize * (size_t) final_len * sizeof(PSFloat));
+    size_t seqsize = (size_t) itemsize * (size_t) final_len * sizeof(PSFloat);
+    if (prepend_seqlen) seqsize += sizeof(PSFloat);
+    new_seq = malloc(seqsize);
     if (new_seq == NULL) {
         PSPrintMemoryErrorMsg();
         goto final;
     }
     PSFloat *dest = new_seq;
-    if (prepend_seqlen) *(dest++) = (final_len - 1);
+    if (prepend_seqlen) *(dest++) = (PSFloat) final_len;
     if (prepend_start && !has_start) {
         PSFloat *start = sequence_settings->start, *tmpstart = NULL;
         if (start == NULL) {
@@ -564,21 +617,38 @@ static PSFloat *prepareSequence(PSFloat *seq, long len, long min_len,
         }
         free(tmpstart);
     }
+    PSFloat *first = dest;
     if (datalen == 1) *(dest++) = *(seq + (offset * itemsize));
     else {
         PSVectorCopy(dest, seq + (offset * itemsize), itemsize * datalen);
         dest += (itemsize * datalen);
     }
     if (append_end && (!has_end || pad_len > 0)) {
-        long end = sequence_settings->end;
+        long end = sequence_settings->end, pad = sequence_settings->pad;
         if (end < 0) end = 0;
-        while (!has_end || pad_len > 0) {
-            if (itemsize == 1) *(dest++) = (PSFloat) end;
+        long item = end;
+        PSFloat *item_vec = end_vec;
+        if (has_pad) {
+            if (itemsize == 1) first[pad_idx] = (PSFloat) end;
             else {
-                if (end_vec == NULL) end_vec = PSOneHotVector(end, itemsize);
-                err = (end_vec == NULL);
+                err = (pad_vec == NULL);
                 if (err) goto final;
-                PSVectorCopy(dest, end_vec, itemsize);
+                PSVectorCopy(first + (pad_idx * itemsize), end_vec, itemsize);
+            }
+            has_end = 1;
+            dest += itemsize;
+            pad_len--;
+        }
+        while (!has_end || pad_len > 0) {
+            if (has_end && has_pad) {
+                item = pad;
+                item_vec = pad_vec;
+            }
+            if (itemsize == 1) *(dest++) = (PSFloat) item;
+            else {
+                err = (item_vec == NULL);
+                if (err) goto final;
+                PSVectorCopy(dest, item_vec, itemsize);
                 dest += itemsize;
             }
             has_end = 1;
@@ -1345,8 +1415,8 @@ PSLayer *PSGetNextLayer(PSLayer *layer) {
     return layer->model->layers[next_layer_idx];
 }
 
-/* Return the output layer (basically, the last laye) of `model`. If `model` is
- * part of a multi-model chain, the function will return the output layer of
+/* Return the output layer (basically, the last layer) of `model`. If `model`
+ * is part of a multi-model chain, the function will return the output layer of
  * the output model (the last model) of the chain.
  * Return value: the output layer or NULL if:
  *  - `model` is NULL or `model` has no layers.
@@ -1599,7 +1669,9 @@ void PSModelPrintInfo(PSModel *model) {
     }
     printInfoRow("Total (trainable) parameters", "%" PRIu64,
                  PSGeModelParametersCount(model));
-    char *loss_name = getLossFunctionName(model->loss);
+    char *loss_name = NULL;
+    if (model->next == NULL)
+        loss_name = getLossFunctionName(model->loss);
     if (loss_name != NULL) printInfoRow("Loss Function", "%s", loss_name);
     printInfoRow("Status", "%s", getModelStatusLabel(model));
     printInfoRow("AVX", "%s",
@@ -2511,6 +2583,7 @@ PSModel *PSModelCreate(const char* name) {
     PSSequenceSettings *sequence_settings = &(model->sequence_settings);
     memset(sequence_settings, 0, sizeof(PSSequenceSettings));
     sequence_settings->end = -1;
+    sequence_settings->pad = -1;
     return model;
 memory_err:
     if (model != NULL) PSModelFree(model);
@@ -3024,6 +3097,7 @@ static PSModel *cloneModel(PSModel *model, int layout_only, PSModel *parent) {
     }
     clone->sequence_settings.max_length = model->sequence_settings.max_length;
     clone->sequence_settings.end = model->sequence_settings.end;
+    clone->sequence_settings.pad = model->sequence_settings.pad;
     if (model->context != NULL) {
         memcpy(clone->context, model->context, sizeof(PSModelContext));
         setModelContext(clone, built, 0);
@@ -4177,6 +4251,7 @@ int beforeModelForward(PSModel *model, PSFloat **inputs_p,
         }
         if (do_feed_input) *inputs_p = outputs;
         else {
+            /* Use link to forward data from previous model. */
             /* TODO (S2S): return 0 if model doesn't support autogression ? */
             if (outputs == NULL) {
                 PSErr(__func__, "no outputs from model %d, layer %d",
@@ -4303,11 +4378,12 @@ int modelForward(PSModel *model, PSFloat *inputs, PSFloat *global_inputs,
                     ok = (tmpinputs != NULL && final_len > 1);
                     if (!ok) {
                         PSErrNN(NULL, model, NULL, "forward: cannot prepare "
-                                "target sequence for teacher forcing");
+                                "input sequence for teacher forcing");
                         goto final;
                     }
                     inputs = tmpinputs;
-                    seqlen = final_len - 1;
+                    seqlen = final_len;
+                    *inputs = (PSFloat) seqlen;
                 }
             }
         }
@@ -4697,7 +4773,7 @@ void PSDeleteModelGradients(PSGradient **gradients, PSModel *model)
     free(gradients);
 }
 
-void PSDeleteGradientsChain(PSGradient ***gradients, PSModel *model){
+void PSDeleteGradientsChain(PSGradient ***gradients, PSModel *model) {
     if (gradients == NULL) return;
     if (model == NULL) {
         PSWarn(__func__, "missing mandatory argument `model`");
@@ -4714,14 +4790,14 @@ void PSDeleteGradientsChain(PSGradient ***gradients, PSModel *model){
 
 static int resetLayerDeltas(PSLayer *layer, int full_reset) {
     if (layer->delta == NULL) return 1;
-    int handle_seq = PSHandleSequenceAtOnce(layer);
+    int whole_seq = PSHandleSequenceAtOnce(layer);
     if (!full_reset && PSMatrixDim(layer->delta, 1) > layer->size) {
         /* Delta contains data for differente stuff (ie. LSTM layer
          * allocate layer->size * 2 delta in order to store delta
          * for their raw states.
          * In this case, reset is performed only on first N
          * (where N=layer->size) values. */
-         assert(!handle_seq);
+         assert(!whole_seq);
          long rows = PSMatrixDim(layer->delta, 0), i;
          for (i = 0; i < rows; i++) {
             PSFloat *row = PSMatrixGet(layer->delta, 1, NULL, i);
@@ -4729,7 +4805,7 @@ static int resetLayerDeltas(PSLayer *layer, int full_reset) {
          }
          return 1;
     }
-    if (handle_seq) {
+    if (whole_seq) {
         long seqlen = PSStateSequenceLength(layer),
              delta_seqlen = PSMatrixDim(layer->delta, 0);
         if (seqlen < 1) seqlen = 1;

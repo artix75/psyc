@@ -96,10 +96,10 @@ int PSOriginalStdOutFD = -999;
 PSDebugInfo last_debug_info = {0};
 char *PSDumpGradientsPath = NULL;
 static void printLastDebugInfo(void);
-int writeSerializedFloat(FILE *out, PSFloat fnum, int opts);
+size_t writeSerializedFloat(FILE *out, PSFloat fnum, int opts);
 void DumpLayerInfo(PSLayer *layer, FILE *dump_file, int add_new_line);
 int (*PSShouldDumpGradientsCallback) (PSModel *model) = NULL;
-int writeSerializedFloat(FILE *out, PSFloat fnum, int opts);
+size_t writeSerializedFloat(FILE *out, PSFloat fnum, int opts);
 const char *PSGetActivationName(PSActivationFunction func);
 
 #ifdef BACKTRACE_AVAILABLE

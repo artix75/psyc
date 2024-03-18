@@ -235,7 +235,7 @@ PSFloat PSStdDev(PSFloat *a, long len, PSMathOpts *opts);
 PSFloat PSDotProduct(PSFloat *a, PSFloat *b, long length, PSMathOpts *opts);
 PSFloat PSDotSquare(PSFloat *a, long length, PSMathOpts *opts);
 void PSVectorFill(PSFloat *vec, PSFloat val, long len, PSMathOpts *opts);
-void PSVectorWrite(PSFloat *vec, long len, char* sep, FILE *f);
+size_t PSVectorWrite(PSFloat *vec, long len, char* sep, FILE *f);
 void PSVectorPrint(PSFloat *vec, long len, char* sep);
 PSFloat *PSVectorTranspose(PSFloat *vec, PSFloat *dest, int acceleration,
                            int ndims, ...);

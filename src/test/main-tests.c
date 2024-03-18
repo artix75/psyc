@@ -4069,10 +4069,12 @@ int compareModels(PSModel *model, PSModel *clone, Test* test) {
                 *clone_last_recurrent_layer = PSGetLastRecurrentLayer(clone);
         PSRecurrentNetworkMode srcmode = model->rnn_mode,
                                clonemode = clone->rnn_mode;
-        int src_max_steps = model->sequence_settings.max_length,
-            clone_max_steps = clone->sequence_settings.max_length,
-            src_eos = model->sequence_settings.end,
-            clone_eos = clone->sequence_settings.end;
+        long src_max_steps = model->sequence_settings.max_length,
+             clone_max_steps = clone->sequence_settings.max_length,
+             src_eos = model->sequence_settings.end,
+             clone_eos = clone->sequence_settings.end,
+             src_pad = model->sequence_settings.pad,
+             clone_pad = clone->sequence_settings.pad;
         testAssertWithMessage(
             (srcmode == clonemode), test,
             "Recurrent source mode: '%s', Recurrent clone mode: '%s'",
@@ -4089,6 +4091,12 @@ int compareModels(PSModel *model, PSModel *clone, Test* test) {
             (src_eos == clone_eos), test,
              "model->sequence_settings.end != "
              "clone->sequence_settings.end: %d != %d ",
+             src_eos, clone_eos
+        );
+        testAssertWithMessage(
+            (src_pad == clone_pad), test,
+             "model->sequence_settings.pad != "
+             "clone->sequence_settings.pad: %d != %d ",
              src_eos, clone_eos
         );
         if (src_first_recurrent_layer == NULL)

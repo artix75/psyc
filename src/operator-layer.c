@@ -228,9 +228,9 @@ int PSConcatenateForward(PSLayer *layer, long seqlen, long t) {
     if (whole_seq) t = 0;
     else {
         if (!PSIsRecurrent(layer)) t = 0;
-        /* Always set seqlen to 1 since, even in recurrent forward,
+        /* Always set seqlen to t + 1 since, even in recurrent forward,
          * inputs are only stored in one sequence's segment. */
-        seqlen = 1;
+        seqlen = t + 1;
     }
     PSFloat *outputs = PSLayerStates(layer, t);
     PSFloat *out_p = outputs;
@@ -290,9 +290,9 @@ int PSConcatenateBackward(PSLayer *layer, long seqlen, long t) {
     if (whole_seq) t = 0;
     else {
         if (!PSIsRecurrent(layer)) t = 0;
-        /* Always set seqlen to 1 since, even in recurrent forward,
+        /* Always set seqlen to t + 1 since, even in recurrent forward,
          * inputs are only stored in one sequence's segment. */
-        seqlen = 1;
+        seqlen = t + 1;
     }
     PSMathOpts opts = {
         .acceleration = layer->model->acceleration,
@@ -304,7 +304,7 @@ int PSConcatenateBackward(PSLayer *layer, long seqlen, long t) {
             if (provider == NULL) return 0;
             PSFloat *output_delta = provider->delta;
             if (output_delta == NULL) goto next;
-            output_delta += (t * provider->size);
+            if (whole_seq) output_delta += (t * provider->size);
             PSAddVectors(
                 output_delta, delta, output_delta, provider->size, &opts
             );

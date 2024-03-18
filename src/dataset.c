@@ -54,8 +54,8 @@ typedef struct {
 uint32_t swap_uint32(uint32_t val);
 PSFloat *readSerializedFloatArray(FILE *in, char *sep, size_t *length,
                                   size_t maxlen, size_t capacity);
-int writeSerializedFloatArray(FILE *out, size_t count, char *sep,
-                              int opts, PSFloat *array);
+size_t writeSerializedFloatArray(FILE *out, size_t count, char *sep,
+                                 int opts, PSFloat *array);
 PSFloat *loadBinaryVector(const char *filepath, FILE *f, size_t *len);
 int saveBinaryVector(FILE *f, PSFloat *vec, size_t len);
 
@@ -146,7 +146,7 @@ const char *PSVocabularyGetTokenByID(PSVocabulary *vocabulary, long id) {
 }
 
 /* Save `vocabulary` to file located at `path`. Vocabulary tokens are written
- * sequentially to the file as an ordered  sequence of NULL-terminated strings.
+ * sequentially to the file as an ordered sequence of NULL-terminated strings.
  * Return values: 1 if the vocabulary has been successfully saved, 0 if:
  *  - `vocabulary` is NULL or `path` is NULL.
  *  - `path` cannot be opened for writing.
@@ -1577,7 +1577,7 @@ int PSDataSave(const char *path, PSFloat *data, long len, int opts) {
         goto final;
     }
     fprintf(file, "%ld:", len);
-    int wlen = writeSerializedFloatArray(file, len, ",", 0, data);
+    size_t wlen = writeSerializedFloatArray(file, len, ",", 0, data);
     success = (wlen > 0);
 final:
     if (file != NULL) fclose(file);

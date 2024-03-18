@@ -147,8 +147,8 @@ typedef PSFloat * (*PSOpSV) (PSFloat a, PSFloat *b, PSFloat *res, long len,
 
 /* Forward declarations and external functions */
 
-int writeSerializedFloatArray(FILE *out, long count, char *sep, int opts,
-                              PSFloat *array);
+size_t writeSerializedFloatArray(FILE *out, long count, char *sep, int opts,
+                                 PSFloat *array);
 
 /**** Utils ****/
 static unsigned char randomSeeded = 0;
@@ -4390,10 +4390,10 @@ void PSVectorFill(PSFloat *vec, PSFloat val, long len, PSMathOpts *opts) {
  * The optional `sep` argument can be used to specify a separator string for
  * vector's values (if `sep` is null, by default "," is used as separator).
  * If `vec` is null or `f` is null, the function will immediately return. */
-void PSVectorWrite(PSFloat *vec, long len, char* sep, FILE *f) {
-    if (vec == NULL || f == NULL) return;
+size_t PSVectorWrite(PSFloat *vec, long len, char* sep, FILE *f) {
+    if (vec == NULL || f == NULL) return 0;
     if (sep == NULL) sep = ",";
-    writeSerializedFloatArray(f, len, sep, 0, vec);
+    return writeSerializedFloatArray(f, len, sep, 0, vec);
 }
 
 /* Print a string representation of vector `vec` having length of `len` to

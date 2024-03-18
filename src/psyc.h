@@ -258,8 +258,9 @@ typedef enum {
 
 typedef struct PSSequenceSettings {
     long        max_length;
-    PSFloat     *start;
-    long        end;
+    PSFloat     *start;     /* Sequence start item. */
+    long        end;        /* Sequence end item index (-1 if undefined). */
+    long        pad;        /* Sequence pad item index (-1 if undefined). */
 } PSSequenceSettings;
 
 typedef struct PSForwardOptions {
