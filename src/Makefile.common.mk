@@ -57,7 +57,11 @@ MAGICK_VERSION_MAJOR=none
 CONFIGMK := $(SRCPATH)config.mk
 
 TMPDIR ?= $(shell test -e /tmp && echo /tmp || (mkdir -p $(PSYCPATH)tmp/ &>/dev/null && test -e $(PSYCPATH)tmp && echo $(PSYCPATH)tmp))
-gen_conf_mk := $(shell sh -c 'cd $(PSYCPATH) && ./conf.sh > $(TMPDIR)/psyc_conf.log 2>&1')
+conf_mk_exists := $(shell test -e $(CONFIGMK) && echo true)
+ifneq (true, $(conf_mk_exists))
+    $(info Generating build configuration)
+    gen_conf_mk := $(shell sh -c 'cd $(PSYCPATH) && ./conf.sh > $(TMPDIR)/psyc_conf.log 2>&1')
+endif
 conf_mk_exists := $(shell test -e $(CONFIGMK) && echo true)
 
 ifneq (true, $(conf_mk_exists))
@@ -95,11 +99,19 @@ ifneq (off,$(BLAS))
 ifeq (on, $(USE_PSYC_BLAS))
 	CFLAGS+=-DUSE_PSYC_BLAS
 else
-ifdef BLAS_INT_SIZE
-	CFLAGS+=-DPSBLAS_INT_SIZE=$(BLAS_INT_SIZE)
-endif
 endif
 
+endif
+
+ifeq (yes,$(LAPACK_I32))
+ifdef BLAS_INT_SIZE
+BLAS_INT_SIZE=4
+endif
+CFLAGS+=-DPS_LAPACK_I32
+endif
+
+ifdef BLAS_INT_SIZE
+	CFLAGS+=-DPSBLAS_INT_SIZE=$(BLAS_INT_SIZE)
 endif
 
 OBJS=$(SRCPATH)psyc.o $(SRCPATH)config.o $(SRCPATH)io.o $(SRCPATH)utils.o $(SRCPATH)log.o $(SRCPATH)maths.o $(SRCPATH)activation.o $(SRCPATH)blas.o $(SRCPATH)optimization.o $(SRCPATH)convolutional.o $(SRCPATH)recurrent.o $(SRCPATH)lstm.o $(SRCPATH)gru.o $(SRCPATH)dropout.o $(SRCPATH)embedding.o $(SRCPATH)normalization.o $(SRCPATH)attention.o $(SRCPATH)operator-layer.o $(SRCPATH)positional-encoding.o $(SRCPATH)debug.o $(SRCPATH)dataset.o $(SRCPATH)utf8.o

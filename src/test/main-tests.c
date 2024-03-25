@@ -5971,45 +5971,39 @@ int testMathsMatrixProduct(TestCase *tc, Test *test) {
 
 int testMathsMatrixProductMV(TestCase *tc, Test *test) {
     UNUSED(tc);
-    int res = 1, numtests = 0, acceleration;
+    int res = 1, acceleration;
 #ifdef HAS_BLAS
     acceleration = PSAcceleration_BLAS;
     res = testMatrixProductMV(test, acceleration);
     if (!res) return 0;
-    numtests++;
 #endif
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     acceleration = PSAcceleration_Accelerate;
     res = testMatrixProductMV(test, acceleration);
     if (!res) return 0;
-    numtests++;
 #endif
     acceleration = PSAcceleration_None;
     res = testMatrixProductMV(test, acceleration);
     if (!res) return 0;
-    numtests++;
     return res;
 }
 
 int testMathsMatrixProductVM(TestCase *tc, Test *test) {
     UNUSED(tc);
-    int res = 1, numtests = 0, acceleration;
+    int res = 1, acceleration;
 #ifdef HAS_BLAS
     acceleration = PSAcceleration_BLAS;
     res = testMatrixProductVM(test, acceleration);
     if (!res) return 0;
-    numtests++;
 #endif
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
     acceleration = PSAcceleration_Accelerate;
     res = testMatrixProductVM(test, acceleration);
     if (!res) return 0;
-    numtests++;
 #endif
     acceleration = PSAcceleration_None;
     res = testMatrixProductVM(test, acceleration);
     if (!res) return 0;
-    numtests++;
     return res;
 }
 

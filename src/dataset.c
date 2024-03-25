@@ -233,7 +233,7 @@ PSVocabulary *PSVocabularyLoad(const char *path) {
     }
     int64_t size = 0;
     char sep[2] = {0};
-    int matched = fscanf(f, "%" SCNi64 "%2[:]", &size, sep);
+    int matched = fscanf(f, "%" SCNi64 "%1[:]", &size, sep);
     if (matched < 2 || sep[0] != ':') {
         PSErr(__func__, "invalid file '%s'", path);
         goto final;
@@ -1070,8 +1070,7 @@ int PSDataSplit(PSFloat *data, long datalen, float percentage,
         goto final;
     }
     PSFloat **big = NULL, **small = NULL;
-    long small_examples = 0, big_examples = 0, slice_examples = 0,
-         n_slices = 0, i;
+    long small_examples = 0, big_examples = 0, slice_examples = 0, i;
     long *small_len = NULL, *big_len = NULL, *small_len_alloc = NULL,
          *big_len_alloc = NULL;
     if (shuffle || evenly_split) {
@@ -1095,8 +1094,6 @@ int PSDataSplit(PSFloat *data, long datalen, float percentage,
             small_len_alloc = &llen_alloc;
         }
         slice_examples = (big_examples / small_examples) + 1;
-        n_slices = n_examples / slice_examples;
-        if (n_examples % slice_examples) n_slices++;
     }
     if (has_seqs) {
         left_data[llen++] = 0;

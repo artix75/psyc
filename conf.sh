@@ -48,7 +48,7 @@ genBLASIntSizeTestCode() {
     echo '#include <stdio.h>' >> "$src"
     echo 'int main(int argc, char **argv) {' >> "$src"
     echo "  printf(\"%zu\", sizeof($int_type));" >> "$src"
-    echo "  return 0;'" >> "$src"
+    echo "  return 0;" >> "$src"
     echo '}' >> "$src"
     return 0
 }

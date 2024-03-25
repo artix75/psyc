@@ -92,6 +92,14 @@ typedef ucontext_t sigcontext_t;
 #include <mach/mach.h>
 #endif
 
+#if defined(__APPLE__) && !defined(MAC_OS_X_VERSION_10_6)
+#if defined(__MAC_OS_X_VERSION_MAX_ALLOWED) && __MAC_OS_X_VERSION_MAX_ALLOWED >= 1060
+#define FOUND_MACOS_VERSION_10_6
+#endif
+#elif defined(__APPLE__) && defined(MAC_OS_X_VERSION_10_6)
+#define FOUND_MACOS_VERSION_10_6
+#endif
+
 int PSOriginalStdOutFD = -999;
 PSDebugInfo last_debug_info = {0};
 char *PSDumpGradientsPath = NULL;
@@ -104,7 +112,7 @@ const char *PSGetActivationName(PSActivationFunction func);
 
 #ifdef BACKTRACE_AVAILABLE
 static void *getEip(ucontext_t *uc) {
-#if defined(__APPLE__) && !defined(MAC_OS_X_VERSION_10_6)
+#if defined(__APPLE__) && !defined(FOUND_MACOS_VERSION_10_6)
     /* OSX < 10.6 */
     #if defined(__x86_64__)
     return (void*) uc->uc_mcontext->__ss.__rip;
@@ -113,7 +121,7 @@ static void *getEip(ucontext_t *uc) {
     #else
     return (void*) uc->uc_mcontext->__ss.__srr0;
     #endif
-#elif defined(__APPLE__) && defined(MAC_OS_X_VERSION_10_6)
+#elif defined(__APPLE__) && defined(FOUND_MACOS_VERSION_10_6)
     /* OSX >= 10.6 */
     #if defined(_STRUCT_X86_THREAD_STATE64) && !defined(__i386__)
     return (void*) uc->uc_mcontext->__ss.__rip;
@@ -225,7 +233,7 @@ void dumpX86Calls(void *addr, size_t len) {
 }
 
 #pragma fenv_access(on)
-static void dumpfloatinPointExecption() {
+static void dumpfloatinPointExecption(void) {
     printf("\n\n-- FLOATING POINT EXC. --\n");
     if (fetestexcept(FE_DIVBYZERO)) printf("FE_DIVBYZERO catched\n");
     if (fetestexcept(FE_OVERFLOW)) printf("FE_OVERFLOW catched\n");

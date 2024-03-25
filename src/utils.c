@@ -317,7 +317,7 @@ void PSAbortLayer(PSModel *model, PSLayer *layer) {
 
 /**** Misc ****/
 
-unsigned int PSGetTerminalColumns() {
+unsigned int PSGetTerminalColumns(void) {
     static int __term_columns = -1;
     if (__term_columns < 0) {
 #if IS_UNIX

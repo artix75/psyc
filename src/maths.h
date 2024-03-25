@@ -121,7 +121,7 @@ typedef struct PSMathOpts {
 
 /****** Utils *****/
 
-PSFloat PSNormalizedRandom();
+PSFloat PSNormalizedRandom(void);
 PSFloat PSGaussianRandom(PSFloat mean, PSFloat stddev);
 long PSRandomInt(long range, PSFloat *weights, PSMathOpts *opts);
 

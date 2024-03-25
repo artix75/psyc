@@ -280,7 +280,7 @@ static void psyc_gemv(PSBLASOrder order, char trans, PSBLAS_int m, int n,
     };
     PSBLASLastError = NULL;
     trans = (trans != 'C' ? trans : 'T');
-    int info = 0;
+    PSBLAS_int info = 0;
     if (trans != 'N' && trans != 'T' && trans !='C') info = 2;
     else if (m < 0) info = 3;
     else if (n < 0) info = 4;
@@ -295,11 +295,11 @@ static void psyc_gemv(PSBLASOrder order, char trans, PSBLAS_int m, int n,
     else if (incy == 0) info = 12;
     if (info > 0) {
         char *param = NULL;
-        int pos = info - 1;
+        PSBLAS_int pos = info - 1;
         PSBLAS_int val = -1;
         if ((size_t) pos < (sizeof(params) / sizeof(char*))) {
             param = params[pos];
-            if (info == 2) val = (int) trans;
+            if (info == 2) val = (PSBLAS_int) trans;
             else if (info == 3) val = m;
             else if (info == 4) val = n;
             else if (info == 7) val = lda;
@@ -390,7 +390,7 @@ static void psyc_gemm(PSBLASOrder order, char trans_a, char trans_b,
         trans_f = (trans_b != 'C' ? trans_b : 'T');
         trans_g = (trans_a != 'C' ? trans_a : 'T');
     }
-    int info = 0;
+    PSBLAS_int info = 0;
     PSBLAS_int maxk = (k > 1 ? k : 1),
          maxm = (m > 1 ? m : 1),
          maxn = (n > 1 ? n : 1);
@@ -409,7 +409,7 @@ static void psyc_gemm(PSBLASOrder order, char trans_a, char trans_b,
     }
     if (info != 0) {
         char *param = NULL;
-        int pos = info - 1;
+        PSBLAS_int pos = info - 1;
         PSBLAS_int val = -1;
         if ((size_t) pos < (sizeof(params) / sizeof(char*))) {
             param = params[pos];

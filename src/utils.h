@@ -139,7 +139,7 @@ int PSDownloadFile(const char *url, const char *dest_dir);
 
 /* Misc */
 
-unsigned int PSGetTerminalColumns();
+unsigned int PSGetTerminalColumns(void);
 void PSFillWithBlank(int line_length);
 char *PSGetElapsedTimeString(time_t elapsed_us, int long_format);
 PSFloat *PSOneHotVector(long index, long len);

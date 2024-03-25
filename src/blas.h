@@ -22,8 +22,8 @@
 #include "types.h"
 
 #ifdef PSBLAS_INT_SIZE
-#if PSBLAS_INT_SIZE == 8
-typedef int64_t PSBLAS_int;
+#if PSBLAS_INT_SIZE == 8 && !defined(PS_LAPACK_I32)
+typedef long PSBLAS_int;
 #define PSBLAS_MAX INT64_MAX
 #else
 typedef int32_t PSBLAS_int;

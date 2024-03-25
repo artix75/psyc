@@ -3353,7 +3353,7 @@ int main(int argc, char **argv) {
     PSHandleSignals(NULL);
     int return_val = 0;
     int tot_benchmarks = sizeof(bechmarks) / sizeof(PSBenchmarkConfig),
-        performed_benchmarks = 0, bm_idx = 0, i;
+        bm_idx = 0, i;
     int argidx = parseOptions(argc, argv), all_disabled = 0;
     while (argidx < argc) {
         if (!all_disabled) disableAllTags();
@@ -3471,7 +3471,6 @@ int main(int argc, char **argv) {
             if (jsonf != NULL) PSWriteBenchmarkResultsToJSON(
                 cfg, results, num_results, bm_idx++, jsonf
             );
-            performed_benchmarks++;
             free(results);
             time_t elapsed = PSGetElapsedTimeUS(st, et);
             char *elapsed_str = PSGetElapsedTimeString(elapsed, 1);

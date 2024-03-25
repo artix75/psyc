@@ -163,7 +163,7 @@ static void randomSeed(void) {
 
 /* Generate a random floating number within a range of 0.0 and 1.0.
  * Return value: the random float number. */
-PSFloat PSNormalizedRandom() {
+PSFloat PSNormalizedRandom(void) {
     randomSeed();
     int r = rand();
     return ((PSFloat) r / (PSFloat) RAND_MAX);

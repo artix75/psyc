@@ -2830,7 +2830,7 @@ int PSModelLoad(PSModel *model, const char* filepath) {
     }
     ok = readModel(model, f, filepath, vers, empty, NULL);
     if (!ok) goto final;
-    int num_models = 1, loaded_models = 1;
+    int num_models = 1;
     if (!empty) num_models = PSModelChainLength(model);
     PSModel *current = model;
     while (scanFileNoMatch(f, "model:")) {
@@ -2858,7 +2858,6 @@ int PSModelLoad(PSModel *model, const char* filepath) {
             if (empty) PSModelFree(current);
             goto final;
         }
-        loaded_models++;
     }
 final:
     if (f != NULL) fclose(f);
