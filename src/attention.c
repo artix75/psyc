@@ -826,7 +826,14 @@ PSFloat *PSGetAttentionQuery(PSLayer *layer, long t) {
         }
     } else {
         PSFloat *inputs = NULL;
-        if (is_after) inputs = PSLayerStates(provider, t - 1);
+        int use_initial_states = (
+            t == 0 && layer->initial_states != NULL &&
+            layer->model->index > 0 &&
+            layer->model->previous_model_link != NULL &&
+            layer->model->previous_model_link->layer == layer
+        );
+        if (use_initial_states) inputs = layer->initial_states;
+        else if (is_after) inputs = PSLayerStates(provider, t - 1);
         else if (from_prev_model) inputs = PSLayerOutputs(provider);
         else inputs = PSLayerStates(provider, t);
         if (inputs == NULL) {

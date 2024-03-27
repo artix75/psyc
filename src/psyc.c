@@ -2205,8 +2205,8 @@ PSFloat *PSLayerStates(PSLayer *layer, ...) {
             long seqlen = PSStateSequenceLength(layer);
             if (t >= seqlen) {
                 PSErr(
-                    __func__, "Index %d is out-of-range: layer %d states "
-                    "sequence has size: %d", t, layer->index, seqlen
+                    __func__, "Index %ld is out-of-range: layer %d states "
+                    "sequence has size: %ld", t, layer->index, seqlen
                 );
                 return NULL;
             }
