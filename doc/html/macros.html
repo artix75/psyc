@@ -1788,7 +1788,7 @@ Add a &#39;starting&#39; token to the dataset:<br/>
 <div class="location">In: <span class="filename">blas.h</span> - Line: <span class="line">27</span></div>
 <div class="code">
 <code class="definition">
-<span class="preproc">#if PSBLAS_INT_SIZE == 8</span>
+<span class="preproc">#if PSBLAS_INT_SIZE == 8 &amp;&amp; !defined(PS_LAPACK_I32)</span>
 <br>
 <span class="preproc">#define </span><span class="identifier">PSBLAS_MAX</span> <span class="value">INT64_MAX</span>
 <br>

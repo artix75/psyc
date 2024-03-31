@@ -1700,7 +1700,7 @@ In: utils.h, line: 61
 In: blas.h, line: 27
 
 ```c
-#if PSBLAS_INT_SIZE == 8
+#if PSBLAS_INT_SIZE == 8 && !defined(PS_LAPACK_I32)
 #define PSBLAS_MAX INT64_MAX
 #else
 #define PSBLAS_MAX (long) INT32_MAX

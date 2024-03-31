@@ -108,8 +108,8 @@ typedef uint64_t * PSBitmap
 In: blas.h, line: 26
 
 ```c
-#if PSBLAS_INT_SIZE == 8
-typedef int64_t PSBLAS_int
+#if PSBLAS_INT_SIZE == 8 && !defined(PS_LAPACK_I32)
+typedef long PSBLAS_int
 #else
 typedef int32_t PSBLAS_int
 #else
@@ -373,7 +373,7 @@ typedef int (* PSForwardFunction) (struct PSLayer *layer, ...)
 
 ### PSForwardOptions
 
-In: psyc.h, line: 265
+In: psyc.h, line: 266
 
 ```c
 typedef struct {  
@@ -461,7 +461,7 @@ typedef int (* PSInitStatesFunc) (struct PSLayer *layer, long steps, int retain_
 
 ### PSLayer
 
-In: psyc.h, line: 316
+In: psyc.h, line: 317
 
 ```c
 typedef struct {  
@@ -692,7 +692,7 @@ typedef PSFloat (* PSMatrixInitializer) (void)
 
 ### PSModel
 
-In: psyc.h, line: 356
+In: psyc.h, line: 357
 
 ```c
 typedef struct {  
@@ -725,7 +725,7 @@ typedef struct {
 
 ### PSModelLink
 
-In: psyc.h, line: 351
+In: psyc.h, line: 352
 
 ```c
 typedef struct {  
@@ -739,7 +739,7 @@ typedef struct {
 
 ### PSNeuralNetwork
 
-In: psyc.h, line: 492
+In: psyc.h, line: 493
 
 ```c
 typedef PSModel PSNeuralNetwork
@@ -750,7 +750,7 @@ Kept type name used in older version since I still love it :) (and it also sound
 
 ### PSNeuron
 
-In: psyc.h, line: 308
+In: psyc.h, line: 309
 
 ```c
 typedef struct {  
@@ -874,6 +874,7 @@ typedef struct {
     long max_length;  
     PSFloat * start;  
     long end;  
+    long pad;  
 } PSSequenceSettings  
 ```
 
@@ -970,7 +971,7 @@ typedef void (* PSTrainCallback) (struct PSModel *model, int epoch, int epochs, 
 
 ### PSTrainingInfo
 
-In: psyc.h, line: 290
+In: psyc.h, line: 291
 
 ```c
 typedef struct {  
@@ -997,7 +998,7 @@ typedef struct {
 
 ### PSTrainingOptions
 
-In: psyc.h, line: 270
+In: psyc.h, line: 271
 
 ```c
 typedef struct {  
