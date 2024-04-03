@@ -1516,15 +1516,28 @@ PSFloat *PSGetNeuronInputWeights(PSNeuron *neuron) {
 }
 
 void PSPrintLayerInfo(PSLayer *layer) {
+    static int min_indent = 0;
     if (layer == NULL) return;
     PSLayerType ltype = layer->type;
     char *type_name = PSGetLayerTypeLabel(layer);
+    PSLayer *linked_to = NULL;
+    PSModelLink *link = NULL;
+    if (layer->model != NULL) {
+        link = layer->model->previous_model_link;
+        if (link != NULL && link->layer == layer)
+            linked_to = link->previous_layer;
+        else if (layer->model->next != NULL) {
+            link = layer->model->next->previous_model_link;
+            if (link != NULL && link->previous_layer == layer)
+                linked_to = link->layer;
+        }
+    }
+    int color_enabled = PSLogColorEnabled();
     char onehot_info[50];
     onehot_info[0] = 0;
     int onehot_input = (layer->index == 0 && layer->flags & PS_FLAG_ONEHOT);
     if (onehot_input)
-        sprintf(onehot_info, " (vector size: %ld)", layer->onehot_vector_size);
-    static int min_indent = 0;
+        sprintf(onehot_info, "(vector size: %ld)", layer->onehot_vector_size);
     if (min_indent == 0) min_indent = strlen("  Layer[]: ");
     int indent = min_indent + (int) PSCalcIntStringLength(layer->index);
     printf("Layer[%d]: %s, size = %ld", layer->index, type_name, layer->size);
@@ -1547,15 +1560,18 @@ void PSPrintLayerInfo(PSLayer *layer) {
         }
         if (stride <= 0 && ltype == Pooling) stride = (int) filter_w;
         printf(
-            ", input size = %ldx%ld, output_size = %ldx%ld, depth = %ld",
-            input_w, input_h, output_w, output_h, depth
+            "\n%*cinput size = %ldx%ld, output_size = %ldx%ld, depth = %ld",
+            indent, ' ', input_w, input_h, output_w, output_h, depth
         );
         if (ltype == Convolutional) {
-            printf(", filter = %ldx%ldx%ld, stride = %d",
-                   filter_w, filter_h, filter_d, stride);
+            printf(
+                "\n%*cfilter = %ldx%ldx%ld, stride = %d",
+                indent, ' ', filter_w, filter_h, filter_d, stride
+            );
         } else {
             printf(
-                ", filter = %ldx%ld, stride = %d", filter_w, filter_h, stride
+                "\n%*cfilter = %ldx%ld, stride = %d",
+                indent, ' ', filter_w, filter_h, stride
             );
         }
         if (ltype == Convolutional) {
@@ -1616,6 +1632,19 @@ void PSPrintLayerInfo(PSLayer *layer) {
     const char *activation = PSGetActivationName(layer->activate);
     if (layer->index > 0 && activation != NULL)
         printf(", activation = %s", activation);
+    if (linked_to != NULL && linked_to->model != NULL) {
+        char *color = "", *end_color = "";
+        if (color_enabled) {
+            color = PSCOLOR_LIGHT_GREEN;
+            end_color = PSCOLOR_RESET;
+        }
+        int is_prev = (linked_to->model->index < layer->model->index);
+        printf(
+            "\n%*cLinked to %slayer[%d]%s of %s model", indent, ' ',
+            color, linked_to->index, end_color,
+            (is_prev ? "previous" : "next")
+        );
+    }
     printf("\n");
 }
 
