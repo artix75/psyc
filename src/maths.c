@@ -2705,29 +2705,57 @@ int PSMatrixEquals(PSMatrix a, PSMatrix b, int precision, int ignore_shape) {
     return PSVectorEquals(a, b, alen, precision, NULL);
 }
 
+/* Check whether `matrix` has a cached trasposed version of itself (created
+ * via `PSMatrixTranspose`).
+ * Return value: 1 if `matrix` is not NULL and has a cached transposed version,
+ * 0 otherwise. */
+int PSMatrixHasTransposedVersion(PSMatrix matrix) {
+    if (matrix == NULL) return 0;
+    PSMatrixHeader *hdr = PSMatrixGetHeader(matrix);
+    return hdr->transposed != NULL;
+}
+
+/* Check whether `matrix` is the cached trasposed version of another matrix
+ * created by `PSMatrixTranspose`.
+ * Return value: 1 if `matrix` is not NULL and is a cached transposed version,
+ * 0 otherwise. */
+int PSMatrixIsTransposedVersion(PSMatrix matrix) {
+    if (matrix == NULL) return 0;
+    PSMatrixHeader *hdr = PSMatrixGetHeader(matrix);
+    return hdr->transposed_from != NULL;
+}
+
+static void freeMatrix(PSMatrix matrix) {
+    if (matrix == NULL) return;
+    void *ptr = (void *) getMatrixHeadPointer(matrix);
+    free(ptr);
+}
+
 /* Invalidate and free the cached transposed version of `matrix`, if any (see
  * `PSMatrixTranspose`). */
 void PSMatrixResetTransposed(PSMatrix matrix) {
     if (matrix == NULL) return;
     PSMatrixHeader *hdr = PSMatrixGetHeader(matrix);
     if (hdr->transposed != NULL) {
-        PSMatrixFree(hdr->transposed);
+        freeMatrix(hdr->transposed);
         hdr->transposed = NULL;
     }
 }
 
 /* Free `matrix` by also deleting all its private data (including the cached
  * transposed versiob of `matrix` if any).
- * If `matrix` is NULL, the function will directly return.
- * WARN: this function should not be directly called on `matrix` if it's  the
- * cached transposed version of another matrix (see `PSMatrixTranspose`): in
- * this case the function `PSMatrixResetTransposed` should be used instead. */
+ * If `matrix` is NULL, the function will directly return. */
 void PSMatrixFree(PSMatrix matrix) {
     if (matrix == NULL) return;
-    void *ptr = (void *) getMatrixHeadPointer(matrix);
-    PSMatrixHeader *hdr = (PSMatrixHeader *) ptr;
-    if (hdr->transposed != NULL) PSMatrixFree(hdr->transposed);
-    free(ptr);
+    PSMatrixHeader *hdr = PSMatrixGetHeader(matrix);
+    if (hdr->transposed_from != NULL) {
+        PSMatrixHeader *parent_hdr = PSMatrixGetHeader(hdr->transposed_from);
+        assert(parent_hdr->transposed == matrix);
+        PSMatrixResetTransposed(hdr->transposed_from);
+        return;
+    }
+    if (hdr->transposed != NULL) freeMatrix(hdr->transposed);
+    freeMatrix(matrix);
 }
 
 /**** Operations ****/
