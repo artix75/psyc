@@ -5761,14 +5761,11 @@ void clipGradients(PSGradient **grads, PSFloat min, PSFloat max, long count,
     }
 }
 
-static PSFloat getLoss(PSModel *model, PSFloat *y, long y_seqlen,
-                       int backprop, PSFloat *outputs,
-                       PSFloat l1_loss, PSFloat l2_loss,
-                       PSFloat *net_loss, PSTrainingOptions *opts)
+static PSFloat getLoss(PSModel *model, PSFloat *y, long y_seqlen, int backprop,
+                       PSFloat *outputs, PSTrainingOptions *opts)
 {
     static PSTrainingOptions dfopts = {0};
     if (opts == NULL) opts = &dfopts;
-    if (net_loss != NULL) *net_loss = 0;
     long batch_size = opts->batch_size;
     if (batch_size <= 0) batch_size = 1;
     PSLayer *output_layer = PSGetOutputLayer(model);
@@ -5880,10 +5877,6 @@ static PSFloat getLoss(PSModel *model, PSFloat *y, long y_seqlen,
             else i = fetchSequenceOutputState(output_layer, outputs, i, 0);
         }
     }
-    if (opts->l1_decay != 0)
-        l1_loss *= (opts->l1_decay / batch_size);
-    if (opts->l2_decay != 0)
-        l2_loss = (0.5 * (opts->l2_decay / batch_size) * l2_loss);
     long onehot_size = (onehot ? output_layer->size : 0);
     PSFloat loss = output_model->loss(
         outputs, y, outputs_size, onehot_size
@@ -5896,8 +5889,7 @@ final:
         PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
         return PS_STATUS_ERROR_LOSS;
     }
-    if (net_loss != NULL) *net_loss = loss;
-    return loss + l1_loss + l2_loss;
+    return loss;
 }
 
 void updateTrainingAccuracy(PSModel *model, PSFloat *outputs, PSFloat *targets,
@@ -6021,7 +6013,7 @@ PSFloat updateModelParameters(PSModel *model,
      * Furthermore, l1_loss and l2_loss won't be computed nor used in
      * loss calculation.
      * If disabled (default), L1/L2 regularization will be used so l2_decay
-     * and l1_decaywill be applied on gradients and L1/L2 loss will be
+     * and l1_decay will be applied on gradients and L1/L2 loss will be
      * computed and taken into account by final loss. */
     if (l2 != 0.0 && use_weight_decay) {
         if (divide_grads_by_batches) l2 = opts->l2_decay / batch_size;
@@ -6036,6 +6028,7 @@ PSFloat updateModelParameters(PSModel *model,
     PSGradient ***bp_dest_gradients = gradients;
     if (apply_clip) bp_dest_gradients = NULL;
     beforeBatchTraining(model);
+    PSFloat tot_loss = 0;
     /* Iterate the examples of the batch and, for each example, get gradients
      * from the backpropagation of the error. Then, sum the backpropagation
      * gradients to the batch's gradients. */
@@ -6076,6 +6069,7 @@ PSFloat updateModelParameters(PSModel *model,
             PSModelSetStatus(model, PS_STATUS_ERROR, NULL);
             goto final;
         }
+        tot_loss += getLoss(model, y, y_seqlen, 1, NULL, opts);
         if (apply_clip) {
             PSModel *cur = model;
             while (cur != NULL) {
@@ -6225,7 +6219,14 @@ PSFloat updateModelParameters(PSModel *model,
 final:
     PSDeleteGradientsChain(gradients, model);
     if (PSModelGetStatus(model) == PS_STATUS_ERROR) return PS_STATUS_ERROR_LOSS;
-    return getLoss(model, y, y_seqlen, 1, NULL, l1_loss,l2_loss, NULL, opts);
+    PSFloat loss = tot_loss / batch_size;
+    if (!use_weight_decay) {
+        if (opts->l1_decay != 0) l1_loss *= (opts->l1_decay / batch_size);
+        if (opts->l2_decay != 0)
+            l2_loss = (0.5 * (opts->l2_decay / batch_size) * l2_loss);
+        loss += l1_loss + l2_loss;
+    }
+    return loss;
 }
 
 /* Iterate training data for the entire epoch. Unless the training flag
@@ -6542,9 +6543,7 @@ float validate(PSModel *model, PSFloat *test_data, long data_size,
             }
         }
         if (loss != NULL) {
-            tot_loss += getLoss(
-                model, targets, seqlen, 0, outputs, 0, 0, NULL, opts
-            );
+            tot_loss += getLoss(model, targets, seqlen, 0, outputs, opts);
             if (PSModelGetStatus(model) == PS_STATUS_ERROR) goto err;
         }
     }
