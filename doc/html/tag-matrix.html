@@ -68,7 +68,9 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 <li><a href="#function-psmatrixfree">PSMatrixFree</a></li>
 <li><a href="#function-psmatrixfromarray">PSMatrixFromArray</a></li>
 <li><a href="#function-psmatrixget">PSMatrixGet</a></li>
+<li><a href="#function-psmatrixhastransposedversion">PSMatrixHasTransposedVersion</a></li>
 <li><a href="#function_pointer-psmatrixinitializer">PSMatrixInitializer</a></li>
+<li><a href="#function-psmatrixistransposedversion">PSMatrixIsTransposedVersion</a></li>
 <li><a href="#function-psmatrixlength">PSMatrixLength</a></li>
 <li><a href="#function-psmatrixmultiply">PSMatrixMultiply</a></li>
 <li><a href="#function-psmatrixnumdims">PSMatrixNumDims</a></li>
@@ -84,6 +86,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 <li><a href="#function-psmatrixshape">PSMatrixShape</a></li>
 <li><a href="#function-psmatrixshapetype">PSMatrixShapeType</a></li>
 <li><a href="#function-psmatrixsplit">PSMatrixSplit</a></li>
+<li><a href="#function-psmatrixsqueeze">PSMatrixSqueeze</a></li>
 <li><a href="#function-psmatrixstride">PSMatrixStride</a></li>
 <li><a href="#macro-psmatrixstridebytes">PSMatrixStrideBytes</a></li>
 <li><a href="#function-psmatrixsubtract">PSMatrixSubtract</a></li>
@@ -178,7 +181,7 @@ Possible failure reasons:<br/>
 
 <div class="details function" id="function-psmatrixclear">
 <h3 class="name">PSMatrixClear</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">191</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">194</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">void</span> <span class="identifier name">PSMatrixClear</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixclear-matrix>matrix</span></span></span>)</code>
@@ -190,7 +193,7 @@ Set all values of <span class="identifier-ref" data-identifier-id="function-psma
 
 <div class="details function" id="function-psmatrixcopy">
 <h3 class="name">PSMatrixCopy</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">189</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">192</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSMatrixCopy</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixcopy-src>src</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixcopy-dst>dst</span></span></span>)</code>
@@ -367,7 +370,7 @@ Possible failure reasons:<br/>
 
 <div class="details function" id="function-psmatrixdup">
 <h3 class="name">PSMatrixDup</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">187</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">190</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier name">PSMatrixDup</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixdup-matrix>matrix</span></span></span>)</code>
@@ -394,7 +397,7 @@ The new matrix or <span class="identifier-ref">NULL</span> if:
 
 <div class="details function" id="function-psmatrixdupshape">
 <h3 class="name">PSMatrixDupShape</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">188</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">191</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier name">PSMatrixDupShape</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixdupshape-matrix>matrix</span></span></span>)</code>
@@ -421,7 +424,7 @@ The new matrix or <span class="identifier-ref">NULL</span> if:
 
 <div class="details function" id="function-psmatrixequals">
 <h3 class="name">PSMatrixEquals</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">190</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">193</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">int</span> <span class="identifier name">PSMatrixEquals</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixequals-a>a</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixequals-b>b</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psmatrixequals-precision>precision</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psmatrixequals-ignore-shape>ignore_shape</span></span></span>)</code>
@@ -461,7 +464,7 @@ The new expanded matrix or:
 
 <div class="details function" id="function-psmatrixflatten">
 <h3 class="name">PSMatrixFlatten</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">181</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">182</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier name">PSMatrixFlatten</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixflatten-matrix>matrix</span></span></span>)</code>
@@ -485,14 +488,13 @@ The new flatten matrix or <span class="identifier-ref">NULL</span> if:
 
 <div class="details function" id="function-psmatrixfree">
 <h3 class="name">PSMatrixFree</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">192</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">195</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">void</span> <span class="identifier name">PSMatrixFree</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixfree-matrix>matrix</span></span></span>)</code>
 </div>
 <div class="description">
-Free <span class="identifier-ref" data-identifier-id="function-psmatrixfree-matrix" data-parent-id="function-psmatrixfree">matrix</span> by also deleting all its private data (including the cached transposed versiob of <span class="identifier-ref" data-identifier-id="function-psmatrixfree-matrix" data-parent-id="function-psmatrixfree">matrix</span> if any).<br/>If <span class="identifier-ref" data-identifier-id="function-psmatrixfree-matrix" data-parent-id="function-psmatrixfree">matrix</span> is <span class="identifier-ref">NULL</span>, the function will directly return.<br/><div class="warn"><span class="warn-prefix">WARN:</span>  this function should not be directly called on <span class="identifier-ref" data-identifier-id="function-psmatrixfree-matrix" data-parent-id="function-psmatrixfree">matrix</span> if it&#39;s  the cached transposed version of another matrix (see <a class="psyc-func" href="functions.html#function-psmatrixtranspose">PSMatrixTranspose</a>): in this case the function <a class="psyc-func" href="functions.html#function-psmatrixresettransposed">PSMatrixResetTransposed</a> should be used instead.
-</div>  
+Free <span class="identifier-ref" data-identifier-id="function-psmatrixfree-matrix" data-parent-id="function-psmatrixfree">matrix</span> by also deleting all its private data (including the cached transposed versiob of <span class="identifier-ref" data-identifier-id="function-psmatrixfree-matrix" data-parent-id="function-psmatrixfree">matrix</span> if any).<br/>If <span class="identifier-ref" data-identifier-id="function-psmatrixfree-matrix" data-parent-id="function-psmatrixfree">matrix</span> is <span class="identifier-ref">NULL</span>, the function will directly return.
 </div>
 <div class="see-also">
 <h4>SEE ALSO</h4>
@@ -540,12 +542,40 @@ The allocated matrix or <span class="identifier-ref">NULL</span> if:
 </div>
 </div>
 
+<div class="details function" id="function-psmatrixhastransposedversion">
+<h3 class="name">PSMatrixHasTransposedVersion</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">186</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">int</span> <span class="identifier name">PSMatrixHasTransposedVersion</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixhastransposedversion-matrix>matrix</span></span></span>)</code>
+</div>
+<div class="description">
+Check whether <span class="identifier-ref" data-identifier-id="function-psmatrixhastransposedversion-matrix" data-parent-id="function-psmatrixhastransposedversion">matrix</span> has a cached trasposed version of itself (created via <a class="psyc-func" href="functions.html#function-psmatrixtranspose">PSMatrixTranspose</a>).  
+<h4 class="return-values">RETURN VALUES</h4>
+1 if <span class="identifier-ref" data-identifier-id="function-psmatrixhastransposedversion-matrix" data-parent-id="function-psmatrixhastransposedversion">matrix</span> is not <span class="identifier-ref">NULL</span> and has a cached transposed version, 0 otherwise.
+</div>
+</div>
+
 <div class="details function_pointer" id="function_pointer-psmatrixinitializer">
 <h3 class="name">PSMatrixInitializer</h3>
 <div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">148</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="keyword">typedef </span><span class="type return-type"><a class="psyc-type" href="types.html#type-psfloat">PSFloat</a></span>  (* <span class="identifier">PSMatrixInitializer</span>) (<span class="arguments"><span class="argument void">void</span></span>)</code>
+</div>
+</div>
+
+<div class="details function" id="function-psmatrixistransposedversion">
+<h3 class="name">PSMatrixIsTransposedVersion</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">187</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
+<code class="definition">
+<span class="type return-type">int</span> <span class="identifier name">PSMatrixIsTransposedVersion</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixistransposedversion-matrix>matrix</span></span></span>)</code>
+</div>
+<div class="description">
+Check whether <span class="identifier-ref" data-identifier-id="function-psmatrixistransposedversion-matrix" data-parent-id="function-psmatrixistransposedversion">matrix</span> is the cached trasposed version of another matrix created by <a class="psyc-func" href="functions.html#function-psmatrixtranspose">PSMatrixTranspose</a>.  
+<h4 class="return-values">RETURN VALUES</h4>
+1 if <span class="identifier-ref" data-identifier-id="function-psmatrixistransposedversion-matrix" data-parent-id="function-psmatrixistransposedversion">matrix</span> is not <span class="identifier-ref">NULL</span> and is a cached transposed version, 0 otherwise.
 </div>
 </div>
 
@@ -847,7 +877,7 @@ The allocated matrix or <span class="identifier-ref">NULL</span> if:
 
 <div class="details function" id="function-psmatrixresettransposed">
 <h3 class="name">PSMatrixResetTransposed</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">186</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">189</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type">void</span> <span class="identifier name">PSMatrixResetTransposed</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixresettransposed-matrix>matrix</span></span></span>)</code>
@@ -970,7 +1000,7 @@ The shape type:
 
 <div class="details function" id="function-psmatrixsplit">
 <h3 class="name">PSMatrixSplit</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">182</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">183</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a> *</span><span class="identifier name">PSMatrixSplit</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixsplit-matrix>matrix</span></span>, <span class="argument"><span class="type">long</span> <span class="identifier" data-identifier-id=function-psmatrixsplit-num-slices>num_slices</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psmatrixsplit-axis>axis</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psmatrixsplit-opts>opts</span></span></span>)</code>
@@ -1001,6 +1031,30 @@ An array of <span class="identifier-ref" data-identifier-id="function-psmatrixsp
 
 <div class="note"><span class="note-prefix">NOTE:</span>  it&#39;s up to the developer using this function to free both the sub-matrices (by using <a class="psyc-func" href="functions.html#function-psmatrixflatten">PSMatrixFlatten</a>) and the returned array containing them.
 </div>  
+</div>
+</div>
+
+<div class="details function" id="function-psmatrixsqueeze">
+<h3 class="name">PSMatrixSqueeze</h3>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">181</span></div>
+<div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
+<code class="definition">
+<span class="type return-type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier name">PSMatrixSqueeze</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixsqueeze-matrix>matrix</span></span></span>)</code>
+</div>
+<div class="description">
+Create a new matrix having the same values of <span class="identifier-ref" data-identifier-id="function-psmatrixsqueeze-matrix" data-parent-id="function-psmatrixsqueeze">matrix</span> and after removing all unnecessary axes of length one from the original shape of <span class="identifier-ref" data-identifier-id="function-psmatrixsqueeze-matrix" data-parent-id="function-psmatrixsqueeze">matrix</span>.<br/>For example, a matrix having shape of (1, 2, 3) will generate a matrix with shape (2, 3).  
+<h4 class="return-values">RETURN VALUES</h4>
+The &quot;squeezed&quot; matrix or <span class="identifier-ref">NULL</span> if:
+
+
+ <ul>
+
+ <li><span class="identifier-ref" data-identifier-id="function-psmatrixsqueeze-matrix" data-parent-id="function-psmatrixsqueeze">matrix</span> is <span class="identifier-ref">NULL</span> or empty.</li>
+
+ <li>The new matrix cannot be created/allocated.
+
+
+ </ul>
 </div>
 </div>
 
@@ -1097,7 +1151,7 @@ Possible failure reasons:<br/>
 
 <div class="details function" id="function-psmatrixswapaxes">
 <h3 class="name">PSMatrixSwapAxes</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">185</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">188</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier name">PSMatrixSwapAxes</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixswapaxes-matrix>matrix</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psmatrixswapaxes-axis1>axis1</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psmatrixswapaxes-axis2>axis2</span></span></span>)</code>
@@ -1129,7 +1183,7 @@ The new swapped matrix or <span class="identifier-ref">NULL</span> if:
 
 <div class="details function" id="function-psmatrixtranspose">
 <h3 class="name">PSMatrixTranspose</h3>
-<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">184</span></div>
+<div class="location">In: <span class="filename">maths.h</span> - Line: <span class="line">185</span></div>
 <div class="tags"><span class="tag maths" data-href="tag-maths.html">MATHS</span><span class="tag matrix" data-href="tag-matrix.html">MATRIX</span></div><div class="code">
 <code class="definition">
 <span class="type return-type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier name">PSMatrixTranspose</span> (<span class="arguments"><span class="argument"><span class="type"><a class="psyc-type" href="types.html#type-psmatrix">PSMatrix</a></span> <span class="identifier" data-identifier-id=function-psmatrixtranspose-matrix>matrix</span></span>, <span class="argument"><span class="type">int</span> <span class="identifier" data-identifier-id=function-psmatrixtranspose-rebuild>rebuild</span></span>, <span class="argument"><span class="type"><a class="psyc-type" href="types.html#struct-psmathopts">PSMathOpts</a> *</span><span class="identifier pointer-name" data-identifier-id=function-psmatrixtranspose-opts>opts</span></span></span>)</code>

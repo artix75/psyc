@@ -13,10 +13,10 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSMatrixFree 3 2024-04-06 "PsyC 0.9.5" "PsyC Library Functions Manual"
+.TH PSMatrixSqueeze 3 2024-04-06 "PsyC 0.9.5" "PsyC Library Functions Manual"
 
 .SH NAME
-\fBPSMatrixFree\fR \- Free matrix memory
+\fBPSMatrixSqueeze\fR
 
 .SH LIBRARY
 PsyC (-lpsyc)
@@ -27,13 +27,24 @@ PsyC (-lpsyc)
 #include <psyc/maths.h>
 
 .I
-void  
+PSMatrix  
 .br
-\fBPSMatrixFree\fR(\fIPSMatrix matrix\fR)
+\fBPSMatrixSqueeze\fR(\fIPSMatrix matrix\fR)
 .SH DESCRIPTION
-Free \fImatrix\fR by also deleting all its private data (including the cached transposed versiob of \fImatrix\fR if any).
+Create a new matrix having the same values of \fImatrix\fR and after removing all unnecessary axes of length one from the original shape of \fImatrix\fR.
 .br
-If \fImatrix\fR is \fINULL\fR, the function will directly return.
+For example, a matrix having shape of (1, 2, 3) will generate a matrix with shape (2, 3).  
+
+.SH RETURN VALUES
+The "squeezed" matrix or \fINULL\fR if:
+
+.RS 4
+\[bu] \fImatrix\fR is \fINULL\fR or empty.
+.br
+
+\[bu] The new matrix cannot be created/allocated.
+.br
+.RE
 
 .SH SEE ALSO
-psyc(1), PSMatrixResetTransposed(3)
+psyc(1)

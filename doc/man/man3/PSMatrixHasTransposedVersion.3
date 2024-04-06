@@ -13,10 +13,10 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSMatrixFree 3 2024-04-06 "PsyC 0.9.5" "PsyC Library Functions Manual"
+.TH PSMatrixHasTransposedVersion 3 2024-04-06 "PsyC 0.9.5" "PsyC Library Functions Manual"
 
 .SH NAME
-\fBPSMatrixFree\fR \- Free matrix memory
+\fBPSMatrixHasTransposedVersion\fR
 
 .SH LIBRARY
 PsyC (-lpsyc)
@@ -27,13 +27,14 @@ PsyC (-lpsyc)
 #include <psyc/maths.h>
 
 .I
-void  
+int  
 .br
-\fBPSMatrixFree\fR(\fIPSMatrix matrix\fR)
+\fBPSMatrixHasTransposedVersion\fR(\fIPSMatrix matrix\fR)
 .SH DESCRIPTION
-Free \fImatrix\fR by also deleting all its private data (including the cached transposed versiob of \fImatrix\fR if any).
-.br
-If \fImatrix\fR is \fINULL\fR, the function will directly return.
+Check whether \fImatrix\fR has a cached trasposed version of itself (created via \fIPSMatrixTranspose\fR).  
+
+.SH RETURN VALUES
+1 if \fImatrix\fR is not \fINULL\fR and has a cached transposed version, 0 otherwise.
 
 .SH SEE ALSO
-psyc(1), PSMatrixResetTransposed(3)
+psyc(1), PSMatrixTranspose(3)

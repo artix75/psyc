@@ -2377,8 +2377,8 @@ PSMatrix PSMatrixReshape(PSMatrix matrix, int num_dims, ...) {
 
 /* Create a new matrix having the same values of `matrix` and after removing
  * all unnecessary axes of length one from the original shape of `matrix`.
- * For example, a matrix having shape of [1, 2, 3] will generate a matrix
- * with shape [2, 3].
+ * For example, a matrix having shape of (1, 2, 3) will generate a matrix
+ * with shape (2, 3).
  * Return value: the "squeezed" matrix or NULL if:
  *  - `matrix` is NULL or empty.
  *  - The new matrix cannot be created/allocated. */

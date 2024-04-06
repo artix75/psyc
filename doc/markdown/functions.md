@@ -208,7 +208,7 @@ See [PSAddLayer](functions.md#psaddlayer).
 
 ### PSAddVectors
 
-In: maths.h, line: 196
+In: maths.h, line: 199
 
 ```c
 PSFloat  * PSAddVectors (PSFloat *a, PSFloat *b, PSFloat *dest, long length, PSMathOpts *opts)
@@ -235,7 +235,7 @@ The function returns **NULL** if **dest** is **NULL** but the destination vector
 
 ### PSAddVectorScalar
 
-In: maths.h, line: 206
+In: maths.h, line: 209
 
 ```c
 PSFloat  * PSAddVectorScalar (PSFloat *a, PSFloat b, PSFloat *dest, long length, PSMathOpts *opts)
@@ -563,7 +563,7 @@ PSFloat PSCrossEntropyLoss (PSFloat *x, PSFloat *y, long size, long onehot_size)
 
 ### PSCumulativeSum
 
-In: maths.h, line: 231
+In: maths.h, line: 234
 
 ```c
 long PSCumulativeSum (PSFloat *a, PSFloat *dest, long length)
@@ -786,7 +786,7 @@ void PSDeleteNeuron (PSNeuron *neuron)
 
 ### PSDiagonalFlatten
 
-In: maths.h, line: 250
+In: maths.h, line: 253
 
 ```c
 PSMatrix PSDiagonalFlatten (PSMatrix matrix)
@@ -818,7 +818,7 @@ The matrix or **NULL** if:
 
 ### PSDiagonalFlattenVector
 
-In: maths.h, line: 251
+In: maths.h, line: 254
 
 ```c
 PSMatrix PSDiagonalFlattenVector (PSFloat *vec, long len)
@@ -848,7 +848,7 @@ The matrix or **NULL** if:
 
 ### PSDiagonalMask
 
-In: maths.h, line: 249
+In: maths.h, line: 252
 
 ```c
 PSMatrix PSDiagonalMask (long size)
@@ -1077,7 +1077,7 @@ void PSDisableAcceleration (uint16_t *config, PSAcceleration acceleration)
 
 ### PSDivideScalarVector
 
-In: maths.h, line: 214
+In: maths.h, line: 217
 
 ```c
 PSFloat  * PSDivideScalarVector (PSFloat b, PSFloat *a, PSFloat *dest, long length, PSMathOpts *opts)
@@ -1104,7 +1104,7 @@ The function returns **NULL** if **dest** is **NULL** but the destination vector
 
 ### PSDivideVectors
 
-In: maths.h, line: 202
+In: maths.h, line: 205
 
 ```c
 PSFloat  * PSDivideVectors (PSFloat *a, PSFloat *b, PSFloat *dest, long length, PSMathOpts *opts)
@@ -1131,7 +1131,7 @@ The function returns **NULL** if **dest** is **NULL** but the destination vector
 
 ### PSDivideVectorScalar
 
-In: maths.h, line: 212
+In: maths.h, line: 215
 
 ```c
 PSFloat  * PSDivideVectorScalar (PSFloat *a, PSFloat b, PSFloat *dest, long length, PSMathOpts *opts)
@@ -1158,7 +1158,7 @@ The function returns **NULL** if **dest** is **NULL** but the destination vector
 
 ### PSDot
 
-In: maths.h, line: 244
+In: maths.h, line: 247
 
 ```c
 int PSDot (PSMatrix a, PSMatrix b, PSFloat *dest, PSMathOpts *opts)
@@ -1189,7 +1189,7 @@ Possible failure reasons:
 
 ### PSDotMV
 
-In: maths.h, line: 245
+In: maths.h, line: 248
 
 ```c
 int PSDotMV (PSMatrix a, PSFloat *b, PSFloat *dest, PSMathOpts *opts)
@@ -1208,7 +1208,7 @@ See [PSDot](functions.md#psdot).
 
 ### PSDotProduct
 
-In: maths.h, line: 235
+In: maths.h, line: 238
 
 ```c
 PSFloat PSDotProduct (PSFloat *a, PSFloat *b, long length, PSMathOpts *opts)
@@ -1226,7 +1226,7 @@ The resulting dot product (scalar) or zero if **a** is **NULL** or **b** is **NU
 
 ### PSDotSquare
 
-In: maths.h, line: 236
+In: maths.h, line: 239
 
 ```c
 PSFloat PSDotSquare (PSFloat *a, long length, PSMathOpts *opts)
@@ -1237,7 +1237,7 @@ PSFloat PSDotSquare (PSFloat *a, long length, PSMathOpts *opts)
 
 ### PSDotVM
 
-In: maths.h, line: 246
+In: maths.h, line: 249
 
 ```c
 int PSDotVM (PSFloat *a, PSMatrix b, PSMatrix dest, PSMathOpts *opts)
@@ -1338,7 +1338,7 @@ Timestep must be always in range of processed timesteps (hidden states), otherwi
 
 ### PSFloatEquals
 
-In: maths.h, line: 255
+In: maths.h, line: 258
 
 ```c
 int PSFloatEquals (PSFloat a, PSFloat b, int precision)
@@ -2388,7 +2388,7 @@ Return vale: 1 in case of success, elseway 0.
 
 ### PSMatMul
 
-In: maths.h, line: 242
+In: maths.h, line: 245
 
 ```c
 int PSMatMul (PSFloat *a, PSFloat *b, PSFloat *dest, long m, long n, long k, PSMathOpts *opts)
@@ -2456,7 +2456,7 @@ Possible failure reasons:
 
 ### PSMatrixClear
 
-In: maths.h, line: 191
+In: maths.h, line: 194
 
 ```c
 void PSMatrixClear (PSMatrix matrix)
@@ -2467,7 +2467,7 @@ Set all values of **matrix** to zero. If **matrix** is **NULL**, the function do
 
 ### PSMatrixCopy
 
-In: maths.h, line: 189
+In: maths.h, line: 192
 
 ```c
 int PSMatrixCopy (PSMatrix src, PSMatrix dst)
@@ -2584,7 +2584,7 @@ Possible failure reasons:
 
 ### PSMatrixDup
 
-In: maths.h, line: 187
+In: maths.h, line: 190
 
 ```c
 PSMatrix PSMatrixDup (PSMatrix matrix)
@@ -2606,7 +2606,7 @@ The new matrix or **NULL** if:
 
 ### PSMatrixDupShape
 
-In: maths.h, line: 188
+In: maths.h, line: 191
 
 ```c
 PSMatrix PSMatrixDupShape (PSMatrix matrix)
@@ -2628,7 +2628,7 @@ The new matrix or **NULL** if:
 
 ### PSMatrixEquals
 
-In: maths.h, line: 190
+In: maths.h, line: 193
 
 ```c
 int PSMatrixEquals (PSMatrix a, PSMatrix b, int precision, int ignore_shape)
@@ -2666,7 +2666,7 @@ The new expanded matrix or:
 
 ### PSMatrixFlatten
 
-In: maths.h, line: 181
+In: maths.h, line: 182
 
 ```c
 PSMatrix PSMatrixFlatten (PSMatrix matrix)
@@ -2686,17 +2686,14 @@ The new flatten matrix or **NULL** if:
 
 ### PSMatrixFree
 
-In: maths.h, line: 192
+In: maths.h, line: 195
 
 ```c
 void PSMatrixFree (PSMatrix matrix)
 ```
 
 Free **matrix** by also deleting all its private data (including the cached transposed versiob of **matrix** if any).  
-If **matrix** is **NULL**, the function will directly return.  
-
-
-**WARN**:  this function should not be directly called on **matrix** if it's  the cached transposed version of another matrix (see [PSMatrixTranspose](functions.md#psmatrixtranspose)): in this case the function [PSMatrixResetTransposed](functions.md#psmatrixresettransposed) should be used instead.  
+If **matrix** is **NULL**, the function will directly return.
 
 **SEE ALSO**
 
@@ -2740,6 +2737,38 @@ PSFloat  * PSMatrixGet (PSMatrix matrix, int ndims, long *len, ...)
 ```
 
 
+
+
+### PSMatrixHasTransposedVersion
+
+In: maths.h, line: 186
+
+```c
+int PSMatrixHasTransposedVersion (PSMatrix matrix)
+```
+
+Check whether **matrix** has a cached trasposed version of itself (created via [PSMatrixTranspose](functions.md#psmatrixtranspose)).  
+
+
+**RETURN VALUES**
+
+1 if **matrix** is not **NULL** and has a cached transposed version, 0 otherwise.
+
+
+### PSMatrixIsTransposedVersion
+
+In: maths.h, line: 187
+
+```c
+int PSMatrixIsTransposedVersion (PSMatrix matrix)
+```
+
+Check whether **matrix** is the cached trasposed version of another matrix created by [PSMatrixTranspose](functions.md#psmatrixtranspose).  
+
+
+**RETURN VALUES**
+
+1 if **matrix** is not **NULL** and is a cached transposed version, 0 otherwise.
 
 
 ### PSMatrixLength
@@ -2988,7 +3017,7 @@ The allocated matrix or **NULL** if:
 
 ### PSMatrixResetTransposed
 
-In: maths.h, line: 186
+In: maths.h, line: 189
 
 ```c
 void PSMatrixResetTransposed (PSMatrix matrix)
@@ -3065,7 +3094,7 @@ The shape type:
 
 ### PSMatrixSplit
 
-In: maths.h, line: 182
+In: maths.h, line: 183
 
 ```c
 PSMatrix  * PSMatrixSplit (PSMatrix matrix, long num_slices, int axis, PSMathOpts *opts)
@@ -3091,6 +3120,26 @@ An array of **num_slices** sub-matrices whose length is or **NULL** if:
 
 
 **NOTE**:  it's up to the developer using this function to free both the sub-matrices (by using [PSMatrixFlatten](functions.md#psmatrixflatten)) and the returned array containing them.  
+
+
+### PSMatrixSqueeze
+
+In: maths.h, line: 181
+
+```c
+PSMatrix PSMatrixSqueeze (PSMatrix matrix)
+```
+
+Create a new matrix having the same values of **matrix** and after removing all unnecessary axes of length one from the original shape of **matrix**.  
+For example, a matrix having shape of (1, 2, 3) will generate a matrix with shape (2, 3).  
+
+
+**RETURN VALUES**
+
+The "squeezed" matrix or **NULL** if:  
+
+ - **matrix** is **NULL** or empty.
+ - The new matrix cannot be created/allocated.
 
 
 ### PSMatrixStride
@@ -3149,7 +3198,7 @@ Possible failure reasons:
 
 ### PSMatrixSwapAxes
 
-In: maths.h, line: 185
+In: maths.h, line: 188
 
 ```c
 PSMatrix PSMatrixSwapAxes (PSMatrix matrix, int axis1, int axis2)
@@ -3178,7 +3227,7 @@ The new swapped matrix or **NULL** if:
 
 ### PSMatrixTranspose
 
-In: maths.h, line: 184
+In: maths.h, line: 185
 
 ```c
 PSMatrix PSMatrixTranspose (PSMatrix matrix, int rebuild, PSMathOpts *opts)
@@ -3289,7 +3338,7 @@ The allocated matrix or **NULL** if:
 
 ### PSMean
 
-In: maths.h, line: 232
+In: maths.h, line: 235
 
 ```c
 PSFloat PSMean (PSFloat *a, long length, PSMathOpts *opts)
@@ -3717,7 +3766,7 @@ Common used status values are:
 
 ### PSMultiplyVectors
 
-In: maths.h, line: 200
+In: maths.h, line: 203
 
 ```c
 PSFloat  * PSMultiplyVectors (PSFloat *a, PSFloat *b, PSFloat *dest, long length, PSMathOpts *opts)
@@ -3744,7 +3793,7 @@ The function returns **NULL** if **dest** is **NULL** but the destination vector
 
 ### PSMultiplyVectorScalar
 
-In: maths.h, line: 204
+In: maths.h, line: 207
 
 ```c
 PSFloat  * PSMultiplyVectorScalar (PSFloat *a, PSFloat b, PSFloat *dest, long length, PSMathOpts *opts)
@@ -3831,7 +3880,7 @@ Create a vector of length **len** where value at [index](types.md#psmodel) is on
 
 ### PSOuterProduct
 
-In: maths.h, line: 247
+In: maths.h, line: 250
 
 ```c
 int PSOuterProduct (PSFloat *a, PSFloat *b, PSFloat *dest, long alen, long blen, PSMathOpts *opts)
@@ -4254,7 +4303,7 @@ long PSStateSequenceLength (PSLayer *layer)
 
 ### PSStdDev
 
-In: maths.h, line: 234
+In: maths.h, line: 237
 
 ```c
 PSFloat PSStdDev (PSFloat *a, long len, PSMathOpts *opts)
@@ -4283,7 +4332,7 @@ char  * PSStringJoin (char ** strings, char *sep, int len)
 
 ### PSSubtractScalarVector
 
-In: maths.h, line: 210
+In: maths.h, line: 213
 
 ```c
 PSFloat  * PSSubtractScalarVector (PSFloat b, PSFloat *a, PSFloat *dest, long length, PSMathOpts *opts)
@@ -4310,7 +4359,7 @@ The function returns **NULL** if **dest** is **NULL** but the destination vector
 
 ### PSSubtractVectors
 
-In: maths.h, line: 198
+In: maths.h, line: 201
 
 ```c
 PSFloat  * PSSubtractVectors (PSFloat *a, PSFloat *b, PSFloat *dest, long length, PSMathOpts *opts)
@@ -4337,7 +4386,7 @@ The function returns **NULL** if **dest** is **NULL** but the destination vector
 
 ### PSSubtractVectorScalar
 
-In: maths.h, line: 208
+In: maths.h, line: 211
 
 ```c
 PSFloat  * PSSubtractVectorScalar (PSFloat *a, PSFloat b, PSFloat *dest, long length, PSMathOpts *opts)
@@ -4692,7 +4741,7 @@ PSUTF8Char PSUTF8ToUpper (PSUTF8Char uc)
 
 ### PSVariance
 
-In: maths.h, line: 233
+In: maths.h, line: 236
 
 ```c
 PSFloat PSVariance (PSFloat *a, long len, PSMathOpts *opts)
@@ -4710,7 +4759,7 @@ The variance of vector **a** values or zero if **a** is **NULL**.
 
 ### PSVectorAbs
 
-In: maths.h, line: 220
+In: maths.h, line: 223
 
 ```c
 PSFloat  * PSVectorAbs (PSFloat *a, PSFloat *dest, long length, PSMathOpts *opts)
@@ -4736,7 +4785,7 @@ The function returns **NULL** if **dest** is **NULL** but the destination vector
 
 ### PSVectorClip
 
-In: maths.h, line: 221
+In: maths.h, line: 224
 
 ```c
 PSFloat  * PSVectorClip (PSFloat *a, PSFloat min, PSFloat max, PSFloat *dest, long length, PSMathOpts *opts)
@@ -4762,7 +4811,7 @@ The function returns **NULL** if **dest** is **NULL** but the destination vector
 
 ### PSVectorConvertToMatrix
 
-In: maths.h, line: 258
+In: maths.h, line: 261
 
 ```c
 PSMatrix PSVectorConvertToMatrix (PSFloat *vec, long len, int ndims, long *shape)
@@ -4805,7 +4854,7 @@ Possible failure reasons:
 
 ### PSVectorDup
 
-In: maths.h, line: 253
+In: maths.h, line: 256
 
 ```c
 PSFloat  * PSVectorDup (PSFloat *src, long length)
@@ -4821,7 +4870,7 @@ The duplicated vector or **NULL** is memory cannot be allocated.
 
 ### PSVectorEquals
 
-In: maths.h, line: 256
+In: maths.h, line: 259
 
 ```c
 int PSVectorEquals (PSFloat *a, PSFloat *b, long length, int precision, long *index)
@@ -4839,7 +4888,7 @@ Use [index](types.md#psmodel) pointer if you need to know the index of the first
 
 ### PSVectorExp
 
-In: maths.h, line: 218
+In: maths.h, line: 221
 
 ```c
 PSFloat  * PSVectorExp (PSFloat *a, PSFloat *dest, long length, PSMathOpts *opts)
@@ -4865,7 +4914,7 @@ The function returns **NULL** if **dest** is **NULL** but the destination vector
 
 ### PSVectorFill
 
-In: maths.h, line: 237
+In: maths.h, line: 240
 
 ```c
 void PSVectorFill (PSFloat *vec, PSFloat val, long len, PSMathOpts *opts)
@@ -4877,7 +4926,7 @@ The function can take advantage of the available accelerations (both hardwware a
 
 ### PSVectorMapWithLimit
 
-In: maths.h, line: 225
+In: maths.h, line: 228
 
 ```c
 PSFloat  * PSVectorMapWithLimit (PSFloat *a, PSFloat limit, PSFloat mapper, PSFloat *dest, long length, PSMathOpts *opts)
@@ -4896,7 +4945,7 @@ The function returns **NULL** if **dest** is **NULL** but the destination vector
 
 ### PSVectorMax
 
-In: maths.h, line: 229
+In: maths.h, line: 232
 
 ```c
 PSFloat PSVectorMax (PSFloat *a, long *index, long length, PSMathOpts *opts)
@@ -4914,7 +4963,7 @@ The maxium value in the vector **a**.
 
 ### PSVectorNeg
 
-In: maths.h, line: 219
+In: maths.h, line: 222
 
 ```c
 PSFloat  * PSVectorNeg (PSFloat *a, PSFloat *dest, long length, PSMathOpts *opts)
@@ -4940,7 +4989,7 @@ The function returns **NULL** if **dest** is **NULL** but the destination vector
 
 ### PSVectorPower
 
-In: maths.h, line: 227
+In: maths.h, line: 230
 
 ```c
 PSFloat  * PSVectorPower (PSFloat *a, PSFloat exp, PSFloat *dest, long length, PSMathOpts *opts)
@@ -4967,7 +5016,7 @@ The function returns **NULL** if **dest** is **NULL** but the destination vector
 
 ### PSVectorPrint
 
-In: maths.h, line: 239
+In: maths.h, line: 242
 
 ```c
 void PSVectorPrint (PSFloat *vec, long len, char* sep)
@@ -4980,7 +5029,7 @@ If **vec** is **NULL** the function will immediately return.
 
 ### PSVectorRandom
 
-In: maths.h, line: 254
+In: maths.h, line: 257
 
 ```c
 PSFloat  * PSVectorRandom (long len)
@@ -4996,7 +5045,7 @@ The allocated vector or **NULL** if memory cannot be allocated.
 
 ### PSVectorReduceSum
 
-In: maths.h, line: 230
+In: maths.h, line: 233
 
 ```c
 PSFloat PSVectorReduceSum (PSFloat *a, long length, PSMathOpts *opts)
@@ -5013,7 +5062,7 @@ The sum of all the elements in the vector **a** or zero if **a** is **NULL**.
 
 ### PSVectorSplit
 
-In: maths.h, line: 252
+In: maths.h, line: 255
 
 ```c
 PSFloat  ** PSVectorSplit (PSFloat *vec, long len, long num_slices)
@@ -5036,7 +5085,7 @@ An array of **num_slices** vectors (PSFloat *) or **NULL** if:
 
 ### PSVectorSqrt
 
-In: maths.h, line: 217
+In: maths.h, line: 220
 
 ```c
 PSFloat  * PSVectorSqrt (PSFloat *a, PSFloat *dest, long length, PSMathOpts *opts)
@@ -5062,7 +5111,7 @@ The function returns **NULL** if **dest** is **NULL** but the destination vector
 
 ### PSVectorTanh
 
-In: maths.h, line: 216
+In: maths.h, line: 219
 
 ```c
 PSFloat  * PSVectorTanh (PSFloat *a, PSFloat *dest, long length, PSMathOpts *opts)
@@ -5088,7 +5137,7 @@ The function returns **NULL** if **dest** is **NULL** but the destination vector
 
 ### PSVectorThreshold
 
-In: maths.h, line: 223
+In: maths.h, line: 226
 
 ```c
 PSFloat  * PSVectorThreshold (PSFloat *a, PSFloat min, PSFloat *dest, long length, PSMathOpts *opts)
@@ -5115,7 +5164,7 @@ The function returns **NULL** if **dest** is **NULL** but the destination vector
 
 ### PSVectorTranspose
 
-In: maths.h, line: 240
+In: maths.h, line: 243
 
 ```c
 PSFloat  * PSVectorTranspose (PSFloat *vec, PSFloat *dest, int acceleration, int ndims, ...)
@@ -5148,7 +5197,7 @@ Possible failure reasons:
 
 ### PSVectorWrite
 
-In: maths.h, line: 238
+In: maths.h, line: 241
 
 ```c
 size_t PSVectorWrite (PSFloat *vec, long len, char* sep, FILE *f)
