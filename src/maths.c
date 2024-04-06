@@ -2375,6 +2375,36 @@ PSMatrix PSMatrixReshape(PSMatrix matrix, int num_dims, ...) {
     return reshaped;
 }
 
+/* Create a new matrix having the same values of `matrix` and after removing
+ * all unnecessary axes of length one from the original shape of `matrix`.
+ * For example, a matrix having shape of [1, 2, 3] will generate a matrix
+ * with shape [2, 3].
+ * Return value: the "squeezed" matrix or NULL if:
+ *  - `matrix` is NULL or empty.
+ *  - The new matrix cannot be created/allocated. */
+PSMatrix PSMatrixSqueeze(PSMatrix matrix) {
+    if (matrix == NULL) return NULL;
+    long len = PSMatrixLength(matrix);
+    if (len <= 0) return NULL;
+    long orig_shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
+    long new_shape[PS_MATRIX_MAX_DIMENSIONS] = {0};
+    int orig_ndims = PSMatrixShape(matrix, orig_shape), new_ndims = 0, i;
+    if (orig_ndims <= 1) return PSMatrixDup(matrix);
+    for (i = 0; i < orig_ndims; i++) {
+        int dim = orig_shape[i];
+        if (dim <= 1) continue;
+        new_shape[new_ndims++] = dim;
+    }
+    if (new_ndims == 0 && len == 1) {
+        new_ndims = 1;
+        new_shape[0] = 1;
+    }
+    PSMatrix squeezed = PSMatrixCreateWithShape(0, NULL, new_ndims, new_shape);
+    if (squeezed == NULL) return NULL;
+    PSVectorCopy(squeezed, matrix, len);
+    return squeezed;
+}
+
 /* Create a new matrix that is the single-dimensioned, flatten version of
  * `matrix`.
  * For example, if `matrix` has a shape of (2,3), the resulting matrix will

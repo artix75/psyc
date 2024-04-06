@@ -178,6 +178,7 @@ int PSMatrixMultiply(PSMatrix a, PSMatrix b, PSMatrix *result,PSMathOpts *opt);
 int PSMatrixSubtract(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt);
 int PSMatrixDivide(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt);
 PSMatrix PSMatrixReshape(PSMatrix matrix, int num_dims, ...);
+PSMatrix PSMatrixSqueeze(PSMatrix matrix);
 PSMatrix PSMatrixFlatten(PSMatrix matrix);
 PSMatrix *PSMatrixSplit(PSMatrix matrix, long num_slices, int axis,
                         PSMathOpts *opts);
