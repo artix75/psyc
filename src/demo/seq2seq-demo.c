@@ -60,10 +60,10 @@
 #define LEARNING_RATE  0.001
 #define MULTABLE_NROWS 10
 #define MULTABLE_NCOLS 10
-#define MOMENTUM       0.9
+#define MOMENTUM       0.0
 #define CLIP_GRAD      5.0
 #define EPOCHS         1800
-#define DEFAULT_OUTPUT_FILE "/tmp/pretrained.attention_encoder_decoder.psmodel"
+#define DEFAULT_OUTPUT_FILE "/tmp/pretrained-attention-encoder-decoder.psmodel"
 #define OPTIMIZATION PSAdamOptimization
 
 #define UNUSED(V) ((void) V)
@@ -74,13 +74,12 @@ int epochs = EPOCHS, batch_size = BATCH_SIZE;
 PSLayerType rnn_type = GRU;
 PSFloat lr = LEARNING_RATE, momentum = MOMENTUM, clip = CLIP_GRAD;
 PSOptimization optimization = OPTIMIZATION;
-int train_mul_table = 1;
 int link2attn = 0;
 int no_attention = 0;
 int force_epochs = 0, force_lr = 0;
 int rand_autoregression = 0;
 int n_heads = 0;
-PSAttentionType attn_type = PSDotAttention;
+PSAttentionType attn_type = PSAdditiveAttention;
 int hidden_size = HIDDEN_SIZE, embed_size = EMBED_SIZE;
 
 char *PSGetRecurrentModeLabel(PSRecurrentNetworkMode mode);
@@ -133,10 +132,8 @@ void printHelp(char *progname) {
           "                                        "
           "Default: %s\n", optimization_name
     );
-    printf("        --train-multiplication-table    Train on multiplication "
-        "table\n");
     printf("        -a, --attention-type TYPE       Attention Type: dot|add\n");
-    printf("                                        (def. dot)\n");
+    printf("                                        (def. add)\n");
     printf("        --heads NUM                     Attention Heads\n");
     printf("        --link-attention-layer          Link to attention layer\n");
     printf("        --no-attention                  Disable Attention\n");
@@ -145,11 +142,7 @@ void printHelp(char *progname) {
     printf("        --epochs EPOCHS                 Epochs (def. %d)\n",
            EPOCHS);
     printf("        --batch-size SIZE               Batch size (def. %d)\n",
-        BATCH_SIZE);
-#ifdef USE_AVX
-    printf("        --disable-avx                   Disable AVX\n");
-#endif
-    printf("        --no-shuffle                    Don't shuffle data\n");
+           BATCH_SIZE);
     printf("        -h, --help                      Print this help\n");
 }
 
@@ -165,6 +158,13 @@ void parseOptions(int argc, char **argv) {
                 exit(1);
             }
             force_lr = 1;
+        } else if (strcmp("--momentum", arg) == 0 && !last_arg) {
+            momentum = atof(argv[++i]);
+            if (momentum < 0.0) {
+                fprintf(stderr, "ERROR: --momentum rate must >= 0\n");
+                exit(1);
+            }
+            force_lr = 1;
         } else if (strcmp("--clip", arg) == 0 && !last_arg) {
             clip = atof(argv[++i]);
             if (clip < 0.0) clip *= -1;
@@ -175,6 +175,12 @@ void parseOptions(int argc, char **argv) {
                 exit(1);
             }
             force_epochs = 1;
+        } else if (strcmp("--batch-size", arg) == 0 && !last_arg) {
+            batch_size = atoi(argv[++i]);
+            if (batch_size <= 0) {
+                fprintf(stderr, "ERROR: --batch-size must > 0\n");
+                exit(1);
+            }
         } else if (strcmp("--hidden-size", arg) == 0 && !last_arg) {
             hidden_size = atoi(argv[++i]);
             if (hidden_size < 2) {
@@ -230,8 +236,6 @@ void parseOptions(int argc, char **argv) {
             rnn_type = GRU;
         } else if (strcmp("--rnn", arg) == 0) {
             rnn_type = RNNLayer;
-        } else if (strcmp("--train-multiplication-table", arg) == 0) {
-            train_mul_table = 1;
         } else if (strcmp("--link-attention-layer", arg) == 0) {
             link2attn = 1;
         } else if (strcmp("--no-attention", arg) == 0) {
@@ -277,44 +281,42 @@ int main(int argc, char **argv) {
     int success = 1;
     PSFloat *table_train_data = NULL;
     PSFloat *table = NULL;
-    if (train_mul_table) {
-        int max_mul_x = MULTABLE_NROWS;
-        input_size = output_size = (max_mul_x * MULTABLE_NCOLS) + 1;
-        table = getMultiplicationTable(max_mul_x);
-        int seq_len = 3, x_seq_count = (MULTABLE_NCOLS / seq_len);
-        int seq_count = x_seq_count * max_mul_x;
-        int xlen, ylen, r, c;
-        xlen = ylen = seq_len + 1;
-        data_size = (1 + (seq_count * (xlen + ylen)));
-        PSFloat *row = table;
-        table_train_data = calloc(data_size, sizeof(PSFloat));
-        if (table_train_data == NULL) {
-            PSPrintMemoryErrorMsg();
-            return 1;
-        }
-        PSFloat *data_p = table_train_data;
-        *(data_p++) = (PSFloat) seq_count;
-        for (r = 0; r < max_mul_x; r++) {
-            for (c = 0; c < 10; c += seq_len) {
-                int xidx = c, yidx = c + seq_len, x, y;
-                if (yidx >= 10) break;
-                PSFloat *xsrc = row + xidx, *ysrc = row + yidx;
-                *(data_p++) = (PSFloat) seq_len;
-                for (x = 0; x < seq_len; x++) {
-                    PSFloat xval = xsrc[x];
-                    *(data_p++) = xval;
-                }
-                *(data_p++) = (PSFloat) seq_len;
-                for (y = 0; y < seq_len; y++) {
-                    PSFloat yval = 0;
-                    if ((yidx + y) < 10) yval = ysrc[y];
-                    *(data_p++) = yval;
-                }
-            }
-            row += 10;
-        }
-        training_data = table_train_data;
+    int max_mul_x = MULTABLE_NROWS;
+    input_size = output_size = (max_mul_x * MULTABLE_NCOLS) + 1;
+    table = getMultiplicationTable(max_mul_x);
+    int seq_len = 3, x_seq_count = (MULTABLE_NCOLS / seq_len);
+    int seq_count = x_seq_count * max_mul_x;
+    int xlen, ylen, r, c;
+    xlen = ylen = seq_len + 1;
+    data_size = (1 + (seq_count * (xlen + ylen)));
+    PSFloat *row = table;
+    table_train_data = calloc(data_size, sizeof(PSFloat));
+    if (table_train_data == NULL) {
+        PSPrintMemoryErrorMsg();
+        return 1;
     }
+    PSFloat *data_p = table_train_data;
+    *(data_p++) = (PSFloat) seq_count;
+    for (r = 0; r < max_mul_x; r++) {
+        for (c = 0; c < 10; c += seq_len) {
+            int xidx = c, yidx = c + seq_len, x, y;
+            if (yidx >= 10) break;
+            PSFloat *xsrc = row + xidx, *ysrc = row + yidx;
+            *(data_p++) = (PSFloat) seq_len;
+            for (x = 0; x < seq_len; x++) {
+                PSFloat xval = xsrc[x];
+                *(data_p++) = xval;
+            }
+            *(data_p++) = (PSFloat) seq_len;
+            for (y = 0; y < seq_len; y++) {
+                PSFloat yval = 0;
+                if ((yidx + y) < 10) yval = ysrc[y];
+                *(data_p++) = yval;
+            }
+        }
+        row += 10;
+    }
+    training_data = table_train_data;
 
     PSLayerDef common_ldef = {.init_range = INIT_RANGE};
     PSModel *encoder = NULL, *decoder = NULL;
@@ -409,10 +411,17 @@ int main(int argc, char **argv) {
         }
         do_train = 0;
         int input_size = PSGetOneHotLayerVectorSize(encoder->layers[0]);
-        train_mul_table =
-            (input_size == ((MULTABLE_NROWS * MULTABLE_NCOLS) + 1));
-        if (train_mul_table && table == NULL)
-            table = getMultiplicationTable(MULTABLE_NROWS);
+        success = (input_size == ((MULTABLE_NROWS * MULTABLE_NCOLS) + 1));
+        if (!success) {
+            PSErr(
+                NULL, "input size for loaded model does not match "
+                "multiplication table  example size."
+            );
+            goto final;
+        }
+        if (table == NULL) table = getMultiplicationTable(MULTABLE_NROWS);
+        success = (table != NULL);
+        if (!success) goto final;
     }
     if (!PSModelBuild(encoder)) {
         success = 0;
@@ -427,9 +436,10 @@ int main(int argc, char **argv) {
         .flags = PS_TRAINING_FLAG_TEACHER_FORCING | PS_TRAINING_FLAG_SEQ2SEQ |
                  PS_TRAINING_NO_SHUFFLE,
         .optimization = optimization,
+        .batch_size = batch_size,
         .epochs = epochs,
         .learning_rate = lr,
-        .batch_size = batch_size,
+        .momentum = momentum,
         .bptt_truncate = 0,
     };
     if (do_train) {
@@ -440,7 +450,7 @@ int main(int argc, char **argv) {
     PSFloat x_table[4] = {3, 0, 0, 0};
     PSFloat y_table[4] = {3, 0, 0, 0};
     PSFloat *x = NULL, *y = NULL;
-    if (train_mul_table && table != NULL) {
+    if (table != NULL) {
         long row = PSRandomInt(10, NULL, NULL);
         if (row >= 10) row = 9;
         PSFloat *xrow = table + (10 * row);
