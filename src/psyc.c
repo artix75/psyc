@@ -3611,13 +3611,6 @@ err:
     return NULL;
 }
 
-/* TODO: Remove? */
-void PSSetDefaultLayerDef(PSLayerDef *ldef, PSLayerType type) {
-    memset(ldef, 0, sizeof(*ldef));
-    UNUSED(type);
-    /* TODO: use specific settings for type? */
-}
-
 PSMatrix PSInitWeights(PSLayer *layer, long rows, long columns,
                        PSLayerDef *ldef, PSFloat range, PSFloat scale)
 {
@@ -3764,10 +3757,7 @@ PSLayer *PSAddLayer(PSModel *model, PSLayerType type, long size,
     }
     int verbose = (PSLogLevel == PSLOGLEVEL_DEBUG);
     PSLayerDef default_def = {0};
-    if (layer_def == NULL) {
-        PSSetDefaultLayerDef(&default_def, type);
-        layer_def = &default_def;
-    }
+    if (layer_def == NULL) layer_def = &default_def;
     layer->model = model;
     layer->index = model->size++;
     layer->type = type;
