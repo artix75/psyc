@@ -307,8 +307,8 @@ int main(int argc, char** argv) {
             l2_decay = (PSFloat) atof(argv[++i]);
         } else if (strcmp("--batch-size", arg) == 0 && (i + 1) < argc) {
             batch_size = atoi(argv[++i]);
-            if (batch_size < 2) {
-                fprintf(stderr, "Batch size must be >= 2\n");
+            if (batch_size < 1) {
+                fprintf(stderr, "Batch size must be >= 1\n");
                 return 1;
             }
         } else if (strcmp("--validate-every", arg) == 0 && (i + 1) < argc) {
