@@ -13,7 +13,7 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PSMatrixDivide 3 2024-03-09 "PsyC 0.9.5" "PsyC Library Functions Manual"
+.TH PSMatrixDivide 3 2024-04-20 "PsyC 0.9.5" "PsyC Library Functions Manual"
 
 .SH NAME
 \fBPSMatrixDivide\fR \- Divide matrix from matrix
@@ -31,7 +31,7 @@ int
 .br
 \fBPSMatrixDivide\fR(\fIPSMatrix a\fR, \fIPSMatrix b\fR, \fIPSMatrix *result\fR, \fIPSMathOpts *opt\fR)
 .SH DESCRIPTION
-Divide matrix \fIa\fR from matrix \fIb\fR. Results are stored into matrix pointed by pointer \fIresult\fR. If pointer pointed by \fIresult\fR is \fINULL\fR, a new matrix is automatically allocated by the function itself and its pointer will be stored into \fIresult\fR.
+Divide matrix \fIa\fR by matrix \fIb\fR. Results are stored into matrix pointed by pointer \fIresult\fR. If pointer pointed by \fIresult\fR is \fINULL\fR, a new matrix is automatically allocated by the function itself and its pointer will be stored into \fIresult\fR.
 .br
 The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in \fIPSGlobalAcceleration\fR are used, if any. However, the used accelerations methods can be changed via the \fIacceleration\fR member of the optional argument \fIopt\fR.
 .br

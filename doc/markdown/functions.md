@@ -2552,7 +2552,7 @@ In: maths.h, line: 179
 int PSMatrixDivide (PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt)
 ```
 
-Divide matrix **a** from matrix **b**. Results are stored into matrix pointed by pointer **result**. If pointer pointed by **result** is **NULL**, a new matrix is automatically allocated by the function itself and its pointer will be stored into **result**.  
+Divide matrix **a** by matrix **b**. Results are stored into matrix pointed by pointer **result**. If pointer pointed by **result** is **NULL**, a new matrix is automatically allocated by the function itself and its pointer will be stored into **result**.  
 The function can take advantage of the available accelerations (both hardwware and software). By default, accelerations set in **PSGlobalAcceleration** are used, if any. However, the used accelerations methods can be changed via the [acceleration](types.md#psmathopts) member of the optional argument **opt**.  
 Both matrices can be transposed using [transpose](types.md#psmathopts) field in the **opt** argument. In that case, [transpose](types.md#psmathopts) will contain the (1-based) indices of the matrix arguments you want to be transposed:  
 
