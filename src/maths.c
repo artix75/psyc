@@ -1293,7 +1293,7 @@ int PSMatrixProductMV(PSMatrix a, PSFloat *b, long len, PSFloat **result,
         else {
             nd = 1;
             if (scalar_a) ld = len;
-            else ld = (transpose & 1 ? dims_a[nd] : dims_a[0]);
+            else ld = len_a;
         }
     } else {
         nd = ndims - 1;
@@ -2264,7 +2264,7 @@ int PSMatrixSubtract(PSMatrix a, PSMatrix b, PSMatrix *result, PSMathOpts *opt)
                                   __func__, opt);
 }
 
-/* Divide matrix `a` from matrix `b`. Results are stored into matrix pointed
+/* Divide matrix `a` by matrix `b`. Results are stored into matrix pointed
  * by pointer `result`. If pointer pointed by `result` is NULL, a new matrix is
  * automatically allocated by the function itself and its pointer will be
  * stored into `result`.
