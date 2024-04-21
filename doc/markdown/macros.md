@@ -930,7 +930,7 @@ In: convolutional.h, line: 28
 #define PS_PADDING_SAME -1
 ```
 
-Automatically determine padding in order to make the output size the same as the input size (padding = filter_width / 2). Stride must be 1, filter_height must be 1 or the same of filer_width and filter_width must be odd.
+Automatically determine padding in order to make the output size the same as the input size (padding = filter_width / 2). Stride must be 1, filter_height must be 1 or the same of filter_width and filter_width must be odd.
 
 
 ### PS_PARAM_BIAS
