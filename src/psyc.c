@@ -3542,10 +3542,7 @@ void PSModelFree(PSModel *model) {
 
 void PSDeleteNeuron(PSNeuron *neuron) {
     if (neuron == NULL) return;
-    if (neuron->extra != NULL) {
-        /* TODO: extra currently unused for neurons */
-        free(neuron->extra);
-    }
+    free(neuron->extra);
     free(neuron);
 }
 
@@ -3834,7 +3831,6 @@ PSLayer *PSAddLayer(PSModel *model, PSLayerType type, long size,
         initialized = initGenericLayer(layer, size, previous_size, layer_def);
     } else if (type == Convolutional) {
         initialized = PSInitConvolutionalLayer(model, layer, layer_def);
-        /* TODO: Make PSCrossEntropyLoss default also for convolutional? */
     } else if (type == Pooling) {
         initialized = PSInitPoolingLayer(model, layer, layer_def);
     } else if (type == RNNLayer) {
@@ -4255,7 +4251,10 @@ int beforeModelForward(PSModel *model, PSFloat **inputs_p,
             model->previous_model_link = NULL;
             return 0;
         }
-        int do_feed_input = (
+        /* Use previous linked layer's output as input to `model` when the
+         * first layer of `model` is linked to a layer of the previous model
+         * having the same size. */
+        int input_is_prev_output = (
             link->layer->index == 0 &&
             link->layer->size == link->previous_layer->size
         );
@@ -4268,7 +4267,7 @@ int beforeModelForward(PSModel *model, PSFloat **inputs_p,
             seqlen = PSStateSequenceLength(link->previous_layer);
             outputs = PSLayerStates(link->previous_layer);
         }
-        if (do_feed_input) *inputs_p = outputs;
+        if (input_is_prev_output) *inputs_p = outputs;
         else {
             /* Use link to forward data from previous model. */
             /* TODO (S2S): return 0 if model doesn't support autogression ? */
@@ -5918,7 +5917,6 @@ void updateTrainingAccuracy(PSModel *model, PSFloat *outputs, PSFloat *targets,
  * The function will return the calculated error (loss). */
 PSFloat updateModelParameters(PSModel *model,
                               PSFloat *training_data,
-                              long num_examples,
                               PSFloat rate, PSTrainingOptions* opts, ...)
 {
     static PSTrainingOptions dfopts = {0};
@@ -5974,7 +5972,6 @@ PSFloat updateModelParameters(PSModel *model,
             goto final;
         }
     }
-    UNUSED(num_examples); /* TODO: remove num_examples arg if not needed */
     PSOptimization optimization = PSSGDOptimization;
     int use_weight_decay = 0, divide_grads_by_batches = 0, training_flags = 0;
     if (opts != NULL) {
@@ -6297,8 +6294,7 @@ PSFloat trainEpoch(PSModel *model,
         struct timeval st, et;
         gettimeofday(&st, NULL);
         PSFloat batch_loss = updateModelParameters(
-            model, training_data, num_examples, learning_rate,
-            options, sequence_head
+            model, training_data, learning_rate, options, sequence_head
         );
         if (PSModelGetStatus(model) == PS_STATUS_ERROR) {
             PSErr(NULL, "Gradient descent failed at batch %d for model '%s'",

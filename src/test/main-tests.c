@@ -292,7 +292,6 @@ PSGradient ***backprop(PSModel *model, PSFloat *x, PSFloat *y,
 
 PSFloat updateModelParameters(PSModel *model,
                               PSFloat *training_data,
-                              long num_examples,
                               PSFloat rate, PSTrainingOptions* opts, ...);
 
 PSFloat *PSGetDropoutMask(PSLayer *layer, long t);
@@ -2220,13 +2219,10 @@ int testRNNStep(TestCase *test_case, Test *test) {
     PSResetModelStateSequences(model, 0, 0);
     PSFloat *training_data = getTestData(test_case);
     PSFloat **sequences = &training_data;
-    long num_examples = (long) *training_data;
-
     int i, j, w;
     PSTrainingOptions topts = {.batch_size = 1};
     PSFloat loss = updateModelParameters(
-        model, training_data, num_examples, RNN_LEARNING_RATE,
-        &topts, sequences
+        model, training_data, RNN_LEARNING_RATE, &topts, sequences
     );
     PSFloat expected_loss = 1.395162;
     int loss_equals = compareFloats(loss, expected_loss, 0,4);
@@ -3640,7 +3636,6 @@ int beforeEncoderBackprop(PSModel *encoder, PSFloat *y,
 int testEncodedDecoderBackprop(TestCase *test_case, Test *test) {
     encDecBackpropTest = test;
     int ok = 1;
-    int num_examples = 1;
     PSFloat training_data[] = {
         2, 2, 1, 1, 2,
     };
@@ -3666,7 +3661,7 @@ int testEncodedDecoderBackprop(TestCase *test_case, Test *test) {
     PSFloat *seq[] = {NULL};
     seq[0] = training_data;
     PSFloat loss = updateModelParameters(
-        model, training_data, num_examples, 0.3, &opts, seq
+        model, training_data, 0.3, &opts, seq
     );
     PSFloat expected_loss = 0.004653;
     ok = compareFloats(loss, expected_loss, 0, 4);
