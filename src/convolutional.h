@@ -23,7 +23,7 @@
 
 /* Automatically determine padding in order to make the output size the same
  * as the input size (padding = filter_width / 2). Stride must be 1,
- * filter_height must be 1 or the same of filer_width and filter_width must be
+ * filter_height must be 1 or the same of filter_width and filter_width must be
  * odd. */
 #define PS_PADDING_SAME -1
 /* Automatically determine padding so that the output size is always bigger

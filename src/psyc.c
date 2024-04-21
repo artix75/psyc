@@ -7068,15 +7068,6 @@ int PSModelCheck(PSModel *model) {
                       "Convolutional Neural Networks");
                 return 0;
             }
-            /* TODO: remove this contraint */
-            if (model->flags & PS_FLAG_RECURRENT) {
-                PSErr(
-                    __func__,
-                    "Sorry, Convolutional layers aren't yet supported "
-                    "on Recurrent Neural Networks :("
-                );
-                return 0;
-            }
         }
         if (layer->activate == PSSigmoid &&
             layer->derivative != PSSigmoidDerivative) {

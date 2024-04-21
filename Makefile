@@ -37,11 +37,10 @@ default: all
 .PHONY: psyc-main
 .PHONY: demo
 .PHONY: test
-.PHONY: profile
 .PHONY: benchmark
 .PHONY: install
 .PHONY: uninstall
-.PHONY: valgrinf
+.PHONY: valgrind
 .PHONY: helgrind
 .PHONY: all
 .PHONY: default
