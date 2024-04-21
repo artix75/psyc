@@ -15,7 +15,7 @@
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-/* This demos tries to emulate GPT-2 model developed by OpenAI
+/* This demos tries to emulate the GPT-2 model developed by OpenAI, Inc.
  * (https://github.com/openai/gpt-2) using PsyC library. */
 
 #include <stdio.h>
