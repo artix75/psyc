@@ -20,6 +20,9 @@
 
 #include "psyc.h"
 
+#define PS_EMBED_PRETRAIN_DEFAULT_EPOCHS        50
+#define PS_EMBED_PRETRAIN_DEFAULT_LEARN_RATE    0.1
+
 /* PSWord2Vec embedding type is based on Word2Vec algorithm created by
  * Tomas Mikolov: https://scholar.google.com/citations?user=oBu8kMMAAAAJ&hl=en
  * Reference: https://code.google.com/archive/p/word2vec/

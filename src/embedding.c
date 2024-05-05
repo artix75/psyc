@@ -275,11 +275,12 @@ int PSPretrainEmbeddingLayer(PSLayer *layer, PSFloat *training_data,
     }
     PSTrainingOptions *options = &(settings->training_options);
     if (options->epochs <= 0)
-        options->epochs = 50;/* TODO: use a constant or automatic calc.*/
+        options->epochs = PS_EMBED_PRETRAIN_DEFAULT_EPOCHS;
     if (options->learning_rate <= 0)
-        options->learning_rate = 0.1; /* TODO: use a constant or autocalc.*/
-    PSTrain(pretrainer, pretrain_data, pretraining_num_examples, NULL, 0,
-            options);
+        options->learning_rate = PS_EMBED_PRETRAIN_DEFAULT_LEARN_RATE;
+    PSTrain(
+        pretrainer, pretrain_data, pretraining_num_examples, NULL, 0, options
+    );
     if (PSModelGetStatus(pretrainer) == PS_STATUS_ERROR) {
         PSErr(__func__, "Layer[%d]: pretraining failed!",
               layer->index);

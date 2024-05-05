@@ -234,7 +234,10 @@ int PSRecurrentBackprop(PSLayer *layer, PSLayer *previous_layer,
         mopts.store_mode = PS_STORE_MODE_SET;
         if (!onehot) {
             PSFloat *prev_layer_outputs = PSLayerStates(previous_layer, tt);
-            assert(prev_layer_outputs != NULL); /* TODO: emit error */
+            if (prev_layer_outputs == NULL) {
+                PSErrNN(NULL, NULL, layer, "null previous states");
+                return 0;
+            }
             if (use_bias) PSAddVectors(
                 delta, gradients->biases, gradients->biases, layer->size,&mopts
             );
