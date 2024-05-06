@@ -141,7 +141,7 @@ After installing it, PsyC will provide:
    ```c
    PSFloat training_data[] = {...};
    PSTraningOptions opts = {.learning_rate = 0.01};
-   int datalen = (int) sizeof(training_data) / sizeof(PSFloat);
+   long datalen = (long) sizeof(training_data) / sizeof(PSFloat);
    PSTrain(model, training_data, datalen, NULL, 0, &opts);
    ```
 
@@ -200,7 +200,7 @@ To see its usage:
 
 ### Demos
 
-PsyC also provides several demos.
+PsyC also provides several [demos](src/demo/).
 
 - MNIST demo
 - CIFAR demo
