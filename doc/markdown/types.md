@@ -323,7 +323,7 @@ typedef void (* PSDotProductDebug) (void)
 
 ### PSEmbeddingType
 
-In: embedding.h, line: 27
+In: embedding.h, line: 30
 
 ```c
 typedef enum {  

@@ -541,7 +541,7 @@ int PSClassifyImage (PSModel *model, char *filename, int grayscale, int invert, 
 
 ### PSCreateWord2VecTrainingData
 
-In: embedding.h, line: 32
+In: embedding.h, line: 35
 
 ```c
 PSFloat  * PSCreateWord2VecTrainingData (PSFloat *tokens, long token_count, long window_size, long vocabulary_size, int onehot, long *num_examples_ptr)
@@ -1615,7 +1615,7 @@ char  * PSGetElapsedTimeString (time_t elapsed_us, int long_format)
 
 ### PSGetEmbeddingVocabularySize
 
-In: embedding.h, line: 31
+In: embedding.h, line: 34
 
 ```c
 long PSGetEmbeddingVocabularySize (PSLayer *layer)

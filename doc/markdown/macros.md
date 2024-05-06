@@ -346,6 +346,28 @@ In: dataset.h, line: 101
 
 
 
+### PS_EMBED_PRETRAIN_DEFAULT_EPOCHS
+
+In: embedding.h, line: 23
+
+```c
+#define PS_EMBED_PRETRAIN_DEFAULT_EPOCHS 50
+```
+
+
+
+
+### PS_EMBED_PRETRAIN_DEFAULT_LEARN_RATE
+
+In: embedding.h, line: 24
+
+```c
+#define PS_EMBED_PRETRAIN_DEFAULT_LEARN_RATE 0.1
+```
+
+
+
+
 ### PS_FLAG_ACCEL_DISABLED
 
 In: psyc.h, line: 86
