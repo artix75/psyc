@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2024 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+ * Copyright (C) 2016-present Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms are permitted
@@ -35,4 +35,3 @@ const char *PSGetOperatorLayerTypeLabel(PSOperatorType operator);
 PSLayer **PSGetOperatorLayerProviders(PSLayer *layer, int *count);
 
 #endif /* __PS_OPERATOR_H */
-
