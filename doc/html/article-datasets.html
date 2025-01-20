@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-Copyright (C) 2016-2024 Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
+Copyright (C) 2016-current Giuseppe Fabio Nicotra <artix2 at gmail dot com>.
 All rights reserved.
 
 Redistribution and use in source and binary forms are permitted
@@ -44,7 +44,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
            </nav>
        </header>
        <main>
-           <nav id="sidebar">
+           <nav id="sidebar" class="sidebar">
                <h2>Articles</h2>
                <ul>
 <li><a href="article-datasets.html" class="current">Datasets</a></li>
@@ -59,7 +59,7 @@ Datasets are collections of data and are generally used to train models. This
 article talks about how datasets are used by PsyC.
 </p>
 <p>
-<h2>Uses</h2>
+<h2 id="uses">Uses</h2>
 </p>
 <p>
 Datasets are usually used to train models (see <a class="psyc-func" href="functions.html#function-pstrain">PSTrain</a>). They can also be
@@ -75,7 +75,7 @@ Finally, data used as input for neural networks predictions has a very similar
 structure to datasets used for training (see below).
 </p>
 <p>
-<h2>Structure</h2>
+<h2 id="structure">Structure</h2>
 </p>
 <p>
 Basically, PsyC datasets are arrays of <a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> numbers. When they're used as
@@ -84,7 +84,7 @@ called <em>targets</em> or <em>labels</em> in classification tasks).
 They can come in two flavours: standard datasets and sequence datasets.
 </p>
 <p>
-<h3>Standard Datasets</h3>
+<h3 id="standard-datasets">Standard Datasets</h3>
 </p>
 <p>
 Standard datasets are quite simple since they represent the input data to be
@@ -135,11 +135,11 @@ Example:
 </div>
 </p>
 <p>
-<h2>Sequence Datasets</h2>
+<h3 id="sequence-datasets">Sequence Datasets</h3>
 </p>
 <p>
-Sequence datasets are composed of seqquences of inputs, so in this case every
-input sample is a squence of inputs instead of a single input.
+Sequence datasets are composed of sequences of inputs, so in this case every
+input sample is a sequence of inputs instead of a single input.
 Sequence datasets are tipically used with recurrent neural networks or with
 models that take sequences as inputs (ie. text generative models).
 Dataset created from text are a typical example of this kind of dataset, since
@@ -171,7 +171,7 @@ training options (<a class="psyc-type" href="types.html#struct-pstrainingoptions
 </p>
 <p>
 In order for PsyC to correctly handle sequences' data, the sequence length must precede the data itself.
-So if the input size is 4 and the sequence is made by 2 inputs, they  would be
+So if the input size is 4 and the sequence is made of 2 inputs, they  would be
 represented by 9 <a class="psyc-type" href="types.html#type-psfloat">PSFloat</a> elements: the first element would be the sequence
 length (2 in this case) and the following 8 elements would contain the two
 inputs of size 4.
@@ -308,6 +308,18 @@ Examples:
 </p>
 
 </section>
+           <nav id="right-sidebar" class="sidebar">
+<h2>Table Of Contents</h2>
+<ul class="article-toc">
+<li><a href="#uses">Uses</a></li>
+<li><a href="#structure">Structure</a>
+<ul class="article-toc">
+<li><a href="#standard-datasets">Standard Datasets</a></li>
+<li><a href="#sequence-datasets">Sequence Datasets</a></li>
+</ul>
+</li>
+</ul>
+           </nav>
        </main>
        <footer>
            <div class="contacts">
@@ -316,7 +328,7 @@ Examples:
            <div class="license-info">
                <div class="license"><img src="License-BSD-3-Clause-blue.svg"> PsyC is released under the <a href="https://opensource.org/license/bsd-3-clause/">BSD-3 Clause</a>
                </div>
-               <div class="copyright">Copyright &copy; 2016-2024 Giuseppe Fabio Nicotra
+               <div class="copyright">Copyright &copy; 2016-current Giuseppe Fabio Nicotra
                </div>
            </div>
        </footer>

@@ -126,7 +126,7 @@ a:hover {
     flex-wrap: nowrap;
 }
 
-#sidebar {
+.sidebar {
     overflow-y: auto;
     max-height: 100%;
     height: 100%;
@@ -135,7 +135,7 @@ a:hover {
     padding: 0.5em;
 }
 
-#sidebar h2 {
+.sidebar h2 {
     text-transform: uppercase;
     font-size: 0.95em;
     /* border-bottom: 1px solid #f0f0f0; */
@@ -146,20 +146,20 @@ a:hover {
     font-weight: normal;
 }
 
-#sidebar li {
+.sidebar li {
     font-size: 0.9em;
     padding-bottom: 0.2em;
 }
 
-#sidebar li a.current {
+.sidebar li a.current {
     text-decoration: underline;
 }
 
-#sidebar ul {
+.sidebar ul {
     padding-top: 5px;
 }
 
-#sidebar ul, #doc {
+.sidebar ul, #doc {
     max-height: 100%;
     overflow-y: scroll;
     overflow-y: scroll;
@@ -474,4 +474,8 @@ ul#doc-contents ul.subcontents li a {
 
 .see-also ul li:first-child:before {
     content: '';
+}
+
+.article-toc li li {
+    padding-left: 0.5em;
 }

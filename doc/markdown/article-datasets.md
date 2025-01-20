@@ -69,10 +69,10 @@ PSFloat data[] = {
 
 ```
 
-## Sequence Datasets
+### Sequence Datasets
 
-Sequence datasets are composed of seqquences of inputs, so in this case every
-input sample is a squence of inputs instead of a single input.
+Sequence datasets are composed of sequences of inputs, so in this case every
+input sample is a sequence of inputs instead of a single input.
 Sequence datasets are tipically used with recurrent neural networks or with
 models that take sequences as inputs (ie. text generative models).
 Dataset created from text are a typical example of this kind of dataset, since
@@ -103,7 +103,7 @@ Sequence-to-Sequence models needs to set the [PS_TRAINING_FLAG_SEQ2SEQ](macros.m
 training options ([PSTrainingOptions](types.md#pstrainingoptions)) passed to [PSTrain](functions.md#pstrain) function.
 
 In order for PsyC to correctly handle sequences' data, the sequence length must precede the data itself.
-So if the input size is 4 and the sequence is made by 2 inputs, they  would be
+So if the input size is 4 and the sequence is made of 2 inputs, they  would be
 represented by 9 [PSFloat](types.md#psfloat) elements: the first element would be the sequence
 length (2 in this case) and the following 8 elements would contain the two
 inputs of size 4.
