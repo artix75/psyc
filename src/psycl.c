@@ -310,7 +310,8 @@ static void printLayerTypeHelp(PSLayerType type) {
 }
 
 static char *downloadMNISTDataset(char *path) {
-    static char *host = "http://dia.fi.upm.es/~lbaumela/PracRF11";
+    /*static char *host = "http://dia.fi.upm.es/~lbaumela/PracRF11";*/
+    static char *host = "https://raw.githubusercontent.com/fgnt/mnist/master";
     static char *dirname = "mnist";
     char url[PATH_MAX] = {0};
     char fpath[PATH_MAX] = {0};

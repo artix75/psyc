@@ -45,9 +45,9 @@ int PSUTF8CodepointSize(uint32_t cp) {
     int len = 0, i;
     static uint32_t beginnings[] = {0, 0000, 0200, 04000, 0200000};
     static uint32_t endings[] = {0, 0177, 03777, 0177777, 04177777};
-    for(i = 0; i < 4; i++) {
+    for (i = 0; i < 4; i++) {
         uint32_t beg = beginnings[i], end = endings[i];
-        if(cp >= beg && cp <= end) break;
+        if (cp >= beg && cp <= end) break;
         ++len;
     }
     if(len > 4) return -1; /* Out of bounds */

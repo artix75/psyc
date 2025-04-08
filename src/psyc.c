@@ -4565,7 +4565,8 @@ int PSAutoregression(PSModel *model, PSFloat *inputs,
 
 /* Forward `inputs` to `model` and get the index of the maximum state
  * from the output layer.
- * Return value: 1 if the process succeeds or 0 if:
+ * Return value: the index of the maximum state from the output layer or -1
+ * if something fails because:
  *  - `model` is NULL
  *  - `model` is not built.
  *  - The input layer doesn't take sequences as inputs and the output layer
@@ -6977,7 +6978,7 @@ void PSTrain(PSModel *model,
  * `data_size` argument.
  * Tests are usualy performed on a different dataset than the one used for
  * training in order to measure how the model performs on different data.
- * This can be useful to determine undefitting (the model is not sufficiently
+ * This can be useful to determine underfitting (the model is not sufficiently
  * trained) or overfitting (the model has been trained to much on the training
  * dataset and it cannot generalize its predictions to different examples).
  * Underfitting generally leads to lower performances in the training data,

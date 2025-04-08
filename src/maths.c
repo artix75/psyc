@@ -2429,8 +2429,7 @@ PSMatrix PSMatrixFlatten(PSMatrix matrix) {
  * matrix with more than two dimensions by an intermediate axis).
  * The optional `opts` argument can be used to change the default acceleration
  * methods (by default, `PSGlobalAcceleration` is used).
- * Return value: an array of `num_slices` sub-matrices whose length is or NULL
- * if:
+ * Return value: an array of `num_slices` sub-matrices or NULL if:
  *  - `matrix` is NULL.
  *  - `matrix` is empty.
  *  - `axis` is out of bounds.
@@ -2438,7 +2437,7 @@ PSMatrix PSMatrixFlatten(PSMatrix matrix) {
  *    the last axis.
  *  - The value of `num_slices` would not lead to an equal division
  *    (`shape[axis] % num_slices != 0`).
- *  - Memory cannot be allocate.
+ *  - Memory cannot be allocated.
  * NOTE: it's up to the developer using this function to free both the
  * sub-matrices (by using `PSMatrixFlatten`) and the returned array containing
  * them. */
@@ -2630,7 +2629,7 @@ final:
  * dimension of the shape, so, for example, swapping the axes -1 and -2 of
  * a matrix with shape 2,3,4 would create a matrix with shape of 2,4,3.
  * If both `axis1` and `axis2` refer to the same axis, the function will
- * return a duplicated versiob of `matrix`.
+ * return a duplicated version of `matrix`.
  * NOTE: despite calling this function with the first and the last axis would
  * have the same result of `PSMatrixTranspose` in terms of matrix data and
  * shape, the swapped matrix created by `PSMatrixSwapAxes` always is an
@@ -2773,7 +2772,7 @@ void PSMatrixResetTransposed(PSMatrix matrix) {
 }
 
 /* Free `matrix` by also deleting all its private data (including the cached
- * transposed versiob of `matrix` if any).
+ * transposed version of `matrix` if any).
  * If `matrix` is NULL, the function will directly return. */
 void PSMatrixFree(PSMatrix matrix) {
     if (matrix == NULL) return;
@@ -3442,7 +3441,7 @@ PSFloat *PSVectorTanh(PSFloat *a, PSFloat *dest, long length, PSMathOpts *opts)
     return dest;
 }
 
-/* Compute base-e (Euler's number) exponential  on every element of vector `a`
+/* Compute base-e (Euler's number) exponential on every element of vector `a`
  * having length defined by `length`.
  * Results are stored into the optional `dest` arguments. If `dest` is NULL,
  * a new vector will be allocated and its address will be  returned by the

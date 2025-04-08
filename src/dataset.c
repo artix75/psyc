@@ -905,7 +905,7 @@ char *PSNormalizeToken(char *token, size_t len) {
 
 /**** Generic Dataset Functions. ****/
 
-/* Split `data` into two separated datasets. This function can useful to
+/* Split `data` into two separated datasets. This function can be useful to
  * separate validation data used for testing models from data used for
  * training them.
  * The `datalen` argument must contain the length (number of elements) of the

@@ -83,7 +83,8 @@ static char *getExecutableRootPath(char *executable) {
 }*/
 
 static char *downloadMNISTDataset(void) {
-    static char *host = "http://dia.fi.upm.es/~lbaumela/PracRF11";
+    /*static char *host = "http://dia.fi.upm.es/~lbaumela/PracRF11";*/
+    static char *host = "https://raw.githubusercontent.com/fgnt/mnist/master";
     static char *fnames[] = {
         "train-images-idx3-ubyte.gz", "train-labels-idx1-ubyte.gz",
         "t10k-images-idx3-ubyte.gz", "t10k-labels-idx1-ubyte.gz"
@@ -168,7 +169,7 @@ void printHelp(char *executable) {
     printf("  --learning-rate RATE                  Learning Rate "
         "(def. %g)\n", LEARNING_RATE);
     printf("  -l, --load MODEL_FILE                 Load model\n");
-    printf("  --optimization                        Training Optimization \n"
+    printf("  --optimization NAME                   Training Optimization \n"
            "                                        "
            "(adagrad,adadelta,adam,windowgrad,\n"
            "                                        "

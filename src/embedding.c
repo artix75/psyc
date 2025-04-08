@@ -300,7 +300,7 @@ final:
     return success;
 }
 
-/* Embedding laer functions */
+/* Embedding layer functions */
 
 long PSGetEmbeddingVocabularySize(PSLayer *layer) {
     if (layer == NULL) return 0;

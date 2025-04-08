@@ -263,7 +263,7 @@ char *encodeToken(char *token) {
     uint8_t c;
     size_t newlen = 0;
     while ((c = *p)) {
-        uint32_t cp = BytesToUnicode[c];
+        uint32_t cp = BytesToUnicode[c]; /* Codepoint */
         int clen = PSUTF8CodepointSize(cp);
         size_t preceding_len = 0;
         /* Skip character until it does not require encoding. If the original

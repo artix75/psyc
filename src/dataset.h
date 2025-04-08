@@ -133,9 +133,8 @@ struct PSVocabulary;
  *               that is not present in the vocabulary will not be added and
  *               will be considered <unknown> (see the `unknown_token` option).
  *             - See also: `PS_PARSER_FLAG_ENCODE_ONLY`,
- *               `PS_PARSER_FLAG_MAKE_TARGETS`, `PS_PARSER_FLAG_ENCODE_ONLY`,
- *               `PS_PARSER_FLAG_START_TOKEN`, `PS_DEFAULT_END_TOKEN`,
- *               `PS_PARSER_FLAG_EXACT_INPUTS`.
+ *               `PS_PARSER_FLAG_MAKE_TARGETS`, `PS_PARSER_FLAG_START_TOKEN`,
+ *               `PS_PARSER_FLAG_END_TOKEN`, `PS_PARSER_FLAG_EXACT_INPUTS`.
  *  - `max_vocabulary_size`: maximum number of tokens that can be added to
  *                           the vocabulary, except for the <unknown> token.
  *                           Every new parsed token will be automatically
