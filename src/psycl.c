@@ -775,10 +775,10 @@ static void printAccelerationInfo(PSAcceleration acceleration) {
     if (!PSIsAccelerationAvailable(acceleration)) return;
     if (acceleration == PSAcceleration_AVX) {
         label = "AVX";
-        prop = "--avx";
+        prop = "--disable-avx";
     } else if (acceleration == PSAcceleration_Accelerate) {
         label = "Accelerate Framework";
-        prop = "--accelerate-framework";
+        prop = "--disable-accelerate";
     } else if (acceleration == PSAcceleration_BLAS) {
 #if defined(__APPLE__) && defined(HAS_ACCELERATE_FRAMEWORK)
         if (PSIsAccelerationAvailable(PSAcceleration_Accelerate))
@@ -788,7 +788,7 @@ static void printAccelerationInfo(PSAcceleration acceleration) {
 #endif
         if (notes == NULL) notes = "(native)";
         label = "BLAS";
-        prop = "--blas";
+        prop = "--disable-blas";
     } else return;
     if (notes == NULL) notes = "";
     printf("%-25s %-25s %s\n", label, prop, notes);
