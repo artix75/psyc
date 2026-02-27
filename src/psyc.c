@@ -4638,7 +4638,7 @@ PSGradient *createLayerGradient(PSLayer *layer) {
 PSGradient **createModelGradients(PSModel *model) {
     if (model == NULL) return NULL;
     if (model->size < 2) return NULL;
-    PSGradient **gradients = malloc(sizeof(PSGradient*) * model->size - 1);
+    PSGradient **gradients = malloc(sizeof(PSGradient*) * (model->size - 1));
     if (gradients == NULL) {
         PSPrintMemoryErrorMsg();
         return NULL;

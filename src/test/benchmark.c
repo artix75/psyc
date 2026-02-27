@@ -133,8 +133,8 @@ int disable_prerun = 0;
 int verbose = 0;
 
 /* Forward decl. */
-PSGradient **backprop(PSModel *model, PSFloat *x, PSFloat *y,
-                      PSTrainingOptions *opts, PSGradient **gradients);
+PSGradient ***backprop(PSModel *model, PSFloat *x, PSFloat *y,
+                       PSTrainingOptions *opts, PSGradient ***gradients);
 
 /* Helpers */
 static int compareResults(const void * a, const void * b) {
@@ -2615,7 +2615,7 @@ int cifarCNNBackpropBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     int ok = 1;
     PSMatrix x = NULL;
     PSModel *model = makeCIFARLikeCNN();
-    PSGradient **gradients = NULL;
+    PSGradient ***gradients = NULL;
     ok = model != NULL;
     if (!ok) goto final;
     x = PSMatrixWithGaussianRandom(1, 1, PS_CIFAR_IMAGE_SIZE);
@@ -2686,7 +2686,7 @@ int cifarCNNBackpropBenchmark(PSBenchmarkConfig *cfg, int *num_results,
     res += 1;
 final:
     if (gradients != NULL && model != NULL)
-        PSDeleteModelGradients(gradients, model);
+        PSDeleteGradientsChain(gradients, model);
     if (model != NULL) PSModelFree(model);
     PSMatrixFree(x);
     return ok;
